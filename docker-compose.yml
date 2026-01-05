@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: tmo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tmo
+      POSTGRES_PASSWORD: tmo
+      POSTGRES_DB: tmo
+    ports:
+      - "5432:5432"
+    volumes:
+      - tmo-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tmo -d tmo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  tmo-postgres-data:

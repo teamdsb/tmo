@@ -12,10 +12,13 @@
 
 - [x] (2026-01-05 08:44Z) 完成 ExecPlan 初稿。
 - [x] (2026-01-05 08:46Z) 将 ExecPlan 改写为中文并保留结构要求。
-- [ ] 搭建最小可运行 Go + Gin 后端与 Postgres 连接，目录为 backend/。
-- [ ] 增加业务员与客户归属的数据表与迁移。
-- [ ] 实现绑定、查询与管理员转移接口。
-- [ ] 增加开发态鉴权占位与种子数据工具，便于链路验证。
+- [x] (2026-01-05 09:00Z) 搭建最小可运行 Go + Gin 后端与 Postgres 连接，目录为 backend/。
+- [x] (2026-01-05 09:00Z) 增加业务员与客户归属的数据表与迁移。
+- [x] (2026-01-05 09:00Z) 实现绑定、查询与管理员转移接口。
+- [x] (2026-01-05 09:00Z) 增加开发态鉴权占位与种子数据工具，便于链路验证。
+- [x] (2026-01-05 09:06Z) 新增 Docker Compose 以容器方式启动 Postgres，并提供后端 Dockerfile。
+- [x] (2026-01-05 09:14Z) 新增 Makefile 快捷命令（pg-up/pg-down/pg-migrate/dev-run/docker-run）。 
+- [x] (2026-01-05 09:19Z) 补充关闭命令（pg-stop、docker-stop）以便快速停止容器。
 - [ ] 用 curl 验证完整绑定与转移流程并记录输出。
 
 ## Surprises & Discoveries
@@ -33,6 +36,9 @@
 - Decision: 使用请求头开发态鉴权占位（X-Customer-Id 与 X-Role=admin）。
   Rationale: 当前无正式鉴权体系，先保证链路可测试，后续易替换。
   Date/Author: 2026-01-05 / codex
+- Decision: UUID 在 Go 侧生成并写入数据库，不启用 pgcrypto 扩展。
+  Rationale: 避免数据库扩展依赖，降低快速验证分支的初始化复杂度。
+  Date/Author: 2026-01-05 / codex
 
 ## Outcomes & Retrospective
 
@@ -40,7 +46,7 @@
 
 ## Context and Orientation
 
-本仓库目前只有需求文档（doc/requirements.md）与参考摘要（doc/references/digest.md），尚未建立后端或前端代码。本计划将在 backend/ 下建立最小可运行后端，用于完成业务员绑定与客户归属链路。
+本仓库已新增 backend/ 目录，用于快速验证后端链路。核心路径包括 backend/cmd/server（服务入口）、backend/internal/config（配置）、backend/internal/db（数据库连接）、backend/internal/store（存储层）、backend/internal/handlers（HTTP 处理器）、backend/db/migrations（数据库迁移）。
 
 术语说明：
 - 业务员（Salesperson）：可归属客户的人员，在 sales_profiles 表中存储。
@@ -53,7 +59,7 @@
 
 先在 backend/ 下搭建一个最小 Go 服务，使用 Gin 提供 HTTP 接口。加入配置读取与数据库连接（pgxpool），并添加健康检查路由用于验证服务启动。
 
-然后在 backend/db/migrations 中创建迁移文件，新增 sales_profiles 与 customers 表。sales_profiles 保存 id（uuid）、name、bind_code 与 created_at。customers 保存 id（uuid）、name、phone、sales_id（可为空）与 created_at。为 bind_code 建唯一索引，customers.sales_id 指向 sales_profiles.id。若使用 gen_random_uuid()，需启用 pgcrypto 扩展；否则在 Go 中生成 UUID 并入库。
+然后在 backend/db/migrations 中创建迁移文件，新增 sales_profiles 与 customers 表。sales_profiles 保存 id（uuid）、name、bind_code 与 created_at。customers 保存 id（uuid）、name、phone、sales_id（可为空）与 created_at。为 bind_code 建唯一索引，customers.sales_id 指向 sales_profiles.id。UUID 由 Go 生成并写入数据库。
 
 接着在 backend/internal/store 中实现显式的存储层函数，包含创建、查询、绑定与转移。绑定必须幂等：仅在 customers.sales_id 为空时写入；若已有归属，返回“已绑定”。转移必须覆盖原有归属，并返回旧 sales_id 以便日后审计扩展。
 
@@ -72,7 +78,7 @@
 
 1) 创建后端模块与目录。
 
-    mkdir -p backend/cmd/server backend/internal/config backend/internal/db backend/internal/store backend/internal/http backend/db/migrations
+    mkdir -p backend/cmd/server backend/internal/config backend/internal/db backend/internal/store backend/internal/handlers backend/db/migrations
     cd backend
     go mod init tmo
 
@@ -81,12 +87,11 @@
 3) 在 backend/internal/config 与 backend/internal/db 中实现 DATABASE_URL 配置读取与 pgxpool 连接。
 
 4) 在 backend/db/migrations 创建迁移：
-   - 001_enable_pgcrypto.sql（如需 gen_random_uuid）
-   - 002_create_sales_and_customers.sql（表与索引）
+   - 001_create_sales_and_customers.sql（表与索引）
 
 5) 在 backend/internal/store 实现数据库读写函数，并与数据库连接绑定。
 
-6) 在 backend/internal/http 实现处理器，并在 main.go 中注册路由。
+6) 在 backend/internal/handlers 实现处理器，并在 main.go 中注册路由。
 
 7) 启动数据库（任选其一）：
    - 使用本地 Postgres 并设置 DATABASE_URL。
@@ -135,7 +140,7 @@
 - Go 1.22 或更高
 - github.com/gin-gonic/gin
 - github.com/jackc/pgx/v5/pgxpool
-- github.com/google/uuid（若在 Go 中生成 UUID）
+- github.com/google/uuid
 
 数据结构（建议放在 backend/internal/store/types.go）：
 
@@ -167,4 +172,4 @@
 
 HTTP 处理器必须对应这些路由与行为；绑定接口调用 BindCustomerToSales，返回 false 时响应 status="already_bound" 并返回现有 sales_id。
 
-Plan change note: 将 .agent/PLANS.md 全文改写为中文，并在 Progress 中记录该改动，原因是用户明确要求中文版本（2026-01-05 / codex）。
+Plan change note: 增补 Makefile 快捷命令，并在 Progress 中记录该变更（2026-01-05 / codex）。
