@@ -19,11 +19,14 @@
 - [x] (2026-01-05 09:06Z) 新增 Docker Compose 以容器方式启动 Postgres，并提供后端 Dockerfile。
 - [x] (2026-01-05 09:14Z) 新增 Makefile 快捷命令（pg-up/pg-down/pg-migrate/dev-run/docker-run）。 
 - [x] (2026-01-05 09:19Z) 补充关闭命令（pg-stop、docker-stop）以便快速停止容器。
-- [ ] 用 curl 验证完整绑定与转移流程并记录输出。
+- [x] (2026-01-05 09:34Z) 新增绑定链路的 Go 集成测试，并在 Makefile 测试目标中传入 DATABASE_URL。
+- [x] (2026-01-05 09:34Z) 用 make 启动 Postgres 与后端容器并运行 go test 验证链路。
+- [x] (2026-01-05 09:41Z) 用 curl 验证完整绑定与转移流程并记录输出。
 
 ## Surprises & Discoveries
 
-- 暂无。
+- 观察：Docker 构建在 go 1.22 镜像下失败，因 go.mod 要求 go 1.25.5。
+  Evidence: docker build 报错 "go.mod requires go >= 1.25.5 (running go 1.22.12)"。
 
 ## Decision Log
 
@@ -38,6 +41,9 @@
   Date/Author: 2026-01-05 / codex
 - Decision: UUID 在 Go 侧生成并写入数据库，不启用 pgcrypto 扩展。
   Rationale: 避免数据库扩展依赖，降低快速验证分支的初始化复杂度。
+  Date/Author: 2026-01-05 / codex
+- Decision: 后端 Dockerfile 使用 golang:1.25.5-alpine 以匹配 go.mod。
+  Rationale: 解决镜像版本与 go.mod 版本不一致导致的构建失败。
   Date/Author: 2026-01-05 / codex
 
 ## Outcomes & Retrospective
@@ -172,4 +178,31 @@
 
 HTTP 处理器必须对应这些路由与行为；绑定接口调用 BindCustomerToSales，返回 false 时响应 status="already_bound" 并返回现有 sales_id。
 
-Plan change note: 增补 Makefile 快捷命令，并在 Progress 中记录该变更（2026-01-05 / codex）。
+Plan change note: 记录集成测试新增、Dockerfile Go 版本调整、以及用 make 验证链路的进展（2026-01-05 / codex）。
+
+Plan change note: 运行 curl 链路验证并记录输出（2026-01-05 / codex）。
+
+## Artifacts and Notes (run 2026-01-05)
+
+Curl 运行结果：
+
+    curl -X POST http://localhost:8080/api/admin/sales -H 'X-Role: admin' -H 'Content-Type: application/json' -d '{"name":"Alice"}'
+    # {"bind_code":"e3ddf78f4de4410a99275d76f4147001","created_at":"2026-01-05T09:40:12.022858Z","id":"823d712f-f9ac-4893-add2-f187dfc0408b","name":"Alice"}
+
+    curl -X POST http://localhost:8080/api/admin/sales -H 'X-Role: admin' -H 'Content-Type: application/json' -d '{"name":"Bob"}'
+    # {"bind_code":"255f85f34bf544ad8a51e1b70851c183","created_at":"2026-01-05T09:40:19.92609Z","id":"ddd25a03-94ad-4f43-a5c9-b76ab8d45956","name":"Bob"}
+
+    curl -X POST http://localhost:8080/api/admin/customers -H 'X-Role: admin' -H 'Content-Type: application/json' -d '{"name":"Buyer"}'
+    # {"created_at":"2026-01-05T09:40:24.383892Z","id":"384308a6-c96e-4a04-ac68-53adca2b8522","name":"Buyer","phone":"","sales_id":null}
+
+    curl -X POST http://localhost:8080/api/sales/bind -H 'X-Customer-Id: 384308a6-c96e-4a04-ac68-53adca2b8522' -H 'Content-Type: application/json' -d '{"bind_code":"e3ddf78f4de4410a99275d76f4147001"}'
+    # {"sales_id":"823d712f-f9ac-4893-add2-f187dfc0408b","status":"bound"}
+
+    curl -X POST http://localhost:8080/api/sales/bind -H 'X-Customer-Id: 384308a6-c96e-4a04-ac68-53adca2b8522' -H 'Content-Type: application/json' -d '{"bind_code":"e3ddf78f4de4410a99275d76f4147001"}'
+    # {"sales_id":"823d712f-f9ac-4893-add2-f187dfc0408b","status":"already_bound"}
+
+    curl -X POST http://localhost:8080/api/admin/customers/transfer -H 'X-Role: admin' -H 'Content-Type: application/json' -d '{"customer_id":"384308a6-c96e-4a04-ac68-53adca2b8522","new_sales_id":"ddd25a03-94ad-4f43-a5c9-b76ab8d45956"}'
+    # {"new_sales_id":"ddd25a03-94ad-4f43-a5c9-b76ab8d45956","old_sales_id":"823d712f-f9ac-4893-add2-f187dfc0408b","status":"transferred"}
+
+    curl -X GET http://localhost:8080/api/admin/customers/384308a6-c96e-4a04-ac68-53adca2b8522 -H 'X-Role: admin'
+    # {"created_at":"2026-01-05T09:40:24.383892Z","id":"384308a6-c96e-4a04-ac68-53adca2b8522","name":"Buyer","phone":"","sales_id":"ddd25a03-94ad-4f43-a5c9-b76ab8d45956"}
