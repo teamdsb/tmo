@@ -1,0 +1,203 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--color-bg-white);
+}
+
+.topBar {
+  padding: 18px 16px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.iconButton {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+}
+
+.iconText {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.searchWrap {
+  padding: 0 16px 12px;
+}
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f1f5f9;
+  border-radius: 12px;
+  padding: 8px 12px;
+}
+
+.searchIcon {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.searchInput {
+  flex: 1;
+  font-size: 13px;
+  color: var(--color-text-main);
+}
+
+.searchPlaceholder {
+  color: var(--color-text-muted);
+}
+
+.filterRow {
+  padding: 0 16px 12px;
+  white-space: nowrap;
+}
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  margin-right: 8px;
+}
+
+.filterChipActive {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  margin-right: 8px;
+}
+
+.filterChipText {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-light);
+}
+
+.filterChipTextActive {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.list {
+  flex: 1;
+}
+
+.listItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatarText {
+  font-size: 14px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.listBody {
+  flex: 1;
+}
+
+.listName {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.listEmail {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--color-text-light);
+}
+
+.linkRow {
+  margin-top: 8px;
+}
+
+.linkPill {
+  display: inline-flex;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.linkText {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.statusLinked {
+  background: #dbeafe;
+  color: var(--color-primary);
+}
+
+.statusUnlinked {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.statusVip {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.chevron {
+  font-size: 16px;
+  color: var(--color-text-light);
+  padding-top: 4px;
+}
+
+.listSpacer {
+  height: 40px;
+}
+
+.fab {
+  position: absolute;
+  right: 18px;
+  bottom: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 16px 26px rgba(19, 127, 236, 0.28);
+}
+
+.fabText {
+  color: #fff;
+  font-size: 26px;
+  font-weight: 600;
+}

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Admin Salesperson Details</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 20px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark min-h-screen text-slate-900 dark:text-white font-display overflow-x-hidden">
+<div class="relative flex flex-col w-full max-w-md mx-auto min-h-screen bg-background-light dark:bg-background-dark shadow-xl overflow-hidden">
+<!-- TopAppBar -->
+<div class="flex items-center bg-background-light dark:bg-background-dark p-4 pb-2 sticky top-0 z-10 backdrop-blur-md bg-opacity-90 dark:bg-opacity-90 border-b border-slate-200 dark:border-slate-800">
+<div class="flex size-12 shrink-0 items-center justify-start cursor-pointer text-primary">
+<span class="material-symbols-outlined" style="font-size: 24px;">arrow_back_ios</span>
+</div>
+<h2 class="text-slate-900 dark:text-white text-lg font-bold leading-tight flex-1 text-center pr-12">Salesperson Details</h2>
+<div class="flex w-12 items-center justify-end absolute right-4">
+<button class="text-primary text-base font-semibold leading-normal shrink-0 hover:opacity-80 transition-opacity">Edit</button>
+</div>
+</div>
+<!-- Content Scroll Area -->
+<div class="flex-1 overflow-y-auto pb-8">
+<!-- ProfileHeader -->
+<div class="p-4">
+<div class="flex w-full flex-col items-center gap-4 bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+<div class="relative">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-24 w-24 ring-4 ring-slate-50 dark:ring-slate-700" data-alt="Professional headshot of Sarah Jenkins" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAjbO2tkbOpDE7UZWihJxLgAGfolvwFOYOFPgPEBs_BVc1aif4ClKrXZMKwgwXl5IQW6g2yDaDufhhmBIDpjzUczGivZTfKfB9fwg-F0CtM7ZJfFFoaLqHLBnOp3Y3cESfrvDpZLLjzMj825DLwWt_4AtL43TOwmMMrH1VWHfvf5zkyfAIFsbdedR7hoIWpln0LmWC67bv4VrLa6dfeACDXf-3wonIlz-PlK7rfCm1Np-JDJHh4i-TEV9dBXve5MH90rXGO3FEYR_7o");'>
+</div>
+<div class="absolute bottom-0 right-0 bg-green-500 w-5 h-5 rounded-full border-2 border-white dark:border-slate-800"></div>
+</div>
+<div class="flex flex-col justify-center items-center text-center">
+<p class="text-slate-900 dark:text-white text-xl font-bold leading-tight">Sarah Jenkins</p>
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium mt-1">Senior Sales Representative</p>
+<div class="flex items-center gap-1 mt-2 text-primary bg-primary/10 px-3 py-1 rounded-full">
+<span class="material-symbols-outlined text-[16px]">verified</span>
+<span class="text-xs font-semibold">Verified Employee</span>
+</div>
+</div>
+</div>
+</div>
+<!-- ProfileStats -->
+<div class="px-4 pb-2">
+<div class="flex gap-3">
+<div class="flex flex-1 flex-col gap-1 rounded-xl bg-white dark:bg-slate-800 p-4 items-center text-center shadow-sm border border-slate-100 dark:border-slate-700">
+<p class="text-slate-900 dark:text-white text-2xl font-bold leading-tight">42</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wider">Total Customers</p>
+</div>
+<div class="flex flex-1 flex-col gap-1 rounded-xl bg-white dark:bg-slate-800 p-4 items-center text-center shadow-sm border border-slate-100 dark:border-slate-700">
+<p class="text-slate-900 dark:text-white text-2xl font-bold leading-tight">18</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wider">Active This Month</p>
+</div>
+</div>
+</div>
+<!-- Bind Code Card -->
+<div class="p-4">
+<div class="flex items-stretch justify-between gap-4 rounded-xl bg-white dark:bg-slate-800 p-5 shadow-sm border border-slate-100 dark:border-slate-700 relative overflow-hidden group">
+<!-- Decorative background element -->
+<div class="absolute -right-6 -top-6 w-24 h-24 bg-primary/5 rounded-full blur-2xl"></div>
+<div class="flex flex-[2] flex-col justify-between gap-4 z-10">
+<div class="flex flex-col gap-2">
+<div>
+<p class="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wider mb-1">Current Bind Code</p>
+<p class="text-primary text-2xl font-mono font-bold leading-tight tracking-wider">SJ-8821</p>
+</div>
+<div class="flex items-center gap-1 text-slate-400 dark:text-slate-500 text-xs cursor-pointer hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[16px]">qr_code_scanner</span>
+<span>Tap QR to enlarge</span>
+</div>
+</div>
+<button class="flex items-center justify-center gap-2 rounded-lg h-9 px-4 bg-primary hover:bg-blue-600 text-white text-sm font-medium w-fit transition-colors shadow-md shadow-blue-500/20 active:scale-95 transform transition-transform">
+<span class="material-symbols-outlined text-[18px]">autorenew</span>
+<span>Regenerate</span>
+</button>
+</div>
+<div class="w-24 h-24 bg-white p-2 rounded-lg shadow-inner flex-shrink-0 border border-slate-100 dark:border-slate-600">
+<div class="w-full h-full bg-center bg-no-repeat bg-contain rounded" data-alt="QR Code pattern for binding salesperson" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBWUWucqClhoY10L8NgixKsiMfgiLvhPLgHuLvjaiBjf81Ola3jQSzLfWuDwPopHngQVRVaQRviqwZcx9lEZOuljTc2LETJiPIO8V1xGa76rYwUFzqmUmCfodG-NCijdzxaYQQkXuIN_HvfEBd_ZyQb4VbcYNP7y6h82Ro7v9TZer3gMNDqlCHg4C3J-aSGwz7_DdWROBnUUeRs8RumgHrMqDN8iINjfwh-gPliF5Tgd2STimMiUrIGLeFQBpPGceXqmg8nakY75yKC");'></div>
+</div>
+</div>
+</div>
+<!-- SectionHeader -->
+<div class="px-4 pt-2 pb-2 flex items-center justify-between">
+<h3 class="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-tight">Associated Customers</h3>
+<span class="text-slate-400 dark:text-slate-500 text-sm">See all</span>
+</div>
+<!-- Customer List -->
+<div class="px-4 pb-4 space-y-3">
+<!-- List Item 1 -->
+<div class="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+<div class="flex items-center gap-3">
+<div class="h-10 w-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-sm">
+                            AC
+                        </div>
+<div class="flex flex-col">
+<p class="text-slate-900 dark:text-white text-sm font-semibold">Acme Corp</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs">Bound: Oct 12, 2023</p>
+</div>
+</div>
+<div class="px-2 py-1 bg-green-50 dark:bg-green-900/20 rounded text-green-700 dark:text-green-400 text-xs font-medium">
+                        Active
+                    </div>
+</div>
+<!-- List Item 2 -->
+<div class="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-10 w-10 border border-slate-100 dark:border-slate-600" data-alt="Portrait of John Doe" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBT1LIaU2GSNug2vNlcwqxg35m-wE-O4lMaqgsHhafCsJcfpIj_LO4tnLHYXde5GUfDYFnFRLOTE_a6MD0KeIj87Et1-q4mlv18lprh-SFiI8hKB3Y2aYruiX5E5uUGhRvs-GHnN9eDSUF63DiqqeRKGyJEanUA2UOqwemlEMhdjnfN_jYQPIgwZJ4trGmz2GderExWGVH4m6NyouRFthQEc349eeFg2tBaByk3LuvRzmL9upP9oLYYnNMlKEg_M4ipDbCoXA_ysUoc");'></div>
+<div class="flex flex-col">
+<p class="text-slate-900 dark:text-white text-sm font-semibold">John Doe</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs">Bound: Oct 10, 2023</p>
+</div>
+</div>
+<div class="px-2 py-1 bg-green-50 dark:bg-green-900/20 rounded text-green-700 dark:text-green-400 text-xs font-medium">
+                        Active
+                    </div>
+</div>
+<!-- List Item 3 -->
+<div class="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-10 w-10 border border-slate-100 dark:border-slate-600 grayscale opacity-70" data-alt="Portrait of Jane Smith" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBKVm4nnwHj8nJV1NVcu-nh_8AXuOoDqym_cf90bVyYoO1KEztGNecQe-W3-oFyxDVd3zi8ItwQ-8ctI8_9FfjuVXvLsK6h0PbWQaWchgQCK5HYyx9gRIeHgOwMtobG2yAV9gka9aWdWJNjDkVUZUFix6w3AnsaewsPDWTHnkk6AVUuYNVDgaOGMole7PIXGo8BvvngLXz-bFb6pJjKYwyvoS3F06Gxm8uOtbJlHRjy5XxR4jCgMRcrJhsd28GjJZz1a0azHAXt9NYh");'></div>
+<div class="flex flex-col">
+<p class="text-slate-900 dark:text-white text-sm font-semibold opacity-70">Jane Smith</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs">Bound: Sept 28, 2023</p>
+</div>
+</div>
+<div class="px-2 py-1 bg-slate-100 dark:bg-slate-700 rounded text-slate-500 dark:text-slate-400 text-xs font-medium">
+                        Inactive
+                    </div>
+</div>
+<!-- List Item 4 -->
+<div class="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
+<div class="flex items-center gap-3">
+<div class="h-10 w-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 dark:text-orange-400 font-bold text-sm">
+                            TE
+                        </div>
+<div class="flex flex-col">
+<p class="text-slate-900 dark:text-white text-sm font-semibold">Tech Enterprises</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs">Bound: Sept 15, 2023</p>
+</div>
+</div>
+<div class="px-2 py-1 bg-green-50 dark:bg-green-900/20 rounded text-green-700 dark:text-green-400 text-xs font-medium">
+                        Active
+                    </div>
+</div>
+</div>
+<div class="h-8"></div>
+</div>
+</div>
+</body></html>

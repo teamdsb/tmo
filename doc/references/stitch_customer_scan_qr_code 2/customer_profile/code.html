@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Customer Profile</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar hide for cleaner mobile look */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-display bg-background-light dark:bg-background-dark text-slate-900 dark:text-white antialiased selection:bg-primary selection:text-white">
+<div class="relative flex h-full min-h-screen w-full flex-col overflow-x-hidden max-w-md mx-auto shadow-2xl bg-background-light dark:bg-background-dark">
+<!-- TopAppBar -->
+<header class="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/50">
+<div class="w-12">
+<!-- Placeholder for back button if needed, left empty for profile root -->
+</div>
+<h2 class="text-lg font-bold leading-tight tracking-tight text-center flex-1 text-slate-900 dark:text-white">Profile</h2>
+<div class="flex w-12 items-center justify-end">
+<button class="text-primary text-base font-bold leading-normal hover:text-primary/80 transition-colors">
+                    Edit
+                </button>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col gap-6 px-4 py-6">
+<!-- Profile Header -->
+<section class="flex flex-col items-center gap-4 animate-fade-in">
+<div class="relative group cursor-pointer">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-32 w-32 shadow-lg ring-4 ring-white dark:ring-slate-800" data-alt="Portrait of a smiling professional man" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCZNBLdyKA4Qn9N-uV5hwJQaPlgA467_O4nPLKZdABySskzcmfBl_XT4XBJ-fL4a06EW-y5NrGRI9qid4tHbqqLN3MvaqcgynmaCPp3k4TyFiNv_d1IdT-lvXrvVFCPv2ZWRIhvlByQUNT4LtSKQoiSYBbi3e5YPD9sNXpUqQORd8BOzujDZwa4w8oqhktvT_1KgA6NRDQzGlGrHX5YHl4XPRrfodgKhtjWvuk3MVJiREUVLbDBpVLBGgtZHZFgCbL-TRxbbRPwA-eE");'>
+</div>
+<div class="absolute bottom-0 right-1 bg-primary text-white rounded-full p-1.5 shadow-sm border-2 border-white dark:border-slate-800 flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">edit</span>
+</div>
+</div>
+<div class="flex flex-col items-center text-center">
+<h1 class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Alex Johnson</h1>
+<div class="flex items-center gap-1.5 mt-1">
+<span class="material-symbols-outlined text-primary text-[18px]" style="font-variation-settings: 'FILL' 1;">verified</span>
+<p class="text-slate-500 dark:text-slate-400 font-medium">Verified Customer</p>
+</div>
+</div>
+</section>
+<!-- Salesperson Section -->
+<section>
+<div class="flex items-center justify-between mb-3 px-1">
+<h3 class="text-slate-900 dark:text-white text-lg font-bold tracking-tight">My Sales Representative</h3>
+<button class="text-xs font-semibold text-primary hover:text-primary/80">Change</button>
+</div>
+<!-- Salesperson Card -->
+<div class="group relative flex items-center gap-4 bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 hover:border-primary/30 transition-all cursor-pointer">
+<div class="relative">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full h-14 w-14 ring-2 ring-slate-100 dark:ring-slate-700" data-alt="Portrait of a friendly saleswoman" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBmg141Z2zdWcQ6tR6Ff4qM8_OpvT9zQFb0Vh0LSla8GmI6EUODboVs3WKHY81iQ4hWBBHAa4lWHRkEYliyt2YtnHoGDzluJtAkKnuCyV23dW8fEnKlehUWCaWmKD0QxhbyjxvI-CXQqCNIsjonQ7puIVq_JhdLcY3jXjsmYhmA4npSGaNqr2GAevihe4Q8vwxwAOLOvgbCr8ZxkU_172KnMBXeD2iBT-HWuQuNc2ZZsZwUOMjqEMjN8_LUTIdzsZBQgcOrfZN_LBhk");'>
+</div>
+<div class="absolute -bottom-1 -right-1 bg-green-500 w-4 h-4 rounded-full border-2 border-white dark:border-slate-800"></div>
+</div>
+<div class="flex flex-col justify-center flex-1 min-w-0">
+<p class="text-slate-900 dark:text-white text-base font-semibold truncate">Sarah Smith</p>
+<p class="text-slate-500 dark:text-slate-400 text-sm truncate">Your Advisor</p>
+</div>
+<div class="flex gap-2">
+<button class="flex items-center justify-center h-10 w-10 rounded-full bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors">
+<span class="material-symbols-outlined">chat</span>
+</button>
+<button class="flex items-center justify-center h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+<span class="material-symbols-outlined">call</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Account Details Section -->
+<section>
+<h3 class="text-slate-900 dark:text-white text-lg font-bold tracking-tight mb-3 px-1">Account Details</h3>
+<div class="flex flex-col gap-4 bg-white dark:bg-slate-800 p-5 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50">
+<!-- Email Field -->
+<div class="flex flex-col gap-1.5">
+<label class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Email Address</label>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-slate-400">mail</span>
+<input class="flex-1 bg-transparent border-none p-0 text-slate-900 dark:text-white font-medium focus:ring-0 cursor-default" readonly="" type="email" value="alex.j@example.com"/>
+</div>
+<div class="h-px w-full bg-slate-100 dark:bg-slate-700 mt-1"></div>
+</div>
+<!-- Phone Field -->
+<div class="flex flex-col gap-1.5">
+<label class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Phone Number</label>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-slate-400">phone_iphone</span>
+<input class="flex-1 bg-transparent border-none p-0 text-slate-900 dark:text-white font-medium focus:ring-0 cursor-default" readonly="" type="tel" value="+1 (555) 123-4567"/>
+</div>
+<div class="h-px w-full bg-slate-100 dark:bg-slate-700 mt-1"></div>
+</div>
+<!-- Company Field -->
+<div class="flex flex-col gap-1.5">
+<label class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Company</label>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-slate-400">business</span>
+<input class="flex-1 bg-transparent border-none p-0 text-slate-900 dark:text-white font-medium focus:ring-0 cursor-default" readonly="" type="text" value="Acme Corp."/>
+</div>
+</div>
+</div>
+</section>
+<!-- Actions -->
+<section class="mt-2 flex flex-col gap-3 pb-8">
+<!-- Primary Action: Scan QR -->
+<button class="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3.5 text-white font-semibold shadow-md shadow-primary/20 active:scale-[0.98] transition-all hover:bg-primary/90">
+<span class="material-symbols-outlined">qr_code_scanner</span>
+<span>Scan New Agent</span>
+</button>
+<!-- Sign Out -->
+<button class="flex w-full items-center justify-center gap-2 rounded-lg bg-transparent px-6 py-3 text-red-500 font-medium hover:bg-red-50 dark:hover:bg-red-900/20 active:scale-[0.98] transition-all">
+<span>Sign Out</span>
+</button>
+</section>
+</main>
+</div>
+</body></html>

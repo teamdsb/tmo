@@ -1,0 +1,277 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--color-bg-light);
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 16px 10px;
+  background: rgba(246, 247, 248, 0.9);
+}
+
+.spacer {
+  width: 40px;
+  height: 40px;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.iconButton {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconAction {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.content {
+  flex: 1;
+  padding: 18px 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.profileHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar {
+  width: 128px;
+  height: 128px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.avatarText {
+  font-size: 26px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.avatarBadge {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatarBadgeText {
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.profileName {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.profileVerify {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(19, 127, 236, 0.12);
+}
+
+.profileVerifyText {
+  font-size: 12px;
+  color: var(--color-primary);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.sectionAction {
+  font-size: 12px;
+  color: var(--color-primary);
+}
+
+.salesCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+}
+
+.salesAvatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.salesAvatarText {
+  font-size: 14px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.salesStatus {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #22c55e;
+  border: 2px solid var(--color-bg-white);
+}
+
+.salesBody {
+  flex: 1;
+}
+
+.salesName {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+.salesRole {
+  font-size: 12px;
+  color: var(--color-text-light);
+}
+
+.salesActions {
+  display: flex;
+  gap: 8px;
+}
+
+.salesActionPrimary {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: rgba(19, 127, 236, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.salesActionText {
+  font-size: 10px;
+  color: var(--color-primary);
+}
+
+.salesActionSecondary {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.salesActionTextSecondary {
+  font-size: 10px;
+  color: var(--color-text-light);
+}
+
+.detailsCard {
+  background: var(--color-bg-white);
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+}
+
+.detailRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detailLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-text-light);
+}
+
+.detailValue {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-main);
+}
+
+.actionGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.primaryButton {
+  background: var(--color-primary);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+  box-shadow: 0 12px 24px rgba(19, 127, 236, 0.2);
+}
+
+.primaryButtonText {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.secondaryButton {
+  background: transparent;
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+}
+
+.secondaryButtonText {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ef4444;
+}

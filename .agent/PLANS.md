@@ -1,4 +1,4 @@
-# 业务员绑定与客户归属链路
+# Admin/Customer 五页面小程序原型（Taro React TS）
 
 这是一个持续维护的执行计划。Progress、Surprises & Discoveries、Decision Log、Outcomes & Retrospective 必须随着实施过程持续更新。
 
@@ -6,203 +6,231 @@
 
 ## Purpose / Big Picture
 
-完成后，客户可以通过扫描业务员二维码（以 bind_code 形式存在于链接中）绑定到该业务员名下。系统会保存归属关系，后续下单与留言都可归属到该业务员。管理员可在后台将客户从一个业务员转移到另一个业务员。该行为可以通过 HTTP 调用观察到：首次绑定成功、重复绑定幂等、转移后查询结果变化。
+完成后，微信小程序中会有五个可预览页面：Admin Salesperson List、Admin Salesperson Details、Admin Customer List、Admin Customer Details、Customer Profile。管理员能浏览业务员列表与客户列表，并查看详情页面；客户侧可查看个人资料与绑定业务员信息。验证方式是运行 Taro 开发编译，在微信开发者工具中逐页打开这些页面，观察布局与 `stitch_customer_scan_qr_code 2/` 中的 `screen.png` 视觉参考一致，结构与 `code.html` 保持匹配。
 
 ## Progress
 
-- [x] (2026-01-05 08:44Z) 完成 ExecPlan 初稿。
-- [x] (2026-01-05 08:46Z) 将 ExecPlan 改写为中文并保留结构要求。
-- [x] (2026-01-05 09:00Z) 搭建最小可运行 Go + Gin 后端与 Postgres 连接，目录为 backend/。
-- [x] (2026-01-05 09:00Z) 增加业务员与客户归属的数据表与迁移。
-- [x] (2026-01-05 09:00Z) 实现绑定、查询与管理员转移接口。
-- [x] (2026-01-05 09:00Z) 增加开发态鉴权占位与种子数据工具，便于链路验证。
-- [x] (2026-01-05 09:06Z) 新增 Docker Compose 以容器方式启动 Postgres，并提供后端 Dockerfile。
-- [x] (2026-01-05 09:14Z) 新增 Makefile 快捷命令（pg-up/pg-down/pg-migrate/dev-run/docker-run）。 
-- [x] (2026-01-05 09:19Z) 补充关闭命令（pg-stop、docker-stop）以便快速停止容器。
-- [x] (2026-01-05 09:34Z) 新增绑定链路的 Go 集成测试，并在 Makefile 测试目标中传入 DATABASE_URL。
-- [x] (2026-01-05 09:34Z) 用 make 启动 Postgres 与后端容器并运行 go test 验证链路。
-- [x] (2026-01-05 09:41Z) 用 curl 验证完整绑定与转移流程并记录输出。
+- [x] (2026-01-05 17:55Z) 盘点 `stitch_customer_scan_qr_code 2/` 下 5 个页面的 HTML/PNG 资产并整理清单。
+- [x] (2026-01-05 17:55Z) 记录每个页面的核心布局模块与复用元素（顶栏、搜索、列表卡片、状态标签、头像）。
+- [x] (2026-01-05 18:45Z) 初始化 `miniapp/` 目录并生成 Taro React TS 工程骨架。
+- [x] (2026-01-05 18:45Z) 搭建页面路由与基础主题变量（颜色、圆角、阴影、字体）。
+- [x] (2026-01-05 18:45Z) 实现 Admin Salesperson List 页面（搜索栏、列表项、底部 CTA）。
+- [x] (2026-01-05 18:45Z) 实现 Admin Salesperson Details 页面（档案卡、统计卡、绑定码卡、关联客户列表）。
+- [x] (2026-01-05 18:45Z) 实现 Admin Customer List 页面（搜索栏、筛选 Chips、列表项、浮动按钮）。
+- [x] (2026-01-05 18:45Z) 实现 Admin Customer Details 页面（联系信息、绑定关系、转移按钮）。
+- [x] (2026-01-05 18:45Z) 实现 Customer Profile 页面（个人资料、业务员卡片、账户信息、操作区）。
+- [ ] 运行 Taro weapp 编译并在开发者工具中完成五页目视验收。
 
 ## Surprises & Discoveries
 
-- 观察：Docker 构建在 go 1.22 镜像下失败，因 go.mod 要求 go 1.25.5。
-  Evidence: docker build 报错 "go.mod requires go >= 1.25.5 (running go 1.22.12)"。
+- Observation: 五个页面的 HTML 都依赖 Material Symbols 字体与外链头像/二维码图片。
+  Evidence: `code.html` 中包含 Google Fonts 与 `lh3.googleusercontent.com` 的图片链接。
+- Observation: `admin_customer_list` 的背景色与其他页面不同（`#ffffff` vs `#f6f7f8`）。
+  Evidence: 对应 HTML 中 `background-light` 的色值不一致。
+- Observation: Taro 4.1.9 CLI 对 `--css none` / `--css sass` 参数报错。
+  Evidence: CLI 报错 “value does not match any variant of enum CSSType”，改为交互选择后通过。
+- Observation: Taro CLI 初始化流程包含多步交互（描述、框架、ES5、CSS 预处理器、包管理器、编译工具、模板源），早期因参数不兼容导致多次重试。
+  Evidence: 需在交互中选择合法 CSS 预处理器与模板源才能完成初始化。
+- Observation: Taro 初始化默认在项目内执行 `git init`。
+  Evidence: 初始化日志显示 “初始化 git 成功”，后续移除 `miniapp/.git` 以避免嵌套仓库。
 
 ## Decision Log
 
-- Decision: 用 bind_code 字符串作为业务员二维码链接参数，不直接暴露 sales_id。
-  Rationale: bind_code 可轮换且不泄露内部 ID，适合快速验证分支。
+- Decision: 以 `stitch_customer_scan_qr_code 2/<page>/code.html` 为结构基准，`ex.html` 仅作为 `admin_salesperson_details` 的重复参考。
+  Rationale: 新增目录包含完整五页来源与截图，优先作为统一输入。
   Date/Author: 2026-01-05 / codex
-- Decision: 绑定为单向且幂等；仅管理员可转移客户归属。
-  Rationale: 满足“归属稳定”的业务要求，避免误绑定反复变更。
+- Decision: 页面路径采用 `miniapp/src/pages/admin/...` 与 `miniapp/src/pages/customer/...` 的层级划分。
+  Rationale: 区分管理员与客户侧页面，便于后续权限与路由组织。
   Date/Author: 2026-01-05 / codex
-- Decision: 使用请求头开发态鉴权占位（X-Customer-Id 与 X-Role=admin）。
-  Rationale: 当前无正式鉴权体系，先保证链路可测试，后续易替换。
+- Decision: 使用 CSS Modules + 全局主题变量（`miniapp/src/app.scss`）控制颜色与圆角，不引入 Tailwind。
+  Rationale: 与已有技术选型一致，避免引入额外构建依赖。
   Date/Author: 2026-01-05 / codex
-- Decision: UUID 在 Go 侧生成并写入数据库，不启用 pgcrypto 扩展。
-  Rationale: 避免数据库扩展依赖，降低快速验证分支的初始化复杂度。
+- Decision: 选择 Sass 作为 CLI 的 CSS 预处理器以获得可用的模块化样式扩展名（`.module.scss`）。
+  Rationale: CLI 在 4.1.9 版本要求交互选择合法 CSS 类型，Sass 可与模块化命名结合。
   Date/Author: 2026-01-05 / codex
-- Decision: 后端 Dockerfile 使用 golang:1.25.5-alpine 以匹配 go.mod。
-  Rationale: 解决镜像版本与 go.mod 版本不一致导致的构建失败。
+- Decision: 图标与头像采用本地 assets 占位，避免远程字体与图片域名限制。
+  Rationale: 小程序对远程字体与图片域名有限制，本地资源更稳定。
+  Date/Author: 2026-01-05 / codex
+- Decision: 每个页面使用自定义导航栏（`navigationStyle: "custom"`）。
+  Rationale: HTML 顶部栏为自绘样式，避免系统导航栏重复占位。
   Date/Author: 2026-01-05 / codex
 
 ## Outcomes & Retrospective
 
-- 未开始。
+未开始。
 
 ## Context and Orientation
 
-本仓库已新增 backend/ 目录，用于快速验证后端链路。核心路径包括 backend/cmd/server（服务入口）、backend/internal/config（配置）、backend/internal/db（数据库连接）、backend/internal/store（存储层）、backend/internal/handlers（HTTP 处理器）、backend/db/migrations（数据库迁移）。
+仓库当前没有 `miniapp/` 小程序工程，新增页面素材位于 `stitch_customer_scan_qr_code 2/`。该目录下包含五个页面，每个页面都有 `code.html`（结构与样式参考）和 `screen.png`（视觉对照）：
 
-术语说明：
-- 业务员（Salesperson）：可归属客户的人员，在 sales_profiles 表中存储。
-- 客户（Customer）：可被绑定的用户，在 customers 表中存储。
-- 绑定码（Bind code）：与业务员关联的一段随机字符串，用于二维码链接。
-- 绑定（Binding）：首次将客户与业务员建立归属关系。
-- 归属转移（Ownership transfer）：管理员将客户归属从 A 转到 B。
+- `stitch_customer_scan_qr_code 2/admin_salesperson_list/code.html`
+- `stitch_customer_scan_qr_code 2/admin_salesperson_details/code.html`
+- `stitch_customer_scan_qr_code 2/admin_customer_list/code.html`
+- `stitch_customer_scan_qr_code 2/admin_customer_details/code.html`
+- `stitch_customer_scan_qr_code 2/customer_profile/code.html`
+
+本计划将这些 HTML 结构转换为 Taro 的页面组件（`View`、`Text`、`Image`、`Input`），并使用 CSS Modules 还原视觉。`screen.png` 仅用于人工比对，不参与运行时资源。由于小程序对远程字体与图片域名有约束，需要将头像、二维码、图标替换为本地 assets。
 
 ## Plan of Work
 
-先在 backend/ 下搭建一个最小 Go 服务，使用 Gin 提供 HTTP 接口。加入配置读取与数据库连接（pgxpool），并添加健康检查路由用于验证服务启动。
+先初始化 `miniapp/` Taro React TS 工程，确保包含 weapp 构建脚本。然后在 `miniapp/src/app.scss` 定义全局主题变量（如主色、背景色、边框色、圆角与阴影），并为页面提供一致的字体与背景基底。接着创建 `miniapp/src/assets/`，按 `icons/` 与 `images/` 组织本地图标与头像占位资源，保证页面在无外链的情况下可显示完整 UI。
 
-然后在 backend/db/migrations 中创建迁移文件，新增 sales_profiles 与 customers 表。sales_profiles 保存 id（uuid）、name、bind_code 与 created_at。customers 保存 id（uuid）、name、phone、sales_id（可为空）与 created_at。为 bind_code 建唯一索引，customers.sales_id 指向 sales_profiles.id。UUID 由 Go 生成并写入数据库。
+页面实现采用“每页一目录”的方式：每个页面包含 `index.tsx`、`index.module.css`、`index.config.ts`。页面代码以 mock 数据驱动渲染，遵循 HTML 结构拆分为顶栏、搜索/筛选、列表卡片、信息卡片与操作区。可以在 `miniapp/src/components/ui/` 中提供少量可复用组件（如 `TopBar`、`StatusPill`、`Avatar`），以减少多页重复，同时保持样式隔离。
 
-接着在 backend/internal/store 中实现显式的存储层函数，包含创建、查询、绑定与转移。绑定必须幂等：仅在 customers.sales_id 为空时写入；若已有归属，返回“已绑定”。转移必须覆盖原有归属，并返回旧 sales_id 以便日后审计扩展。
+具体页面拆解如下。Admin Salesperson List 包含顶部栏、搜索框、列表统计头、业务员列表项与底部新增按钮。Admin Salesperson Details 复刻头像卡、统计卡、绑定码卡与关联客户列表。Admin Customer List 包含搜索、筛选 Chips、客户列表项与浮动添加按钮。Admin Customer Details 由头像头部、联系信息列表、绑定关系卡与“Transfer Ownership”按钮组成。Customer Profile 包含资料头像、绑定业务员卡、账户信息字段与操作按钮（扫码、退出）。
 
-随后实现 HTTP 处理器并在 main.go 中注册路由。必须提供如下接口：
-- POST /api/admin/sales：创建业务员并返回 id 与 bind_code。
-- POST /api/admin/customers：创建客户用于测试并返回 id。
-- POST /api/sales/bind：根据 bind_code 绑定当前客户。
-- GET /api/admin/customers/:id：查询客户归属。
-- POST /api/admin/customers/transfer：管理员转移客户归属。
-
-最后增加开发态鉴权占位规则：当请求头包含 X-Role=admin 视为管理员；当请求头包含 X-Customer-Id 视为当前客户。缺少必要头时返回 401，便于定位测试问题。
+完成页面后更新 `miniapp/src/app.config.ts` 注册页面路由，并为每页设置 `navigationStyle: "custom"`。最后运行 weapp 编译，在微信开发者工具中逐页比对 `screen.png` 进行目视验收。
 
 ## Concrete Steps
 
 所有命令在仓库根目录执行，除非特别说明。
 
-1) 创建后端模块与目录。
+1) 初始化 Taro 工程骨架（如 `miniapp/` 不存在）。
 
-    mkdir -p backend/cmd/server backend/internal/config backend/internal/db backend/internal/store backend/internal/handlers backend/db/migrations
-    cd backend
-    go mod init tmo
+    npx @tarojs/cli init miniapp
 
-2) 在 backend/cmd/server/main.go 建立最小服务，并提供 GET /health 返回 OK。
+   选择 React + TypeScript 模板，样式选择 CSS Modules。
 
-3) 在 backend/internal/config 与 backend/internal/db 中实现 DATABASE_URL 配置读取与 pgxpool 连接。
+2) 建立页面目录与通用资源目录。
 
-4) 在 backend/db/migrations 创建迁移：
-   - 001_create_sales_and_customers.sql（表与索引）
+    mkdir -p miniapp/src/pages/admin/salesperson-list
+    mkdir -p miniapp/src/pages/admin/salesperson-details
+    mkdir -p miniapp/src/pages/admin/customer-list
+    mkdir -p miniapp/src/pages/admin/customer-details
+    mkdir -p miniapp/src/pages/customer/profile
+    mkdir -p miniapp/src/components/ui
+    mkdir -p miniapp/src/assets/icons
+    mkdir -p miniapp/src/assets/images
 
-5) 在 backend/internal/store 实现数据库读写函数，并与数据库连接绑定。
+3) 在 `miniapp/src/app.scss` 添加主题变量与基础样式（示例在 Artifacts and Notes）。
 
-6) 在 backend/internal/handlers 实现处理器，并在 main.go 中注册路由。
+4) 在每个页面目录创建文件：
 
-7) 启动数据库（任选其一）：
-   - 使用本地 Postgres 并设置 DATABASE_URL。
-   - 使用 Docker 临时容器并导出 DATABASE_URL。
+    index.tsx
+    index.module.css
+    index.config.ts
 
-8) 启动服务。
+5) 更新 `miniapp/src/app.config.ts` 的 pages 列表，加入：
 
-    cd backend
-    DATABASE_URL=postgres://user:pass@localhost:5432/tmo?sslmode=disable go run ./cmd/server
+    pages: [
+      "pages/admin/salesperson-list/index",
+      "pages/admin/salesperson-details/index",
+      "pages/admin/customer-list/index",
+      "pages/admin/customer-details/index",
+      "pages/customer/profile/index"
+    ]
 
-9) 使用 curl 验证绑定与转移链路（示例在 Artifacts and Notes）。
+6) 为每页的 `index.config.ts` 设置：
+
+    export default { navigationStyle: "custom" }
+
+7) 放置本地图标与头像占位资源（例如 `avatar-1.png`, `qr.png`, `icon-search.png`），并在页面中引用。
+
+8) 启动开发编译并在微信开发者工具中预览：
+
+    cd miniapp
+    npm run dev:weapp
 
 ## Validation and Acceptance
 
-验收标准必须可观察：
-- 启动服务后访问 http://localhost:8080/health 返回 HTTP 200 且 body 为 OK。
-- POST /api/admin/sales 返回包含 id 与 bind_code 的 JSON。
-- POST /api/admin/customers 返回包含 id 的 JSON。
-- POST /api/sales/bind 使用 X-Customer-Id 头与 bind_code 请求后返回 HTTP 200，且表示绑定成功。
-- 重复绑定返回 HTTP 200，并提示已绑定，sales_id 不改变。
-- POST /api/admin/customers/transfer 成功后，GET /api/admin/customers/:id 的 sales_id 变为新值。
+验收标准为可观察行为：
+1) `npm run dev:weapp` 后可在微信开发者工具打开五个页面并正常渲染。
+2) Admin Salesperson List 显示搜索栏、列表项、状态标签与底部新增按钮，滚动正常。
+3) Admin Salesperson Details 显示头像信息、统计卡、绑定码卡与关联客户列表，布局与 `screen.png` 视觉一致。
+4) Admin Customer List 显示筛选 Chips、列表项的“Linked/Unlinked”状态与右下角浮动按钮。
+5) Admin Customer Details 显示联系信息卡片、绑定关系卡片与 “Transfer Ownership” 按钮。
+6) Customer Profile 显示个人资料、业务员卡片、账户信息字段与扫码/退出按钮。
 
 ## Idempotence and Recovery
 
-迁移使用 IF NOT EXISTS，重复执行不造成破坏。绑定接口是幂等操作，重复调用不会创建重复数据。若迁移错误，不回滚旧迁移文件，改用新增迁移进行修复或清理，以保持历史一致性。
+若 `miniapp/` 已存在，可跳过初始化步骤，直接新增页面目录与资源。若页面实现出现问题，删除新增页面目录与相关 assets 可回到初始状态。构建产物位于 `miniapp/dist`，清理该目录不会影响源码。
 
 ## Artifacts and Notes
 
-示例调用（用真实 ID 替换占位符）：
+全局主题变量示例（放在 `miniapp/src/app.scss`）：
 
-    curl -X POST http://localhost:8080/api/admin/sales -H 'X-Role: admin' -d '{"name":"Alice"}'
-    # 响应: {"id":"...","bind_code":"..."}
+    :root {
+      --color-primary: #137fec;
+      --color-bg-light: #f6f7f8;
+      --color-bg-white: #ffffff;
+      --color-border: #e2e8f0;
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --shadow-card: 0 6px 18px rgba(15, 23, 42, 0.06);
+    }
 
-    curl -X POST http://localhost:8080/api/admin/customers -H 'X-Role: admin' -d '{"name":"Buyer"}'
-    # 响应: {"id":"..."}
+页面 mock 数据示例（简化展示，实际可按页面拆分）：
 
-    curl -X POST http://localhost:8080/api/sales/bind -H 'X-Customer-Id: <customer_id>' -d '{"bind_code":"<bind_code>"}'
-    # 响应: {"status":"bound","sales_id":"..."}
+    const salespersonList = [
+      { id: "8821", name: "John Doe", status: "active", customerCount: 45, avatar: "avatar-1.png" },
+      { id: "9920", name: "Sarah Smith", status: "onLeave", customerCount: 12, avatar: "avatar-2.png" }
+    ];
 
-    curl -X POST http://localhost:8080/api/admin/customers/transfer -H 'X-Role: admin' -d '{"customer_id":"...","new_sales_id":"..."}'
-    # 响应: {"status":"transferred","old_sales_id":"...","new_sales_id":"..."}
+    const customerList = [
+      { id: "c1", name: "Alice Smith", email: "alice@example.com", linkStatus: "linked", linkedTo: "Mark Johnson" },
+      { id: "c2", name: "Bob Jones", email: "bob.jones@example.com", linkStatus: "unlinked" }
+    ];
 
 ## Interfaces and Dependencies
 
 依赖与接口在本计划完成时必须存在：
-- Go 1.22 或更高
-- github.com/gin-gonic/gin
-- github.com/jackc/pgx/v5/pgxpool
-- github.com/google/uuid
+- Taro CLI 3.x（用于初始化与 weapp 编译）。
+- React 18 + TypeScript（Taro 默认模板）。
+- `@tarojs/components` 中的 `View`、`Text`、`Image`、`Input`、`Button`。
 
-数据结构（建议放在 backend/internal/store/types.go）：
+页面数据类型建议定义在各自页面文件或 `miniapp/src/types/admin.ts` 与 `miniapp/src/types/customer.ts`：
 
-    type SalesProfile struct {
-        ID        uuid.UUID
-        Name      string
-        BindCode  string
-        CreatedAt time.Time
+    type SalespersonStatus = "active" | "onLeave" | "inactive";
+    type CustomerLinkStatus = "linked" | "unlinked" | "vip";
+    type CustomerStatus = "active" | "inactive";
+
+    interface SalespersonListItem {
+      id: string;
+      name: string;
+      status: SalespersonStatus;
+      customerCount: number;
+      avatar?: string;
     }
 
-    type Customer struct {
-        ID        uuid.UUID
-        Name      string
-        Phone     string
-        SalesID   *uuid.UUID
-        CreatedAt time.Time
+    interface SalespersonDetailsData {
+      name: string;
+      title: string;
+      verified: boolean;
+      stats: { totalCustomers: number; activeThisMonth: number };
+      bindCode: string;
+      customers: { id: string; name: string; boundAt: string; status: CustomerStatus; initials?: string; avatar?: string }[];
     }
 
-存储接口（backend/internal/store/store.go）：
-
-    type Store interface {
-        CreateSales(ctx context.Context, name string) (SalesProfile, error)
-        CreateCustomer(ctx context.Context, name string, phone string) (Customer, error)
-        GetCustomer(ctx context.Context, id uuid.UUID) (Customer, error)
-        GetSalesByBindCode(ctx context.Context, bindCode string) (SalesProfile, error)
-        BindCustomerToSales(ctx context.Context, customerID uuid.UUID, salesID uuid.UUID) (bool, error)
-        TransferCustomer(ctx context.Context, customerID uuid.UUID, newSalesID uuid.UUID) (uuid.UUID, error)
+    interface CustomerListItem {
+      id: string;
+      name: string;
+      email: string;
+      linkStatus: CustomerLinkStatus;
+      linkedTo?: string;
+      avatar?: string;
+      initials?: string;
     }
 
-HTTP 处理器必须对应这些路由与行为；绑定接口调用 BindCustomerToSales，返回 false 时响应 status="already_bound" 并返回现有 sales_id。
+    interface CustomerDetailsData {
+      id: string;
+      name: string;
+      status: CustomerStatus;
+      phone: string;
+      email: string;
+      salesRepName: string;
+      assignedAt: string;
+      avatar?: string;
+    }
 
-Plan change note: 记录集成测试新增、Dockerfile Go 版本调整、以及用 make 验证链路的进展（2026-01-05 / codex）。
+    interface CustomerProfileData {
+      name: string;
+      verified: boolean;
+      email: string;
+      phone: string;
+      company: string;
+      salesRepName: string;
+      salesRepAvatar?: string;
+    }
 
-Plan change note: 运行 curl 链路验证并记录输出（2026-01-05 / codex）。
-
-## Artifacts and Notes (run 2026-01-05)
-
-Curl 运行结果：
-
-    curl -X POST http://localhost:8080/api/admin/sales -H 'X-Role: admin' -H 'Content-Type: application/json' -d '{"name":"Alice"}'
-    # {"bind_code":"e3ddf78f4de4410a99275d76f4147001","created_at":"2026-01-05T09:40:12.022858Z","id":"823d712f-f9ac-4893-add2-f187dfc0408b","name":"Alice"}
-
-    curl -X POST http://localhost:8080/api/admin/sales -H 'X-Role: admin' -H 'Content-Type: application/json' -d '{"name":"Bob"}'
-    # {"bind_code":"255f85f34bf544ad8a51e1b70851c183","created_at":"2026-01-05T09:40:19.92609Z","id":"ddd25a03-94ad-4f43-a5c9-b76ab8d45956","name":"Bob"}
-
-    curl -X POST http://localhost:8080/api/admin/customers -H 'X-Role: admin' -H 'Content-Type: application/json' -d '{"name":"Buyer"}'
-    # {"created_at":"2026-01-05T09:40:24.383892Z","id":"384308a6-c96e-4a04-ac68-53adca2b8522","name":"Buyer","phone":"","sales_id":null}
-
-    curl -X POST http://localhost:8080/api/sales/bind -H 'X-Customer-Id: 384308a6-c96e-4a04-ac68-53adca2b8522' -H 'Content-Type: application/json' -d '{"bind_code":"e3ddf78f4de4410a99275d76f4147001"}'
-    # {"sales_id":"823d712f-f9ac-4893-add2-f187dfc0408b","status":"bound"}
-
-    curl -X POST http://localhost:8080/api/sales/bind -H 'X-Customer-Id: 384308a6-c96e-4a04-ac68-53adca2b8522' -H 'Content-Type: application/json' -d '{"bind_code":"e3ddf78f4de4410a99275d76f4147001"}'
-    # {"sales_id":"823d712f-f9ac-4893-add2-f187dfc0408b","status":"already_bound"}
-
-    curl -X POST http://localhost:8080/api/admin/customers/transfer -H 'X-Role: admin' -H 'Content-Type: application/json' -d '{"customer_id":"384308a6-c96e-4a04-ac68-53adca2b8522","new_sales_id":"ddd25a03-94ad-4f43-a5c9-b76ab8d45956"}'
-    # {"new_sales_id":"ddd25a03-94ad-4f43-a5c9-b76ab8d45956","old_sales_id":"823d712f-f9ac-4893-add2-f187dfc0408b","status":"transferred"}
-
-    curl -X GET http://localhost:8080/api/admin/customers/384308a6-c96e-4a04-ac68-53adca2b8522 -H 'X-Role: admin'
-    # {"created_at":"2026-01-05T09:40:24.383892Z","id":"384308a6-c96e-4a04-ac68-53adca2b8522","name":"Buyer","phone":"","sales_id":"ddd25a03-94ad-4f43-a5c9-b76ab8d45956"}
+Plan change note: 根据 `stitch_customer_scan_qr_code 2/` 的五页 HTML 与 PNG 资产扩展 ExecPlan 范围，补充多页面拆解、路由与资源策略（2026-01-05 / codex）。
+Plan change note: 完成 Taro miniapp 初始化、页面路由与五页基础布局实现，等待编译验证（2026-01-05 / codex）。

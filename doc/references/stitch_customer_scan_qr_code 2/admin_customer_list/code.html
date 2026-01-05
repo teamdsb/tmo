@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Admin Customer List</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#ffffff",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar hiding for horizontal scroll areas */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark min-h-screen text-slate-900 dark:text-slate-50 antialiased">
+<div class="relative flex flex-col h-full w-full max-w-md mx-auto bg-background-light dark:bg-background-dark min-h-screen border-x border-slate-100 dark:border-slate-800 shadow-sm">
+<!-- Header -->
+<header class="sticky top-0 z-20 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-sm border-b border-slate-100 dark:border-slate-800 transition-colors">
+<div class="flex items-center justify-between px-4 py-3">
+<h2 class="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Customers</h2>
+<button class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-primary transition-colors">
+<span class="material-symbols-outlined" style="font-size: 24px;">filter_list</span>
+</button>
+</div>
+<!-- Search Bar -->
+<div class="px-4 pb-3">
+<div class="relative flex items-center w-full h-10 rounded-lg focus-within:ring-2 focus-within:ring-primary/50 focus-within:shadow-md transition-shadow bg-slate-100 dark:bg-slate-800">
+<div class="grid place-items-center h-full w-10 text-slate-400 dark:text-slate-500">
+<span class="material-symbols-outlined" style="font-size: 20px;">search</span>
+</div>
+<input class="peer h-full w-full outline-none text-sm text-slate-900 dark:text-slate-100 pr-2 bg-transparent placeholder-slate-400 dark:placeholder-slate-500 font-medium" id="search" placeholder="Search by name or email..." type="text"/>
+</div>
+</div>
+<!-- Chips / Filters -->
+<div class="flex gap-2 px-4 pb-3 overflow-x-auto no-scrollbar">
+<button class="flex shrink-0 items-center justify-center px-4 py-1.5 rounded-full bg-primary text-white text-sm font-medium shadow-sm transition-transform active:scale-95">
+                    All
+                </button>
+<button class="flex shrink-0 items-center justify-center px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                    Unlinked
+                </button>
+<button class="flex shrink-0 items-center justify-center px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                    Linked
+                </button>
+<button class="flex shrink-0 items-center justify-center px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                    VIP
+                </button>
+</div>
+</header>
+<!-- List Section -->
+<main class="flex-1 overflow-y-auto">
+<!-- List Item 1 -->
+<div class="group flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 cursor-pointer">
+<div class="flex items-start gap-3">
+<div class="relative shrink-0">
+<div class="w-12 h-12 rounded-full bg-cover bg-center shadow-inner" data-alt="Portrait of a smiling woman" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAjbV3OmqqK9vQcrmtGYCBJTytPEs0gE7uqm6SB4w-_IybNo-jxYMwlznuiOnMQEfuB8kB9zUZo8aopKb3QfIATZi9q6n6ZuamU-HAI5d2upAEenjvDP_fhzsbNrKgN-4MpiHiLtfLoAs7W4qRlijjWyCUPNhnxG8iYk2IZZvzqoige2Uy5pHZkshrWg6B-1qxh64Shkh-AlsFwuCJS7xvbroqtjX7i6sJSD3G0U_WPVrivQc3zTupUIcvpclPNStHuGqo39lpBjM_G');"></div>
+<div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-slate-900 rounded-full"></div>
+</div>
+<div class="flex flex-col justify-center gap-1">
+<p class="text-slate-900 dark:text-white text-base font-semibold leading-none">Alice Smith</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs leading-none">alice@example.com</p>
+<div class="mt-1 flex items-center">
+<span class="inline-flex items-center gap-1 rounded-md bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-medium text-primary dark:text-blue-300">
+<span class="material-symbols-outlined" style="font-size: 14px;">link</span>
+                                Linked to Mark Johnson
+                            </span>
+</div>
+</div>
+</div>
+<div class="shrink-0 text-slate-300 dark:text-slate-600 group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined" style="font-size: 24px;">chevron_right</span>
+</div>
+</div>
+<!-- List Item 2 -->
+<div class="group flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 cursor-pointer">
+<div class="flex items-start gap-3">
+<div class="relative shrink-0">
+<div class="w-12 h-12 rounded-full bg-cover bg-center shadow-inner" data-alt="Portrait of a man with glasses" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDECW1I8mi8fJPpSSnW6n95ScMJ8Bim6qSaHMtPgv54eOyjfXjcpHo0JT3A5LrNwGNz-rS6bEjwJJK41Xjgok15is-mhLqznOSbeZRc10uPU6z57IDyLNyzbmcEn037Nh5X4kkkzfRMHkNV3q9gEJkz-06viiDSLmiuu2FO_e-hl8UWWQ9E-zts04rSQTFTwBEkRWsrAuRa5u1OK7QdR_3OAZ1bI7eTDScRl6IWVWGS8pe5-t89qt-AcLNHuGf-drTMuyyWrZEC1Mav');"></div>
+</div>
+<div class="flex flex-col justify-center gap-1">
+<p class="text-slate-900 dark:text-white text-base font-semibold leading-none">Bob Jones</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs leading-none">bob.jones@example.com</p>
+<div class="mt-1 flex items-center">
+<span class="inline-flex items-center gap-1 rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+<span class="material-symbols-outlined" style="font-size: 14px;">link_off</span>
+                                Unlinked
+                            </span>
+</div>
+</div>
+</div>
+<div class="shrink-0 text-slate-300 dark:text-slate-600 group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined" style="font-size: 24px;">chevron_right</span>
+</div>
+</div>
+<!-- List Item 3 -->
+<div class="group flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 cursor-pointer">
+<div class="flex items-start gap-3">
+<div class="relative shrink-0">
+<div class="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-600 dark:text-indigo-300 font-bold text-lg">
+                            CB
+                        </div>
+</div>
+<div class="flex flex-col justify-center gap-1">
+<p class="text-slate-900 dark:text-white text-base font-semibold leading-none">Charlie Brown</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs leading-none">charlie@gmail.com</p>
+<div class="mt-1 flex items-center">
+<span class="inline-flex items-center gap-1 rounded-md bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-medium text-primary dark:text-blue-300">
+<span class="material-symbols-outlined" style="font-size: 14px;">link</span>
+                                Linked to Sarah Lee
+                            </span>
+</div>
+</div>
+</div>
+<div class="shrink-0 text-slate-300 dark:text-slate-600 group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined" style="font-size: 24px;">chevron_right</span>
+</div>
+</div>
+<!-- List Item 4 -->
+<div class="group flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 cursor-pointer">
+<div class="flex items-start gap-3">
+<div class="relative shrink-0">
+<div class="w-12 h-12 rounded-full bg-cover bg-center shadow-inner" data-alt="Portrait of a man smiling" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBpP-vPqDifcoYUsJrb1Ij-9dtdCafCaG7AeUgWWNfzvH7i02kkzixqhrxJUhFOAjRnn6XQo1QjzlvLw3T-7run9ozr10PrUxTeXq6iRVjbL8UV7eZ9U1akf3SqEhcBtOOMxXqsFkGLX7T8WKZvVEu7tJwkfUp-iAlAoOekN7tJZKXq0BXiiGtY-D7qslDA_XJxeJq7MyqNsYsLdi9hKP0EzTfIjGmeJFkuafxm1NsEHjURReB7S-p4pTNZN2pXKcF0QqGlP4nQwlVe');"></div>
+</div>
+<div class="flex flex-col justify-center gap-1">
+<p class="text-slate-900 dark:text-white text-base font-semibold leading-none">David Lee</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs leading-none">david.lee@tech.co</p>
+<div class="mt-1 flex items-center">
+<span class="inline-flex items-center gap-1 rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+<span class="material-symbols-outlined" style="font-size: 14px;">link_off</span>
+                                Unlinked
+                            </span>
+</div>
+</div>
+</div>
+<div class="shrink-0 text-slate-300 dark:text-slate-600 group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined" style="font-size: 24px;">chevron_right</span>
+</div>
+</div>
+<!-- List Item 5 -->
+<div class="group flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-b border-slate-100 dark:border-slate-800 cursor-pointer">
+<div class="flex items-start gap-3">
+<div class="relative shrink-0">
+<div class="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-900 flex items-center justify-center text-orange-600 dark:text-orange-300 font-bold text-lg">
+                            EW
+                        </div>
+</div>
+<div class="flex flex-col justify-center gap-1">
+<p class="text-slate-900 dark:text-white text-base font-semibold leading-none">Elena Woods</p>
+<p class="text-slate-500 dark:text-slate-400 text-xs leading-none">elena.w@studio.net</p>
+<div class="mt-1 flex items-center">
+<span class="inline-flex items-center gap-1 rounded-md bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-medium text-primary dark:text-blue-300">
+<span class="material-symbols-outlined" style="font-size: 14px;">link</span>
+                                Linked to Mike Ross
+                            </span>
+</div>
+</div>
+</div>
+<div class="shrink-0 text-slate-300 dark:text-slate-600 group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined" style="font-size: 24px;">chevron_right</span>
+</div>
+</div>
+<div class="h-20"></div> <!-- Spacer for bottom area -->
+</main>
+<!-- Optional Floating Action Button for Adding Customer if needed -->
+<div class="absolute bottom-6 right-6">
+<button class="flex items-center justify-center w-14 h-14 bg-primary rounded-full shadow-lg hover:bg-blue-600 active:scale-95 transition-all text-white">
+<span class="material-symbols-outlined" style="font-size: 28px;">person_add</span>
+</button>
+</div>
+</div>
+</body></html>
