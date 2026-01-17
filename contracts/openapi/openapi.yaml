@@ -24,6 +24,7 @@ tags:
   - name: Tracking
   - name: ProductRequests
   - name: AfterSales
+    description: "Owned by commerce service."
   - name: Inquiries
   - name: AI
   - name: Payments
@@ -316,7 +317,7 @@ paths:
     post:
       tags: [Cart]
       summary: Upload Excel for bulk add-to-cart (creates an import job)
-      description: Auto-add uses SKU code/ID match; otherwise name+attributes full match. Unmatched or ambiguous rows are returned for confirmation.
+      description: Auto-add uses SKU code/ID match; otherwise name+attributes full match. Unmatched or ambiguous rows are returned for confirmation. Job service orchestrates async execution; business data remains owned by domain services.
       requestBody:
         required: true
         content:
@@ -339,7 +340,7 @@ paths:
     get:
       tags: [Cart]
       summary: Get cart import job status and matching result
-      description: Auto-add uses SKU code/ID match; otherwise name+attributes full match.
+      description: Auto-add uses SKU code/ID match; otherwise name+attributes full match. Job service orchestrates async execution; business data remains owned by domain services.
       parameters:
         - in: path
           name: jobId
@@ -827,6 +828,7 @@ paths:
     post:
       tags: [Tracking]
       summary: Upload Excel for bulk waybill import (procurement)
+      description: Job service orchestrates async execution; business data remains owned by domain services.
       requestBody:
         required: true
         content:
@@ -872,6 +874,7 @@ paths:
     post:
       tags: [Admin]
       summary: Upload Excel for product import/update (image URLs or imagesZip)
+      description: Job service orchestrates async execution; business data remains owned by domain services.
       requestBody:
         required: true
         content:
@@ -901,6 +904,7 @@ paths:
     post:
       tags: [Admin]
       summary: Upload Excel for bulk waybill import (order tracking)
+      description: Job service orchestrates async execution; business data remains owned by domain services.
       requestBody:
         required: true
         content:
@@ -923,6 +927,7 @@ paths:
     post:
       tags: [Admin]
       summary: Create export job for product requests ("can't find product")
+      description: Job service orchestrates async execution; business data remains owned by domain services.
       requestBody:
         required: true
         content:

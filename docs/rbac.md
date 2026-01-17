@@ -5,6 +5,7 @@
 - Support internal roles (sales binding & follow-up, procurement shipment updates, admin operations)
 - Provide *scoped access* (customer sees self; sales sees owned customers; admin sees all)
 - Only the admin console is web; all other user-facing surfaces are mini programs
+- Auth is enforced at gateway-bff; downstream services perform resource-level checks.
 
 ## User Types
 - customer: external user authenticated via WeChat/Alipay mini program
