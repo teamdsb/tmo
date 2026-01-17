@@ -1,0 +1,8 @@
+{
+  "name": "tmo-monorepo",
+  "private": true,
+  "scripts": {
+    "lint": "echo \"lint: not configured\"",
+    "format": "echo \"format: not configured\""
+  }
+}

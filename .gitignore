@@ -1,0 +1,19 @@
+.DS_Store
+.env
+.env.*
+*.log
+
+node_modules/
+dist/
+build/
+coverage/
+
+# Go
+bin/
+*.test
+*.out
+vendor/
+
+# IDE
+.idea/
+.vscode/
