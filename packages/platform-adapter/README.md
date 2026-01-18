@@ -1,3 +1,14 @@
 # platform-adapter
 
-Unified wrapper for wx/my differences (login, pay, file, subscribe).
+Unified wrapper for wx/my differences (login, request, pay, chooseImage).
+
+## Example
+
+```ts
+import { getPlatform, login } from '@tmo/platform-adapter'
+
+const platform = getPlatform()
+console.log('platform', platform)
+
+login().then(console.log).catch(console.error)
+```

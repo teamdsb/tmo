@@ -18,12 +18,14 @@
 - [x] (2026-01-18 16:11Z) 实现 Go 共享中间件（request-id、access log、recovery、统一错误、DB 连接、readiness、优雅停机、OTel）。
 - [x] (2026-01-18 16:11Z) 在 `services/commerce` 完成替换接入，补齐 `/health` 与 `/ready`，并保留业务行为。
 - [x] (2026-01-18 16:23Z) 补齐文档、测试/校验脚本与 CI 入口（更新 packages/go-shared 与 commerce README、扩展 test-backend 脚本与 commerce-ci）。
-- [ ] (2026-01-18 15:02Z, Phase 2) 为 `packages/shared`、`packages/openapi-client`、`packages/platform-adapter` 建立 TS 包结构并接入 appvx/appali。
+- [x] (2026-01-18 16:56Z, Phase 2) 为 `packages/shared`、`packages/openapi-client`、`packages/platform-adapter` 建立 TS 包结构并接入 appvx/appali（新增 package.json/tsconfig/src，并在 app 启动流程里引用）。
 
 ## Surprises & Discoveries
 
 - Observation: `packages/` 下已有 `go-shared`、`shared`、`openapi-client`、`platform-adapter` 目录，但仅有 README，无实际代码或包配置。
   Evidence: `find packages -maxdepth 2 -type f` 仅返回 README。
+- Observation: TS 共享包已有 `src` 目录骨架（constants/dto/enums/validators、weapp/alipay），但仅是 `.gitkeep` 占位。
+  Evidence: `find packages/shared -maxdepth 3 -type f` 与 `find packages/platform-adapter -maxdepth 3 -type f` 仅显示 `.gitkeep`。
 - Observation: `go.work` 目前只包含 `services/commerce`，共享 Go module 尚未纳入。
   Evidence: `go.work` 内容只有 `use ./services/commerce`。
 - Observation: Gin 的使用目前仅出现在 commerce 服务。
@@ -32,6 +34,10 @@
   Evidence: `pnpm-workspace.yaml` 包含 `packages/*`。
 - Observation: `go mod tidy` 在 `services/commerce` 中未按 `go.work` 解析本地 `packages/go-shared`，需要显式 `replace` 指向本地路径才能继续。
   Evidence: `go mod tidy` 报错提示 `module github.com/teamdsb/tmo@latest ... does not contain package github.com/teamdsb/tmo/packages/go-shared/...`。
+- Observation: 在 app 目录执行 `pnpm install --lockfile-only` 时会触发 workspace 根目录生成 `pnpm-lock.yaml`。
+  Evidence: 根目录出现新的 `pnpm-lock.yaml`。
+- Observation: app 的空 `app.scss` 与 `index.scss` 会触发 stylelint `no-empty-source`，且 `page` 选择器会触发 `selector-type-no-unknown`。
+  Evidence: `pnpm -C apps/appvx lint` 报错提示 `no-empty-source` 与 `selector-type-no-unknown`。
 
 ## Decision Log
 
@@ -65,14 +71,32 @@
 - Decision: 扩展 `tools/scripts/test-backend.sh` 以覆盖 `packages/go-shared`，并在 `commerce-ci` 中新增 go-shared 测试与路径触发规则。
   Rationale: 共享包变更需要在本地与 CI 中被稳定验证，避免只测 commerce 服务导致的回归。
   Date/Author: 2026-01-18 (Codex)
+- Decision: `commerce-ci` 仅在 PR 触发，不再对 push 触发。
+  Rationale: 避免分支内重复运行，保持 CI 成本与信号聚焦在合并请求。
+  Date/Author: 2026-01-18 (Codex)
+- Decision: TS 共享包以 workspace 源码形式导出（`main`/`exports` 指向 `src`），并配置 `tsconfig.json` 开启 `declaration`，先满足应用侧直接引用。
+  Rationale: 避免引入额外构建流程，保持 Taro/Vite 编译路径可追踪，同时为后续生成声明文件留出配置。
+  Date/Author: 2026-01-18 (Codex)
+- Decision: `@tmo/platform-adapter` 通过检测全局 `wx`/`my` 选择平台实现，提供 `login/request/pay/chooseImage` 的 Promise 包装，并复用 `@tmo/shared/enums` 的 Platform 枚举。
+  Rationale: 统一微信/支付宝 API 差异，减少应用层分支判断。
+  Date/Author: 2026-01-18 (Codex)
+- Decision: `@tmo/openapi-client` 提供 `createClient` 与 URL/query 构造工具，`createClient` 负责拼接 baseUrl 与 query，实际请求由注入的 requester 执行。
+  Rationale: 先建立生成客户端的稳定基座，避免耦合具体请求库。
+  Date/Author: 2026-01-18 (Codex)
+- Decision: 接受 pnpm workspace 生成的根目录 `pnpm-lock.yaml`，现有 app 目录 lockfile 暂不改动。
+  Rationale: workspace 安装默认在根目录生成共享 lockfile，先保留现场结果以避免误删或覆盖。
+  Date/Author: 2026-01-18 (Codex)
+- Decision: 为 app 的样式文件添加最小化 `:root` 与 `.index` 样式，避免空文件与未知选择器的 lint 失败。
+  Rationale: 保持 stylelint 通过且不引入复杂布局改动。
+  Date/Author: 2026-01-18 (Codex)
 
 ## Outcomes & Retrospective
 
-已完成 `packages/go-shared` 共享模块落地并接入 `services/commerce`：新增 request-id、统一错误、readiness、OTel 初始化与优雅停机等能力，`/health` 与 `/ready` 已接入；`go test ./...` 已验证编译通过。文档、测试脚本与 CI 入口已补齐。
+已完成 `packages/go-shared` 共享模块落地并接入 `services/commerce`：新增 request-id、统一错误、readiness、OTel 初始化与优雅停机等能力，`/health` 与 `/ready` 已接入；`go test ./...` 已验证编译通过。Phase 2 已补齐 `@tmo/shared`、`@tmo/openapi-client`、`@tmo/platform-adapter` 的 TS 包结构与示例用法，并在 appvx/appali 启动流程中接入。文档、测试脚本与 CI 入口已补齐。
 
 ## Context and Orientation / 背景与现状
 
-仓库已有共享包占位目录 `packages/go-shared`、`packages/shared`、`packages/openapi-client`、`packages/platform-adapter`，但没有实际代码或模块配置。Go 服务目前只有 `services/commerce` 可运行，Gin（Go 的 HTTP 框架）在 `services/commerce/internal/http/server.go` 里用于路由与中间件。本轮目标是先在 `packages/go-shared` 落地共享中间件并接入 `services/commerce`，以满足可投产最低标准；TS 共享包属于 Phase 2。前端是 Taro 4 的小程序项目，位于 `apps/appvx` 与 `apps/appali`，workspace 管理由 `pnpm-workspace.yaml` 控制，已包含 `packages/*`。
+仓库已有共享包目录 `packages/go-shared`、`packages/shared`、`packages/openapi-client`、`packages/platform-adapter`。`packages/go-shared` 已实现通用中间件并接入 `services/commerce`，TS 共享包已建立 `package.json`、`tsconfig.json` 与 `src` 结构并在 `apps/appvx` 与 `apps/appali` 引用。Go 服务目前只有 `services/commerce` 可运行，Gin（Go 的 HTTP 框架）在 `services/commerce/internal/http/server.go` 里用于路由与中间件。前端是 Taro 4 的小程序项目，位于 `apps/appvx` 与 `apps/appali`，workspace 管理由 `pnpm-workspace.yaml` 控制，已包含 `packages/*`。
 
 本文中的“公共轮子/共享包”指复用的基础能力模块，例如配置读取、错误模型、HTTP 中间件、数据库连接、观测（日志、指标、追踪）。DTO 是“数据传输对象”，即在接口和前端之间共享的数据结构。平台适配指统一不同小程序平台（如微信与支付宝）在登录、支付、文件等能力上的调用差异。
 
@@ -125,6 +149,15 @@ Phase 2：为 `packages/shared`、`packages/openapi-client`、`packages/platform
     golangci-lint run ./...
     bash tools/scripts/test-backend.sh
 
+为 TS 共享包建立结构并接入 appvx/appali：
+
+    mkdir -p packages/shared/src/{constants,dto,enums,validators}
+    mkdir -p packages/openapi-client/src
+    mkdir -p packages/platform-adapter/src/{weapp,alipay}
+    # 添加 package.json/tsconfig.json 与 src/index.ts 等文件
+    # 在 apps/appvx 与 apps/appali package.json 增加 @tmo/* 依赖，并在 src/app.ts 调用 initApp
+    # (可选) pnpm install --lockfile-only 以更新根目录 pnpm-lock.yaml
+
 ## Validation and Acceptance / 验证与验收
 
 MVP 通过验收需满足：
@@ -136,9 +169,13 @@ MVP 通过验收需满足：
 - 服务可优雅停机：收到 SIGTERM 后停止接入新请求，等待 in-flight 完成并关闭 DB 连接池。
 - 文档与 README 说明接入方式、命令与运行要求。
 
+Phase 2 验收补充：
+
+- appvx/appali 能引用 `@tmo/shared`、`@tmo/openapi-client`、`@tmo/platform-adapter` 并在启动日志中输出平台与 health URL（`pnpm -C apps/appvx lint`/`pnpm -C apps/appali lint` 可作为静态校验）。
+
 ## Idempotence and Recovery / 可重复与恢复
 
-新增的 Go 共享包目录与脚本可重复执行，`go.work` 与模块初始化可回滚。若接入失败，可暂时恢复 commerce 原实现并保留共享包代码，不影响现有服务运行。本轮 MVP 不引入自动生成代码，如后续加入生成产物需补充清理说明。
+新增的 Go 共享包目录与脚本可重复执行，`go.work` 与模块初始化可回滚。TS 包为纯源码与配置文件，删除对应目录即可回滚；app 接入只涉及依赖与启动日志调用，可按需撤销。若接入失败，可暂时恢复 commerce 原实现并保留共享包代码，不影响现有服务运行。本轮 MVP 不引入自动生成代码，如后续加入生成产物需补充清理说明。
 
 ## Artifacts and Notes / 产物与记录
 
@@ -189,7 +226,7 @@ Go 共享包建议暴露以下稳定接口（示例签名，具体实现需与 c
     }
     func Setup(ctx context.Context, cfg Config, logger *slog.Logger) (shutdown func(context.Context) error, err error)
 
-Phase 2 的 TS 共享包建议采用 workspace package 形式，`packages/shared` 导出 DTO、枚举与校验器；`packages/openapi-client` 提供 OpenAPI 生成脚本与可导入的客户端；`packages/platform-adapter` 导出统一的 `login`、`request`、`pay`、`chooseImage` 接口并在内部根据运行时选择 `wx` 或 `my` 实现。建议使用 `exports` 字段固定 API 面向应用侧的导入路径，并在 `tsconfig` 中开启 `declaration` 以生成类型声明。
+Phase 2 的 TS 共享包采用 workspace package 形式，`packages/shared` 导出 constants/dto/enums/validators；`packages/openapi-client` 提供 `buildQuery/joinUrl/buildUrl/createClient` 作为客户端基础；`packages/platform-adapter` 导出 `getPlatform/isWeapp/isAlipay/login/request/pay/chooseImage` 并在内部根据运行时选择 `wx` 或 `my` 实现。所有包已配置 `exports` 指向 `src` 并在 `tsconfig.json` 中开启 `declaration`，便于后续生成声明文件。
 
 ## Plan Revision Note
 
@@ -197,3 +234,6 @@ Phase 2 的 TS 共享包建议采用 workspace package 形式，`packages/shared
 2026-01-18 15:02Z：更新 MVP 目标为 Go 共享中间件 + commerce 接入，补充 readiness、中间件范围与验收标准，TS 共享包为 Phase 2。
 2026-01-18 16:11Z：完成 go-shared 落地与 commerce 接入的执行记录，更新进度/决策/发现并补充本地 replace 说明与测试步骤。
 2026-01-18 16:23Z：补齐文档、测试脚本与 CI 入口的执行记录，并更新决策与进度。
+2026-01-18 16:36Z：调整 commerce-ci 仅 PR 触发，并记录到 Decision Log。
+2026-01-18 16:56Z：完成 Phase 2 TS 包结构与 app 接入记录，补充 lockfile 处理与接口说明。
+2026-01-18 17:06Z：补充 app 样式 lint 处理记录，并更新发现与决策。

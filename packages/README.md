@@ -7,8 +7,8 @@ Shared packages for frontend and backend.
 - `go-shared`: common infrastructure for Go services (config, db, httpx, errors, observability).
   Tests: `cd packages/go-shared && go test ./...`
 
-## Frontend packages (Phase 2)
+## Frontend packages
 
-- `shared`: DTOs and validators (planned).
-- `openapi-client`: OpenAPI client generation (planned).
-- `platform-adapter`: platform-specific API adapters (planned).
+- `shared`: DTOs, enums, validators, and constants.
+- `openapi-client`: OpenAPI client utilities and shared request helpers.
+- `platform-adapter`: platform-specific API adapters (wx/my).
