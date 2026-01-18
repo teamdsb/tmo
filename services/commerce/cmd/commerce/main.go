@@ -7,12 +7,17 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/teamdsb/tmo/services/commerce/internal/config"
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
 	httpserver "github.com/teamdsb/tmo/services/commerce/internal/http"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/handler"
+
+	"github.com/teamdsb/tmo/packages/go-shared/observability"
 )
 
 func main() {
@@ -41,6 +46,23 @@ func parseLogLevel(raw string) slog.Level {
 }
 
 func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	otelShutdown, err := observability.Setup(ctx, observability.Config{
+		ServiceName: "commerce",
+	}, logger)
+	if err != nil {
+		return fmt.Errorf("otel setup failed: %w", err)
+	}
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := otelShutdown(shutdownCtx); err != nil {
+			logger.Error("otel shutdown failed", "error", err)
+		}
+	}()
+
 	pool, err := db.NewPool(ctx, cfg.DBDSN)
 	if err != nil {
 		return fmt.Errorf("database connection failed: %w", err)
@@ -50,11 +72,35 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	store := db.New(pool)
 	apiHandler := &handler.Handler{Store: store, Logger: logger}
 
-	router := httpserver.NewRouter(apiHandler)
+	router := httpserver.NewRouter(apiHandler, logger, func(checkCtx context.Context) error {
+		return db.Ready(checkCtx, pool)
+	})
 	server := httpserver.NewServer(cfg.HTTPAddr, router)
 
 	logger.Info("commerce service listening", "addr", cfg.HTTPAddr)
-	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- server.ListenAndServe()
+	}()
+
+	select {
+	case err := <-errCh:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("server stopped: %w", err)
+		}
+		return nil
+	case <-ctx.Done():
+		logger.Info("shutdown signal received")
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		return fmt.Errorf("server shutdown failed: %w", err)
+	}
+
+	if err := <-errCh; err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("server stopped: %w", err)
 	}
 

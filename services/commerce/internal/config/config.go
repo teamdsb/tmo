@@ -1,6 +1,6 @@
 package config
 
-import "os"
+import sharedconfig "github.com/teamdsb/tmo/packages/go-shared/config"
 
 const (
 	defaultHTTPAddr = ":8080"
@@ -16,21 +16,9 @@ type Config struct {
 }
 
 func Load() Config {
-	cfg := Config{
-		HTTPAddr: defaultHTTPAddr,
-		DBDSN:    defaultDBDSN,
-		LogLevel: defaultLogLevel,
+	return Config{
+		HTTPAddr: sharedconfig.String("COMMERCE_HTTP_ADDR", defaultHTTPAddr),
+		DBDSN:    sharedconfig.String("COMMERCE_DB_DSN", defaultDBDSN),
+		LogLevel: sharedconfig.String("COMMERCE_LOG_LEVEL", defaultLogLevel),
 	}
-
-	if value := os.Getenv("COMMERCE_HTTP_ADDR"); value != "" {
-		cfg.HTTPAddr = value
-	}
-	if value := os.Getenv("COMMERCE_DB_DSN"); value != "" {
-		cfg.DBDSN = value
-	}
-	if value := os.Getenv("COMMERCE_LOG_LEVEL"); value != "" {
-		cfg.LogLevel = value
-	}
-
-	return cfg
 }
