@@ -12,6 +12,10 @@
   "scripts": {
     "prepare": "husky",
     "new": "taro new",
+    "lint:eslint": "eslint \"src/**/*.{ts,tsx}\"",
+    "lint:style": "stylelint \"src/**/*.{css,scss}\"",
+    "lint": "pnpm run lint:eslint && pnpm run lint:style",
+    "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix && stylelint \"src/**/*.{css,scss}\" --fix",
     "build:weapp": "taro build --type weapp",
     "build:swan": "taro build --type swan",
     "build:alipay": "taro build --type alipay",
