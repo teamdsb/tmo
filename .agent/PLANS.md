@@ -13,15 +13,18 @@
 - [x] (2026-01-18 06:20Z) 将 `contracts/openapi/openapi.yaml` 拆分为按服务划分的 OpenAPI，并用路径级 `$ref` 聚合。
 - [x] (2026-01-18 06:28Z) 修正错放的 Inquiries PATCH 操作，归位到 `/inquiries/price/{inquiryId}` 并移出 AI 规范。
 - [x] (2026-01-18 06:34Z) 在 `contracts/openapi/commerce.yaml` 增加 `POST /catalog/products` 及所需的 schema。
-- [ ] (2026-01-18 06:20Z) 搭建 `services/commerce` 的 Go 模块、入口、配置、日志与健康检查。
-- [ ] (2026-01-18 06:20Z) 增加本地 Postgres（Docker Compose）并打通连接配置。
-- [ ] (2026-01-18 06:20Z) 增加 goose 迁移与 sqlc 查询文件，生成对应 Go 代码。
-- [ ] (2026-01-18 06:20Z) 用 oapi-codegen 生成 OpenAPI 服务器接口并实现产品创建/查询处理器。
-- [ ] (2026-01-18 06:20Z) 通过 curl 完成端到端验证并记录预期输出。
+- [x] (2026-01-18 07:05Z) 搭建 `services/commerce` 的 Go 模块、入口、配置、日志与健康检查，并创建根目录 `go.work`。
+- [x] (2026-01-18 07:08Z) 新增 `infra/dev/docker-compose.yml` 作为 Postgres 本地方案，补充默认 DSN 配置。
+- [x] (2026-01-18 07:12Z) 增加 goose 迁移与 sqlc 查询文件，生成对应 Go 代码。
+- [x] (2026-01-18 07:15Z) 用 oapi-codegen（Catalog tag）生成 OpenAPI 服务器接口并实现商品创建/列表/详情处理器。
+- [x] (2026-01-18 07:20Z) 使用本机 Postgres 完成 `/health`、`POST /catalog/products`、`GET /catalog/products` 的端到端验证并记录输出。
 
 ## Surprises & Discoveries（意外与发现）
 
 - Observation: 原始 OpenAPI 将“更新询价”的 `PATCH` 操作放在 `/ai/after-sales/suggestions` 下，且带有 `inquiryId` 路径参数，语义与路径不匹配。Evidence: 旧的 `contracts/openapi/ai.yaml` 曾在该路径下声明 `patch`。
+- Observation: 本机 Docker daemon 未运行，`docker` 无法连接守护进程，无法使用 Docker Compose 启动 Postgres。Evidence: `docker: failed to connect to the docker API ... connect: no such file or directory`。
+- Observation: 使用 Go proxy 拉取 sqlc/goose 依赖时出现 `modernc.org/libc` 与压缩库下载 EOF。Evidence: `modernc.org/libc@v1.66.3 ... EOF`。
+- Observation: oapi-codegen 对 OpenAPI 3.1 发出不完全支持警告。Evidence: `WARNING: You are using an OpenAPI 3.1.x specification...`。
 
 ## Decision Log（决策记录）
 
@@ -57,13 +60,25 @@
   Rationale: 降低本地环境差异，使验证步骤可复现。
   Date/Author: 2026-01-18 / Codex
 
+- Decision: oapi-codegen 仅生成 Catalog tag 的 types 与 Gin server，并实现 `/catalog/categories` 与 `/catalog/products/{spuId}` 处理器。
+  Rationale: commerce.yaml 覆盖大量未实现接口，限定 tag 可保持最小闭环同时完整编译。
+  Date/Author: 2026-01-18 / Codex
+
+- Decision: 保留 Docker Compose 方案，但在本机验证阶段改用 Homebrew Postgres。
+  Rationale: Docker daemon 不可用，需要替代方案完成迁移与接口验证。
+  Date/Author: 2026-01-18 / Codex
+
+- Decision: sqlc 与 goose 使用 GitHub release 预编译二进制执行生成与迁移。
+  Rationale: Go proxy 拉取依赖多次 EOF，使用预编译工具更稳定。
+  Date/Author: 2026-01-18 / Codex
+
 ## Outcomes & Retrospective（结果与复盘）
 
-已完成 OpenAPI 拆分、错误 PATCH 归位，并补齐 `POST /catalog/products` 与 `CreateCatalogProductRequest`。尚未开始 commerce 服务代码实现，下一阶段进入模块脚手架与数据库链路。
+已完成 commerce 服务模块、健康检查、Postgres 迁移与 sqlc 生成、Catalog 接口实现，并通过本机 Postgres 完成端到端验证。Docker Compose 方案已落地，但当前环境使用 Homebrew 替代完成验证；后续可在具备 Docker 的环境重复验证并扩展更多 commerce 接口。
 
 ## Context and Orientation（上下文与导航）
 
-该仓库为单体仓库。API 合约位于 `contracts/openapi/`，后端服务位于 `services/`。commerce 服务目前仍为空壳目录，计划作为独立 Go 模块存在于 `services/commerce`，并由根目录 `go.work` 统一本地工作区。聚合入口文件为 `contracts/openapi/openapi.yaml`，各服务独立规范位于同目录下的 `*.yaml`。
+该仓库为单体仓库。API 合约位于 `contracts/openapi/`，后端服务位于 `services/`。commerce 服务已建立 Go 模块：`services/commerce/go.mod`，入口为 `services/commerce/cmd/commerce/main.go`，配置在 `services/commerce/internal/config/config.go`，HTTP 入口在 `services/commerce/internal/http/server.go`，处理器在 `services/commerce/internal/http/handler/`，OpenAPI 生成代码位于 `services/commerce/internal/http/oapi/api.gen.go`。数据库迁移在 `services/commerce/migrations/00001_create_catalog_products.sql`，查询定义在 `services/commerce/queries/catalog.sql`，sqlc 配置为 `services/commerce/sqlc.yaml`，生成代码在 `services/commerce/internal/db/`。本地数据库方案记录在 `infra/dev/docker-compose.yml`，验证时使用 Homebrew Postgres。根目录 `go.work` 已包含 commerce 模块。聚合入口文件为 `contracts/openapi/openapi.yaml`，各服务独立规范位于同目录下的 `*.yaml`。
 
 术语说明：Gin 是 HTTP 路由库；oapi-codegen 根据 OpenAPI 生成 Go 类型与服务接口；sqlc 读取 SQL 并生成类型安全的查询方法；goose 负责数据库迁移；`go.work` 是 Go workspace 文件，用于把多个模块组合成一个本地工作区。
 
@@ -73,65 +88,77 @@
 
 随后搭建 commerce 服务模块：创建 `services/commerce/go.mod`、入口 `services/commerce/cmd/commerce/main.go`，以及基础配置与日志。提供 `GET /health` 来验证服务启动。
 
-然后搭建数据库链路：新增 Docker Compose 的 Postgres 配置，增加 goose 迁移创建 `products` 表，使用 sqlc 从 SQL 文件生成 Go 访问层。
+然后搭建数据库链路：新增 Docker Compose 的 Postgres 配置（`infra/dev/docker-compose.yml`），如果 Docker 不可用则使用 Homebrew Postgres 作为验证替代；增加 goose 迁移创建 `catalog_products` 表，使用 sqlc 从 SQL 文件生成 Go 访问层。
 
-接着基于 OpenAPI 生成 HTTP 层：用 oapi-codegen 生成接口与类型，编写 Gin handler 调用 sqlc 的创建与查询方法，实现 `POST /catalog/products` 与 `GET /catalog/products`。
+接着基于 OpenAPI 生成 HTTP 层：用 oapi-codegen 仅生成 Catalog tag 的 types 与 Gin server，编写 Gin handler 调用 sqlc 的创建与查询方法，实现 `POST /catalog/products`、`GET /catalog/products`、`GET /catalog/products/{spuId}` 与 `GET /catalog/categories`。
 
 最后执行端到端验证：跑迁移、启动服务、执行创建与查询请求，并记录输出示例作为验收凭据。
 
 ## Concrete Steps（具体步骤）
 
-在仓库根目录确认 OpenAPI 拆分结果：
+在仓库根目录确认 OpenAPI 拆分结果（仅需首次）：
 
     ls contracts/openapi
     rg "paths:" -n contracts/openapi/commerce.yaml
 
-修改 `contracts/openapi/commerce.yaml`，补充 `POST /catalog/products` 与所需 schema，确保 `contracts/openapi/openapi.yaml` 中对应路径仍引用该文件。
+生成代码所需的工具（未安装时）：
 
-创建 commerce 模块：
+    mkdir -p /tmp/sqlc-install
+    curl -L https://github.com/sqlc-dev/sqlc/releases/download/v1.30.0/sqlc_1.30.0_darwin_arm64.tar.gz -o /tmp/sqlc.tar.gz
+    tar -xzf /tmp/sqlc.tar.gz -C /tmp/sqlc-install
+    curl -L https://github.com/pressly/goose/releases/download/v3.26.0/goose_darwin_arm64 -o /tmp/goose
+    chmod +x /tmp/goose
+
+创建 commerce 模块与工作区（如需重建）：
 
     mkdir -p services/commerce/cmd/commerce services/commerce/internal
     cd services/commerce
     go mod init github.com/teamdsb/tmo/services/commerce
-    go mod tidy
-
-创建工作区（仓库根目录）：
-
+    cd ../..
     go work init
     go work use ./services/commerce
 
-启动本地 Postgres（计划新增 `infra/dev/docker-compose.yml`）：
+启动本地 Postgres（二选一）：
 
     docker compose -f infra/dev/docker-compose.yml up -d
 
-应用迁移（完成 goose 配置后）：
+或（Docker 不可用时）：
+
+    brew install postgresql@15
+    brew services start postgresql@15
+    /opt/homebrew/opt/postgresql@15/bin/psql -d postgres -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'commerce') THEN CREATE ROLE commerce LOGIN PASSWORD 'commerce'; END IF; END \$\$;"
+    if ! /opt/homebrew/opt/postgresql@15/bin/psql -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='commerce'" | grep -q 1; then /opt/homebrew/opt/postgresql@15/bin/createdb -O commerce commerce; fi
+
+应用迁移并生成代码：
 
     cd services/commerce
-    goose -dir ./migrations postgres "$COMMERCE_DB_DSN" up
-
-生成 sqlc 代码（完成 sqlc 配置后）：
-
-    cd services/commerce
-    sqlc generate
-
-生成 OpenAPI 服务器代码（完成 oapi-codegen 配置后）：
-
-    cd services/commerce
-    oapi-codegen -generate types,server -package api -o internal/http/oapi/api.gen.go ../../contracts/openapi/commerce.yaml
+    /tmp/goose -dir ./migrations postgres "postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable" up
+    /tmp/sqlc-install/sqlc generate
+    go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen -generate types,gin -package oapi -o internal/http/oapi/api.gen.go -include-tags Catalog ../../contracts/openapi/commerce.yaml
 
 ## Validation and Acceptance（验证与验收）
 
-验收标准为：服务启动后 `/health` 返回 HTTP 200；`POST /catalog/products` 返回 HTTP 201 并包含新商品信息；`GET /catalog/products` 返回 HTTP 200 且列表包含该商品。
+验收标准为：服务启动后 `/health` 返回 HTTP 200；`POST /catalog/products` 返回 HTTP 201 并包含新商品信息；`GET /catalog/products` 返回 HTTP 200 且列表包含该商品；`GET /catalog/products/{spuId}` 返回对应详情且 `skus` 为空数组。
 
 示例（以实际监听端口为准）：
 
     curl -s http://localhost:8080/health
-    curl -s -X POST http://localhost:8080/catalog/products -H 'Content-Type: application/json' -d '{"name":"Steel Pipe","categoryId":"00000000-0000-0000-0000-000000000000"}'
+    OK
+
+    curl -s -X POST http://localhost:8080/catalog/products \
+      -H 'Content-Type: application/json' \
+      -d '{"name":"Steel Pipe","categoryId":"00000000-0000-0000-0000-000000000000","description":"Schedule 40","coverImageUrl":"https://example.com/steel.jpg","images":["https://example.com/steel.jpg"],"tags":["steel","pipe"],"filterDimensions":["material","length"]}'
+    {"product":{"categoryId":"00000000-0000-0000-0000-000000000000","description":"Schedule 40","filterDimensions":["material","length"],"id":"<uuid>","images":["https://example.com/steel.jpg"],"name":"Steel Pipe"},"skus":[]}
+
     curl -s http://localhost:8080/catalog/products
+    {"items":[{"categoryId":"00000000-0000-0000-0000-000000000000","coverImageUrl":"https://example.com/steel.jpg","id":"<uuid>","name":"Steel Pipe","tags":["steel","pipe"]}],"page":1,"pageSize":20,"total":1}
+
+    curl -s http://localhost:8080/catalog/products/<uuid>
+    {"product":{"categoryId":"00000000-0000-0000-0000-000000000000","description":"Schedule 40","filterDimensions":["material","length"],"id":"<uuid>","images":["https://example.com/steel.jpg"],"name":"Steel Pipe"},"skus":[]}
 
 ## Idempotence and Recovery（幂等与恢复）
 
-OpenAPI 拆分与路径修正属于文件编辑，可重复执行。goose 迁移可安全重复运行 `goose up`；如需回滚单步，可使用 `goose down` 后再 `goose up`。Docker Compose 可用 `docker compose up -d` 重启，必要时用 `docker compose down` 清理环境。
+OpenAPI 拆分与路径修正属于文件编辑，可重复执行。goose 迁移可安全重复运行 `goose up`；如需回滚单步，可使用 `goose down` 后再 `goose up`。Docker Compose 可用 `docker compose up -d` 重启，必要时用 `docker compose down` 清理环境。Homebrew Postgres 可用 `brew services start postgresql@15` / `brew services stop postgresql@15` 重启或关闭，必要时可手动删除 `commerce` 数据库再重建以清空数据。
 
 ## Artifacts and Notes（产出与备注）
 
@@ -140,24 +167,38 @@ OpenAPI 拆分与路径修正属于文件编辑，可重复执行。goose 迁移
     /catalog/products:
       $ref: "./commerce.yaml#/paths/~1catalog~1products"
 
+迁移输出示例：
+
+    2026/01/18 15:19:09 OK   00001_create_catalog_products.sql (692.45ms)
+    2026/01/18 15:19:09 goose: successfully migrated database to version: 1
+
+接口验证输出示例：
+
+    curl -s http://localhost:8080/health
+    OK
+
 ## Interfaces and Dependencies（接口与依赖）
 
-使用 Gin 作为 HTTP 路由，oapi-codegen 生成服务接口与类型，sqlc 生成数据库访问层，goose 进行迁移。最终需要一个 handler 实现生成的接口，并依赖一个基于 sqlc 的存储层抽象。
+使用 Gin 作为 HTTP 路由，oapi-codegen 生成 Catalog tag 的 Gin server 与类型（依赖 `github.com/oapi-codegen/runtime`），sqlc 生成数据库访问层，goose 进行迁移。最终由 handler 实现生成的接口，并依赖 sqlc 的存储层抽象。
 
 在 `services/commerce/internal/http/handler/handler.go` 定义：
 
     type Handler struct {
-        Store CatalogStore
+        Store  catalog.Store
+        Logger *slog.Logger
     }
 
 在 `services/commerce/internal/catalog/store.go` 定义接口以匹配 sqlc 输出：
 
-    type CatalogStore interface {
-        CreateProduct(ctx context.Context, arg db.CreateProductParams) (db.Product, error)
-        ListProducts(ctx context.Context, arg db.ListProductsParams) ([]db.Product, error)
+    type Store interface {
+        CreateProduct(ctx context.Context, arg db.CreateProductParams) (db.CatalogProduct, error)
+        ListProducts(ctx context.Context, arg db.ListProductsParams) ([]db.CatalogProduct, error)
+        CountProducts(ctx context.Context, arg db.CountProductsParams) (int64, error)
+        GetProduct(ctx context.Context, id uuid.UUID) (db.CatalogProduct, error)
     }
 
-在 `services/commerce/internal/http/server.go` 中创建 Gin 路由，注册 oapi-codegen 生成的路由，并启动 HTTP 服务器。
+在 `services/commerce/internal/http/server.go` 中创建 Gin 路由，注册 `oapi.RegisterHandlers` 并补充 `/health`。
 
 变更说明（2026-01-18 06:28Z）：将 ExecPlan 全文改为中文，并记录 OpenAPI 拆分与询价 PATCH 归位修正，原因：用户要求以中文完成并修正规范错误。
 变更说明（2026-01-18 06:34Z）：补充 `POST /catalog/products` 与 `CreateCatalogProductRequest`，同步更新进度、决策与结果。
+变更说明（2026-01-18 07:21Z）：完成 commerce 模块、数据库迁移、sqlc 与 oapi-codegen 生成、HTTP 处理器与端到端验证；补充 Docker 不可用与工具下载失败的发现与替代方案记录。
