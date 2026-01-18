@@ -1,6 +1,6 @@
 module github.com/teamdsb/tmo/services/commerce
 
-go 1.22
+go 1.25.6
 
 require (
 	github.com/gin-gonic/gin v1.11.0
