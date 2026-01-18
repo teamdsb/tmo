@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -20,23 +21,8 @@ func main() {
 		Level: parseLogLevel(cfg.LogLevel),
 	}))
 
-	ctx := context.Background()
-	pool, err := db.NewPool(ctx, cfg.DBDSN)
-	if err != nil {
-		logger.Error("database connection failed", "error", err)
-		os.Exit(1)
-	}
-	defer pool.Close()
-
-	store := db.New(pool)
-	apiHandler := &handler.Handler{Store: store, Logger: logger}
-
-	router := httpserver.NewRouter(apiHandler)
-	server := httpserver.NewServer(cfg.HTTPAddr, router)
-
-	logger.Info("commerce service listening", "addr", cfg.HTTPAddr)
-	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		logger.Error("server stopped", "error", err)
+	if err := run(context.Background(), cfg, logger); err != nil {
+		logger.Error("commerce service stopped", "error", err)
 		os.Exit(1)
 	}
 }
@@ -52,4 +38,25 @@ func parseLogLevel(raw string) slog.Level {
 	default:
 		return slog.LevelInfo
 	}
+}
+
+func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	pool, err := db.NewPool(ctx, cfg.DBDSN)
+	if err != nil {
+		return fmt.Errorf("database connection failed: %w", err)
+	}
+	defer pool.Close()
+
+	store := db.New(pool)
+	apiHandler := &handler.Handler{Store: store, Logger: logger}
+
+	router := httpserver.NewRouter(apiHandler)
+	server := httpserver.NewServer(cfg.HTTPAddr, router)
+
+	logger.Info("commerce service listening", "addr", cfg.HTTPAddr)
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("server stopped: %w", err)
+	}
+
+	return nil
 }
