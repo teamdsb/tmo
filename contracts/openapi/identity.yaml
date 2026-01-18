@@ -1,0 +1,1180 @@
+openapi: 3.1.0
+info:
+  title: Procurement Mini Program - Identity API
+  version: 0.1.0
+  description: |
+    v1 API contract for customer/staff mini programs + Admin Web.
+    Conventions:
+    - JSON field naming: camelCase
+    - Time: RFC3339 date-time strings
+    - IDs: UUID strings
+    - Auth: Bearer JWT access token
+    - Idempotency: send `Idempotency-Key` for order submit and payment create
+servers:
+- url: https://api.example.com/v1
+tags:
+- name: Auth
+- name: Me
+security:
+- bearerAuth: []
+paths:
+  "/auth/mini/login":
+    post:
+      tags:
+      - Auth
+      summary: Mini program login (customer/staff, WeChat/Alipay)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/MiniLoginRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AuthResponse"
+        '400':
+          "$ref": "#/components/responses/BadRequest"
+  "/auth/password/login":
+    post:
+      tags:
+      - Auth
+      summary: Admin web password login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PasswordLoginRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AuthResponse"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+  "/me":
+    get:
+      tags:
+      - Me
+      summary: Get current user
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/User"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+  "/me/sales-qr-code":
+    get:
+      tags:
+      - Me
+      summary: Get sales binding QR code (sales only)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SalesQrCode"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/ErrorResponse"
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        requestId:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+      required:
+      - code
+      - message
+      - requestId
+    MiniLoginRequest:
+      type: object
+      properties:
+        platform:
+          type: string
+          enum:
+          - weapp
+          - alipay
+        code:
+          type: string
+        scene:
+          type: string
+          description: 'Optional: QR scene parameter for sales binding (only applied
+            on first bind)'
+      required:
+      - platform
+      - code
+    PasswordLoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required:
+      - username
+      - password
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        expiresIn:
+          type: integer
+        user:
+          "$ref": "#/components/schemas/User"
+      required:
+      - accessToken
+      - expiresIn
+      - user
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userType:
+          type: string
+          enum:
+          - customer
+          - staff
+          - admin
+        displayName:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - userType
+      - roles
+      - createdAt
+    Customer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        ownerSalesUserId:
+          type: string
+          format: uuid
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - displayName
+      - createdAt
+    PagedCustomerList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/Customer"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required:
+      - items
+      - page
+      - pageSize
+      - total
+    SalesQrCode:
+      type: object
+      properties:
+        qrCodeUrl:
+          type: string
+        scene:
+          type: string
+          description: Scene parameter used for sales binding
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - qrCodeUrl
+      - scene
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        parentId:
+          type: string
+          format: uuid
+          nullable: true
+        sort:
+          type: integer
+          default: 0
+      required:
+      - id
+      - name
+    ProductSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        coverImageUrl:
+          type: string
+        categoryId:
+          type: string
+          format: uuid
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+      - id
+      - name
+      - categoryId
+    PagedProductList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/ProductSummary"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required:
+      - items
+      - page
+      - pageSize
+      - total
+    PriceTier:
+      type: object
+      properties:
+        minQty:
+          type: integer
+          minimum: 1
+        maxQty:
+          type: integer
+          nullable: true
+          description: null means no upper bound
+        unitPrice:
+          type: number
+      required:
+      - minQty
+      - unitPrice
+    SKU:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        spuId:
+          type: string
+          format: uuid
+        skuCode:
+          type: string
+        name:
+          type: string
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+        priceTiers:
+          type: array
+          items:
+            "$ref": "#/components/schemas/PriceTier"
+        unit:
+          type: string
+          example: pcs
+        isActive:
+          type: boolean
+          default: true
+      required:
+      - id
+      - spuId
+      - name
+      - isActive
+    ProductDetail:
+      type: object
+      properties:
+        product:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            description:
+              type: string
+            images:
+              type: array
+              items:
+                type: string
+            categoryId:
+              type: string
+              format: uuid
+            filterDimensions:
+              type: array
+              description: For multi-level filtering, e.g., material -> length ->
+                size
+              items:
+                type: string
+          required:
+          - id
+          - name
+          - categoryId
+        skus:
+          type: array
+          items:
+            "$ref": "#/components/schemas/SKU"
+      required:
+      - product
+      - skus
+    WishlistItem:
+      type: object
+      properties:
+        sku:
+          "$ref": "#/components/schemas/SKU"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - sku
+      - createdAt
+    CartItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sku:
+          "$ref": "#/components/schemas/SKU"
+        qty:
+          type: integer
+          minimum: 1
+      required:
+      - id
+      - sku
+      - qty
+    Cart:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/CartItem"
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - items
+    AddCartItemRequest:
+      type: object
+      properties:
+        skuId:
+          type: string
+          format: uuid
+        qty:
+          type: integer
+          minimum: 1
+      required:
+      - skuId
+      - qty
+    CartImportJob:
+      allOf:
+      - "$ref": "#/components/schemas/ImportJob"
+      - type: object
+        properties:
+          result:
+            "$ref": "#/components/schemas/CartImportResult"
+    CartImportResult:
+      type: object
+      properties:
+        autoAddedCount:
+          type: integer
+          minimum: 0
+        pendingCount:
+          type: integer
+          minimum: 0
+        autoAddedItems:
+          type: array
+          items:
+            "$ref": "#/components/schemas/CartImportAddedItem"
+        pendingItems:
+          type: array
+          items:
+            "$ref": "#/components/schemas/CartImportPendingItem"
+      required:
+      - autoAddedCount
+      - pendingCount
+      - autoAddedItems
+      - pendingItems
+    CartImportAddedItem:
+      type: object
+      properties:
+        rowNo:
+          type: integer
+          minimum: 1
+        skuId:
+          type: string
+          format: uuid
+        qty:
+          type: integer
+          minimum: 1
+      required:
+      - rowNo
+      - skuId
+      - qty
+    CartImportPendingItem:
+      type: object
+      properties:
+        rowNo:
+          type: integer
+          minimum: 1
+        rawName:
+          type: string
+        rawSpec:
+          type: string
+          nullable: true
+        rawQty:
+          type: string
+          nullable: true
+        matchType:
+          type: string
+          enum:
+          - AMBIGUOUS
+          - NOT_FOUND
+        candidates:
+          type: array
+          items:
+            "$ref": "#/components/schemas/CartImportCandidate"
+      required:
+      - rowNo
+      - rawName
+      - matchType
+      - candidates
+    CartImportCandidate:
+      type: object
+      properties:
+        sku:
+          "$ref": "#/components/schemas/SKU"
+      required:
+      - sku
+    ConfirmCartImportRequest:
+      type: object
+      properties:
+        selections:
+          type: array
+          items:
+            "$ref": "#/components/schemas/CartImportSelection"
+      required:
+      - selections
+    CartImportSelection:
+      type: object
+      properties:
+        rowNo:
+          type: integer
+          minimum: 1
+        skuId:
+          type: string
+          format: uuid
+        qty:
+          type: integer
+          minimum: 1
+          nullable: true
+      required:
+      - rowNo
+      - skuId
+    Address:
+      type: object
+      properties:
+        receiverName:
+          type: string
+        receiverPhone:
+          type: string
+        province:
+          type: string
+        city:
+          type: string
+        district:
+          type: string
+        detail:
+          type: string
+      required:
+      - receiverName
+      - receiverPhone
+      - detail
+    CreateOrderRequest:
+      type: object
+      properties:
+        address:
+          "$ref": "#/components/schemas/Address"
+        remark:
+          type: string
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              skuId:
+                type: string
+                format: uuid
+              qty:
+                type: integer
+                minimum: 1
+            required:
+            - skuId
+            - qty
+      required:
+      - address
+      - items
+    OrderStatus:
+      type: string
+      enum:
+      - SUBMITTED
+      - CONFIRMED
+      - PAY_PENDING
+      - PAID
+      - PAY_FAILED
+      - SHIPPED
+      - DELIVERED
+      - CANCELLED
+      - CLOSED
+    OrderItem:
+      type: object
+      properties:
+        sku:
+          "$ref": "#/components/schemas/SKU"
+        qty:
+          type: integer
+          minimum: 1
+        unitPrice:
+          type: number
+          description: Final price per unit at order time
+      required:
+      - sku
+      - qty
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          "$ref": "#/components/schemas/OrderStatus"
+        address:
+          "$ref": "#/components/schemas/Address"
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/OrderItem"
+        remark:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - status
+      - items
+      - createdAt
+    PagedOrderList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/Order"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required:
+      - items
+      - page
+      - pageSize
+      - total
+    TrackingInfo:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        shipments:
+          type: array
+          items:
+            type: object
+            properties:
+              carrier:
+                type: string
+                nullable: true
+              waybillNo:
+                type: string
+              shippedAt:
+                type: string
+                format: date-time
+                nullable: true
+            required:
+            - waybillNo
+      required:
+      - orderId
+      - shipments
+    UpdateTrackingRequest:
+      type: object
+      properties:
+        shipments:
+          type: array
+          items:
+            type: object
+            properties:
+              carrier:
+                type: string
+                nullable: true
+              waybillNo:
+                type: string
+              shippedAt:
+                type: string
+                format: date-time
+                nullable: true
+            required:
+            - waybillNo
+      required:
+      - shipments
+    CreateProductRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        spec:
+          type: string
+        qty:
+          type: string
+          description: Free-form, e.g., '10 boxes' or '5 pcs'
+        note:
+          type: string
+      required:
+      - name
+    ProductRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        createdByUserId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        spec:
+          type: string
+        qty:
+          type: string
+        note:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - createdByUserId
+      - name
+      - createdAt
+    PagedProductRequestList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/ProductRequest"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required:
+      - items
+      - page
+      - pageSize
+      - total
+    CreateAfterSalesTicket:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          nullable: true
+        subject:
+          type: string
+        description:
+          type: string
+        attachments:
+          type: array
+          items:
+            type: string
+            description: Uploaded file URL
+      required:
+      - subject
+      - description
+    TicketStatus:
+      type: string
+      enum:
+      - OPEN
+      - IN_PROGRESS
+      - RESOLVED
+      - CLOSED
+    AfterSalesTicket:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          "$ref": "#/components/schemas/TicketStatus"
+        orderId:
+          type: string
+          format: uuid
+          nullable: true
+        assignedStaffUserId:
+          type: string
+          format: uuid
+          nullable: true
+        subject:
+          type: string
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - id
+      - status
+      - subject
+      - description
+      - createdAt
+    UpdateAfterSalesTicketRequest:
+      type: object
+      properties:
+        status:
+          "$ref": "#/components/schemas/TicketStatus"
+        assignedStaffUserId:
+          type: string
+          format: uuid
+          nullable: true
+      additionalProperties: false
+    PagedAfterSalesTicketList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/AfterSalesTicket"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required:
+      - items
+      - page
+      - pageSize
+      - total
+    CreateTicketMessage:
+      type: object
+      properties:
+        content:
+          type: string
+      required:
+      - content
+    MessageSenderType:
+      type: string
+      enum:
+      - customer
+      - staff
+      - ai
+    AfterSalesMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        ticketId:
+          type: string
+          format: uuid
+        senderType:
+          "$ref": "#/components/schemas/MessageSenderType"
+        senderUserId:
+          type: string
+          format: uuid
+          nullable: true
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - ticketId
+      - senderType
+      - content
+      - createdAt
+    PagedAfterSalesMessageList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/AfterSalesMessage"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required:
+      - items
+      - page
+      - pageSize
+      - total
+    CreatePriceInquiry:
+      type: object
+      properties:
+        skuId:
+          type: string
+          format: uuid
+          nullable: true
+        orderId:
+          type: string
+          format: uuid
+          nullable: true
+        message:
+          type: string
+      required:
+      - message
+    PriceInquiry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        createdByUserId:
+          type: string
+          format: uuid
+        assignedSalesUserId:
+          type: string
+          format: uuid
+          nullable: true
+        skuId:
+          type: string
+          format: uuid
+          nullable: true
+        orderId:
+          type: string
+          format: uuid
+          nullable: true
+        message:
+          type: string
+        status:
+          type: string
+          enum:
+          - OPEN
+          - RESPONDED
+          - CLOSED
+        responseNote:
+          type: string
+          nullable: true
+          description: Optional summary note; detailed replies via messages
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - id
+      - createdByUserId
+      - message
+      - status
+      - createdAt
+    UpdatePriceInquiryRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - OPEN
+          - RESPONDED
+          - CLOSED
+        assignedSalesUserId:
+          type: string
+          format: uuid
+          nullable: true
+        responseNote:
+          type: string
+          nullable: true
+          description: Optional summary note; detailed replies via messages
+      additionalProperties: false
+    PagedPriceInquiryList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/PriceInquiry"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required:
+      - items
+      - page
+      - pageSize
+      - total
+    CreateInquiryMessage:
+      type: object
+      properties:
+        content:
+          type: string
+      required:
+      - content
+    InquiryMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        inquiryId:
+          type: string
+          format: uuid
+        senderType:
+          "$ref": "#/components/schemas/MessageSenderType"
+        senderUserId:
+          type: string
+          format: uuid
+          nullable: true
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - inquiryId
+      - senderType
+      - content
+      - createdAt
+    PagedInquiryMessageList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/InquiryMessage"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required:
+      - items
+      - page
+      - pageSize
+      - total
+    AIReplySuggestionRequest:
+      type: object
+      properties:
+        ticketId:
+          type: string
+          format: uuid
+        latestMessageId:
+          type: string
+          format: uuid
+          nullable: true
+      required:
+      - ticketId
+    AIReplySuggestions:
+      type: object
+      properties:
+        ticketId:
+          type: string
+          format: uuid
+        suggestions:
+          type: array
+          items:
+            type: string
+        generatedAt:
+          type: string
+          format: date-time
+      required:
+      - ticketId
+      - suggestions
+      - generatedAt
+    JobStatus:
+      type: string
+      enum:
+      - PENDING
+      - RUNNING
+      - SUCCEEDED
+      - FAILED
+    ImportJob:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+          - PRODUCT_IMPORT
+          - PRODUCT_REQUEST_EXPORT
+          - SHIPMENT_IMPORT
+          - CART_IMPORT
+        status:
+          "$ref": "#/components/schemas/JobStatus"
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+        resultFileUrl:
+          type: string
+          nullable: true
+        errorReportUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - type
+      - status
+      - progress
+      - createdAt
+    FeatureFlags:
+      type: object
+      properties:
+        paymentEnabled:
+          type: boolean
+          default: false
+        wechatPayEnabled:
+          type: boolean
+          default: false
+        alipayPayEnabled:
+          type: boolean
+          default: false
+      additionalProperties: false
+    WechatPayCreateResponse:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        prepayId:
+          type: string
+        nonceStr:
+          type: string
+        timeStamp:
+          type: string
+        paySign:
+          type: string
+      required:
+      - orderId
+      - prepayId
+      - nonceStr
+      - timeStamp
+      - paySign
+    AlipayPayCreateResponse:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        tradeNo:
+          type: string
+        payParams:
+          type: object
+          additionalProperties: true
+      required:
+      - orderId
+      - tradeNo
+      - payParams
