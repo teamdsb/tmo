@@ -17,7 +17,7 @@
 - [x] (2026-01-18 16:11Z) 明确 `packages/go-shared` 目录结构、API 边界与依赖，并记录到 Decision Log。
 - [x] (2026-01-18 16:11Z) 实现 Go 共享中间件（request-id、access log、recovery、统一错误、DB 连接、readiness、优雅停机、OTel）。
 - [x] (2026-01-18 16:11Z) 在 `services/commerce` 完成替换接入，补齐 `/health` 与 `/ready`，并保留业务行为。
-- [ ] (2026-01-18 16:11Z) 补齐文档、测试/校验脚本与 CI 入口（已完成：`go test ./...`；待完成：文档与 CI 入口补齐）。
+- [x] (2026-01-18 16:23Z) 补齐文档、测试/校验脚本与 CI 入口（更新 packages/go-shared 与 commerce README、扩展 test-backend 脚本与 commerce-ci）。
 - [ ] (2026-01-18 15:02Z, Phase 2) 为 `packages/shared`、`packages/openapi-client`、`packages/platform-adapter` 建立 TS 包结构并接入 appvx/appali。
 
 ## Surprises & Discoveries
@@ -62,10 +62,13 @@
 - Decision: 在 `services/commerce/go.mod` 增加 `replace github.com/teamdsb/tmo/packages/go-shared => ../../packages/go-shared`，以确保 `go mod tidy`/`go test` 在本地解析共享模块。
   Rationale: 解决 go tooling 未按 workspace 解析本地嵌套模块导致的解析失败。
   Date/Author: 2026-01-18 (Codex)
+- Decision: 扩展 `tools/scripts/test-backend.sh` 以覆盖 `packages/go-shared`，并在 `commerce-ci` 中新增 go-shared 测试与路径触发规则。
+  Rationale: 共享包变更需要在本地与 CI 中被稳定验证，避免只测 commerce 服务导致的回归。
+  Date/Author: 2026-01-18 (Codex)
 
 ## Outcomes & Retrospective
 
-已完成 `packages/go-shared` 共享模块落地并接入 `services/commerce`：新增 request-id、统一错误、readiness、OTel 初始化与优雅停机等能力，`/health` 与 `/ready` 已接入；`go test ./...` 已验证编译通过。文档与 CI 入口仍待补齐。
+已完成 `packages/go-shared` 共享模块落地并接入 `services/commerce`：新增 request-id、统一错误、readiness、OTel 初始化与优雅停机等能力，`/health` 与 `/ready` 已接入；`go test ./...` 已验证编译通过。文档、测试脚本与 CI 入口已补齐。
 
 ## Context and Orientation / 背景与现状
 
@@ -120,6 +123,7 @@ Phase 2：为 `packages/shared`、`packages/openapi-client`、`packages/platform
     (cd packages/go-shared && go test ./...)
     (cd services/commerce && go test ./...)
     golangci-lint run ./...
+    bash tools/scripts/test-backend.sh
 
 ## Validation and Acceptance / 验证与验收
 
@@ -192,3 +196,4 @@ Phase 2 的 TS 共享包建议采用 workspace package 形式，`packages/shared
 2026-01-18：基于仓库调研创建公共轮 ExecPlan，覆盖 Go 与 TS 共享包的结构、接口与接入路径。
 2026-01-18 15:02Z：更新 MVP 目标为 Go 共享中间件 + commerce 接入，补充 readiness、中间件范围与验收标准，TS 共享包为 Phase 2。
 2026-01-18 16:11Z：完成 go-shared 落地与 commerce 接入的执行记录，更新进度/决策/发现并补充本地 replace 说明与测试步骤。
+2026-01-18 16:23Z：补齐文档、测试脚本与 CI 入口的执行记录，并更新决策与进度。

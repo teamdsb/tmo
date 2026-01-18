@@ -1,14 +1,12 @@
 name: commerce-ci
 
 on:
-  push:
-    paths:
-      - "services/commerce/**"
-      - ".golangci.yml"
-      - ".github/workflows/commerce-ci.yml"
   pull_request:
     paths:
       - "services/commerce/**"
+      - "packages/go-shared/**"
+      - "go.work"
+      - "go.work.sum"
       - ".golangci.yml"
       - ".github/workflows/commerce-ci.yml"
 
@@ -36,6 +34,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "stable"
+      - name: Test go-shared
+        run: go test ./...
+        working-directory: packages/go-shared
       - name: Test (with coverage)
         run: go test ./... -coverprofile=coverage.out -covermode=atomic
         working-directory: services/commerce
