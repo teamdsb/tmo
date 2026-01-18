@@ -36,7 +36,21 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "stable"
-      - run: go test ./...
+      - name: Test (with coverage)
+        run: go test ./... -coverprofile=coverage.out -covermode=atomic
+        working-directory: services/commerce
+      - name: Coverage summary
+        run: go tool cover -func=coverage.out
+        working-directory: services/commerce
+      - uses: actions/upload-artifact@v4
+        with:
+          name: commerce-coverage
+          path: services/commerce/coverage.out
+      - name: Race test
+        run: go test -race ./...
+        working-directory: services/commerce
+      - name: Fuzz (catalog create)
+        run: go test ./internal/http/handler -run=^$ -fuzz=FuzzCatalogProducts -fuzztime=5s
         working-directory: services/commerce
       - uses: golangci/golangci-lint-action@v6
         with:

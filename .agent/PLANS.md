@@ -21,6 +21,7 @@
 - [x] (2026-01-18 14:28Z) 补齐 commerce 的 lint/test 规范与命令（gofmt、go vet、golangci-lint、go test，启用严格 lint 集合）。
 - [x] (2026-01-18 14:28Z) 添加最小可运行的自动化测试（handler 单元测试 + 存储层 mock + Postgres 集成测试）。
 - [x] (2026-01-18 14:28Z) 增加 CI workflow（Postgres service），自动执行 lint/test，并记录在文档中。
+- [x] (2026-01-18 14:43Z) 增加覆盖率报告、竞态测试与 fuzz 测试，并在 CI 中执行。
 
 ## Surprises & Discoveries（意外与发现）
 
@@ -83,13 +84,17 @@
   Rationale: 对齐“更严格”要求并确保集成测试在 CI 真实运行。
   Date/Author: 2026-01-18 / Codex
 
+- Decision: 质量门槛包含覆盖率输出、`-race` 竞态检测与短时 fuzz。
+  Rationale: 覆盖率给出可视化缺口，竞态检测与 fuzz 捕获边界与并发问题。
+  Date/Author: 2026-01-18 / Codex
+
 ## Outcomes & Retrospective（结果与复盘）
 
-已完成 commerce 服务模块、健康检查、Postgres 迁移与 sqlc 生成、Catalog 接口实现、严格 lint 配置、单元/集成测试与 CI workflow，并完成端到端验证。Docker Compose 方案已落地，当前进入可持续验证状态，后续可扩展更多 commerce 接口。
+已完成 commerce 服务模块、健康检查、Postgres 迁移与 sqlc 生成、Catalog 接口实现、严格 lint 配置、单元/集成/覆盖率/竞态/fuzz 测试与 CI workflow，并完成端到端验证。Docker Compose 方案已落地，当前进入可持续验证状态，后续可扩展更多 commerce 接口。
 
 ## Context and Orientation（上下文与导航）
 
-该仓库为单体仓库。API 合约位于 `contracts/openapi/`，后端服务位于 `services/`。commerce 服务已建立 Go 模块：`services/commerce/go.mod`，入口为 `services/commerce/cmd/commerce/main.go`，配置在 `services/commerce/internal/config/config.go`，HTTP 入口在 `services/commerce/internal/http/server.go`，处理器在 `services/commerce/internal/http/handler/`，OpenAPI 生成代码位于 `services/commerce/internal/http/oapi/api.gen.go`。数据库迁移在 `services/commerce/migrations/00001_create_catalog_products.sql`，查询定义在 `services/commerce/queries/catalog.sql`，sqlc 配置为 `services/commerce/sqlc.yaml`，生成代码在 `services/commerce/internal/db/`。本地数据库方案记录在 `infra/dev/docker-compose.yml`。根目录 `go.work` 已包含 commerce 模块。聚合入口文件为 `contracts/openapi/openapi.yaml`，各服务独立规范位于同目录下的 `*.yaml`。lint 配置在根目录 `.golangci.yml`，CI 在 `.github/workflows/commerce-ci.yml`，单元测试位于 `services/commerce/internal/http/handler/catalog_test.go`，集成测试位于 `services/commerce/internal/db/integration_test.go`。
+该仓库为单体仓库。API 合约位于 `contracts/openapi/`，后端服务位于 `services/`。commerce 服务已建立 Go 模块：`services/commerce/go.mod`，入口为 `services/commerce/cmd/commerce/main.go`，配置在 `services/commerce/internal/config/config.go`，HTTP 入口在 `services/commerce/internal/http/server.go`，处理器在 `services/commerce/internal/http/handler/`，OpenAPI 生成代码位于 `services/commerce/internal/http/oapi/api.gen.go`。数据库迁移在 `services/commerce/migrations/00001_create_catalog_products.sql`，查询定义在 `services/commerce/queries/catalog.sql`，sqlc 配置为 `services/commerce/sqlc.yaml`，生成代码在 `services/commerce/internal/db/`。本地数据库方案记录在 `infra/dev/docker-compose.yml`。根目录 `go.work` 已包含 commerce 模块。聚合入口文件为 `contracts/openapi/openapi.yaml`，各服务独立规范位于同目录下的 `*.yaml`。lint 配置在根目录 `.golangci.yml`，CI 在 `.github/workflows/commerce-ci.yml`，单元测试位于 `services/commerce/internal/http/handler/catalog_test.go`，fuzz 测试位于 `services/commerce/internal/http/handler/catalog_fuzz_test.go`，集成测试位于 `services/commerce/internal/db/integration_test.go`。
 
 术语说明：Gin 是 HTTP 路由库；oapi-codegen 根据 OpenAPI 生成 Go 类型与服务接口；sqlc 读取 SQL 并生成类型安全的查询方法；goose 负责数据库迁移；`go.work` 是 Go workspace 文件，用于把多个模块组合成一个本地工作区。
 
@@ -105,7 +110,7 @@
 
 最后执行端到端验证：跑迁移、启动服务、执行创建与查询请求，并记录输出示例作为验收凭据。
 
-在闭环可运行后补齐质量保障：新增 `.golangci.yml` 并启用严格 lint 规则集合；为 handler 添加最小单元测试（使用内存 mock store 覆盖分页与错误路径），为数据库查询添加 Postgres 集成测试（读取迁移文件初始化）；增加 CI workflow（Postgres service + `COMMERCE_DB_DSN`）自动执行 `go test` 与 `golangci-lint run`，并在文档中记录运行方式。
+在闭环可运行后补齐质量保障：新增 `.golangci.yml` 并启用严格 lint 规则集合；为 handler 添加最小单元测试（使用内存 mock store 覆盖分页与错误路径），为数据库查询添加 Postgres 集成测试（读取迁移文件初始化）；增加覆盖率报告、`-race` 竞态检测与 fuzz 测试；增加 CI workflow（Postgres service + `COMMERCE_DB_DSN`）自动执行 `go test`、覆盖率、`-race` 与 `golangci-lint run`，并在文档中记录运行方式。
 
 ## Concrete Steps（具体步骤）
 
@@ -174,10 +179,15 @@
     EOF
 
     cd services/commerce
-    COMMERCE_DB_DSN="postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable" go test ./...
+    COMMERCE_DB_DSN="postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable" go test ./... -coverprofile=coverage.out -covermode=atomic
+    go tool cover -func=coverage.out
+    go tool cover -html=coverage.out
 
     go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.5
     golangci-lint run ./...
+
+    COMMERCE_DB_DSN="postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable" go test -race ./...
+    go test ./internal/http/handler -run=^$ -fuzz=FuzzCatalogProducts -fuzztime=5s
 
     cat > ../../.github/workflows/commerce-ci.yml <<'EOF'
     name: commerce-ci
@@ -216,7 +226,17 @@
           - uses: actions/setup-go@v5
             with:
               go-version: "stable"
-          - run: go test ./...
+          - run: go test ./... -coverprofile=coverage.out -covermode=atomic
+            working-directory: services/commerce
+          - run: go tool cover -func=coverage.out
+            working-directory: services/commerce
+          - uses: actions/upload-artifact@v4
+            with:
+              name: commerce-coverage
+              path: services/commerce/coverage.out
+          - run: go test -race ./...
+            working-directory: services/commerce
+          - run: go test ./internal/http/handler -run=^$ -fuzz=FuzzCatalogProducts -fuzztime=5s
             working-directory: services/commerce
           - uses: golangci/golangci-lint-action@v6
             with:
@@ -226,7 +246,7 @@
 
 ## Validation and Acceptance（验证与验收）
 
-验收标准为：服务启动后 `/health` 返回 HTTP 200；`POST /catalog/products` 返回 HTTP 201 并包含新商品信息；`GET /catalog/products` 返回 HTTP 200 且列表包含该商品；`GET /catalog/products/{spuId}` 返回对应详情且 `skus` 为空数组；`COMMERCE_DB_DSN=... go test ./...`（含集成测试）与 `golangci-lint run` 均通过；CI workflow 在 push/PR 时绿色通过。
+验收标准为：服务启动后 `/health` 返回 HTTP 200；`POST /catalog/products` 返回 HTTP 201 并包含新商品信息；`GET /catalog/products` 返回 HTTP 200 且列表包含该商品；`GET /catalog/products/{spuId}` 返回对应详情且 `skus` 为空数组；`COMMERCE_DB_DSN=... go test ./... -coverprofile=coverage.out`（含集成测试）与 `go test -race ./...`、`go test ./internal/http/handler -run=^$ -fuzz=FuzzCatalogProducts`、`golangci-lint run` 均通过；CI workflow 在 push/PR 时绿色通过并产出 coverage artifact。
 
 示例（以实际监听端口为准）：
 
@@ -246,7 +266,7 @@
 
 ## Idempotence and Recovery（幂等与恢复）
 
-OpenAPI 拆分与路径修正属于文件编辑，可重复执行。goose 迁移可安全重复运行 `goose up`；如需回滚单步，可使用 `goose down` 后再 `goose up`。Docker Compose 可用 `docker compose up -d` 重启，必要时用 `docker compose down` 清理环境。Homebrew Postgres 可用 `brew services start postgresql@15` / `brew services stop postgresql@15` 重启或关闭，必要时可手动删除 `commerce` 数据库再重建以清空数据。`golangci-lint` 与 `go test` 可重复运行，CI workflow 只读执行不会改变仓库状态。
+OpenAPI 拆分与路径修正属于文件编辑，可重复执行。goose 迁移可安全重复运行 `goose up`；如需回滚单步，可使用 `goose down` 后再 `goose up`。Docker Compose 可用 `docker compose up -d` 重启，必要时用 `docker compose down` 清理环境。Homebrew Postgres 可用 `brew services start postgresql@15` / `brew services stop postgresql@15` 重启或关闭，必要时可手动删除 `commerce` 数据库再重建以清空数据。`golangci-lint`、`go test`、`go test -race`、`go test -fuzz` 与覆盖率命令可重复运行，CI workflow 只读执行不会改变仓库状态。
 
 ## Artifacts and Notes（产出与备注）
 
@@ -267,11 +287,15 @@ OpenAPI 拆分与路径修正属于文件编辑，可重复执行。goose 迁移
 
 测试输出示例：
 
-    COMMERCE_DB_DSN=postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable go test ./...
+    COMMERCE_DB_DSN=postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable go test ./... -coverprofile=coverage.out -covermode=atomic
     ok   github.com/teamdsb/tmo/services/commerce/internal/db    0.8s
     ok   github.com/teamdsb/tmo/services/commerce/internal/http/handler    1.5s
 
+    go tool cover -func=coverage.out
     golangci-lint run ./...
+
+    COMMERCE_DB_DSN=postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable go test -race ./...
+    go test ./internal/http/handler -run=^$ -fuzz=FuzzCatalogProducts -fuzztime=5s
 
 ## Interfaces and Dependencies（接口与依赖）
 
@@ -300,3 +324,4 @@ OpenAPI 拆分与路径修正属于文件编辑，可重复执行。goose 迁移
 变更说明（2026-01-18 07:21Z）：完成 commerce 模块、数据库迁移、sqlc 与 oapi-codegen 生成、HTTP 处理器与端到端验证；补充 Docker 不可用与工具下载失败的发现与替代方案记录。
 变更说明（2026-01-18 08:04Z）：将 lint/test 与自动化测试纳入完成条件，新增具体步骤、验收与决策记录，回应“需要完整 lint/test 与自动化测试”的要求。
 变更说明（2026-01-18 14:28Z）：落地严格 lint 配置、单元/集成测试与 CI workflow，补齐文档与验收标准。
+变更说明（2026-01-18 14:43Z）：加入覆盖率、竞态与 fuzz 测试，并更新 CI 与验收标准。
