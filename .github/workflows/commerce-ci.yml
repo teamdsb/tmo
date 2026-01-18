@@ -1,0 +1,58 @@
+name: commerce-ci
+
+on:
+  push:
+    paths:
+      - "services/commerce/**"
+      - ".golangci.yml"
+      - ".github/workflows/commerce-ci.yml"
+  pull_request:
+    paths:
+      - "services/commerce/**"
+      - ".golangci.yml"
+      - ".github/workflows/commerce-ci.yml"
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: commerce
+          POSTGRES_USER: commerce
+          POSTGRES_PASSWORD: commerce
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U commerce -d commerce"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      COMMERCE_DB_DSN: postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+      - name: Test (with coverage)
+        run: go test ./... -coverprofile=coverage.out -covermode=atomic
+        working-directory: services/commerce
+      - name: Coverage summary
+        run: go tool cover -func=coverage.out
+        working-directory: services/commerce
+      - uses: actions/upload-artifact@v4
+        with:
+          name: commerce-coverage
+          path: services/commerce/coverage.out
+      - name: Race test
+        run: go test -race ./...
+        working-directory: services/commerce
+      - name: Fuzz (catalog create)
+        run: go test ./internal/http/handler -run=^$ -fuzz=FuzzCatalogProducts -fuzztime=5s
+        working-directory: services/commerce
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.64.5
+          working-directory: services/commerce

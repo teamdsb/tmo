@@ -2,10 +2,10 @@ package handler
 
 import (
 	"errors"
+	"math"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/oapi-codegen/runtime/types"
@@ -37,17 +37,19 @@ func (h *Handler) GetCatalogProducts(c *gin.Context, params oapi.GetCatalogProdu
 	}
 
 	offset := (page - 1) * pageSize
+	offset32 := clampInt32(offset)
+	limit32 := clampInt32(pageSize)
 
 	categoryFilter := pgtype.UUID{}
 	if params.CategoryId != nil {
-		categoryFilter = pgtype.UUID{Bytes: uuid.UUID(*params.CategoryId), Valid: true}
+		categoryFilter = pgtype.UUID{Bytes: *params.CategoryId, Valid: true}
 	}
 
 	products, err := h.Store.ListProducts(c.Request.Context(), db.ListProductsParams{
 		Q:          params.Q,
 		CategoryID: categoryFilter,
-		Offset:     int32(offset),
-		Limit:      int32(pageSize),
+		Offset:     offset32,
+		Limit:      limit32,
 	})
 	if err != nil {
 		h.logError("list products failed", err)
@@ -96,7 +98,7 @@ func (h *Handler) PostCatalogProducts(c *gin.Context) {
 	product, err := h.Store.CreateProduct(c.Request.Context(), db.CreateProductParams{
 		Name:             request.Name,
 		Description:      request.Description,
-		CategoryID:       uuid.UUID(request.CategoryId),
+		CategoryID:       request.CategoryId,
 		CoverImageUrl:    request.CoverImageUrl,
 		Images:           images,
 		Tags:             tags,
@@ -112,7 +114,7 @@ func (h *Handler) PostCatalogProducts(c *gin.Context) {
 }
 
 func (h *Handler) GetCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
-	product, err := h.Store.GetProduct(c.Request.Context(), uuid.UUID(spuId))
+	product, err := h.Store.GetProduct(c.Request.Context(), spuId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"message": "product not found"})
@@ -135,9 +137,9 @@ func (h *Handler) logError(message string, err error) {
 
 func productSummaryFromModel(product db.CatalogProduct) oapi.ProductSummary {
 	summary := oapi.ProductSummary{
-		Id:         types.UUID(product.ID),
+		Id:         product.ID,
 		Name:       product.Name,
-		CategoryId: types.UUID(product.CategoryID),
+		CategoryId: product.CategoryID,
 	}
 	if product.CoverImageUrl != nil {
 		summary.CoverImageUrl = product.CoverImageUrl
@@ -163,9 +165,9 @@ func productDetailFromModel(product db.CatalogProduct) oapi.ProductDetail {
 		detail.Product.FilterDimensions = &filters
 	}
 
-	detail.Product.Id = types.UUID(product.ID)
+	detail.Product.Id = product.ID
 	detail.Product.Name = product.Name
-	detail.Product.CategoryId = types.UUID(product.CategoryID)
+	detail.Product.CategoryId = product.CategoryID
 	detail.Product.Description = product.Description
 	detail.Skus = []oapi.SKU{}
 
@@ -179,4 +181,15 @@ func derefStringSlice(value *[]string) []string {
 	out := make([]string, len(*value))
 	copy(out, *value)
 	return out
+}
+
+func clampInt32(value int) int32 {
+	if value > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	if value < math.MinInt32 {
+		return math.MinInt32
+	}
+	// #nosec G115 -- value is clamped to the int32 range above.
+	return int32(value)
 }
