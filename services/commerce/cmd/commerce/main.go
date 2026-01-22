@@ -16,6 +16,7 @@ import (
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
 	httpserver "github.com/teamdsb/tmo/services/commerce/internal/http"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/handler"
+	"github.com/teamdsb/tmo/services/commerce/internal/http/middleware"
 
 	"github.com/teamdsb/tmo/packages/go-shared/observability"
 )
@@ -70,7 +71,15 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	defer pool.Close()
 
 	store := db.New(pool)
-	apiHandler := &handler.Handler{Store: store, Logger: logger}
+	auth := middleware.NewAuthenticator(cfg.AuthEnabled, cfg.JWTSecret, cfg.JWTIssuer)
+	apiHandler := &handler.Handler{
+		CatalogStore:  store,
+		CartStore:     store,
+		OrderStore:    store,
+		TrackingStore: store,
+		Auth:          auth,
+		Logger:        logger,
+	}
 
 	router := httpserver.NewRouter(apiHandler, logger, func(checkCtx context.Context) error {
 		return db.Ready(checkCtx, pool)

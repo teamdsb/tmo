@@ -6,11 +6,143 @@ package oapi
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/oapi-codegen/runtime"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
+
+const (
+	BearerAuthScopes = "bearerAuth.Scopes"
+)
+
+// Defines values for CartImportJobType.
+const (
+	CartImportJobTypeCARTIMPORT           CartImportJobType = "CART_IMPORT"
+	CartImportJobTypePRODUCTIMPORT        CartImportJobType = "PRODUCT_IMPORT"
+	CartImportJobTypePRODUCTREQUESTEXPORT CartImportJobType = "PRODUCT_REQUEST_EXPORT"
+	CartImportJobTypeSHIPMENTIMPORT       CartImportJobType = "SHIPMENT_IMPORT"
+)
+
+// Defines values for CartImportPendingItemMatchType.
+const (
+	AMBIGUOUS CartImportPendingItemMatchType = "AMBIGUOUS"
+	NOTFOUND  CartImportPendingItemMatchType = "NOT_FOUND"
+)
+
+// Defines values for ImportJobType.
+const (
+	ImportJobTypeCARTIMPORT           ImportJobType = "CART_IMPORT"
+	ImportJobTypePRODUCTIMPORT        ImportJobType = "PRODUCT_IMPORT"
+	ImportJobTypePRODUCTREQUESTEXPORT ImportJobType = "PRODUCT_REQUEST_EXPORT"
+	ImportJobTypeSHIPMENTIMPORT       ImportJobType = "SHIPMENT_IMPORT"
+)
+
+// Defines values for JobStatus.
+const (
+	FAILED    JobStatus = "FAILED"
+	PENDING   JobStatus = "PENDING"
+	RUNNING   JobStatus = "RUNNING"
+	SUCCEEDED JobStatus = "SUCCEEDED"
+)
+
+// Defines values for OrderStatus.
+const (
+	CANCELLED  OrderStatus = "CANCELLED"
+	CLOSED     OrderStatus = "CLOSED"
+	CONFIRMED  OrderStatus = "CONFIRMED"
+	DELIVERED  OrderStatus = "DELIVERED"
+	PAID       OrderStatus = "PAID"
+	PAYFAILED  OrderStatus = "PAY_FAILED"
+	PAYPENDING OrderStatus = "PAY_PENDING"
+	SHIPPED    OrderStatus = "SHIPPED"
+	SUBMITTED  OrderStatus = "SUBMITTED"
+)
+
+// AddCartItemRequest defines model for AddCartItemRequest.
+type AddCartItemRequest struct {
+	Qty   int                `json:"qty"`
+	SkuId openapi_types.UUID `json:"skuId"`
+}
+
+// Address defines model for Address.
+type Address struct {
+	City          *string `json:"city,omitempty"`
+	Detail        string  `json:"detail"`
+	District      *string `json:"district,omitempty"`
+	Province      *string `json:"province,omitempty"`
+	ReceiverName  string  `json:"receiverName"`
+	ReceiverPhone string  `json:"receiverPhone"`
+}
+
+// Cart defines model for Cart.
+type Cart struct {
+	Items     []CartItem `json:"items"`
+	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
+}
+
+// CartImportAddedItem defines model for CartImportAddedItem.
+type CartImportAddedItem struct {
+	Qty   int                `json:"qty"`
+	RowNo int                `json:"rowNo"`
+	SkuId openapi_types.UUID `json:"skuId"`
+}
+
+// CartImportCandidate defines model for CartImportCandidate.
+type CartImportCandidate struct {
+	Sku SKU `json:"sku"`
+}
+
+// CartImportJob defines model for CartImportJob.
+type CartImportJob struct {
+	CreatedAt      time.Time          `json:"createdAt"`
+	ErrorReportUrl *string            `json:"errorReportUrl"`
+	Id             openapi_types.UUID `json:"id"`
+	Progress       int                `json:"progress"`
+	Result         *CartImportResult  `json:"result,omitempty"`
+	ResultFileUrl  *string            `json:"resultFileUrl"`
+	Status         JobStatus          `json:"status"`
+	Type           CartImportJobType  `json:"type"`
+}
+
+// CartImportJobType defines model for CartImportJob.Type.
+type CartImportJobType string
+
+// CartImportPendingItem defines model for CartImportPendingItem.
+type CartImportPendingItem struct {
+	Candidates []CartImportCandidate          `json:"candidates"`
+	MatchType  CartImportPendingItemMatchType `json:"matchType"`
+	RawName    string                         `json:"rawName"`
+	RawQty     *string                        `json:"rawQty"`
+	RawSpec    *string                        `json:"rawSpec"`
+	RowNo      int                            `json:"rowNo"`
+}
+
+// CartImportPendingItemMatchType defines model for CartImportPendingItem.MatchType.
+type CartImportPendingItemMatchType string
+
+// CartImportResult defines model for CartImportResult.
+type CartImportResult struct {
+	AutoAddedCount int                     `json:"autoAddedCount"`
+	AutoAddedItems []CartImportAddedItem   `json:"autoAddedItems"`
+	PendingCount   int                     `json:"pendingCount"`
+	PendingItems   []CartImportPendingItem `json:"pendingItems"`
+}
+
+// CartImportSelection defines model for CartImportSelection.
+type CartImportSelection struct {
+	Qty   *int               `json:"qty"`
+	RowNo int                `json:"rowNo"`
+	SkuId openapi_types.UUID `json:"skuId"`
+}
+
+// CartItem defines model for CartItem.
+type CartItem struct {
+	Id  openapi_types.UUID `json:"id"`
+	Qty int                `json:"qty"`
+	Sku SKU                `json:"sku"`
+}
 
 // Category defines model for Category.
 type Category struct {
@@ -18,6 +150,11 @@ type Category struct {
 	Name     string              `json:"name"`
 	ParentId *openapi_types.UUID `json:"parentId"`
 	Sort     *int                `json:"sort,omitempty"`
+}
+
+// ConfirmCartImportRequest defines model for ConfirmCartImportRequest.
+type ConfirmCartImportRequest struct {
+	Selections []CartImportSelection `json:"selections"`
 }
 
 // CreateCatalogProductRequest defines model for CreateCatalogProductRequest.
@@ -29,6 +166,89 @@ type CreateCatalogProductRequest struct {
 	Images           *[]string          `json:"images,omitempty"`
 	Name             string             `json:"name"`
 	Tags             *[]string          `json:"tags,omitempty"`
+}
+
+// CreateCategoryRequest defines model for CreateCategoryRequest.
+type CreateCategoryRequest struct {
+	Name     string              `json:"name"`
+	ParentId *openapi_types.UUID `json:"parentId"`
+	Sort     *int                `json:"sort,omitempty"`
+}
+
+// CreateOrderRequest defines model for CreateOrderRequest.
+type CreateOrderRequest struct {
+	Address Address `json:"address"`
+	Items   []struct {
+		Qty   int                `json:"qty"`
+		SkuId openapi_types.UUID `json:"skuId"`
+	} `json:"items"`
+	Remark *string `json:"remark,omitempty"`
+}
+
+// CreateSkuRequest defines model for CreateSkuRequest.
+type CreateSkuRequest struct {
+	Attributes *map[string]string `json:"attributes,omitempty"`
+	IsActive   *bool              `json:"isActive,omitempty"`
+	Name       string             `json:"name"`
+	PriceTiers *[]PriceTier       `json:"priceTiers,omitempty"`
+	SkuCode    *string            `json:"skuCode,omitempty"`
+	Unit       *string            `json:"unit,omitempty"`
+}
+
+// ErrorResponse defines model for ErrorResponse.
+type ErrorResponse struct {
+	Code      string                  `json:"code"`
+	Details   *map[string]interface{} `json:"details,omitempty"`
+	Message   string                  `json:"message"`
+	RequestId string                  `json:"requestId"`
+}
+
+// ImportJob defines model for ImportJob.
+type ImportJob struct {
+	CreatedAt      time.Time          `json:"createdAt"`
+	ErrorReportUrl *string            `json:"errorReportUrl"`
+	Id             openapi_types.UUID `json:"id"`
+	Progress       int                `json:"progress"`
+	ResultFileUrl  *string            `json:"resultFileUrl"`
+	Status         JobStatus          `json:"status"`
+	Type           ImportJobType      `json:"type"`
+}
+
+// ImportJobType defines model for ImportJob.Type.
+type ImportJobType string
+
+// JobStatus defines model for JobStatus.
+type JobStatus string
+
+// Order defines model for Order.
+type Order struct {
+	Address   *Address           `json:"address,omitempty"`
+	CreatedAt time.Time          `json:"createdAt"`
+	Id        openapi_types.UUID `json:"id"`
+	Items     []OrderItem        `json:"items"`
+	Remark    *string            `json:"remark,omitempty"`
+	Status    OrderStatus        `json:"status"`
+	UpdatedAt *time.Time         `json:"updatedAt,omitempty"`
+}
+
+// OrderItem defines model for OrderItem.
+type OrderItem struct {
+	Qty int `json:"qty"`
+	Sku SKU `json:"sku"`
+
+	// UnitPrice Final price per unit at order time
+	UnitPrice *float32 `json:"unitPrice,omitempty"`
+}
+
+// OrderStatus defines model for OrderStatus.
+type OrderStatus string
+
+// PagedOrderList defines model for PagedOrderList.
+type PagedOrderList struct {
+	Items    []Order `json:"items"`
+	Page     int     `json:"page"`
+	PageSize int     `json:"pageSize"`
+	Total    int     `json:"total"`
 }
 
 // PagedProductList defines model for PagedProductList.
@@ -83,6 +303,38 @@ type SKU struct {
 	Unit       *string            `json:"unit,omitempty"`
 }
 
+// TrackingInfo defines model for TrackingInfo.
+type TrackingInfo struct {
+	OrderId   openapi_types.UUID `json:"orderId"`
+	Shipments []struct {
+		Carrier   *string    `json:"carrier"`
+		ShippedAt *time.Time `json:"shippedAt"`
+		WaybillNo string     `json:"waybillNo"`
+	} `json:"shipments"`
+}
+
+// UpdateTrackingRequest defines model for UpdateTrackingRequest.
+type UpdateTrackingRequest struct {
+	Shipments []struct {
+		Carrier   *string    `json:"carrier"`
+		ShippedAt *time.Time `json:"shippedAt"`
+		WaybillNo string     `json:"waybillNo"`
+	} `json:"shipments"`
+}
+
+// Conflict defines model for Conflict.
+type Conflict = ErrorResponse
+
+// PostCartImportJobsMultipartBody defines parameters for PostCartImportJobs.
+type PostCartImportJobsMultipartBody struct {
+	File openapi_types.File `json:"file"`
+}
+
+// PatchCartItemsItemIdJSONBody defines parameters for PatchCartItemsItemId.
+type PatchCartItemsItemIdJSONBody struct {
+	Qty int `json:"qty"`
+}
+
 // GetCatalogProductsParams defines parameters for GetCatalogProducts.
 type GetCatalogProductsParams struct {
 	Q          *string             `form:"q,omitempty" json:"q,omitempty"`
@@ -91,14 +343,84 @@ type GetCatalogProductsParams struct {
 	PageSize   *int                `form:"pageSize,omitempty" json:"pageSize,omitempty"`
 }
 
+// GetOrdersParams defines parameters for GetOrders.
+type GetOrdersParams struct {
+	CustomerId       *openapi_types.UUID `form:"customerId,omitempty" json:"customerId,omitempty"`
+	OwnerSalesUserId *openapi_types.UUID `form:"ownerSalesUserId,omitempty" json:"ownerSalesUserId,omitempty"`
+	Status           *OrderStatus        `form:"status,omitempty" json:"status,omitempty"`
+	Page             *int                `form:"page,omitempty" json:"page,omitempty"`
+	PageSize         *int                `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+}
+
+// PostOrdersParams defines parameters for PostOrders.
+type PostOrdersParams struct {
+	IdempotencyKey *string `json:"Idempotency-Key,omitempty"`
+}
+
+// PostShipmentsImportJobsMultipartBody defines parameters for PostShipmentsImportJobs.
+type PostShipmentsImportJobsMultipartBody struct {
+	ExcelFile openapi_types.File `json:"excelFile"`
+}
+
+// PostCartImportJobsMultipartRequestBody defines body for PostCartImportJobs for multipart/form-data ContentType.
+type PostCartImportJobsMultipartRequestBody PostCartImportJobsMultipartBody
+
+// PostCartImportJobsJobIdConfirmJSONRequestBody defines body for PostCartImportJobsJobIdConfirm for application/json ContentType.
+type PostCartImportJobsJobIdConfirmJSONRequestBody = ConfirmCartImportRequest
+
+// PostCartItemsJSONRequestBody defines body for PostCartItems for application/json ContentType.
+type PostCartItemsJSONRequestBody = AddCartItemRequest
+
+// PatchCartItemsItemIdJSONRequestBody defines body for PatchCartItemsItemId for application/json ContentType.
+type PatchCartItemsItemIdJSONRequestBody PatchCartItemsItemIdJSONBody
+
+// PostCatalogCategoriesJSONRequestBody defines body for PostCatalogCategories for application/json ContentType.
+type PostCatalogCategoriesJSONRequestBody = CreateCategoryRequest
+
 // PostCatalogProductsJSONRequestBody defines body for PostCatalogProducts for application/json ContentType.
 type PostCatalogProductsJSONRequestBody = CreateCatalogProductRequest
 
+// PostCatalogProductsSpuIdSkusJSONRequestBody defines body for PostCatalogProductsSpuIdSkus for application/json ContentType.
+type PostCatalogProductsSpuIdSkusJSONRequestBody = CreateSkuRequest
+
+// PostOrdersJSONRequestBody defines body for PostOrders for application/json ContentType.
+type PostOrdersJSONRequestBody = CreateOrderRequest
+
+// PostOrdersOrderIdTrackingJSONRequestBody defines body for PostOrdersOrderIdTracking for application/json ContentType.
+type PostOrdersOrderIdTrackingJSONRequestBody = UpdateTrackingRequest
+
+// PostShipmentsImportJobsMultipartRequestBody defines body for PostShipmentsImportJobs for multipart/form-data ContentType.
+type PostShipmentsImportJobsMultipartRequestBody PostShipmentsImportJobsMultipartBody
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Get current cart
+	// (GET /cart)
+	GetCart(c *gin.Context)
+	// Upload Excel for bulk add-to-cart (creates an import job)
+	// (POST /cart/import-jobs)
+	PostCartImportJobs(c *gin.Context)
+	// Get cart import job status and matching result
+	// (GET /cart/import-jobs/{jobId})
+	GetCartImportJobsJobId(c *gin.Context, jobId openapi_types.UUID)
+	// Confirm SKU selections for ambiguous rows
+	// (POST /cart/import-jobs/{jobId}/confirm)
+	PostCartImportJobsJobIdConfirm(c *gin.Context, jobId openapi_types.UUID)
+	// Add item to cart
+	// (POST /cart/items)
+	PostCartItems(c *gin.Context)
+	// Remove cart item
+	// (DELETE /cart/items/{itemId})
+	DeleteCartItemsItemId(c *gin.Context, itemId openapi_types.UUID)
+	// Update cart item qty
+	// (PATCH /cart/items/{itemId})
+	PatchCartItemsItemId(c *gin.Context, itemId openapi_types.UUID)
 	// List categories
 	// (GET /catalog/categories)
 	GetCatalogCategories(c *gin.Context)
+	// Create category
+	// (POST /catalog/categories)
+	PostCatalogCategories(c *gin.Context)
 	// Search/list products (SPU list)
 	// (GET /catalog/products)
 	GetCatalogProducts(c *gin.Context, params GetCatalogProductsParams)
@@ -108,6 +430,27 @@ type ServerInterface interface {
 	// Get product detail (SPU + SKU summary)
 	// (GET /catalog/products/{spuId})
 	GetCatalogProductsSpuId(c *gin.Context, spuId openapi_types.UUID)
+	// Create SKU for product
+	// (POST /catalog/products/{spuId}/skus)
+	PostCatalogProductsSpuIdSkus(c *gin.Context, spuId openapi_types.UUID)
+	// List orders (scope by role)
+	// (GET /orders)
+	GetOrders(c *gin.Context, params GetOrdersParams)
+	// Submit intent order
+	// (POST /orders)
+	PostOrders(c *gin.Context, params PostOrdersParams)
+	// Get my order detail
+	// (GET /orders/{orderId})
+	GetOrdersOrderId(c *gin.Context, orderId openapi_types.UUID)
+	// Get tracking info (waybill numbers)
+	// (GET /orders/{orderId}/tracking)
+	GetOrdersOrderIdTracking(c *gin.Context, orderId openapi_types.UUID)
+	// Add/update tracking info (procurement)
+	// (POST /orders/{orderId}/tracking)
+	PostOrdersOrderIdTracking(c *gin.Context, orderId openapi_types.UUID)
+	// Upload Excel for bulk waybill import (procurement)
+	// (POST /shipments/import-jobs)
+	PostShipmentsImportJobs(c *gin.Context)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -118,6 +461,155 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(c *gin.Context)
+
+// GetCart operation middleware
+func (siw *ServerInterfaceWrapper) GetCart(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetCart(c)
+}
+
+// PostCartImportJobs operation middleware
+func (siw *ServerInterfaceWrapper) PostCartImportJobs(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostCartImportJobs(c)
+}
+
+// GetCartImportJobsJobId operation middleware
+func (siw *ServerInterfaceWrapper) GetCartImportJobsJobId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "jobId" -------------
+	var jobId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "jobId", c.Param("jobId"), &jobId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter jobId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetCartImportJobsJobId(c, jobId)
+}
+
+// PostCartImportJobsJobIdConfirm operation middleware
+func (siw *ServerInterfaceWrapper) PostCartImportJobsJobIdConfirm(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "jobId" -------------
+	var jobId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "jobId", c.Param("jobId"), &jobId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter jobId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostCartImportJobsJobIdConfirm(c, jobId)
+}
+
+// PostCartItems operation middleware
+func (siw *ServerInterfaceWrapper) PostCartItems(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostCartItems(c)
+}
+
+// DeleteCartItemsItemId operation middleware
+func (siw *ServerInterfaceWrapper) DeleteCartItemsItemId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", c.Param("itemId"), &itemId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter itemId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteCartItemsItemId(c, itemId)
+}
+
+// PatchCartItemsItemId operation middleware
+func (siw *ServerInterfaceWrapper) PatchCartItemsItemId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", c.Param("itemId"), &itemId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter itemId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PatchCartItemsItemId(c, itemId)
+}
 
 // GetCatalogCategories operation middleware
 func (siw *ServerInterfaceWrapper) GetCatalogCategories(c *gin.Context) {
@@ -130,6 +622,21 @@ func (siw *ServerInterfaceWrapper) GetCatalogCategories(c *gin.Context) {
 	}
 
 	siw.Handler.GetCatalogCategories(c)
+}
+
+// PostCatalogCategories operation middleware
+func (siw *ServerInterfaceWrapper) PostCatalogCategories(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostCatalogCategories(c)
 }
 
 // GetCatalogProducts operation middleware
@@ -219,6 +726,226 @@ func (siw *ServerInterfaceWrapper) GetCatalogProductsSpuId(c *gin.Context) {
 	siw.Handler.GetCatalogProductsSpuId(c, spuId)
 }
 
+// PostCatalogProductsSpuIdSkus operation middleware
+func (siw *ServerInterfaceWrapper) PostCatalogProductsSpuIdSkus(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "spuId" -------------
+	var spuId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "spuId", c.Param("spuId"), &spuId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter spuId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostCatalogProductsSpuIdSkus(c, spuId)
+}
+
+// GetOrders operation middleware
+func (siw *ServerInterfaceWrapper) GetOrders(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetOrdersParams
+
+	// ------------- Optional query parameter "customerId" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "customerId", c.Request.URL.Query(), &params.CustomerId)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter customerId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "ownerSalesUserId" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "ownerSalesUserId", c.Request.URL.Query(), &params.OwnerSalesUserId)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter ownerSalesUserId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "status", c.Request.URL.Query(), &params.Status)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter status: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", c.Request.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "pageSize" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "pageSize", c.Request.URL.Query(), &params.PageSize)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter pageSize: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetOrders(c, params)
+}
+
+// PostOrders operation middleware
+func (siw *ServerInterfaceWrapper) PostOrders(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostOrdersParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for Idempotency-Key, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter Idempotency-Key: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostOrders(c, params)
+}
+
+// GetOrdersOrderId operation middleware
+func (siw *ServerInterfaceWrapper) GetOrdersOrderId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "orderId" -------------
+	var orderId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "orderId", c.Param("orderId"), &orderId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter orderId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetOrdersOrderId(c, orderId)
+}
+
+// GetOrdersOrderIdTracking operation middleware
+func (siw *ServerInterfaceWrapper) GetOrdersOrderIdTracking(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "orderId" -------------
+	var orderId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "orderId", c.Param("orderId"), &orderId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter orderId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetOrdersOrderIdTracking(c, orderId)
+}
+
+// PostOrdersOrderIdTracking operation middleware
+func (siw *ServerInterfaceWrapper) PostOrdersOrderIdTracking(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "orderId" -------------
+	var orderId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "orderId", c.Param("orderId"), &orderId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter orderId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostOrdersOrderIdTracking(c, orderId)
+}
+
+// PostShipmentsImportJobs operation middleware
+func (siw *ServerInterfaceWrapper) PostShipmentsImportJobs(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostShipmentsImportJobs(c)
+}
+
 // GinServerOptions provides options for the Gin server.
 type GinServerOptions struct {
 	BaseURL      string
@@ -246,8 +973,23 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 		ErrorHandler:       errorHandler,
 	}
 
+	router.GET(options.BaseURL+"/cart", wrapper.GetCart)
+	router.POST(options.BaseURL+"/cart/import-jobs", wrapper.PostCartImportJobs)
+	router.GET(options.BaseURL+"/cart/import-jobs/:jobId", wrapper.GetCartImportJobsJobId)
+	router.POST(options.BaseURL+"/cart/import-jobs/:jobId/confirm", wrapper.PostCartImportJobsJobIdConfirm)
+	router.POST(options.BaseURL+"/cart/items", wrapper.PostCartItems)
+	router.DELETE(options.BaseURL+"/cart/items/:itemId", wrapper.DeleteCartItemsItemId)
+	router.PATCH(options.BaseURL+"/cart/items/:itemId", wrapper.PatchCartItemsItemId)
 	router.GET(options.BaseURL+"/catalog/categories", wrapper.GetCatalogCategories)
+	router.POST(options.BaseURL+"/catalog/categories", wrapper.PostCatalogCategories)
 	router.GET(options.BaseURL+"/catalog/products", wrapper.GetCatalogProducts)
 	router.POST(options.BaseURL+"/catalog/products", wrapper.PostCatalogProducts)
 	router.GET(options.BaseURL+"/catalog/products/:spuId", wrapper.GetCatalogProductsSpuId)
+	router.POST(options.BaseURL+"/catalog/products/:spuId/skus", wrapper.PostCatalogProductsSpuIdSkus)
+	router.GET(options.BaseURL+"/orders", wrapper.GetOrders)
+	router.POST(options.BaseURL+"/orders", wrapper.PostOrders)
+	router.GET(options.BaseURL+"/orders/:orderId", wrapper.GetOrdersOrderId)
+	router.GET(options.BaseURL+"/orders/:orderId/tracking", wrapper.GetOrdersOrderIdTracking)
+	router.POST(options.BaseURL+"/orders/:orderId/tracking", wrapper.PostOrdersOrderIdTracking)
+	router.POST(options.BaseURL+"/shipments/import-jobs", wrapper.PostShipmentsImportJobs)
 }

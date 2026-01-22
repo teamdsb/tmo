@@ -100,6 +100,23 @@ paths:
                       "$ref": "#/components/schemas/Category"
                 required:
                 - items
+    post:
+      tags:
+      - Catalog
+      summary: Create category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CreateCategoryRequest"
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Category"
   "/catalog/products":
     get:
       tags:
@@ -174,6 +191,31 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ProductDetail"
+  "/catalog/products/{spuId}/skus":
+    post:
+      tags:
+      - Catalog
+      summary: Create SKU for product
+      parameters:
+      - in: path
+        name: spuId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CreateSkuRequest"
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SKU"
   "/wishlist":
     get:
       tags:
@@ -1053,6 +1095,20 @@ components:
       required:
       - qrCodeUrl
       - scene
+    CreateCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        parentId:
+          type: string
+          format: uuid
+          nullable: true
+        sort:
+          type: integer
+          default: 0
+      required:
+      - name
     Category:
       type: object
       properties:
@@ -1119,6 +1175,28 @@ components:
       required:
       - name
       - categoryId
+    CreateSkuRequest:
+      type: object
+      properties:
+        skuCode:
+          type: string
+        name:
+          type: string
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+        priceTiers:
+          type: array
+          items:
+            "$ref": "#/components/schemas/PriceTier"
+        unit:
+          type: string
+        isActive:
+          type: boolean
+          default: true
+      required:
+      - name
     PagedProductList:
       type: object
       properties:

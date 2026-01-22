@@ -5,9 +5,67 @@
 package db
 
 import (
+	"encoding/json"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type CartImportJob struct {
+	ID             uuid.UUID          `db:"id" json:"id"`
+	OwnerUserID    uuid.UUID          `db:"owner_user_id" json:"owner_user_id"`
+	Status         string             `db:"status" json:"status"`
+	Progress       int32              `db:"progress" json:"progress"`
+	AutoAddedCount int32              `db:"auto_added_count" json:"auto_added_count"`
+	PendingCount   int32              `db:"pending_count" json:"pending_count"`
+	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type CartImportRow struct {
+	ID              uuid.UUID          `db:"id" json:"id"`
+	JobID           uuid.UUID          `db:"job_id" json:"job_id"`
+	RowNo           int32              `db:"row_no" json:"row_no"`
+	RawName         string             `db:"raw_name" json:"raw_name"`
+	RawSpec         *string            `db:"raw_spec" json:"raw_spec"`
+	RawQty          *string            `db:"raw_qty" json:"raw_qty"`
+	MatchType       string             `db:"match_type" json:"match_type"`
+	SkuID           pgtype.UUID        `db:"sku_id" json:"sku_id"`
+	Qty             *int32             `db:"qty" json:"qty"`
+	CandidateSkuIds []uuid.UUID        `db:"candidate_sku_ids" json:"candidate_sku_ids"`
+	SelectedSkuID   pgtype.UUID        `db:"selected_sku_id" json:"selected_sku_id"`
+	SelectedQty     *int32             `db:"selected_qty" json:"selected_qty"`
+	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type CartItem struct {
+	ID          uuid.UUID          `db:"id" json:"id"`
+	OwnerUserID uuid.UUID          `db:"owner_user_id" json:"owner_user_id"`
+	SkuID       uuid.UUID          `db:"sku_id" json:"sku_id"`
+	Qty         int32              `db:"qty" json:"qty"`
+	CreatedAt   pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type CatalogCategory struct {
+	ID        uuid.UUID          `db:"id" json:"id"`
+	Name      string             `db:"name" json:"name"`
+	ParentID  pgtype.UUID        `db:"parent_id" json:"parent_id"`
+	Sort      int32              `db:"sort" json:"sort"`
+	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type CatalogPriceTier struct {
+	ID        uuid.UUID          `db:"id" json:"id"`
+	SkuID     uuid.UUID          `db:"sku_id" json:"sku_id"`
+	MinQty    int32              `db:"min_qty" json:"min_qty"`
+	MaxQty    *int32             `db:"max_qty" json:"max_qty"`
+	UnitPrice float64            `db:"unit_price" json:"unit_price"`
+	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
 
 type CatalogProduct struct {
 	ID               uuid.UUID          `db:"id" json:"id"`
@@ -20,4 +78,59 @@ type CatalogProduct struct {
 	FilterDimensions []string           `db:"filter_dimensions" json:"filter_dimensions"`
 	CreatedAt        pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type CatalogSku struct {
+	ID         uuid.UUID          `db:"id" json:"id"`
+	ProductID  uuid.UUID          `db:"product_id" json:"product_id"`
+	SkuCode    *string            `db:"sku_code" json:"sku_code"`
+	Name       string             `db:"name" json:"name"`
+	Attributes json.RawMessage    `db:"attributes" json:"attributes"`
+	Unit       *string            `db:"unit" json:"unit"`
+	IsActive   bool               `db:"is_active" json:"is_active"`
+	CreatedAt  pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type ImportJob struct {
+	ID              uuid.UUID          `db:"id" json:"id"`
+	Type            string             `db:"type" json:"type"`
+	Status          string             `db:"status" json:"status"`
+	Progress        int32              `db:"progress" json:"progress"`
+	ResultFileUrl   *string            `db:"result_file_url" json:"result_file_url"`
+	ErrorReportUrl  *string            `db:"error_report_url" json:"error_report_url"`
+	CreatedByUserID pgtype.UUID        `db:"created_by_user_id" json:"created_by_user_id"`
+	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
+}
+
+type Order struct {
+	ID               uuid.UUID          `db:"id" json:"id"`
+	Status           string             `db:"status" json:"status"`
+	CustomerID       uuid.UUID          `db:"customer_id" json:"customer_id"`
+	OwnerSalesUserID pgtype.UUID        `db:"owner_sales_user_id" json:"owner_sales_user_id"`
+	Address          json.RawMessage    `db:"address" json:"address"`
+	Remark           *string            `db:"remark" json:"remark"`
+	IdempotencyKey   *string            `db:"idempotency_key" json:"idempotency_key"`
+	CreatedAt        pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type OrderItem struct {
+	ID        uuid.UUID          `db:"id" json:"id"`
+	OrderID   uuid.UUID          `db:"order_id" json:"order_id"`
+	SkuID     uuid.UUID          `db:"sku_id" json:"sku_id"`
+	Qty       int32              `db:"qty" json:"qty"`
+	UnitPrice float64            `db:"unit_price" json:"unit_price"`
+	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type OrderTrackingShipment struct {
+	ID        uuid.UUID          `db:"id" json:"id"`
+	OrderID   uuid.UUID          `db:"order_id" json:"order_id"`
+	WaybillNo string             `db:"waybill_no" json:"waybill_no"`
+	Carrier   *string            `db:"carrier" json:"carrier"`
+	ShippedAt pgtype.Timestamptz `db:"shipped_at" json:"shipped_at"`
+	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }

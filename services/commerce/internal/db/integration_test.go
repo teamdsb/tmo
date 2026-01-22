@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -130,18 +131,29 @@ func connectWithRetry(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 }
 
 func applyMigrations(ctx context.Context, pool *pgxpool.Pool) error {
-	path := filepath.Join("..", "..", "migrations", "00001_create_catalog_products.sql")
-	// #nosec G304 -- path is a fixed, repo-local migration file for tests.
-	content, err := os.ReadFile(path)
+	pattern := filepath.Join("..", "..", "migrations", "*.sql")
+	files, err := filepath.Glob(pattern)
 	if err != nil {
-		return fmt.Errorf("read migration: %w", err)
+		return fmt.Errorf("list migrations: %w", err)
+	}
+	if len(files) == 0 {
+		return fmt.Errorf("no migrations found")
 	}
 
-	upSQL := extractGooseUp(string(content))
-	statements := splitSQLStatements(upSQL)
-	for _, statement := range statements {
-		if _, err := pool.Exec(ctx, statement); err != nil {
-			return fmt.Errorf("exec migration statement: %w", err)
+	sort.Strings(files)
+	for _, path := range files {
+		// #nosec G304 -- path is a fixed, repo-local migration file for tests.
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read migration: %w", err)
+		}
+
+		upSQL := extractGooseUp(string(content))
+		statements := splitSQLStatements(upSQL)
+		for _, statement := range statements {
+			if _, err := pool.Exec(ctx, statement); err != nil {
+				return fmt.Errorf("exec migration statement: %w", err)
+			}
 		}
 	}
 

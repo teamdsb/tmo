@@ -38,6 +38,10 @@
   示例：`feat(cart): add bulk import confirmation`。
 - PR 需包含：简要说明、UI 截图（如小程序页面）、以及 API 或权限变更的文档更新。
 
+## 项目阶段与兼容性说明
+- 当前处于开发期/快速迭代阶段，允许对数据结构与接口进行大幅调整或重构。
+- 在进入稳定期之前，一般不要求兼容旧数据或旧接口；如需兼容请在 PR 说明中明确。
+
 ## 文档与 API 更新
 - 功能变更需同步更新 `contracts/openapi/openapi.yaml` 与对应服务规范。
 - 产品变更更新 `docs/需求文档.md`；角色/权限变更更新 `docs/rbac.md`。
@@ -47,6 +51,10 @@
 - SQLC：`services/commerce/sqlc.yaml` 使用 `services/commerce/queries/*.sql` 与 `services/commerce/migrations/` 生成 `services/commerce/internal/db/*.go`。
 - OpenAPI：`contracts/openapi/commerce.yaml` 通过 oapi-codegen 生成 `services/commerce/internal/http/oapi/api.gen.go`。
 - 请勿直接编辑生成文件；修改源规范/SQL 后重新生成。
+
+## 公用中间件/轮子的维护与使用提醒
+- 由于 Go/Gin 微服务与前端跨端架构需要持续复用能力，请优先在 `packages/` 内建设、维护并使用公用中间件/轮子。
+- 新增或调整通用能力时，先更新 `packages/` 中对应包，再在服务/应用侧引用；避免在业务代码中重复实现。
 
 ## ExecPlans
 - ExecPlan 规范在 `docs/execplans/PLANS.md`；当前执行中的计划在 `.agent/PLANS.md`，必须符合该规范。
