@@ -1,8 +1,8 @@
 {
-  "name": "appali",
+  "name": "miniapp",
   "version": "1.0.0",
   "private": true,
-  "description": "tmoapp ali-end",
+  "description": "crossend minirepo ali&wechat",
   "templateInfo": {
     "name": "default",
     "typescript": true,
@@ -12,10 +12,6 @@
   "scripts": {
     "prepare": "husky",
     "new": "taro new",
-    "lint:eslint": "eslint \"src/**/*.{ts,tsx}\"",
-    "lint:style": "stylelint \"src/**/*.{css,scss}\"",
-    "lint": "pnpm run lint:eslint && pnpm run lint:style",
-    "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix && stylelint \"src/**/*.{css,scss}\" --fix",
     "build:weapp": "taro build --type weapp",
     "build:swan": "taro build --type swan",
     "build:alipay": "taro build --type alipay",
@@ -57,9 +53,6 @@
     "@tarojs/taro": "4.1.9",
     "@tarojs/plugin-framework-react": "4.1.9",
     "@tarojs/react": "4.1.9",
-    "@tmo/openapi-client": "workspace:*",
-    "@tmo/platform-adapter": "workspace:*",
-    "@tmo/shared": "workspace:*",
     "react-dom": "^18.0.0",
     "react": "^18.0.0"
   },
