@@ -2,9 +2,8 @@
   "name": "tmo-monorepo",
   "private": true,
   "scripts": {
-    "lint": "pnpm -C apps/appvx lint && pnpm -C apps/appali lint",
-    "lint:appvx": "pnpm -C apps/appvx lint",
-    "lint:appali": "pnpm -C apps/appali lint",
+    "lint": "pnpm -C apps/miniapp lint",
+    "lint:miniapp": "pnpm -C apps/miniapp lint",
     "test:backend": "bash tools/scripts/test-backend.sh",
     "test": "pnpm run test:backend",
     "format": "echo \"format: not configured\""

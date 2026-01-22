@@ -169,7 +169,14 @@ func (h *Handler) PostCatalogProducts(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, productDetailFromModel(product, nil))
+	detail, err := productDetailFromModel(product, nil, nil)
+	if err != nil {
+		h.logError("map product detail failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to create product")
+		return
+	}
+
+	c.JSON(http.StatusCreated, detail)
 }
 
 func (h *Handler) GetCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
@@ -234,6 +241,20 @@ func (h *Handler) PostCatalogProductsSpuIdSkus(c *gin.Context, spuId types.UUID)
 	if request.Attributes != nil {
 		attributes = *request.Attributes
 	}
+	spec := ""
+	if request.Spec != nil {
+		spec = strings.TrimSpace(*request.Spec)
+	}
+	if spec == "" {
+		if value, ok := attributes["spec"]; ok {
+			spec = strings.TrimSpace(value)
+		}
+	}
+	delete(attributes, "spec")
+	var specPtr *string
+	if spec != "" {
+		specPtr = &spec
+	}
 	attributesJSON, err := json.Marshal(attributes)
 	if err != nil {
 		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid attributes")
@@ -246,12 +267,13 @@ func (h *Handler) PostCatalogProductsSpuIdSkus(c *gin.Context, spuId types.UUID)
 	}
 
 	sku, err := h.CatalogStore.CreateSku(c.Request.Context(), db.CreateSkuParams{
-		ProductID: uuid.UUID(spuId),
-		SkuCode:   request.SkuCode,
-		Name:      request.Name,
+		ProductID:  uuid.UUID(spuId),
+		SkuCode:    request.SkuCode,
+		Name:       request.Name,
+		Spec:       specPtr,
 		Attributes: attributesJSON,
-		Unit:      request.Unit,
-		IsActive:  isActive,
+		Unit:       request.Unit,
+		IsActive:   isActive,
 	})
 	if err != nil {
 		h.logError("create sku failed", err)
@@ -268,10 +290,10 @@ func (h *Handler) PostCatalogProductsSpuIdSkus(c *gin.Context, spuId types.UUID)
 			maxQty = &value
 		}
 		createdTier, err := h.CatalogStore.CreatePriceTier(c.Request.Context(), db.CreatePriceTierParams{
-			SkuID:     sku.ID,
-			MinQty:    minQty,
-			MaxQty:    maxQty,
-			UnitPrice: tier.UnitPrice,
+			SkuID:        sku.ID,
+			MinQty:       minQty,
+			MaxQty:       maxQty,
+			UnitPriceFen: tier.UnitPriceFen,
 		})
 		if err != nil {
 			h.logError("create price tier failed", err)
@@ -379,6 +401,9 @@ func skuFromModel(sku db.CatalogSku, tiers []db.CatalogPriceTier) (oapi.SKU, err
 	if sku.SkuCode != nil {
 		response.SkuCode = sku.SkuCode
 	}
+	if sku.Spec != nil {
+		response.Spec = sku.Spec
+	}
 	if sku.Unit != nil {
 		response.Unit = sku.Unit
 	}
@@ -395,8 +420,8 @@ func skuFromModel(sku db.CatalogSku, tiers []db.CatalogPriceTier) (oapi.SKU, err
 		mapped := make([]oapi.PriceTier, 0, len(tiers))
 		for _, tier := range tiers {
 			entry := oapi.PriceTier{
-				MinQty:    int(tier.MinQty),
-				UnitPrice: tier.UnitPrice,
+				MinQty:       int(tier.MinQty),
+				UnitPriceFen: tier.UnitPriceFen,
 			}
 			if tier.MaxQty != nil {
 				value := int(*tier.MaxQty)

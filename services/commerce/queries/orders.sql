@@ -21,14 +21,14 @@ INSERT INTO order_items (
     order_id,
     sku_id,
     qty,
-    unit_price
+    unit_price_fen
 ) VALUES (
     $1,
     $2,
     $3,
     $4
 )
-RETURNING id, order_id, sku_id, qty, unit_price, created_at, updated_at;
+RETURNING id, order_id, sku_id, qty, unit_price_fen, created_at, updated_at;
 
 -- name: ListOrders :many
 SELECT id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at
@@ -52,7 +52,7 @@ FROM orders
 WHERE id = $1;
 
 -- name: ListOrderItems :many
-SELECT id, order_id, sku_id, qty, unit_price, created_at, updated_at
+SELECT id, order_id, sku_id, qty, unit_price_fen, created_at, updated_at
 FROM order_items
 WHERE order_id = $1
 ORDER BY created_at ASC;

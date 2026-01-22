@@ -16,21 +16,21 @@ INSERT INTO catalog_price_tiers (
     sku_id,
     min_qty,
     max_qty,
-    unit_price
+    unit_price_fen
 ) VALUES (
     $1,
     $2,
     $3,
     $4
 )
-RETURNING id, sku_id, min_qty, max_qty, unit_price, created_at, updated_at
+RETURNING id, sku_id, min_qty, max_qty, unit_price_fen, created_at, updated_at
 `
 
 type CreatePriceTierParams struct {
-	SkuID     uuid.UUID `db:"sku_id" json:"sku_id"`
-	MinQty    int32     `db:"min_qty" json:"min_qty"`
-	MaxQty    *int32    `db:"max_qty" json:"max_qty"`
-	UnitPrice float64   `db:"unit_price" json:"unit_price"`
+	SkuID        uuid.UUID `db:"sku_id" json:"sku_id"`
+	MinQty       int32     `db:"min_qty" json:"min_qty"`
+	MaxQty       *int32    `db:"max_qty" json:"max_qty"`
+	UnitPriceFen int64     `db:"unit_price_fen" json:"unit_price_fen"`
 }
 
 func (q *Queries) CreatePriceTier(ctx context.Context, arg CreatePriceTierParams) (CatalogPriceTier, error) {
@@ -38,7 +38,7 @@ func (q *Queries) CreatePriceTier(ctx context.Context, arg CreatePriceTierParams
 		arg.SkuID,
 		arg.MinQty,
 		arg.MaxQty,
-		arg.UnitPrice,
+		arg.UnitPriceFen,
 	)
 	var i CatalogPriceTier
 	err := row.Scan(
@@ -46,7 +46,7 @@ func (q *Queries) CreatePriceTier(ctx context.Context, arg CreatePriceTierParams
 		&i.SkuID,
 		&i.MinQty,
 		&i.MaxQty,
-		&i.UnitPrice,
+		&i.UnitPriceFen,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -54,7 +54,7 @@ func (q *Queries) CreatePriceTier(ctx context.Context, arg CreatePriceTierParams
 }
 
 const listPriceTiersBySku = `-- name: ListPriceTiersBySku :many
-SELECT id, sku_id, min_qty, max_qty, unit_price, created_at, updated_at
+SELECT id, sku_id, min_qty, max_qty, unit_price_fen, created_at, updated_at
 FROM catalog_price_tiers
 WHERE sku_id = $1
 ORDER BY min_qty ASC
@@ -74,7 +74,7 @@ func (q *Queries) ListPriceTiersBySku(ctx context.Context, skuID uuid.UUID) ([]C
 			&i.SkuID,
 			&i.MinQty,
 			&i.MaxQty,
-			&i.UnitPrice,
+			&i.UnitPriceFen,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -89,7 +89,7 @@ func (q *Queries) ListPriceTiersBySku(ctx context.Context, skuID uuid.UUID) ([]C
 }
 
 const listPriceTiersBySkus = `-- name: ListPriceTiersBySkus :many
-SELECT id, sku_id, min_qty, max_qty, unit_price, created_at, updated_at
+SELECT id, sku_id, min_qty, max_qty, unit_price_fen, created_at, updated_at
 FROM catalog_price_tiers
 WHERE sku_id = ANY($1::uuid[])
 ORDER BY sku_id, min_qty ASC
@@ -109,7 +109,7 @@ func (q *Queries) ListPriceTiersBySkus(ctx context.Context, dollar_1 []uuid.UUID
 			&i.SkuID,
 			&i.MinQty,
 			&i.MaxQty,
-			&i.UnitPrice,
+			&i.UnitPriceFen,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

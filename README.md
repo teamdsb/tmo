@@ -7,8 +7,7 @@
 - 若仓库已有配置（如 `go.work`、`pnpm-workspace.yaml`、各应用 `package.json`），以其为准。
 
 ## 项目结构
-- `apps/appvx/`：微信小程序（Taro + React + TypeScript + Sass）
-- `apps/appali/`：支付宝小程序（Taro + React + TypeScript + Sass）
+- `apps/miniapp/`：小程序（业务逻辑统一，Taro + React + TypeScript + Sass，可构建 WeChat/Alipay 等平台）
 - `apps/admin-web/`：后台管理控制台（预留）
 - `services/`：后端服务（Go）
 - `contracts/openapi/`：API 合约（OpenAPI）
@@ -29,7 +28,7 @@
 
 ### 前端
 - 框架：Taro CLI + React + TypeScript + Sass
-- 构建与开发：`apps/appvx`、`apps/appali` 的 Taro scripts
+- 构建与开发：`apps/miniapp` 的 Taro scripts（如 `dev:weapp`、`dev:alipay`）
 - 静态检查：ESLint（taro config）、Stylelint（standard）
 - 包管理：pnpm workspace
 
@@ -40,8 +39,8 @@
 
 ## 常用命令
 ```bash
-pnpm -C apps/appvx install
-pnpm -C apps/appvx dev:weapp
-pnpm -C apps/appali dev:alipay
+pnpm install
+pnpm -C apps/miniapp dev:weapp
+pnpm -C apps/miniapp dev:alipay
 pnpm run test:backend
 ```

@@ -58,13 +58,13 @@ type CatalogCategory struct {
 }
 
 type CatalogPriceTier struct {
-	ID        uuid.UUID          `db:"id" json:"id"`
-	SkuID     uuid.UUID          `db:"sku_id" json:"sku_id"`
-	MinQty    int32              `db:"min_qty" json:"min_qty"`
-	MaxQty    *int32             `db:"max_qty" json:"max_qty"`
-	UnitPrice float64            `db:"unit_price" json:"unit_price"`
-	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	ID           uuid.UUID          `db:"id" json:"id"`
+	SkuID        uuid.UUID          `db:"sku_id" json:"sku_id"`
+	MinQty       int32              `db:"min_qty" json:"min_qty"`
+	MaxQty       *int32             `db:"max_qty" json:"max_qty"`
+	UnitPriceFen int64              `db:"unit_price_fen" json:"unit_price_fen"`
+	CreatedAt    pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }
 
 type CatalogProduct struct {
@@ -85,6 +85,7 @@ type CatalogSku struct {
 	ProductID  uuid.UUID          `db:"product_id" json:"product_id"`
 	SkuCode    *string            `db:"sku_code" json:"sku_code"`
 	Name       string             `db:"name" json:"name"`
+	Spec       *string            `db:"spec" json:"spec"`
 	Attributes json.RawMessage    `db:"attributes" json:"attributes"`
 	Unit       *string            `db:"unit" json:"unit"`
 	IsActive   bool               `db:"is_active" json:"is_active"`
@@ -116,13 +117,13 @@ type Order struct {
 }
 
 type OrderItem struct {
-	ID        uuid.UUID          `db:"id" json:"id"`
-	OrderID   uuid.UUID          `db:"order_id" json:"order_id"`
-	SkuID     uuid.UUID          `db:"sku_id" json:"sku_id"`
-	Qty       int32              `db:"qty" json:"qty"`
-	UnitPrice float64            `db:"unit_price" json:"unit_price"`
-	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	ID           uuid.UUID          `db:"id" json:"id"`
+	OrderID      uuid.UUID          `db:"order_id" json:"order_id"`
+	SkuID        uuid.UUID          `db:"sku_id" json:"sku_id"`
+	Qty          int32              `db:"qty" json:"qty"`
+	UnitPriceFen int64              `db:"unit_price_fen" json:"unit_price_fen"`
+	CreatedAt    pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }
 
 type OrderTrackingShipment struct {

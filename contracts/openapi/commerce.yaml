@@ -1127,6 +1127,7 @@ components:
       required:
       - id
       - name
+      - sort
     ProductSummary:
       type: object
       properties:
@@ -1182,6 +1183,9 @@ components:
           type: string
         name:
           type: string
+        spec:
+          type: string
+          description: Primary spec label used for matching (e.g., size/grade)
         attributes:
           type: object
           additionalProperties:
@@ -1225,11 +1229,13 @@ components:
           type: integer
           nullable: true
           description: null means no upper bound
-        unitPrice:
-          type: number
+        unitPriceFen:
+          type: integer
+          format: int64
+          description: Unit price in fen
       required:
       - minQty
-      - unitPrice
+      - unitPriceFen
     SKU:
       type: object
       properties:
@@ -1242,6 +1248,8 @@ components:
         skuCode:
           type: string
         name:
+          type: string
+        spec:
           type: string
         attributes:
           type: object
@@ -1517,12 +1525,14 @@ components:
         qty:
           type: integer
           minimum: 1
-        unitPrice:
-          type: number
-          description: Final price per unit at order time
+        unitPriceFen:
+          type: integer
+          format: int64
+          description: Final price per unit at order time, in fen
       required:
       - sku
       - qty
+      - unitPriceFen
     Order:
       type: object
       properties:

@@ -91,21 +91,21 @@ INSERT INTO order_items (
     order_id,
     sku_id,
     qty,
-    unit_price
+    unit_price_fen
 ) VALUES (
     $1,
     $2,
     $3,
     $4
 )
-RETURNING id, order_id, sku_id, qty, unit_price, created_at, updated_at
+RETURNING id, order_id, sku_id, qty, unit_price_fen, created_at, updated_at
 `
 
 type CreateOrderItemParams struct {
-	OrderID   uuid.UUID `db:"order_id" json:"order_id"`
-	SkuID     uuid.UUID `db:"sku_id" json:"sku_id"`
-	Qty       int32     `db:"qty" json:"qty"`
-	UnitPrice float64   `db:"unit_price" json:"unit_price"`
+	OrderID      uuid.UUID `db:"order_id" json:"order_id"`
+	SkuID        uuid.UUID `db:"sku_id" json:"sku_id"`
+	Qty          int32     `db:"qty" json:"qty"`
+	UnitPriceFen int64     `db:"unit_price_fen" json:"unit_price_fen"`
 }
 
 func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (OrderItem, error) {
@@ -113,7 +113,7 @@ func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams
 		arg.OrderID,
 		arg.SkuID,
 		arg.Qty,
-		arg.UnitPrice,
+		arg.UnitPriceFen,
 	)
 	var i OrderItem
 	err := row.Scan(
@@ -121,7 +121,7 @@ func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams
 		&i.OrderID,
 		&i.SkuID,
 		&i.Qty,
-		&i.UnitPrice,
+		&i.UnitPriceFen,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -180,7 +180,7 @@ func (q *Queries) GetOrderByIdempotencyKey(ctx context.Context, arg GetOrderById
 }
 
 const listOrderItems = `-- name: ListOrderItems :many
-SELECT id, order_id, sku_id, qty, unit_price, created_at, updated_at
+SELECT id, order_id, sku_id, qty, unit_price_fen, created_at, updated_at
 FROM order_items
 WHERE order_id = $1
 ORDER BY created_at ASC
@@ -200,7 +200,7 @@ func (q *Queries) ListOrderItems(ctx context.Context, orderID uuid.UUID) ([]Orde
 			&i.OrderID,
 			&i.SkuID,
 			&i.Qty,
-			&i.UnitPrice,
+			&i.UnitPriceFen,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {

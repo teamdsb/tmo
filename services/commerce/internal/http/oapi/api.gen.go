@@ -149,7 +149,7 @@ type Category struct {
 	Id       openapi_types.UUID  `json:"id"`
 	Name     string              `json:"name"`
 	ParentId *openapi_types.UUID `json:"parentId"`
-	Sort     *int                `json:"sort,omitempty"`
+	Sort     int                 `json:"sort"`
 }
 
 // ConfirmCartImportRequest defines model for ConfirmCartImportRequest.
@@ -192,7 +192,10 @@ type CreateSkuRequest struct {
 	Name       string             `json:"name"`
 	PriceTiers *[]PriceTier       `json:"priceTiers,omitempty"`
 	SkuCode    *string            `json:"skuCode,omitempty"`
-	Unit       *string            `json:"unit,omitempty"`
+
+	// Spec Primary spec label used for matching (e.g., size/grade)
+	Spec *string `json:"spec,omitempty"`
+	Unit *string `json:"unit,omitempty"`
 }
 
 // ErrorResponse defines model for ErrorResponse.
@@ -236,8 +239,8 @@ type OrderItem struct {
 	Qty int `json:"qty"`
 	Sku SKU `json:"sku"`
 
-	// UnitPrice Final price per unit at order time
-	UnitPrice *float32 `json:"unitPrice,omitempty"`
+	// UnitPriceFen Final price per unit at order time, in fen
+	UnitPriceFen int64 `json:"unitPriceFen"`
 }
 
 // OrderStatus defines model for OrderStatus.
@@ -262,9 +265,11 @@ type PagedProductList struct {
 // PriceTier defines model for PriceTier.
 type PriceTier struct {
 	// MaxQty null means no upper bound
-	MaxQty    *int    `json:"maxQty"`
-	MinQty    int     `json:"minQty"`
-	UnitPrice float32 `json:"unitPrice"`
+	MaxQty *int `json:"maxQty"`
+	MinQty int  `json:"minQty"`
+
+	// UnitPriceFen Unit price in fen
+	UnitPriceFen int64 `json:"unitPriceFen"`
 }
 
 // ProductDetail defines model for ProductDetail.
@@ -299,6 +304,7 @@ type SKU struct {
 	Name       string             `json:"name"`
 	PriceTiers *[]PriceTier       `json:"priceTiers,omitempty"`
 	SkuCode    *string            `json:"skuCode,omitempty"`
+	Spec       *string            `json:"spec,omitempty"`
 	SpuId      openapi_types.UUID `json:"spuId"`
 	Unit       *string            `json:"unit,omitempty"`
 }

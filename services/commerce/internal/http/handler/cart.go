@@ -24,12 +24,12 @@ const (
 )
 
 type cartImportRowInput struct {
-	RowNo  int
-	SkuID  *uuid.UUID
+	RowNo   int
+	SkuID   *uuid.UUID
 	SkuCode string
-	Name   string
-	Spec   string
-	QtyRaw string
+	Name    string
+	Spec    string
+	QtyRaw  string
 }
 
 func (h *Handler) GetCart(c *gin.Context) {
@@ -504,11 +504,13 @@ func (h *Handler) matchSkusForCartRow(ctx context.Context, row cartImportRowInpu
 	case row.SkuID != nil:
 		return h.CatalogStore.ListSkusByIDs(ctx, []uuid.UUID{*row.SkuID})
 	case row.SkuCode != "":
-		return h.CatalogStore.ListSkusBySkuCode(ctx, row.SkuCode)
+		skuCode := row.SkuCode
+		return h.CatalogStore.ListSkusBySkuCode(ctx, &skuCode)
 	case row.Name != "" && row.Spec != "":
+		spec := row.Spec
 		return h.CatalogStore.ListSkusByNameAndSpec(ctx, db.ListSkusByNameAndSpecParams{
 			Name: row.Name,
-			Spec: row.Spec,
+			Spec: &spec,
 		})
 	case row.Name != "":
 		return h.CatalogStore.ListSkusByName(ctx, row.Name)
@@ -662,12 +664,12 @@ func parseCartImportRows(rows [][]string) []cartImportRowInput {
 		}
 
 		inputs = append(inputs, cartImportRowInput{
-			RowNo:  i + 1,
-			SkuID:  skuID,
+			RowNo:   i + 1,
+			SkuID:   skuID,
 			SkuCode: skuCode,
-			Name:   name,
-			Spec:   spec,
-			QtyRaw: qtyRaw,
+			Name:    name,
+			Spec:    spec,
+			QtyRaw:  qtyRaw,
 		})
 	}
 	return inputs

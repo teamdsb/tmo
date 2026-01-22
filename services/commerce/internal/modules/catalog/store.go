@@ -17,7 +17,7 @@ type Store interface {
 	CreateSku(ctx context.Context, arg db.CreateSkuParams) (db.CatalogSku, error)
 	ListSkusByProduct(ctx context.Context, productID uuid.UUID) ([]db.CatalogSku, error)
 	ListSkusByIDs(ctx context.Context, ids []uuid.UUID) ([]db.CatalogSku, error)
-	ListSkusBySkuCode(ctx context.Context, skuCode string) ([]db.CatalogSku, error)
+	ListSkusBySkuCode(ctx context.Context, skuCode *string) ([]db.CatalogSku, error)
 	ListSkusByName(ctx context.Context, name string) ([]db.CatalogSku, error)
 	ListSkusByNameAndSpec(ctx context.Context, arg db.ListSkusByNameAndSpecParams) ([]db.CatalogSku, error)
 	CreatePriceTier(ctx context.Context, arg db.CreatePriceTierParams) (db.CatalogPriceTier, error)

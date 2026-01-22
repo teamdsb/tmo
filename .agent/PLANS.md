@@ -1,239 +1,173 @@
-# 公共轮（共享包）规划
+# Commerce v0 Demo 纵切计划（目录读 + 购物车 + 意向订单 + 追踪/回传）
 
-这是一个活文档。`Progress`、`Surprises & Discoveries`、`Decision Log`、`Outcomes & Retrospective` 这四个部分在实施过程中必须持续更新。
+本 ExecPlan 是一个持续更新的文档。`Progress`、`Surprises & Discoveries`、`Decision Log`、`Outcomes & Retrospective` 这四个部分在工作推进时必须同步更新。
 
-本计划必须遵循仓库内 `docs/execplans/PLANS.md` 的要求和格式。
+本计划必须遵守仓库根目录的 `docs/execplans/PLANS.md`。
 
-## Purpose / Big Picture / 目的与总览
+## Purpose / Big Picture
 
-本计划的 MVP 聚焦 Go 共享中间件：在 `packages/go-shared` 下提供可复用的配置、HTTP/Gin 中间件、错误标准化、数据库连接与可观测性能力，并首先在 `services/commerce` 落地，从而把 commerce 提升到可投产的最低标准。TS 共享包（DTO、OpenAPI 客户端、平台适配）作为 Phase 2 记录在计划中，但不作为 MVP 实施目标。
+完成 v0 后，本地可以跑通一个“可演示的最小业务闭环”：用户浏览目录（Catalog 读）、手动加购或 Excel 批量加购（Cart + import job）、提交意向订单（Orders，状态固定为 `SUBMITTED`）、采销回传运单号并让下单人可查（Tracking + Excel 批量回传作业）。该闭环不涉及客户归属/业务员绑定、不涉及支付、不涉及售后/议价/找不到商品等扩展模块（这些进入 v1）。
 
-验收以“可投产最低标准”为主：commerce 的 `/health` 仅表示存活，`/ready` 反映数据库就绪；请求具备 request-id、错误响应结构统一、日志具备请求级上下文，并保持现有业务接口行为不回退。
+同时，v0 要把“接口对齐”作为硬约束：OpenAPI 合约（`contracts/openapi/*.yaml`）是唯一真相来源；后端 Go 代码通过 sqlc/oapi-codegen 生成物与业务 handler 对齐；前端侧通过 OpenAPI 自动生成 TypeScript client/types，避免手写漂移；尽量不要求改动前端组件，组件只通过 service 层调用。
 
 ## Progress
 
-- [x] (2026-01-18 14:52Z) 完成仓库调研并准备公共轮 ExecPlan 框架。
-- [x] (2026-01-18 15:02Z) 明确 MVP 范围：Go 共享中间件 + commerce 接入，TS 共享包为 Phase 2。
-- [x] (2026-01-18 16:11Z) 明确 `packages/go-shared` 目录结构、API 边界与依赖，并记录到 Decision Log。
-- [x] (2026-01-18 16:11Z) 实现 Go 共享中间件（request-id、access log、recovery、统一错误、DB 连接、readiness、优雅停机、OTel）。
-- [x] (2026-01-18 16:11Z) 在 `services/commerce` 完成替换接入，补齐 `/health` 与 `/ready`，并保留业务行为。
-- [x] (2026-01-18 16:23Z) 补齐文档、测试/校验脚本与 CI 入口（更新 packages/go-shared 与 commerce README、扩展 test-backend 脚本与 commerce-ci）。
-- [x] (2026-01-18 16:56Z, Phase 2) 为 `packages/shared`、`packages/openapi-client`、`packages/platform-adapter` 建立 TS 包结构并接入 appvx/appali（新增 package.json/tsconfig/src，并在 app 启动流程里引用）。
+- [x] (2026-01-22 17:05Z) 对齐 `docs/需求文档.md` 的关键开放问题，并锁定 v0/v1 边界与交互决策（v0=目录读+购物车+意向订单+追踪/回传；v1=其余）。
+- [ ] 修复当前 `services/commerce` 无法编译的问题，恢复 `go test ./...` 绿色（先对齐生成物与 handler 的类型/签名）。
+- [ ] 落地 v0 行为：下单清购物车（同 SKU）、Idempotency-Key 重复 409、追踪写入不改订单状态、Excel 解析与错误提示完善，并补齐单测/集成测。
+- [ ] 补齐本地 devops 地基：一键起 Postgres、迁移、seed（不依赖外部 goose/sqlc 安装）、以及可复现的验证脚本/README。
+- [ ] 落地 TS OpenAPI 生成：新增/调整 workspace 包，使其可生成并导出可用的 typed client（支持小程序请求适配），并提供最小使用示例。
+- [ ] 在本计划中补充 v1 backlog 的接口/数据/交互假设，确保 v0 的命名与数据结构不会阻塞 v1。
 
 ## Surprises & Discoveries
 
-- Observation: `packages/` 下已有 `go-shared`、`shared`、`openapi-client`、`platform-adapter` 目录，但仅有 README，无实际代码或包配置。
-  Evidence: `find packages -maxdepth 2 -type f` 仅返回 README。
-- Observation: TS 共享包已有 `src` 目录骨架（constants/dto/enums/validators、weapp/alipay），但仅是 `.gitkeep` 占位。
-  Evidence: `find packages/shared -maxdepth 3 -type f` 与 `find packages/platform-adapter -maxdepth 3 -type f` 仅显示 `.gitkeep`。
-- Observation: `go.work` 目前只包含 `services/commerce`，共享 Go module 尚未纳入。
-  Evidence: `go.work` 内容只有 `use ./services/commerce`。
-- Observation: Gin 的使用目前仅出现在 commerce 服务。
-  Evidence: `services/commerce/internal/http/server.go` 使用 `github.com/gin-gonic/gin`。
-- Observation: `pnpm-workspace.yaml` 已包含 `packages/*`，前端共享包可以直接作为 workspace package。
-  Evidence: `pnpm-workspace.yaml` 包含 `packages/*`。
-- Observation: `go mod tidy` 在 `services/commerce` 中未按 `go.work` 解析本地 `packages/go-shared`，需要显式 `replace` 指向本地路径才能继续。
-  Evidence: `go mod tidy` 报错提示 `module github.com/teamdsb/tmo@latest ... does not contain package github.com/teamdsb/tmo/packages/go-shared/...`。
-- Observation: 在 app 目录执行 `pnpm install --lockfile-only` 时会触发 workspace 根目录生成 `pnpm-lock.yaml`。
-  Evidence: 根目录出现新的 `pnpm-lock.yaml`。
-- Observation: app 的空 `app.scss` 与 `index.scss` 会触发 stylelint `no-empty-source`，且 `page` 选择器会触发 `selector-type-no-unknown`。
-  Evidence: `pnpm -C apps/appvx lint` 报错提示 `no-empty-source` 与 `selector-type-no-unknown`。
+- Observation: 当前仓库 `services/commerce` 编译失败，主要是“sqlc 生成的参数结构”与“handler 期望字段”不一致，以及“oapi-codegen 生成的类型变更”导致的指针/数值类型不匹配。
+  Evidence: `cd services/commerce && go test ./...` 报错包含 `ListSkusByNameAndSpecParams` 字段不匹配、`productDetailFromModel` 调用参数数量不匹配、`IdempotencyKey` 指针类型不匹配、`PriceTier` 数值类型不匹配等。
+
+- Observation: OpenAPI 的 `ErrorResponse`（包含 `requestId`、`details`）与现有 Go 返回的错误结构（`code/message/detail`）不一致；`services/commerce/README.md` 也以旧结构为准。
+  Evidence: `contracts/openapi/openapi.yaml#/components/schemas/ErrorResponse` vs `packages/go-shared/errors/errors.go`。
+
+- Observation: 本次检出中没有 `apps/appvx`/`apps/appali`，只有 `apps/admin-web` 占位；因此 v0 的 TS 对齐只能先落在 `packages/*`（生成 client/types + requester 适配），不做组件层集成。
+  Evidence: `ls apps` 仅有 `admin-web`。
 
 ## Decision Log
 
-- Decision: 复用现有目录并建立 Go/TS 共享包的正式工程结构，Go 模块名采用 `github.com/teamdsb/tmo/packages/go-shared`，TS 包名采用 `@tmo/shared`、`@tmo/openapi-client`、`@tmo/platform-adapter`。
-  Rationale: 与当前 `services/commerce` 的模块命名风格一致，且便于 pnpm workspace 引用。
-  Date/Author: 2026-01-18 (Codex)
-- Decision: Go 共享包覆盖配置、HTTP/Gin 中间件、错误标准化、数据库连接与观测能力；TS 共享包（DTO、校验器、OpenAPI 客户端、平台适配）作为 Phase 2 规划。
-  Rationale: MVP 先满足服务端可投产最低标准，前端复用能力延后以降低首轮投入。
-  Date/Author: 2026-01-18 (Codex)
-- Decision: 先在 `services/commerce` 试点接入 Go 共享包；TS 共享包 Phase 2 再接入 `apps/appvx` 与 `apps/appali`。
-  Rationale: commerce 是当前唯一可运行的服务，先稳定后端能力再推进前端共享包。
-  Date/Author: 2026-01-18 (Codex)
-- Decision: MVP 仅覆盖 Go 共享中间件并在 commerce 试点接入，TS 共享包作为 Phase 2 规划。
-  Rationale: 以可投产最低标准为目标，先确保服务端具备可复用的基础能力。
-  Date/Author: 2026-01-18 (Codex)
-- Decision: commerce 作为业务服务，鉴权由 gateway-bff 统一处理；commerce 仅校验来自网关的内部标识（或在未启用网关时跳过）。
-  Rationale: 避免在单服务重复实现鉴权，同时保持内网可控调用路径。
-  Date/Author: 2026-01-18 (Codex)
-- Decision: readiness 独立于 liveness，`/health` 仅表示进程存活，`/ready` 需要验证数据库连接与关键依赖。
-  Rationale: 生产环境下需要准确区分“存活”与“可服务”。
-  Date/Author: 2026-01-18 (Codex)
-- Decision: Go 版本使用最新稳定版（CI 使用 setup-go stable），不固定在 1.22。
-  Rationale: 避免因固定版本错过安全与性能修复，同时与依赖的最新版本兼容。
-  Date/Author: 2026-01-18 (Codex)
-- Decision: OTel 采用标准环境变量驱动（支持 OTLP gRPC / HTTP，根据 `OTEL_EXPORTER_OTLP(_TRACES)_PROTOCOL` 自动选择），仅在显式配置端点/协议/导出器时启用，并通过 `otelgin` 注入 Gin 请求链路。
-  Rationale: 兼容主流 Collector 配置与现有环境变量规范，避免未配置时无意义的导出开销。
-  Date/Author: 2026-01-18 (Codex)
-- Decision: 在 `services/commerce/go.mod` 增加 `replace github.com/teamdsb/tmo/packages/go-shared => ../../packages/go-shared`，以确保 `go mod tidy`/`go test` 在本地解析共享模块。
-  Rationale: 解决 go tooling 未按 workspace 解析本地嵌套模块导致的解析失败。
-  Date/Author: 2026-01-18 (Codex)
-- Decision: 扩展 `tools/scripts/test-backend.sh` 以覆盖 `packages/go-shared`，并在 `commerce-ci` 中新增 go-shared 测试与路径触发规则。
-  Rationale: 共享包变更需要在本地与 CI 中被稳定验证，避免只测 commerce 服务导致的回归。
-  Date/Author: 2026-01-18 (Codex)
-- Decision: `commerce-ci` 仅在 PR 触发，不再对 push 触发。
-  Rationale: 避免分支内重复运行，保持 CI 成本与信号聚焦在合并请求。
-  Date/Author: 2026-01-18 (Codex)
-- Decision: TS 共享包以 workspace 源码形式导出（`main`/`exports` 指向 `src`），并配置 `tsconfig.json` 开启 `declaration`，先满足应用侧直接引用。
-  Rationale: 避免引入额外构建流程，保持 Taro/Vite 编译路径可追踪，同时为后续生成声明文件留出配置。
-  Date/Author: 2026-01-18 (Codex)
-- Decision: `@tmo/platform-adapter` 通过检测全局 `wx`/`my` 选择平台实现，提供 `login/request/pay/chooseImage` 的 Promise 包装，并复用 `@tmo/shared/enums` 的 Platform 枚举。
-  Rationale: 统一微信/支付宝 API 差异，减少应用层分支判断。
-  Date/Author: 2026-01-18 (Codex)
-- Decision: `@tmo/openapi-client` 提供 `createClient` 与 URL/query 构造工具，`createClient` 负责拼接 baseUrl 与 query，实际请求由注入的 requester 执行。
-  Rationale: 先建立生成客户端的稳定基座，避免耦合具体请求库。
-  Date/Author: 2026-01-18 (Codex)
-- Decision: 接受 pnpm workspace 生成的根目录 `pnpm-lock.yaml`，现有 app 目录 lockfile 暂不改动。
-  Rationale: workspace 安装默认在根目录生成共享 lockfile，先保留现场结果以避免误删或覆盖。
-  Date/Author: 2026-01-18 (Codex)
-- Decision: 为 app 的样式文件添加最小化 `:root` 与 `.index` 样式，避免空文件与未知选择器的 lint 失败。
-  Rationale: 保持 stylelint 通过且不引入复杂布局改动。
-  Date/Author: 2026-01-18 (Codex)
+- Decision: v0 范围固定为“目录读 + 购物车（含 Excel 批量加购作业）+ 意向订单（状态仅 SUBMITTED）+ 追踪/回传（含 Excel 批量回传作业）”。Wishlist/ProductRequests/AfterSales/Inquiries/Customers 归属/转移、支付等进入 v1。
+  Rationale: 先把采购场景的主闭环跑通并可演示，避免把 v1 的流程复杂度拖入 v0。
+  Date/Author: 2026-01-22 / Codex
+
+- Decision: `Idempotency-Key` 在 v0 不强制必填；当请求携带 `Idempotency-Key` 且与历史订单冲突时返回 409（Conflict）。
+  Rationale: 满足“防重复提交”的核心需求，同时不阻塞早期调用方（可逐步要求必填）。
+  Date/Author: 2026-01-22 / Codex
+
+- Decision: v0 下单成功后自动清理购物车中“本次下单涉及的 SKU”条目（同一用户），并尽量在同一事务内完成（创建订单/订单明细/清购物车）。
+  Rationale: 贴合用户心智（加购 -> 下单即转化），避免重复下单与购物车脏数据。
+  Date/Author: 2026-01-22 / Codex
+
+- Decision: v0 追踪信息（运单号）写入与导入不改变订单状态；订单状态仍保持 `SUBMITTED`。
+  Rationale: 追踪只作为信息回传；订单状态机与履约闭环放到 v1 统一设计。
+  Date/Author: 2026-01-22 / Codex
+
+- Decision: v0 不提交 Excel 模板文件到仓库；但在代码中集中维护“模板列定义/表头规范”，并提供“可生成模板文件”的脚本/工具，为 v1 的“模板存放/下载”打地基。
+  Rationale: 当前阶段先保证表头一致与可测试性，避免把二进制模板纳入版本管理，同时不阻塞未来模板上架。
+  Date/Author: 2026-01-22 / Codex
+
+- Decision: TS OpenAPI 采用自动生成（v0 选择 `orval`），并通过自定义 requester 适配小程序（wx/my）与普通 fetch 环境；生成物放入独立 workspace 包（建议 `packages/api-client`），`packages/openapi-client` 继续作为通用 runtime 工具。
+  Rationale: 生成 “typed operations + models” 可以最大程度减少手写漂移；`orval` 的 mutator 机制适合接入平台适配器。
+  Date/Author: 2026-01-22 / Codex
+
+- Decision: 客服聊天（微信/支付宝）在 v0 只做“平台适配层骨架”（例如 `packages/platform-adapter` 增加 API 占位与 types），具体接入规范在实施时再补齐。
+  Rationale: 不阻塞 v0 主链路，同时为 v1 的“议价/售后入口”提前预留调用面。
+  Date/Author: 2026-01-22 / Codex
 
 ## Outcomes & Retrospective
 
-已完成 `packages/go-shared` 共享模块落地并接入 `services/commerce`：新增 request-id、统一错误、readiness、OTel 初始化与优雅停机等能力，`/health` 与 `/ready` 已接入；`go test ./...` 已验证编译通过。Phase 2 已补齐 `@tmo/shared`、`@tmo/openapi-client`、`@tmo/platform-adapter` 的 TS 包结构与示例用法，并在 appvx/appali 启动流程中接入。文档、测试脚本与 CI 入口已补齐。
+尚未开始实施；在每个里程碑完成后补充达成情况、遗留与经验。
 
-## Context and Orientation / 背景与现状
+## Context and Orientation
 
-仓库已有共享包目录 `packages/go-shared`、`packages/shared`、`packages/openapi-client`、`packages/platform-adapter`。`packages/go-shared` 已实现通用中间件并接入 `services/commerce`，TS 共享包已建立 `package.json`、`tsconfig.json` 与 `src` 结构并在 `apps/appvx` 与 `apps/appali` 引用。Go 服务目前只有 `services/commerce` 可运行，Gin（Go 的 HTTP 框架）在 `services/commerce/internal/http/server.go` 里用于路由与中间件。前端是 Taro 4 的小程序项目，位于 `apps/appvx` 与 `apps/appali`，workspace 管理由 `pnpm-workspace.yaml` 控制，已包含 `packages/*`。
+仓库为单体仓库。当前唯一可运行的后端服务是 `services/commerce`，入口为 `services/commerce/cmd/commerce/main.go`。HTTP 使用 Gin，路由组装在 `services/commerce/internal/http/server.go`，handler 在 `services/commerce/internal/http/handler/*`。数据库为 Postgres，开发环境由 `infra/dev/docker-compose.yml` 提供。数据库 schema 迁移在 `services/commerce/migrations/*.sql`，查询在 `services/commerce/queries/*.sql`，由 sqlc 生成到 `services/commerce/internal/db/*.go`。OpenAPI 规范在 `contracts/openapi/*.yaml`，Go 侧由 oapi-codegen 生成到 `services/commerce/internal/http/oapi/api.gen.go`（生成文件不可手改）。
 
-本文中的“公共轮子/共享包”指复用的基础能力模块，例如配置读取、错误模型、HTTP 中间件、数据库连接、观测（日志、指标、追踪）。DTO 是“数据传输对象”，即在接口和前端之间共享的数据结构。平台适配指统一不同小程序平台（如微信与支付宝）在登录、支付、文件等能力上的调用差异。
+目前仓库存在一个重要现实：生成物与业务代码已经发生漂移，导致 `services/commerce` 无法编译。v0 的第一步必须先恢复编译与测试为绿，再做功能行为对齐。
 
-## Plan of Work / 工作计划
+## Plan of Work
 
-第一步（MVP 基础）是明确 `packages/go-shared` 的目录结构、命名与依赖边界，并在仓库中落地 Go 共享模块框架。Go 共享包包含 `config/`、`httpx/`、`errors/`、`db/`、`observability/` 等基础目录，创建 `go.mod` 并加入 `go.work`。Go 版本以最新稳定版为准，不固定在 1.22。
+里程碑 0（止血）：让仓库重新可编译、可测试。做法是先修正 SQL 里容易导致 sqlc 生成字段名错误的部分（例如 `ListSkusByNameAndSpec` 用 `sqlc.arg('spec')` 命名参数），重新生成 sqlc 输出；再对齐 handler 里因 oapi-codegen 类型变更导致的指针/数值类型问题；同时补充一个“固定的生成脚本”，把 sqlc/oapi-codegen 的命令固化，避免未来再次漂移。
 
-第二步（MVP 能力）是实现共享中间件与基础能力：request-id（读取或生成并回写响应头）、access log（含耗时、状态码、request-id）、recovery（panic 转 500）、统一错误响应（结构化 JSON）、pgxpool 连接池与 readiness 检查、优雅停机（signal + context）、日志初始化（slog）以及可选的 OTel 初始化。API 边界仅覆盖通用能力，不引入业务类型。
+里程碑 1（v0 行为）：在编译通过的基础上，把 v0 必要行为补齐并写测试。重点是下单清购物车、Idempotency-Key 冲突 409、追踪导入/更新不改订单状态、Excel 表头/行校验与可解释错误。这里会新增少量 sqlc query（例如按 owner+skuIDs 批量删除购物车行），并在 handler 中使用事务保证一致性。
 
-第三步（MVP 接入）是在 `services/commerce` 完成替换接入：配置加载、日志初始化、数据库连接、Gin 路由与中间件全部切换到 `packages/go-shared`。新增 `/health`（仅存活）与 `/ready`（依赖 DB 就绪），并确保错误响应结构统一、请求响应具备 request-id。鉴权假设维持 gateway-bff 统一处理，commerce 只校验内部标识（未启用网关时允许跳过）。
+里程碑 2（devops 地基）：提供一组新同学可直接照做的本地启动与验证路径。包括：起 Postgres、应用迁移、seed 最小数据集、生成 JWT（可选）、启动服务、跑一套 curl 验收脚本。优先用 repo 内已有逻辑（例如复用集成测试里迁移解析思路），减少外部工具依赖。
 
-第四步（质量与发布）补齐测试、lint、CI 与文档。为 `packages/go-shared` 和 commerce 增加单测/集成测试，纳入 lint/test/CI（可包含覆盖率与 race 检查），更新 `packages/README.md` 与共享包 README，明确接入方式、运行命令与验收标准。
+里程碑 3（TS 对齐）：引入 OpenAPI -> TS 自动生成，并把请求层统一封装为“一个 requester 入口”（支持 wx/my 与 fetch）。由于当前没有小程序 app 代码，v0 只要求生成物可以被 TypeScript 编译通过并提供示例调用；后续接入应用时，组件只需替换 service 层调用，不改 UI 组件。
 
-Phase 2：为 `packages/shared`、`packages/openapi-client`、`packages/platform-adapter` 建立 TS 包结构与脚本，后续在 `apps/appvx` 与 `apps/appali` 接入。
+里程碑 4（v1 规划落笔）：在本计划中明确 v1 的接口与数据对象扩展（找不到商品、收藏、议价、售后、客户归属、支付等），并检查 v0 的命名/表结构不会阻塞 v1（例如错误结构、job 类型、message senderType 等）。
 
-## Concrete Steps / 具体步骤
+## V1 Backlog (Not in v0)
 
-从仓库根目录确认共享包与 commerce 现状：
+v1 预期覆盖 `docs/需求文档.md` 的剩余模块：找不到商品（ProductRequests）+ 导出；收藏/常用清单（Wishlist）；议价入口（Inquiries + messages）并接入微信/支付宝客服聊天；售后（AfterSales + messages）并预留 AI 建议；客户归属/转移（Customers + transfer audit）；商品 Excel 导入（含图片/多规格）；支付（paymentEnabled 开关 + 真正跑通微信/支付宝支付与回调）；以及订单状态机（CONFIRMED/SHIPPED/DELIVERED 等）与更完善的运维审计。
 
-    ls packages
-    find packages -maxdepth 2 -type f
-    cat go.work
-    rg -n "gin|slog|pgxpool|config" services/commerce
+## Concrete Steps
 
-为 Go 共享包创建模块与目录结构，并纳入 `go.work`：
+从仓库根目录做一次现状验证（预期当前会失败，用于记录证据）：
 
-    mkdir -p packages/go-shared/{config,httpx,errors,db,observability}
-    (cd packages/go-shared && go mod init github.com/teamdsb/tmo/packages/go-shared)
-    go work use ./packages/go-shared
-    go work sync
-
-实现共享中间件与基础能力，并补齐单测：
-
-    # request-id、access log、recovery、统一错误、readiness、优雅停机
-    # 按 Plan of Work 创建包与测试
-
-在 `services/commerce` 中接入共享包并新增健康检查：
-
-    rg -n "config|logger|db|gin|health|ready" services/commerce
-    # 替换为 packages/go-shared 的实现，并新增 /health 与 /ready
-    (cd services/commerce && go mod edit -require=github.com/teamdsb/tmo/packages/go-shared@v0.0.0)
-    (cd services/commerce && go mod edit -replace=github.com/teamdsb/tmo/packages/go-shared=../../packages/go-shared)
-
-运行构建、测试与 lint：
-
-    (cd packages/go-shared && go mod tidy)
-    (cd services/commerce && go mod tidy)
-    (cd packages/go-shared && go test ./...)
     (cd services/commerce && go test ./...)
-    golangci-lint run ./...
-    bash tools/scripts/test-backend.sh
 
-为 TS 共享包建立结构并接入 appvx/appali：
+启动本地 Postgres：
 
-    mkdir -p packages/shared/src/{constants,dto,enums,validators}
-    mkdir -p packages/openapi-client/src
-    mkdir -p packages/platform-adapter/src/{weapp,alipay}
-    # 添加 package.json/tsconfig.json 与 src/index.ts 等文件
-    # 在 apps/appvx 与 apps/appali package.json 增加 @tmo/* 依赖，并在 src/app.ts 调用 initApp
-    # (可选) pnpm install --lockfile-only 以更新根目录 pnpm-lock.yaml
+    docker compose -f infra/dev/docker-compose.yml up -d
 
-## Validation and Acceptance / 验证与验收
+（实施里程碑 0 后）重新生成 sqlc 与 oapi-codegen（命令以最终落地的脚本为准；这里给出参考）：
 
-MVP 通过验收需满足：
+    (cd services/commerce && go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0 generate)
 
-- `packages/go-shared` 与 `services/commerce` 编译与测试通过，lint 通过（Go 版本使用最新稳定版）。
-- `/health` 始终 200 且不依赖外部；`/ready` 在 DB 不可用时返回非 200，在可用时返回 200。
-- 请求与响应包含 `X-Request-ID`（若请求未提供则生成），日志包含 request-id、状态码、耗时。
-- 错误响应结构统一（code/message/detail），不影响既有成功响应结构。
-- 服务可优雅停机：收到 SIGTERM 后停止接入新请求，等待 in-flight 完成并关闭 DB 连接池。
-- 文档与 README 说明接入方式、命令与运行要求。
+    (cd services/commerce && go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.5.1 \
+      -generate types,gin -package oapi \
+      -o internal/http/oapi/api.gen.go \
+      -include-tags Catalog,Cart,Orders,Tracking \
+      ../../contracts/openapi/commerce.yaml)
 
-Phase 2 验收补充：
+（实施里程碑 2 后）应用迁移与 seed（以最终脚本为准）：
 
-- appvx/appali 能引用 `@tmo/shared`、`@tmo/openapi-client`、`@tmo/platform-adapter` 并在启动日志中输出平台与 health URL（`pnpm -C apps/appvx lint`/`pnpm -C apps/appali lint` 可作为静态校验）。
+    bash tools/scripts/commerce-migrate.sh
+    bash tools/scripts/commerce-seed.sh
 
-## Idempotence and Recovery / 可重复与恢复
+启动服务（两种方式二选一）：
 
-新增的 Go 共享包目录与脚本可重复执行，`go.work` 与模块初始化可回滚。TS 包为纯源码与配置文件，删除对应目录即可回滚；app 接入只涉及依赖与启动日志调用，可按需撤销。若接入失败，可暂时恢复 commerce 原实现并保留共享包代码，不影响现有服务运行。本轮 MVP 不引入自动生成代码，如后续加入生成产物需补充清理说明。
+    export COMMERCE_DB_DSN="postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable"
+    go run ./services/commerce/cmd/commerce
 
-## Artifacts and Notes / 产物与记录
+或：
 
-预期输出示例：
+    (cd services/commerce && COMMERCE_DB_DSN="postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable" go run ./cmd/commerce)
 
-    $ (cd packages/go-shared && go test ./...)
-    ok   github.com/teamdsb/tmo/packages/go-shared/httpx  0.00s
+## Validation and Acceptance
 
-    $ curl -i http://localhost:8080/ready
-    HTTP/1.1 200 OK
+以“行为可见”为验收标准：
 
-## Interfaces and Dependencies / 接口与依赖
+1) 目录读：`GET /catalog/categories`、`GET /catalog/products`、`GET /catalog/products/{spuId}` 返回 200，且能看到 seed 数据（含 SKU 与价格阶梯）。
 
-Go 共享包建议暴露以下稳定接口（示例签名，具体实现需与 commerce 行为一致）：
+2) 购物车：`POST /cart/items` + `GET /cart` 可用；上传 Excel 到 `POST /cart/import-jobs` 返回 202 并给出 `autoAddedItems/pendingItems`；确认 `POST /cart/import-jobs/{jobId}/confirm` 后购物车数量变化符合预期。
 
-    // packages/go-shared/config
-    func String(key, fallback string) string
-    func Int(key string, fallback int) int
-    func Bool(key string, fallback bool) bool
-    func Duration(key string, fallback time.Duration) time.Duration
+3) 下单：`POST /orders` 返回 201 且 `status=SUBMITTED`；下单成功后，`GET /cart` 不再包含本次下单涉及的 SKU；当请求携带同一个 `Idempotency-Key` 再次提交时返回 409。
 
-    // packages/go-shared/httpx
-    func NewRouter(opts ...Option) *gin.Engine
-    func NewServer(addr string, router http.Handler) *http.Server
-    func RequestID() gin.HandlerFunc
-    func AccessLog(logger *slog.Logger) gin.HandlerFunc
-    func Recovery(logger *slog.Logger) gin.HandlerFunc
-    func Health() gin.HandlerFunc
-    func Ready(check func(context.Context) error) gin.HandlerFunc
+4) 追踪：`POST /orders/{orderId}/tracking` 与 `POST /shipments/import-jobs` 写入运单号后，`GET /orders/{orderId}/tracking` 能读到；同时 `GET /orders/{orderId}` 仍显示 `status=SUBMITTED`（确认追踪不改状态）。
 
-    // packages/go-shared/errors
-    type APIError struct {
-        Code    string `json:"code"`
-        Message string `json:"message"`
-        Detail  string `json:"detail,omitempty"`
-    }
-    func Write(c *gin.Context, status int, err APIError)
+5) TS 生成：运行生成命令后，`packages/api-client`（或最终选定的包）可以被 TypeScript 编译通过，并能在 README 示例中完成一次 typed 调用（不要求连接真实服务）。
 
-    // packages/go-shared/db
-    func NewPool(ctx context.Context, dsn string) (*pgxpool.Pool, error)
-    func Ready(ctx context.Context, pool *pgxpool.Pool) error
+## Idempotence and Recovery
 
-    // packages/go-shared/observability
-    type Config struct {
-        ServiceName string
-        Environment string
-        OtelEndpoint string
-    }
-    func Setup(ctx context.Context, cfg Config, logger *slog.Logger) (shutdown func(context.Context) error, err error)
+迁移与 seed 必须可重复执行（脚本内应使用 `CREATE TABLE IF NOT EXISTS` 的既有迁移与 upsert/存在即跳过的 seed 策略）。若本地数据污染，可通过删除 docker volume 或重建 `commerce` 数据库恢复；重新执行迁移与 seed 后仍可验收通过。
 
-Phase 2 的 TS 共享包采用 workspace package 形式，`packages/shared` 导出 constants/dto/enums/validators；`packages/openapi-client` 提供 `buildQuery/joinUrl/buildUrl/createClient` 作为客户端基础；`packages/platform-adapter` 导出 `getPlatform/isWeapp/isAlipay/login/request/pay/chooseImage` 并在内部根据运行时选择 `wx` 或 `my` 实现。所有包已配置 `exports` 指向 `src` 并在 `tsconfig.json` 中开启 `declaration`，便于后续生成声明文件。
+sqlc 与 oapi-codegen 的生成过程必须可重复执行；计划要求把命令固化到脚本/Makefile，避免手工命令漂移。
+
+## Artifacts and Notes
+
+用于验收的关键接口示例（参数以实现为准）：
+
+    curl http://localhost:8080/health
+    curl http://localhost:8080/catalog/products?page=1&pageSize=20
+
+    curl -H "Content-Type: application/json" \
+      -H "Idempotency-Key: demo-001" \
+      -d '{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"items":[{"skuId":"<uuid>","qty":2}]}' \
+      http://localhost:8080/orders
+
+## Interfaces and Dependencies
+
+后端依赖与边界：
+
+1) sqlc：所有新的 DB 能力优先落在 `services/commerce/queries/*.sql` 并生成到 `services/commerce/internal/db/*.go`，业务代码只通过 `*db.Queries` 或 `WithTx` 访问数据库。
+
+2) oapi-codegen：只修改 `contracts/openapi/*.yaml` 与生成命令/脚本；不直接修改 `services/commerce/internal/http/oapi/api.gen.go`。
+
+3) Excel：继续使用 `github.com/xuri/excelize/v2`；模板文件不落库不入仓库，测试用例在内存生成 workbook。
+
+前端 TS 对齐依赖：
+
+1) `orval`：生成 typed client；通过 mutator 统一走自定义 requester。
+
+2) requester：优先复用 `packages/openapi-client` 的 URL/query 构造能力，平台侧优先复用 `packages/platform-adapter` 的 request 能力（wx/my），并提供非小程序环境的 fallback（fetch）。
 
 ## Plan Revision Note
 
-2026-01-18：基于仓库调研创建公共轮 ExecPlan，覆盖 Go 与 TS 共享包的结构、接口与接入路径。
-2026-01-18 15:02Z：更新 MVP 目标为 Go 共享中间件 + commerce 接入，补充 readiness、中间件范围与验收标准，TS 共享包为 Phase 2。
-2026-01-18 16:11Z：完成 go-shared 落地与 commerce 接入的执行记录，更新进度/决策/发现并补充本地 replace 说明与测试步骤。
-2026-01-18 16:23Z：补齐文档、测试脚本与 CI 入口的执行记录，并更新决策与进度。
-2026-01-18 16:36Z：调整 commerce-ci 仅 PR 触发，并记录到 Decision Log。
-2026-01-18 16:56Z：完成 Phase 2 TS 包结构与 app 接入记录，补充 lockfile 处理与接口说明。
-2026-01-18 17:06Z：补充 app 样式 lint 处理记录，并更新发现与决策。
+2026-01-22：根据与产品方确认的 v0 决策（1a/2a/3a/4b/5c）重写 `.agent/PLANS.md`，并纠正仓库现状与生成链路的偏差，确保计划可指导“先修编译再补行为再做 TS 生成”。
