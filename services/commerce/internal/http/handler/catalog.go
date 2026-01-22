@@ -1,11 +1,14 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"math"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/oapi-codegen/runtime/types"
@@ -19,8 +22,59 @@ type catalogCategoriesResponse struct {
 }
 
 func (h *Handler) GetCatalogCategories(c *gin.Context) {
-	response := catalogCategoriesResponse{Items: []oapi.Category{}}
-	c.JSON(http.StatusOK, response)
+	categories, err := h.CatalogStore.ListCategories(c.Request.Context())
+	if err != nil {
+		h.logError("list categories failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to list categories")
+		return
+	}
+
+	items := make([]oapi.Category, 0, len(categories))
+	for _, category := range categories {
+		items = append(items, categoryFromModel(category))
+	}
+
+	c.JSON(http.StatusOK, catalogCategoriesResponse{Items: items})
+}
+
+func (h *Handler) PostCatalogCategories(c *gin.Context) {
+	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+		return
+	}
+
+	var request oapi.CreateCategoryRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
+		return
+	}
+	if strings.TrimSpace(request.Name) == "" {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "name is required")
+		return
+	}
+
+	parentID := pgtype.UUID{}
+	if request.ParentId != nil {
+		value := uuid.UUID(*request.ParentId)
+		parentID = pgtype.UUID{Bytes: value, Valid: true}
+	}
+
+	sort := int32(0)
+	if request.Sort != nil {
+		sort = clampInt32(*request.Sort)
+	}
+
+	category, err := h.CatalogStore.CreateCategory(c.Request.Context(), db.CreateCategoryParams{
+		Name:     request.Name,
+		ParentID: parentID,
+		Sort:     sort,
+	})
+	if err != nil {
+		h.logError("create category failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to create category")
+		return
+	}
+
+	c.JSON(http.StatusCreated, categoryFromModel(category))
 }
 
 func (h *Handler) GetCatalogProducts(c *gin.Context, params oapi.GetCatalogProductsParams) {
@@ -45,7 +99,7 @@ func (h *Handler) GetCatalogProducts(c *gin.Context, params oapi.GetCatalogProdu
 		categoryFilter = pgtype.UUID{Bytes: *params.CategoryId, Valid: true}
 	}
 
-	products, err := h.Store.ListProducts(c.Request.Context(), db.ListProductsParams{
+	products, err := h.CatalogStore.ListProducts(c.Request.Context(), db.ListProductsParams{
 		Q:          params.Q,
 		CategoryID: categoryFilter,
 		Offset:     offset32,
@@ -57,7 +111,7 @@ func (h *Handler) GetCatalogProducts(c *gin.Context, params oapi.GetCatalogProdu
 		return
 	}
 
-	total, err := h.Store.CountProducts(c.Request.Context(), db.CountProductsParams{
+	total, err := h.CatalogStore.CountProducts(c.Request.Context(), db.CountProductsParams{
 		Q:          params.Q,
 		CategoryID: categoryFilter,
 	})
@@ -95,7 +149,7 @@ func (h *Handler) PostCatalogProducts(c *gin.Context) {
 	tags := derefStringSlice(request.Tags)
 	filters := derefStringSlice(request.FilterDimensions)
 
-	product, err := h.Store.CreateProduct(c.Request.Context(), db.CreateProductParams{
+	product, err := h.CatalogStore.CreateProduct(c.Request.Context(), db.CreateProductParams{
 		Name:             request.Name,
 		Description:      request.Description,
 		CategoryID:       request.CategoryId,
@@ -110,11 +164,11 @@ func (h *Handler) PostCatalogProducts(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, productDetailFromModel(product))
+	c.JSON(http.StatusCreated, productDetailFromModel(product, nil))
 }
 
 func (h *Handler) GetCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
-	product, err := h.Store.GetProduct(c.Request.Context(), spuId)
+	product, err := h.CatalogStore.GetProduct(c.Request.Context(), spuId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			c.JSON(http.StatusNotFound, gin.H{"message": "product not found"})
@@ -125,7 +179,111 @@ func (h *Handler) GetCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 		return
 	}
 
-	c.JSON(http.StatusOK, productDetailFromModel(product))
+	skus, err := h.CatalogStore.ListSkusByProduct(c.Request.Context(), product.ID)
+	if err != nil {
+		h.logError("list skus failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to fetch product")
+		return
+	}
+
+	var priceTiers []db.CatalogPriceTier
+	if len(skus) > 0 {
+		skuIDs := make([]uuid.UUID, 0, len(skus))
+		for _, sku := range skus {
+			skuIDs = append(skuIDs, sku.ID)
+		}
+		priceTiers, err = h.CatalogStore.ListPriceTiersBySkus(c.Request.Context(), skuIDs)
+		if err != nil {
+			h.logError("list price tiers failed", err)
+			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to fetch product")
+			return
+		}
+	}
+
+	detail, err := productDetailFromModel(product, skus, priceTiers)
+	if err != nil {
+		h.logError("map product detail failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to fetch product")
+		return
+	}
+
+	c.JSON(http.StatusOK, detail)
+}
+
+func (h *Handler) PostCatalogProductsSpuIdSkus(c *gin.Context, spuId types.UUID) {
+	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+		return
+	}
+
+	var request oapi.CreateSkuRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
+		return
+	}
+	if strings.TrimSpace(request.Name) == "" {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "name is required")
+		return
+	}
+
+	attributes := map[string]string{}
+	if request.Attributes != nil {
+		attributes = *request.Attributes
+	}
+	attributesJSON, err := json.Marshal(attributes)
+	if err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid attributes")
+		return
+	}
+
+	isActive := true
+	if request.IsActive != nil {
+		isActive = *request.IsActive
+	}
+
+	sku, err := h.CatalogStore.CreateSku(c.Request.Context(), db.CreateSkuParams{
+		ProductID: uuid.UUID(spuId),
+		SkuCode:   request.SkuCode,
+		Name:      request.Name,
+		Attributes: attributesJSON,
+		Unit:      request.Unit,
+		IsActive:  isActive,
+	})
+	if err != nil {
+		h.logError("create sku failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to create sku")
+		return
+	}
+
+	tiers := make([]db.CatalogPriceTier, 0, len(derefPriceTiers(request.PriceTiers)))
+	for _, tier := range derefPriceTiers(request.PriceTiers) {
+		minQty := clampInt32(tier.MinQty)
+		var maxQty *int32
+		if tier.MaxQty != nil {
+			value := clampInt32(*tier.MaxQty)
+			maxQty = &value
+		}
+		createdTier, err := h.CatalogStore.CreatePriceTier(c.Request.Context(), db.CreatePriceTierParams{
+			SkuID:     sku.ID,
+			MinQty:    minQty,
+			MaxQty:    maxQty,
+			UnitPrice: tier.UnitPrice,
+		})
+		if err != nil {
+			h.logError("create price tier failed", err)
+			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to create sku")
+			return
+		}
+		tiers = append(tiers, createdTier)
+	}
+
+	response, err := skuFromModel(sku, tiers)
+	if err != nil {
+		h.logError("map sku failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to create sku")
+		return
+	}
+
+	c.JSON(http.StatusCreated, response)
 }
 
 func (h *Handler) logError(message string, err error) {
@@ -135,6 +293,29 @@ func (h *Handler) logError(message string, err error) {
 	h.Logger.Error(message, "error", err)
 }
 
+<<<<<<< Updated upstream
+=======
+func (h *Handler) writeError(c *gin.Context, status int, code, message string) {
+	apierrors.Write(c, status, apierrors.APIError{
+		Code:    code,
+		Message: message,
+	})
+}
+
+func categoryFromModel(category db.CatalogCategory) oapi.Category {
+	response := oapi.Category{
+		Id:   category.ID,
+		Name: category.Name,
+		Sort: int(category.Sort),
+	}
+	if category.ParentID.Valid {
+		parent := types.UUID(category.ParentID.Bytes)
+		response.ParentId = &parent
+	}
+	return response
+}
+
+>>>>>>> Stashed changes
 func productSummaryFromModel(product db.CatalogProduct) oapi.ProductSummary {
 	summary := oapi.ProductSummary{
 		Id:         product.ID,
@@ -152,7 +333,7 @@ func productSummaryFromModel(product db.CatalogProduct) oapi.ProductSummary {
 	return summary
 }
 
-func productDetailFromModel(product db.CatalogProduct) oapi.ProductDetail {
+func productDetailFromModel(product db.CatalogProduct, skus []db.CatalogSku, tiers []db.CatalogPriceTier) (oapi.ProductDetail, error) {
 	var detail oapi.ProductDetail
 	if len(product.Images) > 0 {
 		images := make([]string, len(product.Images))
@@ -169,9 +350,62 @@ func productDetailFromModel(product db.CatalogProduct) oapi.ProductDetail {
 	detail.Product.Name = product.Name
 	detail.Product.CategoryId = product.CategoryID
 	detail.Product.Description = product.Description
-	detail.Skus = []oapi.SKU{}
 
-	return detail
+	tiersBySku := map[uuid.UUID][]db.CatalogPriceTier{}
+	for _, tier := range tiers {
+		tiersBySku[tier.SkuID] = append(tiersBySku[tier.SkuID], tier)
+	}
+
+	detail.Skus = make([]oapi.SKU, 0, len(skus))
+	for _, sku := range skus {
+		mapped, err := skuFromModel(sku, tiersBySku[sku.ID])
+		if err != nil {
+			return oapi.ProductDetail{}, err
+		}
+		detail.Skus = append(detail.Skus, mapped)
+	}
+
+	return detail, nil
+}
+
+func skuFromModel(sku db.CatalogSku, tiers []db.CatalogPriceTier) (oapi.SKU, error) {
+	response := oapi.SKU{
+		Id:       sku.ID,
+		SpuId:    sku.ProductID,
+		Name:     sku.Name,
+		IsActive: sku.IsActive,
+	}
+	if sku.SkuCode != nil {
+		response.SkuCode = sku.SkuCode
+	}
+	if sku.Unit != nil {
+		response.Unit = sku.Unit
+	}
+	if len(sku.Attributes) > 0 {
+		var attrs map[string]string
+		if err := json.Unmarshal(sku.Attributes, &attrs); err != nil {
+			return oapi.SKU{}, err
+		}
+		if len(attrs) > 0 {
+			response.Attributes = &attrs
+		}
+	}
+	if len(tiers) > 0 {
+		mapped := make([]oapi.PriceTier, 0, len(tiers))
+		for _, tier := range tiers {
+			entry := oapi.PriceTier{
+				MinQty:    int(tier.MinQty),
+				UnitPrice: tier.UnitPrice,
+			}
+			if tier.MaxQty != nil {
+				value := int(*tier.MaxQty)
+				entry.MaxQty = &value
+			}
+			mapped = append(mapped, entry)
+		}
+		response.PriceTiers = &mapped
+	}
+	return response, nil
 }
 
 func derefStringSlice(value *[]string) []string {
@@ -179,6 +413,15 @@ func derefStringSlice(value *[]string) []string {
 		return []string{}
 	}
 	out := make([]string, len(*value))
+	copy(out, *value)
+	return out
+}
+
+func derefPriceTiers(value *[]oapi.PriceTier) []oapi.PriceTier {
+	if value == nil {
+		return nil
+	}
+	out := make([]oapi.PriceTier, len(*value))
 	copy(out, *value)
 	return out
 }

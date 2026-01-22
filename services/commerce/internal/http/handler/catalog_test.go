@@ -12,9 +12,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/teamdsb/tmo/services/commerce/internal/catalog"
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
+	"github.com/teamdsb/tmo/services/commerce/internal/modules/catalog"
 )
 
 type stubStore struct {
@@ -22,6 +22,17 @@ type stubStore struct {
 	listProductsFn  func(context.Context, db.ListProductsParams) ([]db.CatalogProduct, error)
 	countProductsFn func(context.Context, db.CountProductsParams) (int64, error)
 	getProductFn    func(context.Context, uuid.UUID) (db.CatalogProduct, error)
+	createCategoryFn       func(context.Context, db.CreateCategoryParams) (db.CatalogCategory, error)
+	listCategoriesFn       func(context.Context) ([]db.CatalogCategory, error)
+	createSkuFn            func(context.Context, db.CreateSkuParams) (db.CatalogSku, error)
+	listSkusByProductFn    func(context.Context, uuid.UUID) ([]db.CatalogSku, error)
+	listSkusByIDsFn        func(context.Context, []uuid.UUID) ([]db.CatalogSku, error)
+	listSkusBySkuCodeFn    func(context.Context, string) ([]db.CatalogSku, error)
+	listSkusByNameFn       func(context.Context, string) ([]db.CatalogSku, error)
+	listSkusByNameAndSpecFn func(context.Context, db.ListSkusByNameAndSpecParams) ([]db.CatalogSku, error)
+	createPriceTierFn      func(context.Context, db.CreatePriceTierParams) (db.CatalogPriceTier, error)
+	listPriceTiersBySkuFn  func(context.Context, uuid.UUID) ([]db.CatalogPriceTier, error)
+	listPriceTiersBySkusFn func(context.Context, []uuid.UUID) ([]db.CatalogPriceTier, error)
 }
 
 func (s *stubStore) CreateProduct(ctx context.Context, arg db.CreateProductParams) (db.CatalogProduct, error) {
@@ -52,10 +63,87 @@ func (s *stubStore) GetProduct(ctx context.Context, id uuid.UUID) (db.CatalogPro
 	return s.getProductFn(ctx, id)
 }
 
+func (s *stubStore) CreateCategory(ctx context.Context, arg db.CreateCategoryParams) (db.CatalogCategory, error) {
+	if s.createCategoryFn == nil {
+		return db.CatalogCategory{}, pgx.ErrTxClosed
+	}
+	return s.createCategoryFn(ctx, arg)
+}
+
+func (s *stubStore) ListCategories(ctx context.Context) ([]db.CatalogCategory, error) {
+	if s.listCategoriesFn == nil {
+		return nil, pgx.ErrTxClosed
+	}
+	return s.listCategoriesFn(ctx)
+}
+
+func (s *stubStore) CreateSku(ctx context.Context, arg db.CreateSkuParams) (db.CatalogSku, error) {
+	if s.createSkuFn == nil {
+		return db.CatalogSku{}, pgx.ErrTxClosed
+	}
+	return s.createSkuFn(ctx, arg)
+}
+
+func (s *stubStore) ListSkusByProduct(ctx context.Context, productID uuid.UUID) ([]db.CatalogSku, error) {
+	if s.listSkusByProductFn == nil {
+		return nil, pgx.ErrTxClosed
+	}
+	return s.listSkusByProductFn(ctx, productID)
+}
+
+func (s *stubStore) ListSkusByIDs(ctx context.Context, ids []uuid.UUID) ([]db.CatalogSku, error) {
+	if s.listSkusByIDsFn == nil {
+		return nil, pgx.ErrTxClosed
+	}
+	return s.listSkusByIDsFn(ctx, ids)
+}
+
+func (s *stubStore) ListSkusBySkuCode(ctx context.Context, skuCode string) ([]db.CatalogSku, error) {
+	if s.listSkusBySkuCodeFn == nil {
+		return nil, pgx.ErrTxClosed
+	}
+	return s.listSkusBySkuCodeFn(ctx, skuCode)
+}
+
+func (s *stubStore) ListSkusByName(ctx context.Context, name string) ([]db.CatalogSku, error) {
+	if s.listSkusByNameFn == nil {
+		return nil, pgx.ErrTxClosed
+	}
+	return s.listSkusByNameFn(ctx, name)
+}
+
+func (s *stubStore) ListSkusByNameAndSpec(ctx context.Context, arg db.ListSkusByNameAndSpecParams) ([]db.CatalogSku, error) {
+	if s.listSkusByNameAndSpecFn == nil {
+		return nil, pgx.ErrTxClosed
+	}
+	return s.listSkusByNameAndSpecFn(ctx, arg)
+}
+
+func (s *stubStore) CreatePriceTier(ctx context.Context, arg db.CreatePriceTierParams) (db.CatalogPriceTier, error) {
+	if s.createPriceTierFn == nil {
+		return db.CatalogPriceTier{}, pgx.ErrTxClosed
+	}
+	return s.createPriceTierFn(ctx, arg)
+}
+
+func (s *stubStore) ListPriceTiersBySku(ctx context.Context, skuID uuid.UUID) ([]db.CatalogPriceTier, error) {
+	if s.listPriceTiersBySkuFn == nil {
+		return nil, pgx.ErrTxClosed
+	}
+	return s.listPriceTiersBySkuFn(ctx, skuID)
+}
+
+func (s *stubStore) ListPriceTiersBySkus(ctx context.Context, skuIDs []uuid.UUID) ([]db.CatalogPriceTier, error) {
+	if s.listPriceTiersBySkusFn == nil {
+		return nil, pgx.ErrTxClosed
+	}
+	return s.listPriceTiersBySkusFn(ctx, skuIDs)
+}
+
 func newTestRouter(store catalog.Store) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	oapi.RegisterHandlers(router, &Handler{Store: store})
+	oapi.RegisterHandlers(router, &Handler{CatalogStore: store})
 	return router
 }
 
@@ -238,7 +326,12 @@ func TestGetCatalogProductsSpuId_NotFound(t *testing.T) {
 }
 
 func TestGetCatalogCategories_Empty(t *testing.T) {
-	router := newTestRouter(&stubStore{})
+	store := &stubStore{
+		listCategoriesFn: func(ctx context.Context) ([]db.CatalogCategory, error) {
+			return []db.CatalogCategory{}, nil
+		},
+	}
+	router := newTestRouter(store)
 	req := httptest.NewRequest(http.MethodGet, "/catalog/categories", nil)
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, req)
