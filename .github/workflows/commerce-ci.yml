@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "stable"
+          go-version: "1.25.6"
       - name: Test go-shared
         run: go test ./...
         working-directory: packages/go-shared
@@ -56,4 +56,5 @@ jobs:
       - uses: golangci/golangci-lint-action@v6
         with:
           version: v1.64.5
+          install-mode: source
           working-directory: services/commerce
