@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/oapi-codegen/runtime/types"
 
+	apierrors "github.com/teamdsb/tmo/packages/go-shared/errors"
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 )
@@ -107,7 +108,7 @@ func (h *Handler) GetCatalogProducts(c *gin.Context, params oapi.GetCatalogProdu
 	})
 	if err != nil {
 		h.logError("list products failed", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "failed to list products"})
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to list products")
 		return
 	}
 
@@ -117,7 +118,7 @@ func (h *Handler) GetCatalogProducts(c *gin.Context, params oapi.GetCatalogProdu
 	})
 	if err != nil {
 		h.logError("count products failed", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "failed to list products"})
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to list products")
 		return
 	}
 
@@ -137,11 +138,15 @@ func (h *Handler) GetCatalogProducts(c *gin.Context, params oapi.GetCatalogProdu
 func (h *Handler) PostCatalogProducts(c *gin.Context) {
 	var request oapi.CreateCatalogProductRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid request body"})
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
 		return
 	}
 	if request.Name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "name is required"})
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "name is required")
+		return
+	}
+	if request.CategoryId == (types.UUID{}) {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "categoryId is required")
 		return
 	}
 
@@ -160,7 +165,7 @@ func (h *Handler) PostCatalogProducts(c *gin.Context) {
 	})
 	if err != nil {
 		h.logError("create product failed", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "failed to create product"})
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to create product")
 		return
 	}
 
@@ -171,11 +176,11 @@ func (h *Handler) GetCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 	product, err := h.CatalogStore.GetProduct(c.Request.Context(), spuId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			c.JSON(http.StatusNotFound, gin.H{"message": "product not found"})
+			h.writeError(c, http.StatusNotFound, "not_found", "product not found")
 			return
 		}
 		h.logError("get product failed", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "failed to fetch product"})
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to fetch product")
 		return
 	}
 
@@ -293,8 +298,6 @@ func (h *Handler) logError(message string, err error) {
 	h.Logger.Error(message, "error", err)
 }
 
-<<<<<<< Updated upstream
-=======
 func (h *Handler) writeError(c *gin.Context, status int, code, message string) {
 	apierrors.Write(c, status, apierrors.APIError{
 		Code:    code,
@@ -314,8 +317,6 @@ func categoryFromModel(category db.CatalogCategory) oapi.Category {
 	}
 	return response
 }
-
->>>>>>> Stashed changes
 func productSummaryFromModel(product db.CatalogProduct) oapi.ProductSummary {
 	summary := oapi.ProductSummary{
 		Id:         product.ID,

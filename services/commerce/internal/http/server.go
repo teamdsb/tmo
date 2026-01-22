@@ -1,23 +1,25 @@
 package http
 
 import (
+	"context"
+	"log/slog"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/teamdsb/tmo/packages/go-shared/httpx"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/handler"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 )
 
-func NewRouter(handler *handler.Handler) *gin.Engine {
-	router := gin.New()
-	router.Use(gin.Recovery())
-	router.Use(gin.Logger())
+func NewRouter(handler *handler.Handler, logger *slog.Logger, readyCheck func(context.Context) error) *gin.Engine {
+	router := httpx.NewRouter(
+		httpx.WithLogger(logger),
+		httpx.WithOtel("commerce"),
+	)
 
-	router.GET("/health", func(c *gin.Context) {
-		c.String(http.StatusOK, "OK")
-	})
+	router.GET("/health", httpx.Health())
+	router.GET("/ready", httpx.Ready(readyCheck))
 
 	oapi.RegisterHandlers(router, handler)
 
@@ -25,12 +27,5 @@ func NewRouter(handler *handler.Handler) *gin.Engine {
 }
 
 func NewServer(addr string, router http.Handler) *http.Server {
-	return &http.Server{
-		Addr:              addr,
-		Handler:           router,
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      15 * time.Second,
-		IdleTimeout:       60 * time.Second,
-	}
+	return httpx.NewServer(addr, router)
 }
