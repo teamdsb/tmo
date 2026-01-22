@@ -2,28 +2,16 @@ package db
 
 import (
 	"context"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	shareddb "github.com/teamdsb/tmo/packages/go-shared/db"
 )
 
 func NewPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
-	config, err := pgxpool.ParseConfig(dsn)
-	if err != nil {
-		return nil, err
-	}
-	config.MaxConns = 8
-	config.MinConns = 2
-	config.MaxConnLifetime = 30 * time.Minute
-	config.MaxConnIdleTime = 5 * time.Minute
+	return shareddb.NewPool(ctx, dsn)
+}
 
-	pool, err := pgxpool.NewWithConfig(ctx, config)
-	if err != nil {
-		return nil, err
-	}
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
-		return nil, err
-	}
-	return pool, nil
+func Ready(ctx context.Context, pool *pgxpool.Pool) error {
+	return shareddb.Ready(ctx, pool)
 }

@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - "services/commerce/**"
+      - "packages/go-shared/**"
+      - "go.work"
+      - "go.work.sum"
       - ".golangci.yml"
       - ".github/workflows/commerce-ci.yml"
 
@@ -31,6 +34,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.25.6"
+      - name: Test go-shared
+        run: go test ./...
+        working-directory: packages/go-shared
       - name: Test (with coverage)
         run: go test ./... -coverprofile=coverage.out -covermode=atomic
         working-directory: services/commerce
