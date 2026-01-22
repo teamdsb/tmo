@@ -30,5 +30,9 @@ Run commands from the target app directory.
 - Keep `docs/需求文档.md` and `docs/openapi.yaml` in sync with feature changes.
 - Update `docs/rbac.md` when roles/permissions change.
 
+## 公用中间件/轮子的维护与使用提醒
+- 由于 Go/Gin 微服务与前端跨端架构需要持续复用能力，请优先在 `packages/` 内建设、维护并使用公用中间件/轮子。
+- 新增或调整通用能力时，先更新 `packages/` 中对应包，再在服务/应用侧引用；避免在业务代码中重复实现。
+
 ## ExecPlans
 When writing complex features or significant refactors, use an ExecPlan (as described in .agent/PLANS.md) from design to implementation.
