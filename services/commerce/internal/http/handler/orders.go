@@ -216,7 +216,6 @@ func (h *Handler) GetOrders(c *gin.Context, params oapi.GetOrdersParams) {
 	case "CUSTOMER":
 		customerFilter = pgtype.UUID{Bytes: claims.UserID, Valid: true}
 	case "SALES":
-		ownerFilter = pgtype.UUID{Bytes: claims.UserID, Valid: true}
 		if params.CustomerId != nil {
 			customerFilter = pgtype.UUID{Bytes: uuid.UUID(*params.CustomerId), Valid: true}
 		}
@@ -329,7 +328,7 @@ func (h *Handler) GetOrdersOrderId(c *gin.Context, orderId types.UUID) {
 			return
 		}
 	case "SALES":
-		if !order.OwnerSalesUserID.Valid || order.OwnerSalesUserID.Bytes != claims.UserID {
+		if order.OwnerSalesUserID.Valid && order.OwnerSalesUserID.Bytes != claims.UserID {
 			h.writeError(c, http.StatusNotFound, "not_found", "order not found")
 			return
 		}
