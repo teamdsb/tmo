@@ -17,10 +17,10 @@
 - [x] (2026-01-23 08:09Z) 修复当前 `services/commerce` 无法编译的问题并对齐生成物/错误结构；补充 sqlc/oapi-codegen 固化脚本，`go test ./...` 通过。
 - [x] (2026-01-23 08:09Z) 落地 v0 行为：下单清购物车（同 SKU）、Idempotency-Key 冲突 409（含 orderId details）、追踪写入不改订单状态、Excel 解析与错误提示完善，并补齐集成测。
 - [x] (2026-01-23 08:09Z) 补齐本地 devops 地基：一键起 Postgres、迁移、seed（无 goose/sqlc 依赖）、以及可复现的验证脚本与 README 指引。
-- [ ] 落地 TS OpenAPI 生成：新增 `packages/api-client`（orval 配置 + 生成脚本 + 导出入口），并通过 TypeScript 编译。
-- [ ] 落地 TS 业务逻辑地基：新增 `packages/commerce-services`（use-cases + 交互状态机 + 错误归一化 + 幂等 key 生命周期），并通过 TypeScript 编译（可用 mock requester 验证主流程）。
-- [ ] 补齐平台适配能力：在 `packages/platform-adapter` 增加 v0 必要的 `storage`/`uploadFile`/`chooseFile` 等能力接口与实现（用于 token 与 Excel 导入）。
-- [ ] 在本计划中补充 v1 backlog 的接口/数据/交互假设，确保 v0 的命名与数据结构不会阻塞 v1。
+- [x] (2026-01-23 09:06Z) 落地 TS OpenAPI 生成：新增 `packages/api-client`（orval 配置 + 生成脚本 + mutator + 导出入口），生成物与 TypeScript 编译通过。
+- [x] (2026-01-23 09:06Z) 落地 TS 业务逻辑地基：新增 `packages/commerce-services`（catalog/cart/orders/tracking + 错误归一化 + 幂等 key 生命周期 + 上传支持），TypeScript 编译通过。
+- [x] (2026-01-23 09:06Z) 补齐平台适配能力：在 `packages/platform-adapter` 增加 `storage`/`uploadFile`/`chooseFile` 接口与 wx/my 实现，并更新导出/README。
+- [x] (2026-01-23 09:06Z) 在本计划中补充 v1 backlog 的接口/数据/交互假设，确保 v0 的命名与数据结构不会阻塞 v1。
 
 ## Surprises & Discoveries
 
@@ -36,6 +36,8 @@
 
 - Observation: 仓库已有 `apps/miniapp`（Taro + React + TypeScript）但目前仅是最小壳（主要只有 `src/app.ts` 与 `src/pages/index/*`）；因此 v0 的 TS 对齐优先落在 `packages/*`（生成 client/types + requester + 业务 service 层），再由 miniapp 通过 service 层接入，不要求改动 UI 组件。
   Evidence: `ls apps` 包含 `miniapp`；`find apps/miniapp/src -maxdepth 3 -type f` 仅少量文件。
+- Observation: `apps/miniapp` 的 `tsc` 会生成 `lib/` 编译产物，且消费 workspace 包需使用 `moduleResolution: "bundler"` 并开启 `skipLibCheck`；需忽略 `lib/` 以避免脏工作区。
+  Evidence: `apps/miniapp/lib/` 出现 `.js/.map` 产物；调整 `apps/miniapp/tsconfig.json` 后 `tsc` 通过。
 
 ## Decision Log
 
@@ -86,6 +88,7 @@
 ## Outcomes & Retrospective
 
 - (2026-01-23 08:09Z) 里程碑 0-2 已完成：后端编译恢复，v0 关键行为与测试落地，迁移/seed/验证脚本与 README 已补齐。
+- (2026-01-23 09:06Z) 里程碑 3 已完成：TS OpenAPI 生成、`packages/commerce-services` 业务逻辑层、平台适配补齐，miniapp 薄接入基础就绪。
 
 ## Context and Orientation
 

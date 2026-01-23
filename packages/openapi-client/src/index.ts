@@ -71,7 +71,7 @@ export const createClient = (config: ClientConfig): Client => {
     request: async <T>(options: RequestOptions) => {
       const url = buildUrl(config.baseUrl, options.path, options.query)
       const { query, ...rest } = options
-      return config.requester({ ...rest, path: url })
+      return config.requester<T>({ ...rest, path: url })
     }
   }
 }
