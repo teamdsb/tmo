@@ -8,6 +8,10 @@ export const isPositiveInt = (value: unknown): value is number => {
   return typeof value === 'number' && Number.isInteger(value) && value > 0
 }
 
+export const isMoneyFen = (value: unknown): value is number => {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0
+}
+
 export const isUuid = (value: unknown): value is string => {
   return typeof value === 'string' && UUID_RE.test(value)
 }

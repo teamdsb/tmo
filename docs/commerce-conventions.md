@@ -5,6 +5,7 @@
 - 严禁在后端与接口层使用 `float` 表示价格；展示层需要换算时在边界做转换。
 - 数据库存储字段示例：`catalog_price_tiers.unit_price_fen`、`order_items.unit_price_fen`。
 - 业务逻辑内部优先使用 `packages/go-shared/money` 的 `money.Fen`，边界层（HTTP/DB）再做显式转换。
+- 前端/TS DTO 使用 `packages/shared` 中的 `MoneyFen` 类型，语义与后端保持一致。
 
 ## SKU 规格（spec）
 - `spec` 是 SKU 的主规格字段（规范化字符串），同时持久化到 `catalog_skus.spec`，并暴露在 API 的 `SKU.spec` / `CreateSkuRequest.spec`。

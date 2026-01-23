@@ -5,9 +5,9 @@ TypeScript DTOs, enums, validators, and constants shared across apps.
 ## Exports
 
 - `@tmo/shared/constants`: shared constants.
-- `@tmo/shared/dto`: shared DTOs like `ApiError` and `PagedResponse`.
+- `@tmo/shared/dto`: shared DTOs like `ApiError`, `PagedResponse`, and `MoneyFen`.
 - `@tmo/shared/enums`: shared enums like `Platform`.
-- `@tmo/shared/validators`: string/number validators.
+- `@tmo/shared/validators`: string/number validators (including `isMoneyFen`).
 
 ## Example
 
