@@ -60,11 +60,11 @@ export default function ExcelImportConfirmation() {
         <Navbar.Title>Import Results</Navbar.Title>
       </Navbar>
 
-      <View className='page__content'>
-        <Flex justify='between' align='end'>
+      <View className='page-content'>
+        <Flex justify='space-between' align='end'>
           <View>
-            <Text className='section__title'>15 Items Found</Text>
-            <Text className='section__subtitle'>Ready for your review</Text>
+            <Text className='section-title'>15 Items Found</Text>
+            <Text className='section-subtitle'>Ready for your review</Text>
           </View>
           <Tag size='small' color='primary'>
             12/15 Identified
@@ -73,9 +73,9 @@ export default function ExcelImportConfirmation() {
 
         <Progress percent={80} color='primary' />
 
-        <Flex align='center' gutter={6} className='section__notice'>
+        <Flex align='center' gutter={6} className='section-notice'>
           <WarningOutlined />
-          <Text className='section__subtitle'>3 items require specification choice</Text>
+          <Text className='section-subtitle'>3 items require specification choice</Text>
         </Flex>
       </View>
 
@@ -95,15 +95,15 @@ export default function ExcelImportConfirmation() {
         </Tabs.TabPane>
 
         <Tabs.TabPane value='confirmed' title='Confirmed (12)'>
-          <View className='page__content'>
+          <View className='page-content'>
             <Grid columns={2} gutter={12}>
               {confirmedItems.map((item) => (
                 <Grid.Item key={item.id}>
                   <View className='confirm-card'>
                     <Image width='100%' height={120} src='https://lh3.googleusercontent.com/aida-public/AB6AXuDGj0LySxxnfLRBsNvxC-nPykQ5urTBjIfVH6fpVr8Mq6q86Eoc900uHrsM4CWGhiTa9mh1Hjt_59YVZA8IA8o2egRuHhPMh4OOTNdFLPyy2z65oun7A7T75qdtMxB9Gx2g6hdqG7a6CoFl7wbFQ5OqSxcViSThFyQsbrrOF2K3eSm2S5yLloAGrV9xlvJmEFK-mPaQa76VxZBF-w06tpKTQ_Ecu_J9NqQcflv5Lxn_pdg9JpuXZou5PV-r29n5aUgmxkh1RVsTN382' />
-                    <View className='confirm-card__body'>
-                      <Text className='confirm-card__title'>{item.name}</Text>
-                      <Text className='confirm-card__qty'>{item.qty}</Text>
+                    <View className='confirm-card-body'>
+                      <Text className='confirm-card-title'>{item.name}</Text>
+                      <Text className='confirm-card-qty'>{item.qty}</Text>
                     </View>
                   </View>
                 </Grid.Item>
@@ -114,7 +114,7 @@ export default function ExcelImportConfirmation() {
       </Tabs>
 
       <FixedView position='bottom' safeArea='bottom' placeholder>
-        <Flex justify='between' gutter={12} className='action-bar'>
+        <Flex justify='space-between' gutter={12} className='action-bar'>
           <Button block variant='outlined'>Save Draft</Button>
           <Button block color='primary'>Confirm & Add to Cart</Button>
         </Flex>

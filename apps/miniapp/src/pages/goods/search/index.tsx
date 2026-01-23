@@ -46,7 +46,7 @@ export default function SearchEmptyState() {
         </Navbar.NavRight>
       </Navbar>
 
-      <View className='page__search'>
+      <View className='page-search'>
         <Search
           value={searchValue}
           shape='round'
@@ -56,19 +56,19 @@ export default function SearchEmptyState() {
         />
       </View>
 
-      <View className='page__content'>
+      <View className='page-content'>
         <Empty>
           <Empty.Image src='search' />
           <Empty.Description>
-            We couldn't find matches for "{searchValue}". Try adjusting your keywords or submit a direct request.
+            {`We couldn't find matches for "${searchValue}". Try adjusting your keywords or submit a direct request.`}
           </Empty.Description>
         </Empty>
 
         <Button block color='primary' icon={<Plus />}>Submit a Demand Request</Button>
-        <Text className='section__subtitle'>Our sourcing team will contact you with quotes within 24 hours.</Text>
+        <Text className='section-subtitle'>Our sourcing team will contact you with quotes within 24 hours.</Text>
 
-        <Flex justify='between' align='center' className='section__header'>
-          <Text className='section__title'>Recommended for You</Text>
+        <Flex justify='space-between' align='center' className='section-header'>
+          <Text className='section-title'>Recommended for You</Text>
         </Flex>
 
         <Grid columns={2} gutter={12}>
@@ -76,9 +76,9 @@ export default function SearchEmptyState() {
             <Grid.Item key={item.id}>
               <View className='recommend-card'>
                 <Image width='100%' height={140} src={item.image} mode='aspectFill' />
-                <View className='recommend-card__body'>
-                  <Text className='recommend-card__title'>{item.title}</Text>
-                  <Text className='recommend-card__price'>{item.price}</Text>
+                <View className='recommend-card-body'>
+                  <Text className='recommend-card-title'>{item.title}</Text>
+                  <Text className='recommend-card-price'>{item.price}</Text>
                   <Tag size='small' color={item.badgeColor as 'success' | 'warning'}>
                     {item.badgeText}
                   </Tag>

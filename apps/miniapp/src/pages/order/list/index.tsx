@@ -87,7 +87,7 @@ export default function OrderHistoryApp() {
         </Navbar.NavRight>
       </Navbar>
 
-      <View className='page__search'>
+      <View className='page-search'>
         <Search
           value={searchQuery}
           shape='round'
@@ -103,40 +103,40 @@ export default function OrderHistoryApp() {
             <Cell.Group inset>
               {ORDERS.map((order) => (
                 <Cell key={order.id} bordered={false}>
-                  <Flex justify='between' align='center'>
+                  <Flex justify='space-between' align='center'>
                     <View>
-                      <Text className='order__id'>{order.id}</Text>
-                      <Text className='order__date'>{order.date}</Text>
+                      <Text className='order-id'>{order.id}</Text>
+                      <Text className='order-date'>{order.date}</Text>
                     </View>
                     <Tag size='small' color={order.statusTone as 'info' | 'warning' | 'success'}>
                       {order.status}
                     </Tag>
                   </Flex>
 
-                  <View className='order__title'>
+                  <View className='order-title'>
                     <Text>{order.title}</Text>
                   </View>
 
-                  <Flex justify='between' align='center'>
-                    <Text className='order__meta'>{order.totalUnits}</Text>
-                    <View className='order__price'>
-                      <Text className='order__label'>{order.priceLabel}</Text>
-                      <Text className='order__value'>{order.price}</Text>
+                  <Flex justify='space-between' align='center'>
+                    <Text className='order-meta'>{order.totalUnits}</Text>
+                    <View className='order-price'>
+                      <Text className='order-label'>{order.priceLabel}</Text>
+                      <Text className='order-value'>{order.price}</Text>
                     </View>
                   </Flex>
 
-                  <Flex align='center' gutter={8} className='order__images'>
+                  <Flex align='center' gutter={8} className='order-images'>
                     {order.images.map((image, index) => (
                       <Image key={`${order.id}-${index}`} src={image} width={44} height={44} round />
                     ))}
                     {order.moreImagesCount > 0 ? (
-                      <View className='order__more'>
+                      <View className='order-more'>
                         <Text>+{order.moreImagesCount}</Text>
                       </View>
                     ) : null}
                   </Flex>
 
-                  <Flex align='center' gutter={8} className='order__actions'>
+                  <Flex align='center' gutter={8} className='order-actions'>
                     {order.actions.map((action) => (
                       <Button
                         key={`${order.id}-${action.label}`}

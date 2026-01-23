@@ -46,7 +46,7 @@ export default function ProductDetail() {
         </Navbar.NavRight>
       </Navbar>
 
-      <View className='page__content'>
+      <View className='page-content'>
         <View className='media'>
           <Image
             width='100%'
@@ -54,64 +54,64 @@ export default function ProductDetail() {
             mode='aspectFill'
             src='https://lh3.googleusercontent.com/aida-public/AB6AXuCspf7tkk3Cwf2GD5lYQaNodcqBkcYqB_ZBv1e2fVDNw0YMOKkHumvzpQ1mZEKdercQH0hJKeoDWuFaFd0qoHzNg0huzTlzC5-zZ7kBXvWE9Ib08FjC_NddG0UAEIhtDzvhKWIoHFuCHwDIbw0VxEiTfUHw5E2lSdd55A_492g3TzsAwCF8m_qM_vrA2FUIFmA556OMpdd6XsGANJE4w1E8t6cLo6tKrJi7WMOnV3ErcUQcrzM2zDWv12Q92-EVBL6NJcTileQoBmGI'
           />
-          <Tag size='small' color='default' className='media__counter'>
+          <Tag size='small' color='default' className='media-counter'>
             1/4
           </Tag>
         </View>
 
-        <View className='product__header'>
-          <Flex justify='between' align='start'>
-            <Text className='product__title'>High-Precision Industrial Control Valve</Text>
-            <View className='product__price'>
-              <Text className='product__price-value'>$185.00</Text>
-              <Text className='product__price-note'>Per Unit (Min 10)</Text>
+        <View className='product-header'>
+          <Flex justify='space-between' align='start'>
+            <Text className='product-title'>High-Precision Industrial Control Valve</Text>
+            <View className='product-price'>
+              <Text className='product-price-value'>$185.00</Text>
+              <Text className='product-price-note'>Per Unit (Min 10)</Text>
             </View>
           </Flex>
 
-          <Flex align='center' gutter={8} className='product__meta'>
+          <Flex align='center' gutter={8} className='product-meta'>
             <Tag size='small' color='warning'>
               <Flex align='center' gutter={4}>
                 <Star />
                 <Text>4.8</Text>
               </Flex>
             </Tag>
-            <Text className='product__meta-text'>1.2k+ Sold</Text>
+            <Text className='product-meta-text'>1.2k+ Sold</Text>
             <Tag size='small' variant='outlined'>Verified</Tag>
           </Flex>
         </View>
 
-        <View className='product__section'>
-          <Flex justify='between' align='center'>
-            <Text className='section__title'>Bulk Pricing</Text>
-            <Text className='section__link'>Volume Discounts</Text>
+        <View className='product-section'>
+          <Flex justify='space-between' align='center'>
+            <Text className='section-title'>Bulk Pricing</Text>
+            <Text className='section-link'>Volume Discounts</Text>
           </Flex>
 
           <Grid columns={3} gutter={8}>
             <Grid.Item>
               <View className='tier-card'>
-                <Text className='tier-card__range'>10-49</Text>
-                <Text className='tier-card__price'>$245.00</Text>
+                <Text className='tier-card-range'>10-49</Text>
+                <Text className='tier-card-price'>$245.00</Text>
               </View>
             </Grid.Item>
             <Grid.Item>
-              <View className='tier-card tier-card--highlight'>
-                <Text className='tier-card__range'>50-199</Text>
-                <Text className='tier-card__price'>$210.00</Text>
-                <Text className='tier-card__discount'>-14%</Text>
+              <View className='tier-card tier-card-highlight'>
+                <Text className='tier-card-range'>50-199</Text>
+                <Text className='tier-card-price'>$210.00</Text>
+                <Text className='tier-card-discount'>-14%</Text>
               </View>
             </Grid.Item>
             <Grid.Item>
               <View className='tier-card'>
-                <Text className='tier-card__range'>200+</Text>
-                <Text className='tier-card__price'>$185.00</Text>
-                <Text className='tier-card__discount'>-24%</Text>
+                <Text className='tier-card-range'>200+</Text>
+                <Text className='tier-card-price'>$185.00</Text>
+                <Text className='tier-card-discount'>-24%</Text>
               </View>
             </Grid.Item>
           </Grid>
         </View>
 
-        <View className='product__section'>
-          <Text className='section__title'>Material</Text>
+        <View className='product-section'>
+          <Text className='section-title'>Material</Text>
           <Flex wrap='wrap' gutter={8}>
             {['Stainless Steel', 'Carbon', 'Alloy X-40'].map((material) => (
               <Button
@@ -127,8 +127,8 @@ export default function ProductDetail() {
           </Flex>
         </View>
 
-        <View className='product__section'>
-          <Text className='section__title'>Diameter</Text>
+        <View className='product-section'>
+          <Text className='section-title'>Diameter</Text>
           <Flex wrap='wrap' gutter={8}>
             {['15mm', '25mm', '50mm', '75mm'].map((size) => (
               <Button

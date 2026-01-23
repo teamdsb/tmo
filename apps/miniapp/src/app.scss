@@ -1,34 +1,34 @@
-@import "@taroify/core/index.scss";
-@import "@taroify/icons/index.scss";
+@import url("@taroify/core/index.css");
+@import url("@taroify/icons/index.css");
 
 .page {
   min-height: 100vh;
   background: #f6f7f8;
 }
 
-.page__search {
+.page-search {
   padding: 12px 16px;
   background: #fff;
 }
 
-.page__content {
+.page-content {
   padding: 16px;
 }
 
-.page__subtitle {
+.page-subtitle {
   font-size: 12px;
   color: #617589;
 }
 
-.page__grid {
+.page-grid {
   margin-top: 12px;
 }
 
-.section__header {
+.section-header {
   margin: 16px 0 8px;
 }
 
-.section__title {
+.section-title {
   font-size: 12px;
   font-weight: 700;
   color: #617589;
@@ -36,18 +36,18 @@
   letter-spacing: 0.06em;
 }
 
-.section__link {
+.section-link {
   font-size: 11px;
   font-weight: 600;
   color: #137fec;
 }
 
-.section__subtitle {
+.section-subtitle {
   font-size: 12px;
   color: #617589;
 }
 
-.section__notice {
+.section-notice {
   margin-top: 8px;
 }
 
@@ -55,79 +55,79 @@
   background: #fff;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 6%);
 }
 
-.product-card__body {
+.product-card-body {
   padding: 12px;
 }
 
-.product-card__title {
+.product-card-title {
   font-size: 12px;
   font-weight: 600;
   color: #111418;
   margin-bottom: 4px;
 }
 
-.product-card__price {
+.product-card-price {
   font-size: 14px;
   font-weight: 700;
   color: #137fec;
 }
 
-.product-card__min {
+.product-card-min {
   font-size: 11px;
   color: #617589;
   margin-bottom: 8px;
 }
 
-.order__id {
+.order-id {
   font-size: 12px;
   font-weight: 700;
   color: #111418;
   display: block;
 }
 
-.order__date {
+.order-date {
   font-size: 10px;
   color: #617589;
   display: block;
 }
 
-.order__title {
+.order-title {
   margin-top: 8px;
   font-size: 12px;
   font-weight: 600;
   color: #111418;
 }
 
-.order__meta {
+.order-meta {
   font-size: 11px;
   color: #617589;
 }
 
-.order__price {
+.order-price {
   display: flex;
   align-items: baseline;
   gap: 6px;
 }
 
-.order__label {
+.order-label {
   font-size: 10px;
   color: #617589;
 }
 
-.order__value {
+.order-value {
   font-size: 12px;
   font-weight: 700;
   color: #111418;
 }
 
-.order__images {
+.order-images {
   margin-top: 10px;
 }
 
-.order__more {
+.order-more {
   width: 44px;
   height: 44px;
   border-radius: 8px;
@@ -139,7 +139,7 @@
   color: #617589;
 }
 
-.order__actions {
+.order-actions {
   margin-top: 12px;
 }
 
@@ -147,20 +147,20 @@
   background: #fff;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 6%);
 }
 
-.confirm-card__body {
+.confirm-card-body {
   padding: 10px 12px 12px;
 }
 
-.confirm-card__title {
+.confirm-card-title {
   font-size: 12px;
   font-weight: 600;
   color: #111418;
 }
 
-.confirm-card__qty {
+.confirm-card-qty {
   font-size: 11px;
   color: #617589;
 }
@@ -178,51 +178,51 @@
   background: #fff;
 }
 
-.media__counter {
+.media-counter {
   position: absolute;
   right: 8px;
   bottom: 8px;
 }
 
-.product__header {
+.product-header {
   margin-top: 16px;
   background: #fff;
   padding: 12px 16px;
   border-radius: 12px;
 }
 
-.product__title {
+.product-title {
   font-size: 16px;
   font-weight: 700;
   color: #111418;
 }
 
-.product__price {
+.product-price {
   text-align: right;
 }
 
-.product__price-value {
+.product-price-value {
   font-size: 16px;
   font-weight: 700;
   color: #137fec;
   display: block;
 }
 
-.product__price-note {
+.product-price-note {
   font-size: 10px;
   color: #617589;
 }
 
-.product__meta {
+.product-meta {
   margin-top: 8px;
 }
 
-.product__meta-text {
+.product-meta-text {
   font-size: 11px;
   color: #617589;
 }
 
-.product__section {
+.product-section {
   margin-top: 12px;
   background: #fff;
   padding: 12px 16px;
@@ -236,22 +236,22 @@
   text-align: center;
 }
 
-.tier-card--highlight {
+.tier-card-highlight {
   background: #e8f2ff;
 }
 
-.tier-card__range {
+.tier-card-range {
   font-size: 10px;
   color: #617589;
 }
 
-.tier-card__price {
+.tier-card-price {
   font-size: 12px;
   font-weight: 700;
   color: #111418;
 }
 
-.tier-card__discount {
+.tier-card-discount {
   font-size: 10px;
   color: #2b8a3e;
 }
@@ -260,21 +260,21 @@
   background: #fff;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 6%);
 }
 
-.recommend-card__body {
+.recommend-card-body {
   padding: 10px 12px 12px;
 }
 
-.recommend-card__title {
+.recommend-card-title {
   font-size: 12px;
   font-weight: 600;
   color: #111418;
   margin-bottom: 4px;
 }
 
-.recommend-card__price {
+.recommend-card-price {
   font-size: 12px;
   font-weight: 700;
   color: #137fec;

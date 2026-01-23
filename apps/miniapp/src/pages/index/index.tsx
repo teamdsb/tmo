@@ -79,7 +79,7 @@ export default function ProductCatalogApp() {
         </Navbar.NavRight>
       </Navbar>
 
-      <View className='page__search'>
+      <View className='page-search'>
         <Search
           value={searchQuery}
           shape='round'
@@ -98,16 +98,16 @@ export default function ProductCatalogApp() {
       >
         {CATEGORIES.map((category) => (
           <Tabs.TabPane key={category} value={category} title={category}>
-            <View className='page__content'>
-              <Flex justify='between' align='center'>
-                <Text className='page__subtitle'>Showing 124 products</Text>
+            <View className='page-content'>
+              <Flex justify='space-between' align='center'>
+                <Text className='page-subtitle'>Showing 124 products</Text>
                 <Flex justify='end' gutter={8}>
                   <Button size='small' variant='outlined' icon={<FilterOutlined />} />
                   <Button size='small' variant='outlined' icon={<AppsOutlined />} />
                 </Flex>
               </Flex>
 
-              <Grid columns={2} gutter={12} className='page__grid'>
+              <Grid columns={2} gutter={12} className='page-grid'>
                 {PRODUCTS.map((product) => (
                   <Grid.Item key={product.id}>
                     <ProductCard data={product} />
@@ -146,11 +146,11 @@ function ProductCard({ data }: { data: (typeof PRODUCTS)[number] }) {
   return (
     <View className='product-card'>
       <Image src={data.image} width='100%' height={150} mode='aspectFill' />
-      <View className='product-card__body'>
-        <Text className='product-card__title'>{data.title}</Text>
-        <Text className='product-card__price'>{data.price}</Text>
-        <Text className='product-card__min'>{data.minUnits}</Text>
-        <Flex justify='between' align='center'>
+      <View className='product-card-body'>
+        <Text className='product-card-title'>{data.title}</Text>
+        <Text className='product-card-price'>{data.price}</Text>
+        <Text className='product-card-min'>{data.minUnits}</Text>
+        <Flex justify='space-between' align='center'>
           <Tag size='small' variant='outlined' color='primary'>
             {data.tag}
           </Tag>
