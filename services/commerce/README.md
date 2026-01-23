@@ -35,3 +35,7 @@ Errors are returned as JSON in the shape:
 Tracing is enabled when standard OTLP env vars are set (for example
 `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL`).
 Requests always include an `X-Request-ID` header in the response.
+
+## Conventions
+
+See `docs/commerce-conventions.md` for pricing units, SKU spec rules, and order transaction/idempotency expectations.

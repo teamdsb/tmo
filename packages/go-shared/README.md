@@ -5,9 +5,10 @@ Shared Go infrastructure used by services in this repo.
 ## Packages
 
 - `config`: environment helpers for string, int, bool, and duration.
-- `db`: pgxpool defaults plus a readiness check.
+- `db`: pgxpool defaults, readiness check, transactions, and Postgres error helpers.
 - `errors`: JSON API error writer for Gin.
 - `httpx`: Gin router helpers and middleware (request id, access log, recovery, health/ready).
+- `money`: currency helpers for fen-based pricing (int64).
 - `observability`: OpenTelemetry trace setup via OTLP (gRPC/HTTP), no-op when not configured.
 
 ## Usage

@@ -9,11 +9,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/oapi-codegen/runtime/types"
 
 	shareddb "github.com/teamdsb/tmo/packages/go-shared/db"
+	sharedmoney "github.com/teamdsb/tmo/packages/go-shared/money"
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 )
@@ -91,7 +91,7 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 	orderItems := make([]struct {
 		sku          db.CatalogSku
 		qty          int32
-		unitPriceFen int64
+		unitPriceFen sharedmoney.Fen
 	}, 0, len(skus))
 	for _, sku := range skus {
 		qty := qtyBySku[sku.ID]
@@ -107,7 +107,7 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 		orderItems = append(orderItems, struct {
 			sku          db.CatalogSku
 			qty          int32
-			unitPriceFen int64
+			unitPriceFen sharedmoney.Fen
 		}{
 			sku:          sku,
 			qty:          qty,
@@ -147,7 +147,7 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 				OrderID:      order.ID,
 				SkuID:        item.sku.ID,
 				Qty:          item.qty,
-				UnitPriceFen: item.unitPriceFen,
+				UnitPriceFen: item.unitPriceFen.Int64(),
 			}); err != nil {
 				return err
 			}
@@ -155,7 +155,7 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 		return nil
 	})
 	if err != nil {
-		if isUniqueViolation(err) && params.IdempotencyKey != nil {
+		if shareddb.IsUniqueViolation(err) && params.IdempotencyKey != nil {
 			h.logError("idempotency key conflict", err)
 			h.writeError(c, http.StatusConflict, "conflict", "duplicate idempotency key")
 			return
@@ -176,7 +176,7 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 		items = append(items, oapi.OrderItem{
 			Sku:          mapped,
 			Qty:          int(item.qty),
-			UnitPriceFen: item.unitPriceFen,
+			UnitPriceFen: item.unitPriceFen.Int64(),
 		})
 	}
 
@@ -378,10 +378,11 @@ func mapOrderItems(items []db.OrderItem, skuMap map[uuid.UUID]oapi.SKU) ([]oapi.
 		if !ok {
 			return nil, errors.New("sku not found")
 		}
+		unitPrice := sharedmoney.FromInt64(item.UnitPriceFen)
 		mapped = append(mapped, oapi.OrderItem{
 			Sku:          sku,
 			Qty:          int(item.Qty),
-			UnitPriceFen: item.UnitPriceFen,
+			UnitPriceFen: unitPrice.Int64(),
 		})
 	}
 	return mapped, nil
@@ -411,7 +412,7 @@ func orderFromModel(order db.Order, items []oapi.OrderItem) (oapi.Order, error) 
 	return response, nil
 }
 
-func selectUnitPrice(tiers []db.CatalogPriceTier, qty int32) (int64, bool) {
+func selectUnitPrice(tiers []db.CatalogPriceTier, qty int32) (sharedmoney.Fen, bool) {
 	var selected *db.CatalogPriceTier
 	for i := range tiers {
 		tier := tiers[i]
@@ -424,15 +425,7 @@ func selectUnitPrice(tiers []db.CatalogPriceTier, qty int32) (int64, bool) {
 		selected = &tier
 	}
 	if selected == nil {
-		return 0, false
+		return sharedmoney.Zero, false
 	}
-	return selected.UnitPriceFen, true
-}
-
-func isUniqueViolation(err error) bool {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		return pgErr.Code == "23505"
-	}
-	return false
+	return sharedmoney.FromInt64(selected.UnitPriceFen), true
 }

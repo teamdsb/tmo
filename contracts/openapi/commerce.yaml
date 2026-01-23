@@ -1185,7 +1185,7 @@ components:
           type: string
         spec:
           type: string
-          description: Primary spec label used for matching (e.g., size/grade)
+          description: Primary spec label used for matching (e.g., size/grade); store here and avoid duplicating in attributes
         attributes:
           type: object
           additionalProperties:
@@ -1232,7 +1232,7 @@ components:
         unitPriceFen:
           type: integer
           format: int64
-          description: Unit price in fen
+          description: Unit price in fen (1/100 yuan), integer only
       required:
       - minQty
       - unitPriceFen
@@ -1251,6 +1251,7 @@ components:
           type: string
         spec:
           type: string
+          description: Canonical spec label for matching; do not duplicate in attributes
         attributes:
           type: object
           additionalProperties:
@@ -1528,7 +1529,7 @@ components:
         unitPriceFen:
           type: integer
           format: int64
-          description: Final price per unit at order time, in fen
+          description: Final price per unit at order time, in fen (1/100 yuan), integer only
       required:
       - sku
       - qty

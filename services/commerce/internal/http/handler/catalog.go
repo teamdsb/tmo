@@ -14,6 +14,7 @@ import (
 	"github.com/oapi-codegen/runtime/types"
 
 	apierrors "github.com/teamdsb/tmo/packages/go-shared/errors"
+	sharedmoney "github.com/teamdsb/tmo/packages/go-shared/money"
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 )
@@ -289,11 +290,12 @@ func (h *Handler) PostCatalogProductsSpuIdSkus(c *gin.Context, spuId types.UUID)
 			value := clampInt32(*tier.MaxQty)
 			maxQty = &value
 		}
+		unitPrice := sharedmoney.FromInt64(tier.UnitPriceFen)
 		createdTier, err := h.CatalogStore.CreatePriceTier(c.Request.Context(), db.CreatePriceTierParams{
 			SkuID:        sku.ID,
 			MinQty:       minQty,
 			MaxQty:       maxQty,
-			UnitPriceFen: tier.UnitPriceFen,
+			UnitPriceFen: unitPrice.Int64(),
 		})
 		if err != nil {
 			h.logError("create price tier failed", err)
@@ -419,9 +421,10 @@ func skuFromModel(sku db.CatalogSku, tiers []db.CatalogPriceTier) (oapi.SKU, err
 	if len(tiers) > 0 {
 		mapped := make([]oapi.PriceTier, 0, len(tiers))
 		for _, tier := range tiers {
+			unitPrice := sharedmoney.FromInt64(tier.UnitPriceFen)
 			entry := oapi.PriceTier{
 				MinQty:       int(tier.MinQty),
-				UnitPriceFen: tier.UnitPriceFen,
+				UnitPriceFen: unitPrice.Int64(),
 			}
 			if tier.MaxQty != nil {
 				value := int(*tier.MaxQty)
