@@ -1,1 +1,282 @@
-/* placeholder */
+@import "@taroify/core/index.scss";
+@import "@taroify/icons/index.scss";
+
+.page {
+  min-height: 100vh;
+  background: #f6f7f8;
+}
+
+.page__search {
+  padding: 12px 16px;
+  background: #fff;
+}
+
+.page__content {
+  padding: 16px;
+}
+
+.page__subtitle {
+  font-size: 12px;
+  color: #617589;
+}
+
+.page__grid {
+  margin-top: 12px;
+}
+
+.section__header {
+  margin: 16px 0 8px;
+}
+
+.section__title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #617589;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.section__link {
+  font-size: 11px;
+  font-weight: 600;
+  color: #137fec;
+}
+
+.section__subtitle {
+  font-size: 12px;
+  color: #617589;
+}
+
+.section__notice {
+  margin-top: 8px;
+}
+
+.product-card {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.product-card__body {
+  padding: 12px;
+}
+
+.product-card__title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #111418;
+  margin-bottom: 4px;
+}
+
+.product-card__price {
+  font-size: 14px;
+  font-weight: 700;
+  color: #137fec;
+}
+
+.product-card__min {
+  font-size: 11px;
+  color: #617589;
+  margin-bottom: 8px;
+}
+
+.order__id {
+  font-size: 12px;
+  font-weight: 700;
+  color: #111418;
+  display: block;
+}
+
+.order__date {
+  font-size: 10px;
+  color: #617589;
+  display: block;
+}
+
+.order__title {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #111418;
+}
+
+.order__meta {
+  font-size: 11px;
+  color: #617589;
+}
+
+.order__price {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.order__label {
+  font-size: 10px;
+  color: #617589;
+}
+
+.order__value {
+  font-size: 12px;
+  font-weight: 700;
+  color: #111418;
+}
+
+.order__images {
+  margin-top: 10px;
+}
+
+.order__more {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #eef1f4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #617589;
+}
+
+.order__actions {
+  margin-top: 12px;
+}
+
+.confirm-card {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.confirm-card__body {
+  padding: 10px 12px 12px;
+}
+
+.confirm-card__title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #111418;
+}
+
+.confirm-card__qty {
+  font-size: 11px;
+  color: #617589;
+}
+
+.action-bar {
+  padding: 12px 16px;
+  background: #fff;
+  border-top: 1px solid #eef1f4;
+}
+
+.media {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.media__counter {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+}
+
+.product__header {
+  margin-top: 16px;
+  background: #fff;
+  padding: 12px 16px;
+  border-radius: 12px;
+}
+
+.product__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111418;
+}
+
+.product__price {
+  text-align: right;
+}
+
+.product__price-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #137fec;
+  display: block;
+}
+
+.product__price-note {
+  font-size: 10px;
+  color: #617589;
+}
+
+.product__meta {
+  margin-top: 8px;
+}
+
+.product__meta-text {
+  font-size: 11px;
+  color: #617589;
+}
+
+.product__section {
+  margin-top: 12px;
+  background: #fff;
+  padding: 12px 16px;
+  border-radius: 12px;
+}
+
+.tier-card {
+  background: #f5f7fa;
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+}
+
+.tier-card--highlight {
+  background: #e8f2ff;
+}
+
+.tier-card__range {
+  font-size: 10px;
+  color: #617589;
+}
+
+.tier-card__price {
+  font-size: 12px;
+  font-weight: 700;
+  color: #111418;
+}
+
+.tier-card__discount {
+  font-size: 10px;
+  color: #2b8a3e;
+}
+
+.recommend-card {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.recommend-card__body {
+  padding: 10px 12px 12px;
+}
+
+.recommend-card__title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #111418;
+  margin-bottom: 4px;
+}
+
+.recommend-card__price {
+  font-size: 12px;
+  font-weight: 700;
+  color: #137fec;
+  margin-bottom: 8px;
+}
