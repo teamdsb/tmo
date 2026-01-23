@@ -17,6 +17,7 @@ INSERT INTO catalog_skus (
     product_id,
     sku_code,
     name,
+    spec,
     attributes,
     unit,
     is_active
@@ -26,15 +27,17 @@ INSERT INTO catalog_skus (
     $3,
     $4,
     $5,
-    $6
+    $6,
+    $7
 )
-RETURNING id, product_id, sku_code, name, attributes, unit, is_active, created_at, updated_at
+RETURNING id, product_id, sku_code, name, spec, attributes, unit, is_active, created_at, updated_at
 `
 
 type CreateSkuParams struct {
 	ProductID  uuid.UUID       `db:"product_id" json:"product_id"`
 	SkuCode    *string         `db:"sku_code" json:"sku_code"`
 	Name       string          `db:"name" json:"name"`
+	Spec       *string         `db:"spec" json:"spec"`
 	Attributes json.RawMessage `db:"attributes" json:"attributes"`
 	Unit       *string         `db:"unit" json:"unit"`
 	IsActive   bool            `db:"is_active" json:"is_active"`
@@ -45,6 +48,7 @@ func (q *Queries) CreateSku(ctx context.Context, arg CreateSkuParams) (CatalogSk
 		arg.ProductID,
 		arg.SkuCode,
 		arg.Name,
+		arg.Spec,
 		arg.Attributes,
 		arg.Unit,
 		arg.IsActive,
@@ -55,6 +59,7 @@ func (q *Queries) CreateSku(ctx context.Context, arg CreateSkuParams) (CatalogSk
 		&i.ProductID,
 		&i.SkuCode,
 		&i.Name,
+		&i.Spec,
 		&i.Attributes,
 		&i.Unit,
 		&i.IsActive,
@@ -65,7 +70,7 @@ func (q *Queries) CreateSku(ctx context.Context, arg CreateSkuParams) (CatalogSk
 }
 
 const listSkusByIDs = `-- name: ListSkusByIDs :many
-SELECT id, product_id, sku_code, name, attributes, unit, is_active, created_at, updated_at
+SELECT id, product_id, sku_code, name, spec, attributes, unit, is_active, created_at, updated_at
 FROM catalog_skus
 WHERE id = ANY($1::uuid[])
 `
@@ -84,6 +89,7 @@ func (q *Queries) ListSkusByIDs(ctx context.Context, dollar_1 []uuid.UUID) ([]Ca
 			&i.ProductID,
 			&i.SkuCode,
 			&i.Name,
+			&i.Spec,
 			&i.Attributes,
 			&i.Unit,
 			&i.IsActive,
@@ -101,7 +107,7 @@ func (q *Queries) ListSkusByIDs(ctx context.Context, dollar_1 []uuid.UUID) ([]Ca
 }
 
 const listSkusByName = `-- name: ListSkusByName :many
-SELECT id, product_id, sku_code, name, attributes, unit, is_active, created_at, updated_at
+SELECT id, product_id, sku_code, name, spec, attributes, unit, is_active, created_at, updated_at
 FROM catalog_skus
 WHERE name = $1
 `
@@ -120,6 +126,7 @@ func (q *Queries) ListSkusByName(ctx context.Context, name string) ([]CatalogSku
 			&i.ProductID,
 			&i.SkuCode,
 			&i.Name,
+			&i.Spec,
 			&i.Attributes,
 			&i.Unit,
 			&i.IsActive,
@@ -137,19 +144,19 @@ func (q *Queries) ListSkusByName(ctx context.Context, name string) ([]CatalogSku
 }
 
 const listSkusByNameAndSpec = `-- name: ListSkusByNameAndSpec :many
-SELECT id, product_id, sku_code, name, attributes, unit, is_active, created_at, updated_at
+SELECT id, product_id, sku_code, name, spec, attributes, unit, is_active, created_at, updated_at
 FROM catalog_skus
 WHERE name = $1
-  AND attributes->>'spec' = $2
+  AND spec = $2
 `
 
 type ListSkusByNameAndSpecParams struct {
-	Name       string          `db:"name" json:"name"`
-	Attributes json.RawMessage `db:"attributes" json:"attributes"`
+	Name string  `db:"name" json:"name"`
+	Spec *string `db:"spec" json:"spec"`
 }
 
 func (q *Queries) ListSkusByNameAndSpec(ctx context.Context, arg ListSkusByNameAndSpecParams) ([]CatalogSku, error) {
-	rows, err := q.db.Query(ctx, listSkusByNameAndSpec, arg.Name, arg.Attributes)
+	rows, err := q.db.Query(ctx, listSkusByNameAndSpec, arg.Name, arg.Spec)
 	if err != nil {
 		return nil, err
 	}
@@ -162,6 +169,7 @@ func (q *Queries) ListSkusByNameAndSpec(ctx context.Context, arg ListSkusByNameA
 			&i.ProductID,
 			&i.SkuCode,
 			&i.Name,
+			&i.Spec,
 			&i.Attributes,
 			&i.Unit,
 			&i.IsActive,
@@ -179,7 +187,7 @@ func (q *Queries) ListSkusByNameAndSpec(ctx context.Context, arg ListSkusByNameA
 }
 
 const listSkusByProduct = `-- name: ListSkusByProduct :many
-SELECT id, product_id, sku_code, name, attributes, unit, is_active, created_at, updated_at
+SELECT id, product_id, sku_code, name, spec, attributes, unit, is_active, created_at, updated_at
 FROM catalog_skus
 WHERE product_id = $1
 ORDER BY created_at ASC
@@ -199,6 +207,7 @@ func (q *Queries) ListSkusByProduct(ctx context.Context, productID uuid.UUID) ([
 			&i.ProductID,
 			&i.SkuCode,
 			&i.Name,
+			&i.Spec,
 			&i.Attributes,
 			&i.Unit,
 			&i.IsActive,
@@ -216,7 +225,7 @@ func (q *Queries) ListSkusByProduct(ctx context.Context, productID uuid.UUID) ([
 }
 
 const listSkusBySkuCode = `-- name: ListSkusBySkuCode :many
-SELECT id, product_id, sku_code, name, attributes, unit, is_active, created_at, updated_at
+SELECT id, product_id, sku_code, name, spec, attributes, unit, is_active, created_at, updated_at
 FROM catalog_skus
 WHERE sku_code = $1
 `
@@ -235,6 +244,7 @@ func (q *Queries) ListSkusBySkuCode(ctx context.Context, skuCode *string) ([]Cat
 			&i.ProductID,
 			&i.SkuCode,
 			&i.Name,
+			&i.Spec,
 			&i.Attributes,
 			&i.Unit,
 			&i.IsActive,

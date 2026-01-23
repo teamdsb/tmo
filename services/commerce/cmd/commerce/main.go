@@ -77,6 +77,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		CartStore:     store,
 		OrderStore:    store,
 		TrackingStore: store,
+		DB:            pool,
 		Auth:          auth,
 		Logger:        logger,
 	}

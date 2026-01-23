@@ -2,6 +2,7 @@ dist/
 deploy_versions/
 .temp/
 .rn_temp/
+lib/
 node_modules/
 .DS_Store
 .swc

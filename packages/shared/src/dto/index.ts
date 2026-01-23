@@ -15,3 +15,6 @@ export interface IdName {
   id: string
   name: string
 }
+
+// Integer fen amount (1/100 yuan) for prices.
+export type MoneyFen = number

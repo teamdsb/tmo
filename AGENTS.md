@@ -1,7 +1,7 @@
 # 仓库指南
 
 ## 项目结构与模块组织
-- `apps/` 是前端工作区；当前只存在 `apps/admin-web/`（仅 `public/` 与 `src/` 占位）。文档中提到的 `apps/appvx/`、`apps/appali/` 在本次检出中不存在。
+- `apps/` 是前端工作区；当前包含 `apps/miniapp/`（单小程序工程，业务逻辑统一，Taro + React + TypeScript + Sass，可构建 WeChat/Alipay 等平台）与 `apps/admin-web/`（后台管理控制台，占位）。
 - `services/commerce/` 是唯一可运行的 Go 服务：入口 `cmd/commerce/main.go`，配置在 `internal/config`，HTTP 在 `internal/http`，DB 在 `internal/db`，SQL 在 `queries/`，迁移在 `migrations/`，生成代码在 `internal/db/*.go`（sqlc）与 `internal/http/oapi/api.gen.go`（oapi-codegen）。
 - `services/identity/`、`services/payment/`、`services/gateway-bff/` 目前仅有 README 占位。
 - `packages/go-shared/` 提供 Go 共享基础设施（config/db/errors/httpx/observability），被 commerce 引用。
@@ -15,6 +15,9 @@
 除非特别说明，命令在对应模块目录执行。
 - Go workspace：`go.work` 固定 Go `1.25.6`，包含 `services/commerce` 与 `packages/go-shared`。
 - 启动本地 Postgres（用于 commerce）：`docker compose -f infra/dev/docker-compose.yml up -d`。
+- 前端 miniapp（在 `apps/miniapp/` 执行）：
+  - 微信开发：`pnpm dev:weapp`
+  - 支付宝开发：`pnpm dev:alipay`
 - 本地运行 commerce（在 `services/commerce/` 执行）：
   - `COMMERCE_DB_DSN="postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable" go run ./cmd/commerce`
   - 可选环境变量：`COMMERCE_HTTP_ADDR`、`COMMERCE_LOG_LEVEL`。
@@ -22,7 +25,7 @@
   - `pnpm run test:backend`（根目录）或 `bash tools/scripts/test-backend.sh`。
   - `services/commerce` 与 `packages/go-shared` 中执行 `go test ./...`。
   - 集成测试需要 `COMMERCE_DB_DSN`，未设置时会跳过。
-- 根目录 `pnpm run lint` 目标为 `apps/appvx` 与 `apps/appali`；本次检出中这两个 app 不存在。
+- 根目录 `pnpm run lint` 目标为 `apps/miniapp`。
 
 ## 编码规范与命名约定
 - Go：必须 `gofmt`；使用 `.golangci.yml` 配置的 `golangci-lint`。

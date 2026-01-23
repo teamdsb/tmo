@@ -12,6 +12,8 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/oapi-codegen/runtime/types"
 
+	shareddb "github.com/teamdsb/tmo/packages/go-shared/db"
+	sharedmoney "github.com/teamdsb/tmo/packages/go-shared/money"
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 )
@@ -35,11 +37,13 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 	if params.IdempotencyKey != nil {
 		order, err := h.OrderStore.GetOrderByIdempotencyKey(c.Request.Context(), db.GetOrderByIdempotencyKeyParams{
 			CustomerID:     claims.UserID,
-			IdempotencyKey: *params.IdempotencyKey,
+			IdempotencyKey: params.IdempotencyKey,
 		})
 		if err == nil {
 			h.logError("idempotency key conflict", errors.New("duplicate key"))
-			h.writeError(c, http.StatusConflict, "conflict", "duplicate idempotency key")
+			h.writeErrorWithDetails(c, http.StatusConflict, "conflict", "duplicate idempotency key", map[string]interface{}{
+				"orderId": order.ID,
+			})
 			return
 		}
 		if !errors.Is(err, pgx.ErrNoRows) {
@@ -47,7 +51,6 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to submit order")
 			return
 		}
-		_ = order
 	}
 
 	skuIDs := make([]uuid.UUID, 0, len(request.Items))
@@ -86,62 +89,110 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 		tiersBySku[tier.SkuID] = append(tiersBySku[tier.SkuID], tier)
 	}
 
-	addressJSON, err := json.Marshal(request.Address)
-	if err != nil {
-		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid address")
-		return
-	}
-
-	order, err := h.OrderStore.CreateOrder(c.Request.Context(), db.CreateOrderParams{
-		Status:           string(oapi.SUBMITTED),
-		CustomerID:       claims.UserID,
-		OwnerSalesUserID: pgtype.UUID{},
-		Address:          addressJSON,
-		Remark:           request.Remark,
-		IdempotencyKey:   params.IdempotencyKey,
-	})
-	if err != nil {
-		h.logError("create order failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to submit order")
-		return
-	}
-
-	items := make([]oapi.OrderItem, 0, len(request.Items))
+	orderItems := make([]struct {
+		sku          db.CatalogSku
+		qty          int32
+		unitPriceFen sharedmoney.Fen
+	}, 0, len(skus))
 	for _, sku := range skus {
 		qty := qtyBySku[sku.ID]
 		if !sku.IsActive {
 			h.writeError(c, http.StatusBadRequest, "invalid_request", "sku is inactive")
 			return
 		}
-		price, ok := selectUnitPrice(tiersBySku[sku.ID], qty)
+		priceFen, ok := selectUnitPrice(tiersBySku[sku.ID], qty)
 		if !ok {
 			h.writeError(c, http.StatusBadRequest, "invalid_request", "price tier not found")
 			return
 		}
+		orderItems = append(orderItems, struct {
+			sku          db.CatalogSku
+			qty          int32
+			unitPriceFen sharedmoney.Fen
+		}{
+			sku:          sku,
+			qty:          qty,
+			unitPriceFen: priceFen,
+		})
+	}
 
-		_, err := h.OrderStore.CreateOrderItem(c.Request.Context(), db.CreateOrderItemParams{
-			OrderID:   order.ID,
-			SkuID:     sku.ID,
-			Qty:       qty,
-			UnitPrice: price,
+	addressJSON, err := json.Marshal(request.Address)
+	if err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid address")
+		return
+	}
+	if h.DB == nil {
+		h.logError("create order failed", errors.New("db pool is nil"))
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to submit order")
+		return
+	}
+
+	ctx := c.Request.Context()
+	var order db.Order
+	err = shareddb.WithTx(ctx, h.DB, func(tx pgx.Tx) error {
+		q := db.New(tx)
+		var err error
+		order, err = q.CreateOrder(ctx, db.CreateOrderParams{
+			Status:           string(oapi.SUBMITTED),
+			CustomerID:       claims.UserID,
+			OwnerSalesUserID: pgtype.UUID{},
+			Address:          addressJSON,
+			Remark:           request.Remark,
+			IdempotencyKey:   params.IdempotencyKey,
 		})
 		if err != nil {
-			h.logError("create order item failed", err)
-			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to submit order")
+			return err
+		}
+		for _, item := range orderItems {
+			if _, err := q.CreateOrderItem(ctx, db.CreateOrderItemParams{
+				OrderID:      order.ID,
+				SkuID:        item.sku.ID,
+				Qty:          item.qty,
+				UnitPriceFen: item.unitPriceFen.Int64(),
+			}); err != nil {
+				return err
+			}
+		}
+		if err := q.DeleteCartItemsBySkuIDs(ctx, db.DeleteCartItemsBySkuIDsParams{
+			OwnerUserID: claims.UserID,
+			SkuIds:      uniqueSkuIDs,
+		}); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		if shareddb.IsUniqueViolation(err) && params.IdempotencyKey != nil {
+			h.logError("idempotency key conflict", err)
+			var details map[string]interface{}
+			if existing, lookupErr := h.OrderStore.GetOrderByIdempotencyKey(c.Request.Context(), db.GetOrderByIdempotencyKeyParams{
+				CustomerID:     claims.UserID,
+				IdempotencyKey: params.IdempotencyKey,
+			}); lookupErr == nil {
+				details = map[string]interface{}{
+					"orderId": existing.ID,
+				}
+			}
+			h.writeErrorWithDetails(c, http.StatusConflict, "conflict", "duplicate idempotency key", details)
 			return
 		}
+		h.logError("create order failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to submit order")
+		return
+	}
 
-		mapped, err := skuFromModel(sku, tiersBySku[sku.ID])
+	items := make([]oapi.OrderItem, 0, len(orderItems))
+	for _, item := range orderItems {
+		mapped, err := skuFromModel(item.sku, tiersBySku[item.sku.ID])
 		if err != nil {
 			h.logError("map sku failed", err)
 			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to submit order")
 			return
 		}
-		unitPrice := float32(price)
 		items = append(items, oapi.OrderItem{
-			Sku:       mapped,
-			Qty:       int(qty),
-			UnitPrice: &unitPrice,
+			Sku:          mapped,
+			Qty:          int(item.qty),
+			UnitPriceFen: item.unitPriceFen.Int64(),
 		})
 	}
 
@@ -156,7 +207,7 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 }
 
 func (h *Handler) GetOrders(c *gin.Context, params oapi.GetOrdersParams) {
-	claims, ok := h.requireUser(c)
+	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "PROCUREMENT", "CS", "ADMIN")
 	if !ok {
 		return
 	}
@@ -176,9 +227,15 @@ func (h *Handler) GetOrders(c *gin.Context, params oapi.GetOrdersParams) {
 
 	customerFilter := pgtype.UUID{}
 	ownerFilter := pgtype.UUID{}
-	if strings.EqualFold(claims.Role, "CUSTOMER") {
+	role := strings.ToUpper(claims.Role)
+	switch role {
+	case "CUSTOMER":
 		customerFilter = pgtype.UUID{Bytes: claims.UserID, Valid: true}
-	} else {
+	case "SALES":
+		if params.CustomerId != nil {
+			customerFilter = pgtype.UUID{Bytes: uuid.UUID(*params.CustomerId), Valid: true}
+		}
+	case "PROCUREMENT", "CS", "ADMIN":
 		if params.CustomerId != nil {
 			customerFilter = pgtype.UUID{Bytes: uuid.UUID(*params.CustomerId), Valid: true}
 		}
@@ -265,7 +322,7 @@ func (h *Handler) GetOrders(c *gin.Context, params oapi.GetOrdersParams) {
 }
 
 func (h *Handler) GetOrdersOrderId(c *gin.Context, orderId types.UUID) {
-	claims, ok := h.requireUser(c)
+	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "PROCUREMENT", "CS", "ADMIN")
 	if !ok {
 		return
 	}
@@ -280,9 +337,17 @@ func (h *Handler) GetOrdersOrderId(c *gin.Context, orderId types.UUID) {
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to fetch order")
 		return
 	}
-	if strings.EqualFold(claims.Role, "CUSTOMER") && order.CustomerID != claims.UserID {
-		h.writeError(c, http.StatusNotFound, "not_found", "order not found")
-		return
+	switch strings.ToUpper(claims.Role) {
+	case "CUSTOMER":
+		if order.CustomerID != claims.UserID {
+			h.writeError(c, http.StatusNotFound, "not_found", "order not found")
+			return
+		}
+	case "SALES":
+		if order.OwnerSalesUserID.Valid && order.OwnerSalesUserID.Bytes != claims.UserID {
+			h.writeError(c, http.StatusNotFound, "not_found", "order not found")
+			return
+		}
 	}
 
 	orderItems, err := h.OrderStore.ListOrderItems(c.Request.Context(), order.ID)
@@ -328,11 +393,11 @@ func mapOrderItems(items []db.OrderItem, skuMap map[uuid.UUID]oapi.SKU) ([]oapi.
 		if !ok {
 			return nil, errors.New("sku not found")
 		}
-		price := float32(item.UnitPrice)
+		unitPrice := sharedmoney.FromInt64(item.UnitPriceFen)
 		mapped = append(mapped, oapi.OrderItem{
-			Sku:       sku,
-			Qty:       int(item.Qty),
-			UnitPrice: &price,
+			Sku:          sku,
+			Qty:          int(item.Qty),
+			UnitPriceFen: unitPrice.Int64(),
 		})
 	}
 	return mapped, nil
@@ -362,7 +427,7 @@ func orderFromModel(order db.Order, items []oapi.OrderItem) (oapi.Order, error) 
 	return response, nil
 }
 
-func selectUnitPrice(tiers []db.CatalogPriceTier, qty int32) (float64, bool) {
+func selectUnitPrice(tiers []db.CatalogPriceTier, qty int32) (sharedmoney.Fen, bool) {
 	var selected *db.CatalogPriceTier
 	for i := range tiers {
 		tier := tiers[i]
@@ -375,7 +440,7 @@ func selectUnitPrice(tiers []db.CatalogPriceTier, qty int32) (float64, bool) {
 		selected = &tier
 	}
 	if selected == nil {
-		return 0, false
+		return sharedmoney.Zero, false
 	}
-	return selected.UnitPrice, true
+	return sharedmoney.FromInt64(selected.UnitPriceFen), true
 }

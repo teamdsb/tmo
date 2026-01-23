@@ -1,6 +1,24 @@
 import { Platform } from '@tmo/shared/enums'
 
-import type { ChooseImageOptions, ChooseImageResult, LoginResult, PayOptions, PayResult, RequestOptions, RequestResult } from './types'
+import type {
+  ChooseFileOptions,
+  ChooseFile,
+  ChooseFileResult,
+  ChooseImageOptions,
+  ChooseImageResult,
+  LoginResult,
+  PayOptions,
+  PayResult,
+  RequestMethod,
+  RequestOptions,
+  RequestResult,
+  StorageClearResult,
+  StorageGetResult,
+  StorageRemoveResult,
+  StorageSetResult,
+  UploadFileOptions,
+  UploadFileResult
+} from './types'
 import * as alipay from './alipay'
 import * as weapp from './weapp'
 
@@ -65,12 +83,88 @@ export const chooseImage = async (options?: ChooseImageOptions): Promise<ChooseI
   }
 }
 
+export const chooseFile = async (options?: ChooseFileOptions): Promise<ChooseFileResult> => {
+  switch (getPlatform()) {
+    case Platform.Weapp:
+      return weapp.chooseFile(options)
+    case Platform.Alipay:
+      return alipay.chooseFile(options)
+    default:
+      return Promise.reject(new Error('chooseFile is not supported on this platform'))
+  }
+}
+
+export const uploadFile = async (options: UploadFileOptions): Promise<UploadFileResult> => {
+  switch (getPlatform()) {
+    case Platform.Weapp:
+      return weapp.uploadFile(options)
+    case Platform.Alipay:
+      return alipay.uploadFile(options)
+    default:
+      return Promise.reject(new Error('uploadFile is not supported on this platform'))
+  }
+}
+
+export const getStorage = async <T>(key: string): Promise<StorageGetResult<T>> => {
+  switch (getPlatform()) {
+    case Platform.Weapp:
+      return weapp.getStorage<T>(key)
+    case Platform.Alipay:
+      return alipay.getStorage<T>(key)
+    default:
+      return Promise.reject(new Error('getStorage is not supported on this platform'))
+  }
+}
+
+export const setStorage = async (key: string, data: unknown): Promise<StorageSetResult> => {
+  switch (getPlatform()) {
+    case Platform.Weapp:
+      return weapp.setStorage(key, data)
+    case Platform.Alipay:
+      return alipay.setStorage(key, data)
+    default:
+      return Promise.reject(new Error('setStorage is not supported on this platform'))
+  }
+}
+
+export const removeStorage = async (key: string): Promise<StorageRemoveResult> => {
+  switch (getPlatform()) {
+    case Platform.Weapp:
+      return weapp.removeStorage(key)
+    case Platform.Alipay:
+      return alipay.removeStorage(key)
+    default:
+      return Promise.reject(new Error('removeStorage is not supported on this platform'))
+  }
+}
+
+export const clearStorage = async (): Promise<StorageClearResult> => {
+  switch (getPlatform()) {
+    case Platform.Weapp:
+      return weapp.clearStorage()
+    case Platform.Alipay:
+      return alipay.clearStorage()
+    default:
+      return Promise.reject(new Error('clearStorage is not supported on this platform'))
+  }
+}
+
 export type {
+  ChooseFileOptions,
+  ChooseFile,
+  ChooseFileResult,
   ChooseImageOptions,
   ChooseImageResult,
   LoginResult,
   PayOptions,
   PayResult,
+  RequestMethod,
   RequestOptions,
-  RequestResult
+  RequestResult,
+  StorageClearResult,
+  StorageGetResult,
+  StorageRemoveResult,
+  StorageSetResult,
+  UploadFileOptions,
+  UploadFileResult
 }

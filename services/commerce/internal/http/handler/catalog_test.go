@@ -18,21 +18,21 @@ import (
 )
 
 type stubStore struct {
-	createProductFn func(context.Context, db.CreateProductParams) (db.CatalogProduct, error)
-	listProductsFn  func(context.Context, db.ListProductsParams) ([]db.CatalogProduct, error)
-	countProductsFn func(context.Context, db.CountProductsParams) (int64, error)
-	getProductFn    func(context.Context, uuid.UUID) (db.CatalogProduct, error)
-	createCategoryFn       func(context.Context, db.CreateCategoryParams) (db.CatalogCategory, error)
-	listCategoriesFn       func(context.Context) ([]db.CatalogCategory, error)
-	createSkuFn            func(context.Context, db.CreateSkuParams) (db.CatalogSku, error)
-	listSkusByProductFn    func(context.Context, uuid.UUID) ([]db.CatalogSku, error)
-	listSkusByIDsFn        func(context.Context, []uuid.UUID) ([]db.CatalogSku, error)
-	listSkusBySkuCodeFn    func(context.Context, string) ([]db.CatalogSku, error)
-	listSkusByNameFn       func(context.Context, string) ([]db.CatalogSku, error)
+	createProductFn         func(context.Context, db.CreateProductParams) (db.CatalogProduct, error)
+	listProductsFn          func(context.Context, db.ListProductsParams) ([]db.CatalogProduct, error)
+	countProductsFn         func(context.Context, db.CountProductsParams) (int64, error)
+	getProductFn            func(context.Context, uuid.UUID) (db.CatalogProduct, error)
+	createCategoryFn        func(context.Context, db.CreateCategoryParams) (db.CatalogCategory, error)
+	listCategoriesFn        func(context.Context) ([]db.CatalogCategory, error)
+	createSkuFn             func(context.Context, db.CreateSkuParams) (db.CatalogSku, error)
+	listSkusByProductFn     func(context.Context, uuid.UUID) ([]db.CatalogSku, error)
+	listSkusByIDsFn         func(context.Context, []uuid.UUID) ([]db.CatalogSku, error)
+	listSkusBySkuCodeFn     func(context.Context, *string) ([]db.CatalogSku, error)
+	listSkusByNameFn        func(context.Context, string) ([]db.CatalogSku, error)
 	listSkusByNameAndSpecFn func(context.Context, db.ListSkusByNameAndSpecParams) ([]db.CatalogSku, error)
-	createPriceTierFn      func(context.Context, db.CreatePriceTierParams) (db.CatalogPriceTier, error)
-	listPriceTiersBySkuFn  func(context.Context, uuid.UUID) ([]db.CatalogPriceTier, error)
-	listPriceTiersBySkusFn func(context.Context, []uuid.UUID) ([]db.CatalogPriceTier, error)
+	createPriceTierFn       func(context.Context, db.CreatePriceTierParams) (db.CatalogPriceTier, error)
+	listPriceTiersBySkuFn   func(context.Context, uuid.UUID) ([]db.CatalogPriceTier, error)
+	listPriceTiersBySkusFn  func(context.Context, []uuid.UUID) ([]db.CatalogPriceTier, error)
 }
 
 func (s *stubStore) CreateProduct(ctx context.Context, arg db.CreateProductParams) (db.CatalogProduct, error) {
@@ -98,7 +98,7 @@ func (s *stubStore) ListSkusByIDs(ctx context.Context, ids []uuid.UUID) ([]db.Ca
 	return s.listSkusByIDsFn(ctx, ids)
 }
 
-func (s *stubStore) ListSkusBySkuCode(ctx context.Context, skuCode string) ([]db.CatalogSku, error) {
+func (s *stubStore) ListSkusBySkuCode(ctx context.Context, skuCode *string) ([]db.CatalogSku, error) {
 	if s.listSkusBySkuCodeFn == nil {
 		return nil, pgx.ErrTxClosed
 	}

@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS order_items (
     order_id uuid NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     sku_id uuid NOT NULL REFERENCES catalog_skus(id),
     qty integer NOT NULL,
-    unit_price double precision NOT NULL,
+    unit_price_fen bigint NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now()
 );

@@ -1,4 +1,4 @@
-package handler
+package excel
 
 import (
 	"errors"
@@ -8,7 +8,7 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-func readExcelRows(reader io.Reader) ([][]string, error) {
+func ReadRows(reader io.Reader) ([][]string, error) {
 	file, err := excelize.OpenReader(reader)
 	if err != nil {
 		return nil, err
@@ -31,16 +31,16 @@ func readExcelRows(reader io.Reader) ([][]string, error) {
 	return rows, nil
 }
 
-func normalizeHeaderKey(value string) string {
+func NormalizeHeaderKey(value string) string {
 	trimmed := strings.TrimSpace(strings.ToLower(value))
 	replacer := strings.NewReplacer(" ", "", "_", "", "-", "")
 	return replacer.Replace(trimmed)
 }
 
-func headerIndexMap(headers []string) map[string]int {
+func HeaderIndexMap(headers []string) map[string]int {
 	index := make(map[string]int, len(headers))
 	for i, header := range headers {
-		key := normalizeHeaderKey(header)
+		key := NormalizeHeaderKey(header)
 		if key == "" {
 			continue
 		}
@@ -49,7 +49,7 @@ func headerIndexMap(headers []string) map[string]int {
 	return index
 }
 
-func cellValue(row []string, index map[string]int, key string) string {
+func CellValue(row []string, index map[string]int, key string) string {
 	idx, ok := index[key]
 	if !ok {
 		return ""

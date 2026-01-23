@@ -1,6 +1,6 @@
 # platform-adapter
 
-Unified wrapper for wx/my differences (login, request, pay, chooseImage).
+Unified wrapper for wx/my differences (login, request, pay, chooseImage, chooseFile, uploadFile, storage).
 
 ## Example
 

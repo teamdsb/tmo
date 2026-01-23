@@ -12,6 +12,7 @@
   "scripts": {
     "prepare": "husky",
     "new": "taro new",
+    "lint": "eslint \"src/**/*.{ts,tsx,js,jsx}\"",
     "build:weapp": "taro build --type weapp",
     "build:swan": "taro build --type swan",
     "build:alipay": "taro build --type alipay",
@@ -53,6 +54,7 @@
     "@tarojs/taro": "4.1.9",
     "@tarojs/plugin-framework-react": "4.1.9",
     "@tarojs/react": "4.1.9",
+    "@tmo/commerce-services": "workspace:*",
     "react-dom": "^18.0.0",
     "react": "^18.0.0"
   },
