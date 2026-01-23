@@ -12,7 +12,7 @@ func TestCatalogCategoryQueries(test *testing.T) {
 	pool := openTestPool(test)
 	ctx := context.Background()
 
-	if _, err := pool.Exec(ctx, "TRUNCATE catalog_categories"); err != nil {
+	if _, err := pool.Exec(ctx, "TRUNCATE catalog_categories CASCADE"); err != nil {
 		test.Fatalf("truncate catalog_categories: %v", err)
 	}
 

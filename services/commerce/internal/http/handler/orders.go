@@ -41,7 +41,9 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 		})
 		if err == nil {
 			h.logError("idempotency key conflict", errors.New("duplicate key"))
-			h.writeError(c, http.StatusConflict, "conflict", "duplicate idempotency key")
+			h.writeErrorWithDetails(c, http.StatusConflict, "conflict", "duplicate idempotency key", map[string]interface{}{
+				"orderId": order.ID,
+			})
 			return
 		}
 		if !errors.Is(err, pgx.ErrNoRows) {
@@ -49,7 +51,6 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to submit order")
 			return
 		}
-		_ = order
 	}
 
 	skuIDs := make([]uuid.UUID, 0, len(request.Items))
@@ -152,12 +153,27 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 				return err
 			}
 		}
+		if err := q.DeleteCartItemsBySkuIDs(ctx, db.DeleteCartItemsBySkuIDsParams{
+			OwnerUserID: claims.UserID,
+			SkuIds:      uniqueSkuIDs,
+		}); err != nil {
+			return err
+		}
 		return nil
 	})
 	if err != nil {
 		if shareddb.IsUniqueViolation(err) && params.IdempotencyKey != nil {
 			h.logError("idempotency key conflict", err)
-			h.writeError(c, http.StatusConflict, "conflict", "duplicate idempotency key")
+			var details map[string]interface{}
+			if existing, lookupErr := h.OrderStore.GetOrderByIdempotencyKey(c.Request.Context(), db.GetOrderByIdempotencyKeyParams{
+				CustomerID:     claims.UserID,
+				IdempotencyKey: params.IdempotencyKey,
+			}); lookupErr == nil {
+				details = map[string]interface{}{
+					"orderId": existing.ID,
+				}
+			}
+			h.writeErrorWithDetails(c, http.StatusConflict, "conflict", "duplicate idempotency key", details)
 			return
 		}
 		h.logError("create order failed", err)

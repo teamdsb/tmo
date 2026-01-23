@@ -11,6 +11,32 @@ export COMMERCE_DB_DSN="postgres://commerce:commerce@localhost:5432/commerce?ssl
 go run ./cmd/commerce
 ```
 
+## Bootstrap (local dev)
+
+```bash
+docker compose -f infra/dev/docker-compose.yml up -d
+bash tools/scripts/commerce-migrate.sh
+bash tools/scripts/commerce-seed.sh
+```
+
+Or one-shot:
+
+```bash
+bash tools/scripts/commerce-bootstrap.sh
+```
+
+## Validation (smoke)
+
+```bash
+COMMERCE_API_BASE_URL="http://localhost:8080" bash tools/scripts/commerce-verify.sh
+```
+
+## Codegen
+
+```bash
+bash tools/scripts/commerce-generate.sh
+```
+
 ## Health checks
 
 - `GET /health`: always 200 with body `OK`.
@@ -21,7 +47,7 @@ go run ./cmd/commerce
 Errors are returned as JSON in the shape:
 
 ```json
-{"code":"invalid_request","message":"name is required","detail":"optional"}
+{"code":"invalid_request","message":"name is required","requestId":"...","details":{"field":"name"}}
 ```
 
 ## Configuration

@@ -329,6 +329,14 @@ func (h *Handler) writeError(c *gin.Context, status int, code, message string) {
 	})
 }
 
+func (h *Handler) writeErrorWithDetails(c *gin.Context, status int, code, message string, details map[string]interface{}) {
+	apierrors.Write(c, status, apierrors.APIError{
+		Code:    code,
+		Message: message,
+		Details: details,
+	})
+}
+
 func categoryFromModel(category db.CatalogCategory) oapi.Category {
 	response := oapi.Category{
 		Id:   category.ID,

@@ -11,6 +11,7 @@ import (
 	"github.com/oapi-codegen/runtime/types"
 
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
+	"github.com/teamdsb/tmo/services/commerce/internal/excel"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 )
 
@@ -36,7 +37,7 @@ func (h *Handler) GetOrdersOrderIdTracking(c *gin.Context, orderId types.UUID) {
 	}
 
 	response := oapi.TrackingInfo{
-		OrderId:   orderId,
+		OrderId: orderId,
 		Shipments: make([]struct {
 			Carrier   *string    `json:"carrier"`
 			ShippedAt *time.Time `json:"shippedAt"`
@@ -96,7 +97,7 @@ func (h *Handler) PostOrdersOrderIdTracking(c *gin.Context, orderId types.UUID) 
 	}
 
 	response := oapi.TrackingInfo{
-		OrderId:   orderId,
+		OrderId: orderId,
 		Shipments: make([]struct {
 			Carrier   *string    `json:"carrier"`
 			ShippedAt *time.Time `json:"shippedAt"`
@@ -139,26 +140,68 @@ func (h *Handler) PostShipmentsImportJobs(c *gin.Context) {
 		_ = file.Close()
 	}()
 
-	rows, err := readExcelRows(file)
+	rows, err := excel.ReadRows(file)
 	if err != nil {
-		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid excel file")
+		h.writeErrorWithDetails(c, http.StatusBadRequest, "invalid_request", "invalid excel file", map[string]interface{}{
+			"template": excel.ShipmentImportTemplate().Name,
+			"reason":   "invalid_excel",
+		})
+		return
+	}
+	if len(rows) <= 1 {
+		h.writeErrorWithDetails(c, http.StatusBadRequest, "invalid_request", "no data rows", map[string]interface{}{
+			"template": excel.ShipmentImportTemplate().Name,
+			"reason":   "no_data_rows",
+		})
 		return
 	}
 
-	index := headerIndexMap(rows[0])
+	spec := excel.ShipmentImportTemplate()
+	index := excel.HeaderIndexMap(rows[0])
+	missing, missingAny := excel.MissingRequiredHeaders(index, spec)
+	if len(missing) > 0 || len(missingAny) > 0 {
+		h.writeErrorWithDetails(c, http.StatusBadRequest, "invalid_request", "missing required headers", map[string]interface{}{
+			"template":            spec.Name,
+			"missingHeaders":      missing,
+			"missingHeaderGroups": missingAny,
+			"expectedHeaders":     excel.TemplateHeaders(spec),
+		})
+		return
+	}
+
 	var processed int
+	rowErrors := make([]map[string]interface{}, 0)
 	for i := 1; i < len(rows); i++ {
 		row := rows[i]
-		orderIDRaw := cellValue(row, index, "orderid")
-		waybillNo := cellValue(row, index, "waybillno")
-		carrier := cellValue(row, index, "carrier")
-		shippedAtRaw := cellValue(row, index, "shippedat")
+		rowNo := i + 1
+		orderIDRaw := excel.CellValue(row, index, "orderid")
+		waybillNo := excel.CellValue(row, index, "waybillno")
+		carrier := excel.CellValue(row, index, "carrier")
+		shippedAtRaw := excel.CellValue(row, index, "shippedat")
 
-		if orderIDRaw == "" || waybillNo == "" {
+		if orderIDRaw == "" {
+			rowErrors = append(rowErrors, map[string]interface{}{
+				"rowNo":   rowNo,
+				"field":   "orderId",
+				"message": "orderId is required",
+			})
+			continue
+		}
+		if waybillNo == "" {
+			rowErrors = append(rowErrors, map[string]interface{}{
+				"rowNo":   rowNo,
+				"field":   "waybillNo",
+				"message": "waybillNo is required",
+			})
 			continue
 		}
 		orderID, err := uuid.Parse(orderIDRaw)
 		if err != nil {
+			rowErrors = append(rowErrors, map[string]interface{}{
+				"rowNo":   rowNo,
+				"field":   "orderId",
+				"message": "orderId must be a UUID",
+			})
 			continue
 		}
 
@@ -166,6 +209,13 @@ func (h *Handler) PostShipmentsImportJobs(c *gin.Context) {
 		if shippedAtRaw != "" {
 			if parsed, ok := parseTime(shippedAtRaw); ok {
 				shippedAt = pgtype.Timestamptz{Time: parsed, Valid: true}
+			} else {
+				rowErrors = append(rowErrors, map[string]interface{}{
+					"rowNo":   rowNo,
+					"field":   "shippedAt",
+					"message": "shippedAt must be RFC3339 or YYYY-MM-DD",
+				})
+				continue
 			}
 		}
 
@@ -188,7 +238,11 @@ func (h *Handler) PostShipmentsImportJobs(c *gin.Context) {
 	}
 
 	if processed == 0 {
-		h.writeError(c, http.StatusBadRequest, "invalid_request", "no valid rows")
+		h.writeErrorWithDetails(c, http.StatusBadRequest, "invalid_request", "no valid rows", map[string]interface{}{
+			"template":  spec.Name,
+			"reason":    "no_valid_rows",
+			"rowErrors": rowErrors,
+		})
 		return
 	}
 

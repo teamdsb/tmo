@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -19,7 +17,7 @@ func TestCatalogQueries(t *testing.T) {
 	pool := openTestPool(t)
 	ctx := context.Background()
 
-	if _, err := pool.Exec(ctx, "TRUNCATE catalog_products"); err != nil {
+	if _, err := pool.Exec(ctx, "TRUNCATE catalog_products CASCADE"); err != nil {
 		t.Fatalf("truncate catalog_products: %v", err)
 	}
 
@@ -96,7 +94,8 @@ func openTestPool(t *testing.T) *pgxpool.Pool {
 		t.Fatalf("connect to database: %v", err)
 	}
 
-	if err := applyMigrations(ctx, pool); err != nil {
+	migrationsDir := filepath.Join("..", "..", "migrations")
+	if err := ApplyMigrations(ctx, pool, migrationsDir); err != nil {
 		pool.Close()
 		t.Fatalf("apply migrations: %v", err)
 	}
@@ -128,74 +127,6 @@ func connectWithRetry(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 
 	pool.Close()
 	return nil, fmt.Errorf("database did not become ready")
-}
-
-func applyMigrations(ctx context.Context, pool *pgxpool.Pool) error {
-	pattern := filepath.Join("..", "..", "migrations", "*.sql")
-	files, err := filepath.Glob(pattern)
-	if err != nil {
-		return fmt.Errorf("list migrations: %w", err)
-	}
-	if len(files) == 0 {
-		return fmt.Errorf("no migrations found")
-	}
-
-	sort.Strings(files)
-	for _, path := range files {
-		// #nosec G304 -- path is a fixed, repo-local migration file for tests.
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("read migration: %w", err)
-		}
-
-		upSQL := extractGooseUp(string(content))
-		statements := splitSQLStatements(upSQL)
-		for _, statement := range statements {
-			if _, err := pool.Exec(ctx, statement); err != nil {
-				return fmt.Errorf("exec migration statement: %w", err)
-			}
-		}
-	}
-
-	return nil
-}
-
-func extractGooseUp(content string) string {
-	lines := strings.Split(content, "\n")
-	inUp := false
-	var builder strings.Builder
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "-- +goose Up") {
-			inUp = true
-			continue
-		}
-		if strings.HasPrefix(trimmed, "-- +goose Down") {
-			break
-		}
-		if !inUp {
-			continue
-		}
-		if strings.HasPrefix(trimmed, "-- +goose") {
-			continue
-		}
-		builder.WriteString(line)
-		builder.WriteString("\n")
-	}
-	return builder.String()
-}
-
-func splitSQLStatements(sql string) []string {
-	parts := strings.Split(sql, ";")
-	statements := make([]string, 0, len(parts))
-	for _, part := range parts {
-		statement := strings.TrimSpace(part)
-		if statement == "" {
-			continue
-		}
-		statements = append(statements, statement)
-	}
-	return statements
 }
 
 func stringPtr(value string) *string {

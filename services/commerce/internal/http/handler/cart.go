@@ -14,6 +14,7 @@ import (
 	"github.com/oapi-codegen/runtime/types"
 
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
+	"github.com/teamdsb/tmo/services/commerce/internal/excel"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 )
 
@@ -162,9 +163,41 @@ func (h *Handler) PostCartImportJobs(c *gin.Context) {
 		_ = file.Close()
 	}()
 
-	rows, err := readExcelRows(file)
+	rows, err := excel.ReadRows(file)
 	if err != nil {
-		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid excel file")
+		h.writeErrorWithDetails(c, http.StatusBadRequest, "invalid_request", "invalid excel file", map[string]interface{}{
+			"template": excel.CartImportTemplate().Name,
+			"reason":   "invalid_excel",
+		})
+		return
+	}
+	if len(rows) <= 1 {
+		h.writeErrorWithDetails(c, http.StatusBadRequest, "invalid_request", "no data rows", map[string]interface{}{
+			"template": excel.CartImportTemplate().Name,
+			"reason":   "no_data_rows",
+		})
+		return
+	}
+
+	spec := excel.CartImportTemplate()
+	headerIndex := excel.HeaderIndexMap(rows[0])
+	missing, missingAny := excel.MissingRequiredHeaders(headerIndex, spec)
+	if len(missing) > 0 || len(missingAny) > 0 {
+		h.writeErrorWithDetails(c, http.StatusBadRequest, "invalid_request", "missing required headers", map[string]interface{}{
+			"template":            spec.Name,
+			"missingHeaders":      missing,
+			"missingHeaderGroups": missingAny,
+			"expectedHeaders":     excel.TemplateHeaders(spec),
+		})
+		return
+	}
+
+	rowInputs := parseCartImportRows(rows, headerIndex)
+	if len(rowInputs) == 0 {
+		h.writeErrorWithDetails(c, http.StatusBadRequest, "invalid_request", "no data rows", map[string]interface{}{
+			"template": spec.Name,
+			"reason":   "no_data_rows",
+		})
 		return
 	}
 
@@ -180,8 +213,6 @@ func (h *Handler) PostCartImportJobs(c *gin.Context) {
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to create import job")
 		return
 	}
-
-	rowInputs := parseCartImportRows(rows)
 	autoAdded := make([]oapi.CartImportAddedItem, 0)
 	pending := make([]oapi.CartImportPendingItem, 0)
 	var autoCount int32
@@ -629,20 +660,19 @@ func (h *Handler) buildCartImportResult(ctx context.Context, rows []db.CartImpor
 	return result, autoCount, pendingCount, nil
 }
 
-func parseCartImportRows(rows [][]string) []cartImportRowInput {
+func parseCartImportRows(rows [][]string, index map[string]int) []cartImportRowInput {
 	if len(rows) <= 1 {
 		return nil
 	}
-	index := headerIndexMap(rows[0])
 	inputs := make([]cartImportRowInput, 0, len(rows)-1)
 
 	for i := 1; i < len(rows); i++ {
 		row := rows[i]
-		skuIDRaw := cellValue(row, index, "skuid")
-		skuCode := cellValue(row, index, "skucode")
-		name := cellValue(row, index, "name")
-		spec := cellValue(row, index, "spec")
-		qtyRaw := cellValue(row, index, "qty")
+		skuIDRaw := excel.CellValue(row, index, "skuid")
+		skuCode := excel.CellValue(row, index, "skucode")
+		name := excel.CellValue(row, index, "name")
+		spec := excel.CellValue(row, index, "spec")
+		qtyRaw := excel.CellValue(row, index, "qty")
 
 		if skuIDRaw == "" && skuCode == "" && name == "" && spec == "" && qtyRaw == "" {
 			continue

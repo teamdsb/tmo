@@ -27,3 +27,8 @@ RETURNING id, owner_user_id, sku_id, qty, created_at, updated_at;
 -- name: DeleteCartItem :exec
 DELETE FROM cart_items
 WHERE id = $1 AND owner_user_id = $2;
+
+-- name: DeleteCartItemsBySkuIDs :exec
+DELETE FROM cart_items
+WHERE owner_user_id = sqlc.arg('owner_user_id')
+  AND sku_id = ANY(sqlc.arg('sku_ids')::uuid[]);

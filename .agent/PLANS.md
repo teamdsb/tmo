@@ -14,9 +14,9 @@
 
 - [x] (2026-01-22 17:05Z) 对齐 `docs/需求文档.md` 的关键开放问题，并锁定 v0/v1 边界与交互决策（v0=目录读+购物车+意向订单+追踪/回传；v1=其余）。
 - [x] (2026-01-22 17:58Z) 补充 v0/v1 的前端 TS 业务逻辑与交互设计规划（miniapp 视角，不涉及组件实现），并明确 `/packages` 的地基拆包方案与 v0 鉴权策略。
-- [ ] 修复当前 `services/commerce` 无法编译的问题，恢复 `go test ./...` 绿色（先对齐生成物与 handler 的类型/签名）。
-- [ ] 落地 v0 行为：下单清购物车（同 SKU）、Idempotency-Key 重复 409、追踪写入不改订单状态、Excel 解析与错误提示完善，并补齐单测/集成测。
-- [ ] 补齐本地 devops 地基：一键起 Postgres、迁移、seed（不依赖外部 goose/sqlc 安装）、以及可复现的验证脚本/README。
+- [x] (2026-01-23 08:09Z) 修复当前 `services/commerce` 无法编译的问题并对齐生成物/错误结构；补充 sqlc/oapi-codegen 固化脚本，`go test ./...` 通过。
+- [x] (2026-01-23 08:09Z) 落地 v0 行为：下单清购物车（同 SKU）、Idempotency-Key 冲突 409（含 orderId details）、追踪写入不改订单状态、Excel 解析与错误提示完善，并补齐集成测。
+- [x] (2026-01-23 08:09Z) 补齐本地 devops 地基：一键起 Postgres、迁移、seed（无 goose/sqlc 依赖）、以及可复现的验证脚本与 README 指引。
 - [ ] 落地 TS OpenAPI 生成：新增 `packages/api-client`（orval 配置 + 生成脚本 + 导出入口），并通过 TypeScript 编译。
 - [ ] 落地 TS 业务逻辑地基：新增 `packages/commerce-services`（use-cases + 交互状态机 + 错误归一化 + 幂等 key 生命周期），并通过 TypeScript 编译（可用 mock requester 验证主流程）。
 - [ ] 补齐平台适配能力：在 `packages/platform-adapter` 增加 v0 必要的 `storage`/`uploadFile`/`chooseFile` 等能力接口与实现（用于 token 与 Excel 导入）。
@@ -29,6 +29,10 @@
 
 - Observation: OpenAPI 的 `ErrorResponse`（包含 `requestId`、`details`）与现有 Go 返回的错误结构（`code/message/detail`）不一致；`services/commerce/README.md` 也以旧结构为准。
   Evidence: `contracts/openapi/openapi.yaml#/components/schemas/ErrorResponse` vs `packages/go-shared/errors/errors.go`。
+- Observation: 仓库根目录执行 `go test ./...` 会失败（`go.work` 仅包含指定模块）；应使用 `tools/scripts/test-backend.sh` 或在模块目录执行。
+  Evidence: `go test ./...` 报错 `directory prefix . does not contain modules listed in go.work`。
+- Observation: 迁移脚本里存在 `DO $$ ... $$` 语句，原来的分号切分会导致迁移失败，需要支持 dollar-quoted 块。
+  Evidence: `services/commerce/migrations/00007_alter_catalog_skus_price_tiers.sql` 执行时报 `unterminated dollar-quoted string`。
 
 - Observation: 仓库已有 `apps/miniapp`（Taro + React + TypeScript）但目前仅是最小壳（主要只有 `src/app.ts` 与 `src/pages/index/*`）；因此 v0 的 TS 对齐优先落在 `packages/*`（生成 client/types + requester + 业务 service 层），再由 miniapp 通过 service 层接入，不要求改动 UI 组件。
   Evidence: `ls apps` 包含 `miniapp`；`find apps/miniapp/src -maxdepth 3 -type f` 仅少量文件。
@@ -81,7 +85,7 @@
 
 ## Outcomes & Retrospective
 
-尚未开始实施；在每个里程碑完成后补充达成情况、遗留与经验。
+- (2026-01-23 08:09Z) 里程碑 0-2 已完成：后端编译恢复，v0 关键行为与测试落地，迁移/seed/验证脚本与 README 已补齐。
 
 ## Context and Orientation
 

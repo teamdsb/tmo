@@ -26,6 +26,22 @@ func (q *Queries) DeleteCartItem(ctx context.Context, arg DeleteCartItemParams) 
 	return err
 }
 
+const deleteCartItemsBySkuIDs = `-- name: DeleteCartItemsBySkuIDs :exec
+DELETE FROM cart_items
+WHERE owner_user_id = $1
+  AND sku_id = ANY($2::uuid[])
+`
+
+type DeleteCartItemsBySkuIDsParams struct {
+	OwnerUserID uuid.UUID   `db:"owner_user_id" json:"owner_user_id"`
+	SkuIds      []uuid.UUID `db:"sku_ids" json:"sku_ids"`
+}
+
+func (q *Queries) DeleteCartItemsBySkuIDs(ctx context.Context, arg DeleteCartItemsBySkuIDsParams) error {
+	_, err := q.db.Exec(ctx, deleteCartItemsBySkuIDs, arg.OwnerUserID, arg.SkuIds)
+	return err
+}
+
 const listCartItems = `-- name: ListCartItems :many
 SELECT id, owner_user_id, sku_id, qty, created_at, updated_at
 FROM cart_items
