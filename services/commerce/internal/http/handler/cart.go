@@ -432,6 +432,10 @@ func (h *Handler) PostCartImportJobsJobIdConfirm(c *gin.Context, jobId types.UUI
 				qty = parsed
 			}
 		}
+		if qty < 1 {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "qty must be >= 1")
+			return
+		}
 
 		if err := h.CartStore.UpdateCartImportRowSelection(c.Request.Context(), db.UpdateCartImportRowSelectionParams{
 			JobID:         job.ID,
