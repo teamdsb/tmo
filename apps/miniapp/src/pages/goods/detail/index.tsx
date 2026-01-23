@@ -8,18 +8,13 @@ import Cell from '@taroify/core/cell'
 import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
 import FixedView from '@taroify/core/fixed-view'
-import Tabbar from '@taroify/core/tabbar'
-import Aim from '@taroify/icons/Aim'
 import ArrowLeft from '@taroify/icons/ArrowLeft'
 import ArrowRight from '@taroify/icons/ArrowRight'
 import Like from '@taroify/icons/Like'
 import Logistics from '@taroify/icons/Logistics'
-import OrdersOutlined from '@taroify/icons/OrdersOutlined'
 import Share from '@taroify/icons/Share'
-import ShoppingCartOutlined from '@taroify/icons/ShoppingCartOutlined'
 import Star from '@taroify/icons/Star'
-import UserOutlined from '@taroify/icons/UserOutlined'
-import WapHomeOutlined from '@taroify/icons/WapHomeOutlined'
+import AppTabbar from '../../../components/app-tabbar'
 
 export default function ProductDetail() {
   const [selectedMaterial, setSelectedMaterial] = useState('Stainless Steel')
@@ -157,23 +152,7 @@ export default function ProductDetail() {
           <Button block variant='outlined'>Bargain</Button>
           <Button block color='primary'>Add to Cart</Button>
         </Flex>
-        <Tabbar value='cart'>
-          <Tabbar.TabItem value='home' icon={<WapHomeOutlined />}>
-            Home
-          </Tabbar.TabItem>
-          <Tabbar.TabItem value='demand' icon={<Aim />}>
-            Demand
-          </Tabbar.TabItem>
-          <Tabbar.TabItem value='cart' icon={<ShoppingCartOutlined />} badge='2'>
-            Cart
-          </Tabbar.TabItem>
-          <Tabbar.TabItem value='orders' icon={<OrdersOutlined />}>
-            Orders
-          </Tabbar.TabItem>
-          <Tabbar.TabItem value='mine' icon={<UserOutlined />}>
-            Mine
-          </Tabbar.TabItem>
-        </Tabbar>
+        <AppTabbar value='cart' fixed={false} placeholder={false} />
       </FixedView>
     </View>
   )

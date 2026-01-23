@@ -11,6 +11,8 @@ import Flex from '@taroify/core/flex'
 import ArrowLeft from '@taroify/icons/ArrowLeft'
 import MoreOutlined from '@taroify/icons/MoreOutlined'
 import Plus from '@taroify/icons/Plus'
+import { ROUTES } from '../../../routes'
+import { navigateTo } from '../../../utils/navigation'
 
 export default function SearchEmptyState() {
   const [searchValue, setSearchValue] = useState('Industrial Drill 5000')
@@ -64,7 +66,9 @@ export default function SearchEmptyState() {
           </Empty.Description>
         </Empty>
 
-        <Button block color='primary' icon={<Plus />}>Submit a Demand Request</Button>
+        <Button block color='primary' icon={<Plus />} onClick={() => navigateTo(ROUTES.demandCreate)}>
+          Submit a Demand Request
+        </Button>
         <Text className='section-subtitle'>Our sourcing team will contact you with quotes within 24 hours.</Text>
 
         <Flex justify='space-between' align='center' className='section-header'>

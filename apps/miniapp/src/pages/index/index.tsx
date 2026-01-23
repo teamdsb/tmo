@@ -7,20 +7,18 @@ import Grid from '@taroify/core/grid'
 import Image from '@taroify/core/image'
 import Tag from '@taroify/core/tag'
 import Button from '@taroify/core/button'
-import Tabbar from '@taroify/core/tabbar'
 import Flex from '@taroify/core/flex'
 import FloatingBubble from '@taroify/core/floating-bubble'
 import AppsOutlined from '@taroify/icons/AppsOutlined'
 import BullhornOutlined from '@taroify/icons/BullhornOutlined'
-import Description from '@taroify/icons/Description'
 import FilterOutlined from '@taroify/icons/FilterOutlined'
 import MoreOutlined from '@taroify/icons/MoreOutlined'
-import OrdersOutlined from '@taroify/icons/OrdersOutlined'
 import Plus from '@taroify/icons/Plus'
 import SearchIcon from '@taroify/icons/Search'
 import ShoppingCartOutlined from '@taroify/icons/ShoppingCartOutlined'
-import UserOutlined from '@taroify/icons/UserOutlined'
-import WapHomeOutlined from '@taroify/icons/WapHomeOutlined'
+import AppTabbar from '../../components/app-tabbar'
+import { goodsDetailRoute } from '../../routes'
+import { navigateTo } from '../../utils/navigation'
 
 const PRODUCTS = [
   {
@@ -121,30 +119,14 @@ export default function ProductCatalogApp() {
 
       <FloatingBubble icon={<Plus />} magnetic='x' />
 
-      <Tabbar fixed placeholder value='home'>
-        <Tabbar.TabItem value='home' icon={<WapHomeOutlined />}>
-          Home
-        </Tabbar.TabItem>
-        <Tabbar.TabItem value='demand' icon={<Description />}>
-          Demand
-        </Tabbar.TabItem>
-        <Tabbar.TabItem value='cart' icon={<ShoppingCartOutlined />} badge='3'>
-          Cart
-        </Tabbar.TabItem>
-        <Tabbar.TabItem value='orders' icon={<OrdersOutlined />}>
-          Orders
-        </Tabbar.TabItem>
-        <Tabbar.TabItem value='mine' icon={<UserOutlined />}>
-          Mine
-        </Tabbar.TabItem>
-      </Tabbar>
+      <AppTabbar value='home' />
     </View>
   )
 }
 
 function ProductCard({ data }: { data: (typeof PRODUCTS)[number] }) {
   return (
-    <View className='product-card'>
+    <View className='product-card' onClick={() => navigateTo(goodsDetailRoute(data.id))}>
       <Image src={data.image} width='100%' height={150} mode='aspectFill' />
       <View className='product-card-body'>
         <Text className='product-card-title'>{data.title}</Text>

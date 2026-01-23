@@ -10,15 +10,10 @@ import Grid from '@taroify/core/grid'
 import Image from '@taroify/core/image'
 import Flex from '@taroify/core/flex'
 import FixedView from '@taroify/core/fixed-view'
-import Tabbar from '@taroify/core/tabbar'
 import ArrowLeft from '@taroify/icons/ArrowLeft'
-import BarChartOutlined from '@taroify/icons/BarChartOutlined'
-import OrdersOutlined from '@taroify/icons/OrdersOutlined'
 import QuestionOutlined from '@taroify/icons/QuestionOutlined'
-import ShoppingCartOutlined from '@taroify/icons/ShoppingCartOutlined'
-import UserOutlined from '@taroify/icons/UserOutlined'
 import WarningOutlined from '@taroify/icons/WarningOutlined'
-import WapHomeOutlined from '@taroify/icons/WapHomeOutlined'
+import AppTabbar from '../../components/app-tabbar'
 
 export default function ExcelImportConfirmation() {
   const [activeTab, setActiveTab] = useState('to-confirm')
@@ -118,23 +113,7 @@ export default function ExcelImportConfirmation() {
           <Button block variant='outlined'>Save Draft</Button>
           <Button block color='primary'>Confirm & Add to Cart</Button>
         </Flex>
-        <Tabbar value='cart'>
-          <Tabbar.TabItem value='home' icon={<WapHomeOutlined />}>
-            Home
-          </Tabbar.TabItem>
-          <Tabbar.TabItem value='demand' icon={<BarChartOutlined />}>
-            Demand
-          </Tabbar.TabItem>
-          <Tabbar.TabItem value='cart' icon={<ShoppingCartOutlined />} badge='3'>
-            Cart
-          </Tabbar.TabItem>
-          <Tabbar.TabItem value='orders' icon={<OrdersOutlined />}>
-            Orders
-          </Tabbar.TabItem>
-          <Tabbar.TabItem value='mine' icon={<UserOutlined />}>
-            Mine
-          </Tabbar.TabItem>
-        </Tabbar>
+        <AppTabbar value='cart' fixed={false} placeholder={false} />
       </FixedView>
     </View>
   )

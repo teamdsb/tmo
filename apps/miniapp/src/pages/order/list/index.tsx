@@ -8,14 +8,11 @@ import Tag from '@taroify/core/tag'
 import Image from '@taroify/core/image'
 import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
-import Tabbar from '@taroify/core/tabbar'
-import Aim from '@taroify/icons/Aim'
 import ArrowLeft from '@taroify/icons/ArrowLeft'
 import FilterOutlined from '@taroify/icons/FilterOutlined'
-import OrdersOutlined from '@taroify/icons/OrdersOutlined'
-import ShoppingCartOutlined from '@taroify/icons/ShoppingCartOutlined'
-import UserOutlined from '@taroify/icons/UserOutlined'
-import WapHomeOutlined from '@taroify/icons/WapHomeOutlined'
+import AppTabbar from '../../../components/app-tabbar'
+import { orderDetailRoute, orderTrackingRoute } from '../../../routes'
+import { navigateTo } from '../../../utils/navigation'
 
 const ORDERS = [
   {
@@ -143,6 +140,13 @@ export default function OrderHistoryApp() {
                         size='small'
                         color={action.primary ? 'primary' : 'default'}
                         variant={action.primary ? 'contained' : 'outlined'}
+                        onClick={() => {
+                          if (action.label === 'Track') {
+                            navigateTo(orderTrackingRoute(order.id))
+                            return
+                          }
+                          navigateTo(orderDetailRoute(order.id))
+                        }}
                       >
                         {action.label}
                       </Button>
@@ -155,23 +159,7 @@ export default function OrderHistoryApp() {
         ))}
       </Tabs>
 
-      <Tabbar fixed placeholder value='orders'>
-        <Tabbar.TabItem value='home' icon={<WapHomeOutlined />}>
-          Home
-        </Tabbar.TabItem>
-        <Tabbar.TabItem value='demand' icon={<Aim />}>
-          Demand
-        </Tabbar.TabItem>
-        <Tabbar.TabItem value='cart' icon={<ShoppingCartOutlined />}>
-          Cart
-        </Tabbar.TabItem>
-        <Tabbar.TabItem value='orders' icon={<OrdersOutlined />}>
-          Orders
-        </Tabbar.TabItem>
-        <Tabbar.TabItem value='mine' icon={<UserOutlined />}>
-          Mine
-        </Tabbar.TabItem>
-      </Tabbar>
+      <AppTabbar value='orders' />
     </View>
   )
 }
