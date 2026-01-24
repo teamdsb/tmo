@@ -1,4 +1,7 @@
 packages:
-  - "apps/*"
-  - "packages/*"
-  - "tools/*"
+  - apps/*
+  - packages/*
+  - tools/*
+
+patchedDependencies:
+  '@tarojs/vite-runner@4.1.9': patches/@tarojs__vite-runner@4.1.9.patch
