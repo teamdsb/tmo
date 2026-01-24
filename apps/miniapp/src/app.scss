@@ -1,1 +1,291 @@
-/* placeholder */
+@import url("@taroify/core/index.css");
+@import url("@taroify/icons/index.css");
+@import url("./styles/tailwind.generated.css");
+
+.page {
+  min-height: 100vh;
+  background: #f6f7f8;
+}
+
+.page-search {
+  padding: 12px 16px;
+  background: #fff;
+}
+
+.page-home .page-search {
+  margin-top: 20px;
+}
+
+.page-content {
+  padding: 16px;
+}
+
+.page-subtitle {
+  font-size: 12px;
+  color: #617589;
+}
+
+.page-grid {
+  margin-top: 12px;
+}
+
+.section-header {
+  margin: 16px 0 8px;
+}
+
+.section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #617589;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.section-link {
+  font-size: 11px;
+  font-weight: 600;
+  color: #137fec;
+}
+
+.section-subtitle {
+  font-size: 12px;
+  color: #617589;
+}
+
+.section-notice {
+  margin-top: 8px;
+}
+
+.placeholder-actions {
+  margin-top: 16px;
+}
+
+.product-card {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 6%);
+}
+
+.product-card-body {
+  padding: 12px;
+}
+
+.product-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #111418;
+  margin-bottom: 4px;
+}
+
+.product-card-price {
+  font-size: 14px;
+  font-weight: 700;
+  color: #137fec;
+}
+
+.product-card-min {
+  font-size: 11px;
+  color: #617589;
+  margin-bottom: 8px;
+}
+
+.order-id {
+  font-size: 12px;
+  font-weight: 700;
+  color: #111418;
+  display: block;
+}
+
+.order-date {
+  font-size: 10px;
+  color: #617589;
+  display: block;
+}
+
+.order-title {
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #111418;
+}
+
+.order-meta {
+  font-size: 11px;
+  color: #617589;
+}
+
+.order-price {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.order-label {
+  font-size: 10px;
+  color: #617589;
+}
+
+.order-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: #111418;
+}
+
+.order-images {
+  margin-top: 10px;
+}
+
+.order-more {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #eef1f4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #617589;
+}
+
+.order-actions {
+  margin-top: 12px;
+}
+
+.confirm-card {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 6%);
+}
+
+.confirm-card-body {
+  padding: 10px 12px 12px;
+}
+
+.confirm-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #111418;
+}
+
+.confirm-card-qty {
+  font-size: 11px;
+  color: #617589;
+}
+
+.action-bar {
+  padding: 12px 16px;
+  background: #fff;
+  border-top: 1px solid #eef1f4;
+}
+
+.media {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.media-counter {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+}
+
+.product-header {
+  margin-top: 16px;
+  background: #fff;
+  padding: 12px 16px;
+  border-radius: 12px;
+}
+
+.product-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111418;
+}
+
+.product-price {
+  text-align: right;
+}
+
+.product-price-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #137fec;
+  display: block;
+}
+
+.product-price-note {
+  font-size: 10px;
+  color: #617589;
+}
+
+.product-meta {
+  margin-top: 8px;
+}
+
+.product-meta-text {
+  font-size: 11px;
+  color: #617589;
+}
+
+.product-section {
+  margin-top: 12px;
+  background: #fff;
+  padding: 12px 16px;
+  border-radius: 12px;
+}
+
+.tier-card {
+  background: #f5f7fa;
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+}
+
+.tier-card-highlight {
+  background: #e8f2ff;
+}
+
+.tier-card-range {
+  font-size: 10px;
+  color: #617589;
+}
+
+.tier-card-price {
+  font-size: 12px;
+  font-weight: 700;
+  color: #111418;
+}
+
+.tier-card-discount {
+  font-size: 10px;
+  color: #2b8a3e;
+}
+
+.recommend-card {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 6%);
+}
+
+.recommend-card-body {
+  padding: 10px 12px 12px;
+}
+
+.recommend-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #111418;
+  margin-bottom: 4px;
+}
+
+.recommend-card-price {
+  font-size: 12px;
+  font-weight: 700;
+  color: #137fec;
+  margin-bottom: 8px;
+}

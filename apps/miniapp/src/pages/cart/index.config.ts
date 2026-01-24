@@ -1,3 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: 'Import Results'
+  navigationBarTitleText: 'Import Results',
+  navigationStyle: 'custom'
 })

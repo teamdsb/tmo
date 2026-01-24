@@ -1,5 +1,6 @@
 import { View, Text } from '@tarojs/components';
-import { Cell, Button, Image, Grid, Tabbar, Badge, Flex } from '@taroify/core';
+import { Cell, Button, Image, Grid, Badge, Flex } from '@taroify/core';
+import Navbar from '@taroify/core/navbar'
 import { 
   ServiceOutlined, 
   ChatOutlined, 
@@ -11,14 +12,15 @@ import {
   LocationOutlined, 
   BarChartOutlined, 
   SettingOutlined, 
-  WapHomeOutlined, 
-  GuideOutlined, 
-  ShoppingCartOutlined, 
-  AppsOutlined, 
-  UserOutlined 
+  AppsOutlined
 } from '@taroify/icons';
+import AppTabbar from '../../components/app-tabbar';
+import { ROUTES } from '../../routes';
+import { getNavbarStyle } from '../../utils/navbar'
+import { navigateTo, switchTabLike } from '../../utils/navigation';
 
 export default function PersonalCenter() {
+  const navbarStyle = getNavbarStyle()
   const userInfo = {
     name: 'John Doe',
     company: 'TechFlow Solutions Corp',
@@ -26,7 +28,9 @@ export default function PersonalCenter() {
   };
 
   return (
-    <View className='min-h-screen bg-[#f7f8fa] pb-24 text-gray-900 font-sans'>
+    <View className='page pb-24 text-gray-900 font-sans'>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
+      </Navbar>
       {/* Header Section */}
       <View className='bg-white pt-12 pb-8 px-4 mb-3'>
         <Flex align='center' className='gap-4'>
@@ -55,6 +59,7 @@ export default function PersonalCenter() {
           icon={<ServiceOutlined className='text-gray-500' />}
           align='center'
           clickable
+          onClick={() => navigateTo(ROUTES.support)}
         >
           <Button shape='round' size='small' color='primary'>
             <ChatOutlined />
@@ -64,17 +69,25 @@ export default function PersonalCenter() {
 
       {/* Order Tracking Section (Using Cell + Grid) */}
       <Cell.Group inset className='mb-3'>
-        <Cell title='Order Tracking' isLink rightIcon={<Text className='text-xs text-gray-400'>View All</Text>} />
+        <Cell
+          title='Order Tracking'
+          isLink
+          rightIcon={<Text className='text-xs text-gray-400'>View All</Text>}
+          onClick={() => switchTabLike(ROUTES.orders)}
+        />
         <Grid columns={4} bordered={false}>
-          <Grid.Item icon={(
-            <Badge content='2'>
-              <OrdersOutlined />
-            </Badge>
-          )} text='Pending'
+          <Grid.Item
+            icon={(
+              <Badge content='2'>
+                <OrdersOutlined />
+              </Badge>
+            )}
+            text='Pending'
+            onClick={() => switchTabLike(ROUTES.orders)}
           />
-          <Grid.Item icon={<Logistics />} text='Shipped' />
-          <Grid.Item icon={<TodoList />} text='Delivered' />
-          <Grid.Item icon={<Exchange />} text='Returns' />
+          <Grid.Item icon={<Logistics />} text='Shipped' onClick={() => switchTabLike(ROUTES.orders)} />
+          <Grid.Item icon={<TodoList />} text='Delivered' onClick={() => switchTabLike(ROUTES.orders)} />
+          <Grid.Item icon={<Exchange />} text='Returns' onClick={() => switchTabLike(ROUTES.orders)} />
         </Grid>
       </Cell.Group>
 
@@ -83,12 +96,14 @@ export default function PersonalCenter() {
         <Cell 
           title='My Demand Requests' 
           icon={<Description className='text-gray-500' />} 
-          isLink 
+          isLink
+          onClick={() => navigateTo(ROUTES.demandList)}
         />
         <Cell 
           title='Shipping Address' 
           icon={<LocationOutlined className='text-gray-500' />} 
-          isLink 
+          isLink
+          onClick={() => navigateTo(ROUTES.addressList)}
         />
       </Cell.Group>
 
@@ -97,12 +112,14 @@ export default function PersonalCenter() {
         <Cell 
           title='Bulk Excel Import' 
           icon={<AppsOutlined className='text-gray-500' />} 
-          isLink 
+          isLink
+          onClick={() => navigateTo(ROUTES.import)}
         />
         <Cell 
           title='Batch Tracking' 
           icon={<BarChartOutlined className='text-gray-500' />} 
-          isLink 
+          isLink
+          onClick={() => navigateTo(ROUTES.trackingBatch)}
         />
       </Cell.Group>
 
@@ -111,7 +128,8 @@ export default function PersonalCenter() {
         <Cell 
           title='System Settings' 
           icon={<SettingOutlined className='text-gray-500' />} 
-          isLink 
+          isLink
+          onClick={() => navigateTo(ROUTES.settings)}
         />
       </Cell.Group>
 
@@ -123,13 +141,7 @@ export default function PersonalCenter() {
       </View>
 
       {/* Bottom Navigation (Tabbar) */}
-      <Tabbar fixed placeholder value='mine'>
-        <Tabbar.TabItem icon={<WapHomeOutlined />} value='home'>Home</Tabbar.TabItem>
-        <Tabbar.TabItem icon={<GuideOutlined />} value='demand'>Demand</Tabbar.TabItem>
-        <Tabbar.TabItem icon={<ShoppingCartOutlined />} value='cart'>Cart</Tabbar.TabItem>
-        <Tabbar.TabItem icon={<OrdersOutlined />} value='orders'>Orders</Tabbar.TabItem>
-        <Tabbar.TabItem icon={<UserOutlined />} value='mine'>Mine</Tabbar.TabItem>
-      </Tabbar>
+      <AppTabbar value='mine' />
     </View>
   );
 }

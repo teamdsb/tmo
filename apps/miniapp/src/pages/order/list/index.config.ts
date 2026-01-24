@@ -1,3 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: 'Order History'
+  navigationBarTitleText: 'Order History',
+  navigationStyle: 'custom'
 })
