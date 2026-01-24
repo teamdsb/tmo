@@ -12,14 +12,16 @@ import ArrowRight from '@taroify/icons/ArrowRight'
 import Logistics from '@taroify/icons/Logistics'
 import Star from '@taroify/icons/Star'
 import AppTabbar from '../../../components/app-tabbar'
+import { getNavbarStyle } from '../../../utils/navbar'
 
 export default function ProductDetail() {
   const [selectedMaterial, setSelectedMaterial] = useState('Stainless Steel')
   const [selectedSize, setSelectedSize] = useState('50mm')
+  const navbarStyle = getNavbarStyle()
 
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder safeArea='top'>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
       </Navbar>
 
       <View className='page-content'>

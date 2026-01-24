@@ -14,6 +14,7 @@ import SearchIcon from '@taroify/icons/Search'
 import ShoppingCartOutlined from '@taroify/icons/ShoppingCartOutlined'
 import AppTabbar from '../../components/app-tabbar'
 import { goodsDetailRoute } from '../../routes'
+import { getNavbarStyle } from '../../utils/navbar'
 import { navigateTo } from '../../utils/navigation'
 
 const PRODUCTS = [
@@ -60,10 +61,11 @@ const CATEGORIES = ['Electronics', 'Office Supplies', 'Industrial Tools', 'Packa
 export default function ProductCatalogApp() {
   const [activeCategory, setActiveCategory] = useState(CATEGORIES[0])
   const [searchQuery, setSearchQuery] = useState('')
+  const navbarStyle = getNavbarStyle()
 
   return (
     <View className='page page-home'>
-      <Navbar bordered fixed placeholder safeArea='top'>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
       </Navbar>
 
       <View className='page-search'>

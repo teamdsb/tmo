@@ -1,19 +1,10 @@
 @import url("@taroify/core/index.css");
 @import url("@taroify/icons/index.css");
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import url("./styles/tailwind.generated.css");
 
 .page {
   min-height: 100vh;
   background: #f6f7f8;
-}
-
-.page-home,
-.page-compact-navbar {
-  --navbar-height: 10px;
-  --navbar-line-height: 10px;
 }
 
 .page-search {

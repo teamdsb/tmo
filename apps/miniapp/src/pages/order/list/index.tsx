@@ -10,6 +10,7 @@ import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
 import AppTabbar from '../../../components/app-tabbar'
 import { orderDetailRoute, orderTrackingRoute } from '../../../routes'
+import { getNavbarStyle } from '../../../utils/navbar'
 import { navigateTo } from '../../../utils/navigation'
 
 const ORDERS = [
@@ -69,10 +70,11 @@ const TABS = ['All', 'Pending Intent', 'Confirmed', 'Shipped', 'Completed']
 export default function OrderHistoryApp() {
   const [activeTab, setActiveTab] = useState(TABS[0])
   const [searchQuery, setSearchQuery] = useState('')
+  const navbarStyle = getNavbarStyle()
 
   return (
     <View className='page page-compact-navbar'>
-      <Navbar bordered fixed placeholder safeArea='top'>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
       </Navbar>
 
       <View className='page-search'>

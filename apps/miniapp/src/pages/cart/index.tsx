@@ -13,9 +13,11 @@ import FixedView from '@taroify/core/fixed-view'
 import QuestionOutlined from '@taroify/icons/QuestionOutlined'
 import WarningOutlined from '@taroify/icons/WarningOutlined'
 import AppTabbar from '../../components/app-tabbar'
+import { getNavbarStyle } from '../../utils/navbar'
 
 export default function ExcelImportConfirmation() {
   const [activeTab, setActiveTab] = useState('to-confirm')
+  const navbarStyle = getNavbarStyle()
 
   const pendingItems = [
     {
@@ -47,7 +49,7 @@ export default function ExcelImportConfirmation() {
 
   return (
     <View className='page page-compact-navbar'>
-      <Navbar bordered fixed placeholder safeArea='top'>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
       </Navbar>
 
       <View className='page-content'>

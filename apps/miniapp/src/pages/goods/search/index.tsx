@@ -10,10 +10,12 @@ import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
 import Plus from '@taroify/icons/Plus'
 import { ROUTES } from '../../../routes'
+import { getNavbarStyle } from '../../../utils/navbar'
 import { navigateTo } from '../../../utils/navigation'
 
 export default function SearchEmptyState() {
   const [searchValue, setSearchValue] = useState('Industrial Drill 5000')
+  const navbarStyle = getNavbarStyle()
 
   const recommendations = [
     {
@@ -36,7 +38,7 @@ export default function SearchEmptyState() {
 
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder safeArea='top'>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
       </Navbar>
 
       <View className='page-search'>

@@ -18,15 +18,23 @@
 
 ## 导航栏高度约定
 
-当前页面使用 CSS 变量控制自定义导航栏高度。默认高度为 10px（与首页一致）。
-
-如需统一压缩高度，给页面根容器添加 `page-compact-navbar` 类即可复用该高度。
+自定义导航栏高度通过 `apps/miniapp/src/utils/navbar.ts` 动态计算（基于微信胶囊按钮与状态栏高度），并在各页面的 `Navbar` 上注入 `--navbar-height` 与 `--navbar-line-height`。这样可以保证顶部不遮挡原生区域且与胶囊按钮对齐。
 
 ## 原子 CSS (Tailwind)
 
-miniapp 已启用 Tailwind CSS 作为原子 CSS 框架。配置位于 `apps/miniapp/tailwind.config.cjs`，并在 `apps/miniapp/config/index.ts` 的 `mini.postcss` 与 `h5.postcss` 中启用 `tailwindcss` 插件；`apps/miniapp/postcss.config.cjs` 保持与 Vite 默认配置一致。全局样式入口在 `apps/miniapp/src/app.scss`，包含 `@tailwind base/components/utilities`。已禁用 preflight 以避免覆盖现有 Taroify 样式。
+miniapp 已启用 Tailwind CSS 作为原子 CSS 框架。配置位于 `apps/miniapp/tailwind.config.cjs`（已关闭 preflight），并通过 CLI 生成 `apps/miniapp/src/styles/tailwind.generated.css`，该文件由 `apps/miniapp/src/app.scss` 引入。
 
-使用方式：在 JSX 中直接添加 Tailwind utility 类（例如 `className="text-[12px] text-blue-600"`），与现有 SCSS 可以并存。
+使用方式：在 JSX 中直接添加 utility 类（例如 `className="text-sm text-blue-600"`），与现有 SCSS 可以并存。
+
+生成 Tailwind CSS（在 `apps/miniapp` 目录执行）：
+
+    pnpm run build:tailwind
+
+本地开发时如果需要实时更新 Tailwind 输出，可在另一个终端启动监听：
+
+    pnpm run dev:tailwind
+
+说明：所有 `build:*` 脚本通过 `prebuild:*` 自动执行 `build:tailwind`，`dev:weapp` 只会先生成一次，如需热更新请额外运行 `dev:tailwind`。
 
 ## 测试命令
 

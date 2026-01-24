@@ -1,5 +1,6 @@
 import { View, Text } from '@tarojs/components';
-import { Cell, Button, Image, Grid, Badge, Flex, SafeArea } from '@taroify/core';
+import { Cell, Button, Image, Grid, Badge, Flex } from '@taroify/core';
+import Navbar from '@taroify/core/navbar'
 import { 
   ServiceOutlined, 
   ChatOutlined, 
@@ -15,9 +16,11 @@ import {
 } from '@taroify/icons';
 import AppTabbar from '../../components/app-tabbar';
 import { ROUTES } from '../../routes';
+import { getNavbarStyle } from '../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../utils/navigation';
 
 export default function PersonalCenter() {
+  const navbarStyle = getNavbarStyle()
   const userInfo = {
     name: 'John Doe',
     company: 'TechFlow Solutions Corp',
@@ -26,7 +29,8 @@ export default function PersonalCenter() {
 
   return (
     <View className='page pb-24 text-gray-900 font-sans'>
-      <SafeArea position='top' />
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
+      </Navbar>
       {/* Header Section */}
       <View className='bg-white pt-12 pb-8 px-4 mb-3'>
         <Flex align='center' className='gap-4'>
