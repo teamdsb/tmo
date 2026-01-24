@@ -11,7 +11,6 @@ import Flex from '@taroify/core/flex'
 import AppsOutlined from '@taroify/icons/AppsOutlined'
 import BullhornOutlined from '@taroify/icons/BullhornOutlined'
 import FilterOutlined from '@taroify/icons/FilterOutlined'
-import MoreOutlined from '@taroify/icons/MoreOutlined'
 import SearchIcon from '@taroify/icons/Search'
 import ShoppingCartOutlined from '@taroify/icons/ShoppingCartOutlined'
 import AppTabbar from '../../components/app-tabbar'
@@ -66,10 +65,6 @@ export default function ProductCatalogApp() {
   return (
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top'>
-        <Navbar.NavLeft>
-          <Button variant='text' size='small' icon={<MoreOutlined />} />
-        </Navbar.NavLeft>
-        <Navbar.Title>Product Catalog</Navbar.Title>
         <Navbar.NavRight>
           <Button variant='text' size='small' icon={<BullhornOutlined />} />
         </Navbar.NavRight>

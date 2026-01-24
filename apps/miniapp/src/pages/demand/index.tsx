@@ -9,7 +9,6 @@ export default function DemandHome() {
   return (
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top'>
-        <Navbar.Title>Demand</Navbar.Title>
       </Navbar>
       <View className='page-content'>
         <Text className='section-title'>Demand is under construction</Text>

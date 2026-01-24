@@ -10,7 +10,6 @@ import Grid from '@taroify/core/grid'
 import Image from '@taroify/core/image'
 import Flex from '@taroify/core/flex'
 import FixedView from '@taroify/core/fixed-view'
-import ArrowLeft from '@taroify/icons/ArrowLeft'
 import QuestionOutlined from '@taroify/icons/QuestionOutlined'
 import WarningOutlined from '@taroify/icons/WarningOutlined'
 import AppTabbar from '../../components/app-tabbar'
@@ -49,10 +48,6 @@ export default function ExcelImportConfirmation() {
   return (
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top'>
-        <Navbar.NavLeft>
-          <Button variant='text' size='small' icon={<ArrowLeft />} />
-        </Navbar.NavLeft>
-        <Navbar.Title>Import Results</Navbar.Title>
       </Navbar>
 
       <View className='page-content'>

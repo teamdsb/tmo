@@ -18,7 +18,6 @@ export default function PlaceholderPage({
   return (
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top'>
-        <Navbar.Title>{title}</Navbar.Title>
       </Navbar>
       <View className='page-content'>
         <Text className='section-title'>{title}</Text>

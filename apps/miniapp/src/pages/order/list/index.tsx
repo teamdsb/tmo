@@ -8,7 +8,6 @@ import Tag from '@taroify/core/tag'
 import Image from '@taroify/core/image'
 import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
-import ArrowLeft from '@taroify/icons/ArrowLeft'
 import FilterOutlined from '@taroify/icons/FilterOutlined'
 import AppTabbar from '../../../components/app-tabbar'
 import { orderDetailRoute, orderTrackingRoute } from '../../../routes'
@@ -75,10 +74,6 @@ export default function OrderHistoryApp() {
   return (
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top'>
-        <Navbar.NavLeft>
-          <Button variant='text' size='small' icon={<ArrowLeft />} />
-        </Navbar.NavLeft>
-        <Navbar.Title>Order History</Navbar.Title>
         <Navbar.NavRight>
           <Button variant='text' size='small' icon={<FilterOutlined />} />
         </Navbar.NavRight>

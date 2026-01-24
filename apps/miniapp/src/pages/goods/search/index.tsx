@@ -42,7 +42,6 @@ export default function SearchEmptyState() {
         <Navbar.NavLeft>
           <Button variant='text' size='small' icon={<ArrowLeft />} />
         </Navbar.NavLeft>
-        <Navbar.Title>Search Results</Navbar.Title>
         <Navbar.NavRight>
           <Button variant='text' size='small' icon={<MoreOutlined />} />
         </Navbar.NavRight>

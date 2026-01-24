@@ -8,7 +8,6 @@ import Cell from '@taroify/core/cell'
 import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
 import FixedView from '@taroify/core/fixed-view'
-import ArrowLeft from '@taroify/icons/ArrowLeft'
 import ArrowRight from '@taroify/icons/ArrowRight'
 import Like from '@taroify/icons/Like'
 import Logistics from '@taroify/icons/Logistics'
@@ -24,10 +23,6 @@ export default function ProductDetail() {
   return (
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top'>
-        <Navbar.NavLeft>
-          <Button variant='text' size='small' icon={<ArrowLeft />} />
-        </Navbar.NavLeft>
-        <Navbar.Title>Control Valve SKU-902</Navbar.Title>
         <Navbar.NavRight>
           <Flex align='center' gutter={8}>
             <Button
