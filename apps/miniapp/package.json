@@ -12,7 +12,6 @@
   "scripts": {
     "prepare": "husky",
     "new": "taro new",
-    "lint": "eslint \"src/**/*.{ts,tsx,js,jsx}\"",
     "build:weapp": "taro build --type weapp",
     "build:swan": "taro build --type swan",
     "build:alipay": "taro build --type alipay",
@@ -30,7 +29,13 @@
     "dev:rn": "npm run build:rn -- --watch",
     "dev:qq": "npm run build:qq -- --watch",
     "dev:jd": "npm run build:jd -- --watch",
-    "dev:harmony-hybrid": "npm run build:harmony-hybrid -- --watch"
+    "dev:harmony-hybrid": "npm run build:harmony-hybrid -- --watch",
+    "test": "jest --runInBand",
+    "lint": "pnpm run lint:eslint && pnpm run lint:styles && pnpm run lint:types",
+    "lint:eslint": "eslint \"{src,config}/**/*.{ts,tsx,js,jsx}\" --max-warnings=0 --cache",
+    "lint:styles": "stylelint \"src/**/*.{scss,css}\"",
+    "lint:types": "tsc -p tsconfig.json --noEmit",
+    "lint:fix": "eslint \"{src,config}/**/*.{ts,tsx,js,jsx}\" --max-warnings=0 --cache --fix && stylelint \"src/**/*.{scss,css}\" --fix"
   },
   "browserslist": [
     "defaults and fully supports es6-module",
@@ -54,8 +59,11 @@
     "@tarojs/taro": "4.1.9",
     "@tarojs/plugin-framework-react": "4.1.9",
     "@tarojs/react": "4.1.9",
+    "@taroify/core": "^0.9.0",
+    "@taroify/icons": "^0.9.0",
     "@tmo/commerce-services": "workspace:*",
     "@tmo/identity-services": "workspace:*",
+    "lucide-react": "^0.469.0",
     "react-dom": "^18.0.0",
     "react": "^18.0.0"
   },
@@ -85,6 +93,12 @@
     "sass": "^1.75.0",
     "typescript": "^5.4.5",
     "postcss": "^8.5.6",
-    "@types/minimatch": "^5"
+    "@types/minimatch": "^5",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^14.3.1",
+    "@types/jest": "^29.5.14",
+    "babel-jest": "^29.7.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
   }
 }
