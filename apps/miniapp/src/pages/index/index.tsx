@@ -9,7 +9,6 @@ import Tag from '@taroify/core/tag'
 import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
 import AppsOutlined from '@taroify/icons/AppsOutlined'
-import BullhornOutlined from '@taroify/icons/BullhornOutlined'
 import FilterOutlined from '@taroify/icons/FilterOutlined'
 import SearchIcon from '@taroify/icons/Search'
 import ShoppingCartOutlined from '@taroify/icons/ShoppingCartOutlined'
@@ -63,11 +62,8 @@ export default function ProductCatalogApp() {
   const [searchQuery, setSearchQuery] = useState('')
 
   return (
-    <View className='page'>
+    <View className='page page--home'>
       <Navbar bordered fixed placeholder safeArea='top'>
-        <Navbar.NavRight>
-          <Button variant='text' size='small' icon={<BullhornOutlined />} />
-        </Navbar.NavRight>
       </Navbar>
 
       <View className='page-search'>

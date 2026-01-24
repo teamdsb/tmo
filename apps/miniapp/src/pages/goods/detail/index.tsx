@@ -9,31 +9,17 @@ import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
 import FixedView from '@taroify/core/fixed-view'
 import ArrowRight from '@taroify/icons/ArrowRight'
-import Like from '@taroify/icons/Like'
 import Logistics from '@taroify/icons/Logistics'
-import Share from '@taroify/icons/Share'
 import Star from '@taroify/icons/Star'
 import AppTabbar from '../../../components/app-tabbar'
 
 export default function ProductDetail() {
   const [selectedMaterial, setSelectedMaterial] = useState('Stainless Steel')
   const [selectedSize, setSelectedSize] = useState('50mm')
-  const [isFavorite, setIsFavorite] = useState(false)
 
   return (
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top'>
-        <Navbar.NavRight>
-          <Flex align='center' gutter={8}>
-            <Button
-              variant='text'
-              size='small'
-              icon={<Like color={isFavorite ? '#ef4444' : undefined} />}
-              onClick={() => setIsFavorite(!isFavorite)}
-            />
-            <Button variant='text' size='small' icon={<Share />} />
-          </Flex>
-        </Navbar.NavRight>
       </Navbar>
 
       <View className='page-content'>

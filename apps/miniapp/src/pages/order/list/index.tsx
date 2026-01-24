@@ -8,7 +8,6 @@ import Tag from '@taroify/core/tag'
 import Image from '@taroify/core/image'
 import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
-import FilterOutlined from '@taroify/icons/FilterOutlined'
 import AppTabbar from '../../../components/app-tabbar'
 import { orderDetailRoute, orderTrackingRoute } from '../../../routes'
 import { navigateTo } from '../../../utils/navigation'
@@ -72,11 +71,8 @@ export default function OrderHistoryApp() {
   const [searchQuery, setSearchQuery] = useState('')
 
   return (
-    <View className='page'>
+    <View className='page page--compact-navbar'>
       <Navbar bordered fixed placeholder safeArea='top'>
-        <Navbar.NavRight>
-          <Button variant='text' size='small' icon={<FilterOutlined />} />
-        </Navbar.NavRight>
       </Navbar>
 
       <View className='page-search'>

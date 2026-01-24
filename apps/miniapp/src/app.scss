@@ -6,6 +6,16 @@
   background: #f6f7f8;
 }
 
+.page--home,
+.page--compact-navbar {
+  --navbar-height: 10px;
+  --navbar-line-height: 10px;
+}
+
+.page--home .page-search {
+  margin-top: 20px;
+}
+
 .page-search {
   padding: 12px 16px;
   background: #fff;

@@ -8,8 +8,6 @@ import Image from '@taroify/core/image'
 import Tag from '@taroify/core/tag'
 import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
-import ArrowLeft from '@taroify/icons/ArrowLeft'
-import MoreOutlined from '@taroify/icons/MoreOutlined'
 import Plus from '@taroify/icons/Plus'
 import { ROUTES } from '../../../routes'
 import { navigateTo } from '../../../utils/navigation'
@@ -39,12 +37,6 @@ export default function SearchEmptyState() {
   return (
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top'>
-        <Navbar.NavLeft>
-          <Button variant='text' size='small' icon={<ArrowLeft />} />
-        </Navbar.NavLeft>
-        <Navbar.NavRight>
-          <Button variant='text' size='small' icon={<MoreOutlined />} />
-        </Navbar.NavRight>
       </Navbar>
 
       <View className='page-search'>

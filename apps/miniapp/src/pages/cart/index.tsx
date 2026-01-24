@@ -46,7 +46,7 @@ export default function ExcelImportConfirmation() {
   ]
 
   return (
-    <View className='page'>
+    <View className='page page--compact-navbar'>
       <Navbar bordered fixed placeholder safeArea='top'>
       </Navbar>
 
