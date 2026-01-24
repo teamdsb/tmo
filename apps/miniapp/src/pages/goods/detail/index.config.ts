@@ -1,3 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: 'Product Detail'
+  navigationBarTitleText: 'Product Detail',
+  navigationStyle: 'custom'
 })

@@ -48,7 +48,7 @@ export default function ExcelImportConfirmation() {
 
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder>
+      <Navbar bordered fixed placeholder safeArea='top'>
         <Navbar.NavLeft>
           <Button variant='text' size='small' icon={<ArrowLeft />} />
         </Navbar.NavLeft>

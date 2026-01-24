@@ -32,7 +32,13 @@ export default function AppTabbar({ value, fixed = true, placeholder = true }: A
   }
 
   return (
-    <Tabbar value={value} fixed={fixed} placeholder={placeholder} onChange={(next) => handleChange(next as AppTabKey)}>
+    <Tabbar
+      value={value}
+      fixed={fixed}
+      placeholder={placeholder}
+      safeArea={fixed ? 'bottom' : undefined}
+      onChange={(next) => handleChange(next as AppTabKey)}
+    >
       {TAB_ITEMS.map((item) => (
         <Tabbar.TabItem key={item.key} value={item.key} icon={item.icon}>
           {item.label}

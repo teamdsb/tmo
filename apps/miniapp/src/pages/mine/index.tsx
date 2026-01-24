@@ -1,5 +1,5 @@
 import { View, Text } from '@tarojs/components';
-import { Cell, Button, Image, Grid, Badge, Flex } from '@taroify/core';
+import { Cell, Button, Image, Grid, Badge, Flex, SafeArea } from '@taroify/core';
 import { 
   ServiceOutlined, 
   ChatOutlined, 
@@ -26,6 +26,7 @@ export default function PersonalCenter() {
 
   return (
     <View className='min-h-screen bg-[#f7f8fa] pb-24 text-gray-900 font-sans'>
+      <SafeArea position='top' />
       {/* Header Section */}
       <View className='bg-white pt-12 pb-8 px-4 mb-3'>
         <Flex align='center' className='gap-4'>

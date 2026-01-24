@@ -8,12 +8,10 @@ import Image from '@taroify/core/image'
 import Tag from '@taroify/core/tag'
 import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
-import FloatingBubble from '@taroify/core/floating-bubble'
 import AppsOutlined from '@taroify/icons/AppsOutlined'
 import BullhornOutlined from '@taroify/icons/BullhornOutlined'
 import FilterOutlined from '@taroify/icons/FilterOutlined'
 import MoreOutlined from '@taroify/icons/MoreOutlined'
-import Plus from '@taroify/icons/Plus'
 import SearchIcon from '@taroify/icons/Search'
 import ShoppingCartOutlined from '@taroify/icons/ShoppingCartOutlined'
 import AppTabbar from '../../components/app-tabbar'
@@ -67,7 +65,7 @@ export default function ProductCatalogApp() {
 
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder>
+      <Navbar bordered fixed placeholder safeArea='top'>
         <Navbar.NavLeft>
           <Button variant='text' size='small' icon={<MoreOutlined />} />
         </Navbar.NavLeft>
@@ -116,8 +114,6 @@ export default function ProductCatalogApp() {
           </Tabs.TabPane>
         ))}
       </Tabs>
-
-      <FloatingBubble icon={<Plus />} magnetic='x' />
 
       <AppTabbar value='home' />
     </View>

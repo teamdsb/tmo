@@ -8,7 +8,7 @@ import { switchTabLike } from '../../utils/navigation'
 export default function DemandHome() {
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder>
+      <Navbar bordered fixed placeholder safeArea='top'>
         <Navbar.Title>Demand</Navbar.Title>
       </Navbar>
       <View className='page-content'>
