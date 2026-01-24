@@ -59,7 +59,7 @@ func TestMiniLoginCreatesCustomer(t *testing.T) {
 		t.Fatalf("decode auth response: %v", err)
 	}
 
-	if authResponse.User.UserType != oapi.Customer {
+	if authResponse.User.UserType != oapi.UserUserTypeCustomer {
 		t.Fatalf("expected userType customer, got %s", authResponse.User.UserType)
 	}
 
@@ -71,7 +71,7 @@ func TestMiniLoginCreatesCustomer(t *testing.T) {
 	if err := json.NewDecoder(meResp.Body).Decode(&me); err != nil {
 		t.Fatalf("decode me: %v", err)
 	}
-	if me.UserType != oapi.Customer {
+	if me.UserType != oapi.UserUserTypeCustomer {
 		t.Fatalf("expected /me userType customer, got %s", me.UserType)
 	}
 }
@@ -128,7 +128,7 @@ func TestMiniLoginRoleConflict(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&authResponse); err != nil {
 		t.Fatalf("decode auth response: %v", err)
 	}
-	if authResponse.User.UserType != oapi.Staff {
+	if authResponse.User.UserType != oapi.UserUserTypeStaff {
 		t.Fatalf("expected userType staff, got %s", authResponse.User.UserType)
 	}
 }
@@ -170,6 +170,114 @@ func TestSalesQrCode(t *testing.T) {
 	}
 }
 
+func TestStaffBindingTokenFlow(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedAdmin(ctx, pool); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+
+	adminLogin := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": adminUsername,
+		"password": adminPassword,
+	}, "")
+	if adminLogin.Code != http.StatusOK {
+		t.Fatalf("expected admin login 200, got %d: %s", adminLogin.Code, adminLogin.Body.String())
+	}
+	var adminAuth oapi.AuthResponse
+	if err := json.NewDecoder(adminLogin.Body).Decode(&adminAuth); err != nil {
+		t.Fatalf("decode admin auth: %v", err)
+	}
+
+	createResp := doJSON(t, router, http.MethodPost, "/staff", map[string]interface{}{
+		"displayName": "Staff A",
+		"roles":       []string{"SALES"},
+	}, adminAuth.AccessToken)
+	if createResp.Code != http.StatusCreated {
+		t.Fatalf("expected staff create 201, got %d: %s", createResp.Code, createResp.Body.String())
+	}
+	var staff oapi.StaffUser
+	if err := json.NewDecoder(createResp.Body).Decode(&staff); err != nil {
+		t.Fatalf("decode staff: %v", err)
+	}
+
+	staffID := uuid.UUID(staff.Id)
+	bindingResp := doJSON(t, router, http.MethodPost, "/staff/"+staffID.String()+"/bindings", map[string]interface{}{
+		"platform": "weapp",
+	}, adminAuth.AccessToken)
+	if bindingResp.Code != http.StatusCreated {
+		t.Fatalf("expected binding 201, got %d: %s", bindingResp.Code, bindingResp.Body.String())
+	}
+	var token oapi.StaffBindingToken
+	if err := json.NewDecoder(bindingResp.Body).Decode(&token); err != nil {
+		t.Fatalf("decode binding token: %v", err)
+	}
+
+	bindLogin := doJSON(t, router, http.MethodPost, "/auth/mini/login", map[string]interface{}{
+		"platform":     "weapp",
+		"code":         "mock_staff_001",
+		"bindingToken": token.Token,
+		"role":         "SALES",
+	}, "")
+	if bindLogin.Code != http.StatusOK {
+		t.Fatalf("expected staff login 200, got %d: %s", bindLogin.Code, bindLogin.Body.String())
+	}
+	var staffAuth oapi.AuthResponse
+	if err := json.NewDecoder(bindLogin.Body).Decode(&staffAuth); err != nil {
+		t.Fatalf("decode staff auth: %v", err)
+	}
+	if staffAuth.User.UserType != oapi.UserUserTypeStaff {
+		t.Fatalf("expected staff userType, got %s", staffAuth.User.UserType)
+	}
+}
+
+func TestMePermissions(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedAdmin(ctx, pool); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+
+	adminLogin := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": adminUsername,
+		"password": adminPassword,
+	}, "")
+	if adminLogin.Code != http.StatusOK {
+		t.Fatalf("expected admin login 200, got %d: %s", adminLogin.Code, adminLogin.Body.String())
+	}
+	var adminAuth oapi.AuthResponse
+	if err := json.NewDecoder(adminLogin.Body).Decode(&adminAuth); err != nil {
+		t.Fatalf("decode admin auth: %v", err)
+	}
+
+	permResp := doJSON(t, router, http.MethodGet, "/me/permissions", nil, adminAuth.AccessToken)
+	if permResp.Code != http.StatusOK {
+		t.Fatalf("expected permissions 200, got %d: %s", permResp.Code, permResp.Body.String())
+	}
+	var perms oapi.PermissionList
+	if err := json.NewDecoder(permResp.Body).Decode(&perms); err != nil {
+		t.Fatalf("decode permissions: %v", err)
+	}
+	found := false
+	for _, item := range perms.Items {
+		if item.Code == "rbac:manage" && item.Scope == oapi.ALL {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected rbac:manage permission")
+	}
+}
+
 func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool) {
 	t.Helper()
 
@@ -204,11 +312,16 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	store := db.New(pool)
 	apiHandler := &handler.Handler{
-		DB:       pool,
-		Logger:   logger,
-		Auth:     auth.NewTokenManager("test-secret", "test-issuer", 2*time.Hour),
-		Store:    store,
-		Platform: platform.NewMiniLoginResolver("", ""),
+		DB:     pool,
+		Logger: logger,
+		Auth:   auth.NewTokenManager("test-secret", "test-issuer", 2*time.Hour),
+		Store:  store,
+		Platform: platform.NewMiniLoginResolver(platform.Config{
+			Mode:            platform.LoginModeMock,
+			WeappSalesPage:  "pages/index/index",
+			WeappQRWidth:    256,
+			AlipaySalesPage: "pages/index/index",
+		}),
 	}
 
 	router := httpserver.NewRouter(apiHandler, logger, func(ctx context.Context) error {
@@ -244,7 +357,7 @@ func doJSON(t *testing.T, router http.Handler, method, path string, body interfa
 
 func resetIdentityTables(ctx context.Context, pool *pgxpool.Pool) error {
 	_, err := pool.Exec(ctx, `
-TRUNCATE TABLE sales_qr_codes, user_passwords, user_identities, user_roles, users RESTART IDENTITY CASCADE
+TRUNCATE TABLE audit_logs, staff_binding_tokens, sales_qr_codes, user_passwords, user_identities, user_roles, users RESTART IDENTITY CASCADE
 `)
 	return err
 }
@@ -322,9 +435,7 @@ func seedIdentity(ctx context.Context, pool *pgxpool.Pool, userID uuid.UUID, pro
 	_, err := pool.Exec(ctx, `
 INSERT INTO user_identities (id, provider, provider_user_id, user_id)
 VALUES ($1, $2, $3, $4)
-ON CONFLICT (provider, provider_user_id) DO UPDATE
-SET user_id = EXCLUDED.user_id,
-    updated_at = now()
+ON CONFLICT (provider, provider_user_id) DO NOTHING
 `, uuid.New(), "weapp", providerUserID, userID)
 	return err
 }

@@ -1,0 +1,138 @@
+openapi: 3.1.0
+info:
+  title: Common OpenAPI Schemas
+  version: 0.1.0
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        requestId:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+          description: 'Optional metadata (e.g. { "availableRoles": ["CUSTOMER", "SALES"] }).'
+      required:
+      - code
+      - message
+      - requestId
+    MiniLoginRequest:
+      type: object
+      properties:
+        platform:
+          type: string
+          enum:
+          - weapp
+          - alipay
+        code:
+          type: string
+        scene:
+          type: string
+          description: 'Optional: QR scene parameter for sales binding (only applied on first bind)'
+        bindingToken:
+          type: string
+          description: 'Optional: staff binding token for first-time login'
+        role:
+          type: string
+          enum:
+          - CUSTOMER
+          - SALES
+          - PROCUREMENT
+          - CS
+          description: Optional current role; required when multiple roles. ADMIN is not allowed.
+      required:
+      - platform
+      - code
+    PasswordLoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum:
+          - ADMIN
+          description: Optional; must be ADMIN when provided.
+      required:
+      - username
+      - password
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        expiresIn:
+          type: integer
+        user:
+          "$ref": "#/components/schemas/User"
+      required:
+      - accessToken
+      - expiresIn
+      - user
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userType:
+          type: string
+          enum:
+          - customer
+          - staff
+          - admin
+        status:
+          "$ref": "#/components/schemas/UserStatus"
+        displayName:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        disabledAt:
+          type: string
+          format: date-time
+          nullable: true
+        disabledReason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - userType
+      - roles
+      - createdAt
+    UserStatus:
+      type: string
+      enum:
+      - active
+      - disabled
+    SalesQrCode:
+      type: object
+      properties:
+        qrCodeUrl:
+          type: string
+        scene:
+          type: string
+          description: Scene parameter used for sales binding
+        platform:
+          type: string
+          enum:
+          - weapp
+          - alipay
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - qrCodeUrl
+      - scene

@@ -13,12 +13,14 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/teamdsb/tmo/packages/go-shared/httpx"
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
+	"github.com/teamdsb/tmo/services/commerce/internal/http/middleware"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 )
 
@@ -119,6 +121,42 @@ func TestPostOrdersIdempotencyConflict(t *testing.T) {
 	}
 }
 
+func TestPostOrdersStoresOwnerSalesUserID(t *testing.T) {
+	pool := openHandlerTestPool(t)
+	resetCommerceTables(t, pool)
+
+	queries := db.New(pool)
+	skuA, _ := seedCatalog(t, queries)
+
+	customerID := uuid.New()
+	ownerSalesID := uuid.New()
+
+	router := newAuthIntegrationRouter(pool, queries)
+	body := fmt.Sprintf(`{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"items":[{"skuId":"%s","qty":2}]}`, skuA.ID.String())
+	req := httptest.NewRequest(http.MethodPost, "/orders", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, customerID, "CUSTOMER", &ownerSalesID))
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+
+	var created oapi.Order
+	if err := json.Unmarshal(recorder.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode order response: %v", err)
+	}
+
+	fetched, err := queries.GetOrder(context.Background(), uuid.UUID(created.Id))
+	if err != nil {
+		t.Fatalf("get order: %v", err)
+	}
+	if !fetched.OwnerSalesUserID.Valid || fetched.OwnerSalesUserID.Bytes != ownerSalesID {
+		t.Fatalf("expected owner sales id %s, got %v", ownerSalesID, fetched.OwnerSalesUserID)
+	}
+}
+
 func TestTrackingUpdateKeepsOrderStatus(t *testing.T) {
 	pool := openHandlerTestPool(t)
 	resetCommerceTables(t, pool)
@@ -169,6 +207,120 @@ func TestTrackingUpdateKeepsOrderStatus(t *testing.T) {
 	}
 	if fetched.Status != string(oapi.SUBMITTED) {
 		t.Fatalf("expected status SUBMITTED, got %s", fetched.Status)
+	}
+}
+
+func TestGetOrdersSalesFiltersOwned(t *testing.T) {
+	pool := openHandlerTestPool(t)
+	resetCommerceTables(t, pool)
+
+	queries := db.New(pool)
+	skuA, _ := seedCatalog(t, queries)
+
+	customerA := uuid.New()
+	customerB := uuid.New()
+	salesA := uuid.New()
+	salesB := uuid.New()
+
+	orderOwned := seedOrderWithItem(t, queries, customerA, &salesA, skuA.ID)
+	seedOrderWithItem(t, queries, customerB, &salesB, skuA.ID)
+	seedOrderWithItem(t, queries, customerA, nil, skuA.ID)
+
+	router := newAuthIntegrationRouter(pool, queries)
+	req := httptest.NewRequest(http.MethodGet, "/orders", nil)
+	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, salesA, "SALES", nil))
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+
+	var list oapi.PagedOrderList
+	if err := json.Unmarshal(recorder.Body.Bytes(), &list); err != nil {
+		t.Fatalf("decode orders response: %v", err)
+	}
+	if len(list.Items) != 1 {
+		t.Fatalf("expected 1 order, got %d", len(list.Items))
+	}
+	if list.Items[0].Id != orderOwned.ID {
+		t.Fatalf("expected order %s, got %s", orderOwned.ID, list.Items[0].Id)
+	}
+}
+
+func TestGetOrdersCustomerFiltersSelf(t *testing.T) {
+	pool := openHandlerTestPool(t)
+	resetCommerceTables(t, pool)
+
+	queries := db.New(pool)
+	skuA, _ := seedCatalog(t, queries)
+
+	customerA := uuid.New()
+	customerB := uuid.New()
+
+	orderA := seedOrderWithItem(t, queries, customerA, nil, skuA.ID)
+	seedOrderWithItem(t, queries, customerB, nil, skuA.ID)
+
+	router := newAuthIntegrationRouter(pool, queries)
+	req := httptest.NewRequest(http.MethodGet, "/orders", nil)
+	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, customerA, "CUSTOMER", nil))
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+
+	var list oapi.PagedOrderList
+	if err := json.Unmarshal(recorder.Body.Bytes(), &list); err != nil {
+		t.Fatalf("decode orders response: %v", err)
+	}
+	if len(list.Items) != 1 {
+		t.Fatalf("expected 1 order, got %d", len(list.Items))
+	}
+	if list.Items[0].Id != orderA.ID {
+		t.Fatalf("expected order %s, got %s", orderA.ID, list.Items[0].Id)
+	}
+}
+
+func TestGetOrdersSalesRequiresOwnership(t *testing.T) {
+	pool := openHandlerTestPool(t)
+	resetCommerceTables(t, pool)
+
+	queries := db.New(pool)
+	skuA, _ := seedCatalog(t, queries)
+
+	customer := uuid.New()
+	salesA := uuid.New()
+	salesB := uuid.New()
+
+	owned := seedOrderWithItem(t, queries, customer, &salesA, skuA.ID)
+	unowned := seedOrderWithItem(t, queries, customer, nil, skuA.ID)
+
+	router := newAuthIntegrationRouter(pool, queries)
+
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/orders/%s", owned.ID), nil)
+	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, salesB, "SALES", nil))
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/orders/%s", unowned.ID), nil)
+	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, salesA, "SALES", nil))
+	recorder = httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/orders/%s", owned.ID), nil)
+	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, salesA, "SALES", nil))
+	recorder = httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", recorder.Code, recorder.Body.String())
 	}
 }
 
@@ -318,4 +470,80 @@ func newIntegrationRouter(pool *pgxpool.Pool, store *db.Queries) *gin.Engine {
 		DB:            pool,
 	})
 	return router
+}
+
+func newAuthIntegrationRouter(pool *pgxpool.Pool, store *db.Queries) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := httpx.NewRouter()
+	authenticator := middleware.NewAuthenticator(true, testJWTSecret, testJWTIssuer)
+	oapi.RegisterHandlers(router, &Handler{
+		CatalogStore:  store,
+		CartStore:     store,
+		OrderStore:    store,
+		TrackingStore: store,
+		DB:            pool,
+		Auth:          authenticator,
+	})
+	return router
+}
+
+func seedOrderWithItem(t *testing.T, queries *db.Queries, customerID uuid.UUID, ownerSalesID *uuid.UUID, skuID uuid.UUID) db.Order {
+	t.Helper()
+
+	ctx := context.Background()
+	address, _ := json.Marshal(oapi.Address{
+		ReceiverName:  "A",
+		ReceiverPhone: "1",
+		Detail:        "X",
+	})
+
+	owner := pgtype.UUID{}
+	if ownerSalesID != nil && *ownerSalesID != uuid.Nil {
+		owner = pgtype.UUID{Bytes: *ownerSalesID, Valid: true}
+	}
+
+	order, err := queries.CreateOrder(ctx, db.CreateOrderParams{
+		Status:           string(oapi.SUBMITTED),
+		CustomerID:       customerID,
+		OwnerSalesUserID: owner,
+		Address:          address,
+		Remark:           nil,
+		IdempotencyKey:   nil,
+	})
+	if err != nil {
+		t.Fatalf("create order: %v", err)
+	}
+	if _, err := queries.CreateOrderItem(ctx, db.CreateOrderItemParams{
+		OrderID:      order.ID,
+		SkuID:        skuID,
+		Qty:          1,
+		UnitPriceFen: 12000,
+	}); err != nil {
+		t.Fatalf("create order item: %v", err)
+	}
+	return order
+}
+
+const (
+	testJWTSecret = "test-secret"
+	testJWTIssuer = "test-issuer"
+)
+
+func makeAuthToken(t *testing.T, userID uuid.UUID, role string, ownerSalesUserID *uuid.UUID) string {
+	t.Helper()
+
+	claims := jwt.MapClaims{
+		"sub":  userID.String(),
+		"role": role,
+		"iss":  testJWTIssuer,
+	}
+	if ownerSalesUserID != nil && *ownerSalesUserID != uuid.Nil {
+		claims["ownerSalesUserId"] = ownerSalesUserID.String()
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signed, err := token.SignedString([]byte(testJWTSecret))
+	if err != nil {
+		t.Fatalf("sign token: %v", err)
+	}
+	return signed
 }

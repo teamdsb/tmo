@@ -18,6 +18,7 @@ Identity service for authentication, JWT issuing, and sales binding.
 - Sales: `POST /auth/mini/login` with `{"platform":"weapp","code":"mock_sales_001","role":"SALES"}`
 - Multi-role: `mock_multi_001` returns 409 with `details.availableRoles`, retry with `role`.
 - Admin password: `POST /auth/password/login` with `{"username":"admin","password":"admin123"}`
+- Staff binding: create staff + binding token (admin), then `POST /auth/mini/login` with `{"platform":"weapp","code":"mock_staff_001","bindingToken":"<token>","role":"SALES"}`
 
 ## Environment variables
 
@@ -26,7 +27,12 @@ Identity service for authentication, JWT issuing, and sales binding.
 - `IDENTITY_LOG_LEVEL` (default `info`)
 - `IDENTITY_JWT_SECRET` / `IDENTITY_JWT_ISSUER`
 - `IDENTITY_ACCESS_TOKEN_TTL` (default `168h`)
-- `IDENTITY_WEAPP_APPID` / `IDENTITY_WEAPP_APPSECRET` (empty = dev/mock)
+- `IDENTITY_LOGIN_MODE` (`mock` or `real`, default `mock`)
+- `IDENTITY_WEAPP_APPID` / `IDENTITY_WEAPP_APPSECRET` (empty + `mock` = dev/mock)
+- `IDENTITY_WEAPP_TOKEN_URL` / `IDENTITY_WEAPP_SESSION_URL` / `IDENTITY_WEAPP_QRCODE_URL`
+- `IDENTITY_WEAPP_SALES_QR_PAGE` / `IDENTITY_WEAPP_QR_WIDTH`
+- `IDENTITY_ALIPAY_APP_ID` / `IDENTITY_ALIPAY_PRIVATE_KEY` / `IDENTITY_ALIPAY_PUBLIC_KEY`
+- `IDENTITY_ALIPAY_GATEWAY_URL` / `IDENTITY_ALIPAY_SIGN_TYPE` / `IDENTITY_ALIPAY_SALES_QR_PAGE`
 
 ## Scripts
 

@@ -47,7 +47,7 @@ func run() error {
 
 	if strings.EqualFold(os.Getenv("IDENTITY_SEED_RESET"), "true") {
 		if _, err := pool.Exec(ctx, `
-TRUNCATE TABLE sales_qr_codes, user_passwords, user_identities, user_roles, users RESTART IDENTITY CASCADE
+TRUNCATE TABLE audit_logs, staff_binding_tokens, sales_qr_codes, user_passwords, user_identities, user_roles, users RESTART IDENTITY CASCADE
 `); err != nil {
 			return fmt.Errorf("reset seed data: %w", err)
 		}
@@ -165,9 +165,7 @@ func ensureIdentity(ctx context.Context, pool *pgxpool.Pool, identity seedIdenti
 	if _, err := pool.Exec(ctx, `
 INSERT INTO user_identities (id, provider, provider_user_id, user_id)
 VALUES ($1, $2, $3, $4)
-ON CONFLICT (provider, provider_user_id) DO UPDATE
-SET user_id = EXCLUDED.user_id,
-    updated_at = now()
+ON CONFLICT (provider, provider_user_id) DO NOTHING
 `, identityID, identity.Provider, identity.ProviderUserID, identity.UserID); err != nil {
 		return fmt.Errorf("seed identity %s: %w", identity.ProviderUserID, err)
 	}

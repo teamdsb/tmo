@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/oapi-codegen/runtime"
 	openapi_types "github.com/oapi-codegen/runtime/types"
+	externalRef0 "github.com/teamdsb/tmo/services/commerce/internal/http/oapi/common"
 )
 
 const (
@@ -193,18 +194,13 @@ type CreateSkuRequest struct {
 	PriceTiers *[]PriceTier       `json:"priceTiers,omitempty"`
 	SkuCode    *string            `json:"skuCode,omitempty"`
 
-	// Spec Primary spec label used for matching (e.g., size/grade)
+	// Spec Primary spec label used for matching (e.g., size/grade); store here and avoid duplicating in attributes
 	Spec *string `json:"spec,omitempty"`
 	Unit *string `json:"unit,omitempty"`
 }
 
 // ErrorResponse defines model for ErrorResponse.
-type ErrorResponse struct {
-	Code      string                  `json:"code"`
-	Details   *map[string]interface{} `json:"details,omitempty"`
-	Message   string                  `json:"message"`
-	RequestId string                  `json:"requestId"`
-}
+type ErrorResponse = externalRef0.ErrorResponse
 
 // ImportJob defines model for ImportJob.
 type ImportJob struct {
@@ -239,7 +235,7 @@ type OrderItem struct {
 	Qty int `json:"qty"`
 	Sku SKU `json:"sku"`
 
-	// UnitPriceFen Final price per unit at order time, in fen
+	// UnitPriceFen Final price per unit at order time, in fen (1/100 yuan), integer only
 	UnitPriceFen int64 `json:"unitPriceFen"`
 }
 
@@ -268,7 +264,7 @@ type PriceTier struct {
 	MaxQty *int `json:"maxQty"`
 	MinQty int  `json:"minQty"`
 
-	// UnitPriceFen Unit price in fen
+	// UnitPriceFen Unit price in fen (1/100 yuan), integer only
 	UnitPriceFen int64 `json:"unitPriceFen"`
 }
 
@@ -304,9 +300,11 @@ type SKU struct {
 	Name       string             `json:"name"`
 	PriceTiers *[]PriceTier       `json:"priceTiers,omitempty"`
 	SkuCode    *string            `json:"skuCode,omitempty"`
-	Spec       *string            `json:"spec,omitempty"`
-	SpuId      openapi_types.UUID `json:"spuId"`
-	Unit       *string            `json:"unit,omitempty"`
+
+	// Spec Canonical spec label for matching; do not duplicate in attributes
+	Spec  *string            `json:"spec,omitempty"`
+	SpuId openapi_types.UUID `json:"spuId"`
+	Unit  *string            `json:"unit,omitempty"`
 }
 
 // TrackingInfo defines model for TrackingInfo.

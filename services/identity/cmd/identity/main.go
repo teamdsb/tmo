@@ -72,7 +72,22 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 
 	authManager := auth.NewTokenManager(cfg.JWTSecret, cfg.JWTIssuer, cfg.AccessTokenTTL)
 	store := db.New(pool)
-	platformResolver := platform.NewMiniLoginResolver(cfg.WeappAppID, cfg.WeappAppSecret)
+	platformResolver := platform.NewMiniLoginResolver(platform.Config{
+		Mode:             platform.LoginMode(cfg.LoginMode),
+		WeappAppID:       cfg.WeappAppID,
+		WeappAppSecret:   cfg.WeappAppSecret,
+		WeappSessionURL:  cfg.WeappSessionURL,
+		WeappTokenURL:    cfg.WeappTokenURL,
+		WeappQRCodeURL:   cfg.WeappQRCodeURL,
+		WeappSalesPage:   cfg.WeappSalesPage,
+		WeappQRWidth:     cfg.WeappQRWidth,
+		AlipayAppID:      cfg.AlipayAppID,
+		AlipayPrivateKey: cfg.AlipayPrivateKey,
+		AlipayPublicKey:  cfg.AlipayPublicKey,
+		AlipayGatewayURL: cfg.AlipayGatewayURL,
+		AlipaySignType:   cfg.AlipaySignType,
+		AlipaySalesPage:  cfg.AlipaySalesPage,
+	})
 
 	apiHandler := &handler.Handler{
 		DB:       pool,

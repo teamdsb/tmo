@@ -9,10 +9,56 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AuditLog struct {
+	ID          uuid.UUID          `db:"id" json:"id"`
+	ActorUserID pgtype.UUID        `db:"actor_user_id" json:"actor_user_id"`
+	Action      string             `db:"action" json:"action"`
+	TargetType  *string            `db:"target_type" json:"target_type"`
+	TargetID    pgtype.UUID        `db:"target_id" json:"target_id"`
+	Metadata    []byte             `db:"metadata" json:"metadata"`
+	RequestID   *string            `db:"request_id" json:"request_id"`
+	Ip          *string            `db:"ip" json:"ip"`
+	UserAgent   *string            `db:"user_agent" json:"user_agent"`
+	CreatedAt   pgtype.Timestamptz `db:"created_at" json:"created_at"`
+}
+
+type Permission struct {
+	Code        string             `db:"code" json:"code"`
+	Description *string            `db:"description" json:"description"`
+	CreatedAt   pgtype.Timestamptz `db:"created_at" json:"created_at"`
+}
+
+type Role struct {
+	Code        string             `db:"code" json:"code"`
+	UserType    string             `db:"user_type" json:"user_type"`
+	Description *string            `db:"description" json:"description"`
+	CreatedAt   pgtype.Timestamptz `db:"created_at" json:"created_at"`
+}
+
+type RolePermission struct {
+	RoleCode       string             `db:"role_code" json:"role_code"`
+	PermissionCode string             `db:"permission_code" json:"permission_code"`
+	Scope          string             `db:"scope" json:"scope"`
+	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
+}
+
 type SalesQrCode struct {
 	Scene       string             `db:"scene" json:"scene"`
 	SalesUserID uuid.UUID          `db:"sales_user_id" json:"sales_user_id"`
 	ExpiresAt   pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
+	CreatedAt   pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	Platform    string             `db:"platform" json:"platform"`
+	QrCodeUrl   *string            `db:"qr_code_url" json:"qr_code_url"`
+	UpdatedAt   pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type StaffBindingToken struct {
+	Token       string             `db:"token" json:"token"`
+	StaffUserID uuid.UUID          `db:"staff_user_id" json:"staff_user_id"`
+	Platform    string             `db:"platform" json:"platform"`
+	ExpiresAt   pgtype.Timestamptz `db:"expires_at" json:"expires_at"`
+	UsedAt      pgtype.Timestamptz `db:"used_at" json:"used_at"`
+	CreatedBy   pgtype.UUID        `db:"created_by" json:"created_by"`
 	CreatedAt   pgtype.Timestamptz `db:"created_at" json:"created_at"`
 }
 
@@ -23,15 +69,19 @@ type User struct {
 	OwnerSalesUserID pgtype.UUID        `db:"owner_sales_user_id" json:"owner_sales_user_id"`
 	CreatedAt        pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	Status           string             `db:"status" json:"status"`
+	DisabledAt       pgtype.Timestamptz `db:"disabled_at" json:"disabled_at"`
+	DisabledReason   *string            `db:"disabled_reason" json:"disabled_reason"`
 }
 
 type UserIdentity struct {
-	ID             uuid.UUID          `db:"id" json:"id"`
-	Provider       string             `db:"provider" json:"provider"`
-	ProviderUserID string             `db:"provider_user_id" json:"provider_user_id"`
-	UserID         uuid.UUID          `db:"user_id" json:"user_id"`
-	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	ID              uuid.UUID          `db:"id" json:"id"`
+	Provider        string             `db:"provider" json:"provider"`
+	ProviderUserID  string             `db:"provider_user_id" json:"provider_user_id"`
+	UserID          uuid.UUID          `db:"user_id" json:"user_id"`
+	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	ProviderUnionID *string            `db:"provider_union_id" json:"provider_union_id"`
 }
 
 type UserPassword struct {

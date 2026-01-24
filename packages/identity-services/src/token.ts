@@ -68,6 +68,9 @@ export const createTokenStore = (key: string, devToken?: string, fallbackKey?: s
       try {
         if (token === null) {
           await removeStorage(key)
+          if (fallbackKey && fallbackKey !== key) {
+            await removeStorage(fallbackKey)
+          }
         } else {
           await setStorage(key, token)
         }
@@ -75,6 +78,9 @@ export const createTokenStore = (key: string, devToken?: string, fallbackKey?: s
         // ignore and fall back
       }
       setLocalStorage(key, token)
+      if (token === null && fallbackKey && fallbackKey !== key) {
+        setLocalStorage(fallbackKey, null)
+      }
     }
   }
 }

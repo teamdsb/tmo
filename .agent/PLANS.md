@@ -39,6 +39,7 @@
 - [x] (2026-01-23 18:28Z) 里程碑 6：新增 dev-bootstrap 与 gateway-verify 脚本，并补齐 identity/gateway README 与脚本目录说明。
 - [x] (2026-01-23 18:56Z) 里程碑 7：落地 identity TS client/services、统一 token key，并完成 miniapp 薄接入。
 - [x] (2026-01-23 18:56Z) 里程碑 8：commerce 解析 ownerSalesUserId claim，补齐 orders OWNED/SELF RBAC 并写入 owner 快照。
+- [x] (2026-01-24 16:40Z) 里程碑 9：落地 RBAC 权限码与 scope 评估、审计日志、员工管理/绑定、WeChat/Alipay 真机登录与小程序码生成；抽取 `contracts/openapi/common.yaml` 并让各 spec 引用，更新生成脚本与验证。
 - [x] 里程碑 0：把 `services/identity` 变成可编译可启动的 Go 服务骨架（config + httpx router + health/ready + db pool），并加入 `go.work`，确保 `tools/scripts/test-backend.sh` 能跑通。
 - [x] 里程碑 1：落地 identity 的 Postgres schema（migrations）+ sqlc（queries/ internal/db），并提供 migrate/seed/generate 脚本（对齐 commerce 的工作流）。
 - [x] 里程碑 2：实现 JWT 发行与校验（HMAC），并把 claim 设计为与 `services/commerce/internal/http/middleware/auth.go` 兼容（`sub` + `role`），同时在响应中按 OpenAPI 返回 `roles[]`。
@@ -48,7 +49,7 @@
 - [x] 里程碑 6：补齐 dev 体验：一键 bootstrap（起 Postgres、创建 identity 数据库、迁移、seed）、smoke 验证脚本（走网关验证）、以及 `services/identity/README.md`/`services/gateway-bff/README.md` 指引。
 - [x] 里程碑 7（前端逻辑层）：新增 `packages/identity-api-client`（orval 生成）与 `packages/identity-services`（业务逻辑层），并修改 `packages/commerce-services` 的默认 token storage key 为全局 key；在 `apps/miniapp` 做薄接入与类型检查通过（baseUrl 指向 gateway :8080）。
 - [x] 里程碑 8：打通“identity 发 token -> commerce 验 token” 的本地端到端验证（开启 commerce 鉴权并复用同一 JWT secret/issuer），并通过网关访问 commerce 端点，证明 Stage 0 的服务间契约可工作。
-- [ ] 里程碑 9（长线 v1/v2）：RBAC 权限码与 scope 评估、审计日志、员工账号管理/绑定、平台真机（WeChat/Alipay）登录与小程序码生成的生产化，以及 OpenAPI 中“公共 schema（MiniLoginRequest/User/ErrorResponse 等）”的去重与统一（建议抽到共享文件并由各 spec 引用）。
+- [x] 里程碑 9：RBAC 权限码与 scope 评估、审计日志、员工账号管理/绑定、平台真机（WeChat/Alipay）登录与小程序码生成的生产化，以及 OpenAPI 中“公共 schema（MiniLoginRequest/User/ErrorResponse 等）”的去重与统一（抽到共享文件并由各 spec 引用）。
 
 ## Surprises & Discoveries
 
@@ -75,6 +76,15 @@
 
 - Observation: `oapi-codegen` 在生成 identity 接口时提示 OpenAPI 3.1 仍在支持中，需留意未来兼容性。
   Evidence: 生成 `services/identity/internal/http/oapi/api.gen.go` 时出现 “OpenAPI 3.1.x specification is not yet supported” 警告。
+
+- Observation: OpenAPI 外部引用在 `oapi-codegen` 下需要显式 `--import-mapping` 且 `common.yaml` 需用 `skip-prune` 生成，否则生成失败或产物为空。
+  Evidence: `oapi-codegen` 提示 “unrecognized external reference './common.yaml'” 且 `common.gen.go` 仅有 package 声明。
+
+- Observation: 在复用 commerce 数据库跑 identity 迁移时，`user_roles_role_fkey` 可能因重复执行而报重复对象错误，需要幂等保护。
+  Evidence: 迁移报错 “constraint \"user_roles_role_fkey\" for relation \"user_roles\" already exists”。
+
+- Observation: 本地 `commerce` 用户默认无创建数据库权限，identity 独立数据库需手动授权或改 compose。
+  Evidence: `psql`/`docker exec` 创建 `identity` 数据库时返回 “permission denied to create database”。
 
 - Observation: 如果未来在 commerce 中开启鉴权并签发 `SALES` token，当前 commerce 的订单读接口没有正确实现 `docs/rbac.md` 的 OWNED 约束（存在越权风险）。同时，commerce 下单时目前把 `orders.owner_sales_user_id` 写为 NULL，导致“客户归属到业务员后，下单算在业务员下面”的业务目标无法成立。
   Evidence: `services/commerce/internal/http/handler/orders.go` 中 `GetOrders` 对 `SALES` 分支没有设置 `ownerFilter`；`GetOrdersOrderId` 仅在 `owner_sales_user_id` 非空时才限制；`PostOrders` 创建订单时 `OwnerSalesUserID: pgtype.UUID{}`（即 NULL）。
@@ -153,6 +163,18 @@
   Rationale: 在 Stage 0 就让 token 参与鉴权后，任何 “filter 未加” 都会变成真实越权风险；先在最核心的订单域把 scope 约束做对，后续再扩展到 tracking/after-sales 等域。
   Date/Author: 2026-01-23 / Codex + User
 
+- Decision: OpenAPI 公共 schema 抽到 `contracts/openapi/common.yaml`，各服务规范只保留引用；Go 端在各服务 `internal/http/oapi/common` 生成共享类型，并用 `--import-mapping` 接入，再用别名文件保持 `oapi` 包内的类型名不变。
+  Rationale: 避免多份 schema 漂移，同时保证 oapi-codegen 可用且不破坏现有 handler 代码引用。
+  Date/Author: 2026-01-24 / Codex + User
+
+- Decision: 迁移中 `user_roles_role_fkey` 的添加使用幂等保护，并在本地测试复用 commerce DB（若无法创建 identity DB）。
+  Rationale: 复用数据库时迁移可能多次执行，必须确保重复执行不会阻塞测试。
+  Date/Author: 2026-01-24 / Codex + User
+
+- Decision: identity OpenAPI 中移除 `UserStatus` 的本地 alias，避免 orval 生成重复类型。
+  Rationale: 外部引用与本地 alias 会导致 TypeScript 生成重复声明并报错。
+  Date/Author: 2026-01-24 / Codex + User
+
 ## Outcomes & Retrospective
 
 - (2026-01-23) 里程碑 0：identity 服务骨架可编译与启动（config/db/http/health/ready/main），go.work 已加入 identity，`go test ./...` 通过。
@@ -164,7 +186,7 @@
 - (2026-01-23) 里程碑 6：新增 dev-bootstrap 与 gateway-verify 脚本，补齐 identity/gateway README 与 scripts README。
 - (2026-01-23) 里程碑 7：新增 identity TS client/services、统一 token key，并完成 miniapp 薄接入。
 - (2026-01-23) 里程碑 8：commerce 支持 ownerSalesUserId claim、下单写入 owner 快照，并修复 orders OWNED/SELF RBAC。
-- (TBD) 全部完成后：miniapp 具备最小登录逻辑层；identity token 可用于调用 commerce；为 RBAC/审计/员工管理留出扩展路径。
+- (2026-01-24) 里程碑 9：RBAC 权限码与 scope 评估、审计日志、员工账号管理/绑定、平台真机登录与小程序码生成落地；OpenAPI 公共 schema 去重并抽到 `contracts/openapi/common.yaml`；`go test ./...`（identity/commerce/go-shared）与 `pnpm -C apps/miniapp lint`、`tsc --noEmit` 通过。
 
 ## Context and Orientation
 
@@ -172,7 +194,7 @@
 
 关键目录与约定（新同学需要知道的“术语解释”）：
 
-1) OpenAPI 合约：`contracts/openapi/identity.yaml` 定义了 identity 的 HTTP 接口与 JSON schema。Go 侧将用 `oapi-codegen` 根据该文件生成 Gin handler 接口与类型（生成到 `services/identity/internal/http/oapi/api.gen.go`），生成文件不可手改。
+1) OpenAPI 合约：`contracts/openapi/identity.yaml` 定义 identity 的 HTTP 接口与 schema；公共 schema 抽到 `contracts/openapi/common.yaml` 并由各服务 spec 引用。Go 侧用 `oapi-codegen` 生成 Gin handler 接口与类型（`services/identity/internal/http/oapi/api.gen.go`），共享类型生成到 `services/identity/internal/http/oapi/common/common.gen.go`，生成文件不可手改。
 
 2) SQL 迁移（migrations）：`services/identity/migrations/*.sql` 用于创建/演进 Postgres 表结构。这里使用 goose 风格的 `-- +goose Up/Down` 注释，但本仓库不依赖安装 goose；commerce 已实现了一个“读取 migration 文件并执行 Up 段 SQL”的 Go runner（见 `services/commerce/internal/db/migrations.go`）。identity 需要同等能力（可复用/抽取）。
 
@@ -544,6 +566,10 @@ v0 的前端目标不是做 UI，而是让“登录态”在代码层面可用�
      - 用该 sales token 调用 `GET http://localhost:8080/orders` 必须能看到这笔订单（证明 `orders.owner_sales_user_id` 已写入且 OWNED filter 生效）。
      - 用另一个 sales token 调用 `GET http://localhost:8080/orders` 不应看到该订单；调用 `GET http://localhost:8080/orders/{orderId}` 返回 404（证明未越权）。
 
+## Identity 上线就绪检查清单
+
+本清单仅覆盖 identity 服务（不包含 gateway-bff）。上线前应确认：配置与密钥（JWT secret/issuer、`IDENTITY_LOGIN_MODE`、WeChat/Alipay 凭证与 URL）齐备且分环境隔离；数据库与迁移可用且可重复执行（roles/permissions/审计/绑定表具备并有种子数据）；核心接口与权限边界符合规范（/health、/ready、/auth/mini/login、/auth/password/login、/me、/me/permissions、RBAC/Staff/Audit 端点权限与错误码一致）；安全与审计有效（禁用账号不可登录、mini login 不允许 ADMIN、审计日志包含 requestId/ip/userAgent）；运行与可观测性达标（日志含 requestId，失败路径可定位）；测试与验证通过（`go test ./...` 与前端 lint/tsc，真实平台登录与小程序码在对应环境验证）。
+
 ## Idempotence and Recovery
 
 1) migrations 与 seed 必须可重复执行：
@@ -576,8 +602,20 @@ v0 的前端目标不是做 UI，而是让“登录态”在代码层面可用�
     IDENTITY_JWT_SECRET="dev-secret"
     IDENTITY_JWT_ISSUER="tmo-identity"
     IDENTITY_ACCESS_TOKEN_TTL="168h"
+    IDENTITY_LOGIN_MODE="mock"
     IDENTITY_WEAPP_APPID=""           # 空则走 dev/mock
     IDENTITY_WEAPP_APPSECRET=""       # 空则走 dev/mock
+    IDENTITY_WEAPP_TOKEN_URL="https://api.weixin.qq.com/cgi-bin/token"
+    IDENTITY_WEAPP_SESSION_URL="https://api.weixin.qq.com/sns/jscode2session"
+    IDENTITY_WEAPP_QRCODE_URL="https://api.weixin.qq.com/wxa/getwxacodeunlimit"
+    IDENTITY_WEAPP_SALES_QR_PAGE="pages/index/index"
+    IDENTITY_WEAPP_QR_WIDTH="256"
+    IDENTITY_ALIPAY_APP_ID=""
+    IDENTITY_ALIPAY_PRIVATE_KEY=""
+    IDENTITY_ALIPAY_PUBLIC_KEY=""
+    IDENTITY_ALIPAY_GATEWAY_URL="https://openapi.alipay.com/gateway.do"
+    IDENTITY_ALIPAY_SIGN_TYPE="RSA2"
+    IDENTITY_ALIPAY_SALES_QR_PAGE="pages/index/index"
 
 2) 建议的 gateway 环境变量（v0）：
 
@@ -616,7 +654,7 @@ v0 的前端目标不是做 UI，而是让“登录态”在代码层面可用�
 
 7) 重要的“范围边界”提醒：
 
-   - v0 不实现完整 permission codes 与 scope 评估，不实现用户管理后台，不实现跨服务审计聚合；但 schema/代码结构必须为这些保留扩展点（例如 audit_logs 表与插入函数）。
+   - v0 已在 identity 内实现 permission codes 与 scope 评估、审计日志与员工管理/绑定；但不提供后台 UI，不做跨服务审计聚合，仍需为后续扩展保留结构化入口。
 
 ## Interfaces and Dependencies
 
@@ -725,3 +763,5 @@ v0 的前端目标不是做 UI，而是让“登录态”在代码层面可用�
 (2026-01-23) 执行里程碑 7：新增 identity TS client/services、统一 token key，并完成 miniapp 薄接入。
 
 (2026-01-23) 执行里程碑 8：commerce 解析 ownerSalesUserId claim、下单写入 owner 快照，并补齐 orders OWNED/SELF RBAC。
+
+(2026-01-24) 执行里程碑 9：补齐 identity 的 RBAC/审计/员工管理/绑定与平台真机登录；抽取 `contracts/openapi/common.yaml` 并更新 oapi-codegen 生成流程与 import-mapping；补充 identity 上线就绪检查清单与测试验证记录。

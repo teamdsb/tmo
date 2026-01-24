@@ -1,11 +1,14 @@
 package handler
 
 import (
+	"crypto/rand"
+	"encoding/base32"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
 	apierrors "github.com/teamdsb/tmo/packages/go-shared/errors"
 	"github.com/teamdsb/tmo/services/identity/internal/db"
@@ -84,11 +87,11 @@ func containsRole(roles []string, role string) bool {
 func userTypeFromRole(role string) (oapi.UserUserType, bool) {
 	switch strings.ToUpper(role) {
 	case "CUSTOMER":
-		return oapi.Customer, true
+		return oapi.UserUserTypeCustomer, true
 	case "SALES", "PROCUREMENT", "CS":
-		return oapi.Staff, true
+		return oapi.UserUserTypeStaff, true
 	case "ADMIN":
-		return oapi.Admin, true
+		return oapi.UserUserTypeAdmin, true
 	default:
 		return "", false
 	}
@@ -97,11 +100,11 @@ func userTypeFromRole(role string) (oapi.UserUserType, bool) {
 func userTypeFromString(raw string) (oapi.UserUserType, bool) {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
 	case "customer":
-		return oapi.Customer, true
+		return oapi.UserUserTypeCustomer, true
 	case "staff":
-		return oapi.Staff, true
+		return oapi.UserUserTypeStaff, true
 	case "admin":
-		return oapi.Admin, true
+		return oapi.UserUserTypeAdmin, true
 	default:
 		return "", false
 	}
@@ -121,6 +124,17 @@ func userFromModel(user db.User, roles []string, userType oapi.UserUserType) oap
 	if user.DisplayName != nil {
 		response.DisplayName = user.DisplayName
 	}
+	if user.Status != "" {
+		status := oapi.UserStatus(user.Status)
+		response.Status = &status
+	}
+	if user.DisabledAt.Valid {
+		disabledAt := user.DisabledAt.Time
+		response.DisabledAt = &disabledAt
+	}
+	if user.DisabledReason != nil {
+		response.DisabledReason = user.DisabledReason
+	}
 	return response
 }
 
@@ -130,4 +144,13 @@ func expiresInSeconds(expiresAt time.Time) int {
 		return 0
 	}
 	return int(remaining.Seconds())
+}
+
+func generateSalesScene() string {
+	buf := make([]byte, 12)
+	if _, err := rand.Read(buf); err != nil {
+		return uuid.NewString()
+	}
+	encoder := base32.StdEncoding.WithPadding(base32.NoPadding)
+	return encoder.EncodeToString(buf)
 }

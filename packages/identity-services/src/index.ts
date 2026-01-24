@@ -54,6 +54,7 @@ export interface MiniLoginInput {
   platform?: MiniLoginRequestPlatform
   scene?: string
   role?: MiniLoginRequestRole
+  bindingToken?: string
 }
 
 export interface PasswordLoginInput {
@@ -89,6 +90,9 @@ export const createIdentityServices = (config: IdentityServicesConfig = {}): Ide
       }
       if (input.scene) {
         payload.scene = input.scene
+      }
+      if (input.bindingToken) {
+        payload.bindingToken = input.bindingToken
       }
       if (input.role) {
         payload.role = input.role

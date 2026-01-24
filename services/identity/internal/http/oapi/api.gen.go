@@ -4,109 +4,204 @@
 package oapi
 
 import (
+	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/oapi-codegen/runtime"
 	openapi_types "github.com/oapi-codegen/runtime/types"
+	externalRef0 "github.com/teamdsb/tmo/services/identity/internal/http/oapi/common"
 )
 
 const (
 	BearerAuthScopes = "bearerAuth.Scopes"
 )
 
-// Defines values for MiniLoginRequestPlatform.
+// Defines values for CreateStaffBindingRequestPlatform.
 const (
-	Alipay MiniLoginRequestPlatform = "alipay"
-	Weapp  MiniLoginRequestPlatform = "weapp"
+	CreateStaffBindingRequestPlatformAlipay CreateStaffBindingRequestPlatform = "alipay"
+	CreateStaffBindingRequestPlatformWeapp  CreateStaffBindingRequestPlatform = "weapp"
 )
 
-// Defines values for MiniLoginRequestRole.
+// Defines values for PermissionScope.
 const (
-	CS          MiniLoginRequestRole = "CS"
-	CUSTOMER    MiniLoginRequestRole = "CUSTOMER"
-	PROCUREMENT MiniLoginRequestRole = "PROCUREMENT"
-	SALES       MiniLoginRequestRole = "SALES"
+	ALL   PermissionScope = "ALL"
+	OWNED PermissionScope = "OWNED"
+	SELF  PermissionScope = "SELF"
 )
 
-// Defines values for PasswordLoginRequestRole.
+// Defines values for RoleUserType.
 const (
-	ADMIN PasswordLoginRequestRole = "ADMIN"
+	Admin    RoleUserType = "admin"
+	Customer RoleUserType = "customer"
+	Staff    RoleUserType = "staff"
 )
 
-// Defines values for UserUserType.
+// Defines values for GetMeSalesQrCodeParamsPlatform.
 const (
-	Admin    UserUserType = "admin"
-	Customer UserUserType = "customer"
-	Staff    UserUserType = "staff"
+	GetMeSalesQrCodeParamsPlatformAlipay GetMeSalesQrCodeParamsPlatform = "alipay"
+	GetMeSalesQrCodeParamsPlatformWeapp  GetMeSalesQrCodeParamsPlatform = "weapp"
 )
+
+// AuditLog defines model for AuditLog.
+type AuditLog struct {
+	Action      string                  `json:"action"`
+	ActorUserId *openapi_types.UUID     `json:"actorUserId"`
+	CreatedAt   time.Time               `json:"createdAt"`
+	Id          openapi_types.UUID      `json:"id"`
+	Ip          *string                 `json:"ip"`
+	Metadata    *map[string]interface{} `json:"metadata,omitempty"`
+	RequestId   *string                 `json:"requestId"`
+	TargetId    *openapi_types.UUID     `json:"targetId"`
+	TargetType  *string                 `json:"targetType"`
+	UserAgent   *string                 `json:"userAgent"`
+}
 
 // AuthResponse defines model for AuthResponse.
-type AuthResponse struct {
-	AccessToken string `json:"accessToken"`
-	ExpiresIn   int    `json:"expiresIn"`
-	User        User   `json:"user"`
+type AuthResponse = externalRef0.AuthResponse
+
+// AuthorizeRequest defines model for AuthorizeRequest.
+type AuthorizeRequest struct {
+	Permission    string           `json:"permission"`
+	RequiredScope *PermissionScope `json:"requiredScope,omitempty"`
+}
+
+// AuthorizeResponse defines model for AuthorizeResponse.
+type AuthorizeResponse struct {
+	Allowed        bool             `json:"allowed"`
+	EffectiveScope *PermissionScope `json:"effectiveScope,omitempty"`
+}
+
+// CreateStaffBindingRequest defines model for CreateStaffBindingRequest.
+type CreateStaffBindingRequest struct {
+	ExpiresIn *int                              `json:"expiresIn,omitempty"`
+	Platform  CreateStaffBindingRequestPlatform `json:"platform"`
+}
+
+// CreateStaffBindingRequestPlatform defines model for CreateStaffBindingRequest.Platform.
+type CreateStaffBindingRequestPlatform string
+
+// CreateStaffRequest defines model for CreateStaffRequest.
+type CreateStaffRequest struct {
+	DisplayName *string  `json:"displayName,omitempty"`
+	Roles       []string `json:"roles"`
+}
+
+// EffectivePermission defines model for EffectivePermission.
+type EffectivePermission struct {
+	Code  string          `json:"code"`
+	Scope PermissionScope `json:"scope"`
 }
 
 // ErrorResponse defines model for ErrorResponse.
-type ErrorResponse struct {
-	Code string `json:"code"`
-
-	// Details Optional metadata (e.g. { "availableRoles": ["CUSTOMER", "SALES"] }).
-	Details   *map[string]interface{} `json:"details,omitempty"`
-	Message   string                  `json:"message"`
-	RequestId string                  `json:"requestId"`
-}
+type ErrorResponse = externalRef0.ErrorResponse
 
 // MiniLoginRequest defines model for MiniLoginRequest.
-type MiniLoginRequest struct {
-	Code     string                   `json:"code"`
-	Platform MiniLoginRequestPlatform `json:"platform"`
+type MiniLoginRequest = externalRef0.MiniLoginRequest
 
-	// Role Optional current role; required when multiple roles. ADMIN is not allowed.
-	Role *MiniLoginRequestRole `json:"role,omitempty"`
-
-	// Scene Optional: QR scene parameter for sales binding (only applied on first bind)
-	Scene *string `json:"scene,omitempty"`
+// PagedAuditLogList defines model for PagedAuditLogList.
+type PagedAuditLogList struct {
+	Items    []AuditLog `json:"items"`
+	Page     int        `json:"page"`
+	PageSize int        `json:"pageSize"`
+	Total    int        `json:"total"`
 }
 
-// MiniLoginRequestPlatform defines model for MiniLoginRequest.Platform.
-type MiniLoginRequestPlatform string
-
-// MiniLoginRequestRole Optional current role; required when multiple roles. ADMIN is not allowed.
-type MiniLoginRequestRole string
+// PagedStaffList defines model for PagedStaffList.
+type PagedStaffList struct {
+	Items    []StaffUser `json:"items"`
+	Page     int         `json:"page"`
+	PageSize int         `json:"pageSize"`
+	Total    int         `json:"total"`
+}
 
 // PasswordLoginRequest defines model for PasswordLoginRequest.
-type PasswordLoginRequest struct {
-	Password string `json:"password"`
+type PasswordLoginRequest = externalRef0.PasswordLoginRequest
 
-	// Role Optional; must be ADMIN when provided.
-	Role     *PasswordLoginRequestRole `json:"role,omitempty"`
-	Username string                    `json:"username"`
+// Permission defines model for Permission.
+type Permission struct {
+	Code        string  `json:"code"`
+	Description *string `json:"description,omitempty"`
 }
 
-// PasswordLoginRequestRole Optional; must be ADMIN when provided.
-type PasswordLoginRequestRole string
+// PermissionCatalog defines model for PermissionCatalog.
+type PermissionCatalog struct {
+	Items []Permission `json:"items"`
+}
+
+// PermissionCreateRequest defines model for PermissionCreateRequest.
+type PermissionCreateRequest struct {
+	Code        string  `json:"code"`
+	Description *string `json:"description,omitempty"`
+}
+
+// PermissionList defines model for PermissionList.
+type PermissionList struct {
+	Items []EffectivePermission `json:"items"`
+}
+
+// PermissionScope defines model for PermissionScope.
+type PermissionScope string
+
+// Role defines model for Role.
+type Role struct {
+	Code        string           `json:"code"`
+	Description *string          `json:"description,omitempty"`
+	Permissions []RolePermission `json:"permissions"`
+	UserType    RoleUserType     `json:"userType"`
+}
+
+// RoleUserType defines model for Role.UserType.
+type RoleUserType string
+
+// RoleList defines model for RoleList.
+type RoleList struct {
+	Items []Role `json:"items"`
+}
+
+// RolePermission defines model for RolePermission.
+type RolePermission struct {
+	Code  string          `json:"code"`
+	Scope PermissionScope `json:"scope"`
+}
+
+// RolePermissionsUpdate defines model for RolePermissionsUpdate.
+type RolePermissionsUpdate struct {
+	Permissions []RolePermission `json:"permissions"`
+}
 
 // SalesQrCode defines model for SalesQrCode.
-type SalesQrCode struct {
-	ExpiresAt *time.Time `json:"expiresAt"`
-	QrCodeUrl string     `json:"qrCodeUrl"`
+type SalesQrCode = externalRef0.SalesQrCode
 
-	// Scene Scene parameter used for sales binding
-	Scene string `json:"scene"`
+// StaffBindingToken defines model for StaffBindingToken.
+type StaffBindingToken struct {
+	ExpiresAt *time.Time `json:"expiresAt"`
+	Token     string     `json:"token"`
+}
+
+// StaffUser defines model for StaffUser.
+type StaffUser struct {
+	CreatedAt      time.Time               `json:"createdAt"`
+	DisabledAt     *time.Time              `json:"disabledAt"`
+	DisabledReason *string                 `json:"disabledReason"`
+	DisplayName    *string                 `json:"displayName,omitempty"`
+	Id             openapi_types.UUID      `json:"id"`
+	Roles          []string                `json:"roles"`
+	Status         externalRef0.UserStatus `json:"status"`
+	UpdatedAt      time.Time               `json:"updatedAt"`
+}
+
+// UpdateStaffRequest defines model for UpdateStaffRequest.
+type UpdateStaffRequest struct {
+	DisabledReason *string                  `json:"disabledReason"`
+	DisplayName    *string                  `json:"displayName,omitempty"`
+	Roles          *[]string                `json:"roles,omitempty"`
+	Status         *externalRef0.UserStatus `json:"status,omitempty"`
 }
 
 // User defines model for User.
-type User struct {
-	CreatedAt   time.Time          `json:"createdAt"`
-	DisplayName *string            `json:"displayName,omitempty"`
-	Id          openapi_types.UUID `json:"id"`
-	Roles       []string           `json:"roles"`
-	UserType    UserUserType       `json:"userType"`
-}
-
-// UserUserType defines model for User.UserType.
-type UserUserType string
+type User = externalRef0.User
 
 // BadRequest defines model for BadRequest.
 type BadRequest = ErrorResponse
@@ -114,8 +209,37 @@ type BadRequest = ErrorResponse
 // Conflict defines model for Conflict.
 type Conflict = ErrorResponse
 
+// Forbidden defines model for Forbidden.
+type Forbidden = ErrorResponse
+
+// NotFound defines model for NotFound.
+type NotFound = ErrorResponse
+
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = ErrorResponse
+
+// GetAuditLogsParams defines parameters for GetAuditLogs.
+type GetAuditLogsParams struct {
+	ActorUserId *openapi_types.UUID `form:"actorUserId,omitempty" json:"actorUserId,omitempty"`
+	Action      *string             `form:"action,omitempty" json:"action,omitempty"`
+	TargetType  *string             `form:"targetType,omitempty" json:"targetType,omitempty"`
+	Page        *int                `form:"page,omitempty" json:"page,omitempty"`
+	PageSize    *int                `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+}
+
+// GetMeSalesQrCodeParams defines parameters for GetMeSalesQrCode.
+type GetMeSalesQrCodeParams struct {
+	Platform *GetMeSalesQrCodeParamsPlatform `form:"platform,omitempty" json:"platform,omitempty"`
+}
+
+// GetMeSalesQrCodeParamsPlatform defines parameters for GetMeSalesQrCode.
+type GetMeSalesQrCodeParamsPlatform string
+
+// GetStaffParams defines parameters for GetStaff.
+type GetStaffParams struct {
+	Page     *int `form:"page,omitempty" json:"page,omitempty"`
+	PageSize *int `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+}
 
 // PostAuthMiniLoginJSONRequestBody defines body for PostAuthMiniLogin for application/json ContentType.
 type PostAuthMiniLoginJSONRequestBody = MiniLoginRequest
@@ -123,8 +247,29 @@ type PostAuthMiniLoginJSONRequestBody = MiniLoginRequest
 // PostAuthPasswordLoginJSONRequestBody defines body for PostAuthPasswordLogin for application/json ContentType.
 type PostAuthPasswordLoginJSONRequestBody = PasswordLoginRequest
 
+// PostRbacAuthorizeJSONRequestBody defines body for PostRbacAuthorize for application/json ContentType.
+type PostRbacAuthorizeJSONRequestBody = AuthorizeRequest
+
+// PostRbacPermissionsJSONRequestBody defines body for PostRbacPermissions for application/json ContentType.
+type PostRbacPermissionsJSONRequestBody = PermissionCreateRequest
+
+// PutRbacRolesRolePermissionsJSONRequestBody defines body for PutRbacRolesRolePermissions for application/json ContentType.
+type PutRbacRolesRolePermissionsJSONRequestBody = RolePermissionsUpdate
+
+// PostStaffJSONRequestBody defines body for PostStaff for application/json ContentType.
+type PostStaffJSONRequestBody = CreateStaffRequest
+
+// PatchStaffStaffIdJSONRequestBody defines body for PatchStaffStaffId for application/json ContentType.
+type PatchStaffStaffIdJSONRequestBody = UpdateStaffRequest
+
+// PostStaffStaffIdBindingsJSONRequestBody defines body for PostStaffStaffIdBindings for application/json ContentType.
+type PostStaffStaffIdBindingsJSONRequestBody = CreateStaffBindingRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// List audit logs
+	// (GET /audit-logs)
+	GetAuditLogs(c *gin.Context, params GetAuditLogsParams)
 	// Mini program login (customer/staff, WeChat/Alipay)
 	// (POST /auth/mini/login)
 	PostAuthMiniLogin(c *gin.Context)
@@ -134,9 +279,42 @@ type ServerInterface interface {
 	// Get current user
 	// (GET /me)
 	GetMe(c *gin.Context)
+	// Get effective permissions for current user
+	// (GET /me/permissions)
+	GetMePermissions(c *gin.Context)
 	// Get sales binding QR code (sales only)
 	// (GET /me/sales-qr-code)
-	GetMeSalesQrCode(c *gin.Context)
+	GetMeSalesQrCode(c *gin.Context, params GetMeSalesQrCodeParams)
+	// Evaluate permission for current user
+	// (POST /rbac/authorize)
+	PostRbacAuthorize(c *gin.Context)
+	// List permission codes
+	// (GET /rbac/permissions)
+	GetRbacPermissions(c *gin.Context)
+	// Create or update a permission
+	// (POST /rbac/permissions)
+	PostRbacPermissions(c *gin.Context)
+	// List roles and permissions
+	// (GET /rbac/roles)
+	GetRbacRoles(c *gin.Context)
+	// Replace permissions for a role
+	// (PUT /rbac/roles/{role}/permissions)
+	PutRbacRolesRolePermissions(c *gin.Context, role string)
+	// List staff users
+	// (GET /staff)
+	GetStaff(c *gin.Context, params GetStaffParams)
+	// Create staff user
+	// (POST /staff)
+	PostStaff(c *gin.Context)
+	// Get staff user
+	// (GET /staff/{staffId})
+	GetStaffStaffId(c *gin.Context, staffId openapi_types.UUID)
+	// Update staff user
+	// (PATCH /staff/{staffId})
+	PatchStaffStaffId(c *gin.Context, staffId openapi_types.UUID)
+	// Create staff binding token
+	// (POST /staff/{staffId}/bindings)
+	PostStaffStaffIdBindings(c *gin.Context, staffId openapi_types.UUID)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -147,6 +325,66 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(c *gin.Context)
+
+// GetAuditLogs operation middleware
+func (siw *ServerInterfaceWrapper) GetAuditLogs(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAuditLogsParams
+
+	// ------------- Optional query parameter "actorUserId" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "actorUserId", c.Request.URL.Query(), &params.ActorUserId)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter actorUserId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "action" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "action", c.Request.URL.Query(), &params.Action)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter action: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "targetType" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "targetType", c.Request.URL.Query(), &params.TargetType)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter targetType: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", c.Request.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "pageSize" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "pageSize", c.Request.URL.Query(), &params.PageSize)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter pageSize: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAuditLogs(c, params)
+}
 
 // PostAuthMiniLogin operation middleware
 func (siw *ServerInterfaceWrapper) PostAuthMiniLogin(c *gin.Context) {
@@ -189,8 +427,8 @@ func (siw *ServerInterfaceWrapper) GetMe(c *gin.Context) {
 	siw.Handler.GetMe(c)
 }
 
-// GetMeSalesQrCode operation middleware
-func (siw *ServerInterfaceWrapper) GetMeSalesQrCode(c *gin.Context) {
+// GetMePermissions operation middleware
+func (siw *ServerInterfaceWrapper) GetMePermissions(c *gin.Context) {
 
 	c.Set(BearerAuthScopes, []string{})
 
@@ -201,7 +439,250 @@ func (siw *ServerInterfaceWrapper) GetMeSalesQrCode(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.GetMeSalesQrCode(c)
+	siw.Handler.GetMePermissions(c)
+}
+
+// GetMeSalesQrCode operation middleware
+func (siw *ServerInterfaceWrapper) GetMeSalesQrCode(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMeSalesQrCodeParams
+
+	// ------------- Optional query parameter "platform" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "platform", c.Request.URL.Query(), &params.Platform)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter platform: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMeSalesQrCode(c, params)
+}
+
+// PostRbacAuthorize operation middleware
+func (siw *ServerInterfaceWrapper) PostRbacAuthorize(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostRbacAuthorize(c)
+}
+
+// GetRbacPermissions operation middleware
+func (siw *ServerInterfaceWrapper) GetRbacPermissions(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetRbacPermissions(c)
+}
+
+// PostRbacPermissions operation middleware
+func (siw *ServerInterfaceWrapper) PostRbacPermissions(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostRbacPermissions(c)
+}
+
+// GetRbacRoles operation middleware
+func (siw *ServerInterfaceWrapper) GetRbacRoles(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetRbacRoles(c)
+}
+
+// PutRbacRolesRolePermissions operation middleware
+func (siw *ServerInterfaceWrapper) PutRbacRolesRolePermissions(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "role" -------------
+	var role string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "role", c.Param("role"), &role, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter role: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PutRbacRolesRolePermissions(c, role)
+}
+
+// GetStaff operation middleware
+func (siw *ServerInterfaceWrapper) GetStaff(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetStaffParams
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", c.Request.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "pageSize" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "pageSize", c.Request.URL.Query(), &params.PageSize)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter pageSize: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetStaff(c, params)
+}
+
+// PostStaff operation middleware
+func (siw *ServerInterfaceWrapper) PostStaff(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostStaff(c)
+}
+
+// GetStaffStaffId operation middleware
+func (siw *ServerInterfaceWrapper) GetStaffStaffId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "staffId" -------------
+	var staffId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "staffId", c.Param("staffId"), &staffId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter staffId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetStaffStaffId(c, staffId)
+}
+
+// PatchStaffStaffId operation middleware
+func (siw *ServerInterfaceWrapper) PatchStaffStaffId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "staffId" -------------
+	var staffId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "staffId", c.Param("staffId"), &staffId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter staffId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PatchStaffStaffId(c, staffId)
+}
+
+// PostStaffStaffIdBindings operation middleware
+func (siw *ServerInterfaceWrapper) PostStaffStaffIdBindings(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "staffId" -------------
+	var staffId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "staffId", c.Param("staffId"), &staffId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter staffId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostStaffStaffIdBindings(c, staffId)
 }
 
 // GinServerOptions provides options for the Gin server.
@@ -231,8 +712,20 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 		ErrorHandler:       errorHandler,
 	}
 
+	router.GET(options.BaseURL+"/audit-logs", wrapper.GetAuditLogs)
 	router.POST(options.BaseURL+"/auth/mini/login", wrapper.PostAuthMiniLogin)
 	router.POST(options.BaseURL+"/auth/password/login", wrapper.PostAuthPasswordLogin)
 	router.GET(options.BaseURL+"/me", wrapper.GetMe)
+	router.GET(options.BaseURL+"/me/permissions", wrapper.GetMePermissions)
 	router.GET(options.BaseURL+"/me/sales-qr-code", wrapper.GetMeSalesQrCode)
+	router.POST(options.BaseURL+"/rbac/authorize", wrapper.PostRbacAuthorize)
+	router.GET(options.BaseURL+"/rbac/permissions", wrapper.GetRbacPermissions)
+	router.POST(options.BaseURL+"/rbac/permissions", wrapper.PostRbacPermissions)
+	router.GET(options.BaseURL+"/rbac/roles", wrapper.GetRbacRoles)
+	router.PUT(options.BaseURL+"/rbac/roles/:role/permissions", wrapper.PutRbacRolesRolePermissions)
+	router.GET(options.BaseURL+"/staff", wrapper.GetStaff)
+	router.POST(options.BaseURL+"/staff", wrapper.PostStaff)
+	router.GET(options.BaseURL+"/staff/:staffId", wrapper.GetStaffStaffId)
+	router.PATCH(options.BaseURL+"/staff/:staffId", wrapper.PatchStaffStaffId)
+	router.POST(options.BaseURL+"/staff/:staffId/bindings", wrapper.PostStaffStaffIdBindings)
 }

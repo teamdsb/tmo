@@ -33,8 +33,8 @@ func (h *Handler) PostAuthMiniLogin(c *gin.Context) {
 		return
 	}
 
-	platform := string(request.Platform)
-	providerUserID, err := h.Platform.Resolve(c.Request.Context(), platform, request.Code)
+	platformName := strings.ToLower(strings.TrimSpace(string(request.Platform)))
+	identity, err := h.Platform.Resolve(c.Request.Context(), platformName, request.Code)
 	if err != nil {
 		h.logError("resolve mini login failed", err)
 		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid login code")
@@ -42,8 +42,8 @@ func (h *Handler) PostAuthMiniLogin(c *gin.Context) {
 	}
 
 	user, err := h.Store.GetUserByIdentity(c.Request.Context(), db.GetUserByIdentityParams{
-		Provider:       platform,
-		ProviderUserID: providerUserID,
+		Provider:       platformName,
+		ProviderUserID: identity.ProviderUserID,
 	})
 
 	var roles []string
@@ -54,52 +54,78 @@ func (h *Handler) PostAuthMiniLogin(c *gin.Context) {
 			return
 		}
 
-		requestedRole := ""
-		if request.Role != nil {
-			requestedRole = strings.ToUpper(string(*request.Role))
+		bindingToken := ""
+		if request.BindingToken != nil {
+			bindingToken = strings.TrimSpace(*request.BindingToken)
 		}
-		if requestedRole != "" && requestedRole != "CUSTOMER" {
-			h.writeError(c, http.StatusBadRequest, "invalid_request", "role not allowed")
-			return
-		}
+		if bindingToken != "" {
+			boundUser, boundRoles, bindErr := h.bindStaffIdentity(c, platformName, identity.ProviderUserID, identity.UnionID, bindingToken)
+			if bindErr != nil {
+				return
+			}
+			user = boundUser
+			roles = boundRoles
+		} else {
+			requestedRole := ""
+			if request.Role != nil {
+				requestedRole = strings.ToUpper(string(*request.Role))
+			}
+			if requestedRole != "" && requestedRole != "CUSTOMER" {
+				h.writeError(c, http.StatusBadRequest, "invalid_request", "role not allowed")
+				return
+			}
 
-		var createdUser db.User
-		err = shareddb.WithTx(c.Request.Context(), h.DB, func(tx pgx.Tx) error {
-			q := h.Store.WithTx(tx)
-			newUser, err := q.CreateUser(c.Request.Context(), db.CreateUserParams{
-				ID:               uuid.New(),
-				DisplayName:      nil,
-				UserType:         "customer",
-				OwnerSalesUserID: pgtype.UUID{},
+			var createdUser db.User
+			var unionID *string
+			if strings.TrimSpace(identity.UnionID) != "" {
+				unionID = &identity.UnionID
+			}
+			err = shareddb.WithTx(c.Request.Context(), h.DB, func(tx pgx.Tx) error {
+				q := h.Store.WithTx(tx)
+				newUser, err := q.CreateUser(c.Request.Context(), db.CreateUserParams{
+					ID:               uuid.New(),
+					DisplayName:      nil,
+					UserType:         "customer",
+					OwnerSalesUserID: pgtype.UUID{},
+				})
+				if err != nil {
+					return err
+				}
+				if err := q.AddUserRole(c.Request.Context(), db.AddUserRoleParams{
+					UserID: newUser.ID,
+					Role:   "CUSTOMER",
+				}); err != nil {
+					return err
+				}
+				if _, err := q.CreateUserIdentity(c.Request.Context(), db.CreateUserIdentityParams{
+					ID:              uuid.New(),
+					Provider:        platformName,
+					ProviderUserID:  identity.ProviderUserID,
+					ProviderUnionID: unionID,
+					UserID:          newUser.ID,
+				}); err != nil {
+					return err
+				}
+				createdUser = newUser
+				return nil
 			})
 			if err != nil {
-				return err
+				if shareddb.IsUniqueViolation(err) {
+					h.writeError(c, http.StatusConflict, "conflict", "identity already bound")
+					return
+				}
+				h.logError("create user failed", err)
+				h.writeError(c, http.StatusInternalServerError, "internal_error", "login failed")
+				return
 			}
-			if err := q.AddUserRole(c.Request.Context(), db.AddUserRoleParams{
-				UserID: newUser.ID,
-				Role:   "CUSTOMER",
-			}); err != nil {
-				return err
-			}
-			if _, err := q.UpsertUserIdentity(c.Request.Context(), db.UpsertUserIdentityParams{
-				ID:             uuid.New(),
-				Provider:       platform,
-				ProviderUserID: providerUserID,
-				UserID:         newUser.ID,
-			}); err != nil {
-				return err
-			}
-			createdUser = newUser
-			return nil
-		})
-		if err != nil {
-			h.logError("create user failed", err)
-			h.writeError(c, http.StatusInternalServerError, "internal_error", "login failed")
+			user = createdUser
+			roles = []string{"CUSTOMER"}
+		}
+	} else {
+		if request.BindingToken != nil && strings.TrimSpace(*request.BindingToken) != "" {
+			h.writeError(c, http.StatusConflict, "conflict", "identity already bound")
 			return
 		}
-		user = createdUser
-		roles = []string{"CUSTOMER"}
-	} else {
 		roles, err = h.Store.ListUserRoles(c.Request.Context(), user.ID)
 		if err != nil {
 			h.logError("list roles failed", err)
@@ -111,6 +137,10 @@ func (h *Handler) PostAuthMiniLogin(c *gin.Context) {
 	roles = normalizeRoles(roles)
 	if len(roles) == 0 {
 		h.writeError(c, http.StatusUnauthorized, "unauthorized", "no roles assigned")
+		return
+	}
+	if user.Status == "disabled" {
+		h.writeError(c, http.StatusForbidden, "forbidden", "account disabled")
 		return
 	}
 
@@ -206,6 +236,10 @@ func (h *Handler) PostAuthPasswordLogin(c *gin.Context) {
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "login failed")
 		return
 	}
+	if user.Status == "disabled" {
+		h.writeError(c, http.StatusForbidden, "forbidden", "account disabled")
+		return
+	}
 
 	roles, err := h.Store.ListUserRoles(c.Request.Context(), user.ID)
 	if err != nil {
@@ -219,7 +253,7 @@ func (h *Handler) PostAuthPasswordLogin(c *gin.Context) {
 		return
 	}
 
-	userType := oapi.Admin
+	userType := oapi.UserUserTypeAdmin
 	token, expiresAt, err := h.Auth.Issue(user.ID, "ADMIN", roles, string(userType), nil)
 	if err != nil {
 		h.logError("issue token failed", err)
@@ -311,4 +345,97 @@ func (h *Handler) bindOwnerSalesUser(c *gin.Context, user *db.User, scene string
 	}
 	*user = updated
 	return nil
+}
+
+func (h *Handler) bindStaffIdentity(c *gin.Context, platformName, providerUserID, unionID, bindingToken string) (db.User, []string, error) {
+	token, err := h.Store.GetStaffBindingToken(c.Request.Context(), bindingToken)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			h.writeError(c, http.StatusUnauthorized, "unauthorized", "invalid binding token")
+			return db.User{}, nil, err
+		}
+		h.logError("lookup binding token failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "login failed")
+		return db.User{}, nil, err
+	}
+	if token.UsedAt.Valid {
+		h.writeError(c, http.StatusUnauthorized, "unauthorized", "binding token already used")
+		return db.User{}, nil, errors.New("binding token used")
+	}
+	if token.ExpiresAt.Valid && token.ExpiresAt.Time.Before(time.Now()) {
+		h.writeError(c, http.StatusUnauthorized, "unauthorized", "binding token expired")
+		return db.User{}, nil, errors.New("binding token expired")
+	}
+	if token.Platform != platformName {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "binding token platform mismatch")
+		return db.User{}, nil, errors.New("binding token platform mismatch")
+	}
+
+	user, err := h.Store.GetUserByID(c.Request.Context(), token.StaffUserID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "staff not found")
+			return db.User{}, nil, err
+		}
+		h.logError("lookup staff failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "login failed")
+		return db.User{}, nil, err
+	}
+	if user.Status == "disabled" {
+		h.writeError(c, http.StatusForbidden, "forbidden", "account disabled")
+		return db.User{}, nil, errors.New("staff disabled")
+	}
+	if strings.ToLower(user.UserType) != "staff" {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "binding token not for staff")
+		return db.User{}, nil, errors.New("binding token not for staff")
+	}
+
+	roles, err := h.Store.ListUserRoles(c.Request.Context(), user.ID)
+	if err != nil {
+		h.logError("list roles failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "login failed")
+		return db.User{}, nil, err
+	}
+	roles = normalizeRoles(roles)
+	if len(roles) == 0 {
+		h.writeError(c, http.StatusUnauthorized, "unauthorized", "no roles assigned")
+		return db.User{}, nil, errors.New("no roles assigned")
+	}
+
+	var unionPtr *string
+	if strings.TrimSpace(unionID) != "" {
+		unionPtr = &unionID
+	}
+
+	err = shareddb.WithTx(c.Request.Context(), h.DB, func(tx pgx.Tx) error {
+		q := h.Store.WithTx(tx)
+		if _, err := q.CreateUserIdentity(c.Request.Context(), db.CreateUserIdentityParams{
+			ID:              uuid.New(),
+			Provider:        platformName,
+			ProviderUserID:  providerUserID,
+			ProviderUnionID: unionPtr,
+			UserID:          user.ID,
+		}); err != nil {
+			return err
+		}
+		if err := q.MarkStaffBindingTokenUsed(c.Request.Context(), bindingToken); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		if shareddb.IsUniqueViolation(err) {
+			h.writeError(c, http.StatusConflict, "conflict", "identity already bound")
+			return db.User{}, nil, err
+		}
+		h.logError("bind staff identity failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "login failed")
+		return db.User{}, nil, err
+	}
+
+	h.recordAudit(c, &user.ID, "staff.bind", "staff", &user.ID, map[string]interface{}{
+		"platform": platformName,
+	})
+
+	return user, roles, nil
 }
