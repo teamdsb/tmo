@@ -2,6 +2,20 @@
 
 当前 miniapp 使用 Jest 作为单元测试框架，暂未配置专门的 UI 或集成测试。
 
+## 构建命令
+
+在仓库根目录执行，构建产物输出到 `apps/miniapp/dist`（按平台区分子目录）：
+
+    pnpm -C apps/miniapp build:weapp
+    pnpm -C apps/miniapp build:alipay
+    pnpm -C apps/miniapp build:tt
+    pnpm -C apps/miniapp build:swan
+    pnpm -C apps/miniapp build:qq
+    pnpm -C apps/miniapp build:jd
+    pnpm -C apps/miniapp build:h5
+
+说明：`build:*` 会生成对应平台的静态产物，可用于发布或在平台开发者工具中打开。
+
 ## 测试命令
 
 在仓库根目录执行：
