@@ -7,3 +7,8 @@ Bootstrap and local dev scripts.
 - `commerce-seed.sh`: seed catalog data for v0 demo.
 - `commerce-verify.sh`: smoke-check health + catalog endpoints.
 - `commerce-generate.sh`: regenerate sqlc + oapi-codegen outputs.
+- `identity-generate.sh`: regenerate identity sqlc + oapi-codegen outputs.
+- `identity-migrate.sh`: apply identity migrations via Go runner.
+- `identity-seed.sh`: seed identity dev users/roles.
+- `dev-bootstrap.sh`: start Postgres, run commerce + identity migrations and seed.
+- `gateway-verify.sh`: smoke-check gateway health/ready and auth flows.

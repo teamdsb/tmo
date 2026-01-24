@@ -147,7 +147,10 @@ components:
         code: { type: string }
         message: { type: string }
         requestId: { type: string }
-        details: { type: object, additionalProperties: true }
+        details:
+          type: object
+          additionalProperties: true
+          description: 'Optional metadata (e.g. { "availableRoles": ["CUSTOMER", "SALES"] }).'
       required: [code, message, requestId]
 
     MiniLoginRequest:
@@ -161,6 +164,10 @@ components:
         scene:
           type: string
           description: "Optional: QR scene parameter for sales binding (only applied on first bind)"
+        role:
+          type: string
+          enum: [CUSTOMER, SALES, PROCUREMENT, CS]
+          description: "Optional current role; required when multiple roles. ADMIN is not allowed."
       required: [platform, code]
 
     PasswordLoginRequest:
@@ -168,6 +175,10 @@ components:
       properties:
         username: { type: string }
         password: { type: string }
+        role:
+          type: string
+          enum: [ADMIN]
+          description: "Optional; must be ADMIN when provided."
       required: [username, password]
 
     AuthResponse:

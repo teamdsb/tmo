@@ -1,6 +1,6 @@
 import { setApiClientConfig, type ApiClientConfig } from '@tmo/api-client'
 
-import { defaultTokenStorageKey, resolveBaseUrl, resolveDevToken, type CommerceServicesConfig } from './config'
+import { defaultTokenStorageKey, legacyTokenStorageKey, resolveBaseUrl, resolveDevToken, type CommerceServicesConfig } from './config'
 import { createOrderIdempotency } from './idempotency'
 import { createRequester } from './requester'
 import { createTokenStore, type TokenStore } from './token'
@@ -26,7 +26,7 @@ export const createCommerceServices = (config: CommerceServicesConfig = {}): Com
   const devToken = resolveDevToken(config.devToken)
   const tokenKey = config.tokenStorageKey ?? defaultTokenStorageKey
 
-  const tokens = createTokenStore(tokenKey, devToken)
+  const tokens = createTokenStore(tokenKey, devToken, legacyTokenStorageKey)
   const requester = config.requester ?? createRequester({
     getToken: tokens.getToken,
     timeoutMs: config.timeoutMs

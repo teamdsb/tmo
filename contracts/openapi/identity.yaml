@@ -39,6 +39,8 @@ paths:
                 "$ref": "#/components/schemas/AuthResponse"
         '400':
           "$ref": "#/components/responses/BadRequest"
+        '409':
+          "$ref": "#/components/responses/Conflict"
   "/auth/password/login":
     post:
       tags:
@@ -58,6 +60,8 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/AuthResponse"
+        '400':
+          "$ref": "#/components/responses/BadRequest"
         '401':
           "$ref": "#/components/responses/Unauthorized"
   "/me":
@@ -130,6 +134,7 @@ components:
         details:
           type: object
           additionalProperties: true
+          description: 'Optional metadata (e.g. { "availableRoles": ["CUSTOMER", "SALES"] }).'
       required:
       - code
       - message
@@ -148,6 +153,14 @@ components:
           type: string
           description: 'Optional: QR scene parameter for sales binding (only applied
             on first bind)'
+        role:
+          type: string
+          enum:
+          - CUSTOMER
+          - SALES
+          - PROCUREMENT
+          - CS
+          description: Optional current role; required when multiple roles. ADMIN is not allowed.
       required:
       - platform
       - code
@@ -158,6 +171,11 @@ components:
           type: string
         password:
           type: string
+        role:
+          type: string
+          enum:
+          - ADMIN
+          description: Optional; must be ADMIN when provided.
       required:
       - username
       - password
