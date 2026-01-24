@@ -61,6 +61,8 @@
     "@tarojs/react": "4.1.9",
     "@taroify/core": "^0.9.0",
     "@taroify/icons": "^0.9.0",
+    "@tmo/commerce-services": "workspace:*",
+    "@tmo/identity-services": "workspace:*",
     "lucide-react": "^0.469.0",
     "react-dom": "^18.0.0",
     "react": "^18.0.0"

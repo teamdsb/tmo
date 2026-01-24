@@ -129,13 +129,17 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 
 	ctx := c.Request.Context()
 	var order db.Order
+	ownerSalesUserID := pgtype.UUID{}
+	if strings.ToUpper(claims.Role) == "CUSTOMER" && claims.OwnerSalesUserID != uuid.Nil {
+		ownerSalesUserID = pgtype.UUID{Bytes: claims.OwnerSalesUserID, Valid: true}
+	}
 	err = shareddb.WithTx(ctx, h.DB, func(tx pgx.Tx) error {
 		q := db.New(tx)
 		var err error
 		order, err = q.CreateOrder(ctx, db.CreateOrderParams{
 			Status:           string(oapi.SUBMITTED),
 			CustomerID:       claims.UserID,
-			OwnerSalesUserID: pgtype.UUID{},
+			OwnerSalesUserID: ownerSalesUserID,
 			Address:          addressJSON,
 			Remark:           request.Remark,
 			IdempotencyKey:   params.IdempotencyKey,
@@ -232,6 +236,7 @@ func (h *Handler) GetOrders(c *gin.Context, params oapi.GetOrdersParams) {
 	case "CUSTOMER":
 		customerFilter = pgtype.UUID{Bytes: claims.UserID, Valid: true}
 	case "SALES":
+		ownerFilter = pgtype.UUID{Bytes: claims.UserID, Valid: true}
 		if params.CustomerId != nil {
 			customerFilter = pgtype.UUID{Bytes: uuid.UUID(*params.CustomerId), Valid: true}
 		}
@@ -344,7 +349,7 @@ func (h *Handler) GetOrdersOrderId(c *gin.Context, orderId types.UUID) {
 			return
 		}
 	case "SALES":
-		if order.OwnerSalesUserID.Valid && order.OwnerSalesUserID.Bytes != claims.UserID {
+		if !order.OwnerSalesUserID.Valid || order.OwnerSalesUserID.Bytes != claims.UserID {
 			h.writeError(c, http.StatusNotFound, "not_found", "order not found")
 			return
 		}

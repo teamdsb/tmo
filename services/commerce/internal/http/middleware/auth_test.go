@@ -76,6 +76,44 @@ func TestRequireRoleMatch(test *testing.T) {
 	}
 }
 
+func TestRequireUserParsesOwnerSalesUserID(test *testing.T) {
+	authenticator := NewAuthenticator(true, "secret", "issuer")
+	userID := uuid.New()
+	ownerSalesUserID := uuid.New()
+	token := makeTokenWithOwner(test, "secret", "issuer", userID, "buyer", ownerSalesUserID.String())
+
+	context, recorder := newTestContext()
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	claims, ok := authenticator.RequireUser(context)
+	if !ok {
+		test.Fatal("expected authentication to succeed")
+	}
+	if claims.OwnerSalesUserID != ownerSalesUserID {
+		test.Fatalf("expected owner sales id %s, got %s", ownerSalesUserID, claims.OwnerSalesUserID)
+	}
+	if recorder.Code != http.StatusOK {
+		test.Fatalf("expected status OK, got %d", recorder.Code)
+	}
+}
+
+func TestRequireUserInvalidOwnerSalesUserID(test *testing.T) {
+	authenticator := NewAuthenticator(true, "secret", "issuer")
+	userID := uuid.New()
+	token := makeTokenWithOwner(test, "secret", "issuer", userID, "buyer", "not-a-uuid")
+
+	context, recorder := newTestContext()
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	_, ok := authenticator.RequireUser(context)
+	if ok {
+		test.Fatal("expected authentication to fail for invalid ownerSalesUserId")
+	}
+	if recorder.Code != http.StatusUnauthorized {
+		test.Fatalf("expected status unauthorized, got %d", recorder.Code)
+	}
+}
+
 func newTestContext() (*gin.Context, *httptest.ResponseRecorder) {
 	gin.SetMode(gin.TestMode)
 	recorder := httptest.NewRecorder()
@@ -90,6 +128,21 @@ func makeToken(test *testing.T, secret, issuer string, userID uuid.UUID, role st
 		"sub":  userID.String(),
 		"role": role,
 		"iss":  issuer,
+	})
+	signed, err := token.SignedString([]byte(secret))
+	if err != nil {
+		test.Fatalf("sign token: %v", err)
+	}
+	return signed
+}
+
+func makeTokenWithOwner(test *testing.T, secret, issuer string, userID uuid.UUID, role string, ownerSalesUserID string) string {
+	test.Helper()
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub":              userID.String(),
+		"role":             role,
+		"iss":              issuer,
+		"ownerSalesUserId": ownerSalesUserID,
 	})
 	signed, err := token.SignedString([]byte(secret))
 	if err != nil {

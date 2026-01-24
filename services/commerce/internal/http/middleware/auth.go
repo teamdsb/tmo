@@ -13,8 +13,9 @@ import (
 )
 
 type Claims struct {
-	UserID uuid.UUID
-	Role   string
+	UserID           uuid.UUID
+	Role             string
+	OwnerSalesUserID uuid.UUID
 }
 
 type Authenticator struct {
@@ -105,7 +106,16 @@ func (a *Authenticator) parseClaims(c *gin.Context) (Claims, bool) {
 		return Claims{}, false
 	}
 	role, _ := mapClaims["role"].(string)
-	return Claims{UserID: userID, Role: role}, true
+	ownerSalesUserID := uuid.Nil
+	if rawOwner, ok := mapClaims["ownerSalesUserId"].(string); ok && rawOwner != "" {
+		parsed, err := uuid.Parse(rawOwner)
+		if err != nil {
+			writeError(c, http.StatusUnauthorized, "unauthorized", "invalid ownerSalesUserId")
+			return Claims{}, false
+		}
+		ownerSalesUserID = parsed
+	}
+	return Claims{UserID: userID, Role: role, OwnerSalesUserID: ownerSalesUserID}, true
 }
 
 func writeError(c *gin.Context, status int, code, message string) {

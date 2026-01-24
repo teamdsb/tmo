@@ -16,7 +16,7 @@ export const resolveBaseUrl = (value?: string): string => {
     return value
   }
   if (typeof process !== 'undefined' && process?.env) {
-    return process.env.TARO_APP_COMMERCE_BASE_URL ?? ''
+    return process.env.TARO_APP_COMMERCE_BASE_URL ?? process.env.TARO_APP_API_BASE_URL ?? ''
   }
   return ''
 }
@@ -31,4 +31,5 @@ export const resolveDevToken = (value?: string): string | undefined => {
   return undefined
 }
 
-export const defaultTokenStorageKey = 'tmo:commerce:token'
+export const defaultTokenStorageKey = 'tmo:auth:token'
+export const legacyTokenStorageKey = 'tmo:commerce:token'
