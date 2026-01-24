@@ -62,7 +62,7 @@ export default function ProductCatalogApp() {
   const [searchQuery, setSearchQuery] = useState('')
 
   return (
-    <View className='page page--home'>
+    <View className='page page-home'>
       <Navbar bordered fixed placeholder safeArea='top'>
       </Navbar>
 

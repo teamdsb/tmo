@@ -25,7 +25,7 @@ export default function PersonalCenter() {
   };
 
   return (
-    <View className='min-h-screen bg-[#f7f8fa] pb-24 text-gray-900 font-sans'>
+    <View className='page pb-24 text-gray-900 font-sans'>
       <SafeArea position='top' />
       {/* Header Section */}
       <View className='bg-white pt-12 pb-8 px-4 mb-3'>

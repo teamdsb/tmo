@@ -1,9 +1,12 @@
+import path from 'path'
 import { defineConfig, type UserConfigExport } from '@tarojs/cli'
 
 import devConfig from './dev'
 import prodConfig from './prod'
 
 // https://taro-docs.jd.com/docs/next/config#defineconfig-辅助函数
+const tailwindConfigPath = path.join(__dirname, '..', 'tailwind.config.cjs')
+
 export default defineConfig<'vite'>(async (merge) => {
   const baseConfig: UserConfigExport<'vite'> = {
     projectName: 'miniapp',
@@ -44,6 +47,16 @@ export default defineConfig<'vite'>(async (merge) => {
             namingPattern: 'module', // 转换模式，取值为 global/module
             generateScopedName: '[name]__[local]___[hash:base64:5]'
           }
+        },
+        autoprefixer: {
+          enable: true,
+          config: {}
+        },
+        tailwindcss: {
+          enable: true,
+          config: {
+            config: tailwindConfigPath
+          }
         }
       },
     },
@@ -66,6 +79,12 @@ export default defineConfig<'vite'>(async (merge) => {
           config: {
             namingPattern: 'module', // 转换模式，取值为 global/module
             generateScopedName: '[name]__[local]___[hash:base64:5]'
+          }
+        },
+        tailwindcss: {
+          enable: true,
+          config: {
+            config: tailwindConfigPath
           }
         }
       },

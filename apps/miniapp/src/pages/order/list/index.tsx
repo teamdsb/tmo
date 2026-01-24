@@ -71,7 +71,7 @@ export default function OrderHistoryApp() {
   const [searchQuery, setSearchQuery] = useState('')
 
   return (
-    <View className='page page--compact-navbar'>
+    <View className='page page-compact-navbar'>
       <Navbar bordered fixed placeholder safeArea='top'>
       </Navbar>
 

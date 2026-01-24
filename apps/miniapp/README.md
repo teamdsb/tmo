@@ -20,7 +20,13 @@
 
 当前页面使用 CSS 变量控制自定义导航栏高度。默认高度为 10px（与首页一致）。
 
-如需统一压缩高度，给页面根容器添加 `page--compact-navbar` 类即可复用该高度。
+如需统一压缩高度，给页面根容器添加 `page-compact-navbar` 类即可复用该高度。
+
+## 原子 CSS (Tailwind)
+
+miniapp 已启用 Tailwind CSS 作为原子 CSS 框架。配置位于 `apps/miniapp/tailwind.config.cjs`，并在 `apps/miniapp/config/index.ts` 的 `mini.postcss` 与 `h5.postcss` 中启用 `tailwindcss` 插件；`apps/miniapp/postcss.config.cjs` 保持与 Vite 默认配置一致。全局样式入口在 `apps/miniapp/src/app.scss`，包含 `@tailwind base/components/utilities`。已禁用 preflight 以避免覆盖现有 Taroify 样式。
+
+使用方式：在 JSX 中直接添加 Tailwind utility 类（例如 `className="text-[12px] text-blue-600"`），与现有 SCSS 可以并存。
 
 ## 测试命令
 

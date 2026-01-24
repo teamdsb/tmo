@@ -22,6 +22,7 @@ export default function PlaceholderPage({
       <View className='page-content'>
         <Text className='section-title'>{title}</Text>
         <Text className='section-subtitle'>{description}</Text>
+        <View className='section-notice text-blue-600'>Tailwind enabled</View>
         <View className='placeholder-actions'>
           <Button color='primary' onClick={() => switchTabLike(ROUTES.home)}>
             {actionLabel}
