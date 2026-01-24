@@ -16,6 +16,9 @@ servers:
 tags:
   - name: Auth
   - name: Me
+  - name: RBAC
+  - name: Staff
+  - name: Audit
   - name: Customers
   - name: Catalog
   - name: Wishlist
@@ -42,6 +45,24 @@ paths:
     $ref: "./identity.yaml#/paths/~1me"
   /me/sales-qr-code:
     $ref: "./identity.yaml#/paths/~1me~1sales-qr-code"
+  /me/permissions:
+    $ref: "./identity.yaml#/paths/~1me~1permissions"
+  /rbac/permissions:
+    $ref: "./identity.yaml#/paths/~1rbac~1permissions"
+  /rbac/roles:
+    $ref: "./identity.yaml#/paths/~1rbac~1roles"
+  /rbac/roles/{role}/permissions:
+    $ref: "./identity.yaml#/paths/~1rbac~1roles~1{role}~1permissions"
+  /rbac/authorize:
+    $ref: "./identity.yaml#/paths/~1rbac~1authorize"
+  /staff:
+    $ref: "./identity.yaml#/paths/~1staff"
+  /staff/{staffId}:
+    $ref: "./identity.yaml#/paths/~1staff~1{staffId}"
+  /staff/{staffId}/bindings:
+    $ref: "./identity.yaml#/paths/~1staff~1{staffId}~1bindings"
+  /audit-logs:
+    $ref: "./identity.yaml#/paths/~1audit-logs"
   /customers:
     $ref: "./commerce.yaml#/paths/~1customers"
   /customers/{customerId}:
@@ -142,55 +163,19 @@ components:
 
   schemas:
     ErrorResponse:
-      type: object
-      properties:
-        code: { type: string }
-        message: { type: string }
-        requestId: { type: string }
-        details: { type: object, additionalProperties: true }
-      required: [code, message, requestId]
+      $ref: "./common.yaml#/components/schemas/ErrorResponse"
 
     MiniLoginRequest:
-      type: object
-      properties:
-        platform:
-          type: string
-          enum: [weapp, alipay]
-        code:
-          type: string
-        scene:
-          type: string
-          description: "Optional: QR scene parameter for sales binding (only applied on first bind)"
-      required: [platform, code]
+      $ref: "./common.yaml#/components/schemas/MiniLoginRequest"
 
     PasswordLoginRequest:
-      type: object
-      properties:
-        username: { type: string }
-        password: { type: string }
-      required: [username, password]
+      $ref: "./common.yaml#/components/schemas/PasswordLoginRequest"
 
     AuthResponse:
-      type: object
-      properties:
-        accessToken: { type: string }
-        expiresIn: { type: integer }
-        user: { $ref: "#/components/schemas/User" }
-      required: [accessToken, expiresIn, user]
+      $ref: "./common.yaml#/components/schemas/AuthResponse"
 
     User:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        userType:
-          type: string
-          enum: [customer, staff, admin]
-        displayName: { type: string }
-        roles:
-          type: array
-          items: { type: string }
-        createdAt: { type: string, format: date-time }
-      required: [id, userType, roles, createdAt]
+      $ref: "./common.yaml#/components/schemas/User"
 
     Customer:
       type: object
@@ -214,12 +199,7 @@ components:
       required: [items, page, pageSize, total]
 
     SalesQrCode:
-      type: object
-      properties:
-        qrCodeUrl: { type: string }
-        scene: { type: string, description: "Scene parameter used for sales binding" }
-        expiresAt: { type: string, format: date-time, nullable: true }
-      required: [qrCodeUrl, scene]
+      $ref: "./common.yaml#/components/schemas/SalesQrCode"
 
     Category:
       type: object
