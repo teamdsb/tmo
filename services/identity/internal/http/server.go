@@ -22,6 +22,9 @@ func NewRouter(handler *handler.Handler, logger *slog.Logger, readyCheck func(co
 	router.GET("/ready", httpx.Ready(readyCheck))
 
 	oapi.RegisterHandlers(router, handler)
+	router.GET("/admin/config/feature-flags", handler.GetAdminConfigFeatureFlags)
+	router.PATCH("/admin/config/feature-flags", handler.PatchAdminConfigFeatureFlags)
+	router.POST("/admin/customers/:customerId/transfer", handler.PostAdminCustomersCustomerIdTransfer)
 
 	return router
 }

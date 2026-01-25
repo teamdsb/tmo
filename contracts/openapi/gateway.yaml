@@ -1,0 +1,85 @@
+openapi: 3.1.0
+info:
+  title: Procurement Mini Program - Gateway API
+  version: 0.1.0
+  description: |
+    v1 API contract for customer/staff mini programs + Admin Web.
+    Conventions:
+    - JSON field naming: camelCase
+    - Time: RFC3339 date-time strings
+    - IDs: UUID strings
+    - Auth: Bearer JWT access token
+    - Idempotency: send `Idempotency-Key` for order submit and payment create
+servers:
+- url: https://api.example.com
+tags:
+- name: BFF
+security:
+- bearerAuth: []
+paths:
+  "/bff/bootstrap":
+    get:
+      tags:
+      - BFF
+      summary: Bootstrap app with me, permissions, and feature flags
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BootstrapResponse"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/ErrorResponse"
+  schemas:
+    ErrorResponse:
+      "$ref": "./common.yaml#/components/schemas/ErrorResponse"
+    User:
+      "$ref": "./common.yaml#/components/schemas/User"
+    PermissionList:
+      "$ref": "./identity.yaml#/components/schemas/PermissionList"
+    FeatureFlags:
+      "$ref": "./admin.yaml#/components/schemas/FeatureFlags"
+    BootstrapResponse:
+      type: object
+      properties:
+        me:
+          "$ref": "./common.yaml#/components/schemas/User"
+          nullable: true
+        permissions:
+          "$ref": "./identity.yaml#/components/schemas/PermissionList"
+        featureFlags:
+          "$ref": "./admin.yaml#/components/schemas/FeatureFlags"
+      required:
+      - permissions
+      - featureFlags

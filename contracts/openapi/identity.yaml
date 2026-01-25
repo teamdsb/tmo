@@ -11,13 +11,14 @@ info:
     - Auth: Bearer JWT access token
     - Idempotency: send `Idempotency-Key` for order submit and payment create
 servers:
-- url: https://api.example.com/v1
+- url: https://api.example.com
 tags:
 - name: Auth
 - name: Me
 - name: RBAC
 - name: Staff
 - name: Audit
+- name: Customers
 security:
 - bearerAuth: []
 paths:
@@ -399,6 +400,68 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/PagedAuditLogList"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+        '403':
+          "$ref": "#/components/responses/Forbidden"
+  "/customers":
+    get:
+      tags:
+      - Customers
+      summary: List customers (scope by role)
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: ownerSalesUserId
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PagedCustomerList"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+        '403':
+          "$ref": "#/components/responses/Forbidden"
+  "/customers/{customerId}":
+    get:
+      tags:
+      - Customers
+      summary: Get customer detail
+      parameters:
+      - in: path
+        name: customerId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Customer"
         '401':
           "$ref": "#/components/responses/Unauthorized"
         '403':

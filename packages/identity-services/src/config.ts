@@ -10,12 +10,23 @@ export interface IdentityServicesConfig {
   timeoutMs?: number
 }
 
+const firstNonEmpty = (...values: Array<string | undefined>): string => {
+  for (const raw of values) {
+    const value = raw?.trim()
+    if (value) {
+      return value
+    }
+  }
+  return ''
+}
+
 export const resolveBaseUrl = (value?: string): string => {
-  if (value) {
-    return value
+  const resolved = value?.trim()
+  if (resolved) {
+    return resolved
   }
   if (typeof process !== 'undefined' && process?.env) {
-    return process.env.TARO_APP_API_BASE_URL ?? process.env.TARO_APP_IDENTITY_BASE_URL ?? ''
+    return firstNonEmpty(process.env.TARO_APP_API_BASE_URL, process.env.TARO_APP_IDENTITY_BASE_URL)
   }
   return ''
 }

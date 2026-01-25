@@ -14,7 +14,8 @@ export const ROUTES = {
   import: '/pages/import/index',
   trackingBatch: '/pages/tracking/batch/index',
   settings: '/pages/settings/index',
-  support: '/pages/support/index'
+  support: '/pages/support/index',
+  authRoleSelect: '/pages/auth/role-select/index'
 } as const
 
 const buildQuery = (params?: Record<string, string | number | boolean | undefined>) => {

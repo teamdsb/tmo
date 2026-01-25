@@ -7,7 +7,11 @@ import { createTokenStore, type TokenStore } from './token'
 import { chooseExcelFile, createUploadClient } from './uploads'
 import { createCartService, type CartService } from './services/cart'
 import { createCatalogService, type CatalogService } from './services/catalog'
+import { createWishlistService, type WishlistService } from './services/wishlist'
 import { createOrdersService, type OrdersService } from './services/orders'
+import { createProductRequestService, type ProductRequestService } from './services/product-requests'
+import { createAfterSalesService, type AfterSalesService } from './services/after-sales'
+import { createInquiryService, type InquiryService } from './services/inquiries'
 import { createTrackingService, type TrackingService } from './services/tracking'
 
 export interface CommerceServices {
@@ -15,6 +19,10 @@ export interface CommerceServices {
   cart: CartService
   orders: OrdersService
   tracking: TrackingService
+  wishlist: WishlistService
+  productRequests: ProductRequestService
+  afterSales: AfterSalesService
+  inquiries: InquiryService
   tokens: TokenStore
   files: {
     chooseExcelFile: typeof chooseExcelFile
@@ -58,6 +66,10 @@ export const createCommerceServices = (config: CommerceServicesConfig = {}): Com
     cart: createCartService(uploadClient),
     orders: createOrdersService(idempotency),
     tracking: createTrackingService(uploadClient),
+    wishlist: createWishlistService(),
+    productRequests: createProductRequestService(),
+    afterSales: createAfterSalesService(),
+    inquiries: createInquiryService(),
     tokens,
     files: {
       chooseExcelFile

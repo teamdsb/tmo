@@ -11,15 +11,23 @@ import (
 type ReadyChecker struct {
 	IdentityBaseURL string
 	CommerceBaseURL string
+	PaymentBaseURL  string
+	AIBaseURL       string
 	Client          *http.Client
 }
 
-func NewReadyChecker(identityBaseURL, commerceBaseURL string) *ReadyChecker {
+func NewReadyChecker(identityBaseURL, commerceBaseURL, paymentBaseURL, aiBaseURL string, timeout time.Duration) *ReadyChecker {
+	clientTimeout := timeout
+	if clientTimeout <= 0 {
+		clientTimeout = 2 * time.Second
+	}
 	return &ReadyChecker{
 		IdentityBaseURL: identityBaseURL,
 		CommerceBaseURL: commerceBaseURL,
+		PaymentBaseURL:  paymentBaseURL,
+		AIBaseURL:       aiBaseURL,
 		Client: &http.Client{
-			Timeout: 2 * time.Second,
+			Timeout: clientTimeout,
 		},
 	}
 }
@@ -30,6 +38,12 @@ func (c *ReadyChecker) Check(ctx context.Context) error {
 	}
 	if err := c.checkURL(ctx, c.CommerceBaseURL); err != nil {
 		return fmt.Errorf("commerce not ready: %w", err)
+	}
+	if err := c.checkOptionalURL(ctx, c.PaymentBaseURL); err != nil {
+		return fmt.Errorf("payment not ready: %w", err)
+	}
+	if err := c.checkOptionalURL(ctx, c.AIBaseURL); err != nil {
+		return fmt.Errorf("ai not ready: %w", err)
 	}
 	return nil
 }
@@ -57,4 +71,12 @@ func (c *ReadyChecker) checkURL(ctx context.Context, baseURL string) error {
 		return fmt.Errorf("status %d", resp.StatusCode)
 	}
 	return nil
+}
+
+func (c *ReadyChecker) checkOptionalURL(ctx context.Context, baseURL string) error {
+	trimmed := strings.TrimSpace(baseURL)
+	if trimmed == "" {
+		return nil
+	}
+	return c.checkURL(ctx, trimmed)
 }

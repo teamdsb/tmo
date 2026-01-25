@@ -73,13 +73,17 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	store := db.New(pool)
 	auth := middleware.NewAuthenticator(cfg.AuthEnabled, cfg.JWTSecret, cfg.JWTIssuer)
 	apiHandler := &handler.Handler{
-		CatalogStore:  store,
-		CartStore:     store,
-		OrderStore:    store,
-		TrackingStore: store,
-		DB:            pool,
-		Auth:          auth,
-		Logger:        logger,
+		CatalogStore:        store,
+		CartStore:           store,
+		OrderStore:          store,
+		TrackingStore:       store,
+		WishlistStore:       store,
+		ProductRequestStore: store,
+		AfterSalesStore:     store,
+		InquiryStore:        store,
+		DB:                  pool,
+		Auth:                auth,
+		Logger:              logger,
 	}
 
 	router := httpserver.NewRouter(apiHandler, logger, func(checkCtx context.Context) error {

@@ -13,84 +13,11 @@ Conventions:
  * OpenAPI spec version: 0.1.0
  */
 import { apiMutator } from '../runtime';
-export type ErrorResponseDetails = { [key: string]: unknown };
-
-export interface ErrorResponse {
-  code: string;
-  message: string;
-  requestId: string;
-  details?: ErrorResponseDetails;
-}
-
-export type MiniLoginRequestPlatform = typeof MiniLoginRequestPlatform[keyof typeof MiniLoginRequestPlatform];
 
 
-// eslint-disable-next-line @typescript-eslint/no-redeclare
-export const MiniLoginRequestPlatform = {
-  weapp: 'weapp',
-  alipay: 'alipay',
-} as const;
-
-export interface MiniLoginRequest {
-  platform: MiniLoginRequestPlatform;
-  code: string;
-  /** Optional: QR scene parameter for sales binding (only applied on first bind) */
-  scene?: string;
-}
-
-export interface PasswordLoginRequest {
-  username: string;
-  password: string;
-}
-
-export interface AuthResponse {
-  accessToken: string;
-  expiresIn: number;
-  user: User;
-}
-
-export type UserUserType = typeof UserUserType[keyof typeof UserUserType];
 
 
-// eslint-disable-next-line @typescript-eslint/no-redeclare
-export const UserUserType = {
-  customer: 'customer',
-  staff: 'staff',
-  admin: 'admin',
-} as const;
 
-export interface User {
-  id: string;
-  userType: UserUserType;
-  displayName?: string;
-  roles: string[];
-  createdAt: string;
-}
-
-export interface Customer {
-  id: string;
-  displayName: string;
-  /** @nullable */
-  phone?: string | null;
-  /** @nullable */
-  ownerSalesUserId?: string | null;
-  createdAt: string;
-}
-
-export interface PagedCustomerList {
-  items: Customer[];
-  page: number;
-  pageSize: number;
-  total: number;
-}
-
-export interface SalesQrCode {
-  qrCodeUrl: string;
-  /** Scene parameter used for sales binding */
-  scene: string;
-  /** @nullable */
-  expiresAt?: string | null;
-}
 
 export interface CreateCategoryRequest {
   name: string;
@@ -642,20 +569,6 @@ export type ForbiddenResponse = ErrorResponse;
  */
 export type ConflictResponse = ErrorResponse;
 
-export type GetCustomersParams = {
-q?: string;
-ownerSalesUserId?: string;
-/**
- * @minimum 1
- */
-page?: number;
-/**
- * @minimum 1
- * @maximum 100
- */
-pageSize?: number;
-};
-
 export type GetCatalogCategories200 = {
   items: Category[];
 };
@@ -786,83 +699,125 @@ export type PostShipmentsImportJobsBody = {
 };
 
 /**
- * @summary List customers (scope by role)
+ * Optional metadata (e.g. { "availableRoles": ["CUSTOMER", "SALES"] }).
  */
-export type getCustomersResponse200 = {
-  data: PagedCustomerList
-  status: 200
-}
-    
-export type getCustomersResponseSuccess = (getCustomersResponse200) & {
-  headers: Headers;
-};
-;
+export type ErrorResponseDetails = { [key: string]: unknown };
 
-export type getCustomersResponse = (getCustomersResponseSuccess)
-
-export const getGetCustomersUrl = (params?: GetCustomersParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString())
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
-
-  return stringifiedParams.length > 0 ? `/customers?${stringifiedParams}` : `/customers`
+export interface ErrorResponse {
+  code: string;
+  message: string;
+  requestId: string;
+  /** Optional metadata (e.g. { "availableRoles": ["CUSTOMER", "SALES"] }). */
+  details?: ErrorResponseDetails;
 }
 
-export const getCustomers = async (params?: GetCustomersParams, options?: RequestInit): Promise<getCustomersResponse> => {
-  
-  return apiMutator<getCustomersResponse>(getGetCustomersUrl(params),
-  {      
-    ...options,
-    method: 'GET'
-    
-    
-  }
-);}
+export type MiniLoginRequestPlatform = typeof MiniLoginRequestPlatform[keyof typeof MiniLoginRequestPlatform];
 
 
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const MiniLoginRequestPlatform = {
+  weapp: 'weapp',
+  alipay: 'alipay',
+} as const;
 
 /**
- * @summary Get customer detail
+ * Optional current role; required when multiple roles. ADMIN is not allowed.
  */
-export type getCustomersCustomerIdResponse200 = {
-  data: Customer
-  status: 200
+export type MiniLoginRequestRole = typeof MiniLoginRequestRole[keyof typeof MiniLoginRequestRole];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const MiniLoginRequestRole = {
+  CUSTOMER: 'CUSTOMER',
+  SALES: 'SALES',
+  PROCUREMENT: 'PROCUREMENT',
+  CS: 'CS',
+} as const;
+
+export interface MiniLoginRequest {
+  platform: MiniLoginRequestPlatform;
+  code: string;
+  /** Optional: QR scene parameter for sales binding (only applied on first bind) */
+  scene?: string;
+  /** Optional: staff binding token for first-time login */
+  bindingToken?: string;
+  /** Optional current role; required when multiple roles. ADMIN is not allowed. */
+  role?: MiniLoginRequestRole;
 }
-    
-export type getCustomersCustomerIdResponseSuccess = (getCustomersCustomerIdResponse200) & {
-  headers: Headers;
-};
-;
 
-export type getCustomersCustomerIdResponse = (getCustomersCustomerIdResponseSuccess)
-
-export const getGetCustomersCustomerIdUrl = (customerId: string,) => {
+/**
+ * Optional; must be ADMIN when provided.
+ */
+export type PasswordLoginRequestRole = typeof PasswordLoginRequestRole[keyof typeof PasswordLoginRequestRole];
 
 
-  
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const PasswordLoginRequestRole = {
+  ADMIN: 'ADMIN',
+} as const;
 
-  return `/customers/${customerId}`
+export interface PasswordLoginRequest {
+  username: string;
+  password: string;
+  /** Optional; must be ADMIN when provided. */
+  role?: PasswordLoginRequestRole;
 }
 
-export const getCustomersCustomerId = async (customerId: string, options?: RequestInit): Promise<getCustomersCustomerIdResponse> => {
-  
-  return apiMutator<getCustomersCustomerIdResponse>(getGetCustomersCustomerIdUrl(customerId),
-  {      
-    ...options,
-    method: 'GET'
-    
-    
-  }
-);}
+export interface AuthResponse {
+  accessToken: string;
+  expiresIn: number;
+  user: User;
+}
+
+export type UserUserType = typeof UserUserType[keyof typeof UserUserType];
 
 
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const UserUserType = {
+  customer: 'customer',
+  staff: 'staff',
+  admin: 'admin',
+} as const;
+
+export interface User {
+  id: string;
+  userType: UserUserType;
+  status?: UserStatus;
+  displayName?: string;
+  roles: string[];
+  /** @nullable */
+  disabledAt?: string | null;
+  /** @nullable */
+  disabledReason?: string | null;
+  createdAt: string;
+}
+
+export type UserStatus = typeof UserStatus[keyof typeof UserStatus];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const UserStatus = {
+  active: 'active',
+  disabled: 'disabled',
+} as const;
+
+export type SalesQrCodePlatform = typeof SalesQrCodePlatform[keyof typeof SalesQrCodePlatform];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const SalesQrCodePlatform = {
+  weapp: 'weapp',
+  alipay: 'alipay',
+} as const;
+
+export interface SalesQrCode {
+  qrCodeUrl: string;
+  /** Scene parameter used for sales binding */
+  scene: string;
+  platform?: SalesQrCodePlatform;
+  /** @nullable */
+  expiresAt?: string | null;
+}
 
 /**
  * @summary List categories

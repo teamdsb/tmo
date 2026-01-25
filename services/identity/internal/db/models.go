@@ -22,6 +22,14 @@ type AuditLog struct {
 	CreatedAt   pgtype.Timestamptz `db:"created_at" json:"created_at"`
 }
 
+type FeatureFlag struct {
+	ID               int32              `db:"id" json:"id"`
+	PaymentEnabled   bool               `db:"payment_enabled" json:"payment_enabled"`
+	WechatPayEnabled bool               `db:"wechat_pay_enabled" json:"wechat_pay_enabled"`
+	AlipayPayEnabled bool               `db:"alipay_pay_enabled" json:"alipay_pay_enabled"`
+	UpdatedAt        pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
 type Permission struct {
 	Code        string             `db:"code" json:"code"`
 	Description *string            `db:"description" json:"description"`

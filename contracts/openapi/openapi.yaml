@@ -11,7 +11,7 @@ info:
     - Auth: Bearer JWT access token
     - Idempotency: send `Idempotency-Key` for order submit and payment create
 servers:
-  - url: https://api.example.com/v1
+  - url: https://api.example.com
 
 tags:
   - name: Auth
@@ -29,6 +29,7 @@ tags:
   - name: AfterSales
     description: "Owned by commerce service."
   - name: Inquiries
+  - name: BFF
   - name: AI
   - name: Payments
   - name: Admin
@@ -47,6 +48,8 @@ paths:
     $ref: "./identity.yaml#/paths/~1me~1sales-qr-code"
   /me/permissions:
     $ref: "./identity.yaml#/paths/~1me~1permissions"
+  /bff/bootstrap:
+    $ref: "./gateway.yaml#/paths/~1bff~1bootstrap"
   /rbac/permissions:
     $ref: "./identity.yaml#/paths/~1rbac~1permissions"
   /rbac/roles:
@@ -64,9 +67,9 @@ paths:
   /audit-logs:
     $ref: "./identity.yaml#/paths/~1audit-logs"
   /customers:
-    $ref: "./commerce.yaml#/paths/~1customers"
+    $ref: "./identity.yaml#/paths/~1customers"
   /customers/{customerId}:
-    $ref: "./commerce.yaml#/paths/~1customers~1{customerId}"
+    $ref: "./identity.yaml#/paths/~1customers~1{customerId}"
   /catalog/categories:
     $ref: "./commerce.yaml#/paths/~1catalog~1categories"
   /catalog/products:

@@ -48,17 +48,53 @@ const (
 	SUCCEEDED JobStatus = "SUCCEEDED"
 )
 
+// Defines values for MessageSenderType.
+const (
+	Ai       MessageSenderType = "ai"
+	Customer MessageSenderType = "customer"
+	Staff    MessageSenderType = "staff"
+)
+
 // Defines values for OrderStatus.
 const (
-	CANCELLED  OrderStatus = "CANCELLED"
-	CLOSED     OrderStatus = "CLOSED"
-	CONFIRMED  OrderStatus = "CONFIRMED"
-	DELIVERED  OrderStatus = "DELIVERED"
-	PAID       OrderStatus = "PAID"
-	PAYFAILED  OrderStatus = "PAY_FAILED"
-	PAYPENDING OrderStatus = "PAY_PENDING"
-	SHIPPED    OrderStatus = "SHIPPED"
-	SUBMITTED  OrderStatus = "SUBMITTED"
+	OrderStatusCANCELLED  OrderStatus = "CANCELLED"
+	OrderStatusCLOSED     OrderStatus = "CLOSED"
+	OrderStatusCONFIRMED  OrderStatus = "CONFIRMED"
+	OrderStatusDELIVERED  OrderStatus = "DELIVERED"
+	OrderStatusPAID       OrderStatus = "PAID"
+	OrderStatusPAYFAILED  OrderStatus = "PAY_FAILED"
+	OrderStatusPAYPENDING OrderStatus = "PAY_PENDING"
+	OrderStatusSHIPPED    OrderStatus = "SHIPPED"
+	OrderStatusSUBMITTED  OrderStatus = "SUBMITTED"
+)
+
+// Defines values for PriceInquiryStatus.
+const (
+	PriceInquiryStatusCLOSED    PriceInquiryStatus = "CLOSED"
+	PriceInquiryStatusOPEN      PriceInquiryStatus = "OPEN"
+	PriceInquiryStatusRESPONDED PriceInquiryStatus = "RESPONDED"
+)
+
+// Defines values for TicketStatus.
+const (
+	TicketStatusCLOSED     TicketStatus = "CLOSED"
+	TicketStatusINPROGRESS TicketStatus = "IN_PROGRESS"
+	TicketStatusOPEN       TicketStatus = "OPEN"
+	TicketStatusRESOLVED   TicketStatus = "RESOLVED"
+)
+
+// Defines values for UpdatePriceInquiryRequestStatus.
+const (
+	UpdatePriceInquiryRequestStatusCLOSED    UpdatePriceInquiryRequestStatus = "CLOSED"
+	UpdatePriceInquiryRequestStatusOPEN      UpdatePriceInquiryRequestStatus = "OPEN"
+	UpdatePriceInquiryRequestStatusRESPONDED UpdatePriceInquiryRequestStatus = "RESPONDED"
+)
+
+// Defines values for GetInquiriesPriceParamsStatus.
+const (
+	CLOSED    GetInquiriesPriceParamsStatus = "CLOSED"
+	OPEN      GetInquiriesPriceParamsStatus = "OPEN"
+	RESPONDED GetInquiriesPriceParamsStatus = "RESPONDED"
 )
 
 // AddCartItemRequest defines model for AddCartItemRequest.
@@ -75,6 +111,28 @@ type Address struct {
 	Province      *string `json:"province,omitempty"`
 	ReceiverName  string  `json:"receiverName"`
 	ReceiverPhone string  `json:"receiverPhone"`
+}
+
+// AfterSalesMessage defines model for AfterSalesMessage.
+type AfterSalesMessage struct {
+	Content      string              `json:"content"`
+	CreatedAt    time.Time           `json:"createdAt"`
+	Id           openapi_types.UUID  `json:"id"`
+	SenderType   MessageSenderType   `json:"senderType"`
+	SenderUserId *openapi_types.UUID `json:"senderUserId"`
+	TicketId     openapi_types.UUID  `json:"ticketId"`
+}
+
+// AfterSalesTicket defines model for AfterSalesTicket.
+type AfterSalesTicket struct {
+	AssignedStaffUserId *openapi_types.UUID `json:"assignedStaffUserId"`
+	CreatedAt           time.Time           `json:"createdAt"`
+	Description         string              `json:"description"`
+	Id                  openapi_types.UUID  `json:"id"`
+	OrderId             *openapi_types.UUID `json:"orderId"`
+	Status              TicketStatus        `json:"status"`
+	Subject             string              `json:"subject"`
+	UpdatedAt           *time.Time          `json:"updatedAt"`
 }
 
 // Cart defines model for Cart.
@@ -158,6 +216,14 @@ type ConfirmCartImportRequest struct {
 	Selections []CartImportSelection `json:"selections"`
 }
 
+// CreateAfterSalesTicket defines model for CreateAfterSalesTicket.
+type CreateAfterSalesTicket struct {
+	Attachments *[]string           `json:"attachments,omitempty"`
+	Description string              `json:"description"`
+	OrderId     *openapi_types.UUID `json:"orderId"`
+	Subject     string              `json:"subject"`
+}
+
 // CreateCatalogProductRequest defines model for CreateCatalogProductRequest.
 type CreateCatalogProductRequest struct {
 	CategoryId       openapi_types.UUID `json:"categoryId"`
@@ -176,6 +242,11 @@ type CreateCategoryRequest struct {
 	Sort     *int                `json:"sort,omitempty"`
 }
 
+// CreateInquiryMessage defines model for CreateInquiryMessage.
+type CreateInquiryMessage struct {
+	Content string `json:"content"`
+}
+
 // CreateOrderRequest defines model for CreateOrderRequest.
 type CreateOrderRequest struct {
 	Address Address `json:"address"`
@@ -184,6 +255,23 @@ type CreateOrderRequest struct {
 		SkuId openapi_types.UUID `json:"skuId"`
 	} `json:"items"`
 	Remark *string `json:"remark,omitempty"`
+}
+
+// CreatePriceInquiry defines model for CreatePriceInquiry.
+type CreatePriceInquiry struct {
+	Message string              `json:"message"`
+	OrderId *openapi_types.UUID `json:"orderId"`
+	SkuId   *openapi_types.UUID `json:"skuId"`
+}
+
+// CreateProductRequest defines model for CreateProductRequest.
+type CreateProductRequest struct {
+	Name string  `json:"name"`
+	Note *string `json:"note,omitempty"`
+
+	// Qty Free-form, e.g., '10 boxes' or '5 pcs'
+	Qty  *string `json:"qty,omitempty"`
+	Spec *string `json:"spec,omitempty"`
 }
 
 // CreateSkuRequest defines model for CreateSkuRequest.
@@ -197,6 +285,11 @@ type CreateSkuRequest struct {
 	// Spec Primary spec label used for matching (e.g., size/grade); store here and avoid duplicating in attributes
 	Spec *string `json:"spec,omitempty"`
 	Unit *string `json:"unit,omitempty"`
+}
+
+// CreateTicketMessage defines model for CreateTicketMessage.
+type CreateTicketMessage struct {
+	Content string `json:"content"`
 }
 
 // ErrorResponse defines model for ErrorResponse.
@@ -216,8 +309,21 @@ type ImportJob struct {
 // ImportJobType defines model for ImportJob.Type.
 type ImportJobType string
 
+// InquiryMessage defines model for InquiryMessage.
+type InquiryMessage struct {
+	Content      string              `json:"content"`
+	CreatedAt    time.Time           `json:"createdAt"`
+	Id           openapi_types.UUID  `json:"id"`
+	InquiryId    openapi_types.UUID  `json:"inquiryId"`
+	SenderType   MessageSenderType   `json:"senderType"`
+	SenderUserId *openapi_types.UUID `json:"senderUserId"`
+}
+
 // JobStatus defines model for JobStatus.
 type JobStatus string
+
+// MessageSenderType defines model for MessageSenderType.
+type MessageSenderType string
 
 // Order defines model for Order.
 type Order struct {
@@ -242,12 +348,44 @@ type OrderItem struct {
 // OrderStatus defines model for OrderStatus.
 type OrderStatus string
 
+// PagedAfterSalesMessageList defines model for PagedAfterSalesMessageList.
+type PagedAfterSalesMessageList struct {
+	Items    []AfterSalesMessage `json:"items"`
+	Page     int                 `json:"page"`
+	PageSize int                 `json:"pageSize"`
+	Total    int                 `json:"total"`
+}
+
+// PagedAfterSalesTicketList defines model for PagedAfterSalesTicketList.
+type PagedAfterSalesTicketList struct {
+	Items    []AfterSalesTicket `json:"items"`
+	Page     int                `json:"page"`
+	PageSize int                `json:"pageSize"`
+	Total    int                `json:"total"`
+}
+
+// PagedInquiryMessageList defines model for PagedInquiryMessageList.
+type PagedInquiryMessageList struct {
+	Items    []InquiryMessage `json:"items"`
+	Page     int              `json:"page"`
+	PageSize int              `json:"pageSize"`
+	Total    int              `json:"total"`
+}
+
 // PagedOrderList defines model for PagedOrderList.
 type PagedOrderList struct {
 	Items    []Order `json:"items"`
 	Page     int     `json:"page"`
 	PageSize int     `json:"pageSize"`
 	Total    int     `json:"total"`
+}
+
+// PagedPriceInquiryList defines model for PagedPriceInquiryList.
+type PagedPriceInquiryList struct {
+	Items    []PriceInquiry `json:"items"`
+	Page     int            `json:"page"`
+	PageSize int            `json:"pageSize"`
+	Total    int            `json:"total"`
 }
 
 // PagedProductList defines model for PagedProductList.
@@ -257,6 +395,33 @@ type PagedProductList struct {
 	PageSize int              `json:"pageSize"`
 	Total    int              `json:"total"`
 }
+
+// PagedProductRequestList defines model for PagedProductRequestList.
+type PagedProductRequestList struct {
+	Items    []ProductRequest `json:"items"`
+	Page     int              `json:"page"`
+	PageSize int              `json:"pageSize"`
+	Total    int              `json:"total"`
+}
+
+// PriceInquiry defines model for PriceInquiry.
+type PriceInquiry struct {
+	AssignedSalesUserId *openapi_types.UUID `json:"assignedSalesUserId"`
+	CreatedAt           time.Time           `json:"createdAt"`
+	CreatedByUserId     openapi_types.UUID  `json:"createdByUserId"`
+	Id                  openapi_types.UUID  `json:"id"`
+	Message             string              `json:"message"`
+	OrderId             *openapi_types.UUID `json:"orderId"`
+
+	// ResponseNote Optional summary note; detailed replies via messages
+	ResponseNote *string             `json:"responseNote"`
+	SkuId        *openapi_types.UUID `json:"skuId"`
+	Status       PriceInquiryStatus  `json:"status"`
+	UpdatedAt    *time.Time          `json:"updatedAt"`
+}
+
+// PriceInquiryStatus defines model for PriceInquiry.Status.
+type PriceInquiryStatus string
 
 // PriceTier defines model for PriceTier.
 type PriceTier struct {
@@ -283,6 +448,17 @@ type ProductDetail struct {
 	Skus []SKU `json:"skus"`
 }
 
+// ProductRequest defines model for ProductRequest.
+type ProductRequest struct {
+	CreatedAt       time.Time          `json:"createdAt"`
+	CreatedByUserId openapi_types.UUID `json:"createdByUserId"`
+	Id              openapi_types.UUID `json:"id"`
+	Name            string             `json:"name"`
+	Note            *string            `json:"note,omitempty"`
+	Qty             *string            `json:"qty,omitempty"`
+	Spec            *string            `json:"spec,omitempty"`
+}
+
 // ProductSummary defines model for ProductSummary.
 type ProductSummary struct {
 	CategoryId    openapi_types.UUID `json:"categoryId"`
@@ -307,6 +483,9 @@ type SKU struct {
 	Unit  *string            `json:"unit,omitempty"`
 }
 
+// TicketStatus defines model for TicketStatus.
+type TicketStatus string
+
 // TrackingInfo defines model for TrackingInfo.
 type TrackingInfo struct {
 	OrderId   openapi_types.UUID `json:"orderId"`
@@ -317,6 +496,24 @@ type TrackingInfo struct {
 	} `json:"shipments"`
 }
 
+// UpdateAfterSalesTicketRequest defines model for UpdateAfterSalesTicketRequest.
+type UpdateAfterSalesTicketRequest struct {
+	AssignedStaffUserId *openapi_types.UUID `json:"assignedStaffUserId"`
+	Status              *TicketStatus       `json:"status,omitempty"`
+}
+
+// UpdatePriceInquiryRequest defines model for UpdatePriceInquiryRequest.
+type UpdatePriceInquiryRequest struct {
+	AssignedSalesUserId *openapi_types.UUID `json:"assignedSalesUserId"`
+
+	// ResponseNote Optional summary note; detailed replies via messages
+	ResponseNote *string                          `json:"responseNote"`
+	Status       *UpdatePriceInquiryRequestStatus `json:"status,omitempty"`
+}
+
+// UpdatePriceInquiryRequestStatus defines model for UpdatePriceInquiryRequest.Status.
+type UpdatePriceInquiryRequestStatus string
+
 // UpdateTrackingRequest defines model for UpdateTrackingRequest.
 type UpdateTrackingRequest struct {
 	Shipments []struct {
@@ -326,8 +523,28 @@ type UpdateTrackingRequest struct {
 	} `json:"shipments"`
 }
 
+// WishlistItem defines model for WishlistItem.
+type WishlistItem struct {
+	CreatedAt time.Time `json:"createdAt"`
+	Sku       SKU       `json:"sku"`
+}
+
 // Conflict defines model for Conflict.
 type Conflict = ErrorResponse
+
+// GetAfterSalesTicketsParams defines parameters for GetAfterSalesTickets.
+type GetAfterSalesTicketsParams struct {
+	Status   *TicketStatus       `form:"status,omitempty" json:"status,omitempty"`
+	OrderId  *openapi_types.UUID `form:"orderId,omitempty" json:"orderId,omitempty"`
+	Page     *int                `form:"page,omitempty" json:"page,omitempty"`
+	PageSize *int                `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+}
+
+// GetAfterSalesTicketsTicketIdMessagesParams defines parameters for GetAfterSalesTicketsTicketIdMessages.
+type GetAfterSalesTicketsTicketIdMessagesParams struct {
+	Page     *int `form:"page,omitempty" json:"page,omitempty"`
+	PageSize *int `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+}
 
 // PostCartImportJobsMultipartBody defines parameters for PostCartImportJobs.
 type PostCartImportJobsMultipartBody struct {
@@ -347,6 +564,22 @@ type GetCatalogProductsParams struct {
 	PageSize   *int                `form:"pageSize,omitempty" json:"pageSize,omitempty"`
 }
 
+// GetInquiriesPriceParams defines parameters for GetInquiriesPrice.
+type GetInquiriesPriceParams struct {
+	Status   *GetInquiriesPriceParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+	Page     *int                           `form:"page,omitempty" json:"page,omitempty"`
+	PageSize *int                           `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+}
+
+// GetInquiriesPriceParamsStatus defines parameters for GetInquiriesPrice.
+type GetInquiriesPriceParamsStatus string
+
+// GetInquiriesPriceInquiryIdMessagesParams defines parameters for GetInquiriesPriceInquiryIdMessages.
+type GetInquiriesPriceInquiryIdMessagesParams struct {
+	Page     *int `form:"page,omitempty" json:"page,omitempty"`
+	PageSize *int `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+}
+
 // GetOrdersParams defines parameters for GetOrders.
 type GetOrdersParams struct {
 	CustomerId       *openapi_types.UUID `form:"customerId,omitempty" json:"customerId,omitempty"`
@@ -361,10 +594,32 @@ type PostOrdersParams struct {
 	IdempotencyKey *string `json:"Idempotency-Key,omitempty"`
 }
 
+// GetProductRequestsParams defines parameters for GetProductRequests.
+type GetProductRequestsParams struct {
+	CreatedAfter  *time.Time `form:"createdAfter,omitempty" json:"createdAfter,omitempty"`
+	CreatedBefore *time.Time `form:"createdBefore,omitempty" json:"createdBefore,omitempty"`
+	Page          *int       `form:"page,omitempty" json:"page,omitempty"`
+	PageSize      *int       `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+}
+
 // PostShipmentsImportJobsMultipartBody defines parameters for PostShipmentsImportJobs.
 type PostShipmentsImportJobsMultipartBody struct {
 	ExcelFile openapi_types.File `json:"excelFile"`
 }
+
+// PostWishlistJSONBody defines parameters for PostWishlist.
+type PostWishlistJSONBody struct {
+	SkuId openapi_types.UUID `json:"skuId"`
+}
+
+// PostAfterSalesTicketsJSONRequestBody defines body for PostAfterSalesTickets for application/json ContentType.
+type PostAfterSalesTicketsJSONRequestBody = CreateAfterSalesTicket
+
+// PatchAfterSalesTicketsTicketIdJSONRequestBody defines body for PatchAfterSalesTicketsTicketId for application/json ContentType.
+type PatchAfterSalesTicketsTicketIdJSONRequestBody = UpdateAfterSalesTicketRequest
+
+// PostAfterSalesTicketsTicketIdMessagesJSONRequestBody defines body for PostAfterSalesTicketsTicketIdMessages for application/json ContentType.
+type PostAfterSalesTicketsTicketIdMessagesJSONRequestBody = CreateTicketMessage
 
 // PostCartImportJobsMultipartRequestBody defines body for PostCartImportJobs for multipart/form-data ContentType.
 type PostCartImportJobsMultipartRequestBody PostCartImportJobsMultipartBody
@@ -387,17 +642,50 @@ type PostCatalogProductsJSONRequestBody = CreateCatalogProductRequest
 // PostCatalogProductsSpuIdSkusJSONRequestBody defines body for PostCatalogProductsSpuIdSkus for application/json ContentType.
 type PostCatalogProductsSpuIdSkusJSONRequestBody = CreateSkuRequest
 
+// PostInquiriesPriceJSONRequestBody defines body for PostInquiriesPrice for application/json ContentType.
+type PostInquiriesPriceJSONRequestBody = CreatePriceInquiry
+
+// PatchInquiriesPriceInquiryIdJSONRequestBody defines body for PatchInquiriesPriceInquiryId for application/json ContentType.
+type PatchInquiriesPriceInquiryIdJSONRequestBody = UpdatePriceInquiryRequest
+
+// PostInquiriesPriceInquiryIdMessagesJSONRequestBody defines body for PostInquiriesPriceInquiryIdMessages for application/json ContentType.
+type PostInquiriesPriceInquiryIdMessagesJSONRequestBody = CreateInquiryMessage
+
 // PostOrdersJSONRequestBody defines body for PostOrders for application/json ContentType.
 type PostOrdersJSONRequestBody = CreateOrderRequest
 
 // PostOrdersOrderIdTrackingJSONRequestBody defines body for PostOrdersOrderIdTracking for application/json ContentType.
 type PostOrdersOrderIdTrackingJSONRequestBody = UpdateTrackingRequest
 
+// PostProductRequestsJSONRequestBody defines body for PostProductRequests for application/json ContentType.
+type PostProductRequestsJSONRequestBody = CreateProductRequest
+
 // PostShipmentsImportJobsMultipartRequestBody defines body for PostShipmentsImportJobs for multipart/form-data ContentType.
 type PostShipmentsImportJobsMultipartRequestBody PostShipmentsImportJobsMultipartBody
 
+// PostWishlistJSONRequestBody defines body for PostWishlist for application/json ContentType.
+type PostWishlistJSONRequestBody PostWishlistJSONBody
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// List after-sales tickets
+	// (GET /after-sales/tickets)
+	GetAfterSalesTickets(c *gin.Context, params GetAfterSalesTicketsParams)
+	// Create after-sales ticket
+	// (POST /after-sales/tickets)
+	PostAfterSalesTickets(c *gin.Context)
+	// Get after-sales ticket detail
+	// (GET /after-sales/tickets/{ticketId})
+	GetAfterSalesTicketsTicketId(c *gin.Context, ticketId openapi_types.UUID)
+	// Update after-sales ticket (status/assignee)
+	// (PATCH /after-sales/tickets/{ticketId})
+	PatchAfterSalesTicketsTicketId(c *gin.Context, ticketId openapi_types.UUID)
+	// List ticket messages
+	// (GET /after-sales/tickets/{ticketId}/messages)
+	GetAfterSalesTicketsTicketIdMessages(c *gin.Context, ticketId openapi_types.UUID, params GetAfterSalesTicketsTicketIdMessagesParams)
+	// Post a message in ticket (customer/staff/AI)
+	// (POST /after-sales/tickets/{ticketId}/messages)
+	PostAfterSalesTicketsTicketIdMessages(c *gin.Context, ticketId openapi_types.UUID)
 	// Get current cart
 	// (GET /cart)
 	GetCart(c *gin.Context)
@@ -437,6 +725,24 @@ type ServerInterface interface {
 	// Create SKU for product
 	// (POST /catalog/products/{spuId}/skus)
 	PostCatalogProductsSpuIdSkus(c *gin.Context, spuId openapi_types.UUID)
+	// List price inquiries
+	// (GET /inquiries/price)
+	GetInquiriesPrice(c *gin.Context, params GetInquiriesPriceParams)
+	// Create price negotiation inquiry ("feel expensive, let's talk")
+	// (POST /inquiries/price)
+	PostInquiriesPrice(c *gin.Context)
+	// Get price inquiry detail
+	// (GET /inquiries/price/{inquiryId})
+	GetInquiriesPriceInquiryId(c *gin.Context, inquiryId openapi_types.UUID)
+	// Update price inquiry (status/assignee/summary)
+	// (PATCH /inquiries/price/{inquiryId})
+	PatchInquiriesPriceInquiryId(c *gin.Context, inquiryId openapi_types.UUID)
+	// List price inquiry messages
+	// (GET /inquiries/price/{inquiryId}/messages)
+	GetInquiriesPriceInquiryIdMessages(c *gin.Context, inquiryId openapi_types.UUID, params GetInquiriesPriceInquiryIdMessagesParams)
+	// Post a message in price inquiry
+	// (POST /inquiries/price/{inquiryId}/messages)
+	PostInquiriesPriceInquiryIdMessages(c *gin.Context, inquiryId openapi_types.UUID)
 	// List orders (scope by role)
 	// (GET /orders)
 	GetOrders(c *gin.Context, params GetOrdersParams)
@@ -452,9 +758,24 @@ type ServerInterface interface {
 	// Add/update tracking info (procurement)
 	// (POST /orders/{orderId}/tracking)
 	PostOrdersOrderIdTracking(c *gin.Context, orderId openapi_types.UUID)
+	// List product requests ("can't find product")
+	// (GET /product-requests)
+	GetProductRequests(c *gin.Context, params GetProductRequestsParams)
+	// Submit "can't find product" request
+	// (POST /product-requests)
+	PostProductRequests(c *gin.Context)
 	// Upload Excel for bulk waybill import (procurement)
 	// (POST /shipments/import-jobs)
 	PostShipmentsImportJobs(c *gin.Context)
+	// Get wishlist (favorites)
+	// (GET /wishlist)
+	GetWishlist(c *gin.Context)
+	// Add SKU to wishlist
+	// (POST /wishlist)
+	PostWishlist(c *gin.Context)
+	// Remove SKU from wishlist
+	// (DELETE /wishlist/{skuId})
+	DeleteWishlistSkuId(c *gin.Context, skuId openapi_types.UUID)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -465,6 +786,196 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(c *gin.Context)
+
+// GetAfterSalesTickets operation middleware
+func (siw *ServerInterfaceWrapper) GetAfterSalesTickets(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAfterSalesTicketsParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "status", c.Request.URL.Query(), &params.Status)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter status: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "orderId" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "orderId", c.Request.URL.Query(), &params.OrderId)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter orderId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", c.Request.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "pageSize" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "pageSize", c.Request.URL.Query(), &params.PageSize)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter pageSize: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAfterSalesTickets(c, params)
+}
+
+// PostAfterSalesTickets operation middleware
+func (siw *ServerInterfaceWrapper) PostAfterSalesTickets(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAfterSalesTickets(c)
+}
+
+// GetAfterSalesTicketsTicketId operation middleware
+func (siw *ServerInterfaceWrapper) GetAfterSalesTicketsTicketId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "ticketId" -------------
+	var ticketId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ticketId", c.Param("ticketId"), &ticketId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter ticketId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAfterSalesTicketsTicketId(c, ticketId)
+}
+
+// PatchAfterSalesTicketsTicketId operation middleware
+func (siw *ServerInterfaceWrapper) PatchAfterSalesTicketsTicketId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "ticketId" -------------
+	var ticketId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ticketId", c.Param("ticketId"), &ticketId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter ticketId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PatchAfterSalesTicketsTicketId(c, ticketId)
+}
+
+// GetAfterSalesTicketsTicketIdMessages operation middleware
+func (siw *ServerInterfaceWrapper) GetAfterSalesTicketsTicketIdMessages(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "ticketId" -------------
+	var ticketId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ticketId", c.Param("ticketId"), &ticketId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter ticketId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAfterSalesTicketsTicketIdMessagesParams
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", c.Request.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "pageSize" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "pageSize", c.Request.URL.Query(), &params.PageSize)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter pageSize: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAfterSalesTicketsTicketIdMessages(c, ticketId, params)
+}
+
+// PostAfterSalesTicketsTicketIdMessages operation middleware
+func (siw *ServerInterfaceWrapper) PostAfterSalesTicketsTicketIdMessages(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "ticketId" -------------
+	var ticketId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ticketId", c.Param("ticketId"), &ticketId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter ticketId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAfterSalesTicketsTicketIdMessages(c, ticketId)
+}
 
 // GetCart operation middleware
 func (siw *ServerInterfaceWrapper) GetCart(c *gin.Context) {
@@ -756,6 +1267,188 @@ func (siw *ServerInterfaceWrapper) PostCatalogProductsSpuIdSkus(c *gin.Context) 
 	siw.Handler.PostCatalogProductsSpuIdSkus(c, spuId)
 }
 
+// GetInquiriesPrice operation middleware
+func (siw *ServerInterfaceWrapper) GetInquiriesPrice(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetInquiriesPriceParams
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "status", c.Request.URL.Query(), &params.Status)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter status: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", c.Request.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "pageSize" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "pageSize", c.Request.URL.Query(), &params.PageSize)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter pageSize: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetInquiriesPrice(c, params)
+}
+
+// PostInquiriesPrice operation middleware
+func (siw *ServerInterfaceWrapper) PostInquiriesPrice(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostInquiriesPrice(c)
+}
+
+// GetInquiriesPriceInquiryId operation middleware
+func (siw *ServerInterfaceWrapper) GetInquiriesPriceInquiryId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "inquiryId" -------------
+	var inquiryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "inquiryId", c.Param("inquiryId"), &inquiryId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter inquiryId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetInquiriesPriceInquiryId(c, inquiryId)
+}
+
+// PatchInquiriesPriceInquiryId operation middleware
+func (siw *ServerInterfaceWrapper) PatchInquiriesPriceInquiryId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "inquiryId" -------------
+	var inquiryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "inquiryId", c.Param("inquiryId"), &inquiryId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter inquiryId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PatchInquiriesPriceInquiryId(c, inquiryId)
+}
+
+// GetInquiriesPriceInquiryIdMessages operation middleware
+func (siw *ServerInterfaceWrapper) GetInquiriesPriceInquiryIdMessages(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "inquiryId" -------------
+	var inquiryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "inquiryId", c.Param("inquiryId"), &inquiryId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter inquiryId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetInquiriesPriceInquiryIdMessagesParams
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", c.Request.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "pageSize" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "pageSize", c.Request.URL.Query(), &params.PageSize)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter pageSize: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetInquiriesPriceInquiryIdMessages(c, inquiryId, params)
+}
+
+// PostInquiriesPriceInquiryIdMessages operation middleware
+func (siw *ServerInterfaceWrapper) PostInquiriesPriceInquiryIdMessages(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "inquiryId" -------------
+	var inquiryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "inquiryId", c.Param("inquiryId"), &inquiryId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter inquiryId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostInquiriesPriceInquiryIdMessages(c, inquiryId)
+}
+
 // GetOrders operation middleware
 func (siw *ServerInterfaceWrapper) GetOrders(c *gin.Context) {
 
@@ -935,6 +1628,73 @@ func (siw *ServerInterfaceWrapper) PostOrdersOrderIdTracking(c *gin.Context) {
 	siw.Handler.PostOrdersOrderIdTracking(c, orderId)
 }
 
+// GetProductRequests operation middleware
+func (siw *ServerInterfaceWrapper) GetProductRequests(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetProductRequestsParams
+
+	// ------------- Optional query parameter "createdAfter" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "createdAfter", c.Request.URL.Query(), &params.CreatedAfter)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter createdAfter: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "createdBefore" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "createdBefore", c.Request.URL.Query(), &params.CreatedBefore)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter createdBefore: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", c.Request.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "pageSize" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "pageSize", c.Request.URL.Query(), &params.PageSize)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter pageSize: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetProductRequests(c, params)
+}
+
+// PostProductRequests operation middleware
+func (siw *ServerInterfaceWrapper) PostProductRequests(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostProductRequests(c)
+}
+
 // PostShipmentsImportJobs operation middleware
 func (siw *ServerInterfaceWrapper) PostShipmentsImportJobs(c *gin.Context) {
 
@@ -948,6 +1708,62 @@ func (siw *ServerInterfaceWrapper) PostShipmentsImportJobs(c *gin.Context) {
 	}
 
 	siw.Handler.PostShipmentsImportJobs(c)
+}
+
+// GetWishlist operation middleware
+func (siw *ServerInterfaceWrapper) GetWishlist(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetWishlist(c)
+}
+
+// PostWishlist operation middleware
+func (siw *ServerInterfaceWrapper) PostWishlist(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostWishlist(c)
+}
+
+// DeleteWishlistSkuId operation middleware
+func (siw *ServerInterfaceWrapper) DeleteWishlistSkuId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "skuId" -------------
+	var skuId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "skuId", c.Param("skuId"), &skuId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter skuId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteWishlistSkuId(c, skuId)
 }
 
 // GinServerOptions provides options for the Gin server.
@@ -977,6 +1793,12 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 		ErrorHandler:       errorHandler,
 	}
 
+	router.GET(options.BaseURL+"/after-sales/tickets", wrapper.GetAfterSalesTickets)
+	router.POST(options.BaseURL+"/after-sales/tickets", wrapper.PostAfterSalesTickets)
+	router.GET(options.BaseURL+"/after-sales/tickets/:ticketId", wrapper.GetAfterSalesTicketsTicketId)
+	router.PATCH(options.BaseURL+"/after-sales/tickets/:ticketId", wrapper.PatchAfterSalesTicketsTicketId)
+	router.GET(options.BaseURL+"/after-sales/tickets/:ticketId/messages", wrapper.GetAfterSalesTicketsTicketIdMessages)
+	router.POST(options.BaseURL+"/after-sales/tickets/:ticketId/messages", wrapper.PostAfterSalesTicketsTicketIdMessages)
 	router.GET(options.BaseURL+"/cart", wrapper.GetCart)
 	router.POST(options.BaseURL+"/cart/import-jobs", wrapper.PostCartImportJobs)
 	router.GET(options.BaseURL+"/cart/import-jobs/:jobId", wrapper.GetCartImportJobsJobId)
@@ -990,10 +1812,21 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.POST(options.BaseURL+"/catalog/products", wrapper.PostCatalogProducts)
 	router.GET(options.BaseURL+"/catalog/products/:spuId", wrapper.GetCatalogProductsSpuId)
 	router.POST(options.BaseURL+"/catalog/products/:spuId/skus", wrapper.PostCatalogProductsSpuIdSkus)
+	router.GET(options.BaseURL+"/inquiries/price", wrapper.GetInquiriesPrice)
+	router.POST(options.BaseURL+"/inquiries/price", wrapper.PostInquiriesPrice)
+	router.GET(options.BaseURL+"/inquiries/price/:inquiryId", wrapper.GetInquiriesPriceInquiryId)
+	router.PATCH(options.BaseURL+"/inquiries/price/:inquiryId", wrapper.PatchInquiriesPriceInquiryId)
+	router.GET(options.BaseURL+"/inquiries/price/:inquiryId/messages", wrapper.GetInquiriesPriceInquiryIdMessages)
+	router.POST(options.BaseURL+"/inquiries/price/:inquiryId/messages", wrapper.PostInquiriesPriceInquiryIdMessages)
 	router.GET(options.BaseURL+"/orders", wrapper.GetOrders)
 	router.POST(options.BaseURL+"/orders", wrapper.PostOrders)
 	router.GET(options.BaseURL+"/orders/:orderId", wrapper.GetOrdersOrderId)
 	router.GET(options.BaseURL+"/orders/:orderId/tracking", wrapper.GetOrdersOrderIdTracking)
 	router.POST(options.BaseURL+"/orders/:orderId/tracking", wrapper.PostOrdersOrderIdTracking)
+	router.GET(options.BaseURL+"/product-requests", wrapper.GetProductRequests)
+	router.POST(options.BaseURL+"/product-requests", wrapper.PostProductRequests)
 	router.POST(options.BaseURL+"/shipments/import-jobs", wrapper.PostShipmentsImportJobs)
+	router.GET(options.BaseURL+"/wishlist", wrapper.GetWishlist)
+	router.POST(options.BaseURL+"/wishlist", wrapper.PostWishlist)
+	router.DELETE(options.BaseURL+"/wishlist/:skuId", wrapper.DeleteWishlistSkuId)
 }

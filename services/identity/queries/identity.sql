@@ -181,3 +181,24 @@ FROM audit_logs
 WHERE (sqlc.narg('actor_user_id')::uuid IS NULL OR actor_user_id = sqlc.narg('actor_user_id'))
   AND (sqlc.narg('action')::text IS NULL OR action = sqlc.narg('action'))
   AND (sqlc.narg('target_type')::text IS NULL OR target_type = sqlc.narg('target_type'));
+
+-- name: GetFeatureFlags :one
+SELECT payment_enabled, wechat_pay_enabled, alipay_pay_enabled
+FROM feature_flags
+WHERE id = 1;
+
+-- name: UpdateFeatureFlags :one
+UPDATE feature_flags
+SET payment_enabled = $1,
+    wechat_pay_enabled = $2,
+    alipay_pay_enabled = $3,
+    updated_at = now()
+WHERE id = 1
+RETURNING payment_enabled, wechat_pay_enabled, alipay_pay_enabled;
+
+-- name: TransferCustomerOwnership :one
+UPDATE users
+SET owner_sales_user_id = $2,
+    updated_at = now()
+WHERE id = $1 AND user_type = 'customer'
+RETURNING *;

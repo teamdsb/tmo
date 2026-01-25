@@ -19,6 +19,6 @@ go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.5.1 \
   -generate types,gin \
   -package oapi \
   -o "$identity_dir/internal/http/oapi/api.gen.go" \
-  -include-tags Auth,Me,RBAC,Staff,Audit \
+  -include-tags Auth,Me,RBAC,Staff,Audit,Customers \
   --import-mapping="./common.yaml:github.com/teamdsb/tmo/services/identity/internal/http/oapi/common" \
   "$root_dir/contracts/openapi/identity.yaml"

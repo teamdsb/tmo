@@ -11,7 +11,7 @@ info:
     - Auth: Bearer JWT access token
     - Idempotency: send `Idempotency-Key` for order submit and payment create
 servers:
-- url: https://api.example.com/v1
+- url: https://api.example.com
 tags:
 - name: Payments
 security:
