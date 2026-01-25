@@ -55,6 +55,7 @@
   "author": "",
   "dependencies": {
     "@babel/runtime": "^7.24.4",
+    "@react-native/metro-config": "^0.73.2",
     "@tarojs/components": "4.1.9",
     "@tarojs/helper": "4.1.9",
     "@tarojs/plugin-platform-weapp": "4.1.9",
@@ -65,9 +66,15 @@
     "@tarojs/plugin-platform-qq": "4.1.9",
     "@tarojs/plugin-platform-h5": "4.1.9",
     "@tarojs/plugin-platform-harmony-hybrid": "4.1.9",
+    "@tarojs/components-rn": "4.1.9",
+    "@tarojs/rn-runner": "4.1.9",
+    "@tarojs/rn-supporter": "4.1.9",
     "@tarojs/runtime": "4.1.9",
+    "@tarojs/runtime-rn": "4.1.9",
+    "@tarojs/router": "4.1.9",
     "@tarojs/shared": "4.1.9",
     "@tarojs/taro": "4.1.9",
+    "@tarojs/taro-rn": "4.1.9",
     "@tarojs/plugin-framework-react": "4.1.9",
     "@tarojs/react": "4.1.9",
     "@taroify/core": "^0.9.0",
@@ -77,7 +84,11 @@
     "@tmo/gateway-api-client": "workspace:*",
     "@tmo/gateway-services": "workspace:*",
     "@tmo/identity-services": "workspace:*",
+    "@react-native-picker/picker": "2.6.1",
+    "expo": "~50.0.2",
     "lucide-react": "^0.469.0",
+    "react-native": "^0.73.1",
+    "react-native-gesture-handler": "2.14.1",
     "react-dom": "^18.0.0",
     "react": "^18.0.0"
   },
@@ -95,7 +106,7 @@
     "babel-preset-taro": "4.1.9",
     "eslint-config-taro": "4.1.9",
     "eslint": "^8.57.0",
-    "stylelint": "^16.4.0",
+    "stylelint": "16.10.0",
     "terser": "^5.30.4",
     "vite": "^4.2.0",
     "@babel/preset-react": "^7.24.1",
@@ -115,6 +126,7 @@
     "babel-jest": "^29.7.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
+    "@react-native/babel-preset": "0.73.21",
     "tailwindcss": "^3.4.17"
   }
 }

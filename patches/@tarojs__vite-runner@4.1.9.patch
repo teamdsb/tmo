@@ -1,0 +1,19 @@
+diff --git a/dist/mini/emit.js b/dist/mini/emit.js
+index fa15de2fd6f8c76708e75ff68fcc24ea1066c44e..612323ab8a0dcd7a962b3936527e67d334a781a7 100644
+--- a/dist/mini/emit.js
++++ b/dist/mini/emit.js
+@@ -185,6 +185,14 @@ function default_1(viteCompilerContext) {
+                                         return false;
+                                     target[p] = newValue;
+                                     const chunk = bundle[p];
++                                    if (!chunk) {
++                                        bundle[p] = {
++                                            type: 'asset',
++                                            fileName: p,
++                                            source: newValue.source(),
++                                        };
++                                        return true;
++                                    }
+                                     if (chunk.type === 'asset') {
+                                         chunk.source = newValue.source();
+                                     }

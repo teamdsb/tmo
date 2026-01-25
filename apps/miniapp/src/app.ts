@@ -1,7 +1,12 @@
 import { PropsWithChildren } from 'react'
 import Taro, { useLaunch } from '@tarojs/taro'
 
+/* #ifdef rn */
+import './app.rn.scss'
+/* #endif */
+/* #ifndef rn */
 import './app.scss'
+/* #endif */
 import { RoleSelectionRequiredError } from '@tmo/identity-services'
 
 import { identityServices } from './services/identity'
