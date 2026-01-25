@@ -1,34 +1,24 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import ExcelImportConfirmation from './index';
 
 describe('ExcelImportConfirmation', () => {
-  it('renders status summary and action bar', () => {
+  it('renders cart summary and items', async () => {
     render(<ExcelImportConfirmation />);
 
-    expect(screen.getByText('15 Items Found')).toBeInTheDocument();
-    expect(screen.getByText('Subtotal (12 items)')).toBeInTheDocument();
+    expect(await screen.findByText('Sample Bolt')).toBeInTheDocument();
+    expect(screen.getByText('Qty: 2')).toBeInTheDocument();
   });
 
-  it('renders pending items and allows tab switch', () => {
+  it('renders bulk import entry point', () => {
     render(<ExcelImportConfirmation />);
 
-    expect(screen.getAllByText('Select Spec')).toHaveLength(3);
-
-    const confirmedTab = screen.getByText('Confirmed (12)');
-    const confirmedLabel = confirmedTab.closest('label');
-
-    expect(confirmedLabel).not.toBeNull();
-    if (!confirmedLabel) {
-      throw new Error('Expected confirmed label');
-    }
-    fireEvent.click(confirmedLabel);
-
-    expect(confirmedLabel).toHaveClass('text-[#137fec]');
+    expect(screen.getByText('Bulk Import')).toBeInTheDocument();
   });
 
-  it('shows the cart action button', () => {
+  it('shows the cart action buttons', () => {
     render(<ExcelImportConfirmation />);
 
-    expect(screen.getByText('Add to Cart')).toBeInTheDocument();
+    expect(screen.getByText('Continue Browsing')).toBeInTheDocument();
+    expect(screen.getByText('Checkout')).toBeInTheDocument();
   });
 });

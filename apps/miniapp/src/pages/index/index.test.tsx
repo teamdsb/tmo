@@ -1,13 +1,26 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import ProductCatalogApp from './index';
 
 describe('ProductCatalogApp', () => {
-  it('renders header, search, and product grid', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('renders search and product grid', async () => {
     render(<ProductCatalogApp />);
 
-    expect(screen.getByText('Product Catalog')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Search by SKU or Name...')).toBeInTheDocument();
-    expect(screen.getAllByText(/SKU:/)).toHaveLength(4);
+    expect(await screen.findByText('Office Supplies')).toBeInTheDocument();
+
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+
+    expect(await screen.findAllByText(/ID:/)).toHaveLength(4);
   });
 
   it('updates search input value', () => {
@@ -19,10 +32,10 @@ describe('ProductCatalogApp', () => {
     expect(input).toHaveValue('bolt');
   });
 
-  it('switches active category on click', () => {
+  it('switches active category on click', async () => {
     render(<ProductCatalogApp />);
 
-    const tabLabel = screen.getByText('Office Supplies');
+    const tabLabel = await screen.findByText('Office Supplies');
     const tabButton = tabLabel.closest('button');
 
     expect(tabButton).not.toBeNull();

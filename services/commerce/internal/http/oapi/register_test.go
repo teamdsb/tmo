@@ -92,6 +92,74 @@ func (server *stubServer) PostShipmentsImportJobs(context *gin.Context) {
 	context.Status(http.StatusNotImplemented)
 }
 
+func (server *stubServer) GetAfterSalesTickets(context *gin.Context, params oapi.GetAfterSalesTicketsParams) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) PostAfterSalesTickets(context *gin.Context) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) GetAfterSalesTicketsTicketId(context *gin.Context, ticketId openapi_types.UUID) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) PatchAfterSalesTicketsTicketId(context *gin.Context, ticketId openapi_types.UUID) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) GetAfterSalesTicketsTicketIdMessages(context *gin.Context, ticketId openapi_types.UUID, params oapi.GetAfterSalesTicketsTicketIdMessagesParams) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) PostAfterSalesTicketsTicketIdMessages(context *gin.Context, ticketId openapi_types.UUID) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) GetInquiriesPrice(context *gin.Context, params oapi.GetInquiriesPriceParams) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) PostInquiriesPrice(context *gin.Context) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) GetInquiriesPriceInquiryId(context *gin.Context, inquiryId openapi_types.UUID) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) PatchInquiriesPriceInquiryId(context *gin.Context, inquiryId openapi_types.UUID) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) GetInquiriesPriceInquiryIdMessages(context *gin.Context, inquiryId openapi_types.UUID, params oapi.GetInquiriesPriceInquiryIdMessagesParams) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) PostInquiriesPriceInquiryIdMessages(context *gin.Context, inquiryId openapi_types.UUID) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) GetProductRequests(context *gin.Context, params oapi.GetProductRequestsParams) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) PostProductRequests(context *gin.Context) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) GetWishlist(context *gin.Context) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) PostWishlist(context *gin.Context) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) DeleteWishlistSkuId(context *gin.Context, skuId openapi_types.UUID) {
+	context.Status(http.StatusNotImplemented)
+}
+
 func TestRegisterHandlersRoutes(test *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()

@@ -2,12 +2,12 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import OrderHistoryApp from './index';
 
 describe('OrderHistoryApp', () => {
-  it('renders header, tabs, and order cards', () => {
+  it('renders tabs and order cards', async () => {
     render(<OrderHistoryApp />);
 
-    expect(screen.getByText('Order History')).toBeInTheDocument();
     expect(screen.getByText('All')).toBeInTheDocument();
-    expect(screen.getByText('Order #ORD-88291')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search by Order ID or Product...')).toBeInTheDocument();
+    expect(await screen.findByText('ORD-88291')).toBeInTheDocument();
   });
 
   it('updates search input value', () => {

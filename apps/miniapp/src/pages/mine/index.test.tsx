@@ -2,11 +2,11 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import PersonalCenter from './index';
 
 describe('PersonalCenter', () => {
-  it('renders user info and key sections', () => {
+  it('renders user info and key sections', async () => {
     render(<PersonalCenter />);
 
-    expect(screen.getByText('John Doe')).toBeInTheDocument();
-    expect(screen.getByText('TechFlow Solutions Corp')).toBeInTheDocument();
+    expect(await screen.findByText('John Doe')).toBeInTheDocument();
+    expect(screen.getByText('Role: Account Manager')).toBeInTheDocument();
     expect(screen.getByText('Account Manager')).toBeInTheDocument();
   });
 

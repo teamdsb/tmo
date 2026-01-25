@@ -171,7 +171,7 @@ func TestTrackingUpdateKeepsOrderStatus(t *testing.T) {
 		Detail:        "X",
 	})
 	order, err := queries.CreateOrder(ctx, db.CreateOrderParams{
-		Status:           string(oapi.SUBMITTED),
+		Status:           string(oapi.OrderStatusSUBMITTED),
 		CustomerID:       uuid.Nil,
 		OwnerSalesUserID: pgtype.UUID{},
 		Address:          address,
@@ -205,7 +205,7 @@ func TestTrackingUpdateKeepsOrderStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get order: %v", err)
 	}
-	if fetched.Status != string(oapi.SUBMITTED) {
+	if fetched.Status != string(oapi.OrderStatusSUBMITTED) {
 		t.Fatalf("expected status SUBMITTED, got %s", fetched.Status)
 	}
 }
@@ -503,7 +503,7 @@ func seedOrderWithItem(t *testing.T, queries *db.Queries, customerID uuid.UUID, 
 	}
 
 	order, err := queries.CreateOrder(ctx, db.CreateOrderParams{
-		Status:           string(oapi.SUBMITTED),
+		Status:           string(oapi.OrderStatusSUBMITTED),
 		CustomerID:       customerID,
 		OwnerSalesUserID: owner,
 		Address:          address,

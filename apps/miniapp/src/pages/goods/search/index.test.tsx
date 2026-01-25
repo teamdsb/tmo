@@ -1,12 +1,23 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import SearchEmptyState from './index';
 
 describe('SearchEmptyState', () => {
-  it('renders empty state and recommendations', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('renders empty state and recommendations', async () => {
     render(<SearchEmptyState />);
 
-    expect(screen.getByText('Search Results')).toBeInTheDocument();
-    expect(screen.getByText('No products found')).toBeInTheDocument();
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+
+    expect(screen.getByText(/We couldn't find matches/)).toBeInTheDocument();
     expect(screen.getByText('Recommended for You')).toBeInTheDocument();
   });
 
