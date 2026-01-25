@@ -10,6 +10,87 @@
   line-height: var(--cell-line-height, 48px);
 }
 
+.mine-theme {
+  --mine-bg: #f8fafc;
+  --mine-card-bg: #ffffff;
+  --mine-card-border: #e5e7eb;
+  --mine-divider: #f3f4f6;
+  --mine-text: #0f172a;
+  --mine-muted: #6b7280;
+  --mine-subtle: #94a3b8;
+  --mine-icon: #6b7280;
+  --mine-accent: #2563eb;
+  --mine-accent-bg: #eff6ff;
+}
+
+.mine-theme--dark {
+  --mine-bg: #0f172a;
+  --mine-card-bg: #1e293b;
+  --mine-card-border: #334155;
+  --mine-divider: #1f2937;
+  --mine-text: #f8fafc;
+  --mine-muted: #94a3b8;
+  --mine-subtle: #64748b;
+  --mine-icon: #94a3b8;
+  --mine-accent: #60a5fa;
+  --mine-accent-bg: #0b2a52;
+}
+
+.page.mine-page {
+  background: var(--mine-bg);
+  color: var(--mine-text);
+}
+
+.mine-card {
+  background: var(--mine-card-bg);
+  border-color: var(--mine-card-border);
+}
+
+.mine-shadow {
+  box-shadow: 0 6px 16px rgb(0 0 0 / 6%);
+}
+
+.mine-theme--dark .mine-shadow {
+  box-shadow: none;
+}
+
+.mine-muted {
+  color: var(--mine-muted);
+}
+
+.mine-subtle {
+  color: var(--mine-subtle);
+}
+
+.mine-icon {
+  color: var(--mine-icon);
+}
+
+.mine-accent {
+  color: var(--mine-accent);
+}
+
+.mine-accent-bg {
+  background: var(--mine-accent-bg);
+}
+
+.mine-accent-solid {
+  background: var(--mine-accent);
+  color: #fff;
+}
+
+.mine-divider {
+  border-color: var(--mine-divider);
+}
+
+.mine-divider-bg {
+  background-color: var(--mine-divider);
+}
+
+.mine-avatar-border {
+  border-color: var(--mine-card-bg);
+}
+
 .page {
   min-height: 100vh;
   background: #f6f7f8;
