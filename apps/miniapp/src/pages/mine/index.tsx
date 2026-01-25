@@ -120,12 +120,14 @@ export default function PersonalCenter() {
         <Cell 
           title='My Demand Requests' 
           icon={<Description className='text-gray-500' />} 
+          align='center'
           isLink
           onClick={() => navigateTo(ROUTES.demandList)}
         />
         <Cell 
           title='Shipping Address' 
           icon={<LocationOutlined className='text-gray-500' />} 
+          align='center'
           isLink
           onClick={() => navigateTo(ROUTES.addressList)}
         />
@@ -136,12 +138,14 @@ export default function PersonalCenter() {
         <Cell 
           title='Bulk Excel Import' 
           icon={<AppsOutlined className='text-gray-500' />} 
+          align='center'
           isLink
           onClick={() => navigateTo(ROUTES.import)}
         />
         <Cell 
           title='Batch Tracking' 
           icon={<BarChartOutlined className='text-gray-500' />} 
+          align='center'
           isLink
           onClick={() => navigateTo(ROUTES.trackingBatch)}
         />
@@ -152,6 +156,7 @@ export default function PersonalCenter() {
         <Cell 
           title='System Settings' 
           icon={<SettingOutlined className='text-gray-500' />} 
+          align='center'
           isLink
           onClick={() => navigateTo(ROUTES.settings)}
         />

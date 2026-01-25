@@ -1,6 +1,14 @@
 @import url("@taroify/core/index.css");
-@import url("@taroify/icons/index.css");
+@import "@taroify/icons/van/VanIcon.scss";
+@import "@taroify/icons/styles/icon.scss";
 @import url("./styles/tailwind.generated.css");
+
+.taroify-cell__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: var(--cell-line-height, 48px);
+}
 
 .page {
   min-height: 100vh;

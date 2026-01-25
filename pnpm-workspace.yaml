@@ -6,3 +6,4 @@ packages:
 patchedDependencies:
   '@tarojs/components-rn@4.1.9': patches/@tarojs__components-rn@4.1.9.patch
   '@tarojs/vite-runner@4.1.9': patches/@tarojs__vite-runner@4.1.9.patch
+  '@taroify/icons@0.9.0': patches/@taroify__icons@0.9.0.patch

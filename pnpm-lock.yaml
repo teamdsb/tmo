@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
+  '@taroify/icons@0.9.0':
+    hash: 227dc3f618ebd206e3ca4722515b18c3b5b6469252ffc5aeed470261ca739f3d
+    path: patches/@taroify__icons@0.9.0.patch
   '@tarojs/components-rn@4.1.9':
     hash: 98ad1627e4c3af89aecdefef0cea423a03c5e014d3544fbfb2b178c53162c9e4
     path: patches/@tarojs__components-rn@4.1.9.patch
@@ -32,7 +35,7 @@ importers:
         version: 0.9.0(@tarojs/components@4.1.9(@tarojs/helper@4.1.9)(@types/react@18.3.27)(postcss@8.5.6)(rollup@3.29.5))(@tarojs/taro@4.1.9(@tarojs/components@4.1.9(@tarojs/helper@4.1.9)(@types/react@18.3.27)(postcss@8.5.6)(rollup@3.29.5))(@tarojs/helper@4.1.9)(@tarojs/shared@4.1.9)(@types/react@18.3.27)(postcss@8.5.6)(rollup@3.29.5))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@taroify/icons':
         specifier: ^0.9.0
-        version: 0.9.0(@tarojs/components@4.1.9(@tarojs/helper@4.1.9)(@types/react@18.3.27)(postcss@8.5.6)(rollup@3.29.5))
+        version: 0.9.0(patch_hash=227dc3f618ebd206e3ca4722515b18c3b5b6469252ffc5aeed470261ca739f3d)(@tarojs/components@4.1.9(@tarojs/helper@4.1.9)(@types/react@18.3.27)(postcss@8.5.6)(rollup@3.29.5))
       '@tarojs/components':
         specifier: 4.1.9
         version: 4.1.9(@tarojs/helper@4.1.9)(@types/react@18.3.27)(postcss@8.5.6)(rollup@3.29.5)
@@ -12583,7 +12586,7 @@ snapshots:
   '@taroify/core@0.9.0(@tarojs/components@4.1.9(@tarojs/helper@4.1.9)(@types/react@18.3.27)(postcss@8.5.6)(rollup@3.29.5))(@tarojs/taro@4.1.9(@tarojs/components@4.1.9(@tarojs/helper@4.1.9)(@types/react@18.3.27)(postcss@8.5.6)(rollup@3.29.5))(@tarojs/helper@4.1.9)(@tarojs/shared@4.1.9)(@types/react@18.3.27)(postcss@8.5.6)(rollup@3.29.5))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
       '@taroify/hooks': 0.9.0(@tarojs/taro@4.1.9(@tarojs/components@4.1.9(@tarojs/helper@4.1.9)(@types/react@18.3.27)(postcss@8.5.6)(rollup@3.29.5))(@tarojs/helper@4.1.9)(@tarojs/shared@4.1.9)(@types/react@18.3.27)(postcss@8.5.6)(rollup@3.29.5))(lodash@4.17.21)(react@18.3.1)
-      '@taroify/icons': 0.9.0(@tarojs/components@4.1.9(@tarojs/helper@4.1.9)(@types/react@18.3.27)(postcss@8.5.6)(rollup@3.29.5))
+      '@taroify/icons': 0.9.0(patch_hash=227dc3f618ebd206e3ca4722515b18c3b5b6469252ffc5aeed470261ca739f3d)(@tarojs/components@4.1.9(@tarojs/helper@4.1.9)(@types/react@18.3.27)(postcss@8.5.6)(rollup@3.29.5))
       '@tarojs/components': 4.1.9(@tarojs/helper@4.1.9)(@types/react@18.3.27)(postcss@8.5.6)(rollup@3.29.5)
       '@tarojs/taro': 4.1.9(@tarojs/components@4.1.9(@tarojs/helper@4.1.9)(@types/react@18.3.27)(postcss@8.5.6)(rollup@3.29.5))(@tarojs/helper@4.1.9)(@tarojs/shared@4.1.9)(@types/react@18.3.27)(postcss@8.5.6)(rollup@3.29.5)
       classnames: 2.5.1
@@ -12603,7 +12606,7 @@ snapshots:
       lodash: 4.17.21
       react: 18.3.1
 
-  '@taroify/icons@0.9.0(@tarojs/components@4.1.9(@tarojs/helper@4.1.9)(@types/react@18.3.27)(postcss@8.5.6)(rollup@3.29.5))':
+  '@taroify/icons@0.9.0(patch_hash=227dc3f618ebd206e3ca4722515b18c3b5b6469252ffc5aeed470261ca739f3d)(@tarojs/components@4.1.9(@tarojs/helper@4.1.9)(@types/react@18.3.27)(postcss@8.5.6)(rollup@3.29.5))':
     dependencies:
       '@tarojs/components': 4.1.9(@tarojs/helper@4.1.9)(@types/react@18.3.27)(postcss@8.5.6)(rollup@3.29.5)
       classnames: 2.5.1
