@@ -1,5 +1,7 @@
-import { View, Text } from '@tarojs/components';
-import { Cell, Button, Image, Grid, Badge, Flex } from '@taroify/core';
+import { useEffect, useState } from 'react'
+import { View, Text } from '@tarojs/components'
+import Taro from '@tarojs/taro'
+import { Cell, Button, Image, Grid, Badge, Flex } from '@taroify/core'
 import Navbar from '@taroify/core/navbar'
 import { 
   ServiceOutlined, 
@@ -14,18 +16,40 @@ import {
   SettingOutlined, 
   AppsOutlined
 } from '@taroify/icons';
-import AppTabbar from '../../components/app-tabbar';
-import { ROUTES } from '../../routes';
+import AppTabbar from '../../components/app-tabbar'
+import { ROUTES } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
-import { navigateTo, switchTabLike } from '../../utils/navigation';
+import { navigateTo, switchTabLike } from '../../utils/navigation'
+import { gatewayServices } from '../../services/gateway'
+import { commerceServices } from '../../services/commerce'
+import { identityServices } from '../../services/identity'
+import { clearBootstrap, loadBootstrap, saveBootstrap } from '../../services/bootstrap'
+import type { BootstrapResponse } from '@tmo/gateway-api-client'
 
 export default function PersonalCenter() {
   const navbarStyle = getNavbarStyle()
-  const userInfo = {
-    name: 'John Doe',
-    company: 'TechFlow Solutions Corp',
-    avatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD6aMVVw542vMjqZUxZGYQDmSOyXCShOpx5kUCN61Wv6okrwKBUp-S_ZKLBYnnJqx_-Vx3-NhyPVZuH7gHkceoGBQajnU3ksD25p10yGt0-gT2HiURQNGy_gnhIX7OKre0UsPZyZOPchGKAqwzYVK1fBl081v0ZlwBlwVuv6RrLFj_h5OEIq0p_a7zFGn226VwTy0LMxL8E9P9LWcmgSTpQj6Tx-Th1qgUYfuhBUqvqiH9YIOAY249t69mZAho6SakEZO55UHrVJq2k'
-  };
+  const [bootstrap, setBootstrap] = useState<BootstrapResponse | null>(null)
+  const avatarFallback =
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuD6aMVVw542vMjqZUxZGYQDmSOyXCShOpx5kUCN61Wv6okrwKBUp-S_ZKLBYnnJqx_-Vx3-NhyPVZuH7gHkceoGBQajnU3ksD25p10yGt0-gT2HiURQNGy_gnhIX7OKre0UsPZyZOPchGKAqwzYVK1fBl081v0ZlwBlwVuv6RrLFj_h5OEIq0p_a7zFGn226VwTy0LMxL8E9P9LWcmgSTpQj6Tx-Th1qgUYfuhBUqvqiH9YIOAY249t69mZAho6SakEZO55UHrVJq2k'
+
+  useEffect(() => {
+    void (async () => {
+      const cached = await loadBootstrap()
+      if (cached) {
+        setBootstrap(cached)
+      }
+      try {
+        const fresh = await gatewayServices.bootstrap.get()
+        setBootstrap(fresh)
+        await saveBootstrap(fresh)
+      } catch (error) {
+        console.warn('bootstrap refresh failed', error)
+      }
+    })()
+  }, [])
+
+  const displayName = bootstrap?.me?.displayName ?? 'Guest'
+  const roleLabel = bootstrap?.me?.roles?.[0] ?? bootstrap?.me?.userType ?? 'unknown'
 
   return (
     <View className='page pb-24 text-gray-900 font-sans'>
@@ -38,14 +62,14 @@ export default function PersonalCenter() {
             round 
             width={64} 
             height={64} 
-            src={userInfo.avatar} 
+            src={avatarFallback} 
           />
           <Flex direction='column' className='flex-1'>
             <Text className='text-xl font-bold text-gray-900'>
-              {userInfo.name}
+              {displayName}
             </Text>
             <Text className='text-sm text-gray-500 mt-1'>
-              {userInfo.company}
+              Role: {roleLabel}
             </Text>
           </Flex>
         </Flex>
@@ -135,7 +159,20 @@ export default function PersonalCenter() {
 
       {/* Logout Button */}
       <View className='px-4 mt-6'>
-        <Button block shape='round' color='default' className='bg-white border-none text-gray-500'>
+        <Button
+          block
+          shape='round'
+          color='default'
+          className='bg-white border-none text-gray-500'
+          onClick={async () => {
+            await gatewayServices.tokens.setToken(null)
+            await commerceServices.tokens.setToken(null)
+            await identityServices.tokens.setToken(null)
+            await clearBootstrap()
+            await Taro.showToast({ title: 'Signed out', icon: 'none' })
+            await switchTabLike(ROUTES.home)
+          }}
+        >
           Switch Account or Logout
         </Button>
       </View>
@@ -143,5 +180,5 @@ export default function PersonalCenter() {
       {/* Bottom Navigation (Tabbar) */}
       <AppTabbar value='mine' />
     </View>
-  );
+  )
 }

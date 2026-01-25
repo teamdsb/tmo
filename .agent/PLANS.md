@@ -15,6 +15,7 @@
 - [x] (2026-01-24 20:10Z) 里程碑 3：完成 gateway-bff 路由与 `/admin/*` 编排。
 - [x] (2026-01-24 20:10Z) 里程碑 4：落地 payment 服务（可运行但默认关闭）。
 - [ ] (2026-01-24 13:48Z) 里程碑 5：miniapp 页面逐一替换为真实 API，并完成最小验证。
+- [ ] (2026-01-24 21:10Z) 里程碑 5 推进：已对接 catalog/search/detail、cart import、orders、demand、support、tracking batch、mine；address/settings 仍待契约补齐。
 
 ## Surprises & Discoveries
 
