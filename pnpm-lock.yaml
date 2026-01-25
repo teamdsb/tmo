@@ -67,6 +67,9 @@ importers:
       '@tmo/commerce-services':
         specifier: workspace:*
         version: link:../../packages/commerce-services
+      '@tmo/platform-adapter':
+        specifier: workspace:*
+        version: link:../../packages/platform-adapter
       '@tmo/gateway-api-client':
         specifier: workspace:*
         version: link:../../packages/gateway-api-client

@@ -3,9 +3,10 @@ import { View, Text } from '@tarojs/components'
 import { Button, Cell } from '@taroify/core'
 import Taro from '@tarojs/taro'
 
-import { identityServices, RoleSelectionRequiredError, type MiniLoginInput } from '@tmo/identity-services'
+import { RoleSelectionRequiredError, type MiniLoginInput } from '@tmo/identity-services'
 
 import { gatewayServices } from '../../../services/gateway'
+import { identityServices } from '../../../services/identity'
 import {
   loadPendingRoleSelection,
   saveBootstrap,
