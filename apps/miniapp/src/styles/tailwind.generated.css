@@ -22,8 +22,20 @@
   display: block
 }
 
+.flex {
+  display: flex
+}
+
 .flex-1 {
   flex: 1 1 0%
+}
+
+.flex-col {
+  flex-direction: column
+}
+
+.gap-2 {
+  gap: 0.5rem
 }
 
 .gap-4 {
@@ -77,6 +89,10 @@
 
 .font-bold {
   font-weight: 700
+}
+
+.font-semibold {
+  font-weight: 600
 }
 
 .text-blue-600 {
