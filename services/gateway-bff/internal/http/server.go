@@ -54,7 +54,6 @@ func NewRouter(handlers ProxyHandlers, logger *slog.Logger, readyCheck func(cont
 	router.Any("/payments/*path", handlers.Payment)
 
 	router.Any("/admin", handlers.Commerce)
-	router.Any("/admin/*path", handlers.Commerce)
 
 	router.Any("/ai", handlers.AI)
 	router.Any("/ai/*path", handlers.AI)

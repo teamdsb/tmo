@@ -43,4 +43,6 @@ pnpm install
 pnpm -C apps/miniapp dev:weapp
 pnpm -C apps/miniapp dev:alipay
 pnpm run test:backend
+make db-up
+make db-down
 ```
