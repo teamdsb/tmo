@@ -20,6 +20,7 @@ import {
   SettingOutlined,
   TodoList
 } from '@taroify/icons'
+import type { BootstrapResponse } from '@tmo/gateway-api-client'
 import AppTabbar from '../../components/app-tabbar'
 import { ROUTES } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
@@ -28,7 +29,6 @@ import { gatewayServices } from '../../services/gateway'
 import { commerceServices } from '../../services/commerce'
 import { identityServices } from '../../services/identity'
 import { clearBootstrap, loadBootstrap, saveBootstrap } from '../../services/bootstrap'
-import type { BootstrapResponse } from '@tmo/gateway-api-client'
 
 type IconComponent = (props: { className?: string }) => JSX.Element
 

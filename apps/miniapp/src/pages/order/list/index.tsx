@@ -8,12 +8,12 @@ import Cell from '@taroify/core/cell'
 import Tag from '@taroify/core/tag'
 import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
+import type { Order, OrderStatus } from '@tmo/api-client'
 import AppTabbar from '../../../components/app-tabbar'
 import { orderDetailRoute, orderTrackingRoute } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { navigateTo } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
-import type { Order, OrderStatus } from '@tmo/api-client'
 
 const TABS: { label: string; status?: OrderStatus }[] = [
   { label: 'All' },

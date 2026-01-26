@@ -5,12 +5,12 @@ import Navbar from '@taroify/core/navbar'
 import Cell from '@taroify/core/cell'
 import Tag from '@taroify/core/tag'
 import Button from '@taroify/core/button'
+import type { Order, OrderItem, OrderStatus } from '@tmo/api-client'
 import AppTabbar from '../../../components/app-tabbar'
 import { orderTrackingRoute } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { navigateTo } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
-import type { Order, OrderItem, OrderStatus } from '@tmo/api-client'
 
 export default function OrderDetail() {
   const router = useRouter()

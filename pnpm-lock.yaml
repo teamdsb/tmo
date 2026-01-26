@@ -99,6 +99,9 @@ importers:
       '@tarojs/taro-rn':
         specifier: 4.1.9
         version: 4.1.9(72d305dee398512aa3ddd18284e3637f)
+      '@tmo/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
       '@tmo/commerce-services':
         specifier: workspace:*
         version: link:../../packages/commerce-services
@@ -1746,7 +1749,7 @@ packages:
 
   '@expo/bunyan@4.0.1':
     resolution: {integrity: sha512-+Lla7nYSiHZirgK+U/uYzsLv/X+HaJienbD5AKX1UQZHYfWaP+9uuQluRB4GrEVWF0GZ7vEVp/jzaOT9k/SQlg==}
-    engines: {'0': node >=0.10.0}
+    engines: {node: '>=0.10.0'}
 
   '@expo/cli@0.17.13':
     resolution: {integrity: sha512-n13yxOmI3I0JidzMdFCH68tYKGDtK4XlDFk1vysZX7AIRKeDVRsSbHhma5jCla2bDt25RKmJBHA9KtzielwzAA==}

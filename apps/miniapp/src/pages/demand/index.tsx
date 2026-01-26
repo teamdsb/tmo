@@ -42,7 +42,7 @@ export default function DemandHome() {
           </Button>
         </View>
       </View>
-      <AppTabbar value='demand' />
+      <AppTabbar value='mine' />
     </View>
   )
 }

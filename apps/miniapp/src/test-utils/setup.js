@@ -1,4 +1,5 @@
 /* eslint-env jest */
+/* global globalThis */
 import '@testing-library/jest-dom';
 // eslint-disable-next-line import/no-commonjs
 const mockReact = require('react');

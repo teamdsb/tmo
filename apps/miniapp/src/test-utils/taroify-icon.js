@@ -1,9 +1,6 @@
 // Simple icon stub for Jest.
-const React = require('react');
+import React from 'react';
 
-function Icon(props) {
-  return React.createElement('svg', props);
-}
+const Icon = (props) => React.createElement('svg', props);
 
-module.exports = Icon;
-module.exports.default = Icon;
+export default Icon;

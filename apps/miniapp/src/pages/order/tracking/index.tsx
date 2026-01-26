@@ -4,10 +4,10 @@ import Taro, { useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Cell from '@taroify/core/cell'
 import Tag from '@taroify/core/tag'
+import type { TrackingInfoShipmentsItem } from '@tmo/api-client'
 import AppTabbar from '../../../components/app-tabbar'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { commerceServices } from '../../../services/commerce'
-import type { TrackingInfoShipmentsItem } from '@tmo/api-client'
 
 export default function OrderTracking() {
   const router = useRouter()

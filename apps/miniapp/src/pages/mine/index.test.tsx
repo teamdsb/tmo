@@ -24,7 +24,6 @@ describe('PersonalCenter', () => {
     render(<PersonalCenter />);
 
     expect(screen.getByText('Home')).toBeInTheDocument();
-    expect(screen.getByText('Demand')).toBeInTheDocument();
     expect(screen.getByText('Cart')).toBeInTheDocument();
     expect(screen.getByText('Orders')).toBeInTheDocument();
     expect(screen.getByText('Mine')).toBeInTheDocument();

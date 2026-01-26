@@ -11,10 +11,10 @@ import Flex from '@taroify/core/flex'
 import FixedView from '@taroify/core/fixed-view'
 import ArrowRight from '@taroify/icons/ArrowRight'
 import Logistics from '@taroify/icons/Logistics'
+import type { PriceTier, ProductDetail, Sku } from '@tmo/api-client'
 import AppTabbar from '../../../components/app-tabbar'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { commerceServices } from '../../../services/commerce'
-import type { PriceTier, ProductDetail, Sku } from '@tmo/api-client'
 
 export default function ProductDetail() {
   const router = useRouter()
@@ -157,7 +157,7 @@ export default function ProductDetail() {
             <Flex wrap='wrap' gutter={8}>
               {Object.entries(selectedSku.attributes).map(([key, value]) => (
                 <Tag key={key} size='small' variant='outlined'>
-                  {key}: {value}
+                  {key}: {String(value)}
                 </Tag>
               ))}
             </Flex>

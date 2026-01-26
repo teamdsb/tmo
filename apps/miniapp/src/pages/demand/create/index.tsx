@@ -59,7 +59,7 @@ export default function DemandCreate() {
           <Cell title='Quantity'>
             <Input value={qty} onInput={(event) => setQty(event.detail.value)} />
           </Cell>
-          <Cell title='Note' align='top'>
+          <Cell title='Note' align='start'>
             <Textarea value={note} onInput={(event) => setNote(event.detail.value)} />
           </Cell>
         </Cell.Group>
@@ -70,7 +70,7 @@ export default function DemandCreate() {
           </Button>
         </View>
       </View>
-      <AppTabbar value='demand' />
+      <AppTabbar value='mine' />
     </View>
   )
 }
