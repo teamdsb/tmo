@@ -16,6 +16,36 @@
 
 说明：`build:*` 会生成对应平台的静态产物，可用于发布或在平台开发者工具中打开。
 
+## 支付宝 Web 调试器 console 采集
+
+该脚本会使用 minidev 启动 DevServer，并打开 Web 模拟器来采集 console 日志，输出到 `apps/miniapp/.logs/`。
+
+准备工作（首次执行）：
+
+    npm i -g minidev --registry=https://registry.npmmirror.com
+    minidev login
+
+执行采集（在仓库根目录）：
+
+    pnpm -C apps/miniapp test:alipay-console
+
+可用环境变量：
+
+- `ALIPAY_PROJECT_DIR`：默认 `apps/miniapp/dist`
+- `ALIPAY_CONSOLE_TIMEOUT_MS`：采集超时，默认 60000
+- `ALIPAY_CONSOLE_EXIT_ON_ERROR`：遇到 error 是否失败，默认 true
+- `ALIPAY_WEB_URL`：手动指定 Web 模拟器 URL
+- `CHROME_EXECUTABLE_PATH`：本机 Chrome 路径（macOS 默认自动探测）
+
+日志输出：
+
+- `apps/miniapp/.logs/alipay-console.jsonl`
+- `apps/miniapp/.logs/alipay-devserver.log`
+
+文档参考：
+
+- https://opendocs.alipay.com/mini/02q17j?pathHash=c8856bdf
+
 ## 导航栏高度约定
 
 自定义导航栏高度通过 `apps/miniapp/src/utils/navbar.ts` 动态计算（基于微信胶囊按钮与状态栏高度），并在各页面的 `Navbar` 上注入 `--navbar-height` 与 `--navbar-line-height`。这样可以保证顶部不遮挡原生区域且与胶囊按钮对齐。
