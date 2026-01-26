@@ -39,6 +39,37 @@ export default defineConfig<'vite'>(async (merge) => {
     ],
     defineConstants: {
     },
+    modifyViteConfig(config) {
+      if (process.env.TARO_ENV !== 'alipay') {
+        return
+      }
+
+      const build = config.build ?? {}
+      config.build = {
+        ...build,
+        target: 'es5',
+        cssCodeSplit: false
+      }
+      config.esbuild = {
+        ...(config.esbuild ?? {}),
+        target: 'es5'
+      }
+
+      config.plugins = config.plugins ?? []
+      config.plugins.push({
+        name: 'taro-alipay-es5-override',
+        enforce: 'post',
+        config: () => ({
+          build: {
+            target: 'es5',
+            cssCodeSplit: false
+          },
+          esbuild: {
+            target: 'es5'
+          }
+        })
+      })
+    },
     copy: {
       patterns: [
         {
