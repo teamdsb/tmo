@@ -12,12 +12,12 @@ import Flex from '@taroify/core/flex'
 import AppsOutlined from '@taroify/icons/AppsOutlined'
 import FilterOutlined from '@taroify/icons/FilterOutlined'
 import SearchIcon from '@taroify/icons/Search'
+import type { Category, ProductSummary } from '@tmo/api-client'
 import AppTabbar from '../../components/app-tabbar'
 import { goodsDetailRoute } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
 import { navigateTo } from '../../utils/navigation'
 import { commerceServices } from '../../services/commerce'
-import type { Category, ProductSummary } from '@tmo/api-client'
 
 const fallbackImage =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuDGj0LySxxnfLRBsNvxC-nPykQ5urTBjIfVH6fpVr8Mq6q86Eoc900uHrsM4CWGhiTa9mh1Hjt_59YVZA8IA8o2egRuHhPMh4OOTNdFLPyy2z65oun7A7T75qdtMxB9Gx2g6hdqG7a6CoFl7wbFQ5OqSxcViSThFyQsbrrOF2K3eSm2S5yLloAGrV9xlvJmEFK-mPaQa76VxZBF-w06tpKTQ_Ecu_J9NqQcflv5Lxn_pdg9JpuXZou5PV-r29n5aUgmxkh1RVsTN382'
@@ -77,7 +77,7 @@ export default function ProductCatalogApp() {
       <View className='page-search'>
         <Search
           value={searchQuery}
-          shape='round'
+          shape='rounded'
           clearable
           icon={<SearchIcon />}
           placeholder='Search by SKU or Name...'

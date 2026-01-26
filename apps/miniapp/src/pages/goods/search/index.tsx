@@ -10,11 +10,11 @@ import Tag from '@taroify/core/tag'
 import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
 import Plus from '@taroify/icons/Plus'
+import type { ProductSummary } from '@tmo/api-client'
 import { ROUTES, goodsDetailRoute } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { navigateTo } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
-import type { ProductSummary } from '@tmo/api-client'
 
 const fallbackImage =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuDqcO0ZsF478oZ2ptOGZ-USmvK1N6w1JKiG3NEuzCtVxtUYWGTjb9CQMSPcvIx_0Jt3TrSDyA1QZ1SMSk7MCkIZ5P3VdLbub-OlzJZZmVGtjO8I4AE81fs3qbZYJkARLwmxi2WPUqLMJPKcODqfdGwfWx-2odJQMiiU8pN4dvpQF43Qqh8o7InQwDdm56riyjAsS6gYCgm6vjmxijmdB80iIMPDuEdjM_Ul5VaH_XgGIOEP4yBu8A5R7RPW0UphBnG6fHZUW3pOMtrk'
@@ -65,7 +65,7 @@ export default function SearchEmptyState() {
       <View className='page-search'>
         <Search
           value={searchValue}
-          shape='round'
+          shape='rounded'
           clearable
           placeholder='Search products...'
           onChange={(event) => setSearchValue(event.detail.value)}

@@ -1,21 +1,26 @@
 import { useEffect, useState } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { Cell, Button, Image, Grid, Badge, Flex } from '@taroify/core'
 import Navbar from '@taroify/core/navbar'
-import { 
-  ServiceOutlined, 
-  ChatOutlined, 
-  OrdersOutlined, 
-  Logistics, 
-  TodoList, 
-  Exchange, 
-  Description, 
-  LocationOutlined, 
-  BarChartOutlined, 
-  SettingOutlined, 
-  AppsOutlined
-} from '@taroify/icons';
+import {
+  Aim,
+  AppsOutlined,
+  ArrowRight,
+  BarChartOutlined,
+  ChatOutlined,
+  Description,
+  Exchange,
+  HomeOutlined,
+  LocationOutlined,
+  Logistics,
+  MoreOutlined,
+  OrdersOutlined,
+  Revoke,
+  ServiceOutlined,
+  SettingOutlined,
+  TodoList
+} from '@taroify/icons'
+import type { BootstrapResponse } from '@tmo/gateway-api-client'
 import AppTabbar from '../../components/app-tabbar'
 import { ROUTES } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
@@ -24,11 +29,91 @@ import { gatewayServices } from '../../services/gateway'
 import { commerceServices } from '../../services/commerce'
 import { identityServices } from '../../services/identity'
 import { clearBootstrap, loadBootstrap, saveBootstrap } from '../../services/bootstrap'
-import type { BootstrapResponse } from '@tmo/gateway-api-client'
+
+type IconComponent = (props: { className?: string }) => JSX.Element
+
+type MenuItem = {
+  key: string
+  label: string
+  icon: IconComponent
+  route: string
+}
+
+type OrderItem = {
+  key: string
+  label: string
+  icon: IconComponent
+  badge?: string
+  route: string
+}
+
+const MENU_ITEMS: MenuItem[] = [
+  { key: 'demand', label: 'My Demand Requests', icon: Description, route: ROUTES.demandList },
+  { key: 'address', label: 'Shipping Address', icon: LocationOutlined, route: ROUTES.addressList },
+  { key: 'import', label: 'Bulk Excel Import', icon: AppsOutlined, route: ROUTES.import },
+  { key: 'tracking', label: 'Batch Tracking', icon: BarChartOutlined, route: ROUTES.trackingBatch },
+  { key: 'settings', label: 'System Settings', icon: SettingOutlined, route: ROUTES.settings }
+]
+
+const ORDER_ITEMS: OrderItem[] = [
+  { key: 'pending', label: 'Pending', icon: OrdersOutlined, badge: '2', route: ROUTES.orders },
+  { key: 'shipped', label: 'Shipped', icon: Logistics, route: ROUTES.orders },
+  { key: 'delivered', label: 'Delivered', icon: TodoList, route: ROUTES.orders },
+  { key: 'returns', label: 'Returns', icon: Exchange, route: ROUTES.orders }
+]
+
+type MenuLinkProps = {
+  icon: IconComponent
+  label: string
+  onClick: () => void
+  showDivider: boolean
+}
+
+function MenuLink({ icon: Icon, label, onClick, showDivider }: MenuLinkProps) {
+  const rowClassName = `flex items-center justify-between px-4 py-3 ${
+    showDivider ? 'border-b mine-divider' : ''
+  }`
+
+  return (
+    <View className={rowClassName} onClick={onClick}>
+      <View className='flex items-center gap-3'>
+        <View className='w-6 h-6 flex items-center justify-center'>
+          <Icon className='text-lg mine-icon' />
+        </View>
+        <Text className='text-sm font-medium'>{label}</Text>
+      </View>
+      <ArrowRight className='text-lg mine-subtle' />
+    </View>
+  )
+}
+
+type OrderItemProps = {
+  icon: IconComponent
+  label: string
+  badge?: string
+  onClick: () => void
+}
+
+function OrderItem({ icon: Icon, label, badge, onClick }: OrderItemProps) {
+  return (
+    <View className='flex flex-col items-center gap-2' onClick={onClick}>
+      <View className='relative w-10 h-10 rounded-full mine-accent-bg flex items-center justify-center'>
+        <Icon className='text-lg mine-accent' />
+        {badge ? (
+          <View className='absolute -top-1 -right-1 w-5 h-5 rounded-full mine-accent-solid text-xs leading-none flex items-center justify-center'>
+            {badge}
+          </View>
+        ) : null}
+      </View>
+      <Text className='text-xs mine-muted'>{label}</Text>
+    </View>
+  )
+}
 
 export default function PersonalCenter() {
   const navbarStyle = getNavbarStyle()
   const [bootstrap, setBootstrap] = useState<BootstrapResponse | null>(null)
+  const [isDark] = useState(() => Taro.getSystemInfoSync().theme === 'dark')
   const avatarFallback =
     'https://lh3.googleusercontent.com/aida-public/AB6AXuD6aMVVw542vMjqZUxZGYQDmSOyXCShOpx5kUCN61Wv6okrwKBUp-S_ZKLBYnnJqx_-Vx3-NhyPVZuH7gHkceoGBQajnU3ksD25p10yGt0-gT2HiURQNGy_gnhIX7OKre0UsPZyZOPchGKAqwzYVK1fBl081v0ZlwBlwVuv6RrLFj_h5OEIq0p_a7zFGn226VwTy0LMxL8E9P9LWcmgSTpQj6Tx-Th1qgUYfuhBUqvqiH9YIOAY249t69mZAho6SakEZO55UHrVJq2k'
 
@@ -50,134 +135,119 @@ export default function PersonalCenter() {
 
   const displayName = bootstrap?.me?.displayName ?? 'Guest'
   const roleLabel = bootstrap?.me?.roles?.[0] ?? bootstrap?.me?.userType ?? 'unknown'
+  const themeClassName = isDark ? 'mine-theme mine-theme--dark' : 'mine-theme'
+
+  const handleLogout = async () => {
+    await gatewayServices.tokens.setToken(null)
+    await commerceServices.tokens.setToken(null)
+    await identityServices.tokens.setToken(null)
+    await clearBootstrap()
+    await Taro.showToast({ title: 'Signed out', icon: 'none' })
+    await switchTabLike(ROUTES.home)
+  }
 
   return (
-    <View className='page pb-24 text-gray-900 font-sans'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
-      </Navbar>
-      {/* Header Section */}
-      <View className='bg-white pt-12 pb-8 px-4 mb-3'>
-        <Flex align='center' className='gap-4'>
-          <Image 
-            round 
-            width={64} 
-            height={64} 
-            src={avatarFallback} 
-          />
-          <Flex direction='column' className='flex-1'>
-            <Text className='text-xl font-bold text-gray-900'>
-              {displayName}
-            </Text>
-            <Text className='text-sm text-gray-500 mt-1'>
-              Role: {roleLabel}
-            </Text>
-          </Flex>
-        </Flex>
+    <View className={`page pb-24 font-sans mine-page ${themeClassName}`}>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}></Navbar>
+
+      <View className='px-5 pt-4 pb-2 flex items-center justify-between'>
+        <View
+          className='w-8 h-8 rounded-full mine-card border flex items-center justify-center'
+          onClick={() => switchTabLike(ROUTES.home)}
+        >
+          <HomeOutlined className='text-base mine-icon' />
+        </View>
+        <Text className='text-base font-medium'>My Profile</Text>
+        <View className='mine-card border rounded-full flex items-center px-3 py-1 gap-2'>
+          <MoreOutlined className='text-base mine-icon' />
+          <View className='w-px h-4 mine-divider-bg' />
+          <Aim className='text-base mine-icon' />
+        </View>
       </View>
 
-      {/* Account Manager Card (Using Cell) */}
-      <Cell.Group inset className='mb-3'>
-        <Cell 
-          title='Account Manager' 
-          brief='Sarah Wang'
-          icon={<ServiceOutlined className='text-gray-500' />}
-          align='center'
-          clickable
+      <View className='px-5 pt-2 pb-6'>
+        <View className='flex items-center gap-4'>
+          <View className='relative'>
+            <Image
+              className='w-16 h-16 rounded-full'
+              src={avatarFallback}
+              mode='aspectFill'
+            />
+            <View className='absolute bottom-0 right-0 w-3 h-3 rounded-full mine-accent-solid border-2 mine-avatar-border' />
+          </View>
+          <View>
+            <Text className='text-xl font-semibold'>{displayName}</Text>
+            <Text className='text-sm mine-muted'>Role: {roleLabel}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View className='px-5 mb-6'>
+        <View
+          className='mine-card mine-shadow border rounded-2xl p-4 flex items-center justify-between'
           onClick={() => navigateTo(ROUTES.support)}
         >
-          <Button shape='round' size='small' color='primary'>
-            <ChatOutlined />
-          </Button>
-        </Cell>
-      </Cell.Group>
-
-      {/* Order Tracking Section (Using Cell + Grid) */}
-      <Cell.Group inset className='mb-3'>
-        <Cell
-          title='Order Tracking'
-          isLink
-          rightIcon={<Text className='text-xs text-gray-400'>View All</Text>}
-          onClick={() => switchTabLike(ROUTES.orders)}
-        />
-        <Grid columns={4} bordered={false}>
-          <Grid.Item
-            icon={(
-              <Badge content='2'>
-                <OrdersOutlined />
-              </Badge>
-            )}
-            text='Pending'
-            onClick={() => switchTabLike(ROUTES.orders)}
-          />
-          <Grid.Item icon={<Logistics />} text='Shipped' onClick={() => switchTabLike(ROUTES.orders)} />
-          <Grid.Item icon={<TodoList />} text='Delivered' onClick={() => switchTabLike(ROUTES.orders)} />
-          <Grid.Item icon={<Exchange />} text='Returns' onClick={() => switchTabLike(ROUTES.orders)} />
-        </Grid>
-      </Cell.Group>
-
-      {/* Menu List Group 1 (Using Cell) */}
-      <Cell.Group inset className='mb-3'>
-        <Cell 
-          title='My Demand Requests' 
-          icon={<Description className='text-gray-500' />} 
-          isLink
-          onClick={() => navigateTo(ROUTES.demandList)}
-        />
-        <Cell 
-          title='Shipping Address' 
-          icon={<LocationOutlined className='text-gray-500' />} 
-          isLink
-          onClick={() => navigateTo(ROUTES.addressList)}
-        />
-      </Cell.Group>
-
-      {/* Menu List Group 2 */}
-      <Cell.Group inset className='mb-3'>
-        <Cell 
-          title='Bulk Excel Import' 
-          icon={<AppsOutlined className='text-gray-500' />} 
-          isLink
-          onClick={() => navigateTo(ROUTES.import)}
-        />
-        <Cell 
-          title='Batch Tracking' 
-          icon={<BarChartOutlined className='text-gray-500' />} 
-          isLink
-          onClick={() => navigateTo(ROUTES.trackingBatch)}
-        />
-      </Cell.Group>
-
-      {/* Menu List Group 3 */}
-      <Cell.Group inset className='mb-3'>
-        <Cell 
-          title='System Settings' 
-          icon={<SettingOutlined className='text-gray-500' />} 
-          isLink
-          onClick={() => navigateTo(ROUTES.settings)}
-        />
-      </Cell.Group>
-
-      {/* Logout Button */}
-      <View className='px-4 mt-6'>
-        <Button
-          block
-          shape='round'
-          color='default'
-          className='bg-white border-none text-gray-500'
-          onClick={async () => {
-            await gatewayServices.tokens.setToken(null)
-            await commerceServices.tokens.setToken(null)
-            await identityServices.tokens.setToken(null)
-            await clearBootstrap()
-            await Taro.showToast({ title: 'Signed out', icon: 'none' })
-            await switchTabLike(ROUTES.home)
-          }}
-        >
-          Switch Account or Logout
-        </Button>
+          <View className='flex items-center gap-3'>
+            <View className='w-10 h-10 rounded-full mine-accent-bg flex items-center justify-center'>
+              <ServiceOutlined className='text-base mine-accent' />
+            </View>
+            <View>
+              <Text className='text-xs uppercase tracking-wide mine-subtle'>Account Manager</Text>
+              <Text className='text-sm font-medium'>Sarah Wang</Text>
+            </View>
+          </View>
+          <View className='w-10 h-10 rounded-full mine-accent-solid flex items-center justify-center'>
+            <ChatOutlined className='text-base' />
+          </View>
+        </View>
       </View>
 
-      {/* Bottom Navigation (Tabbar) */}
+      <View className='px-5 mb-6'>
+        <View className='flex items-center justify-between mb-4'>
+          <Text className='text-lg font-medium'>Order Tracking</Text>
+          <Text className='text-sm mine-muted' onClick={() => switchTabLike(ROUTES.orders)}>
+            View All
+          </Text>
+        </View>
+        <View className='mine-card mine-shadow border rounded-2xl p-4'>
+          <View className='grid grid-cols-4 gap-2'>
+            {ORDER_ITEMS.map((item) => (
+              <OrderItem
+                key={item.key}
+                icon={item.icon}
+                label={item.label}
+                badge={item.badge}
+                onClick={() => switchTabLike(item.route)}
+              />
+            ))}
+          </View>
+        </View>
+      </View>
+
+      <View className='px-5 mb-6'>
+        <View className='mine-card mine-shadow border rounded-2xl overflow-hidden'>
+          {MENU_ITEMS.map((item, index) => (
+            <MenuLink
+              key={item.key}
+              icon={item.icon}
+              label={item.label}
+              onClick={() => navigateTo(item.route)}
+              showDivider={index < MENU_ITEMS.length - 1}
+            />
+          ))}
+        </View>
+      </View>
+
+      <View className='px-5 pb-8'>
+        <View
+          className='mine-card border rounded-xl py-3 flex items-center justify-center gap-2'
+          onClick={handleLogout}
+        >
+          <Revoke className='text-base mine-subtle' />
+          <Text className='text-sm font-medium mine-muted'>Switch Account or Logout</Text>
+        </View>
+      </View>
+
       <AppTabbar value='mine' />
     </View>
   )

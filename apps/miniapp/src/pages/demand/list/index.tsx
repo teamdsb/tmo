@@ -4,10 +4,10 @@ import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Cell from '@taroify/core/cell'
 import Tag from '@taroify/core/tag'
+import type { ProductRequest } from '@tmo/api-client'
 import AppTabbar from '../../../components/app-tabbar'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { commerceServices } from '../../../services/commerce'
-import type { ProductRequest } from '@tmo/api-client'
 
 export default function DemandList() {
   const navbarStyle = getNavbarStyle()
@@ -49,7 +49,7 @@ export default function DemandList() {
           ) : null}
         </Cell.Group>
       </View>
-      <AppTabbar value='demand' />
+      <AppTabbar value='mine' />
     </View>
   )
 }

@@ -1,5 +1,6 @@
 import { PropsWithChildren } from 'react'
 import Taro, { useLaunch } from '@tarojs/taro'
+import { RoleSelectionRequiredError } from '@tmo/identity-services'
 
 /* #ifdef rn */
 import './app.rn.scss'
@@ -7,7 +8,6 @@ import './app.rn.scss'
 /* #ifndef rn */
 import './app.scss'
 /* #endif */
-import { RoleSelectionRequiredError } from '@tmo/identity-services'
 
 import { identityServices } from './services/identity'
 import { gatewayServices } from './services/gateway'

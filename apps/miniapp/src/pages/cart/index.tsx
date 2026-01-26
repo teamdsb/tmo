@@ -1,27 +1,42 @@
 import { useEffect, useMemo, useState } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Button } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
-import Tabs from '@taroify/core/tabs'
-import Progress from '@taroify/core/progress'
-import Cell from '@taroify/core/cell'
-import Tag from '@taroify/core/tag'
-import Button from '@taroify/core/button'
-import Flex from '@taroify/core/flex'
 import FixedView from '@taroify/core/fixed-view'
-import QuestionOutlined from '@taroify/icons/QuestionOutlined'
-import WarningOutlined from '@taroify/icons/WarningOutlined'
-import AppTabbar from '../../components/app-tabbar'
-import { getNavbarStyle } from '../../utils/navbar'
-import { commerceServices } from '../../services/commerce'
-import { ROUTES } from '../../routes'
-import { navigateTo, switchTabLike } from '../../utils/navigation'
+import { AppsOutlined, ArrowLeft, FilterOutlined } from '@taroify/icons'
 import type {
   Cart,
   CartImportJob,
   CartImportPendingItem,
   CartImportSelection
 } from '@tmo/api-client'
+import AppTabbar from '../../components/app-tabbar'
+import { getNavbarStyle } from '../../utils/navbar'
+import { commerceServices } from '../../services/commerce'
+import { ROUTES } from '../../routes'
+import { navigateTo, switchTabLike } from '../../utils/navigation'
+
+const MATCH_TYPE_BADGES: Record<string, { label: string; className: string }> = {
+  AMBIGUOUS: { label: 'Ambiguous', className: 'bg-amber-50 text-amber-600' },
+  NOT_FOUND: { label: 'Not Found', className: 'bg-red-50 text-red-600' }
+}
+
+const formatPendingMeta = (item: CartImportPendingItem) => {
+  const parts = [
+    item.rawSpec?.trim() || null,
+    item.rawQty ? `Qty ${item.rawQty}` : null,
+    `Row ${item.rowNo}`
+  ].filter(Boolean)
+  return parts.join(' • ')
+}
+
+const formatCartItemMeta = (item: Cart['items'][number]) => {
+  const parts = [
+    item.sku.spec?.trim() || null,
+    item.sku.skuCode ? `SKU ${item.sku.skuCode}` : null
+  ].filter(Boolean)
+  return parts.join(' • ')
+}
 
 export default function ExcelImportConfirmation() {
   const router = useRouter()
@@ -69,6 +84,11 @@ export default function ExcelImportConfirmation() {
   const progressPercent = totalCount > 0 ? Math.round((identifiedCount / totalCount) * 100) : 0
 
   const selections = useMemo(() => Object.values(selectionMap), [selectionMap])
+  const cartItems = cart?.items ?? []
+
+  const handleBack = () => {
+    Taro.navigateBack().catch(() => switchTabLike(ROUTES.cart))
+  }
 
   const handleSelectSpec = async (item: CartImportPendingItem) => {
     const candidates = item.candidates ?? []
@@ -121,112 +141,227 @@ export default function ExcelImportConfirmation() {
     }
   }
 
+  const actionBase = 'flex-1 h-11 rounded-xl text-sm font-semibold flex items-center justify-center'
+  const actionDisabled = loading ? 'opacity-60' : ''
+
   return (
-    <View className='page page-compact-navbar'>
+    <View className='page page-compact-navbar flex flex-col'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
       </Navbar>
 
       {importJob ? (
-        <>
-          <View className='page-content'>
-            <Flex justify='space-between' align='end'>
-              <View>
-                <Text className='section-title'>
-                  {totalCount > 0 ? `${totalCount} Items Found` : 'Import Job'}
-                </Text>
-                <Text className='section-subtitle'>Ready for your review</Text>
+        <View className='flex-1 flex flex-col bg-white'>
+          <View className='px-6 pt-2 pb-2 bg-white'>
+            <View className='flex items-center justify-between mb-6'>
+              <View
+                className='w-8 h-8 flex items-center justify-center rounded-full -ml-2 text-slate-600'
+                onClick={handleBack}
+              >
+                <ArrowLeft className='text-xl' />
               </View>
-              <Tag size='small' color='primary'>
+              <Text className='text-lg font-semibold text-slate-900 tracking-tight'>Import Results</Text>
+              <View className='w-8' />
+            </View>
+            <View className='flex items-center gap-4 mb-2'>
+              <View className='flex-1 h-1 bg-slate-100 rounded-full overflow-hidden'>
+                <View className='h-full bg-blue-600 rounded-full' style={{ width: `${progressPercent}%` }} />
+              </View>
+              <Text className='text-10 font-medium text-slate-400 whitespace-nowrap'>
                 {identifiedCount}/{totalCount} Identified
-              </Tag>
-            </Flex>
-
-            <Progress percent={progressPercent} color='primary' />
-
-            <Flex align='center' gutter={6} className='section-notice'>
-              <WarningOutlined />
-              <Text className='section-subtitle'>
-                {pendingCount} items require specification choice
               </Text>
-            </Flex>
+            </View>
           </View>
 
-          <Tabs value={activeTab} onChange={(value) => setActiveTab(String(value))}>
-            <Tabs.TabPane value='to-confirm' title={`To Confirm (${pendingItems.length})`}>
-              <Cell.Group inset>
-                {pendingItems.map((item) => {
+          <View className='flex px-6 border-b border-slate-100 mb-2'>
+            <View
+              className={`pb-3 text-sm font-medium mr-8 ${
+                activeTab === 'to-confirm'
+                  ? 'border-b-2 border-blue-600 text-slate-900'
+                  : 'text-slate-400'
+              }`}
+              onClick={() => setActiveTab('to-confirm')}
+            >
+              <Text>To Confirm</Text>
+              <Text className='text-10 align-top ml-1 text-blue-600'>
+                {pendingItems.length}
+              </Text>
+            </View>
+            <View
+              className={`pb-3 text-sm font-medium ${
+                activeTab === 'confirmed'
+                  ? 'border-b-2 border-blue-600 text-slate-900'
+                  : 'text-slate-400'
+              }`}
+              onClick={() => setActiveTab('confirmed')}
+            >
+              <Text>Confirmed</Text>
+              <Text className='text-10 align-top ml-1'>{autoAddedItems.length}</Text>
+            </View>
+          </View>
+
+          <View className='px-6 py-2 pb-40'>
+            {activeTab === 'to-confirm' ? (
+              pendingItems.length > 0 ? (
+                pendingItems.map((item) => {
                   const selected = selectionMap[item.rowNo]
+                  const badge = MATCH_TYPE_BADGES[item.matchType] ?? {
+                    label: 'Pending',
+                    className: 'bg-slate-50 text-slate-500'
+                  }
+                  const buttonClass = selected
+                    ? 'border-blue-200 text-blue-600 bg-blue-50'
+                    : 'border-slate-200 text-slate-600 bg-transparent'
+
                   return (
-                    <Cell
+                    <View
                       key={item.rowNo}
-                      icon={<QuestionOutlined />}
-                      title={item.rawName}
-                      brief={`Row ${item.rowNo} · ${item.matchType}`}
-                      rightIcon={(
-                        <Button size='small' color='primary' onClick={() => handleSelectSpec(item)}>
-                          {selected ? 'Selected' : 'Select Spec'}
-                        </Button>
-                      )}
-                    />
+                      className='py-5 border-b border-slate-100 flex items-center justify-between gap-4'
+                    >
+                      <View className='flex-1 min-w-0'>
+                        <View className='flex items-center gap-2 mb-1 flex-wrap'>
+                          <Text className='text-sm font-medium text-slate-900 truncate'>
+                            {item.rawName}
+                          </Text>
+                          <View className={`px-2 py-1 rounded ${badge.className}`}>
+                            <Text className='text-9 font-medium uppercase tracking-wide'>
+                              {badge.label}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text className='text-xs text-slate-400 font-light truncate'>
+                          {formatPendingMeta(item)}
+                        </Text>
+                      </View>
+                      <View
+                        className={`shrink-0 h-8 px-3 text-11 font-medium border rounded-lg ${buttonClass}`}
+                        onClick={() => handleSelectSpec(item)}
+                      >
+                        <Text>{selected ? 'Selected' : 'Select Spec'}</Text>
+                      </View>
+                    </View>
+                  )
+                })
+              ) : (
+                <View className='py-10 text-center'>
+                  <Text className='text-sm text-slate-400'>No pending items</Text>
+                  <Text className='text-xs text-slate-300'>All items were auto-matched.</Text>
+                </View>
+              )
+            ) : autoAddedItems.length > 0 ? (
+              autoAddedItems.map((item) => (
+                <View
+                  key={`${item.rowNo}-${item.skuId}`}
+                  className='py-5 border-b border-slate-100 flex items-center justify-between gap-4'
+                >
+                  <View className='flex-1 min-w-0'>
+                    <Text className='text-sm font-medium text-slate-900 truncate'>
+                      SKU {item.skuId.slice(0, 8)}
+                    </Text>
+                    <Text className='text-xs text-slate-400 font-light truncate'>
+                      Qty {item.qty} • Row {item.rowNo}
+                    </Text>
+                  </View>
+                  <View className='px-2 py-1 rounded bg-emerald-50'>
+                    <Text className='text-9 font-medium uppercase tracking-wide text-emerald-600'>
+                      Confirmed
+                    </Text>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View className='py-10 text-center'>
+                <Text className='text-sm text-slate-400'>No confirmed items</Text>
+                <Text className='text-xs text-slate-300'>Selections will appear here after confirmation.</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      ) : (
+        <View className='flex-1 flex flex-col bg-gray-50'>
+          <View className='px-6 pt-3 pb-3 bg-white'>
+            <View className='flex items-center justify-between gap-4'>
+              <View className='min-w-0'>
+                <Text className='text-lg font-semibold text-slate-900'>Cart</Text>
+                <Text className='text-xs text-slate-400'>Review items before checkout</Text>
+              </View>
+              <Button
+                className='h-9 px-3 text-11 font-semibold rounded-lg border border-slate-200 text-slate-600 bg-white'
+                hoverClass='none'
+                onClick={() => navigateTo(ROUTES.import)}
+              >
+                Bulk Import
+              </Button>
+            </View>
+          </View>
+
+          <View className='px-4 py-3 flex justify-between items-center bg-gray-50'>
+            <Text className='text-xs text-slate-500 font-medium'>
+              Showing {cartItems.length} items
+            </Text>
+            <View className='flex gap-2'>
+              <View className='p-2 bg-white rounded-md shadow-sm border border-gray-200 text-slate-400'>
+                <FilterOutlined className='text-sm' />
+              </View>
+              <View className='p-2 bg-white rounded-md shadow-sm border border-gray-200 text-slate-400'>
+                <AppsOutlined className='text-sm' />
+              </View>
+            </View>
+          </View>
+
+          <View className='flex-1 px-4 pb-40 bg-gray-50 pt-2'>
+            {cartItems.length > 0 ? (
+              <View className='grid grid-cols-1 gap-4'>
+                {cartItems.map((item) => {
+                  const meta = formatCartItemMeta(item)
+                  return (
+                    <View
+                      key={item.id}
+                      className='bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center justify-between gap-4'
+                    >
+                      <View className='flex-1 min-w-0'>
+                        <Text className='text-sm font-medium text-slate-900 truncate'>
+                          {item.sku.name}
+                        </Text>
+                        {meta ? (
+                          <Text className='text-xs text-slate-400 mt-1 truncate'>{meta}</Text>
+                        ) : null}
+                      </View>
+                      <View className='flex items-center gap-2'>
+                        <Text className='text-xs text-slate-400'>Qty</Text>
+                        <Text className='text-sm font-semibold text-slate-900'>{item.qty}</Text>
+                      </View>
+                    </View>
                   )
                 })}
-                {pendingItems.length === 0 ? (
-                  <Cell title='No pending items' brief='All items were auto-matched.' />
-                ) : null}
-              </Cell.Group>
-            </Tabs.TabPane>
-
-            <Tabs.TabPane value='confirmed' title={`Confirmed (${autoAddedItems.length})`}>
-              <Cell.Group inset>
-                {autoAddedItems.map((item) => (
-                  <Cell
-                    key={`${item.rowNo}-${item.skuId}`}
-                    title={`SKU ${item.skuId.slice(0, 8)}`}
-                    brief={`Qty: ${item.qty} · Row ${item.rowNo}`}
-                  />
-                ))}
-                {autoAddedItems.length === 0 ? (
-                  <Cell title='No auto-added items' brief='Selections will appear here after confirmation.' />
-                ) : null}
-              </Cell.Group>
-            </Tabs.TabPane>
-          </Tabs>
-        </>
-      ) : (
-        <View className='page-content'>
-          <Flex justify='space-between' align='center'>
-            <View>
-              <Text className='section-title'>Cart</Text>
-              <Text className='section-subtitle'>Review items before checkout</Text>
-            </View>
-            <Button size='small' variant='outlined' onClick={() => navigateTo(ROUTES.import)}>
-              Bulk Import
-            </Button>
-          </Flex>
-          <Cell.Group inset>
-            {(cart?.items ?? []).map((item) => (
-              <Cell
-                key={item.id}
-                title={item.sku.name}
-                brief={`Qty: ${item.qty}`}
-              />
-            ))}
-            {(cart?.items ?? []).length === 0 ? (
-              <Cell title='Cart is empty' brief='Use bulk import or add items from catalog.' />
-            ) : null}
-          </Cell.Group>
+              </View>
+            ) : (
+              <View className='py-10 text-center'>
+                <Text className='text-sm text-slate-400'>Cart is empty</Text>
+                <Text className='text-xs text-slate-300'>Use bulk import or add items from catalog.</Text>
+              </View>
+            )}
+          </View>
         </View>
       )}
 
       <FixedView position='bottom' safeArea='bottom' placeholder>
-        <Flex justify='space-between' gutter={12} className='action-bar'>
-          <Button block variant='outlined' disabled={loading}>
+        <View className='px-5 py-3 bg-white border-t border-slate-100 flex gap-3'>
+          <Button
+            className={`${actionBase} border border-slate-200 text-slate-600 bg-white ${actionDisabled}`}
+            hoverClass='none'
+            disabled={loading}
+          >
             {importJob ? 'Save Draft' : 'Continue Browsing'}
           </Button>
-          <Button block color='primary' disabled={loading} onClick={importJob ? handleConfirmImport : undefined}>
+          <Button
+            className={`${actionBase} text-white bg-blue-600 ${actionDisabled}`}
+            hoverClass='none'
+            disabled={loading}
+            onClick={importJob ? handleConfirmImport : undefined}
+          >
             {importJob ? 'Confirm & Add to Cart' : 'Checkout'}
           </Button>
-        </Flex>
+        </View>
         <AppTabbar value='cart' fixed={false} placeholder={false} />
       </FixedView>
     </View>
