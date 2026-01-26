@@ -13,7 +13,9 @@ import ArrowRight from '@taroify/icons/ArrowRight'
 import Logistics from '@taroify/icons/Logistics'
 import type { PriceTier, ProductDetail, Sku } from '@tmo/api-client'
 import AppTabbar from '../../../components/app-tabbar'
+import { goodsDetailRoute } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
+import { ensureLoggedIn } from '../../../utils/auth'
 import { commerceServices } from '../../../services/commerce'
 
 export default function ProductDetail() {
@@ -63,6 +65,9 @@ export default function ProductDetail() {
       await Taro.showToast({ title: 'Select a SKU first', icon: 'none' })
       return
     }
+    const redirectTo = typeof spuId === 'string' ? goodsDetailRoute(spuId) : undefined
+    const allowed = await ensureLoggedIn({ redirect: true, redirectTo })
+    if (!allowed) return
     try {
       await commerceServices.cart.addItem(selectedSku.id, 1)
       await Taro.showToast({ title: 'Added to cart', icon: 'success' })

@@ -8,6 +8,7 @@ export const ROUTES = {
   goodsDetail: '/pages/goods/detail/index',
   orderDetail: '/pages/order/detail/index',
   orderTracking: '/pages/order/tracking/index',
+  category: '/pages/category/index',
   demandList: '/pages/demand/list/index',
   demandCreate: '/pages/demand/create/index',
   addressList: '/pages/account/address/index',

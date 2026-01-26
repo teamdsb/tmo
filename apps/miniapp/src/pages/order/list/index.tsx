@@ -29,7 +29,6 @@ export default function OrderHistoryApp() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(false)
   const navbarStyle = getNavbarStyle()
-
   useEffect(() => {
     void (async () => {
       setLoading(true)
@@ -128,7 +127,7 @@ export default function OrderHistoryApp() {
         ))}
       </Tabs>
 
-      <AppTabbar value='orders' />
+      <AppTabbar value='mine' />
     </View>
   )
 }

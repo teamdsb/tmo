@@ -205,7 +205,7 @@ export default function PersonalCenter() {
       <View className='px-5 mb-6'>
         <View className='flex items-center justify-between mb-4'>
           <Text className='text-lg font-medium'>Order Tracking</Text>
-          <Text className='text-sm mine-muted' onClick={() => switchTabLike(ROUTES.orders)}>
+          <Text className='text-sm mine-muted' onClick={() => navigateTo(ROUTES.orders)}>
             View All
           </Text>
         </View>
@@ -217,7 +217,7 @@ export default function PersonalCenter() {
                 icon={item.icon}
                 label={item.label}
                 badge={item.badge}
-                onClick={() => switchTabLike(item.route)}
+                onClick={() => navigateTo(item.route)}
               />
             ))}
           </View>

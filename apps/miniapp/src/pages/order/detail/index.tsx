@@ -76,7 +76,7 @@ export default function OrderDetail() {
           </Button>
         </View>
       </View>
-      <AppTabbar value='orders' />
+      <AppTabbar value='mine' />
     </View>
   )
 }

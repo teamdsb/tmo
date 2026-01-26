@@ -12,6 +12,11 @@ const css = fs.readFileSync(filePath, 'utf8')
 const ruleRegex = /([^{}]+)\{/g
 const errors = []
 
+const backslashIndex = css.indexOf('\\')
+if (backslashIndex !== -1) {
+  errors.push({ selector: '<file>', reason: `unexpected backslash at ${backslashIndex}` })
+}
+
 const checks = [
   { re: /\\/, reason: 'escaped selector (\\\\)' },
   { re: /:[a-zA-Z-]+/, reason: 'pseudo selector (:...)' },

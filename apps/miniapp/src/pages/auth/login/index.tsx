@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Text, View } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useRouter } from '@tarojs/taro'
 import Button from '@taroify/core/button'
 import AppsOutlined from '@taroify/icons/AppsOutlined'
 import { RoleSelectionRequiredError } from '@tmo/identity-services'
@@ -39,9 +39,20 @@ const readLaunchContext = (): LaunchContext => {
 }
 
 export default function LoginPage() {
+  const router = useRouter()
   const [agreed, setAgreed] = useState(false)
   const [loading, setLoading] = useState(false)
   const launchContext = useMemo(readLaunchContext, [])
+  const redirect = (() => {
+    if (typeof router.params?.redirect !== 'string') {
+      return ''
+    }
+    try {
+      return decodeURIComponent(router.params.redirect)
+    } catch {
+      return router.params.redirect
+    }
+  })()
 
   const handleLogin = async () => {
     if (!agreed) {
@@ -61,7 +72,7 @@ export default function LoginPage() {
       const bootstrap = await gatewayServices.bootstrap.get()
       await saveBootstrap(bootstrap)
       await savePendingRoleSelection(null)
-      await switchTabLike(ROUTES.home)
+      await switchTabLike(redirect || ROUTES.home)
     } catch (error) {
       if (error instanceof RoleSelectionRequiredError) {
         await savePendingRoleSelection({
@@ -83,10 +94,16 @@ export default function LoginPage() {
   }
 
   const handleAltLogin = async () => {
-    await Taro.showToast({
-      title: 'Please contact support to update your login method.',
-      icon: 'none'
-    })
+    await identityServices.tokens.setToken(null)
+    if (redirect) {
+      await switchTabLike(redirect)
+      return
+    }
+    try {
+      await Taro.navigateBack()
+    } catch {
+      await switchTabLike(ROUTES.home)
+    }
   }
 
   return (
@@ -118,19 +135,19 @@ export default function LoginPage() {
             onClick={handleAltLogin}
             className='login-secondary'
           >
-            Use another phone number
+            暂不登录
           </Button>
         </View>
 
         <View className='mt-5 flex items-start gap-3' onClick={() => setAgreed((prev) => !prev)}>
           <View className={`login-checkbox ${agreed ? 'login-checkbox--checked' : ''}`} />
-          <Text className='text-[10px] text-slate-500 leading-snug'>
+          <Text className='text-10 text-slate-500 leading-snug'>
             I have read and agree to the Privacy Policy and Terms of Service.
           </Text>
         </View>
       </View>
 
-      <View className='mt-auto text-center text-[10px] text-slate-400'>Need help? Reach out to your account manager.</View>
+      <View className='mt-auto text-center text-10 text-slate-400'>Need help? Reach out to your account manager.</View>
     </View>
   )
 }

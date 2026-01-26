@@ -38,6 +38,10 @@ const bootstrapApp = async (): Promise<void> => {
   if (bootstrap?.me) {
     return
   }
+  const token = await identityServices.tokens.getToken()
+  if (!token) {
+    return
+  }
 
   await loginAndBootstrap(context)
 }
@@ -73,7 +77,7 @@ const loginAndBootstrap = async (context: LaunchContext): Promise<void> => {
       return
     }
     console.warn('identity login failed', error)
-    await navigateTo(ROUTES.authLogin)
+    await identityServices.tokens.setToken(null)
     return
   }
 

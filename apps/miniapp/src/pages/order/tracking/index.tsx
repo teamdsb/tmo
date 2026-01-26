@@ -57,7 +57,7 @@ export default function OrderTracking() {
           ) : null}
         </Cell.Group>
       </View>
-      <AppTabbar value='orders' />
+      <AppTabbar value='mine' />
     </View>
   )
 }
