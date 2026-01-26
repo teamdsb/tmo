@@ -65,7 +65,7 @@ export default function SearchEmptyState() {
       <View className='page-search'>
         <Search
           value={searchValue}
-          shape='round'
+          shape='rounded'
           clearable
           placeholder='Search products...'
           onChange={(event) => setSearchValue(event.detail.value)}

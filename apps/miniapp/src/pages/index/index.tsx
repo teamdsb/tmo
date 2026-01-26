@@ -77,7 +77,7 @@ export default function ProductCatalogApp() {
       <View className='page-search'>
         <Search
           value={searchQuery}
-          shape='round'
+          shape='rounded'
           clearable
           icon={<SearchIcon />}
           placeholder='Search by SKU or Name...'

@@ -18,6 +18,10 @@ const stripDomProps = (props) => {
     placeholder,
     safeArea,
     block,
+    hoverClass,
+    hoverStyle,
+    rightIcon,
+    leftIcon,
     variant,
     color,
     size,
@@ -56,9 +60,16 @@ jest.mock('@tarojs/components', () => {
     />
   );
 
+  const Button = ({ children, ...props }) => (
+    <button type='button' {...stripDomProps(props)}>
+      {children}
+    </button>
+  );
+
   return {
     View: mockCreateComponent('div'),
     Text: mockCreateComponent('span'),
+    Button,
     Input,
     ScrollView: mockCreateComponent('div'),
     Image: mockCreateComponent('img')

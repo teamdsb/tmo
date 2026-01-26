@@ -67,7 +67,7 @@ export default function OrderHistoryApp() {
       <View className='page-search'>
         <Search
           value={searchQuery}
-          shape='round'
+          shape='rounded'
           clearable
           placeholder='Search by Order ID or Product...'
           onChange={(event) => setSearchQuery(event.detail.value)}

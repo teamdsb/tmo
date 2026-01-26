@@ -41,7 +41,7 @@
     "dev:qq": "npm run build:qq -- --watch",
     "dev:jd": "npm run build:jd -- --watch",
     "dev:harmony-hybrid": "npm run build:harmony-hybrid -- --watch",
-    "test": "jest --runInBand",
+    "test": "NODE_NO_WARNINGS=1 jest --runInBand",
     "lint": "pnpm run lint:eslint && pnpm run lint:styles && pnpm run lint:wxss && pnpm run lint:types",
     "lint:eslint": "eslint \"{src,config}/**/*.{ts,tsx,js,jsx}\" --max-warnings=0 --cache",
     "lint:styles": "stylelint \"src/**/*.{scss,css}\"",

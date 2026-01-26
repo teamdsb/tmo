@@ -41,6 +41,10 @@ export default defineConfig<'vite'>(async (merge) => {
     },
     copy: {
       patterns: [
+        {
+          from: 'src/assets/fonts',
+          to: 'assets/fonts'
+        }
       ],
       options: {
       }

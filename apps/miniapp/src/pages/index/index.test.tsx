@@ -1,6 +1,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import ProductCatalogApp from './index';
 
+const renderCatalog = async () => {
+  render(<ProductCatalogApp />);
+  await screen.findByText('Office Supplies');
+};
+
 describe('ProductCatalogApp', () => {
   beforeEach(() => {
     jest.useFakeTimers();
@@ -11,7 +16,7 @@ describe('ProductCatalogApp', () => {
   });
 
   it('renders search and product grid', async () => {
-    render(<ProductCatalogApp />);
+    await renderCatalog();
 
     expect(screen.getByPlaceholderText('Search by SKU or Name...')).toBeInTheDocument();
     expect(await screen.findByText('Office Supplies')).toBeInTheDocument();
@@ -23,8 +28,8 @@ describe('ProductCatalogApp', () => {
     expect(await screen.findAllByText(/ID:/)).toHaveLength(4);
   });
 
-  it('updates search input value', () => {
-    render(<ProductCatalogApp />);
+  it('updates search input value', async () => {
+    await renderCatalog();
 
     const input = screen.getByPlaceholderText('Search by SKU or Name...');
     fireEvent.change(input, { target: { value: 'bolt' } });
@@ -33,7 +38,7 @@ describe('ProductCatalogApp', () => {
   });
 
   it('switches active category on click', async () => {
-    render(<ProductCatalogApp />);
+    await renderCatalog();
 
     const tabLabel = await screen.findByText('Office Supplies');
     const tabButton = tabLabel.closest('button');
