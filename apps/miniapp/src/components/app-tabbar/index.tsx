@@ -8,7 +8,7 @@ import { switchTabLike } from '../../utils/navigation'
 
 const TAB_ITEMS = [
   { key: 'home', label: 'Home', icon: <WapHomeOutlined />, url: ROUTES.home },
-  { key: 'category', label: 'Category', icon: <AppsOutlined />, url: ROUTES.category },
+  { key: 'category', label: '分类', icon: <AppsOutlined />, url: ROUTES.category },
   { key: 'cart', label: 'Cart', icon: <ShoppingCartOutlined />, url: ROUTES.cart },
   { key: 'mine', label: 'Mine', icon: <UserOutlined />, url: ROUTES.mine }
 ] as const
