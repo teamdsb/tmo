@@ -73,6 +73,7 @@ const loginAndBootstrap = async (context: LaunchContext): Promise<void> => {
       return
     }
     console.warn('identity login failed', error)
+    await navigateTo(ROUTES.authLogin)
     return
   }
 

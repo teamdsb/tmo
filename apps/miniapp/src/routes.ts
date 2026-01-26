@@ -15,7 +15,8 @@ export const ROUTES = {
   trackingBatch: '/pages/tracking/batch/index',
   settings: '/pages/settings/index',
   support: '/pages/support/index',
-  authRoleSelect: '/pages/auth/role-select/index'
+  authRoleSelect: '/pages/auth/role-select/index',
+  authLogin: '/pages/auth/login/index'
 } as const
 
 const buildQuery = (params?: Record<string, string | number | boolean | undefined>) => {
