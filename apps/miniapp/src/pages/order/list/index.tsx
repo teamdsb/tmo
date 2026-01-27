@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
+import ArrowLeft from '@taroify/icons/ArrowLeft'
 import Search from '@taroify/core/search'
 import Tabs from '@taroify/core/tabs'
 import Cell from '@taroify/core/cell'
@@ -10,9 +11,9 @@ import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
 import type { Order, OrderStatus } from '@tmo/api-client'
 import AppTabbar from '../../../components/app-tabbar'
-import { orderDetailRoute, orderTrackingRoute } from '../../../routes'
+import { ROUTES, orderDetailRoute, orderTrackingRoute } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
-import { navigateTo } from '../../../utils/navigation'
+import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
 
 const TABS: { label: string; status?: OrderStatus }[] = [
@@ -29,6 +30,10 @@ export default function OrderHistoryApp() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(false)
   const navbarStyle = getNavbarStyle()
+
+  const handleBack = () => {
+    Taro.navigateBack().catch(() => switchTabLike(ROUTES.mine))
+  }
   useEffect(() => {
     void (async () => {
       setLoading(true)
@@ -61,6 +66,9 @@ export default function OrderHistoryApp() {
   return (
     <View className='page page-compact-navbar'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
+        <Navbar.NavLeft onClick={handleBack}>
+          <ArrowLeft className='text-xl' />
+        </Navbar.NavLeft>
       </Navbar>
 
       <View className='page-search'>

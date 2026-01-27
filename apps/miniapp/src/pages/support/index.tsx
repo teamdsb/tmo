@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
+import ArrowLeft from '@taroify/icons/ArrowLeft'
 import Tabs from '@taroify/core/tabs'
 import Cell from '@taroify/core/cell'
 import Tag from '@taroify/core/tag'
@@ -9,6 +10,8 @@ import type { AfterSalesTicket, PriceInquiry } from '@tmo/api-client'
 import AppTabbar from '../../components/app-tabbar'
 import { getNavbarStyle } from '../../utils/navbar'
 import { commerceServices } from '../../services/commerce'
+import { ROUTES } from '../../routes'
+import { switchTabLike } from '../../utils/navigation'
 
 export default function SupportPage() {
   const navbarStyle = getNavbarStyle()
@@ -16,6 +19,10 @@ export default function SupportPage() {
   const [tickets, setTickets] = useState<AfterSalesTicket[]>([])
   const [inquiries, setInquiries] = useState<PriceInquiry[]>([])
   const [loading, setLoading] = useState(false)
+
+  const handleBack = () => {
+    Taro.navigateBack().catch(() => switchTabLike(ROUTES.mine))
+  }
 
   useEffect(() => {
     void (async () => {
@@ -39,6 +46,9 @@ export default function SupportPage() {
   return (
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
+        <Navbar.NavLeft onClick={handleBack}>
+          <ArrowLeft className='text-xl' />
+        </Navbar.NavLeft>
       </Navbar>
       <View className='page-content'>
         <Text className='section-title'>Support</Text>

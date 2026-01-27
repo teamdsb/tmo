@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
+import ArrowLeft from '@taroify/icons/ArrowLeft'
 import Cell from '@taroify/core/cell'
 import Tag from '@taroify/core/tag'
 import type { TrackingInfoShipmentsItem } from '@tmo/api-client'
 import AppTabbar from '../../../components/app-tabbar'
+import { ROUTES } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
+import { switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
 
 export default function OrderTracking() {
@@ -16,6 +19,10 @@ export default function OrderTracking() {
   const [loading, setLoading] = useState(false)
 
   const orderId = router.params?.id
+
+  const handleBack = () => {
+    Taro.navigateBack().catch(() => switchTabLike(ROUTES.orders))
+  }
 
   useEffect(() => {
     if (!orderId || typeof orderId !== 'string') return
@@ -36,6 +43,9 @@ export default function OrderTracking() {
   return (
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
+        <Navbar.NavLeft onClick={handleBack}>
+          <ArrowLeft className='text-xl' />
+        </Navbar.NavLeft>
       </Navbar>
       <View className='page-content'>
         <View className='order-header'>

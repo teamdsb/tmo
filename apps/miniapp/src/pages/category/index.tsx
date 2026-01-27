@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { View, Text, Image, ScrollView } from '@tarojs/components'
 import Navbar from '@taroify/core/navbar'
 import Search from '@taroify/core/search'
@@ -190,6 +190,8 @@ export default function CategoryPage() {
   const navbarStyle = getNavbarStyle()
   const [activeKey, setActiveKey] = useState<CategoryKey>('office')
   const [query, setQuery] = useState('')
+  const [isTabbarVisible, setIsTabbarVisible] = useState(true)
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const activeData = CATEGORY_DATA[activeKey]
 
@@ -211,6 +213,30 @@ export default function CategoryPage() {
     setActiveKey(key)
   }
 
+  const scheduleTabbarShow = useCallback(() => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current)
+    }
+    hideTimerRef.current = setTimeout(() => {
+      setIsTabbarVisible(true)
+    }, 200)
+  }, [])
+
+  const handleScroll = useCallback(() => {
+    if (isTabbarVisible) {
+      setIsTabbarVisible(false)
+    }
+    scheduleTabbarShow()
+  }, [isTabbarVisible, scheduleTabbarShow])
+
+  useEffect(() => {
+    return () => {
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current)
+      }
+    }
+  }, [])
+
   return (
     <View className='page category-page'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}></Navbar>
@@ -227,7 +253,7 @@ export default function CategoryPage() {
       </View>
 
       <View className='category-body'>
-        <ScrollView className='category-sidebar' scrollY>
+        <ScrollView className='category-sidebar' scrollY onScroll={handleScroll}>
           {SIDEBAR_ENTRIES.map((entry) => {
             const isActive = entry.key === activeKey
             return (
@@ -244,7 +270,7 @@ export default function CategoryPage() {
           })}
         </ScrollView>
 
-        <ScrollView className='category-content' scrollY>
+        <ScrollView className='category-content' scrollY onScroll={handleScroll}>
           <View key={activeKey} className='category-content-inner'>
             <View className='category-banner'>
               <View className='category-banner-image' style={{ backgroundImage: `url(${activeData.bannerImage})` }} />
@@ -283,7 +309,9 @@ export default function CategoryPage() {
         </ScrollView>
       </View>
 
-      <AppTabbar value='category' />
+      <View className={`category-tabbar ${isTabbarVisible ? '' : 'is-hidden'}`}>
+        <AppTabbar value='category' />
+      </View>
     </View>
   )
 }
