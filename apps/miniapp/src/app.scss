@@ -4,6 +4,12 @@
 @import url("@taroify/icons/styles/icon.scss");
 @import url("./styles/tailwind.generated.css");
 
+:root {
+  --tabbar-height: 60px;
+  --tabbar-safe-offset: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
+  --tabbar-safe-offset-legacy: calc(var(--tabbar-height) + constant(safe-area-inset-bottom));
+}
+
 .taroify-cell__icon {
   display: flex;
   align-items: center;
@@ -108,6 +114,7 @@
 
 .page-content {
   padding: 16px;
+  padding-bottom: calc(16px + var(--tabbar-safe-offset));
 }
 
 .page-subtitle {

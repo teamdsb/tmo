@@ -1,8 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { View, Text, Image, ScrollView } from '@tarojs/components'
 import Navbar from '@taroify/core/navbar'
 import Search from '@taroify/core/search'
 import SearchIcon from '@taroify/icons/Search'
+import NotesOutlined from '@taroify/icons/NotesOutlined'
+import SettingOutlined from '@taroify/icons/SettingOutlined'
+import DesktopOutlined from '@taroify/icons/DesktopOutlined'
+import BrushOutlined from '@taroify/icons/BrushOutlined'
+import ShieldOutlined from '@taroify/icons/ShieldOutlined'
+import HotOutlined from '@taroify/icons/HotOutlined'
 import type { ITouchEvent } from '@tarojs/components/types/common'
 import AppTabbar from '../../components/app-tabbar'
 import { getNavbarStyle } from '../../utils/navbar'
@@ -31,15 +37,16 @@ type CategoryKey = 'office' | 'industrial' | 'electronics' | 'janitorial' | 'saf
 type SidebarEntry = {
   key: CategoryKey
   label: string
+  icon: ReactNode
 }
 
 const SIDEBAR_ENTRIES: SidebarEntry[] = [
-  { key: 'office', label: 'Office Supplies' },
-  { key: 'industrial', label: 'Industrial' },
-  { key: 'electronics', label: 'Electronics' },
-  { key: 'janitorial', label: 'Janitorial' },
-  { key: 'safety', label: 'Safety Gear' },
-  { key: 'breakroom', label: 'Breakroom' }
+  { key: 'office', label: 'Office Supplies', icon: <NotesOutlined /> },
+  { key: 'industrial', label: 'Industrial', icon: <SettingOutlined /> },
+  { key: 'electronics', label: 'Electronics', icon: <DesktopOutlined /> },
+  { key: 'janitorial', label: 'Janitorial', icon: <BrushOutlined /> },
+  { key: 'safety', label: 'Safety Gear', icon: <ShieldOutlined /> },
+  { key: 'breakroom', label: 'Breakroom', icon: <HotOutlined /> }
 ]
 
 const CATEGORY_DATA: Record<CategoryKey, CategoryEntry> = {
@@ -214,7 +221,7 @@ export default function CategoryPage() {
           shape='rounded'
           clearable
           icon={<SearchIcon />}
-          placeholder='Search SKU or Product Name...'
+          placeholder='Search SKU or Product...'
           onChange={(event) => setQuery(event.detail.value)}
         />
       </View>
@@ -230,6 +237,7 @@ export default function CategoryPage() {
                 onClick={handleSidebarTap(entry.key)}
               >
                 <View className='category-sidebar-indicator' />
+                <View className='category-sidebar-icon'>{entry.icon}</View>
                 <Text className='category-sidebar-label'>{entry.label}</Text>
               </View>
             )
@@ -237,36 +245,41 @@ export default function CategoryPage() {
         </ScrollView>
 
         <ScrollView className='category-content' scrollY>
-          <View className='category-banner'>
-            <View className='category-banner-image' style={{ backgroundImage: `url(${activeData.bannerImage})` }} />
-            <View className='category-banner-text'>
-              <Text className='category-banner-title'>{activeData.title}</Text>
-              <Text className='category-banner-subtitle'>{activeData.subtitle}</Text>
-            </View>
-          </View>
-
-          {filteredSections.map((section) => (
-            <View key={section.title} className='category-section'>
-              <Text className='category-section-title'>{section.title}</Text>
-              <View className='category-grid'>
-                {section.items.map((item) => (
-                  <View key={item.name} className='category-card'>
-                    <View className='category-card-media'>
-                      <Image className='category-card-image' src={item.img} mode='aspectFit' />
-                    </View>
-                    <Text className='category-card-label'>{item.name}</Text>
-                  </View>
-                ))}
+          <View key={activeKey} className='category-content-inner'>
+            <View className='category-banner'>
+              <View className='category-banner-image' style={{ backgroundImage: `url(${activeData.bannerImage})` }} />
+              <View className='category-banner-text'>
+                <Text className='category-banner-title'>{activeData.title}</Text>
+                <Text className='category-banner-subtitle'>{activeData.subtitle}</Text>
               </View>
             </View>
-          ))}
 
-          {filteredSections.length === 0 ? (
-            <View className='category-empty'>
-              <Text className='category-empty-title'>No results</Text>
-              <Text className='category-empty-subtitle'>Try another keyword.</Text>
-            </View>
-          ) : null}
+            {filteredSections.map((section) => (
+              <View key={section.title} className='category-section'>
+                <View className='category-section-title'>
+                  <View className='category-section-dot' />
+                  <Text className='category-section-text'>{section.title}</Text>
+                </View>
+                <View className='category-grid'>
+                  {section.items.map((item) => (
+                    <View key={item.name} className='category-card'>
+                      <View className='category-card-media'>
+                        <Image className='category-card-image' src={item.img} mode='aspectFit' />
+                      </View>
+                      <Text className='category-card-label'>{item.name}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ))}
+
+            {filteredSections.length === 0 ? (
+              <View className='category-empty'>
+                <Text className='category-empty-title'>No results</Text>
+                <Text className='category-empty-subtitle'>Try another keyword.</Text>
+              </View>
+            ) : null}
+          </View>
         </ScrollView>
       </View>
 
