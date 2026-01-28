@@ -36,7 +36,7 @@
     "test:alipay-console": "pnpm run build:alipay && node scripts/alipay-console.js",
     "dev:weapp": "npm run build:weapp -- --watch",
     "dev:swan": "npm run build:swan -- --watch",
-    "dev:alipay": "npm run build:alipay -- --watch",
+    "dev:alipay": "node scripts/dev-alipay.js",
     "dev:tt": "npm run build:tt -- --watch",
     "dev:h5": "npm run build:h5 -- --watch",
     "dev:rn": "npm run build:rn -- --watch",

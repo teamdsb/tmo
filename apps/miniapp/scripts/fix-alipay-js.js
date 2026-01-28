@@ -1,6 +1,36 @@
 const fs = require('fs')
 const path = require('path')
+const { createRequire } = require('module')
 const babel = require('@babel/core')
+
+const workspaceRoot = path.resolve(__dirname, '..', '..', '..')
+
+function resolvePresetEnv() {
+  try {
+    return require('@babel/preset-env')
+  } catch (_err) {
+    const pnpmRoot = path.resolve(workspaceRoot, 'node_modules', '.pnpm')
+    if (!fs.existsSync(pnpmRoot)) {
+      throw _err
+    }
+
+    const entries = fs.readdirSync(pnpmRoot)
+    const match = entries.find((name) => name.startsWith('@babel+preset-env@'))
+    if (!match) {
+      throw _err
+    }
+
+    const presetPath = path.join(
+      pnpmRoot,
+      match,
+      'node_modules',
+      '@babel',
+      'preset-env'
+    )
+    const presetRequire = createRequire(presetPath)
+    return presetRequire(presetPath)
+  }
+}
 
 const distDir = path.resolve(__dirname, '..', 'dist')
 
@@ -24,7 +54,26 @@ function walk(dir, files = []) {
 }
 
 function transformFile(filePath) {
-  const input = fs.readFileSync(filePath, 'utf8')
+  const original = fs.readFileSync(filePath, 'utf8')
+  let input = original
+
+  const basename = path.basename(filePath)
+  const needsShim = basename === 'vendors.js' || basename === 'app.js' || basename === 'common.js'
+  const shimRegex = /\/\*__tmo_global_shim__\*\/[\s\S]*?var global=__tmo_global__;/g
+  const looseShimRegex = /var __tmo_global__=[\s\S]*?var global=__tmo_global__;/g
+  const shim =
+    '/*__tmo_global_shim__*/var __tmo_global__=(typeof globalThis!=="undefined"&&globalThis)||(typeof my!=="undefined"&&my)||(typeof self!=="undefined"&&self)||(typeof window!=="undefined"&&window);if(!__tmo_global__){try{__tmo_global__=Function("return this")();}catch(e){__tmo_global__={};}}if(!__tmo_global__.global){try{__tmo_global__.global=__tmo_global__;}catch(e){}}var global=__tmo_global__;\n'
+
+  if (needsShim) {
+    if (input.includes('__tmo_global_shim__')) {
+      input = input.replace(shimRegex, '')
+    }
+    if (input.includes('var __tmo_global__=')) {
+      input = input.replace(looseShimRegex, '')
+    }
+    input = shim + input
+  }
+
   const result = babel.transformSync(input, {
     filename: filePath,
     sourceType: 'unambiguous',
@@ -32,7 +81,7 @@ function transformFile(filePath) {
     configFile: false,
     presets: [
       [
-        require('@babel/preset-env'),
+        resolvePresetEnv(),
         {
           targets,
           bugfixes: true,
@@ -44,8 +93,23 @@ function transformFile(filePath) {
     compact: true
   })
 
-  if (result && result.code && result.code !== input) {
-    fs.writeFileSync(filePath, result.code, 'utf8')
+  let output = result && result.code ? result.code : input
+  if (needsShim) {
+    if (output.includes('__tmo_global_shim__')) {
+      output = output.replace(shimRegex, '')
+    }
+    if (output.includes('var __tmo_global__=')) {
+      output = output.replace(looseShimRegex, '')
+    }
+    output = shim + output
+  }
+
+  if (basename === 'vendors.js') {
+    output = output.replace(/\bglobal\.Date\s*=\s*Date/g, '__tmo_global__.Date=Date')
+  }
+
+  if (output !== original) {
+    fs.writeFileSync(filePath, output, 'utf8')
   }
 }
 
