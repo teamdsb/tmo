@@ -9,6 +9,7 @@ let fixRunning = false
 let fixQueued = false
 let debounceTimer = null
 let watcherStarted = false
+let intervalId = null
 
 function runFix() {
   if (fixRunning) {
@@ -46,6 +47,9 @@ function startWatch() {
     })
     watcherStarted = true
     scheduleFix()
+    if (!intervalId) {
+      intervalId = setInterval(runFix, 2000)
+    }
   } catch (_err) {
     setTimeout(startWatch, 500)
   }

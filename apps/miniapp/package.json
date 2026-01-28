@@ -12,8 +12,8 @@
   "scripts": {
     "prepare": "husky",
     "new": "taro new",
-    "build:tailwind": "tailwindcss -c tailwind.config.cjs -i src/styles/tailwind.css -o src/styles/tailwind.generated.css",
-    "dev:tailwind": "tailwindcss -c tailwind.config.cjs -i src/styles/tailwind.css -o src/styles/tailwind.generated.css --watch",
+    "build:tailwind": "tailwindcss -c tailwind.config.cjs -i src/styles/tailwind.css -o src/styles/tailwind.generated.css && node scripts/convert-rem-to-rpx.js",
+    "dev:tailwind": "node scripts/dev-tailwind.js",
     "prebuild:weapp": "npm run build:tailwind",
     "build:weapp": "taro build --type weapp --no-check",
     "prebuild:swan": "npm run build:tailwind",
