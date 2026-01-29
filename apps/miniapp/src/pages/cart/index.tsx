@@ -15,6 +15,7 @@ import { getNavbarStyle } from '../../utils/navbar'
 import { commerceServices } from '../../services/commerce'
 import { ROUTES } from '../../routes'
 import { navigateTo, switchTabLike } from '../../utils/navigation'
+import { ensureLoggedIn } from '../../utils/auth'
 
 const MATCH_TYPE_BADGES: Record<string, { label: string; className: string }> = {
   AMBIGUOUS: { label: 'Ambiguous', className: 'bg-amber-50 text-amber-600' },
@@ -143,6 +144,15 @@ export default function ExcelImportConfirmation() {
 
   const actionBase = 'flex-1 h-11 rounded-xl text-sm font-semibold flex items-center justify-center'
   const actionDisabled = loading ? 'opacity-60' : ''
+  const handleCheckout = async () => {
+    if (!cartItems.length) {
+      await Taro.showToast({ title: 'Cart is empty', icon: 'none' })
+      return
+    }
+    const allowed = await ensureLoggedIn({ redirect: true })
+    if (!allowed) return
+    await navigateTo(ROUTES.orderConfirm)
+  }
 
   return (
     <View className='page page-compact-navbar flex flex-col'>
@@ -357,7 +367,7 @@ export default function ExcelImportConfirmation() {
             className={`${actionBase} text-white bg-blue-600 ${actionDisabled}`}
             hoverClass='none'
             disabled={loading}
-            onClick={importJob ? handleConfirmImport : undefined}
+            onClick={importJob ? handleConfirmImport : handleCheckout}
           >
             {importJob ? 'Confirm & Add to Cart' : 'Checkout'}
           </Button>

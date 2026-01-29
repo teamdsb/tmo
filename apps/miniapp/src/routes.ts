@@ -6,8 +6,10 @@ export const ROUTES = {
   mine: '/pages/mine/index',
   goodsSearch: '/pages/goods/search/index',
   goodsDetail: '/pages/goods/detail/index',
+  favorites: '/pages/favorites/index',
   orderDetail: '/pages/order/detail/index',
   orderTracking: '/pages/order/tracking/index',
+  orderConfirm: '/pages/order/confirm/index',
   category: '/pages/category/index',
   demandList: '/pages/demand/list/index',
   demandCreate: '/pages/demand/create/index',
@@ -16,6 +18,7 @@ export const ROUTES = {
   trackingBatch: '/pages/tracking/batch/index',
   settings: '/pages/settings/index',
   support: '/pages/support/index',
+  supportCreate: '/pages/support/create/index',
   authRoleSelect: '/pages/auth/role-select/index',
   authLogin: '/pages/auth/login/index'
 } as const

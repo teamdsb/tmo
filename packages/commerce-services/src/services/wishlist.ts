@@ -2,18 +2,18 @@ import {
   deleteWishlistSkuId,
   getWishlist,
   postWishlist,
-  type GetWishlist200
+  type WishlistItem
 } from '@tmo/api-client'
 
 export interface WishlistService {
-  get: () => Promise<GetWishlist200>
+  list: () => Promise<WishlistItem[]>
   add: (skuId: string) => Promise<void>
   remove: (skuId: string) => Promise<void>
 }
 
 export const createWishlistService = (): WishlistService => {
   return {
-    get: async () => (await getWishlist()).data,
+    list: async () => (await getWishlist()).data.items ?? [],
     add: async (skuId) => {
       await postWishlist({ skuId })
     },

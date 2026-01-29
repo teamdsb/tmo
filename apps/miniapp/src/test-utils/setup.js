@@ -18,6 +18,7 @@ const stripDomProps = (props) => {
     placeholder,
     safeArea,
     block,
+    loading,
     hoverClass,
     hoverStyle,
     rightIcon,
@@ -203,7 +204,9 @@ jest.mock('@tmo/commerce-services', () => {
         getProductDetail: jest.fn(async () => mockDetail)
       },
       orders: {
-        list: jest.fn(async () => ({ items: [mockOrder] }))
+        list: jest.fn(async () => ({ items: [mockOrder] })),
+        get: jest.fn(async () => mockOrder),
+        submit: jest.fn(async () => mockOrder)
       },
       cart: {
         getCart: jest.fn(async () => mockCart),
@@ -213,6 +216,11 @@ jest.mock('@tmo/commerce-services', () => {
         })),
         confirmImport: jest.fn(async () => mockCart),
         addItem: jest.fn(async () => ({}))
+      },
+      wishlist: {
+        list: jest.fn(async () => []),
+        add: jest.fn(async () => ({})),
+        remove: jest.fn(async () => ({}))
       },
       inquiries: {
         create: jest.fn(async () => ({})),

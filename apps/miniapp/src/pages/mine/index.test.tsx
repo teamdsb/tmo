@@ -33,8 +33,8 @@ describe('PersonalCenter', () => {
     await renderPersonalCenter();
 
     expect(screen.getByText('Home')).toBeInTheDocument();
+    expect(screen.getByText('分类')).toBeInTheDocument();
     expect(screen.getByText('Cart')).toBeInTheDocument();
-    expect(screen.getByText('Orders')).toBeInTheDocument();
     expect(screen.getByText('Mine')).toBeInTheDocument();
   });
 });

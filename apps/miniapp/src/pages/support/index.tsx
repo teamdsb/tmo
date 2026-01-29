@@ -11,7 +11,7 @@ import AppTabbar from '../../components/app-tabbar'
 import { getNavbarStyle } from '../../utils/navbar'
 import { commerceServices } from '../../services/commerce'
 import { ROUTES } from '../../routes'
-import { switchTabLike } from '../../utils/navigation'
+import { navigateTo, switchTabLike } from '../../utils/navigation'
 
 export default function SupportPage() {
   const navbarStyle = getNavbarStyle()
@@ -51,7 +51,16 @@ export default function SupportPage() {
         </Navbar.NavLeft>
       </Navbar>
       <View className='page-content'>
-        <Text className='section-title'>Support</Text>
+        <View className='flex items-center justify-between'>
+          <Text className='section-title'>Support</Text>
+          <Text
+            className='text-xs text-blue-600'
+            onClick={() => navigateTo(ROUTES.supportCreate)}
+          >
+            New Ticket
+          </Text>
+        </View>
+        <Text className='section-subtitle'>Track after-sales tickets and price inquiries.</Text>
       </View>
       <Tabs value={activeTab} onChange={(value) => setActiveTab(String(value))}>
         <Tabs.TabPane value='after-sales' title='After Sales'>

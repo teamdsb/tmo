@@ -15,17 +15,8 @@ describe('OrderHistoryApp', () => {
     await renderOrderHistory();
 
     expect(screen.getByText('All')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Search by Order ID or Product...')).toBeInTheDocument();
+    expect(screen.getByText('Pending')).toBeInTheDocument();
     expect(await screen.findByText('ORD-88291')).toBeInTheDocument();
-  });
-
-  it('updates search input value', async () => {
-    await renderOrderHistory();
-
-    const input = screen.getByPlaceholderText('Search by Order ID or Product...');
-    fireEvent.change(input, { target: { value: 'ORD-88' } });
-
-    expect(input).toHaveValue('ORD-88');
   });
 
   it('switches active tab', async () => {

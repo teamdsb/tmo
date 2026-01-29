@@ -16,6 +16,7 @@ import {
   Revoke,
   ServiceOutlined,
   SettingOutlined,
+  StarOutlined,
   TodoList
 } from '@taroify/icons'
 import type { BootstrapResponse } from '@tmo/gateway-api-client'
@@ -47,6 +48,7 @@ type OrderItem = {
 
 const MENU_ITEMS: MenuItem[] = [
   { key: 'demand', label: 'My Demand Requests', icon: Description, route: ROUTES.demandList },
+  { key: 'favorites', label: 'Favorites', icon: StarOutlined, route: ROUTES.favorites },
   { key: 'address', label: 'Shipping Address', icon: LocationOutlined, route: ROUTES.addressList },
   { key: 'import', label: 'Bulk Excel Import', icon: AppsOutlined, route: ROUTES.import },
   { key: 'tracking', label: 'Batch Tracking', icon: BarChartOutlined, route: ROUTES.trackingBatch },

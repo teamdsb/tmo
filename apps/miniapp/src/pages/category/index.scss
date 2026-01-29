@@ -55,7 +55,7 @@
   border-radius: 0 4px 4px 0;
   transform: translateY(-50%);
   opacity: 0;
-  box-shadow: 0 6px 14px rgba(19, 127, 236, 0.25);
+  box-shadow: 0 6px 14px rgb(19 127 236 / 25%);
 }
 
 .category-sidebar-item.is-active .category-sidebar-indicator {
@@ -96,7 +96,7 @@
 }
 
 .category-content-inner {
-  animation: categoryFadeIn 0.3s ease-out;
+  animation: category-fade-in 0.3s ease-out;
 }
 
 .category-banner {
@@ -104,10 +104,10 @@
   border-radius: 16px;
   overflow: hidden;
   background: linear-gradient(135deg, #e8f1ff, #f3f7ff);
-  padding: 18px 18px;
+  padding: 18px;
   margin-bottom: 24px;
-  border: 1px solid rgba(191, 219, 254, 0.5);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  border: 1px solid rgb(191 219 254 / 50%);
+  box-shadow: 0 10px 24px rgb(15 23 42 / 6%);
 }
 
 .category-banner-image {
@@ -149,7 +149,7 @@
   gap: 6px;
   margin-bottom: 12px;
   padding: 10px 0 8px;
-  background: rgba(255, 255, 255, 0.96);
+  background: rgb(255 255 255 / 96%);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid #f1f5f9;
   font-size: 14px;
@@ -185,7 +185,7 @@
   border-radius: 16px;
   padding: 12px;
   border: 1px solid #f1f5f9;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 4px 12px rgb(15 23 42 / 6%);
 }
 
 .category-card-media {
@@ -230,11 +230,12 @@
   color: #94a3b8;
 }
 
-@keyframes categoryFadeIn {
+@keyframes category-fade-in {
   0% {
     opacity: 0;
     transform: translateY(8px);
   }
+
   100% {
     opacity: 1;
     transform: translateY(0);
@@ -244,6 +245,7 @@
 .category-tabbar {
   pointer-events: auto;
 }
+
 
 .category-tabbar .taroify-tabbar {
   background: #fff;

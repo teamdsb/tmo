@@ -7,6 +7,7 @@ module.exports = {
   },
   setupFilesAfterEnv: ['<rootDir>/src/test-utils/setup.js'],
   moduleNameMapper: {
-    '^@taroify/icons/.*$': '<rootDir>/src/test-utils/taroify-icon.js'
+    '^@taroify/icons/.*$': '<rootDir>/src/test-utils/taroify-icon.js',
+    '\\.(css|scss)$': '<rootDir>/src/test-utils/style-mock.js'
   }
 };

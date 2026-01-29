@@ -1,5 +1,5 @@
 .address-fab {
-  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 12px 24px rgb(37 99 235 / 20%);
 }
 
 .address-pressable:active {
@@ -19,7 +19,7 @@
 }
 
 .address-navbar {
-  background: #ffffff;
+  background: #fff;
 }
 
 .address-navbar .taroify-navbar__title {
@@ -112,9 +112,9 @@
 .address-cancel {
   color: #2563eb;
   border-color: #dbeafe;
-  background: #ffffff;
+  background: #fff;
 }
 
 .address-save {
-  box-shadow: 0 10rpx 20rpx rgba(37, 99, 235, 0.2);
+  box-shadow: 0 10rpx 20rpx rgb(37 99 235 / 20%);
 }

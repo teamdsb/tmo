@@ -11,17 +11,21 @@ import Flex from '@taroify/core/flex'
 import FixedView from '@taroify/core/fixed-view'
 import ArrowRight from '@taroify/icons/ArrowRight'
 import Logistics from '@taroify/icons/Logistics'
+import Star from '@taroify/icons/Star'
+import StarOutlined from '@taroify/icons/StarOutlined'
 import type { PriceTier, ProductDetail, Sku } from '@tmo/api-client'
 import AppTabbar from '../../../components/app-tabbar'
 import { goodsDetailRoute } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
-import { ensureLoggedIn } from '../../../utils/auth'
+import { ensureLoggedIn, isUnauthorized } from '../../../utils/auth'
 import { commerceServices } from '../../../services/commerce'
 
 export default function ProductDetail() {
   const router = useRouter()
   const [detail, setDetail] = useState<ProductDetail | null>(null)
   const [selectedSkuId, setSelectedSkuId] = useState<string | null>(null)
+  const [favoriteSkuIds, setFavoriteSkuIds] = useState<string[]>([])
+  const [favoriteLoading, setFavoriteLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const navbarStyle = getNavbarStyle()
 
@@ -48,6 +52,19 @@ export default function ProductDetail() {
     })()
   }, [spuId])
 
+  useEffect(() => {
+    void (async () => {
+      try {
+        const list = await commerceServices.wishlist.list()
+        setFavoriteSkuIds(list.map((item) => item.sku.id))
+      } catch (error) {
+        if (!isUnauthorized(error)) {
+          console.warn('load wishlist failed', error)
+        }
+      }
+    })()
+  }, [])
+
   const images = useMemo(() => {
     if (!detail?.product?.images || detail.product.images.length === 0) {
       return [
@@ -59,6 +76,34 @@ export default function ProductDetail() {
 
   const skus = detail?.skus ?? []
   const selectedSku = skus.find((sku) => sku.id === selectedSkuId) ?? skus[0]
+  const favoriteIdSet = useMemo(() => new Set(favoriteSkuIds), [favoriteSkuIds])
+  const isFavorite = selectedSku ? favoriteIdSet.has(selectedSku.id) : false
+
+  const handleToggleFavorite = async () => {
+    if (!selectedSku) {
+      await Taro.showToast({ title: 'Select a SKU first', icon: 'none' })
+      return
+    }
+    const allowed = await ensureLoggedIn({ redirect: true })
+    if (!allowed) return
+    setFavoriteLoading(true)
+    try {
+      if (isFavorite) {
+        await commerceServices.wishlist.remove(selectedSku.id)
+        setFavoriteSkuIds((prev) => prev.filter((id) => id !== selectedSku.id))
+        await Taro.showToast({ title: 'Removed from favorites', icon: 'none' })
+      } else {
+        await commerceServices.wishlist.add(selectedSku.id)
+        setFavoriteSkuIds((prev) => [...prev, selectedSku.id])
+        await Taro.showToast({ title: 'Saved to favorites', icon: 'success' })
+      }
+    } catch (error) {
+      console.warn('toggle favorite failed', error)
+      await Taro.showToast({ title: 'Update failed', icon: 'none' })
+    } finally {
+      setFavoriteLoading(false)
+    }
+  }
 
   const handleAddToCart = async () => {
     if (!selectedSku) {
@@ -119,6 +164,16 @@ export default function ProductDetail() {
                 {selectedSku ? formatSkuPrice(selectedSku) : 'Request quote'}
               </Text>
               <Text className='product-price-note'>Per Unit</Text>
+              <Button
+                size='small'
+                variant='outlined'
+                icon={isFavorite ? <Star className='text-base' /> : <StarOutlined className='text-base' />}
+                loading={favoriteLoading}
+                onClick={handleToggleFavorite}
+                className='mt-2'
+              >
+                {isFavorite ? 'Saved' : 'Save'}
+              </Button>
             </View>
           </Flex>
 
