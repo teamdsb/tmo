@@ -1,0 +1,120 @@
+.address-fab {
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.2);
+}
+
+.address-pressable:active {
+  transform: scale(0.98);
+}
+
+.address-textarea {
+  min-height: 100px;
+}
+
+.address-overlay {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.address-page {
+  background: #f3f7ff;
+}
+
+.address-navbar {
+  background: #ffffff;
+}
+
+.address-navbar .taroify-navbar__title {
+  color: #1e3a8a;
+  font-weight: 600;
+}
+
+.address-navbar .taroify-navbar__left {
+  color: #2563eb;
+}
+
+.address-back {
+  position: fixed;
+  left: 20rpx;
+  width: 44rpx;
+  border-radius: 22rpx;
+  background: #eff6ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+
+.address-list {
+  padding-bottom: 140rpx;
+}
+
+.address-card {
+  border-color: #e5edff;
+}
+
+.address-card + .address-card {
+  margin-top: 24rpx;
+}
+
+.address-default-badge {
+  border-color: #c7ddff;
+}
+
+.address-action {
+  font-weight: 600;
+}
+
+.address-action-edit {
+  color: #2563eb;
+}
+
+.address-action-delete {
+  color: #ef4444;
+}
+
+.address-empty {
+  gap: 16rpx;
+}
+
+.address-empty-icon {
+  background: #eaf2ff;
+}
+
+.address-sheet {
+  border-top: 1px solid #e5edff;
+}
+
+.address-sheet-title {
+  color: #1e3a8a;
+}
+
+.address-close {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.address-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.address-field {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.address-actions {
+  margin-top: 8rpx;
+}
+
+.address-cancel {
+  color: #2563eb;
+  border-color: #dbeafe;
+  background: #ffffff;
+}
+
+.address-save {
+  box-shadow: 0 10rpx 20rpx rgba(37, 99, 235, 0.2);
+}

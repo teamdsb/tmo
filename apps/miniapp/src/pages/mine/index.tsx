@@ -3,7 +3,6 @@ import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import {
-  Aim,
   AppsOutlined,
   ArrowRight,
   BarChartOutlined,
@@ -13,7 +12,6 @@ import {
   HomeOutlined,
   LocationOutlined,
   Logistics,
-  MoreOutlined,
   OrdersOutlined,
   Revoke,
   ServiceOutlined,
@@ -158,11 +156,7 @@ export default function PersonalCenter() {
           <HomeOutlined className='text-base mine-icon' />
         </View>
         <Text className='text-base font-medium'>My Profile</Text>
-        <View className='mine-card border rounded-full flex items-center px-3 py-1 gap-2'>
-          <MoreOutlined className='text-base mine-icon' />
-          <View className='w-px h-4 mine-divider-bg' />
-          <Aim className='text-base mine-icon' />
-        </View>
+        <View className='w-8 h-8' />
       </View>
 
       <View className='px-5 pt-2 pb-6'>

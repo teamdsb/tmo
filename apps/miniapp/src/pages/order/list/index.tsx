@@ -3,7 +3,6 @@ import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import ArrowLeft from '@taroify/icons/ArrowLeft'
-import Search from '@taroify/core/search'
 import Tabs from '@taroify/core/tabs'
 import Cell from '@taroify/core/cell'
 import Tag from '@taroify/core/tag'
@@ -15,6 +14,7 @@ import { ROUTES, orderDetailRoute, orderTrackingRoute } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
+import './index.scss'
 
 const TABS: { label: string; status?: OrderStatus }[] = [
   { label: 'All' },
@@ -26,9 +26,13 @@ const TABS: { label: string; status?: OrderStatus }[] = [
 
 export default function OrderHistoryApp() {
   const [activeTab, setActiveTab] = useState(TABS[0].label)
-  const [searchQuery, setSearchQuery] = useState('')
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(false)
+  const [navButtonStyle, setNavButtonStyle] = useState<{
+    top: number
+    height: number
+  } | null>(null)
+  const [contentOffsetTop, setContentOffsetTop] = useState<number | null>(null)
   const navbarStyle = getNavbarStyle()
 
   const handleBack = () => {
@@ -49,91 +53,100 @@ export default function OrderHistoryApp() {
     })()
   }, [])
 
+  useEffect(() => {
+    const menuButton = Taro.getMenuButtonBoundingClientRect?.()
+    const statusBarHeight = Taro.getSystemInfoSync().statusBarHeight ?? 0
+    if (menuButton) {
+      setNavButtonStyle({ top: menuButton.top, height: menuButton.height })
+      setContentOffsetTop(menuButton.top + menuButton.height + 8)
+      return
+    }
+    setContentOffsetTop(statusBarHeight + 52)
+  }, [])
+
   const filteredOrders = useMemo(() => {
     const tab = TABS.find((item) => item.label === activeTab)
     const status = tab?.status
-    const query = searchQuery.trim().toLowerCase()
     return orders.filter((order) => {
       if (status && order.status !== status) {
         return false
       }
-      if (!query) return true
-      if (order.id.toLowerCase().includes(query)) return true
-      return order.items.some((item) => item.sku.name.toLowerCase().includes(query))
+      return true
     })
-  }, [activeTab, orders, searchQuery])
+  }, [activeTab, orders])
 
   return (
     <View className='page page-compact-navbar'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
-        <Navbar.NavLeft onClick={handleBack}>
-          <ArrowLeft className='text-xl' />
-        </Navbar.NavLeft>
+      <Navbar bordered fixed safeArea='top' style={navbarStyle}>
       </Navbar>
 
-      <View className='page-search'>
-        <Search
-          value={searchQuery}
-          shape='rounded'
-          clearable
-          placeholder='Search by Order ID or Product...'
-          onChange={(event) => setSearchQuery(event.detail.value)}
-        />
+      <View
+        className='order-back'
+        style={
+          navButtonStyle
+            ? { top: `${navButtonStyle.top}px`, height: `${navButtonStyle.height}px` }
+            : undefined
+        }
+        onClick={handleBack}
+      >
+        <ArrowLeft className='text-lg' />
       </View>
 
-      <Tabs value={activeTab} onChange={(value) => setActiveTab(String(value))}>
-        {TABS.map((tab) => (
-          <Tabs.TabPane key={tab.label} value={tab.label} title={tab.label}>
-            <Cell.Group inset>
-              {filteredOrders.map((order) => (
-                <Cell key={order.id} bordered={false}>
-                  <Flex justify='space-between' align='center'>
-                    <View>
-                      <Text className='order-id'>{order.id}</Text>
-                      <Text className='order-date'>{formatDate(order.createdAt)}</Text>
+      <View style={contentOffsetTop ? { paddingTop: `${contentOffsetTop}px` } : undefined}>
+        <Tabs value={activeTab} onChange={(value) => setActiveTab(String(value))}>
+          {TABS.map((tab) => (
+            <Tabs.TabPane key={tab.label} value={tab.label} title={tab.label}>
+              <Cell.Group inset>
+                {filteredOrders.map((order) => (
+                  <Cell key={order.id} bordered={false}>
+                    <Flex justify='space-between' align='center'>
+                      <View>
+                        <Text className='order-id'>{order.id}</Text>
+                        <Text className='order-date'>{formatDate(order.createdAt)}</Text>
+                      </View>
+                      <Tag size='small' color={statusTone(order.status)}>
+                        {statusLabel(order.status)}
+                      </Tag>
+                    </Flex>
+
+                    <View className='order-title'>
+                      <Text>{order.items[0]?.sku.name ?? 'Order items'}</Text>
                     </View>
-                    <Tag size='small' color={statusTone(order.status)}>
-                      {statusLabel(order.status)}
-                    </Tag>
-                  </Flex>
 
-                  <View className='order-title'>
-                    <Text>{order.items[0]?.sku.name ?? 'Order items'}</Text>
-                  </View>
+                    <Flex justify='space-between' align='center'>
+                      <Text className='order-meta'>{orderItemCount(order)} Items</Text>
+                      <View className='order-price'>
+                        <Text className='order-label'>Total</Text>
+                        <Text className='order-value'>{formatOrderTotal(order)}</Text>
+                      </View>
+                    </Flex>
 
-                  <Flex justify='space-between' align='center'>
-                    <Text className='order-meta'>{orderItemCount(order)} Items</Text>
-                    <View className='order-price'>
-                      <Text className='order-label'>Total</Text>
-                      <Text className='order-value'>{formatOrderTotal(order)}</Text>
-                    </View>
-                  </Flex>
-
-                  <Flex align='center' gutter={8} className='order-actions'>
-                    <Button
-                      size='small'
-                      variant='outlined'
-                      onClick={() => navigateTo(orderDetailRoute(order.id))}
-                    >
-                      Details
-                    </Button>
-                    <Button
-                      size='small'
-                      color='primary'
-                      onClick={() => navigateTo(orderTrackingRoute(order.id))}
-                    >
-                      Track
-                    </Button>
-                  </Flex>
-                </Cell>
-              ))}
-              {filteredOrders.length === 0 ? (
-                <Cell title={loading ? 'Loading orders...' : 'No orders found'} />
-              ) : null}
-            </Cell.Group>
-          </Tabs.TabPane>
-        ))}
-      </Tabs>
+                    <Flex align='center' gutter={8} className='order-actions'>
+                      <Button
+                        size='small'
+                        variant='outlined'
+                        onClick={() => navigateTo(orderDetailRoute(order.id))}
+                      >
+                        Details
+                      </Button>
+                      <Button
+                        size='small'
+                        color='primary'
+                        onClick={() => navigateTo(orderTrackingRoute(order.id))}
+                      >
+                        Track
+                      </Button>
+                    </Flex>
+                  </Cell>
+                ))}
+                {filteredOrders.length === 0 ? (
+                  <Cell title={loading ? 'Loading orders...' : 'No orders found'} />
+                ) : null}
+              </Cell.Group>
+            </Tabs.TabPane>
+          ))}
+        </Tabs>
+      </View>
 
       <AppTabbar value='mine' />
     </View>

@@ -5,7 +5,7 @@
     "lint": "pnpm -C apps/miniapp lint",
     "lint:miniapp": "pnpm -C apps/miniapp lint",
     "test:backend": "bash tools/scripts/test-backend.sh",
-    "test": "pnpm run test:backend",
+    "test": "pnpm run test:backend && pnpm -C apps/miniapp test && pnpm -C apps/miniapp test:wxss",
     "format": "echo \"format: not configured\""
   }
 }
