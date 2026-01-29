@@ -147,7 +147,7 @@ export default function ProductDetail() {
         <View className='media'>
           <Image
             width='100%'
-            height={200}
+            height={168}
             mode='aspectFill'
             src={images[0]}
           />
@@ -157,25 +157,25 @@ export default function ProductDetail() {
         </View>
 
         <View className='product-header'>
-          <Flex justify='space-between' align='start'>
-            <Text className='product-title'>{detail?.product?.name ?? 'Loading...'}</Text>
+          <Text className='product-title'>{detail?.product?.name ?? 'Loading...'}</Text>
+          <View className='product-price-row'>
             <View className='product-price'>
               <Text className='product-price-value'>
                 {selectedSku ? formatSkuPrice(selectedSku) : 'Request quote'}
               </Text>
               <Text className='product-price-note'>Per Unit</Text>
+            </View>
+            <View className='product-price-actions'>
               <Button
-                size='small'
+                size='mini'
                 variant='outlined'
                 icon={isFavorite ? <Star className='text-base' /> : <StarOutlined className='text-base' />}
                 loading={favoriteLoading}
                 onClick={handleToggleFavorite}
-                className='mt-2'
-              >
-                {isFavorite ? 'Saved' : 'Save'}
-              </Button>
+                className='product-save-button'
+              />
             </View>
-          </Flex>
+          </View>
 
           <Flex align='center' gutter={8} className='product-meta'>
             <Tag size='small' variant='outlined'>SKU Count: {skus.length}</Tag>

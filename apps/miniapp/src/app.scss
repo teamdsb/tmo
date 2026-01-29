@@ -330,16 +330,24 @@
 }
 
 .product-header {
-  margin-top: 16px;
+  margin-top: 12px;
   background: #fff;
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-radius: 12px;
 }
 
 .product-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   color: #111418;
+}
+
+.product-price-row {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .product-price {
@@ -347,19 +355,35 @@
 }
 
 .product-price-value {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: #137fec;
   display: block;
 }
 
 .product-price-note {
-  font-size: 10px;
+  font-size: 9px;
   color: #617589;
 }
 
+.product-price-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.product-save-button {
+  width: 36px;
+  height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  color: #137fec;
+  background: #fff;
+}
+
 .product-meta {
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .product-meta-text {
@@ -368,16 +392,16 @@
 }
 
 .product-section {
-  margin-top: 12px;
+  margin-top: 10px;
   background: #fff;
-  padding: 12px 16px;
+  padding: 12px 14px;
   border-radius: 12px;
 }
 
 .tier-card {
   background: #f5f7fa;
   border-radius: 10px;
-  padding: 10px;
+  padding: 12px;
   text-align: center;
 }
 
@@ -386,12 +410,12 @@
 }
 
 .tier-card-range {
-  font-size: 10px;
+  font-size: 11px;
   color: #617589;
 }
 
 .tier-card-price {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   color: #111418;
 }
