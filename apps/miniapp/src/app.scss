@@ -172,6 +172,30 @@
   margin-top: 16px;
 }
 
+.cart-action-primary {
+  background: #137fec;
+  color: #fff;
+  box-shadow: 0 8px 16px rgb(19 127 236 / 20%);
+}
+
+.cart-action-primary:active {
+  opacity: 0.92;
+}
+
+.cart-action-secondary {
+  background: #f0f6ff;
+  color: #137fec;
+  border: 1px solid #cfe0ff;
+}
+
+.cart-action-secondary:active {
+  background: #e3edff;
+}
+
+.cart-empty-actions .cart-action-secondary {
+  max-width: 220px;
+}
+
 .product-card {
   background: #fff;
   border-radius: 12px;

@@ -17,7 +17,8 @@ import {
   ServiceOutlined,
   SettingOutlined,
   StarOutlined,
-  TodoList
+  TodoList,
+  UserOutlined
 } from '@taroify/icons'
 import type { BootstrapResponse } from '@tmo/gateway-api-client'
 import AppTabbar from '../../components/app-tabbar'
@@ -133,8 +134,8 @@ export default function PersonalCenter() {
     })()
   }, [])
 
+  const isLoggedIn = Boolean(bootstrap?.me)
   const displayName = bootstrap?.me?.displayName ?? 'Guest'
-  const roleLabel = bootstrap?.me?.roles?.[0] ?? bootstrap?.me?.userType ?? 'unknown'
   const themeClassName = isDark ? 'mine-theme mine-theme--dark' : 'mine-theme'
 
   const handleLogout = async () => {
@@ -163,18 +164,34 @@ export default function PersonalCenter() {
 
       <View className='px-5 pt-2 pb-6'>
         <View className='flex items-center gap-4'>
-          <View className='relative'>
-            <Image
-              className='w-16 h-16 rounded-full'
-              src={avatarFallback}
-              mode='aspectFill'
-            />
-            <View className='absolute bottom-0 right-0 w-3 h-3 rounded-full mine-accent-solid border-2 mine-avatar-border' />
-          </View>
-          <View>
-            <Text className='text-xl font-semibold'>{displayName}</Text>
-            <Text className='text-sm mine-muted'>Role: {roleLabel}</Text>
-          </View>
+          {isLoggedIn ? (
+            <>
+              <View className='relative'>
+                <Image
+                  className='w-16 h-16 rounded-full'
+                  src={avatarFallback}
+                  mode='aspectFill'
+                />
+                <View className='absolute bottom-0 right-0 w-3 h-3 rounded-full mine-accent-solid border-2 mine-avatar-border' />
+              </View>
+              <View>
+                <Text className='text-xl font-semibold'>{displayName}</Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <View
+                className='w-16 h-16 rounded-full border border-slate-200 bg-slate-100 flex items-center justify-center'
+                onClick={() => navigateTo(ROUTES.authLogin)}
+              >
+                <UserOutlined className='text-2xl text-slate-400' />
+              </View>
+              <View className='flex-1'>
+                <Text className='text-xl font-semibold'>未登录</Text>
+                <Text className='text-sm mine-muted'>请先登录以查看账号信息</Text>
+              </View>
+            </>
+          )}
         </View>
       </View>
 

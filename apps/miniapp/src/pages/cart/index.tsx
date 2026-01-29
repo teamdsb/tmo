@@ -348,6 +348,15 @@ export default function ExcelImportConfirmation() {
               <View className='py-10 text-center'>
                 <Text className='text-sm text-slate-400'>Cart is empty</Text>
                 <Text className='text-xs text-slate-300'>Use bulk import or add items from catalog.</Text>
+                <View className='mt-4 flex justify-center cart-empty-actions'>
+                  <Button
+                    className={`${actionBase} cart-action-secondary`}
+                    hoverClass='none'
+                    onClick={() => switchTabLike(ROUTES.home)}
+                  >
+                    Go to Catalog
+                  </Button>
+                </View>
               </View>
             )}
           </View>
@@ -357,14 +366,14 @@ export default function ExcelImportConfirmation() {
       <FixedView position='bottom' safeArea='bottom' placeholder>
         <View className='px-5 py-3 bg-white border-t border-slate-100 flex gap-3'>
           <Button
-            className={`${actionBase} border border-slate-200 text-slate-600 bg-white ${actionDisabled}`}
+            className={`${actionBase} cart-action-secondary ${actionDisabled}`}
             hoverClass='none'
             disabled={loading}
           >
             {importJob ? 'Save Draft' : 'Continue Browsing'}
           </Button>
           <Button
-            className={`${actionBase} text-white bg-blue-600 ${actionDisabled}`}
+            className={`${actionBase} cart-action-primary ${actionDisabled}`}
             hoverClass='none'
             disabled={loading}
             onClick={importJob ? handleConfirmImport : handleCheckout}
