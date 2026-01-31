@@ -291,22 +291,14 @@ export default function ExcelImportConfirmation() {
           <View className='px-6 pt-3 pb-3 bg-white'>
             <View className='flex items-center justify-between gap-4'>
               <View className='min-w-0'>
-                <Text className='text-lg font-semibold text-slate-900'>Cart</Text>
-                <Text className='text-xs text-slate-400'>Review items before checkout</Text>
+                <Text className='text-lg font-semibold text-slate-900'>购物车</Text>
               </View>
-              <Button
-                className='h-9 px-3 text-11 font-semibold rounded-lg border border-slate-200 text-slate-600 bg-white'
-                hoverClass='none'
-                onClick={() => navigateTo(ROUTES.import)}
-              >
-                Bulk Import
-              </Button>
             </View>
           </View>
 
           <View className='px-4 py-3 flex justify-between items-center bg-gray-50'>
             <Text className='text-xs text-slate-500 font-medium'>
-              Showing {cartItems.length} items
+              {cartItems.length === 0 ? '购物车为空' : `共 ${cartItems.length} 件`}
             </Text>
             <View className='flex gap-2'>
               <View className='p-2 bg-white rounded-md shadow-sm border border-gray-200 text-slate-400'>
@@ -346,17 +338,7 @@ export default function ExcelImportConfirmation() {
               </View>
             ) : (
               <View className='py-10 text-center'>
-                <Text className='text-sm text-slate-400'>Cart is empty</Text>
-                <Text className='text-xs text-slate-300'>Use bulk import or add items from catalog.</Text>
-                <View className='mt-4 flex justify-center cart-empty-actions'>
-                  <Button
-                    className={`${actionBase} cart-action-secondary`}
-                    hoverClass='none'
-                    onClick={() => switchTabLike(ROUTES.home)}
-                  >
-                    Go to Catalog
-                  </Button>
-                </View>
+                <Text className='text-sm text-slate-400'>购物车为空</Text>
               </View>
             )}
           </View>
@@ -370,7 +352,7 @@ export default function ExcelImportConfirmation() {
             hoverClass='none'
             disabled={loading}
           >
-            {importJob ? 'Save Draft' : 'Continue Browsing'}
+            {importJob ? '保存草稿' : '继续浏览'}
           </Button>
           <Button
             className={`${actionBase} cart-action-primary ${actionDisabled}`}
@@ -378,7 +360,7 @@ export default function ExcelImportConfirmation() {
             disabled={loading}
             onClick={importJob ? handleConfirmImport : handleCheckout}
           >
-            {importJob ? 'Confirm & Add to Cart' : 'Checkout'}
+            {importJob ? '确认并加入购物车' : '去结算'}
           </Button>
         </View>
         <AppTabbar value='cart' fixed={false} placeholder={false} />
