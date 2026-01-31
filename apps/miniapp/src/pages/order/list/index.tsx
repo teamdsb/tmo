@@ -2,19 +2,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
-import ArrowLeft from '@taroify/icons/ArrowLeft'
 import Tabs from '@taroify/core/tabs'
 import Cell from '@taroify/core/cell'
 import Tag from '@taroify/core/tag'
 import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
 import type { Order, OrderStatus } from '@tmo/api-client'
-import AppTabbar from '../../../components/app-tabbar'
 import { ROUTES, orderDetailRoute, orderTrackingRoute } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
-import './index.scss'
 
 const TABS: { label: string; status?: OrderStatus }[] = [
   { label: 'All' },
@@ -28,11 +25,6 @@ export default function OrderHistoryApp() {
   const [activeTab, setActiveTab] = useState(TABS[0].label)
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(false)
-  const [navButtonStyle, setNavButtonStyle] = useState<{
-    top: number
-    height: number
-  } | null>(null)
-  const [contentOffsetTop, setContentOffsetTop] = useState<number | null>(null)
   const navbarStyle = getNavbarStyle()
 
   const handleBack = () => {
@@ -53,17 +45,6 @@ export default function OrderHistoryApp() {
     })()
   }, [])
 
-  useEffect(() => {
-    const menuButton = Taro.getMenuButtonBoundingClientRect?.()
-    const statusBarHeight = Taro.getSystemInfoSync().statusBarHeight ?? 0
-    if (menuButton) {
-      setNavButtonStyle({ top: menuButton.top, height: menuButton.height })
-      setContentOffsetTop(menuButton.top + menuButton.height + 8)
-      return
-    }
-    setContentOffsetTop(statusBarHeight + 52)
-  }, [])
-
   const filteredOrders = useMemo(() => {
     const tab = TABS.find((item) => item.label === activeTab)
     const status = tab?.status
@@ -77,22 +58,12 @@ export default function OrderHistoryApp() {
 
   return (
     <View className='page page-compact-navbar'>
-      <Navbar bordered fixed safeArea='top' style={navbarStyle}>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+        <Navbar.NavLeft onClick={handleBack} />
+        <Navbar.Title>Order History</Navbar.Title>
       </Navbar>
 
-      <View
-        className='order-back'
-        style={
-          navButtonStyle
-            ? { top: `${navButtonStyle.top}px`, height: `${navButtonStyle.height}px` }
-            : undefined
-        }
-        onClick={handleBack}
-      >
-        <ArrowLeft className='text-lg' />
-      </View>
-
-      <View style={contentOffsetTop ? { paddingTop: `${contentOffsetTop}px` } : undefined}>
+      <View>
         <Tabs value={activeTab} onChange={(value) => setActiveTab(String(value))}>
           {TABS.map((tab) => (
             <Tabs.TabPane key={tab.label} value={tab.label} title={tab.label}>
@@ -148,7 +119,6 @@ export default function OrderHistoryApp() {
         </Tabs>
       </View>
 
-      <AppTabbar value='mine' />
     </View>
   )
 }

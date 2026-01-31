@@ -14,10 +14,10 @@ import Logistics from '@taroify/icons/Logistics'
 import Star from '@taroify/icons/Star'
 import StarOutlined from '@taroify/icons/StarOutlined'
 import type { PriceTier, ProductDetail, Sku } from '@tmo/api-client'
-import AppTabbar from '../../../components/app-tabbar'
-import { goodsDetailRoute } from '../../../routes'
+import { ROUTES, goodsDetailRoute } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { ensureLoggedIn, isUnauthorized } from '../../../utils/auth'
+import { switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
 
 export default function ProductDetail() {
@@ -140,7 +140,9 @@ export default function ProductDetail() {
 
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+        <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.home))} />
+        <Navbar.Title>{detail?.product?.name ?? 'Product Details'}</Navbar.Title>
       </Navbar>
 
       <View className='page-content'>
@@ -237,7 +239,6 @@ export default function ProductDetail() {
           <Button block variant='outlined' onClick={handleInquiry}>Bargain</Button>
           <Button block color='primary' onClick={handleAddToCart}>Add to Cart</Button>
         </Flex>
-        <AppTabbar value='cart' fixed={false} placeholder={false} />
       </FixedView>
     </View>
   )

@@ -2,10 +2,8 @@ import { useState } from 'react'
 import { View, Text, Input, Textarea } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
-import ArrowLeft from '@taroify/icons/ArrowLeft'
 import Button from '@taroify/core/button'
 import Cell from '@taroify/core/cell'
-import AppTabbar from '../../../components/app-tabbar'
 import { ROUTES } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
@@ -45,13 +43,11 @@ export default function SupportCreatePage() {
 
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
-        <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.support))}>
-          <ArrowLeft className='text-xl' />
-        </Navbar.NavLeft>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+        <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.support))} />
+        <Navbar.Title>After-Sales Ticket</Navbar.Title>
       </Navbar>
       <View className='page-content'>
-        <Text className='section-title'>After-Sales Ticket</Text>
         <Text className='section-subtitle'>Describe your issue and we will follow up quickly.</Text>
 
         <Cell.Group inset className='mt-4'>
@@ -84,7 +80,6 @@ export default function SupportCreatePage() {
           </Button>
         </View>
       </View>
-      <AppTabbar value='mine' />
     </View>
   )
 }

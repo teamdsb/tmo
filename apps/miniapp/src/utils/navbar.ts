@@ -4,12 +4,12 @@ import type { CSSProperties } from 'react'
 type NavbarMetrics = {
   height: number
   lineHeight: number
+  top: number
 }
 
 let cachedMetrics: NavbarMetrics | null = null
 
 const DEFAULT_NAVBAR_HEIGHT = 44
-const NAVBAR_OFFSET = 10
 
 export const getNavbarMetrics = (): NavbarMetrics => {
   if (cachedMetrics) {
@@ -21,26 +21,29 @@ export const getNavbarMetrics = (): NavbarMetrics => {
   const menuButton = Taro.getMenuButtonBoundingClientRect?.()
 
   if (menuButton && menuButton.height) {
-    const topGap = Math.max(menuButton.top - statusBarHeight, 0)
-    const height = menuButton.height + topGap * 2 + NAVBAR_OFFSET
+    const top = Math.max(menuButton.top, statusBarHeight)
+    const height = menuButton.height
     cachedMetrics = {
       height,
-      lineHeight: menuButton.height
+      lineHeight: menuButton.height,
+      top
     }
     return cachedMetrics
   }
 
   cachedMetrics = {
-    height: statusBarHeight + DEFAULT_NAVBAR_HEIGHT + NAVBAR_OFFSET,
-    lineHeight: DEFAULT_NAVBAR_HEIGHT
+    height: DEFAULT_NAVBAR_HEIGHT,
+    lineHeight: DEFAULT_NAVBAR_HEIGHT,
+    top: statusBarHeight
   }
   return cachedMetrics
 }
 
 export const getNavbarStyle = (): CSSProperties => {
-  const { height, lineHeight } = getNavbarMetrics()
+  const { height, lineHeight, top } = getNavbarMetrics()
   return {
     '--navbar-height': `${height}px`,
-    '--navbar-line-height': `${lineHeight}px`
+    '--navbar-line-height': `${lineHeight}px`,
+    '--navbar-top': `${top}px`
   } as CSSProperties
 }

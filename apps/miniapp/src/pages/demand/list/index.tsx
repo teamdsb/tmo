@@ -5,8 +5,9 @@ import Navbar from '@taroify/core/navbar'
 import Cell from '@taroify/core/cell'
 import Tag from '@taroify/core/tag'
 import type { ProductRequest } from '@tmo/api-client'
-import AppTabbar from '../../../components/app-tabbar'
+import { ROUTES } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
+import { switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
 
 export default function DemandList() {
@@ -31,10 +32,11 @@ export default function DemandList() {
 
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+        <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.mine))} />
+        <Navbar.Title>My Demand Requests</Navbar.Title>
       </Navbar>
       <View className='page-content'>
-        <Text className='section-title'>My Demand Requests</Text>
         <Cell.Group inset>
           {requests.map((request) => (
             <Cell
@@ -49,7 +51,6 @@ export default function DemandList() {
           ) : null}
         </Cell.Group>
       </View>
-      <AppTabbar value='mine' />
     </View>
   )
 }

@@ -6,10 +6,9 @@ import Button from '@taroify/core/button'
 import Empty from '@taroify/core/empty'
 import Tag from '@taroify/core/tag'
 import type { WishlistItem, PriceTier } from '@tmo/api-client'
-import AppTabbar from '../../components/app-tabbar'
-import { goodsDetailRoute } from '../../routes'
+import { ROUTES, goodsDetailRoute } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
-import { navigateTo } from '../../utils/navigation'
+import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { ensureLoggedIn } from '../../utils/auth'
 import { commerceServices } from '../../services/commerce'
 
@@ -32,6 +31,10 @@ export default function FavoritesPage() {
       setLoading(false)
     }
   }, [])
+
+  const handleBack = () => {
+    Taro.navigateBack().catch(() => switchTabLike(ROUTES.mine))
+  }
 
   useDidShow(() => {
     void loadWishlist()
@@ -62,13 +65,16 @@ export default function FavoritesPage() {
 
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}></Navbar>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+        <Navbar.NavLeft onClick={handleBack} />
+        <Navbar.Title>Favorites</Navbar.Title>
+        <Navbar.NavRight>
+          <Text className='text-xs text-slate-400'>
+            {loading ? 'Loading...' : `${items.length} items`}
+          </Text>
+        </Navbar.NavRight>
+      </Navbar>
       <View className='page-content'>
-        <View className='flex items-center justify-between mb-4'>
-          <Text className='section-title'>Favorites</Text>
-          <Text className='section-subtitle'>{loading ? 'Loading...' : `${items.length} items`}</Text>
-        </View>
-
         {items.length === 0 ? (
           <Empty>
             <Empty.Image src='default' />
@@ -130,7 +136,6 @@ export default function FavoritesPage() {
           </View>
         )}
       </View>
-      <AppTabbar value='mine' />
     </View>
   )
 }

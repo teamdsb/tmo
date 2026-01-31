@@ -2,12 +2,10 @@ import { useEffect, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
-import ArrowLeft from '@taroify/icons/ArrowLeft'
 import Tabs from '@taroify/core/tabs'
 import Cell from '@taroify/core/cell'
 import Tag from '@taroify/core/tag'
 import type { AfterSalesTicket, PriceInquiry } from '@tmo/api-client'
-import AppTabbar from '../../components/app-tabbar'
 import { getNavbarStyle } from '../../utils/navbar'
 import { commerceServices } from '../../services/commerce'
 import { ROUTES } from '../../routes'
@@ -45,21 +43,16 @@ export default function SupportPage() {
 
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
-        <Navbar.NavLeft onClick={handleBack}>
-          <ArrowLeft className='text-xl' />
-        </Navbar.NavLeft>
-      </Navbar>
-      <View className='page-content'>
-        <View className='flex items-center justify-between'>
-          <Text className='section-title'>Support</Text>
-          <Text
-            className='text-xs text-blue-600'
-            onClick={() => navigateTo(ROUTES.supportCreate)}
-          >
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+        <Navbar.NavLeft onClick={handleBack} />
+        <Navbar.Title>Support</Navbar.Title>
+        <Navbar.NavRight>
+          <Text className='text-xs text-blue-600' onClick={() => navigateTo(ROUTES.supportCreate)}>
             New Ticket
           </Text>
-        </View>
+        </Navbar.NavRight>
+      </Navbar>
+      <View className='page-content'>
         <Text className='section-subtitle'>Track after-sales tickets and price inquiries.</Text>
       </View>
       <Tabs value={activeTab} onChange={(value) => setActiveTab(String(value))}>
@@ -94,7 +87,6 @@ export default function SupportPage() {
           </Cell.Group>
         </Tabs.TabPane>
       </Tabs>
-      <AppTabbar value='mine' />
     </View>
   )
 }

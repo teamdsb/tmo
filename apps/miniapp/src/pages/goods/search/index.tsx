@@ -13,7 +13,7 @@ import Plus from '@taroify/icons/Plus'
 import type { ProductSummary } from '@tmo/api-client'
 import { ROUTES, goodsDetailRoute } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
-import { navigateTo } from '../../../utils/navigation'
+import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
 
 const fallbackImage =
@@ -59,7 +59,9 @@ export default function SearchEmptyState() {
 
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+        <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.home))} />
+        <Navbar.Title>Search</Navbar.Title>
       </Navbar>
 
       <View className='page-search'>

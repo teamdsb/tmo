@@ -4,9 +4,7 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Button from '@taroify/core/button'
 import Cell from '@taroify/core/cell'
-import ArrowLeft from '@taroify/icons/ArrowLeft'
 import type { Cart } from '@tmo/api-client'
-import AppTabbar from '../../../components/app-tabbar'
 import { ROUTES, orderDetailRoute } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
@@ -88,18 +86,15 @@ export default function OrderConfirmPage() {
 
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
-        <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.cart))}>
-          <ArrowLeft className='text-xl' />
-        </Navbar.NavLeft>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+        <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.cart))} />
+        <Navbar.Title>Confirm Order</Navbar.Title>
+        <Navbar.NavRight>
+          <Text className='text-xs text-slate-400'>{cartItems.length} items</Text>
+        </Navbar.NavRight>
       </Navbar>
 
       <View className='page-content'>
-        <View className='flex items-center justify-between mb-4'>
-          <Text className='section-title'>Confirm Order</Text>
-          <Text className='section-subtitle'>{cartItems.length} items</Text>
-        </View>
-
         <View className='bg-white rounded-2xl border border-slate-100 p-4 mb-4'>
           <View className='flex items-center justify-between mb-2'>
             <Text className='text-sm font-semibold text-slate-900'>Shipping Address</Text>
@@ -160,8 +155,6 @@ export default function OrderConfirmPage() {
           </Button>
         </View>
       </View>
-
-      <AppTabbar value='cart' />
     </View>
   )
 }

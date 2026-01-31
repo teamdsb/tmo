@@ -2,11 +2,9 @@ import { useEffect, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
-import ArrowLeft from '@taroify/icons/ArrowLeft'
 import Cell from '@taroify/core/cell'
 import Tag from '@taroify/core/tag'
 import type { TrackingInfoShipmentsItem } from '@tmo/api-client'
-import AppTabbar from '../../../components/app-tabbar'
 import { ROUTES } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { switchTabLike } from '../../../utils/navigation'
@@ -42,17 +40,14 @@ export default function OrderTracking() {
 
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
-        <Navbar.NavLeft onClick={handleBack}>
-          <ArrowLeft className='text-xl' />
-        </Navbar.NavLeft>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+        <Navbar.NavLeft onClick={handleBack} />
+        <Navbar.Title>Tracking</Navbar.Title>
+        <Navbar.NavRight>
+          <Tag size='small' color='primary'>{shipments.length} shipments</Tag>
+        </Navbar.NavRight>
       </Navbar>
       <View className='page-content'>
-        <View className='order-header'>
-          <Text className='section-title'>Tracking</Text>
-          <Tag size='small' color='primary'>{shipments.length} shipments</Tag>
-        </View>
-
         <Cell.Group inset>
           {shipments.map((shipment) => (
             <Cell
@@ -67,7 +62,6 @@ export default function OrderTracking() {
           ) : null}
         </Cell.Group>
       </View>
-      <AppTabbar value='mine' />
     </View>
   )
 }

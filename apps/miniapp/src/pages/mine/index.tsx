@@ -149,7 +149,7 @@ export default function PersonalCenter() {
 
   return (
     <View className={`page pb-24 font-sans mine-page ${themeClassName}`}>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}></Navbar>
+      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'></Navbar>
 
       <View className='px-5 pt-4 pb-2 flex items-center justify-between'>
         <View
@@ -197,21 +197,20 @@ export default function PersonalCenter() {
 
       <View className='px-5 mb-6'>
         <View
-          className='mine-card mine-shadow border rounded-2xl p-4 flex items-center justify-between'
+          className='mine-card mine-shadow border rounded-2xl p-4 mine-contact-card'
           onClick={() => navigateTo(ROUTES.support)}
         >
-          <View className='flex items-center gap-3'>
-            <View className='w-10 h-10 rounded-full mine-accent-bg flex items-center justify-center'>
+          <View className='mine-contact-row'>
+            <View className='mine-contact-icon'>
               <ServiceOutlined className='text-base mine-accent' />
             </View>
-            <View>
-              <Text className='text-xs uppercase tracking-wide mine-subtle'>Account Manager</Text>
-              <Text className='text-sm font-medium'>Sarah Wang</Text>
+            <Text className='mine-contact-label'>Account Manager</Text>
+            <View className='mine-contact-spacer' />
+            <View className='mine-contact-action'>
+              <ChatOutlined className='text-base' />
             </View>
           </View>
-          <View className='w-10 h-10 rounded-full mine-accent-solid flex items-center justify-center'>
-            <ChatOutlined className='text-base' />
-          </View>
+          <Text className='mine-contact-name'>Sarah Wang</Text>
         </View>
       </View>
 

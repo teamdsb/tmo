@@ -4,8 +4,9 @@ import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Button from '@taroify/core/button'
 import Cell from '@taroify/core/cell'
-import AppTabbar from '../../../components/app-tabbar'
+import { ROUTES } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
+import { switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
 
 export default function BatchTracking() {
@@ -44,10 +45,11 @@ export default function BatchTracking() {
 
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+        <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.mine))} />
+        <Navbar.Title>Batch Tracking</Navbar.Title>
       </Navbar>
       <View className='page-content'>
-        <Text className='section-title'>Batch Tracking</Text>
         <Text className='section-subtitle'>Upload shipment Excel to update tracking in bulk.</Text>
 
         <Cell.Group inset className='mt-4'>
@@ -59,7 +61,6 @@ export default function BatchTracking() {
           <Button block color='primary' loading={uploading} onClick={handleUpload}>Upload Shipments</Button>
         </View>
       </View>
-      <AppTabbar value='mine' />
     </View>
   )
 }

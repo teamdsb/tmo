@@ -3,10 +3,9 @@ import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Button from '@taroify/core/button'
-import AppTabbar from '../../components/app-tabbar'
 import { ROUTES } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
-import { navigateTo } from '../../utils/navigation'
+import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { commerceServices } from '../../services/commerce'
 
 export default function DemandHome() {
@@ -27,10 +26,11 @@ export default function DemandHome() {
 
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+        <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.mine))} />
+        <Navbar.Title>Demand Requests</Navbar.Title>
       </Navbar>
       <View className='page-content'>
-        <Text className='section-title'>Demand Requests</Text>
         <Text className='section-subtitle'>Track sourcing requests and submit new demand.</Text>
         <Text className='section-subtitle'>Total requests: {total}</Text>
         <View className='placeholder-actions'>
@@ -42,7 +42,6 @@ export default function DemandHome() {
           </Button>
         </View>
       </View>
-      <AppTabbar value='mine' />
     </View>
   )
 }

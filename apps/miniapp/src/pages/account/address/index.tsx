@@ -3,7 +3,6 @@ import { View, Text, Input, Textarea } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Plus from '@taroify/icons/Plus'
-import ArrowLeft from '@taroify/icons/ArrowLeft'
 import LocationOutlined from '@taroify/icons/LocationOutlined'
 import { getNavbarStyle } from '../../../utils/navbar'
 import './index.scss'
@@ -14,10 +13,6 @@ export default function AddressList() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingAddress, setEditingAddress] = useState<AddressRecord | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [navButtonStyle, setNavButtonStyle] = useState<{
-    top: number
-    height: number
-  } | null>(null)
   const didHydrateRef = useRef(false)
 
   useEffect(() => {
@@ -26,12 +21,6 @@ export default function AddressList() {
       setAddresses(stored)
     }
     setIsLoading(false)
-  }, [])
-
-  useEffect(() => {
-    const menuButton = Taro.getMenuButtonBoundingClientRect?.()
-    if (!menuButton) return
-    setNavButtonStyle({ top: menuButton.top, height: menuButton.height })
   }, [])
 
   useEffect(() => {
@@ -103,22 +92,11 @@ export default function AddressList() {
         placeholder
         safeArea='top'
         style={navbarStyle}
-        className='address-navbar'
+        className='address-navbar app-navbar'
       >
-        Shipping Address
+        <Navbar.NavLeft onClick={() => Taro.navigateBack()} />
+        <Navbar.Title>Shipping Address</Navbar.Title>
       </Navbar>
-
-      <View
-        className='address-back'
-        style={
-          navButtonStyle
-            ? { top: `${navButtonStyle.top}px`, height: `${navButtonStyle.height}px` }
-            : undefined
-        }
-        onClick={() => Taro.navigateBack()}
-      >
-        <ArrowLeft className='text-lg' />
-      </View>
 
       <View className='mt-4 px-4 pb-32 address-list'>
         {isLoading ? (

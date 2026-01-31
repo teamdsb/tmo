@@ -2,12 +2,10 @@ import { useEffect, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
-import ArrowLeft from '@taroify/icons/ArrowLeft'
 import Cell from '@taroify/core/cell'
 import Tag from '@taroify/core/tag'
 import Button from '@taroify/core/button'
 import type { Order, OrderItem, OrderStatus } from '@tmo/api-client'
-import AppTabbar from '../../../components/app-tabbar'
 import { ROUTES, orderTrackingRoute } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
@@ -43,19 +41,16 @@ export default function OrderDetail() {
 
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
-        <Navbar.NavLeft onClick={handleBack}>
-          <ArrowLeft className='text-xl' />
-        </Navbar.NavLeft>
-      </Navbar>
-      <View className='page-content'>
-        <View className='order-header'>
-          <Text className='section-title'>Order {order?.id ?? '...'}</Text>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+        <Navbar.NavLeft onClick={handleBack} />
+        <Navbar.Title>Order {order?.id ?? '...'}</Navbar.Title>
+        <Navbar.NavRight>
           <Tag size='small' color={order ? statusTone(order.status) : 'info'}>
             {order ? statusLabel(order.status) : 'Loading'}
           </Tag>
-        </View>
-
+        </Navbar.NavRight>
+      </Navbar>
+      <View className='page-content'>
         <Cell.Group inset>
           <Cell title='Created At' brief={order ? formatDate(order.createdAt) : '--'} />
           <Cell title='Items' brief={`${orderItemCount(order)} items`} />
@@ -84,7 +79,6 @@ export default function OrderDetail() {
           </Button>
         </View>
       </View>
-      <AppTabbar value='mine' />
     </View>
   )
 }

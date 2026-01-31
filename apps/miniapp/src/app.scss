@@ -98,6 +98,76 @@
   border-color: var(--mine-card-bg);
 }
 
+.app-navbar .taroify-navbar__content,
+.app-navbar .taroify-navbar__placeholder {
+  height: calc(var(--navbar-height) + var(--navbar-top));
+}
+
+.app-navbar .taroify-navbar__content {
+  padding-top: var(--navbar-top);
+}
+
+.app-navbar--primary .taroify-navbar__content,
+.app-navbar--primary .taroify-navbar__placeholder {
+  height: var(--navbar-top);
+}
+
+.app-navbar--primary .taroify-navbar__content {
+  padding-top: 0;
+}
+
+.mine-contact-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mine-contact-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mine-contact-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  background: var(--mine-accent-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mine-contact-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--mine-subtle);
+}
+
+.mine-contact-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--mine-text);
+}
+
+.mine-contact-spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.mine-contact-action {
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: var(--mine-accent-bg);
+  border: 1px solid var(--mine-divider);
+  color: var(--mine-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .page {
   min-height: 100vh;
   background: #f6f7f8;

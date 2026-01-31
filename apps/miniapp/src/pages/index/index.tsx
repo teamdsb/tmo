@@ -71,7 +71,7 @@ export default function ProductCatalogApp() {
 
   return (
     <View className='page page-home'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
+      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'>
       </Navbar>
 
       <View className='page-search'>

@@ -4,7 +4,6 @@ import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Button from '@taroify/core/button'
 import Cell from '@taroify/core/cell'
-import AppTabbar from '../../components/app-tabbar'
 import { ROUTES, withQuery } from '../../routes'
 import { commerceServices } from '../../services/commerce'
 import { getNavbarStyle } from '../../utils/navbar'
@@ -47,10 +46,11 @@ export default function ImportIndex() {
 
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+        <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.cart))} />
+        <Navbar.Title>Bulk Import</Navbar.Title>
       </Navbar>
       <View className='page-content'>
-        <Text className='section-title'>Bulk Import</Text>
         <Text className='section-subtitle'>Upload an Excel file to add items to cart in bulk.</Text>
 
         <Cell.Group inset className='mt-4'>
@@ -62,7 +62,6 @@ export default function ImportIndex() {
           <Button block color='primary' loading={uploading} onClick={handleUpload}>Upload and Review</Button>
         </View>
       </View>
-      <AppTabbar value='cart' />
     </View>
   )
 }

@@ -4,8 +4,6 @@ import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Cell from '@taroify/core/cell'
 import Switch from '@taroify/core/switch'
-import ArrowLeft from '@taroify/icons/ArrowLeft'
-import AppTabbar from '../../components/app-tabbar'
 import { ROUTES } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
 import { switchTabLike } from '../../utils/navigation'
@@ -44,14 +42,12 @@ export default function SettingsPage() {
 
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
-        <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.mine))}>
-          <ArrowLeft className='text-xl' />
-        </Navbar.NavLeft>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+        <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.mine))} />
+        <Navbar.Title>System Settings</Navbar.Title>
       </Navbar>
       <View className='page-content'>
         <View className='mb-4'>
-          <Text className='section-title'>System Settings</Text>
           <Text className='section-subtitle'>Control notifications and display preferences.</Text>
         </View>
 
@@ -101,7 +97,6 @@ export default function SettingsPage() {
           </Text>
         </View>
       </View>
-      <AppTabbar value='mine' />
     </View>
   )
 }
