@@ -18,15 +18,15 @@ import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { ensureLoggedIn } from '../../utils/auth'
 
 const MATCH_TYPE_BADGES: Record<string, { label: string; className: string }> = {
-  AMBIGUOUS: { label: 'Ambiguous', className: 'bg-amber-50 text-amber-600' },
-  NOT_FOUND: { label: 'Not Found', className: 'bg-red-50 text-red-600' }
+  AMBIGUOUS: { label: '匹配不确定', className: 'bg-amber-50 text-amber-600' },
+  NOT_FOUND: { label: '未找到', className: 'bg-red-50 text-red-600' }
 }
 
 const formatPendingMeta = (item: CartImportPendingItem) => {
   const parts = [
     item.rawSpec?.trim() || null,
-    item.rawQty ? `Qty ${item.rawQty}` : null,
-    `Row ${item.rowNo}`
+    item.rawQty ? `数量 ${item.rawQty}` : null,
+    `行 ${item.rowNo}`
   ].filter(Boolean)
   return parts.join(' • ')
 }
@@ -69,7 +69,7 @@ export default function ExcelImportConfirmation() {
         setImportJob(null)
       } catch (error) {
         console.warn('load cart/import failed', error)
-        await Taro.showToast({ title: 'Failed to load cart', icon: 'none' })
+        await Taro.showToast({ title: '加载购物车失败', icon: 'none' })
       } finally {
         setLoading(false)
       }
@@ -94,7 +94,7 @@ export default function ExcelImportConfirmation() {
   const handleSelectSpec = async (item: CartImportPendingItem) => {
     const candidates = item.candidates ?? []
     if (candidates.length === 0) {
-      await Taro.showToast({ title: 'No candidates', icon: 'none' })
+      await Taro.showToast({ title: '没有候选项', icon: 'none' })
       return
     }
     try {
@@ -117,14 +117,14 @@ export default function ExcelImportConfirmation() {
         return
       }
       console.warn('select spec failed', error)
-      await Taro.showToast({ title: 'Select failed', icon: 'none' })
+      await Taro.showToast({ title: '选择失败', icon: 'none' })
     }
   }
 
   const handleConfirmImport = async () => {
     if (!importJob?.id) return
     if (pendingItems.length > 0 && selections.length < pendingItems.length) {
-      await Taro.showToast({ title: 'Complete all selections', icon: 'none' })
+      await Taro.showToast({ title: '请完成全部选择', icon: 'none' })
       return
     }
     setLoading(true)
@@ -132,11 +132,11 @@ export default function ExcelImportConfirmation() {
       const updatedCart = await commerceServices.cart.confirmImport(importJob.id, selections)
       setCart(updatedCart)
       setImportJob(null)
-      await Taro.showToast({ title: 'Added to cart', icon: 'success' })
+      await Taro.showToast({ title: '已加入购物车', icon: 'success' })
       await switchTabLike(ROUTES.cart)
     } catch (error) {
       console.warn('confirm import failed', error)
-      await Taro.showToast({ title: 'Confirm failed', icon: 'none' })
+      await Taro.showToast({ title: '确认失败', icon: 'none' })
     } finally {
       setLoading(false)
     }
@@ -146,7 +146,7 @@ export default function ExcelImportConfirmation() {
   const actionDisabled = loading ? 'opacity-60' : ''
   const handleCheckout = async () => {
     if (!cartItems.length) {
-      await Taro.showToast({ title: 'Cart is empty', icon: 'none' })
+      await Taro.showToast({ title: '购物车为空', icon: 'none' })
       return
     }
     const allowed = await ensureLoggedIn({ redirect: true })
@@ -169,7 +169,7 @@ export default function ExcelImportConfirmation() {
               >
                 <ArrowLeft className='text-xl' />
               </View>
-              <Text className='text-lg font-semibold text-slate-900 tracking-tight'>Import Results</Text>
+              <Text className='text-lg font-semibold text-slate-900 tracking-tight'>导入结果</Text>
               <View className='w-8' />
             </View>
             <View className='flex items-center gap-4 mb-2'>
@@ -177,7 +177,7 @@ export default function ExcelImportConfirmation() {
                 <View className='h-full bg-blue-600 rounded-full' style={{ width: `${progressPercent}%` }} />
               </View>
               <Text className='text-10 font-medium text-slate-400 whitespace-nowrap'>
-                {identifiedCount}/{totalCount} Identified
+                {identifiedCount}/{totalCount} 已识别
               </Text>
             </View>
           </View>
@@ -191,7 +191,7 @@ export default function ExcelImportConfirmation() {
               }`}
               onClick={() => setActiveTab('to-confirm')}
             >
-              <Text>To Confirm</Text>
+              <Text>待确认</Text>
               <Text className='text-10 align-top ml-1 text-blue-600'>
                 {pendingItems.length}
               </Text>
@@ -204,7 +204,7 @@ export default function ExcelImportConfirmation() {
               }`}
               onClick={() => setActiveTab('confirmed')}
             >
-              <Text>Confirmed</Text>
+              <Text>已确认</Text>
               <Text className='text-10 align-top ml-1'>{autoAddedItems.length}</Text>
             </View>
           </View>
@@ -215,7 +215,7 @@ export default function ExcelImportConfirmation() {
                 pendingItems.map((item) => {
                   const selected = selectionMap[item.rowNo]
                   const badge = MATCH_TYPE_BADGES[item.matchType] ?? {
-                    label: 'Pending',
+                    label: '待处理',
                     className: 'bg-slate-50 text-slate-500'
                   }
                   const buttonClass = selected
@@ -246,15 +246,15 @@ export default function ExcelImportConfirmation() {
                         className={`shrink-0 h-8 px-3 text-11 font-medium border rounded-lg ${buttonClass}`}
                         onClick={() => handleSelectSpec(item)}
                       >
-                        <Text>{selected ? 'Selected' : 'Select Spec'}</Text>
+                        <Text>{selected ? '已选择' : '选择规格'}</Text>
                       </View>
                     </View>
                   )
                 })
               ) : (
                 <View className='py-10 text-center'>
-                  <Text className='text-sm text-slate-400'>No pending items</Text>
-                  <Text className='text-xs text-slate-300'>All items were auto-matched.</Text>
+                  <Text className='text-sm text-slate-400'>无待确认项</Text>
+                  <Text className='text-xs text-slate-300'>已自动匹配全部项目。</Text>
                 </View>
               )
             ) : autoAddedItems.length > 0 ? (
@@ -268,20 +268,20 @@ export default function ExcelImportConfirmation() {
                       SKU {item.skuId.slice(0, 8)}
                     </Text>
                     <Text className='text-xs text-slate-400 font-light truncate'>
-                      Qty {item.qty} • Row {item.rowNo}
+                      数量 {item.qty} • 行 {item.rowNo}
                     </Text>
                   </View>
                   <View className='px-2 py-1 rounded bg-emerald-50'>
                     <Text className='text-9 font-medium uppercase tracking-wide text-emerald-600'>
-                      Confirmed
+                      已确认
                     </Text>
                   </View>
                 </View>
               ))
             ) : (
               <View className='py-10 text-center'>
-                <Text className='text-sm text-slate-400'>No confirmed items</Text>
-                <Text className='text-xs text-slate-300'>Selections will appear here after confirmation.</Text>
+                <Text className='text-sm text-slate-400'>无已确认项</Text>
+                <Text className='text-xs text-slate-300'>确认后将显示在此处。</Text>
               </View>
             )}
           </View>
@@ -328,12 +328,12 @@ export default function ExcelImportConfirmation() {
                           <Text className='text-xs text-slate-400 mt-1 truncate'>{meta}</Text>
                         ) : null}
                       </View>
-                      <View className='flex items-center gap-2'>
-                        <Text className='text-xs text-slate-400'>Qty</Text>
-                        <Text className='text-sm font-semibold text-slate-900'>{item.qty}</Text>
-                      </View>
+                    <View className='flex items-center gap-2'>
+                      <Text className='text-xs text-slate-400'>数量</Text>
+                      <Text className='text-sm font-semibold text-slate-900'>{item.qty}</Text>
                     </View>
-                  )
+                  </View>
+                )
                 })}
               </View>
             ) : (

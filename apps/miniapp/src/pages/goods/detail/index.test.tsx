@@ -17,15 +17,15 @@ describe('ProductDetail', () => {
   it('renders product information and shipping', async () => {
     render(<ProductDetail />);
 
-    expect((await screen.findAllByText('High-Precision Industrial Control Valve')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('高精度工业控制阀')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('¥185.00').length).toBeGreaterThan(0);
-    expect(screen.getByText('Standard Air Freight')).toBeInTheDocument();
+    expect(screen.getByText('标准空运')).toBeInTheDocument();
   });
 
   it('updates material selection', async () => {
     render(<ProductDetail />);
 
-    const materialLabel = await screen.findByText('Carbon');
+    const materialLabel = await screen.findByText('碳钢');
     const materialButton = materialLabel.closest('button');
 
     expect(materialButton).not.toBeNull();

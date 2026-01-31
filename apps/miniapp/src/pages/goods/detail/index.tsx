@@ -45,7 +45,7 @@ export default function ProductDetail() {
         }
       } catch (error) {
         console.warn('load product detail failed', error)
-        await Taro.showToast({ title: 'Failed to load product', icon: 'none' })
+        await Taro.showToast({ title: '加载商品失败', icon: 'none' })
       } finally {
         setLoading(false)
       }
@@ -81,7 +81,7 @@ export default function ProductDetail() {
 
   const handleToggleFavorite = async () => {
     if (!selectedSku) {
-      await Taro.showToast({ title: 'Select a SKU first', icon: 'none' })
+      await Taro.showToast({ title: '请先选择 SKU', icon: 'none' })
       return
     }
     const allowed = await ensureLoggedIn({ redirect: true })
@@ -91,15 +91,15 @@ export default function ProductDetail() {
       if (isFavorite) {
         await commerceServices.wishlist.remove(selectedSku.id)
         setFavoriteSkuIds((prev) => prev.filter((id) => id !== selectedSku.id))
-        await Taro.showToast({ title: 'Removed from favorites', icon: 'none' })
+        await Taro.showToast({ title: '已取消收藏', icon: 'none' })
       } else {
         await commerceServices.wishlist.add(selectedSku.id)
         setFavoriteSkuIds((prev) => [...prev, selectedSku.id])
-        await Taro.showToast({ title: 'Saved to favorites', icon: 'success' })
+        await Taro.showToast({ title: '已收藏', icon: 'success' })
       }
     } catch (error) {
       console.warn('toggle favorite failed', error)
-      await Taro.showToast({ title: 'Update failed', icon: 'none' })
+      await Taro.showToast({ title: '更新失败', icon: 'none' })
     } finally {
       setFavoriteLoading(false)
     }
@@ -107,7 +107,7 @@ export default function ProductDetail() {
 
   const handleAddToCart = async () => {
     if (!selectedSku) {
-      await Taro.showToast({ title: 'Select a SKU first', icon: 'none' })
+      await Taro.showToast({ title: '请先选择 SKU', icon: 'none' })
       return
     }
     const redirectTo = typeof spuId === 'string' ? goodsDetailRoute(spuId) : undefined
@@ -115,10 +115,10 @@ export default function ProductDetail() {
     if (!allowed) return
     try {
       await commerceServices.cart.addItem(selectedSku.id, 1)
-      await Taro.showToast({ title: 'Added to cart', icon: 'success' })
+      await Taro.showToast({ title: '已加入购物车', icon: 'success' })
     } catch (error) {
       console.warn('add to cart failed', error)
-      await Taro.showToast({ title: 'Failed to add item', icon: 'none' })
+      await Taro.showToast({ title: '加入失败', icon: 'none' })
     }
   }
 
@@ -129,12 +129,12 @@ export default function ProductDetail() {
     try {
       await commerceServices.inquiries.create({
         skuId: selectedSku.id,
-        message: `Request quote for ${detail.product.name}`
+        message: `咨询报价：${detail.product.name}`
       })
-      await Taro.showToast({ title: 'Inquiry sent', icon: 'success' })
+      await Taro.showToast({ title: '已发送询价', icon: 'success' })
     } catch (error) {
       console.warn('create inquiry failed', error)
-      await Taro.showToast({ title: 'Failed to send inquiry', icon: 'none' })
+      await Taro.showToast({ title: '发送询价失败', icon: 'none' })
     }
   }
 
@@ -142,7 +142,7 @@ export default function ProductDetail() {
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
         <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.home))} />
-        <Navbar.Title>{detail?.product?.name ?? 'Product Details'}</Navbar.Title>
+        <Navbar.Title>{detail?.product?.name ?? '商品详情'}</Navbar.Title>
       </Navbar>
 
       <View className='page-content'>
@@ -154,18 +154,18 @@ export default function ProductDetail() {
             src={images[0]}
           />
           <Tag size='small' color='default' className='media-counter'>
-            {images.length} photos
+            {images.length} 张图片
           </Tag>
         </View>
 
         <View className='product-header'>
-          <Text className='product-title'>{detail?.product?.name ?? 'Loading...'}</Text>
+          <Text className='product-title'>{detail?.product?.name ?? '加载中...'}</Text>
           <View className='product-price-row'>
             <View className='product-price'>
               <Text className='product-price-value'>
-                {selectedSku ? formatSkuPrice(selectedSku) : 'Request quote'}
+                {selectedSku ? formatSkuPrice(selectedSku) : '询价'}
               </Text>
-              <Text className='product-price-note'>Per Unit</Text>
+              <Text className='product-price-note'>每件</Text>
             </View>
             <View className='product-price-actions'>
               <Button
@@ -180,15 +180,15 @@ export default function ProductDetail() {
           </View>
 
           <Flex align='center' gutter={8} className='product-meta'>
-            <Tag size='small' variant='outlined'>SKU Count: {skus.length}</Tag>
-            <Text className='product-meta-text'>{loading ? 'Loading details...' : 'Real-time pricing'}</Text>
+            <Tag size='small' variant='outlined'>SKU 数量：{skus.length}</Tag>
+            <Text className='product-meta-text'>{loading ? '正在加载详情...' : '实时价格'}</Text>
           </Flex>
         </View>
 
         <View className='product-section'>
           <Flex justify='space-between' align='center'>
-            <Text className='section-title'>Bulk Pricing</Text>
-            <Text className='section-link'>Volume Discounts</Text>
+            <Text className='section-title'>阶梯价格</Text>
+            <Text className='section-link'>批量优惠</Text>
           </Flex>
 
           <Grid columns={3} gutter={8}>
@@ -197,7 +197,7 @@ export default function ProductDetail() {
         </View>
 
         <View className='product-section'>
-          <Text className='section-title'>SKU Options</Text>
+          <Text className='section-title'>SKU 选项</Text>
           <Flex wrap='wrap' gutter={8}>
             {skus.map((sku) => (
               <Button
@@ -215,7 +215,7 @@ export default function ProductDetail() {
 
         {selectedSku?.attributes ? (
           <View className='product-section'>
-            <Text className='section-title'>Attributes</Text>
+            <Text className='section-title'>属性</Text>
             <Flex wrap='wrap' gutter={8}>
               {Object.entries(selectedSku.attributes).map(([key, value]) => (
                 <Tag key={key} size='small' variant='outlined'>
@@ -228,16 +228,16 @@ export default function ProductDetail() {
 
         <Cell
           icon={<Logistics />}
-          title='Standard Air Freight'
-          brief='Arrives Sep 12 - Sep 18'
+          title='标准空运'
+          brief='预计 9月12日 - 9月18日送达'
           rightIcon={<ArrowRight />}
         />
       </View>
 
       <FixedView position='bottom' safeArea='bottom' placeholder>
         <Flex gutter={12} className='action-bar'>
-          <Button block variant='outlined' onClick={handleInquiry}>Bargain</Button>
-          <Button block color='primary' onClick={handleAddToCart}>Add to Cart</Button>
+          <Button block variant='outlined' onClick={handleInquiry}>议价</Button>
+          <Button block color='primary' onClick={handleAddToCart}>加入购物车</Button>
         </Flex>
       </FixedView>
     </View>
@@ -258,7 +258,7 @@ const formatFen = (fen: number) => {
 const formatSkuPrice = (sku: Sku) => {
   const tier = sku.priceTiers?.[0]
   if (!tier) {
-    return 'Request quote'
+    return '询价'
   }
   return formatFen(tier.unitPriceFen)
 }
@@ -268,8 +268,8 @@ const renderPriceTiers = (tiers?: PriceTier[]) => {
     return (
       <Grid.Item>
         <View className='tier-card'>
-          <Text className='tier-card-range'>No tiers</Text>
-          <Text className='tier-card-price'>Contact sales</Text>
+          <Text className='tier-card-range'>暂无阶梯价</Text>
+          <Text className='tier-card-price'>联系销售</Text>
         </View>
       </Grid.Item>
     )

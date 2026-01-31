@@ -31,7 +31,7 @@ export default function OrderTracking() {
         setShipments(response.shipments ?? [])
       } catch (error) {
         console.warn('load tracking failed', error)
-        await Taro.showToast({ title: 'Failed to load tracking', icon: 'none' })
+        await Taro.showToast({ title: '加载物流失败', icon: 'none' })
       } finally {
         setLoading(false)
       }
@@ -42,9 +42,9 @@ export default function OrderTracking() {
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
         <Navbar.NavLeft onClick={handleBack} />
-        <Navbar.Title>Tracking</Navbar.Title>
+        <Navbar.Title>物流跟踪</Navbar.Title>
         <Navbar.NavRight>
-          <Tag size='small' color='primary'>{shipments.length} shipments</Tag>
+          <Tag size='small' color='primary'>{shipments.length} 单</Tag>
         </Navbar.NavRight>
       </Navbar>
       <View className='page-content'>
@@ -53,12 +53,12 @@ export default function OrderTracking() {
             <Cell
               key={`${shipment.waybillNo}-${shipment.shippedAt ?? ''}`}
               title={shipment.waybillNo}
-              brief={`Carrier: ${shipment.carrier ?? 'Unknown'}`}
-              rightIcon={<Text>{shipment.shippedAt ? formatDate(shipment.shippedAt) : 'Pending'}</Text>}
+              brief={`承运商：${shipment.carrier ?? '未知'}`}
+              rightIcon={<Text>{shipment.shippedAt ? formatDate(shipment.shippedAt) : '待处理'}</Text>}
             />
           ))}
           {shipments.length === 0 ? (
-            <Cell title={loading ? 'Loading tracking...' : 'No shipments yet'} />
+            <Cell title={loading ? '正在加载物流...' : '暂无物流信息'} />
           ) : null}
         </Cell.Group>
       </View>

@@ -48,19 +48,19 @@ type OrderItem = {
 }
 
 const MENU_ITEMS: MenuItem[] = [
-  { key: 'demand', label: 'My Demand Requests', icon: Description, route: ROUTES.demandList },
-  { key: 'favorites', label: 'Favorites', icon: StarOutlined, route: ROUTES.favorites },
-  { key: 'address', label: 'Shipping Address', icon: LocationOutlined, route: ROUTES.addressList },
-  { key: 'import', label: 'Bulk Excel Import', icon: AppsOutlined, route: ROUTES.import },
-  { key: 'tracking', label: 'Batch Tracking', icon: BarChartOutlined, route: ROUTES.trackingBatch },
-  { key: 'settings', label: 'System Settings', icon: SettingOutlined, route: ROUTES.settings }
+  { key: 'demand', label: '我的需求', icon: Description, route: ROUTES.demandList },
+  { key: 'favorites', label: '收藏', icon: StarOutlined, route: ROUTES.favorites },
+  { key: 'address', label: '收货地址', icon: LocationOutlined, route: ROUTES.addressList },
+  { key: 'import', label: 'Excel 批量导入', icon: AppsOutlined, route: ROUTES.import },
+  { key: 'tracking', label: '批量物流', icon: BarChartOutlined, route: ROUTES.trackingBatch },
+  { key: 'settings', label: '系统设置', icon: SettingOutlined, route: ROUTES.settings }
 ]
 
 const ORDER_ITEMS: OrderItem[] = [
-  { key: 'pending', label: 'Pending', icon: OrdersOutlined, badge: '2', route: ROUTES.orders },
-  { key: 'shipped', label: 'Shipped', icon: Logistics, route: ROUTES.orders },
-  { key: 'delivered', label: 'Delivered', icon: TodoList, route: ROUTES.orders },
-  { key: 'returns', label: 'Returns', icon: Exchange, route: ROUTES.orders }
+  { key: 'pending', label: '待处理', icon: OrdersOutlined, badge: '2', route: ROUTES.orders },
+  { key: 'shipped', label: '已发货', icon: Logistics, route: ROUTES.orders },
+  { key: 'delivered', label: '已送达', icon: TodoList, route: ROUTES.orders },
+  { key: 'returns', label: '退货', icon: Exchange, route: ROUTES.orders }
 ]
 
 type MenuLinkProps = {
@@ -135,7 +135,7 @@ export default function PersonalCenter() {
   }, [])
 
   const isLoggedIn = Boolean(bootstrap?.me)
-  const displayName = bootstrap?.me?.displayName ?? 'Guest'
+  const displayName = bootstrap?.me?.displayName ?? '访客'
   const themeClassName = isDark ? 'mine-theme mine-theme--dark' : 'mine-theme'
 
   const handleLogout = async () => {
@@ -143,7 +143,7 @@ export default function PersonalCenter() {
     await commerceServices.tokens.setToken(null)
     await identityServices.tokens.setToken(null)
     await clearBootstrap()
-    await Taro.showToast({ title: 'Signed out', icon: 'none' })
+    await Taro.showToast({ title: '已退出登录', icon: 'none' })
     await switchTabLike(ROUTES.home)
   }
 
@@ -158,7 +158,7 @@ export default function PersonalCenter() {
         >
           <HomeOutlined className='text-base mine-icon' />
         </View>
-        <Text className='text-base font-medium'>My Profile</Text>
+        <Text className='text-base font-medium'>我的</Text>
         <View className='w-8 h-8' />
       </View>
 
@@ -204,21 +204,21 @@ export default function PersonalCenter() {
             <View className='mine-contact-icon'>
               <ServiceOutlined className='text-base mine-accent' />
             </View>
-            <Text className='mine-contact-label'>Account Manager</Text>
+            <Text className='mine-contact-label'>客户经理</Text>
             <View className='mine-contact-spacer' />
             <View className='mine-contact-action'>
               <ChatOutlined className='text-base' />
             </View>
           </View>
-          <Text className='mine-contact-name'>Sarah Wang</Text>
+          <Text className='mine-contact-name'>王经理</Text>
         </View>
       </View>
 
       <View className='px-5 mb-6'>
         <View className='flex items-center justify-between mb-4'>
-          <Text className='text-lg font-medium'>Order Tracking</Text>
+          <Text className='text-lg font-medium'>订单跟踪</Text>
           <Text className='text-sm mine-muted' onClick={() => navigateTo(ROUTES.orders)}>
-            View All
+            查看全部
           </Text>
         </View>
         <View className='mine-card mine-shadow border rounded-2xl p-4'>
@@ -256,7 +256,7 @@ export default function PersonalCenter() {
           onClick={handleLogout}
         >
           <Revoke className='text-base mine-subtle' />
-          <Text className='text-sm font-medium mine-muted'>Switch Account or Logout</Text>
+          <Text className='text-sm font-medium mine-muted'>切换账号或退出登录</Text>
         </View>
       </View>
 

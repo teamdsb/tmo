@@ -48,7 +48,7 @@ export default function SearchEmptyState() {
           }
         } catch (error) {
           console.warn('search failed', error)
-          await Taro.showToast({ title: 'Search failed', icon: 'none' })
+          await Taro.showToast({ title: '搜索失败', icon: 'none' })
         } finally {
           setLoading(false)
         }
@@ -61,7 +61,7 @@ export default function SearchEmptyState() {
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
         <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.home))} />
-        <Navbar.Title>Search</Navbar.Title>
+        <Navbar.Title>搜索</Navbar.Title>
       </Navbar>
 
       <View className='page-search'>
@@ -69,7 +69,7 @@ export default function SearchEmptyState() {
           value={searchValue}
           shape='rounded'
           clearable
-          placeholder='Search products...'
+          placeholder='搜索商品...'
           onChange={(event) => setSearchValue(event.detail.value)}
         />
       </View>
@@ -81,20 +81,20 @@ export default function SearchEmptyState() {
               <Empty.Image src='search' />
               <Empty.Description>
                 {loading
-                  ? 'Searching...'
-                  : `We couldn't find matches for "${searchValue || 'your query'}". Try adjusting your keywords or submit a direct request.`}
+                  ? '正在搜索...'
+                  : `未找到与“${searchValue || '你的关键词'}”匹配的结果。请调整关键词或提交需求。`}
               </Empty.Description>
             </Empty>
 
             <Button block color='primary' icon={<Plus />} onClick={() => navigateTo(ROUTES.demandCreate)}>
-              Submit a Demand Request
+              提交需求
             </Button>
-            <Text className='section-subtitle'>Our sourcing team will contact you with quotes within 24 hours.</Text>
+            <Text className='section-subtitle'>我们的寻源团队会在 24 小时内联系并提供报价。</Text>
 
             {recommended.length > 0 ? (
               <>
                 <Flex justify='space-between' align='center' className='section-header'>
-                  <Text className='section-title'>Recommended for You</Text>
+                  <Text className='section-title'>为你推荐</Text>
                 </Flex>
                 <Grid columns={2} gutter={12}>
                   {recommended.map((item) => (
@@ -103,9 +103,9 @@ export default function SearchEmptyState() {
                         <Image width='100%' height={140} src={item.coverImageUrl || fallbackImage} mode='aspectFill' />
                         <View className='recommend-card-body'>
                           <Text className='recommend-card-title'>{item.name}</Text>
-                          <Text className='recommend-card-price'>View pricing in details</Text>
+                          <Text className='recommend-card-price'>在详情中查看价格</Text>
                           <Tag size='small' color='primary'>
-                            {item.tags?.[0] ?? 'Catalog'}
+                            {item.tags?.[0] ?? '分类'}
                           </Tag>
                         </View>
                       </View>
@@ -118,8 +118,8 @@ export default function SearchEmptyState() {
         ) : (
           <>
             <Flex justify='space-between' align='center' className='section-header'>
-              <Text className='section-title'>Search Results</Text>
-              <Text className='section-subtitle'>{results.length} items</Text>
+              <Text className='section-title'>搜索结果</Text>
+              <Text className='section-subtitle'>{results.length} 件</Text>
             </Flex>
             <Grid columns={2} gutter={12}>
               {results.map((item) => (
@@ -128,9 +128,9 @@ export default function SearchEmptyState() {
                     <Image width='100%' height={140} src={item.coverImageUrl || fallbackImage} mode='aspectFill' />
                     <View className='recommend-card-body'>
                       <Text className='recommend-card-title'>{item.name}</Text>
-                      <Text className='recommend-card-price'>View pricing in details</Text>
+                      <Text className='recommend-card-price'>在详情中查看价格</Text>
                       <Tag size='small' color='primary'>
-                        {item.tags?.[0] ?? 'Catalog'}
+                        {item.tags?.[0] ?? '分类'}
                       </Tag>
                     </View>
                   </View>

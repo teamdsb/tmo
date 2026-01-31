@@ -26,7 +26,7 @@ export default function FavoritesPage() {
       setItems(list)
     } catch (error) {
       console.warn('load wishlist failed', error)
-      await Taro.showToast({ title: 'Failed to load favorites', icon: 'none' })
+      await Taro.showToast({ title: '加载收藏失败', icon: 'none' })
     } finally {
       setLoading(false)
     }
@@ -44,10 +44,10 @@ export default function FavoritesPage() {
     try {
       await commerceServices.wishlist.remove(skuId)
       setItems((prev) => prev.filter((item) => item.sku.id !== skuId))
-      await Taro.showToast({ title: 'Removed', icon: 'none' })
+      await Taro.showToast({ title: '已移除', icon: 'none' })
     } catch (error) {
       console.warn('remove wishlist failed', error)
-      await Taro.showToast({ title: 'Remove failed', icon: 'none' })
+      await Taro.showToast({ title: '移除失败', icon: 'none' })
     }
   }
 
@@ -56,10 +56,10 @@ export default function FavoritesPage() {
     if (!allowed) return
     try {
       await commerceServices.cart.addItem(skuId, 1)
-      await Taro.showToast({ title: 'Added to cart', icon: 'success' })
+      await Taro.showToast({ title: '已加入购物车', icon: 'success' })
     } catch (error) {
       console.warn('add to cart failed', error)
-      await Taro.showToast({ title: 'Add to cart failed', icon: 'none' })
+      await Taro.showToast({ title: '加入购物车失败', icon: 'none' })
     }
   }
 
@@ -67,10 +67,10 @@ export default function FavoritesPage() {
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
         <Navbar.NavLeft onClick={handleBack} />
-        <Navbar.Title>Favorites</Navbar.Title>
+        <Navbar.Title>收藏</Navbar.Title>
         <Navbar.NavRight>
           <Text className='text-xs text-slate-400'>
-            {loading ? 'Loading...' : `${items.length} items`}
+            {loading ? '加载中...' : `${items.length} 件`}
           </Text>
         </Navbar.NavRight>
       </Navbar>
@@ -79,7 +79,7 @@ export default function FavoritesPage() {
           <Empty>
             <Empty.Image src='default' />
             <Empty.Description>
-              {loading ? 'Loading favorites...' : 'No favorites yet. Save items to revisit later.'}
+              {loading ? '正在加载收藏...' : '暂无收藏，保存后方便再次查看。'}
             </Empty.Description>
           </Empty>
         ) : (
@@ -97,11 +97,11 @@ export default function FavoritesPage() {
                         {item.sku.name}
                       </Text>
                       <Text className='text-xs text-slate-400 truncate'>
-                        {item.sku.spec || 'Standard spec'}
+                        {item.sku.spec || '标准规格'}
                       </Text>
                     </View>
                     <Tag size='small' variant='outlined' color='primary'>
-                      {primaryTier ? formatTierLabel(primaryTier) : 'Quote'}
+                      {primaryTier ? formatTierLabel(primaryTier) : '报价'}
                     </Tag>
                   </View>
 
@@ -111,7 +111,7 @@ export default function FavoritesPage() {
                       variant='outlined'
                       onClick={() => navigateTo(goodsDetailRoute(item.sku.spuId))}
                     >
-                      View
+                      查看
                     </Button>
                     <View className='flex items-center gap-2'>
                       <Button
@@ -119,14 +119,14 @@ export default function FavoritesPage() {
                         variant='outlined'
                         onClick={() => void handleRemove(item.sku.id)}
                       >
-                        Remove
+                        移除
                       </Button>
                       <Button
                         size='small'
                         color='primary'
                         onClick={() => void handleAddToCart(item.sku.id)}
                       >
-                        Add to Cart
+                        加入购物车
                       </Button>
                     </View>
                   </View>

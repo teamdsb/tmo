@@ -34,7 +34,7 @@ export default function SupportPage() {
         setInquiries(inquiryResp.items ?? [])
       } catch (error) {
         console.warn('load support data failed', error)
-        await Taro.showToast({ title: 'Failed to load support', icon: 'none' })
+        await Taro.showToast({ title: '加载客服数据失败', icon: 'none' })
       } finally {
         setLoading(false)
       }
@@ -45,44 +45,44 @@ export default function SupportPage() {
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
         <Navbar.NavLeft onClick={handleBack} />
-        <Navbar.Title>Support</Navbar.Title>
+        <Navbar.Title>客服支持</Navbar.Title>
         <Navbar.NavRight>
           <Text className='text-xs text-blue-600' onClick={() => navigateTo(ROUTES.supportCreate)}>
-            New Ticket
+            新建工单
           </Text>
         </Navbar.NavRight>
       </Navbar>
       <View className='page-content'>
-        <Text className='section-subtitle'>Track after-sales tickets and price inquiries.</Text>
+        <Text className='section-subtitle'>跟踪售后工单与询价。</Text>
       </View>
       <Tabs value={activeTab} onChange={(value) => setActiveTab(String(value))}>
-        <Tabs.TabPane value='after-sales' title='After Sales'>
+        <Tabs.TabPane value='after-sales' title='售后'>
           <Cell.Group inset>
             {tickets.map((ticket) => (
               <Cell
                 key={ticket.id}
                 title={ticket.subject}
-                brief={`Status: ${ticket.status}`}
-                rightIcon={<Tag size='small' color='primary'>Ticket</Tag>}
+                brief={`状态：${ticket.status}`}
+                rightIcon={<Tag size='small' color='primary'>工单</Tag>}
               />
             ))}
             {tickets.length === 0 ? (
-              <Cell title={loading ? 'Loading tickets...' : 'No after-sales tickets'} />
+              <Cell title={loading ? '正在加载工单...' : '暂无售后工单'} />
             ) : null}
           </Cell.Group>
         </Tabs.TabPane>
-        <Tabs.TabPane value='inquiries' title='Price Inquiries'>
+        <Tabs.TabPane value='inquiries' title='询价'>
           <Cell.Group inset>
             {inquiries.map((inquiry) => (
               <Cell
                 key={inquiry.id}
                 title={inquiry.message}
-                brief={`Status: ${inquiry.status}`}
-                rightIcon={<Tag size='small' color='primary'>Inquiry</Tag>}
+                brief={`状态：${inquiry.status}`}
+                rightIcon={<Tag size='small' color='primary'>询价</Tag>}
               />
             ))}
             {inquiries.length === 0 ? (
-              <Cell title={loading ? 'Loading inquiries...' : 'No price inquiries'} />
+              <Cell title={loading ? '正在加载询价...' : '暂无询价'} />
             ) : null}
           </Cell.Group>
         </Tabs.TabPane>

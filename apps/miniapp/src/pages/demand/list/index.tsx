@@ -23,7 +23,7 @@ export default function DemandList() {
         setRequests(response.items ?? [])
       } catch (error) {
         console.warn('load demand list failed', error)
-        await Taro.showToast({ title: 'Failed to load requests', icon: 'none' })
+        await Taro.showToast({ title: '加载需求失败', icon: 'none' })
       } finally {
         setLoading(false)
       }
@@ -34,7 +34,7 @@ export default function DemandList() {
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
         <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.mine))} />
-        <Navbar.Title>My Demand Requests</Navbar.Title>
+        <Navbar.Title>我的需求</Navbar.Title>
       </Navbar>
       <View className='page-content'>
         <Cell.Group inset>
@@ -42,12 +42,12 @@ export default function DemandList() {
             <Cell
               key={request.id}
               title={request.name}
-              brief={`Qty: ${request.qty ?? 'N/A'}`}
-              rightIcon={<Tag size='small' color='primary'>Submitted</Tag>}
+              brief={`数量：${request.qty ?? '暂无'}`}
+              rightIcon={<Tag size='small' color='primary'>已提交</Tag>}
             />
           ))}
           {requests.length === 0 ? (
-            <Cell title={loading ? 'Loading requests...' : 'No demand requests yet'} />
+            <Cell title={loading ? '正在加载需求...' : '暂无需求'} />
           ) : null}
         </Cell.Group>
       </View>

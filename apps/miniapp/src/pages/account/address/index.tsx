@@ -67,8 +67,8 @@ export default function AddressList() {
 
   const handleDelete = async (id: string) => {
     const result = await Taro.showModal({
-      title: 'Delete address',
-      content: 'Are you sure you want to delete this address?'
+      title: '删除地址',
+      content: '确定要删除该地址吗？'
     })
     if (!result.confirm) return
     setAddresses((prev) => prev.filter((addr) => addr.id !== id))
@@ -95,7 +95,7 @@ export default function AddressList() {
         className='address-navbar app-navbar'
       >
         <Navbar.NavLeft onClick={() => Taro.navigateBack()} />
-        <Navbar.Title>Shipping Address</Navbar.Title>
+        <Navbar.Title>收货地址</Navbar.Title>
       </Navbar>
 
       <View className='mt-4 px-4 pb-32 address-list'>
@@ -108,7 +108,7 @@ export default function AddressList() {
             <View className='bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto address-empty-icon'>
               <LocationOutlined className='text-2xl text-slate-500' />
             </View>
-            <Text className='text-sm text-slate-500'>No addresses saved yet.</Text>
+            <Text className='text-sm text-slate-500'>暂无地址</Text>
           </View>
         ) : (
           sortedAddresses.map((addr) => (
@@ -122,7 +122,7 @@ export default function AddressList() {
                   <Text className='text-sm text-slate-500'>{addr.phone}</Text>
                   {addr.isDefault ? (
                     <Text className='px-2 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full border border-blue-100 uppercase tracking-wide address-default-badge'>
-                      Default
+                      默认
                     </Text>
                   ) : null}
                 </View>
@@ -134,13 +134,13 @@ export default function AddressList() {
                   className='flex items-center gap-2 text-xs text-slate-400 transition-colors address-action address-action-edit'
                   onClick={() => openEdit(addr)}
                 >
-                  <Text>Edit</Text>
+                  <Text>编辑</Text>
                 </View>
                 <View
                   className='flex items-center gap-2 text-xs text-slate-400 transition-colors address-action address-action-delete'
                   onClick={() => void handleDelete(addr.id)}
                 >
-                  <Text>Delete</Text>
+                  <Text>删除</Text>
                 </View>
               </View>
             </View>
@@ -155,7 +155,7 @@ export default function AddressList() {
             onClick={openAdd}
           >
             <Plus className='text-lg' />
-            <Text>Add New Address</Text>
+            <Text>新增地址</Text>
           </View>
         </View>
       ) : null}
@@ -165,7 +165,7 @@ export default function AddressList() {
           <View className='bg-white w-full max-w-md rounded-t-3xl p-6 shadow-2xl address-sheet'>
             <View className='flex justify-between items-center mb-6 address-sheet-header'>
               <Text className='text-lg font-bold address-sheet-title'>
-                {editingAddress ? 'Edit Address' : 'New Address'}
+                {editingAddress ? '编辑地址' : '新增地址'}
               </Text>
               <View
                 className='p-2 rounded-full transition-colors address-close'
@@ -226,7 +226,7 @@ function AddressForm({ initialData, onSubmit, onCancel }: AddressFormProps) {
 
   const handleSubmit = () => {
     if (!formData.name || !formData.phone || !formData.address) {
-      void Taro.showToast({ title: 'Please complete all fields', icon: 'none' })
+      void Taro.showToast({ title: '请填写完整信息', icon: 'none' })
       return
     }
     onSubmit(formData)
@@ -235,37 +235,37 @@ function AddressForm({ initialData, onSubmit, onCancel }: AddressFormProps) {
   return (
     <View className='address-form'>
       <View className='address-field'>
-        <Text className='text-xs font-medium text-slate-500 ml-1'>Contact Name</Text>
+        <Text className='text-xs font-medium text-slate-500 ml-1'>联系人</Text>
         <Input
           className='w-full h-12 px-4 rounded-xl bg-slate-50 border-none transition-all'
-          placeholder='e.g. John Doe'
+          placeholder='例如：张三'
           value={formData.name}
           onInput={(event) => setFormData({ ...formData, name: event.detail.value })}
         />
       </View>
 
       <View className='address-field'>
-        <Text className='text-xs font-medium text-slate-500 ml-1'>Phone Number</Text>
+        <Text className='text-xs font-medium text-slate-500 ml-1'>手机号</Text>
         <Input
           className='w-full h-12 px-4 rounded-xl bg-slate-50 border-none transition-all'
-          placeholder='e.g. 138-1234-5678'
+          placeholder='例如：138-1234-5678'
           value={formData.phone}
           onInput={(event) => setFormData({ ...formData, phone: event.detail.value })}
         />
       </View>
 
       <View className='address-field'>
-        <Text className='text-xs font-medium text-slate-500 ml-1'>Full Address</Text>
+        <Text className='text-xs font-medium text-slate-500 ml-1'>详细地址</Text>
         <Textarea
           className='w-full px-4 py-3 rounded-xl bg-slate-50 border-none transition-all address-textarea'
-          placeholder='Enter complete shipping address...'
+          placeholder='请输入完整收货地址...'
           value={formData.address}
           onInput={(event) => setFormData({ ...formData, address: event.detail.value })}
         />
       </View>
 
       <View className='flex items-center justify-between p-1'>
-        <Text className='text-sm font-medium'>Set as default address</Text>
+        <Text className='text-sm font-medium'>设为默认地址</Text>
         <View
           className={`w-12 h-6 rounded-full transition-colors relative flex items-center px-1 ${
             formData.isDefault ? 'bg-blue-600' : 'bg-slate-200'
@@ -285,13 +285,13 @@ function AddressForm({ initialData, onSubmit, onCancel }: AddressFormProps) {
           className='flex-1 h-12 rounded-xl font-medium border border-slate-100 transition-colors flex items-center justify-center address-cancel'
           onClick={onCancel}
         >
-          <Text>Cancel</Text>
+          <Text>取消</Text>
         </View>
         <View
           className='flex-1 h-12 rounded-xl bg-blue-600 text-white font-semibold transition-all shadow-md flex items-center justify-center address-pressable address-save'
           onClick={handleSubmit}
         >
-          <Text>Save</Text>
+          <Text>保存</Text>
         </View>
       </View>
     </View>

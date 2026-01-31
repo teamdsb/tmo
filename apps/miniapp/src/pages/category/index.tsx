@@ -41,145 +41,145 @@ type SidebarEntry = {
 }
 
 const SIDEBAR_ENTRIES: SidebarEntry[] = [
-  { key: 'office', label: 'Office Supplies', icon: <NotesOutlined /> },
-  { key: 'industrial', label: 'Industrial', icon: <SettingOutlined /> },
-  { key: 'electronics', label: 'Electronics', icon: <DesktopOutlined /> },
-  { key: 'janitorial', label: 'Janitorial', icon: <BrushOutlined /> },
-  { key: 'safety', label: 'Safety Gear', icon: <ShieldOutlined /> },
-  { key: 'breakroom', label: 'Breakroom', icon: <HotOutlined /> }
+  { key: 'office', label: '办公用品', icon: <NotesOutlined /> },
+  { key: 'industrial', label: '工业', icon: <SettingOutlined /> },
+  { key: 'electronics', label: '电子产品', icon: <DesktopOutlined /> },
+  { key: 'janitorial', label: '清洁用品', icon: <BrushOutlined /> },
+  { key: 'safety', label: '安全防护', icon: <ShieldOutlined /> },
+  { key: 'breakroom', label: '茶水间', icon: <HotOutlined /> }
 ]
 
 const CATEGORY_DATA: Record<CategoryKey, CategoryEntry> = {
   office: {
-    title: 'Office Supplies',
-    subtitle: 'Equip your team for success',
+    title: '办公用品',
+    subtitle: '装备团队提升效率',
     bannerImage: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?q=80&w=2070&auto=format&fit=crop',
     sections: [
       {
-        title: 'Writing Instruments',
+        title: '书写工具',
         items: [
-          { name: 'Pens', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCeAptxGiVytRJJxwVB_c_pGtQei8QlmZW8mnxZrDozg5YWUoqAS1T4bDRoxV0EZaq4GnXmbitcVmlb5P0kLi8kNDQQurSCed6ytShRYFaQCYGufuFaQhFcDu8_h7RewxUVqjQENV6N1kMXK-iMp9Vo5cJRCa-jIKiVZTEKVICysTwPZofCbCNXBWDykO3e0S14fupZIHR1J9SJU2GRwlU4vD-hyWYFYnsNvqMmPZFD2tda6efd_fVlNgxUASPxDPbCoGbhM2AaTZQ' },
-          { name: 'Markers', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBuFkZxGwrJzfIzVQrdGZW37SZ6TNUvV_orBB1cDlJBKZ_wIuArnHWoZw0rmXFYZpxswInGuuz51U5ZFYdMQJ7hZqDdWx8iGui2Uk8nQQSoRGW0jT4bVySZHoXbmm5mnkuIw6J4Q_c1zT_6lS3bUAdKRqDOVDm8hjpARBP8tGQ38aZaqOhetqeAMBcanuCprfZopv6NU2zYT9HgQc31OkgK2HfdQr31SV5t6-cytJ09MTnnhyfn7kK47C3bM1Qhq5TlkEobKs5oG8M' },
-          { name: 'Highlighters', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBXvkmu0f1QaJCJ6WdqMPmlrK8wcAcglzJPT0w1buFDmfymFw65rghWUyIZRw17nNgsz2tT5rlQB3OiD6S8JOcrsAtb_lT122T02EBwD0JlffWJMbOYJtKZf5itTc4BEC9mz1MmTW5wQVH4CIi7lxQW4-jn1gE3lBiCPJ63d_y5db0YfKH2P6OSXppWkUY12n6mqRC3AV4EAvRcJDf3LT544xfN2lhNAaC9YyOhb4n1-7y2Fzg6EWqJzXcX51mywRlOyHOoHeBtocs' },
-          { name: 'Pencils', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBWwdMJcUXRLVcWkBNDKfJ8xazQhcyrlZXaelgix96Dr38_qL5Nu9FrYZvC35Ts9dI_h4VEEiiIox-AcpmLcO3YA13H_rtoF76JT9c-C-yMr4j2xau0NSKFFQxJe5fdS7SM92CQTd8Gb_7g7LMKXIPSJQ-wXMIFAgleSfS_UkDUfdM5LN7RuVvEXJ8oZIwl8IWYv8T4wJYG_6nsOURgtulZ26jHpOf7w4dku4BRqrc46nrbu_vJ0GyYAWq2j9jQf2MQubNueZ5A75I' }
+          { name: '笔', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCeAptxGiVytRJJxwVB_c_pGtQei8QlmZW8mnxZrDozg5YWUoqAS1T4bDRoxV0EZaq4GnXmbitcVmlb5P0kLi8kNDQQurSCed6ytShRYFaQCYGufuFaQhFcDu8_h7RewxUVqjQENV6N1kMXK-iMp9Vo5cJRCa-jIKiVZTEKVICysTwPZofCbCNXBWDykO3e0S14fupZIHR1J9SJU2GRwlU4vD-hyWYFYnsNvqMmPZFD2tda6efd_fVlNgxUASPxDPbCoGbhM2AaTZQ' },
+          { name: '记号笔', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBuFkZxGwrJzfIzVQrdGZW37SZ6TNUvV_orBB1cDlJBKZ_wIuArnHWoZw0rmXFYZpxswInGuuz51U5ZFYdMQJ7hZqDdWx8iGui2Uk8nQQSoRGW0jT4bVySZHoXbmm5mnkuIw6J4Q_c1zT_6lS3bUAdKRqDOVDm8hjpARBP8tGQ38aZaqOhetqeAMBcanuCprfZopv6NU2zYT9HgQc31OkgK2HfdQr31SV5t6-cytJ09MTnnhyfn7kK47C3bM1Qhq5TlkEobKs5oG8M' },
+          { name: '荧光笔', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBXvkmu0f1QaJCJ6WdqMPmlrK8wcAcglzJPT0w1buFDmfymFw65rghWUyIZRw17nNgsz2tT5rlQB3OiD6S8JOcrsAtb_lT122T02EBwD0JlffWJMbOYJtKZf5itTc4BEC9mz1MmTW5wQVH4CIi7lxQW4-jn1gE3lBiCPJ63d_y5db0YfKH2P6OSXppWkUY12n6mqRC3AV4EAvRcJDf3LT544xfN2lhNAaC9YyOhb4n1-7y2Fzg6EWqJzXcX51mywRlOyHOoHeBtocs' },
+          { name: '铅笔', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBWwdMJcUXRLVcWkBNDKfJ8xazQhcyrlZXaelgix96Dr38_qL5Nu9FrYZvC35Ts9dI_h4VEEiiIox-AcpmLcO3YA13H_rtoF76JT9c-C-yMr4j2xau0NSKFFQxJe5fdS7SM92CQTd8Gb_7g7LMKXIPSJQ-wXMIFAgleSfS_UkDUfdM5LN7RuVvEXJ8oZIwl8IWYv8T4wJYG_6nsOURgtulZ26jHpOf7w4dku4BRqrc46nrbu_vJ0GyYAWq2j9jQf2MQubNueZ5A75I' }
         ]
       },
       {
-        title: 'Paper Products',
+        title: '纸品',
         items: [
-          { name: 'Copy Paper', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDYUiI9YgNGJ5AJP7E3XZTbsTa2ARfcwJftoPJTCnJ-jkC7RoRQ3enr4lqSlGgDnG4okUcDL8891dVirqZpaJhX36cLsUZooE4O_ifvfCTJp9GRVEIUQ-yvWcr63cxy6gsx1916YOdd99nEsGeWyR6aJCghfhZA6JVdk1jB1TLWudfhdeS_5UplOEhFYZf6OsOu4IYU4tbCva69yzEQANXzsBcxBPWe_aUA16cYh2dpWvOqxVhdu2G_iZqe2maMIYIg9PP7XPBWePY' },
-          { name: 'Notebooks', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDr1Y_BZ80K2UNhI0MuThLhU9UfrzRtxbFFwOEoU3srs0bNelSgD5Ba8X1TmOKqDPhzbMeOPts5ngEkfaB9xjirUceFVggD0Pt1aMyHpj_09mTIy2INXj-uB9oVi_UqY68TV1FVAFDwDmEm2KRgzbCU0CBJaX9TdGSYjM8zUr81A4b5uWmhkPQOV7Lolz6KnlJRr_6Wk72P07xGJ93cLQiUCUqgZe6FhOkLvmT-lV6uWvLQB2lUUBlgChoGVbjg9KGwgZfkPROawjU' },
-          { name: 'Sticky Notes', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDL268GSNJwTrCl2Ov-gH87kJhT2HJWOCE8iUFFWhghxht1UX-RP6Mnjlr0L0xdRTu_7DBn0tnmQdi0zxD4fke4gw8rAiUrGON9ePEh1to2FKZFu2a87srF1czEqtS_y4AtHP4VfbUhJpB5n1oPEG6WiVipMhlaqe_22oERxpCykEdlii_pQaSj5hJJws-p6d26heXgHlEB0cJVNRlHNcb2SKFHjcLxobJanP7ZckPb1XFB5C8vvwc7RTneeV0Jwg3uqe9kOXRvAuk' },
-          { name: 'Envelopes', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuASFB39HJ1F0fDXAYsEmIIn1ud4MRYjY3Zgo1ovsVqdl0IgNtqZVH2yqpojFM_ec_I4O8ojY0pWLKuj5GpYrEem4vaTgJmuWf-F0ZwRxC2d4uN6Kl2I2xlRkrzltXqPE5TklClZ_YJSwpLO_4S2Jv0LNgFjKXOsUL3eZH7FgJmtCBqhTtR7nBuij4Y1UI5CGzoa2HnOj6MXs1ZAG_rx_kPFNGg0kbo08gRpW-Q5CPYDU45T5YazSW0MAcihEmKzbJHCsxl7wNdqdcc' }
+          { name: '复印纸', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDYUiI9YgNGJ5AJP7E3XZTbsTa2ARfcwJftoPJTCnJ-jkC7RoRQ3enr4lqSlGgDnG4okUcDL8891dVirqZpaJhX36cLsUZooE4O_ifvfCTJp9GRVEIUQ-yvWcr63cxy6gsx1916YOdd99nEsGeWyR6aJCghfhZA6JVdk1jB1TLWudfhdeS_5UplOEhFYZf6OsOu4IYU4tbCva69yzEQANXzsBcxBPWe_aUA16cYh2dpWvOqxVhdu2G_iZqe2maMIYIg9PP7XPBWePY' },
+          { name: '笔记本', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDr1Y_BZ80K2UNhI0MuThLhU9UfrzRtxbFFwOEoU3srs0bNelSgD5Ba8X1TmOKqDPhzbMeOPts5ngEkfaB9xjirUceFVggD0Pt1aMyHpj_09mTIy2INXj-uB9oVi_UqY68TV1FVAFDwDmEm2KRgzbCU0CBJaX9TdGSYjM8zUr81A4b5uWmhkPQOV7Lolz6KnlJRr_6Wk72P07xGJ93cLQiUCUqgZe6FhOkLvmT-lV6uWvLQB2lUUBlgChoGVbjg9KGwgZfkPROawjU' },
+          { name: '便签', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDL268GSNJwTrCl2Ov-gH87kJhT2HJWOCE8iUFFWhghxht1UX-RP6Mnjlr0L0xdRTu_7DBn0tnmQdi0zxD4fke4gw8rAiUrGON9ePEh1to2FKZFu2a87srF1czEqtS_y4AtHP4VfbUhJpB5n1oPEG6WiVipMhlaqe_22oERxpCykEdlii_pQaSj5hJJws-p6d26heXgHlEB0cJVNRlHNcb2SKFHjcLxobJanP7ZckPb1XFB5C8vvwc7RTneeV0Jwg3uqe9kOXRvAuk' },
+          { name: '信封', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuASFB39HJ1F0fDXAYsEmIIn1ud4MRYjY3Zgo1ovsVqdl0IgNtqZVH2yqpojFM_ec_I4O8ojY0pWLKuj5GpYrEem4vaTgJmuWf-F0ZwRxC2d4uN6Kl2I2xlRkrzltXqPE5TklClZ_YJSwpLO_4S2Jv0LNgFjKXOsUL3eZH7FgJmtCBqhTtR7nBuij4Y1UI5CGzoa2HnOj6MXs1ZAG_rx_kPFNGg0kbo08gRpW-Q5CPYDU45T5YazSW0MAcihEmKzbJHCsxl7wNdqdcc' }
         ]
       },
       {
-        title: 'Desk Accessories',
+        title: '桌面配件',
         items: [
-          { name: 'Staplers', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAI15j_dQeovIH0H2A2nrHs5kO0T68Lf4aZFbxj-x3HP2qW8Q6igf_ajUQg6vEUWDdEJFo6a-9Znqpcj2Pq71ICCL39FjdFmk5ne39_Fq2kqQqD-TgNfmszBRnAAwSmsj10wvH_bnUAYeG9Qnh0_A-GPBUtdOsYP9TrSEsrl2P4Xqu0YXkTXC-mzRRgHUkVtgdTxgGx-7udx5RnX523k8CCyb1OfBTqtklixfT5g-yGjBQ2yiVLbo0KPWwvH6TqYHeRZNQCnISigLg' },
-          { name: 'Organizers', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuABNVSKPik3rHPwDRLWIReBgMRzfb-4MY-KI1KSSlL_L7GUPzxB_SqLZ6_-hLQ9oyl3lBTcm9IBO-NDZAsx1Hw55P1CB2r0p6FHTxQwMoK9WKqumJscpOh7gRnZeOcQlS1m6BCovfPaF4MKXuK8kven6kPXtlvpuD5tNg2zpAOZlM8KmE1cxnuMCz0Vcq6LBZEKzZMyfAs-6JbFQE4qsv5DNSHxt3dQ1qkVnQ9g4424yW_Pq8xHDHl_4H0tWBuSkeQzeM5iZc-tZLw' }
+          { name: '订书机', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAI15j_dQeovIH0H2A2nrHs5kO0T68Lf4aZFbxj-x3HP2qW8Q6igf_ajUQg6vEUWDdEJFo6a-9Znqpcj2Pq71ICCL39FjdFmk5ne39_Fq2kqQqD-TgNfmszBRnAAwSmsj10wvH_bnUAYeG9Qnh0_A-GPBUtdOsYP9TrSEsrl2P4Xqu0YXkTXC-mzRRgHUkVtgdTxgGx-7udx5RnX523k8CCyb1OfBTqtklixfT5g-yGjBQ2yiVLbo0KPWwvH6TqYHeRZNQCnISigLg' },
+          { name: '收纳盒', img: 'https://lh3.googleusercontent.com/aida-public/AB6AXuABNVSKPik3rHPwDRLWIReBgMRzfb-4MY-KI1KSSlL_L7GUPzxB_SqLZ6_-hLQ9oyl3lBTcm9IBO-NDZAsx1Hw55P1CB2r0p6FHTxQwMoK9WKqumJscpOh7gRnZeOcQlS1m6BCovfPaF4MKXuK8kven6kPXtlvpuD5tNg2zpAOZlM8KmE1cxnuMCz0Vcq6LBZEKzZMyfAs-6JbFQE4qsv5DNSHxt3dQ1qkVnQ9g4424yW_Pq8xHDHl_4H0tWBuSkeQzeM5iZc-tZLw' }
         ]
       }
     ]
   },
   industrial: {
-    title: 'Industrial Tools',
-    subtitle: 'Heavy-duty solutions for professionals',
+    title: '工业工具',
+    subtitle: '为专业人士提供高强度解决方案',
     bannerImage: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=80&w=2070&auto=format&fit=crop',
     sections: [
       {
-        title: 'Abrasives',
+        title: '研磨材料',
         items: [
-          { name: 'Sandpaper', img: 'https://images.unsplash.com/photo-1622631557008-04285b546342?q=80&w=200&auto=format&fit=crop' },
-          { name: 'Grinding', img: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=80&w=200&auto=format&fit=crop' }
+          { name: '砂纸', img: 'https://images.unsplash.com/photo-1622631557008-04285b546342?q=80&w=200&auto=format&fit=crop' },
+          { name: '研磨', img: 'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?q=80&w=200&auto=format&fit=crop' }
         ]
       },
       {
-        title: 'Hardware',
+        title: '五金',
         items: [
-          { name: 'Bolts & Nuts', img: 'https://images.unsplash.com/photo-1588619461347-197e934a3666?q=80&w=200&auto=format&fit=crop' },
-          { name: 'Fasteners', img: 'https://images.unsplash.com/photo-1534438097545-a2c22c57f01b?q=80&w=200&auto=format&fit=crop' },
-          { name: 'Screws', img: 'https://images.unsplash.com/photo-1535063469032-475a840c4964?q=80&w=200&auto=format&fit=crop' },
-          { name: 'Washers', img: 'https://images.unsplash.com/photo-1517524285303-d6fc683dddf8?q=80&w=200&auto=format&fit=crop' }
+          { name: '螺栓和螺母', img: 'https://images.unsplash.com/photo-1588619461347-197e934a3666?q=80&w=200&auto=format&fit=crop' },
+          { name: '紧固件', img: 'https://images.unsplash.com/photo-1534438097545-a2c22c57f01b?q=80&w=200&auto=format&fit=crop' },
+          { name: '螺丝', img: 'https://images.unsplash.com/photo-1535063469032-475a840c4964?q=80&w=200&auto=format&fit=crop' },
+          { name: '垫圈', img: 'https://images.unsplash.com/photo-1517524285303-d6fc683dddf8?q=80&w=200&auto=format&fit=crop' }
         ]
       }
     ]
   },
   electronics: {
-    title: 'Electronics',
-    subtitle: 'Power up your productivity',
+    title: '电子产品',
+    subtitle: '提升生产力',
     bannerImage: 'https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=2070&auto=format&fit=crop',
     sections: [
       {
-        title: 'Computers',
+        title: '计算机',
         items: [
-          { name: 'Laptops', img: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?q=80&w=200&auto=format&fit=crop' },
-          { name: 'Desktops', img: 'https://images.unsplash.com/photo-1547082299-de196ea013d6?q=80&w=200&auto=format&fit=crop' },
-          { name: 'Monitors', img: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?q=80&w=200&auto=format&fit=crop' }
+          { name: '笔记本电脑', img: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?q=80&w=200&auto=format&fit=crop' },
+          { name: '台式机', img: 'https://images.unsplash.com/photo-1547082299-de196ea013d6?q=80&w=200&auto=format&fit=crop' },
+          { name: '显示器', img: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?q=80&w=200&auto=format&fit=crop' }
         ]
       },
       {
-        title: 'Peripherals',
+        title: '外设',
         items: [
-          { name: 'Keyboards', img: 'https://images.unsplash.com/photo-1587829741301-dc798b91add1?q=80&w=200&auto=format&fit=crop' },
-          { name: 'Mice', img: 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?q=80&w=200&auto=format&fit=crop' },
-          { name: 'Cables', img: 'https://images.unsplash.com/photo-1545127398-14699f92334b?q=80&w=200&auto=format&fit=crop' }
+          { name: '键盘', img: 'https://images.unsplash.com/photo-1587829741301-dc798b91add1?q=80&w=200&auto=format&fit=crop' },
+          { name: '鼠标', img: 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?q=80&w=200&auto=format&fit=crop' },
+          { name: '线缆', img: 'https://images.unsplash.com/photo-1545127398-14699f92334b?q=80&w=200&auto=format&fit=crop' }
         ]
       }
     ]
   },
   janitorial: {
-    title: 'Janitorial Supplies',
-    subtitle: 'Keep your workspace spotless',
+    title: '清洁用品',
+    subtitle: '让工作空间保持整洁',
     bannerImage: 'https://images.unsplash.com/photo-1581578731117-104f25fb8b27?q=80&w=2070&auto=format&fit=crop',
     sections: [
       {
-        title: 'Cleaning Chemicals',
+        title: '清洁剂',
         items: [
-          { name: 'Sanitizers', img: 'https://images.unsplash.com/photo-1584634731339-252c581abfc5?q=80&w=200&auto=format&fit=crop' },
-          { name: 'Detergents', img: 'https://images.unsplash.com/photo-1528740561666-dc24705f08a7?q=80&w=200&auto=format&fit=crop' }
+          { name: '消毒剂', img: 'https://images.unsplash.com/photo-1584634731339-252c581abfc5?q=80&w=200&auto=format&fit=crop' },
+          { name: '洗涤剂', img: 'https://images.unsplash.com/photo-1528740561666-dc24705f08a7?q=80&w=200&auto=format&fit=crop' }
         ]
       },
       {
-        title: 'Equipment',
+        title: '工具设备',
         items: [
-          { name: 'Mops', img: 'https://images.unsplash.com/photo-1527512860508-304cd5533b61?q=80&w=200&auto=format&fit=crop' },
-          { name: 'Brooms', img: 'https://images.unsplash.com/photo-1606213709087-259837a76c02?q=80&w=200&auto=format&fit=crop' }
+          { name: '拖把', img: 'https://images.unsplash.com/photo-1527512860508-304cd5533b61?q=80&w=200&auto=format&fit=crop' },
+          { name: '扫帚', img: 'https://images.unsplash.com/photo-1606213709087-259837a76c02?q=80&w=200&auto=format&fit=crop' }
         ]
       }
     ]
   },
   safety: {
-    title: 'Safety Gear',
-    subtitle: 'Protect your most valuable assets',
+    title: '安全防护',
+    subtitle: '保护最重要的资产',
     bannerImage: 'https://images.unsplash.com/photo-1535581652167-3d6693c03185?q=80&w=2070&auto=format&fit=crop',
     sections: [
       {
-        title: 'Personal Protective Equip.',
+        title: '个人防护装备',
         items: [
-          { name: 'Helmets', img: 'https://images.unsplash.com/photo-1584281722579-22db95846d0a?q=80&w=200&auto=format&fit=crop' },
-          { name: 'Vests', img: 'https://images.unsplash.com/photo-1605218427360-36390f8552d7?q=80&w=200&auto=format&fit=crop' },
-          { name: 'Gloves', img: 'https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?q=80&w=200&auto=format&fit=crop' }
+          { name: '安全帽', img: 'https://images.unsplash.com/photo-1584281722579-22db95846d0a?q=80&w=200&auto=format&fit=crop' },
+          { name: '反光背心', img: 'https://images.unsplash.com/photo-1605218427360-36390f8552d7?q=80&w=200&auto=format&fit=crop' },
+          { name: '手套', img: 'https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?q=80&w=200&auto=format&fit=crop' }
         ]
       }
     ]
   },
   breakroom: {
-    title: 'Breakroom',
-    subtitle: 'Snacks and coffee for the crew',
+    title: '茶水间',
+    subtitle: '为团队准备零食与咖啡',
     bannerImage: 'https://images.unsplash.com/photo-1525610553991-2bede1a236e2?q=80&w=2070&auto=format&fit=crop',
     sections: [
       {
-        title: 'Beverages',
+        title: '饮品',
         items: [
-          { name: 'Coffee', img: 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?q=80&w=200&auto=format&fit=crop' },
-          { name: 'Tea', img: 'https://images.unsplash.com/photo-1576092768241-dec231854f74?q=80&w=200&auto=format&fit=crop' }
+          { name: '咖啡', img: 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?q=80&w=200&auto=format&fit=crop' },
+          { name: '茶', img: 'https://images.unsplash.com/photo-1576092768241-dec231854f74?q=80&w=200&auto=format&fit=crop' }
         ]
       },
       {
-        title: 'Appliances',
+        title: '电器',
         items: [
-          { name: 'Coffee Makers', img: 'https://images.unsplash.com/photo-1517668808822-9ebb02f2a0e6?q=80&w=200&auto=format&fit=crop' }
+          { name: '咖啡机', img: 'https://images.unsplash.com/photo-1517668808822-9ebb02f2a0e6?q=80&w=200&auto=format&fit=crop' }
         ]
       }
     ]
@@ -247,7 +247,7 @@ export default function CategoryPage() {
           shape='rounded'
           clearable
           icon={<SearchIcon />}
-          placeholder='Search SKU or Product...'
+          placeholder='搜索 SKU 或商品...'
           onChange={(event) => setQuery(event.detail.value)}
         />
       </View>
@@ -301,8 +301,8 @@ export default function CategoryPage() {
 
             {filteredSections.length === 0 ? (
               <View className='category-empty'>
-                <Text className='category-empty-title'>No results</Text>
-                <Text className='category-empty-subtitle'>Try another keyword.</Text>
+                <Text className='category-empty-title'>无结果</Text>
+                <Text className='category-empty-subtitle'>试试其他关键词。</Text>
               </View>
             ) : null}
           </View>

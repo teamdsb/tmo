@@ -1,3 +1,3 @@
 export default definePageConfig({
-  navigationBarTitleText: 'Select Role'
+  navigationBarTitleText: '选择角色'
 })

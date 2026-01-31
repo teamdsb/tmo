@@ -44,17 +44,17 @@ export default function SettingsPage() {
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
         <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.mine))} />
-        <Navbar.Title>System Settings</Navbar.Title>
+        <Navbar.Title>系统设置</Navbar.Title>
       </Navbar>
       <View className='page-content'>
         <View className='mb-4'>
-          <Text className='section-subtitle'>Control notifications and display preferences.</Text>
+          <Text className='section-subtitle'>控制通知与显示偏好。</Text>
         </View>
 
         <Cell.Group inset>
           <Cell
-            title='Order notifications'
-            brief='Get status updates and shipping alerts'
+            title='订单通知'
+            brief='获取状态更新和发货提醒'
             rightIcon={
               <Switch
                 size='24px'
@@ -64,8 +64,8 @@ export default function SettingsPage() {
             }
           />
           <Cell
-            title='Auto login'
-            brief='Keep me signed in on this device'
+            title='自动登录'
+            brief='保持在本设备登录'
             rightIcon={
               <Switch
                 size='24px'
@@ -75,8 +75,8 @@ export default function SettingsPage() {
             }
           />
           <Cell
-            title='Compact display'
-            brief='Reduce spacing to view more data'
+            title='紧凑显示'
+            brief='减少间距查看更多内容'
             rightIcon={
               <Switch
                 size='24px'
@@ -88,12 +88,12 @@ export default function SettingsPage() {
         </Cell.Group>
 
         <View className='mt-6 bg-white rounded-2xl border border-slate-100 p-4'>
-          <Text className='text-xs uppercase tracking-wide text-slate-400'>About</Text>
+          <Text className='text-xs uppercase tracking-wide text-slate-400'>关于</Text>
           <Text className='text-sm text-slate-600 mt-2'>
-            TMO Procurement Miniapp v0.1
+            TMO 采购小程序 v0.1
           </Text>
           <Text className='text-xs text-slate-400 mt-1'>
-            Designed for efficient B2B sourcing workflows.
+            为高效的 B2B 寻源流程而设计。
           </Text>
         </View>
       </View>

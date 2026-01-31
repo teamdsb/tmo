@@ -38,7 +38,7 @@ export default function ProductCatalogApp() {
         setCategories(data.items ?? [])
       } catch (error) {
         console.warn('load categories failed', error)
-        await Taro.showToast({ title: 'Failed to load categories', icon: 'none' })
+        await Taro.showToast({ title: '加载分类失败', icon: 'none' })
       }
     })()
   }, [])
@@ -58,7 +58,7 @@ export default function ProductCatalogApp() {
           setTotal(response.total ?? 0)
         } catch (error) {
           console.warn('load products failed', error)
-          await Taro.showToast({ title: 'Failed to load products', icon: 'none' })
+          await Taro.showToast({ title: '加载商品失败', icon: 'none' })
         } finally {
           setLoading(false)
         }
@@ -67,7 +67,7 @@ export default function ProductCatalogApp() {
     return () => clearTimeout(handle)
   }, [activeCategory, searchQuery])
 
-  const categoryTabs = [{ id: 'all', name: 'All' }, ...categories]
+  const categoryTabs = [{ id: 'all', name: '全部' }, ...categories]
 
   return (
     <View className='page page-home'>
@@ -80,7 +80,7 @@ export default function ProductCatalogApp() {
           shape='rounded'
           clearable
           icon={<SearchIcon />}
-          placeholder='Search by SKU or Name...'
+          placeholder='按 SKU 或名称搜索...'
           onChange={(event) => setSearchQuery(event.detail.value)}
         />
       </View>
@@ -96,7 +96,7 @@ export default function ProductCatalogApp() {
             <View className='page-content'>
               <Flex justify='space-between' align='center'>
                 <Text className='page-subtitle'>
-                  {loading ? 'Loading products...' : `Showing ${total} products`}
+                  {loading ? '正在加载商品...' : `共 ${total} 件商品`}
                 </Text>
                 <Flex justify='end' gutter={8}>
                   <Button size='small' variant='outlined' icon={<FilterOutlined />} />
@@ -122,19 +122,19 @@ export default function ProductCatalogApp() {
 }
 
 function ProductCard({ data }: { data: ProductSummary }) {
-  const tagLabel = data.tags?.[0] ?? 'Catalog'
+  const tagLabel = data.tags?.[0] ?? '分类'
   return (
     <View className='product-card' onClick={() => navigateTo(goodsDetailRoute(data.id))}>
       <Image src={data.coverImageUrl || fallbackImage} width='100%' height={150} mode='aspectFill' />
       <View className='product-card-body'>
         <Text className='product-card-title'>{data.name}</Text>
-        <Text className='product-card-price'>View pricing in details</Text>
-        <Text className='product-card-min'>ID: {data.id.slice(0, 8)}</Text>
+        <Text className='product-card-price'>价格详见详情</Text>
+        <Text className='product-card-min'>编号：{data.id.slice(0, 8)}</Text>
         <Flex justify='space-between' align='center'>
           <Tag size='small' variant='outlined' color='primary'>
             {tagLabel}
           </Tag>
-          <Button size='mini' color='primary'>Details</Button>
+          <Button size='mini' color='primary'>详情</Button>
         </Flex>
       </View>
     </View>

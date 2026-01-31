@@ -137,10 +137,10 @@ jest.mock('@tmo/platform-adapter', () => {
 
 jest.mock('@tmo/commerce-services', () => {
   const mockProducts = [
-    { id: 'prod-1001', name: 'Office Paper A4', coverImageUrl: '', tags: ['Office'] },
-    { id: 'prod-1002', name: 'Steel Bolts Pack', coverImageUrl: '', tags: ['Industrial'] },
-    { id: 'prod-1003', name: 'Control Valve Kit', coverImageUrl: '', tags: ['Industrial'] },
-    { id: 'prod-1004', name: 'Packaging Tape', coverImageUrl: '', tags: ['Office'] }
+    { id: 'prod-1001', name: 'A4 办公用纸', coverImageUrl: '', tags: ['办公'] },
+    { id: 'prod-1002', name: '钢制螺栓套装', coverImageUrl: '', tags: ['工业'] },
+    { id: 'prod-1003', name: '控制阀套件', coverImageUrl: '', tags: ['工业'] },
+    { id: 'prod-1004', name: '封箱胶带', coverImageUrl: '', tags: ['办公'] }
   ];
 
   const mockOrder = {
@@ -151,21 +151,21 @@ jest.mock('@tmo/commerce-services', () => {
       {
         qty: 1,
         unitPriceFen: 18500,
-        sku: { name: 'Industrial Valve' }
+        sku: { name: '工业阀门' }
       }
     ]
   };
 
   const mockDetail = {
     product: {
-      name: 'High-Precision Industrial Control Valve',
+      name: '高精度工业控制阀',
       images: []
     },
     skus: [
       {
         id: 'sku-carbon',
-        name: 'Carbon',
-        spec: 'Carbon',
+        name: '碳钢',
+        spec: '碳钢',
         priceTiers: [{ minQty: 1, maxQty: 10, unitPriceFen: 18500 }]
       },
       {
@@ -182,7 +182,7 @@ jest.mock('@tmo/commerce-services', () => {
       {
         id: 'cart-1',
         qty: 2,
-        sku: { name: 'Sample Bolt' }
+        sku: { name: '示例螺栓' }
       }
     ]
   };
@@ -193,8 +193,8 @@ jest.mock('@tmo/commerce-services', () => {
       catalog: {
         listCategories: jest.fn(async () => ({
           items: [
-            { id: 'office', name: 'Office Supplies' },
-            { id: 'industrial', name: 'Industrial' }
+            { id: 'office', name: '办公用品' },
+            { id: 'industrial', name: '工业' }
           ]
         })),
         listProducts: jest.fn(async () => ({
@@ -254,8 +254,8 @@ jest.mock('@tmo/gateway-services', () => {
       bootstrap: {
         get: jest.fn(async () => ({
           me: {
-            displayName: 'John Doe',
-            roles: ['Account Manager']
+            displayName: '张三',
+            roles: ['客户经理']
           }
         }))
       },
@@ -293,7 +293,7 @@ jest.mock('@tmo/identity-services', () => {
 const MockNavbar = mockComponent('div');
 MockNavbar.NavLeft = ({ children, ...props }) => (
   <button type='button' {...stripDomProps(props)}>
-    {children ?? 'back'}
+    {children ?? '返回'}
   </button>
 );
 MockNavbar.Title = ({ children, ...props }) => <span {...stripDomProps(props)}>{children}</span>;

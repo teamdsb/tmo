@@ -19,25 +19,25 @@ export default function BatchTracking() {
     try {
       const file = await commerceServices.files.chooseExcelFile()
       setFilePath(file.path)
-      setFileName(file.name ?? 'selected.xlsx')
+      setFileName(file.name ?? '已选.xlsx')
     } catch (error) {
       console.warn('choose shipment file failed', error)
-      await Taro.showToast({ title: 'No file selected', icon: 'none' })
+      await Taro.showToast({ title: '未选择文件', icon: 'none' })
     }
   }
 
   const handleUpload = async () => {
     if (!filePath) {
-      await Taro.showToast({ title: 'Select a file first', icon: 'none' })
+      await Taro.showToast({ title: '请先选择文件', icon: 'none' })
       return
     }
     setUploading(true)
     try {
       await commerceServices.tracking.uploadShipmentImportExcel(filePath)
-      await Taro.showToast({ title: 'Upload started', icon: 'success' })
+      await Taro.showToast({ title: '已开始上传', icon: 'success' })
     } catch (error) {
       console.warn('upload shipment failed', error)
-      await Taro.showToast({ title: 'Upload failed', icon: 'none' })
+      await Taro.showToast({ title: '上传失败', icon: 'none' })
     } finally {
       setUploading(false)
     }
@@ -47,18 +47,18 @@ export default function BatchTracking() {
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
         <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.mine))} />
-        <Navbar.Title>Batch Tracking</Navbar.Title>
+        <Navbar.Title>批量物流跟踪</Navbar.Title>
       </Navbar>
       <View className='page-content'>
-        <Text className='section-subtitle'>Upload shipment Excel to update tracking in bulk.</Text>
+        <Text className='section-subtitle'>上传发货 Excel 以批量更新物流。</Text>
 
         <Cell.Group inset className='mt-4'>
-          <Cell title='Selected File' brief={fileName ?? 'No file selected'} />
+          <Cell title='已选文件' brief={fileName ?? '未选择文件'} />
         </Cell.Group>
 
         <View className='placeholder-actions'>
-          <Button block variant='outlined' onClick={handleChoose}>Choose Excel File</Button>
-          <Button block color='primary' loading={uploading} onClick={handleUpload}>Upload Shipments</Button>
+          <Button block variant='outlined' onClick={handleChoose}>选择 Excel 文件</Button>
+          <Button block color='primary' loading={uploading} onClick={handleUpload}>上传发货单</Button>
         </View>
       </View>
     </View>

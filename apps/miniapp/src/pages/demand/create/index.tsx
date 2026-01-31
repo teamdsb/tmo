@@ -19,7 +19,7 @@ export default function DemandCreate() {
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      await Taro.showToast({ title: 'Product name is required', icon: 'none' })
+      await Taro.showToast({ title: '请输入产品名称', icon: 'none' })
       return
     }
     setSubmitting(true)
@@ -30,11 +30,11 @@ export default function DemandCreate() {
         qty: qty.trim() || undefined,
         note: note.trim() || undefined
       })
-      await Taro.showToast({ title: 'Request submitted', icon: 'success' })
+      await Taro.showToast({ title: '已提交需求', icon: 'success' })
       await navigateTo(ROUTES.demandList)
     } catch (error) {
       console.warn('create demand failed', error)
-      await Taro.showToast({ title: 'Submit failed', icon: 'none' })
+      await Taro.showToast({ title: '提交失败', icon: 'none' })
     } finally {
       setSubmitting(false)
     }
@@ -44,29 +44,29 @@ export default function DemandCreate() {
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
         <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.mine))} />
-        <Navbar.Title>Create Demand</Navbar.Title>
+        <Navbar.Title>创建需求</Navbar.Title>
       </Navbar>
       <View className='page-content'>
-        <Text className='section-subtitle'>Tell us what you need and we will source it.</Text>
+        <Text className='section-subtitle'>告诉我们你的需求，我们来帮你找货。</Text>
 
         <Cell.Group inset className='mt-4'>
-          <Cell title='Product Name'>
+          <Cell title='产品名称'>
             <Input value={name} onInput={(event) => setName(event.detail.value)} />
           </Cell>
-          <Cell title='Spec'>
+          <Cell title='规格'>
             <Input value={spec} onInput={(event) => setSpec(event.detail.value)} />
           </Cell>
-          <Cell title='Quantity'>
+          <Cell title='数量'>
             <Input value={qty} onInput={(event) => setQty(event.detail.value)} />
           </Cell>
-          <Cell title='Note' align='start'>
+          <Cell title='备注' align='start'>
             <Textarea value={note} onInput={(event) => setNote(event.detail.value)} />
           </Cell>
         </Cell.Group>
 
         <View className='placeholder-actions'>
           <Button block color='primary' loading={submitting} onClick={handleSubmit}>
-            Submit Demand
+            提交需求
           </Button>
         </View>
       </View>

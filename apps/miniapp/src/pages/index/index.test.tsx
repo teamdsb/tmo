@@ -3,7 +3,7 @@ import ProductCatalogApp from './index';
 
 const renderCatalog = async () => {
   render(<ProductCatalogApp />);
-  await screen.findByText('Office Supplies');
+  await screen.findByText('办公用品');
 };
 
 describe('ProductCatalogApp', () => {
@@ -18,20 +18,20 @@ describe('ProductCatalogApp', () => {
   it('renders search and product grid', async () => {
     await renderCatalog();
 
-    expect(screen.getByPlaceholderText('Search by SKU or Name...')).toBeInTheDocument();
-    expect(await screen.findByText('Office Supplies')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('按 SKU 或名称搜索...')).toBeInTheDocument();
+    expect(await screen.findByText('办公用品')).toBeInTheDocument();
 
     await act(async () => {
       jest.advanceTimersByTime(300);
     });
 
-    expect(await screen.findAllByText(/ID:/)).toHaveLength(4);
+    expect(await screen.findAllByText(/编号：/)).toHaveLength(4);
   });
 
   it('updates search input value', async () => {
     await renderCatalog();
 
-    const input = screen.getByPlaceholderText('Search by SKU or Name...');
+    const input = screen.getByPlaceholderText('按 SKU 或名称搜索...');
     fireEvent.change(input, { target: { value: 'bolt' } });
 
     expect(input).toHaveValue('bolt');
@@ -40,7 +40,7 @@ describe('ProductCatalogApp', () => {
   it('switches active category on click', async () => {
     await renderCatalog();
 
-    const tabLabel = await screen.findByText('Office Supplies');
+    const tabLabel = await screen.findByText('办公用品');
     const tabButton = tabLabel.closest('button');
 
     expect(tabButton).not.toBeNull();

@@ -1,4 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: 'Shipping Address',
+  navigationBarTitleText: '收货地址',
   navigationStyle: 'custom'
 })

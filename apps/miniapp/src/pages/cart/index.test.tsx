@@ -14,21 +14,15 @@ describe('ExcelImportConfirmation', () => {
   it('renders cart summary and items', async () => {
     await renderCart();
 
-    expect(await screen.findByText('Sample Bolt')).toBeInTheDocument();
-    expect(screen.getByText('Qty')).toBeInTheDocument();
+    expect(await screen.findByText('示例螺栓')).toBeInTheDocument();
+    expect(screen.getByText('数量')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
-  });
-
-  it('renders bulk import entry point', async () => {
-    await renderCart();
-
-    expect(screen.getByText('Bulk Import')).toBeInTheDocument();
   });
 
   it('shows the cart action buttons', async () => {
     await renderCart();
 
-    expect(screen.getByText('Continue Browsing')).toBeInTheDocument();
-    expect(screen.getByText('Checkout')).toBeInTheDocument();
+    expect(screen.getByText('继续浏览')).toBeInTheDocument();
+    expect(screen.getByText('去结算')).toBeInTheDocument();
   });
 });

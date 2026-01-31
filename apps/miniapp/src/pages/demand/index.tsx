@@ -19,7 +19,7 @@ export default function DemandHome() {
         setTotal(response.total ?? 0)
       } catch (error) {
         console.warn('load demand summary failed', error)
-        await Taro.showToast({ title: 'Failed to load summary', icon: 'none' })
+        await Taro.showToast({ title: '加载汇总失败', icon: 'none' })
       }
     })()
   }, [])
@@ -28,17 +28,17 @@ export default function DemandHome() {
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
         <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.mine))} />
-        <Navbar.Title>Demand Requests</Navbar.Title>
+        <Navbar.Title>需求</Navbar.Title>
       </Navbar>
       <View className='page-content'>
-        <Text className='section-subtitle'>Track sourcing requests and submit new demand.</Text>
-        <Text className='section-subtitle'>Total requests: {total}</Text>
+        <Text className='section-subtitle'>跟踪寻源需求并提交新的需求。</Text>
+        <Text className='section-subtitle'>需求总数：{total}</Text>
         <View className='placeholder-actions'>
           <Button color='primary' onClick={() => navigateTo(ROUTES.demandCreate)}>
-            Create Demand
+            创建需求
           </Button>
           <Button variant='outlined' onClick={() => navigateTo(ROUTES.demandList)}>
-            View My Requests
+            查看我的需求
           </Button>
         </View>
       </View>

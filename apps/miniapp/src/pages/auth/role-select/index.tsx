@@ -16,10 +16,10 @@ import { ROUTES } from '../../../routes'
 import { switchTabLike } from '../../../utils/navigation'
 
 const ROLE_LABELS: Record<string, string> = {
-  CUSTOMER: 'Customer',
-  SALES: 'Sales',
-  PROCUREMENT: 'Procurement',
-  CS: 'Customer Service'
+  CUSTOMER: '客户',
+  SALES: '销售',
+  PROCUREMENT: '采购',
+  CS: '客服'
 }
 
 export default function RoleSelectPage() {
@@ -73,7 +73,7 @@ export default function RoleSelectPage() {
       }
       console.warn('role selection failed', error)
       await Taro.showToast({
-        title: 'Login failed, try again.',
+        title: '登录失败，请重试。',
         icon: 'none'
       })
     } finally {
@@ -85,11 +85,11 @@ export default function RoleSelectPage() {
     return (
       <View className='page'>
         <View className='page-content'>
-          <Text className='section-title'>Role selection required</Text>
-          <Text className='section-subtitle'>No available roles found. Please relaunch the app.</Text>
+          <Text className='section-title'>需要选择角色</Text>
+          <Text className='section-subtitle'>未发现可用角色，请重新打开应用。</Text>
           <View className='placeholder-actions'>
             <Button color='primary' onClick={() => switchTabLike(ROUTES.home)}>
-              Back to Home
+              返回首页
             </Button>
           </View>
         </View>
@@ -100,8 +100,8 @@ export default function RoleSelectPage() {
   return (
     <View className='page'>
       <View className='page-content'>
-        <Text className='section-title'>Choose your role</Text>
-        <Text className='section-subtitle'>Select the role you want to enter now.</Text>
+        <Text className='section-title'>选择角色</Text>
+        <Text className='section-subtitle'>请选择要进入的角色。</Text>
       </View>
       <Cell.Group inset>
         {entries.map((entry) => (
@@ -114,7 +114,7 @@ export default function RoleSelectPage() {
                 loading={loadingRole === entry.code}
                 onClick={() => handleSelect(entry.code)}
               >
-                Continue
+                继续
               </Button>
             </View>
           </Cell>

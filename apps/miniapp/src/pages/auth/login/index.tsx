@@ -58,7 +58,7 @@ export default function LoginPage() {
   const handleLogin = async () => {
     if (!agreed) {
       await Taro.showToast({
-        title: 'Please agree to terms.',
+        title: '请先同意条款。',
         icon: 'none'
       })
       return
@@ -86,7 +86,7 @@ export default function LoginPage() {
       }
       console.warn('identity login failed', error)
       await Taro.showToast({
-        title: 'Login failed, try again.',
+        title: '登录失败，请重试。',
         icon: 'none'
       })
     } finally {
@@ -120,8 +120,8 @@ export default function LoginPage() {
             <AppsOutlined className='text-white text-2xl' />
           </View>
           <View>
-            <Text className='text-xl font-semibold text-slate-900'>Wholesale Partner</Text>
-            <Text className='block text-xs text-slate-500 mt-2'>Log in to access exclusive pricing.</Text>
+            <Text className='text-xl font-semibold text-slate-900'>批发合作伙伴</Text>
+            <Text className='block text-xs text-slate-500 mt-2'>登录后可查看专属价格。</Text>
           </View>
         </View>
 
@@ -133,7 +133,7 @@ export default function LoginPage() {
             onClick={handleLogin}
             className='login-primary'
           >
-            Quick Login
+            快速登录
           </Button>
           <Button
             variant='outlined'
@@ -156,12 +156,12 @@ export default function LoginPage() {
         <View className='mt-5 flex items-start gap-3' onClick={() => setAgreed((prev) => !prev)}>
           <View className={`login-checkbox ${agreed ? 'login-checkbox--checked' : ''}`} />
           <Text className='text-10 text-slate-500 leading-snug'>
-            I have read and agree to the Privacy Policy and Terms of Service.
+            我已阅读并同意隐私政策与服务条款。
           </Text>
         </View>
       </View>
 
-      <View className='mt-auto text-center text-10 text-slate-400'>Need help? Reach out to your account manager.</View>
+      <View className='mt-auto text-center text-10 text-slate-400'>需要帮助？请联系你的客户经理。</View>
     </View>
   )
 }

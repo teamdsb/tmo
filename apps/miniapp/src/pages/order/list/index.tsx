@@ -14,11 +14,11 @@ import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
 
 const TABS: { label: string; status?: OrderStatus }[] = [
-  { label: 'All' },
-  { label: 'Pending', status: 'SUBMITTED' },
-  { label: 'Confirmed', status: 'CONFIRMED' },
-  { label: 'Shipped', status: 'SHIPPED' },
-  { label: 'Completed', status: 'DELIVERED' }
+  { label: '全部' },
+  { label: '待处理', status: 'SUBMITTED' },
+  { label: '已确认', status: 'CONFIRMED' },
+  { label: '已发货', status: 'SHIPPED' },
+  { label: '已完成', status: 'DELIVERED' }
 ]
 
 export default function OrderHistoryApp() {
@@ -38,7 +38,7 @@ export default function OrderHistoryApp() {
         setOrders(response.items ?? [])
       } catch (error) {
         console.warn('load orders failed', error)
-        await Taro.showToast({ title: 'Failed to load orders', icon: 'none' })
+        await Taro.showToast({ title: '加载订单失败', icon: 'none' })
       } finally {
         setLoading(false)
       }
@@ -60,7 +60,7 @@ export default function OrderHistoryApp() {
     <View className='page page-compact-navbar'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
         <Navbar.NavLeft onClick={handleBack} />
-        <Navbar.Title>Order History</Navbar.Title>
+        <Navbar.Title>订单记录</Navbar.Title>
       </Navbar>
 
       <View>
@@ -81,13 +81,13 @@ export default function OrderHistoryApp() {
                     </Flex>
 
                     <View className='order-title'>
-                      <Text>{order.items[0]?.sku.name ?? 'Order items'}</Text>
+                      <Text>{order.items[0]?.sku.name ?? '订单商品'}</Text>
                     </View>
 
                     <Flex justify='space-between' align='center'>
-                      <Text className='order-meta'>{orderItemCount(order)} Items</Text>
+                      <Text className='order-meta'>{orderItemCount(order)} 件</Text>
                       <View className='order-price'>
-                        <Text className='order-label'>Total</Text>
+                        <Text className='order-label'>合计</Text>
                         <Text className='order-value'>{formatOrderTotal(order)}</Text>
                       </View>
                     </Flex>
@@ -98,20 +98,20 @@ export default function OrderHistoryApp() {
                         variant='outlined'
                         onClick={() => navigateTo(orderDetailRoute(order.id))}
                       >
-                        Details
+                        详情
                       </Button>
                       <Button
                         size='small'
                         color='primary'
                         onClick={() => navigateTo(orderTrackingRoute(order.id))}
                       >
-                        Track
+                        物流
                       </Button>
                     </Flex>
                   </Cell>
                 ))}
                 {filteredOrders.length === 0 ? (
-                  <Cell title={loading ? 'Loading orders...' : 'No orders found'} />
+                  <Cell title={loading ? '正在加载订单...' : '暂无订单'} />
                 ) : null}
               </Cell.Group>
             </Tabs.TabPane>
@@ -143,19 +143,19 @@ const formatOrderTotal = (order: Order) => {
 const statusLabel = (status: OrderStatus) => {
   switch (status) {
     case 'SUBMITTED':
-      return 'Submitted'
+      return '已提交'
     case 'CONFIRMED':
-      return 'Confirmed'
+      return '已确认'
     case 'PAY_PENDING':
-      return 'Pay Pending'
+      return '待支付'
     case 'PAID':
-      return 'Paid'
+      return '已支付'
     case 'PAY_FAILED':
-      return 'Pay Failed'
+      return '支付失败'
     case 'SHIPPED':
-      return 'Shipped'
+      return '已发货'
     case 'DELIVERED':
-      return 'Delivered'
+      return '已送达'
     default:
       return status
   }

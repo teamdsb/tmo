@@ -19,7 +19,7 @@ export default function SupportCreatePage() {
 
   const handleSubmit = async () => {
     if (!subject.trim() || !description.trim()) {
-      await Taro.showToast({ title: 'Subject and description required', icon: 'none' })
+      await Taro.showToast({ title: '请填写主题和描述', icon: 'none' })
       return
     }
     const allowed = await ensureLoggedIn({ redirect: true })
@@ -31,11 +31,11 @@ export default function SupportCreatePage() {
         description: description.trim(),
         orderId: orderId.trim() || undefined
       })
-      await Taro.showToast({ title: 'Ticket submitted', icon: 'success' })
+      await Taro.showToast({ title: '工单已提交', icon: 'success' })
       await navigateTo(ROUTES.support)
     } catch (error) {
       console.warn('submit after-sales failed', error)
-      await Taro.showToast({ title: 'Submit failed', icon: 'none' })
+      await Taro.showToast({ title: '提交失败', icon: 'none' })
     } finally {
       setSubmitting(false)
     }
@@ -45,29 +45,29 @@ export default function SupportCreatePage() {
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
         <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.support))} />
-        <Navbar.Title>After-Sales Ticket</Navbar.Title>
+        <Navbar.Title>售后工单</Navbar.Title>
       </Navbar>
       <View className='page-content'>
-        <Text className='section-subtitle'>Describe your issue and we will follow up quickly.</Text>
+        <Text className='section-subtitle'>描述问题，我们会尽快跟进。</Text>
 
         <Cell.Group inset className='mt-4'>
-          <Cell title='Subject'>
+          <Cell title='主题'>
             <Input
-              placeholder='e.g. Damaged packaging'
+              placeholder='例如：包装破损'
               value={subject}
               onInput={(event) => setSubject(event.detail.value)}
             />
           </Cell>
-          <Cell title='Order ID'>
+          <Cell title='订单号'>
             <Input
-              placeholder='Optional'
+              placeholder='可选'
               value={orderId}
               onInput={(event) => setOrderId(event.detail.value)}
             />
           </Cell>
-          <Cell title='Description' align='start'>
+          <Cell title='描述' align='start'>
             <Textarea
-              placeholder='Provide issue details, photos, or desired resolution.'
+              placeholder='请提供问题详情、照片或期望处理方式。'
               value={description}
               onInput={(event) => setDescription(event.detail.value)}
             />
@@ -76,7 +76,7 @@ export default function SupportCreatePage() {
 
         <View className='placeholder-actions'>
           <Button block color='primary' loading={submitting} onClick={handleSubmit}>
-            Submit Ticket
+            提交工单
           </Button>
         </View>
       </View>

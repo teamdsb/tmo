@@ -38,7 +38,7 @@ export default function OrderConfirmPage() {
       setAddresses(Array.isArray(stored) ? stored : [])
     } catch (error) {
       console.warn('load confirm data failed', error)
-      await Taro.showToast({ title: 'Failed to load order data', icon: 'none' })
+      await Taro.showToast({ title: '加载订单数据失败', icon: 'none' })
     }
   }, [])
 
@@ -51,11 +51,11 @@ export default function OrderConfirmPage() {
 
   const handleSubmit = async () => {
     if (!cartItems.length) {
-      await Taro.showToast({ title: 'Cart is empty', icon: 'none' })
+      await Taro.showToast({ title: '购物车为空', icon: 'none' })
       return
     }
     if (!defaultAddress) {
-      await Taro.showToast({ title: 'Add a shipping address', icon: 'none' })
+      await Taro.showToast({ title: '请添加收货地址', icon: 'none' })
       return
     }
     const allowed = await ensureLoggedIn({ redirect: true })
@@ -74,11 +74,11 @@ export default function OrderConfirmPage() {
           qty: item.qty
         }))
       })
-      await Taro.showToast({ title: 'Order submitted', icon: 'success' })
+      await Taro.showToast({ title: '订单已提交', icon: 'success' })
       await navigateTo(orderDetailRoute(order.id))
     } catch (error) {
       console.warn('submit order failed', error)
-      await Taro.showToast({ title: 'Submit failed', icon: 'none' })
+      await Taro.showToast({ title: '提交失败', icon: 'none' })
     } finally {
       setSubmitting(false)
     }
@@ -88,18 +88,18 @@ export default function OrderConfirmPage() {
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
         <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.cart))} />
-        <Navbar.Title>Confirm Order</Navbar.Title>
+        <Navbar.Title>确认订单</Navbar.Title>
         <Navbar.NavRight>
-          <Text className='text-xs text-slate-400'>{cartItems.length} items</Text>
+          <Text className='text-xs text-slate-400'>{cartItems.length} 件</Text>
         </Navbar.NavRight>
       </Navbar>
 
       <View className='page-content'>
         <View className='bg-white rounded-2xl border border-slate-100 p-4 mb-4'>
           <View className='flex items-center justify-between mb-2'>
-            <Text className='text-sm font-semibold text-slate-900'>Shipping Address</Text>
+            <Text className='text-sm font-semibold text-slate-900'>收货地址</Text>
             <Text className='text-xs text-blue-600' onClick={() => navigateTo(ROUTES.addressList)}>
-              Manage
+              管理
             </Text>
           </View>
           {defaultAddress ? (
@@ -111,39 +111,39 @@ export default function OrderConfirmPage() {
             </>
           ) : (
             <View className='py-3'>
-              <Text className='text-xs text-slate-400'>No address on file. Add one to continue.</Text>
+              <Text className='text-xs text-slate-400'>暂无地址，请先添加。</Text>
               <Button
                 size='small'
                 color='primary'
                 className='mt-3'
                 onClick={() => navigateTo(ROUTES.addressList)}
               >
-                Add Address
+                添加地址
               </Button>
             </View>
           )}
         </View>
 
         <View className='bg-white rounded-2xl border border-slate-100 p-4 mb-4'>
-          <Text className='text-sm font-semibold text-slate-900 mb-3'>Items</Text>
+          <Text className='text-sm font-semibold text-slate-900 mb-3'>商品</Text>
           <Cell.Group inset>
             {cartItems.map((item) => (
               <Cell
                 key={item.id}
                 title={item.sku.name}
-                brief={item.sku.spec ?? 'Standard spec'}
+                brief={item.sku.spec ?? '标准规格'}
                 rightIcon={<Text>×{item.qty}</Text>}
               />
             ))}
-            {cartItems.length === 0 ? <Cell title='Cart is empty' /> : null}
+            {cartItems.length === 0 ? <Cell title='购物车为空' /> : null}
           </Cell.Group>
         </View>
 
         <View className='bg-white rounded-2xl border border-slate-100 p-4'>
-          <Text className='text-sm font-semibold text-slate-900 mb-2'>Remark</Text>
+          <Text className='text-sm font-semibold text-slate-900 mb-2'>备注</Text>
           <Textarea
             className='w-full px-3 py-2 rounded-xl bg-slate-50 text-sm'
-            placeholder='Add remark for your order...'
+            placeholder='添加订单备注...'
             value={remark}
             onInput={(event) => setRemark(event.detail.value)}
           />
@@ -151,7 +151,7 @@ export default function OrderConfirmPage() {
 
         <View className='placeholder-actions'>
           <Button block color='primary' loading={submitting} onClick={handleSubmit}>
-            Submit Intent Order
+            提交意向订单
           </Button>
         </View>
       </View>

@@ -32,7 +32,7 @@ export default function OrderDetail() {
         setOrder(response)
       } catch (error) {
         console.warn('load order failed', error)
-        await Taro.showToast({ title: 'Failed to load order', icon: 'none' })
+        await Taro.showToast({ title: '加载订单失败', icon: 'none' })
       } finally {
         setLoading(false)
       }
@@ -43,17 +43,17 @@ export default function OrderDetail() {
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
         <Navbar.NavLeft onClick={handleBack} />
-        <Navbar.Title>Order {order?.id ?? '...'}</Navbar.Title>
+        <Navbar.Title>订单 {order?.id ?? '...'}</Navbar.Title>
         <Navbar.NavRight>
           <Tag size='small' color={order ? statusTone(order.status) : 'info'}>
-            {order ? statusLabel(order.status) : 'Loading'}
+            {order ? statusLabel(order.status) : '加载中'}
           </Tag>
         </Navbar.NavRight>
       </Navbar>
       <View className='page-content'>
         <Cell.Group inset>
-          <Cell title='Created At' brief={order ? formatDate(order.createdAt) : '--'} />
-          <Cell title='Items' brief={`${orderItemCount(order)} items`} />
+          <Cell title='创建时间' brief={order ? formatDate(order.createdAt) : '--'} />
+          <Cell title='商品' brief={`${orderItemCount(order)} 件`} />
         </Cell.Group>
 
         <Cell.Group inset className='mt-4'>
@@ -61,21 +61,21 @@ export default function OrderDetail() {
             <Cell
               key={`${order?.id}-${item.sku.id}`}
               title={item.sku.name}
-              brief={`Qty: ${item.qty}`}
+              brief={`数量：${item.qty}`}
               rightIcon={<Text>{formatItemPrice(item)}</Text>}
             />
           ))}
-          {!order && loading ? <Cell title='Loading items...' /> : null}
+          {!order && loading ? <Cell title='正在加载商品...' /> : null}
         </Cell.Group>
 
         <Cell.Group inset className='mt-4'>
-          <Cell title='Shipping Address' brief={formatAddress(order)} />
-          <Cell title='Remark' brief={order?.remark ?? 'None'} />
+          <Cell title='收货地址' brief={formatAddress(order)} />
+          <Cell title='备注' brief={order?.remark ?? '无'} />
         </Cell.Group>
 
         <View className='placeholder-actions'>
           <Button block color='primary' onClick={() => order?.id && navigateTo(orderTrackingRoute(order.id))}>
-            Track Shipment
+            查看物流
           </Button>
         </View>
       </View>
@@ -103,7 +103,7 @@ const formatItemPrice = (item: OrderItem) => {
 
 const formatAddress = (order: Order | null) => {
   const address = order?.address
-  if (!address) return 'No address provided'
+  if (!address) return '未提供地址'
   const parts = [address.province, address.city, address.district, address.detail].filter(Boolean)
   return `${address.receiverName} · ${address.receiverPhone} · ${parts.join(' ')}`
 }
@@ -111,19 +111,19 @@ const formatAddress = (order: Order | null) => {
 const statusLabel = (status: OrderStatus) => {
   switch (status) {
     case 'SUBMITTED':
-      return 'Submitted'
+      return '已提交'
     case 'CONFIRMED':
-      return 'Confirmed'
+      return '已确认'
     case 'PAY_PENDING':
-      return 'Pay Pending'
+      return '待支付'
     case 'PAID':
-      return 'Paid'
+      return '已支付'
     case 'PAY_FAILED':
-      return 'Pay Failed'
+      return '支付失败'
     case 'SHIPPED':
-      return 'Shipped'
+      return '已发货'
     case 'DELIVERED':
-      return 'Delivered'
+      return '已送达'
     default:
       return status
   }

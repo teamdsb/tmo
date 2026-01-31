@@ -14,27 +14,27 @@ describe('PersonalCenter', () => {
   it('renders user info and key sections', async () => {
     await renderPersonalCenter();
 
-    expect(await screen.findByText('John Doe')).toBeInTheDocument();
-    expect(screen.getByText('Account Manager')).toBeInTheDocument();
-    expect(screen.getByText('Sarah Wang')).toBeInTheDocument();
+    expect(await screen.findByText('张三')).toBeInTheDocument();
+    expect(screen.getByText('客户经理')).toBeInTheDocument();
+    expect(screen.getByText('王经理')).toBeInTheDocument();
   });
 
   it('renders the logout button', async () => {
     await renderPersonalCenter();
 
-    const button = screen.getByText('Switch Account or Logout');
+    const button = screen.getByText('切换账号或退出登录');
     expect(button).toBeInTheDocument();
 
     fireEvent.click(button);
-    expect(screen.getByText('Switch Account or Logout')).toBeInTheDocument();
+    expect(screen.getByText('切换账号或退出登录')).toBeInTheDocument();
   });
 
   it('renders the tabbar items', async () => {
     await renderPersonalCenter();
 
-    expect(screen.getByText('Home')).toBeInTheDocument();
+    expect(screen.getByText('首页')).toBeInTheDocument();
     expect(screen.getByText('分类')).toBeInTheDocument();
-    expect(screen.getByText('Cart')).toBeInTheDocument();
-    expect(screen.getByText('Mine')).toBeInTheDocument();
+    expect(screen.getByText('购物车')).toBeInTheDocument();
+    expect(screen.getByText('我的')).toBeInTheDocument();
   });
 });

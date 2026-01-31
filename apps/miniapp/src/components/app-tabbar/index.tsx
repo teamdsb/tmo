@@ -7,10 +7,10 @@ import { ROUTES } from '../../routes'
 import { switchTabLike } from '../../utils/navigation'
 
 const TAB_ITEMS = [
-  { key: 'home', label: 'Home', icon: <WapHomeOutlined />, url: ROUTES.home },
+  { key: 'home', label: '首页', icon: <WapHomeOutlined />, url: ROUTES.home },
   { key: 'category', label: '分类', icon: <AppsOutlined />, url: ROUTES.category },
-  { key: 'cart', label: 'Cart', icon: <ShoppingCartOutlined />, url: ROUTES.cart },
-  { key: 'mine', label: 'Mine', icon: <UserOutlined />, url: ROUTES.mine }
+  { key: 'cart', label: '购物车', icon: <ShoppingCartOutlined />, url: ROUTES.cart },
+  { key: 'mine', label: '我的', icon: <UserOutlined />, url: ROUTES.mine }
 ] as const
 
 export type AppTabKey = (typeof TAB_ITEMS)[number]['key']

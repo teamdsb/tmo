@@ -14,8 +14,8 @@ describe('OrderHistoryApp', () => {
   it('renders tabs and order cards', async () => {
     await renderOrderHistory();
 
-    expect(screen.getByText('All')).toBeInTheDocument();
-    expect(screen.getByText('Pending')).toBeInTheDocument();
+    expect(screen.getByText('全部')).toBeInTheDocument();
+    expect(screen.getByText('待处理')).toBeInTheDocument();
     expect(await screen.findByText('ORD-88291')).toBeInTheDocument();
   });
 
@@ -23,7 +23,7 @@ describe('OrderHistoryApp', () => {
     await renderOrderHistory();
 
     const shippedTab = screen
-      .getAllByText('Shipped')
+      .getAllByText('已发货')
       .find((node) => node.closest('button'));
     const shippedButton = shippedTab ? shippedTab.closest('button') : null;
 
