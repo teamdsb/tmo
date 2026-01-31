@@ -291,6 +291,12 @@ jest.mock('@tmo/identity-services', () => {
 });
 
 const MockNavbar = mockComponent('div');
+MockNavbar.NavLeft = ({ children, ...props }) => (
+  <button type='button' {...stripDomProps(props)}>
+    {children ?? 'back'}
+  </button>
+);
+MockNavbar.Title = ({ children, ...props }) => <span {...stripDomProps(props)}>{children}</span>;
 const MockTag = ({ children, ...props }) => <span {...props}>{children}</span>;
 const MockFlex = mockComponent('div');
 const MockFixedView = mockComponent('div');

@@ -17,7 +17,7 @@ describe('ProductDetail', () => {
   it('renders product information and shipping', async () => {
     render(<ProductDetail />);
 
-    expect(await screen.findByText('High-Precision Industrial Control Valve')).toBeInTheDocument();
+    expect((await screen.findAllByText('High-Precision Industrial Control Valve')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('¥185.00').length).toBeGreaterThan(0);
     expect(screen.getByText('Standard Air Freight')).toBeInTheDocument();
   });

@@ -15,8 +15,8 @@ describe('PersonalCenter', () => {
     await renderPersonalCenter();
 
     expect(await screen.findByText('John Doe')).toBeInTheDocument();
-    expect(screen.getByText('Role: Account Manager')).toBeInTheDocument();
     expect(screen.getByText('Account Manager')).toBeInTheDocument();
+    expect(screen.getByText('Sarah Wang')).toBeInTheDocument();
   });
 
   it('renders the logout button', async () => {
