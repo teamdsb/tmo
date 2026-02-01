@@ -16,6 +16,41 @@
 
 说明：`build:*` 会生成对应平台的静态产物，可用于发布或在平台开发者工具中打开。
 
+## 前后端联调（WeChat/Alipay）
+
+默认通过 gateway-bff 访问 identity + commerce。建议在 `apps/miniapp/.env.development` 配置：
+
+    TARO_APP_API_BASE_URL=http://localhost:8080
+    TARO_APP_COMMERCE_MOCK_FALLBACK=true
+
+启动后端（本地）：
+
+    bash tools/scripts/dev-bootstrap.sh
+    cd services/identity && IDENTITY_HTTP_ADDR=":8081" go run ./cmd/identity
+    cd services/commerce && COMMERCE_HTTP_ADDR=":8082" go run ./cmd/commerce
+    cd services/payment && PAYMENT_HTTP_ADDR=":8083" go run ./cmd/payment
+    cd services/gateway-bff && GATEWAY_HTTP_ADDR=":8080" \
+      GATEWAY_IDENTITY_BASE_URL="http://localhost:8081" \
+      GATEWAY_COMMERCE_BASE_URL="http://localhost:8082" \
+      GATEWAY_PAYMENT_BASE_URL="http://localhost:8083" \
+      go run ./cmd/gateway-bff
+
+启动前端（按平台）：
+
+    pnpm -C apps/miniapp dev:weapp
+    pnpm -C apps/miniapp dev:alipay
+
+容器化后端（可选）：
+
+    docker compose -f infra/dev/docker-compose.yml up -d
+    bash tools/scripts/dev-bootstrap.sh
+    docker compose -f infra/dev/docker-compose.yml -f infra/dev/docker-compose.backend.yml up -d
+
+说明：
+
+- `TARO_APP_COMMERCE_MOCK_FALLBACK=false` 可以强制走真实后端，不再回退 mock 数据。
+- 如果使用容器化后端，保持 `TARO_APP_API_BASE_URL=http://localhost:8080` 即可。
+
 ## 支付宝 Web 调试器 console 采集
 
 该脚本会使用 minidev 启动 DevServer，并打开 Web 模拟器来采集 console 日志，输出到 `apps/miniapp/.logs/`。

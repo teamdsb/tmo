@@ -2,6 +2,18 @@ import { createCommerceServices, type CommerceServices } from '@tmo/commerce-ser
 import type { Category, ProductDetail, ProductSummary } from '@tmo/api-client'
 import { buildMockProductDetail, mockCategories, mockProductDetails, mockProducts } from './mocks/catalog'
 
+const shouldFallbackToMock = (): boolean => {
+  const raw = process.env.TARO_APP_COMMERCE_MOCK_FALLBACK
+  const value = raw ? raw.trim().toLowerCase() : ''
+  if (value === '') {
+    return true
+  }
+  if (value === 'false' || value === '0' || value === 'off' || value === 'no') {
+    return false
+  }
+  return true
+}
+
 const applyQuery = (items: ProductSummary[], query?: string) => {
   if (!query) return items
   const keyword = query.trim().toLowerCase()
@@ -57,12 +69,15 @@ const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
   }
 })
 
-const createMockedCommerceServices = (): CommerceServices => {
+const createCommerceServicesWithFallback = (): CommerceServices => {
   const services = createCommerceServices()
+  if (!shouldFallbackToMock()) {
+    return services
+  }
   return {
     ...services,
     catalog: createMockedCatalog(services.catalog)
   }
 }
 
-export const commerceServices = createMockedCommerceServices()
+export const commerceServices = createCommerceServicesWithFallback()

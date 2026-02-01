@@ -1,0 +1,61 @@
+version: "3.9"
+
+services:
+  identity:
+    build:
+      context: ../..
+      dockerfile: services/identity/Dockerfile
+    environment:
+      IDENTITY_HTTP_ADDR: ":8081"
+      IDENTITY_DB_DSN: "postgres://commerce:commerce@postgres:5432/identity?sslmode=disable"
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  commerce:
+    build:
+      context: ../..
+      dockerfile: services/commerce/Dockerfile
+    environment:
+      COMMERCE_HTTP_ADDR: ":8082"
+      COMMERCE_DB_DSN: "postgres://commerce:commerce@postgres:5432/commerce?sslmode=disable"
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  payment:
+    build:
+      context: ../..
+      dockerfile: services/payment/Dockerfile
+    environment:
+      PAYMENT_HTTP_ADDR: ":8083"
+      PAYMENT_IDENTITY_BASE_URL: "http://identity:8081"
+    ports:
+      - "8083:8083"
+    depends_on:
+      identity:
+        condition: service_started
+
+  gateway-bff:
+    build:
+      context: ../..
+      dockerfile: services/gateway-bff/Dockerfile
+    environment:
+      GATEWAY_HTTP_ADDR: ":8080"
+      GATEWAY_IDENTITY_BASE_URL: "http://identity:8081"
+      GATEWAY_COMMERCE_BASE_URL: "http://commerce:8082"
+      GATEWAY_PAYMENT_BASE_URL: "http://payment:8083"
+      GATEWAY_AI_BASE_URL: ""
+    ports:
+      - "8080:8080"
+    depends_on:
+      identity:
+        condition: service_started
+      commerce:
+        condition: service_started
+      payment:
+        condition: service_started
