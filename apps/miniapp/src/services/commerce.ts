@@ -2,8 +2,16 @@ import { createCommerceServices, type CommerceServices } from '@tmo/commerce-ser
 import type { Category, ProductDetail, ProductSummary } from '@tmo/api-client'
 import { buildMockProductDetail, mockCategories, mockProductDetails, mockProducts } from './mocks/catalog'
 
+// 小程序运行时没有 Node.js process，全局读取必须做守卫。
+const readEnv = (name: string): string | undefined => {
+  if (typeof process === 'undefined' || !process?.env) {
+    return undefined
+  }
+  return process.env[name]
+}
+
 const shouldFallbackToMock = (): boolean => {
-  const raw = process.env.TARO_APP_COMMERCE_MOCK_FALLBACK
+  const raw = readEnv('TARO_APP_COMMERCE_MOCK_FALLBACK')
   const value = raw ? raw.trim().toLowerCase() : ''
   if (value === '') {
     return true
