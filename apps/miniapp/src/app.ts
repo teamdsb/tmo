@@ -76,6 +76,13 @@ const loginAndBootstrap = async (context: LaunchContext): Promise<void> => {
       await navigateTo(ROUTES.authRoleSelect)
       return
     }
+    if (isTouristModeUnsupportedError(error)) {
+      await Taro.showToast({
+        title: '请配置 TARO_APP_ID 后重启微信构建',
+        icon: 'none'
+      })
+      return
+    }
     console.warn('identity login failed', error)
     await identityServices.tokens.setToken(null)
     return
@@ -134,4 +141,11 @@ const isUnauthorized = (error: unknown): boolean => {
     && error !== null
     && 'statusCode' in error
     && (error as { statusCode?: number }).statusCode === 401
+}
+
+const isTouristModeUnsupportedError = (error: unknown): boolean => {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && (error as { code?: string }).code === 'WEAPP_TOURIST_MODE_UNSUPPORTED'
 }

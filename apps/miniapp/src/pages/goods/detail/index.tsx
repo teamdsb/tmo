@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
-import Image from '@taroify/core/image'
 import Tag from '@taroify/core/tag'
 import Grid from '@taroify/core/grid'
 import Cell from '@taroify/core/cell'
@@ -15,10 +14,12 @@ import Star from '@taroify/icons/Star'
 import StarOutlined from '@taroify/icons/StarOutlined'
 import type { PriceTier, ProductDetail, Sku } from '@tmo/api-client'
 import { ROUTES, goodsDetailRoute } from '../../../routes'
+import SafeImage from '../../../components/safe-image'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { ensureLoggedIn, isUnauthorized } from '../../../utils/auth'
 import { switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
+import placeholderProductImage from '../../../assets/images/placeholder-product.svg'
 
 export default function ProductDetail() {
   const router = useRouter()
@@ -67,9 +68,7 @@ export default function ProductDetail() {
 
   const images = useMemo(() => {
     if (!detail?.product?.images || detail.product.images.length === 0) {
-      return [
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuCspf7tkk3Cwf2GD5lYQaNodcqBkcYqB_ZBv1e2fVDNw0YMOKkHumvzpQ1mZEKdercQH0hJKeoDWuFaFd0qoHzNg0huzTlzC5-zZ7kBXvWE9Ib08FjC_NddG0UAEIhtDzvhKWIoHFuCHwDIbw0VxEiTfUHw5E2lSdd55A_492g3TzsAwCF8m_qM_vrA2FUIFmA556OMpdd6XsGANJE4w1E8t6cLo6tKrJi7WMOnV3ErcUQcrzM2zDWv12Q92-EVBL6NJcTileQoBmGI'
-      ]
+      return [placeholderProductImage]
     }
     return detail.product.images
   }, [detail])
@@ -147,7 +146,7 @@ export default function ProductDetail() {
 
       <View className='page-content'>
         <View className='media'>
-          <Image
+          <SafeImage
             width='100%'
             height={168}
             mode='aspectFill'

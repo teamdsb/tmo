@@ -29,6 +29,7 @@ import { gatewayServices } from '../../services/gateway'
 import { commerceServices } from '../../services/commerce'
 import { identityServices } from '../../services/identity'
 import { clearBootstrap, loadBootstrap, saveBootstrap } from '../../services/bootstrap'
+import placeholderProductImage from '../../assets/images/placeholder-product.svg'
 
 type IconComponent = (props: { className?: string }) => JSX.Element
 
@@ -115,8 +116,7 @@ export default function PersonalCenter() {
   const navbarStyle = getNavbarStyle()
   const [bootstrap, setBootstrap] = useState<BootstrapResponse | null>(null)
   const [isDark] = useState(() => Taro.getSystemInfoSync().theme === 'dark')
-  const avatarFallback =
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuD6aMVVw542vMjqZUxZGYQDmSOyXCShOpx5kUCN61Wv6okrwKBUp-S_ZKLBYnnJqx_-Vx3-NhyPVZuH7gHkceoGBQajnU3ksD25p10yGt0-gT2HiURQNGy_gnhIX7OKre0UsPZyZOPchGKAqwzYVK1fBl081v0ZlwBlwVuv6RrLFj_h5OEIq0p_a7zFGn226VwTy0LMxL8E9P9LWcmgSTpQj6Tx-Th1qgUYfuhBUqvqiH9YIOAY249t69mZAho6SakEZO55UHrVJq2k'
+  const avatarFallback = placeholderProductImage
 
   useEffect(() => {
     void (async () => {

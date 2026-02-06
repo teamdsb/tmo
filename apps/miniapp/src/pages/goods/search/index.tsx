@@ -5,7 +5,6 @@ import Navbar from '@taroify/core/navbar'
 import Search from '@taroify/core/search'
 import Empty from '@taroify/core/empty'
 import Grid from '@taroify/core/grid'
-import Image from '@taroify/core/image'
 import Tag from '@taroify/core/tag'
 import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
@@ -15,9 +14,7 @@ import { ROUTES, goodsDetailRoute } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
-
-const fallbackImage =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuDqcO0ZsF478oZ2ptOGZ-USmvK1N6w1JKiG3NEuzCtVxtUYWGTjb9CQMSPcvIx_0Jt3TrSDyA1QZ1SMSk7MCkIZ5P3VdLbub-OlzJZZmVGtjO8I4AE81fs3qbZYJkARLwmxi2WPUqLMJPKcODqfdGwfWx-2odJQMiiU8pN4dvpQF43Qqh8o7InQwDdm56riyjAsS6gYCgm6vjmxijmdB80iIMPDuEdjM_Ul5VaH_XgGIOEP4yBu8A5R7RPW0UphBnG6fHZUW3pOMtrk'
+import SafeImage from '../../../components/safe-image'
 
 export default function SearchEmptyState() {
   const [searchValue, setSearchValue] = useState('')
@@ -100,7 +97,7 @@ export default function SearchEmptyState() {
                   {recommended.map((item) => (
                     <Grid.Item key={item.id}>
                       <View className='recommend-card' onClick={() => navigateTo(goodsDetailRoute(item.id))}>
-                        <Image width='100%' height={140} src={item.coverImageUrl || fallbackImage} mode='aspectFill' />
+                        <SafeImage width='100%' height={140} src={item.coverImageUrl} mode='aspectFill' />
                         <View className='recommend-card-body'>
                           <Text className='recommend-card-title'>{item.name}</Text>
                           <Text className='recommend-card-price'>在详情中查看价格</Text>
@@ -125,7 +122,7 @@ export default function SearchEmptyState() {
               {results.map((item) => (
                 <Grid.Item key={item.id}>
                   <View className='recommend-card' onClick={() => navigateTo(goodsDetailRoute(item.id))}>
-                    <Image width='100%' height={140} src={item.coverImageUrl || fallbackImage} mode='aspectFill' />
+                    <SafeImage width='100%' height={140} src={item.coverImageUrl} mode='aspectFill' />
                     <View className='recommend-card-body'>
                       <Text className='recommend-card-title'>{item.name}</Text>
                       <Text className='recommend-card-price'>在详情中查看价格</Text>

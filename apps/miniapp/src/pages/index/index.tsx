@@ -5,7 +5,6 @@ import Navbar from '@taroify/core/navbar'
 import Search from '@taroify/core/search'
 import Tabs from '@taroify/core/tabs'
 import Grid from '@taroify/core/grid'
-import Image from '@taroify/core/image'
 import Tag from '@taroify/core/tag'
 import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
@@ -14,13 +13,11 @@ import FilterOutlined from '@taroify/icons/FilterOutlined'
 import SearchIcon from '@taroify/icons/Search'
 import type { Category, ProductSummary } from '@tmo/api-client'
 import AppTabbar from '../../components/app-tabbar'
+import SafeImage from '../../components/safe-image'
 import { goodsDetailRoute } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
 import { navigateTo } from '../../utils/navigation'
 import { commerceServices } from '../../services/commerce'
-
-const fallbackImage =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuDGj0LySxxnfLRBsNvxC-nPykQ5urTBjIfVH6fpVr8Mq6q86Eoc900uHrsM4CWGhiTa9mh1Hjt_59YVZA8IA8o2egRuHhPMh4OOTNdFLPyy2z65oun7A7T75qdtMxB9Gx2g6hdqG7a6CoFl7wbFQ5OqSxcViSThFyQsbrrOF2K3eSm2S5yLloAGrV9xlvJmEFK-mPaQa76VxZBF-w06tpKTQ_Ecu_J9NqQcflv5Lxn_pdg9JpuXZou5PV-r29n5aUgmxkh1RVsTN382'
 
 export default function ProductCatalogApp() {
   const [categories, setCategories] = useState<Category[]>([])
@@ -125,7 +122,7 @@ function ProductCard({ data }: { data: ProductSummary }) {
   const tagLabel = data.tags?.[0] ?? '分类'
   return (
     <View className='product-card' onClick={() => navigateTo(goodsDetailRoute(data.id))}>
-      <Image src={data.coverImageUrl || fallbackImage} width='100%' height={150} mode='aspectFill' />
+      <SafeImage src={data.coverImageUrl} width='100%' height={150} mode='aspectFill' />
       <View className='product-card-body'>
         <Text className='product-card-title'>{data.name}</Text>
         <Text className='product-card-price'>价格详见详情</Text>

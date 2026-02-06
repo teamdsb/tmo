@@ -20,6 +20,7 @@
 
 默认通过 gateway-bff 访问 identity + commerce。建议在 `apps/miniapp/.env.development` 配置：
 
+    TARO_APP_ID=wx8e8831fc456f019b
     TARO_APP_API_BASE_URL=http://localhost:8080
     TARO_APP_COMMERCE_MOCK_FALLBACK=true
 
@@ -50,6 +51,7 @@
 
 - `TARO_APP_COMMERCE_MOCK_FALLBACK=false` 可以强制走真实后端，不再回退 mock 数据。
 - 如果使用容器化后端，保持 `TARO_APP_API_BASE_URL=http://localhost:8080` 即可。
+- 微信环境建议使用真实 `TARO_APP_ID`；游客模式（`touristappid`）下，微信登录相关 API 可能受限。
 
 支付宝稳定模式：
 
@@ -94,6 +96,7 @@
 排错：
 
 - 不要让微信和支付宝共用同一个导入目录，必须分别导入 `dist/weapp` 与 `dist/alipay`。
+- 若微信端图片显示异常，请在小程序后台/开发者工具将 `images.unsplash.com`（以及你实际使用的图床域名，如 `lh3.googleusercontent.com`）加入图片下载白名单（downloadFile 合法域名）。
 - 如果支付宝开发者工具导入 `apps/miniapp/dist/alipay` 后出现 `ENOENT ... dist/dist/app.json`，请检查 `apps/miniapp/dist/alipay/mini.project.json` 中的 `miniprogramRoot`，应为 `./`。
 - 如果出现 `CE1000.01 cannot resolve module ...*.axml`，先执行 `pnpm -C apps/miniapp build:alipay`，再根据 `verify-alipay-dist` 输出补齐缺失文件后重试导入。
 
