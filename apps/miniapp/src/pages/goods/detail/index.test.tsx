@@ -1,19 +1,31 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import ProductDetail from './index';
 
-describe('ProductDetail', () => {
-  it('renders product information and shipping', () => {
-    render(<ProductDetail />);
+const setRouterParams = (params: Record<string, string>) => {
+  (globalThis as any).__setTaroRouterParams?.(params);
+};
 
-    expect(screen.getByText('High-Precision Industrial Control Valve')).toBeInTheDocument();
-    expect(screen.getAllByText('$185.00').length).toBeGreaterThan(0);
-    expect(screen.getByText('Standard Air Freight')).toBeInTheDocument();
+describe('ProductDetail', () => {
+  beforeEach(() => {
+    setRouterParams({ id: 'spu-1' });
   });
 
-  it('updates material selection', () => {
+  afterEach(() => {
+    setRouterParams({});
+  });
+
+  it('renders product information and shipping', async () => {
     render(<ProductDetail />);
 
-    const materialLabel = screen.getByText('Carbon');
+    expect((await screen.findAllByText('高精度工业控制阀')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('¥185.00').length).toBeGreaterThan(0);
+    expect(screen.getByText('标准空运')).toBeInTheDocument();
+  });
+
+  it('updates material selection', async () => {
+    render(<ProductDetail />);
+
+    const materialLabel = await screen.findByText('碳钢');
     const materialButton = materialLabel.closest('button');
 
     expect(materialButton).not.toBeNull();
@@ -25,10 +37,10 @@ describe('ProductDetail', () => {
     expect(materialButton).toHaveClass('bg-[#137fec]');
   });
 
-  it('updates size selection', () => {
+  it('updates size selection', async () => {
     render(<ProductDetail />);
 
-    const sizeLabel = screen.getByText('75mm');
+    const sizeLabel = await screen.findByText('75mm');
     const sizeButton = sizeLabel.closest('button');
 
     expect(sizeButton).not.toBeNull();

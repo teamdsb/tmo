@@ -1,28 +1,46 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import ProductCatalogApp from './index';
 
-describe('ProductCatalogApp', () => {
-  it('renders header, search, and product grid', () => {
-    render(<ProductCatalogApp />);
+const renderCatalog = async () => {
+  render(<ProductCatalogApp />);
+  await screen.findByText('办公用品');
+};
 
-    expect(screen.getByText('Product Catalog')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Search by SKU or Name...')).toBeInTheDocument();
-    expect(screen.getAllByText(/SKU:/)).toHaveLength(4);
+describe('ProductCatalogApp', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
   });
 
-  it('updates search input value', () => {
-    render(<ProductCatalogApp />);
+  afterEach(() => {
+    jest.useRealTimers();
+  });
 
-    const input = screen.getByPlaceholderText('Search by SKU or Name...');
+  it('renders search and product grid', async () => {
+    await renderCatalog();
+
+    expect(screen.getByPlaceholderText('按 SKU 或名称搜索...')).toBeInTheDocument();
+    expect(await screen.findByText('办公用品')).toBeInTheDocument();
+
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+
+    expect(await screen.findAllByText(/编号：/)).toHaveLength(4);
+  });
+
+  it('updates search input value', async () => {
+    await renderCatalog();
+
+    const input = screen.getByPlaceholderText('按 SKU 或名称搜索...');
     fireEvent.change(input, { target: { value: 'bolt' } });
 
     expect(input).toHaveValue('bolt');
   });
 
-  it('switches active category on click', () => {
-    render(<ProductCatalogApp />);
+  it('switches active category on click', async () => {
+    await renderCatalog();
 
-    const tabLabel = screen.getByText('Office Supplies');
+    const tabLabel = await screen.findByText('办公用品');
     const tabButton = tabLabel.closest('button');
 
     expect(tabButton).not.toBeNull();

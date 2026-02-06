@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { View, Text } from '@tarojs/components'
+import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Search from '@taroify/core/search'
 import Tabs from '@taroify/core/tabs'
@@ -11,70 +12,75 @@ import Flex from '@taroify/core/flex'
 import AppsOutlined from '@taroify/icons/AppsOutlined'
 import FilterOutlined from '@taroify/icons/FilterOutlined'
 import SearchIcon from '@taroify/icons/Search'
-import ShoppingCartOutlined from '@taroify/icons/ShoppingCartOutlined'
+import type { Category, ProductSummary } from '@tmo/api-client'
 import AppTabbar from '../../components/app-tabbar'
 import { goodsDetailRoute } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
 import { navigateTo } from '../../utils/navigation'
+import { commerceServices } from '../../services/commerce'
 
-const PRODUCTS = [
-  {
-    id: 1,
-    sku: 'BOLT-X10',
-    title: 'Industrial Grade Steel Bolt X10',
-    price: '$2.50 - $4.00',
-    minUnits: 'Min: 50 units',
-    tag: 'Bulk Ready',
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBPtFkTTnJz7-tK01nu6XyhNmTYWdeeXHFCkor4f-GBb6Mg-42dp6wsTE2K0LOzAs5iMYxmPhEy5DrqPZCNjyOnZmmh4k-tJHYr7mcXK-SyP6UFBk92X4RfLSkdLl4ZYq9f4t0wUHGTSeGpz8mZN6BBkOEvi3qseq7RGZIVrO8n4aZi3WzcugE2huj0TAGp9sPAdbHNfsLs2dgrM-RGjXB12X5RBBSDiMC12wuyApAEXCfP8ixHiQYdbIsSjkm_C_CAsrRORhPY-vzY'
-  },
-  {
-    id: 2,
-    sku: 'CHR-PRO',
-    title: 'Ergonomic Office Chair Pro',
-    price: '$120.00 - $150.00',
-    minUnits: 'Min: 5 units',
-    tag: 'Stock Low',
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDe7m1RTxL4-VlzD8EF8swLSee4fT57qak-mM014a0GStp2i7S5NuxLAXIR1qAshFpCJkY_-olfmgn5uqRNPN3AcbADyS0WGM2Y4wiJ6ZghxFoM-g7S-WJJUVGBoAaDUJU2alarMOlRXqX-kwDDZW6PrcSesHu1l1PMb6HG6H2vO77ahxmtngETasDsGbgWPaGybJr5q7_IMCQUHC46kts-wHVc-rhvyW8K2E9SFReV38XXYjmcYfcd7HkkBzsGnchKBzw8O_X7o17q'
-  },
-  {
-    id: 3,
-    sku: 'CBL-E100',
-    title: 'High-Speed Ethernet Cable 100m',
-    price: '$5.00 - $8.00',
-    minUnits: 'Min: 100 units',
-    tag: 'Fast Ship',
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAnPMvTeyxKpURIclK4WcQBEoztQwcgoIduvJ7elXci4t-b4jmiGH5hINqwNYaVQTsXOmmpmQPJmsVi_q-YOSprnoo5leUAX_nKjw_DKUebMVfcWtLHWDt6qjy7jTJuwl19bipAfw2yGdQExhabRQJJJdViJs2DJY8WTUSxOw7kXlmSBGUKH98nXZpnjmhvF5TWEeOI_t6LkZ-FmvS3rMzptmy8f0S4H0nynw1QUaMPCFHHXpucRlWV5xevXTvYKnm2PM2qWJS297Fi'
-  },
-  {
-    id: 4,
-    sku: 'BOX-HD',
-    title: 'Heavy Duty Shipping Box L',
-    price: '$1.20 - $2.00',
-    minUnits: 'Min: 200 units',
-    tag: 'Recyclable',
-    image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDGj0LySxxnfLRBsNvxC-nPykQ5urTBjIfVH6fpVr8Mq6q86Eoc900uHrsM4CWGhiTa9mh1Hjt_59YVZA8IA8o2egRuHhPMh4OOTNdFLPyy2z65oun7A7T75qdtMxB9Gx2g6hdqG7a6CoFl7wbFQ5OqSxcViSThFyQsbrrOF2K3eSm2S5yLloAGrV9xlvJmEFK-mPaQa76VxZBF-w06tpKTQ_Ecu_J9NqQcflv5Lxn_pdg9JpuXZou5PV-r29n5aUgmxkh1RVsTN382'
-  }
-]
-
-const CATEGORIES = ['Electronics', 'Office Supplies', 'Industrial Tools', 'Packaging']
+const fallbackImage =
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuDGj0LySxxnfLRBsNvxC-nPykQ5urTBjIfVH6fpVr8Mq6q86Eoc900uHrsM4CWGhiTa9mh1Hjt_59YVZA8IA8o2egRuHhPMh4OOTNdFLPyy2z65oun7A7T75qdtMxB9Gx2g6hdqG7a6CoFl7wbFQ5OqSxcViSThFyQsbrrOF2K3eSm2S5yLloAGrV9xlvJmEFK-mPaQa76VxZBF-w06tpKTQ_Ecu_J9NqQcflv5Lxn_pdg9JpuXZou5PV-r29n5aUgmxkh1RVsTN382'
 
 export default function ProductCatalogApp() {
-  const [activeCategory, setActiveCategory] = useState(CATEGORIES[0])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [activeCategory, setActiveCategory] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [products, setProducts] = useState<ProductSummary[]>([])
+  const [total, setTotal] = useState(0)
+  const [loading, setLoading] = useState(false)
   const navbarStyle = getNavbarStyle()
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const data = await commerceServices.catalog.listCategories()
+        setCategories(data.items ?? [])
+      } catch (error) {
+        console.warn('load categories failed', error)
+        await Taro.showToast({ title: '加载分类失败', icon: 'none' })
+      }
+    })()
+  }, [])
+
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      void (async () => {
+        setLoading(true)
+        try {
+          const response = await commerceServices.catalog.listProducts({
+            q: searchQuery || undefined,
+            categoryId: activeCategory === 'all' ? undefined : activeCategory,
+            page: 1,
+            pageSize: 20
+          })
+          setProducts(response.items ?? [])
+          setTotal(response.total ?? 0)
+        } catch (error) {
+          console.warn('load products failed', error)
+          await Taro.showToast({ title: '加载商品失败', icon: 'none' })
+        } finally {
+          setLoading(false)
+        }
+      })()
+    }, 300)
+    return () => clearTimeout(handle)
+  }, [activeCategory, searchQuery])
+
+  const categoryTabs = [{ id: 'all', name: '全部' }, ...categories]
 
   return (
     <View className='page page-home'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle}>
+      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'>
       </Navbar>
 
       <View className='page-search'>
         <Search
           value={searchQuery}
-          shape='round'
+          shape='rounded'
           clearable
           icon={<SearchIcon />}
-          placeholder='Search by SKU or Name...'
+          placeholder='按 SKU 或名称搜索...'
           onChange={(event) => setSearchQuery(event.detail.value)}
         />
       </View>
@@ -85,11 +91,13 @@ export default function ProductCatalogApp() {
         sticky
         swipeable={false}
       >
-        {CATEGORIES.map((category) => (
-          <Tabs.TabPane key={category} value={category} title={category}>
+        {categoryTabs.map((category) => (
+          <Tabs.TabPane key={category.id} value={category.id} title={category.name}>
             <View className='page-content'>
               <Flex justify='space-between' align='center'>
-                <Text className='page-subtitle'>Showing 124 products</Text>
+                <Text className='page-subtitle'>
+                  {loading ? '正在加载商品...' : `共 ${total} 件商品`}
+                </Text>
                 <Flex justify='end' gutter={8}>
                   <Button size='small' variant='outlined' icon={<FilterOutlined />} />
                   <Button size='small' variant='outlined' icon={<AppsOutlined />} />
@@ -97,7 +105,7 @@ export default function ProductCatalogApp() {
               </Flex>
 
               <Grid columns={2} gutter={12} className='page-grid'>
-                {PRODUCTS.map((product) => (
+                {products.map((product) => (
                   <Grid.Item key={product.id}>
                     <ProductCard data={product} />
                   </Grid.Item>
@@ -113,19 +121,20 @@ export default function ProductCatalogApp() {
   )
 }
 
-function ProductCard({ data }: { data: (typeof PRODUCTS)[number] }) {
+function ProductCard({ data }: { data: ProductSummary }) {
+  const tagLabel = data.tags?.[0] ?? '分类'
   return (
     <View className='product-card' onClick={() => navigateTo(goodsDetailRoute(data.id))}>
-      <Image src={data.image} width='100%' height={150} mode='aspectFill' />
+      <Image src={data.coverImageUrl || fallbackImage} width='100%' height={150} mode='aspectFill' />
       <View className='product-card-body'>
-        <Text className='product-card-title'>{data.title}</Text>
-        <Text className='product-card-price'>{data.price}</Text>
-        <Text className='product-card-min'>{data.minUnits}</Text>
+        <Text className='product-card-title'>{data.name}</Text>
+        <Text className='product-card-price'>价格详见详情</Text>
+        <Text className='product-card-min'>编号：{data.id.slice(0, 8)}</Text>
         <Flex justify='space-between' align='center'>
           <Tag size='small' variant='outlined' color='primary'>
-            {data.tag}
+            {tagLabel}
           </Tag>
-          <Button size='mini' color='primary' icon={<ShoppingCartOutlined />} />
+          <Button size='mini' color='primary'>详情</Button>
         </Flex>
       </View>
     </View>

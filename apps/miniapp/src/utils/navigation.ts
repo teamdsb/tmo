@@ -4,7 +4,7 @@ const normalizeUrl = (url: string) => (url.startsWith('/') ? url : `/${url}`)
 
 const stripQuery = (url: string) => url.split('?')[0]
 
-const getCurrentPath = () => {
+export const getCurrentPath = () => {
   const pages = Taro.getCurrentPages()
   const current = pages[pages.length - 1] as { route?: string } | undefined
   if (!current?.route) return ''

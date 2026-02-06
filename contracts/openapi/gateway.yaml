@@ -1,0 +1,172 @@
+openapi: 3.1.0
+info:
+  title: Procurement Mini Program - Gateway API
+  version: 0.1.0
+  description: |
+    v1 API contract for customer/staff mini programs + Admin Web.
+    Conventions:
+    - JSON field naming: camelCase
+    - Time: RFC3339 date-time strings
+    - IDs: UUID strings
+    - Auth: Bearer JWT access token
+    - Idempotency: send `Idempotency-Key` for order submit and payment create
+servers:
+- url: https://api.example.com
+tags:
+- name: BFF
+security:
+- bearerAuth: []
+paths:
+  "/bff/bootstrap":
+    get:
+      tags:
+      - BFF
+      summary: Bootstrap app with me, permissions, and feature flags
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BootstrapResponse"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/ErrorResponse"
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        requestId:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+          description: 'Optional metadata (e.g. { "availableRoles": ["CUSTOMER", "SALES"] }).'
+      required:
+      - code
+      - message
+      - requestId
+    UserStatus:
+      type: string
+      enum:
+      - active
+      - disabled
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userType:
+          type: string
+          enum:
+          - customer
+          - staff
+          - admin
+        status:
+          "$ref": "#/components/schemas/UserStatus"
+        displayName:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        disabledAt:
+          type: string
+          format: date-time
+          nullable: true
+        disabledReason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - userType
+      - roles
+      - createdAt
+    PermissionScope:
+      type: string
+      enum:
+      - SELF
+      - OWNED
+      - ALL
+    EffectivePermission:
+      type: object
+      properties:
+        code:
+          type: string
+        scope:
+          "$ref": "#/components/schemas/PermissionScope"
+      required:
+      - code
+      - scope
+    PermissionList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/EffectivePermission"
+      required:
+      - items
+    FeatureFlags:
+      type: object
+      properties:
+        paymentEnabled:
+          type: boolean
+          default: false
+        wechatPayEnabled:
+          type: boolean
+          default: false
+        alipayPayEnabled:
+          type: boolean
+          default: false
+      additionalProperties: false
+    BootstrapResponse:
+      type: object
+      properties:
+        me:
+          "$ref": "#/components/schemas/User"
+          nullable: true
+        permissions:
+          "$ref": "#/components/schemas/PermissionList"
+        featureFlags:
+          "$ref": "#/components/schemas/FeatureFlags"
+      required:
+      - permissions
+      - featureFlags

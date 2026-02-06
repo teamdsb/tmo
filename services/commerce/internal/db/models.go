@@ -11,6 +11,29 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AfterSalesMessage struct {
+	ID           uuid.UUID          `db:"id" json:"id"`
+	TicketID     uuid.UUID          `db:"ticket_id" json:"ticket_id"`
+	SenderType   string             `db:"sender_type" json:"sender_type"`
+	SenderUserID pgtype.UUID        `db:"sender_user_id" json:"sender_user_id"`
+	Content      string             `db:"content" json:"content"`
+	CreatedAt    pgtype.Timestamptz `db:"created_at" json:"created_at"`
+}
+
+type AfterSalesTicket struct {
+	ID                  uuid.UUID          `db:"id" json:"id"`
+	Status              string             `db:"status" json:"status"`
+	OrderID             pgtype.UUID        `db:"order_id" json:"order_id"`
+	CreatedByUserID     uuid.UUID          `db:"created_by_user_id" json:"created_by_user_id"`
+	OwnerSalesUserID    pgtype.UUID        `db:"owner_sales_user_id" json:"owner_sales_user_id"`
+	AssignedStaffUserID pgtype.UUID        `db:"assigned_staff_user_id" json:"assigned_staff_user_id"`
+	Subject             string             `db:"subject" json:"subject"`
+	Description         string             `db:"description" json:"description"`
+	Attachments         []string           `db:"attachments" json:"attachments"`
+	CreatedAt           pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
 type CartImportJob struct {
 	ID             uuid.UUID          `db:"id" json:"id"`
 	OwnerUserID    uuid.UUID          `db:"owner_user_id" json:"owner_user_id"`
@@ -104,6 +127,15 @@ type ImportJob struct {
 	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
 }
 
+type InquiryMessage struct {
+	ID           uuid.UUID          `db:"id" json:"id"`
+	InquiryID    uuid.UUID          `db:"inquiry_id" json:"inquiry_id"`
+	SenderType   string             `db:"sender_type" json:"sender_type"`
+	SenderUserID pgtype.UUID        `db:"sender_user_id" json:"sender_user_id"`
+	Content      string             `db:"content" json:"content"`
+	CreatedAt    pgtype.Timestamptz `db:"created_at" json:"created_at"`
+}
+
 type Order struct {
 	ID               uuid.UUID          `db:"id" json:"id"`
 	Status           string             `db:"status" json:"status"`
@@ -134,4 +166,37 @@ type OrderTrackingShipment struct {
 	ShippedAt pgtype.Timestamptz `db:"shipped_at" json:"shipped_at"`
 	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type PriceInquiry struct {
+	ID                  uuid.UUID          `db:"id" json:"id"`
+	CreatedByUserID     uuid.UUID          `db:"created_by_user_id" json:"created_by_user_id"`
+	OwnerSalesUserID    pgtype.UUID        `db:"owner_sales_user_id" json:"owner_sales_user_id"`
+	AssignedSalesUserID pgtype.UUID        `db:"assigned_sales_user_id" json:"assigned_sales_user_id"`
+	SkuID               pgtype.UUID        `db:"sku_id" json:"sku_id"`
+	OrderID             pgtype.UUID        `db:"order_id" json:"order_id"`
+	Message             string             `db:"message" json:"message"`
+	Status              string             `db:"status" json:"status"`
+	ResponseNote        *string            `db:"response_note" json:"response_note"`
+	CreatedAt           pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type ProductRequest struct {
+	ID               uuid.UUID          `db:"id" json:"id"`
+	CreatedByUserID  uuid.UUID          `db:"created_by_user_id" json:"created_by_user_id"`
+	OwnerSalesUserID pgtype.UUID        `db:"owner_sales_user_id" json:"owner_sales_user_id"`
+	Name             string             `db:"name" json:"name"`
+	Spec             *string            `db:"spec" json:"spec"`
+	Qty              *string            `db:"qty" json:"qty"`
+	Note             *string            `db:"note" json:"note"`
+	CreatedAt        pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type WishlistItem struct {
+	ID          uuid.UUID          `db:"id" json:"id"`
+	OwnerUserID uuid.UUID          `db:"owner_user_id" json:"owner_user_id"`
+	SkuID       uuid.UUID          `db:"sku_id" json:"sku_id"`
+	CreatedAt   pgtype.Timestamptz `db:"created_at" json:"created_at"`
 }

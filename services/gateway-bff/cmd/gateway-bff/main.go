@@ -60,16 +60,23 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		}
 	}()
 
-	proxyHandler, err := httpserver.NewProxyHandler(cfg.IdentityBaseURL, cfg.CommerceBaseURL, logger)
+	proxyHandler, err := httpserver.NewProxyHandler(cfg.IdentityBaseURL, cfg.CommerceBaseURL, cfg.PaymentBaseURL, cfg.AIBaseURL, logger, cfg.UpstreamTimeout)
 	if err != nil {
 		return fmt.Errorf("init proxy failed: %w", err)
 	}
-	readyChecker := httpserver.NewReadyChecker(cfg.IdentityBaseURL, cfg.CommerceBaseURL)
+	readyChecker := httpserver.NewReadyChecker(cfg.IdentityBaseURL, cfg.CommerceBaseURL, cfg.PaymentBaseURL, cfg.AIBaseURL, cfg.UpstreamTimeout)
+	upstreamClient := &http.Client{
+		Timeout: cfg.UpstreamTimeout,
+	}
+	bootstrapHandler := httpserver.NewBootstrapHandler(cfg.IdentityBaseURL, upstreamClient, logger)
 
 	router := httpserver.NewRouter(httpserver.ProxyHandlers{
-		Identity: proxyHandler.Identity,
-		Commerce: proxyHandler.Commerce,
-	}, logger, readyChecker.Check)
+		Identity:  proxyHandler.Identity,
+		Commerce:  proxyHandler.Commerce,
+		Payment:   proxyHandler.Payment,
+		AI:        proxyHandler.AI,
+		Bootstrap: bootstrapHandler.Handle,
+	}, logger, readyChecker.Check, int64(cfg.MaxBodyBytes))
 
 	server := httpserver.NewServer(cfg.HTTPAddr, router)
 

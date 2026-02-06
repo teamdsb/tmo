@@ -22,6 +22,10 @@ func NewRouter(handler *handler.Handler, logger *slog.Logger, readyCheck func(co
 	router.GET("/ready", httpx.Ready(readyCheck))
 
 	oapi.RegisterHandlers(router, handler)
+	router.POST("/admin/products/import-jobs", handler.PostAdminProductsImportJobs)
+	router.POST("/admin/shipments/import-jobs", handler.PostShipmentsImportJobs)
+	router.POST("/admin/product-requests/export-jobs", handler.PostAdminProductRequestsExportJobs)
+	router.GET("/admin/import-jobs/:jobId", handler.GetAdminImportJobsJobId)
 
 	return router
 }

@@ -1,29 +1,29 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import OrderHistoryApp from './index';
 
+const flushPromises = () => new Promise((resolve) => process.nextTick(resolve));
+
+const renderOrderHistory = async () => {
+  render(<OrderHistoryApp />);
+  await act(async () => {
+    await flushPromises();
+  });
+};
+
 describe('OrderHistoryApp', () => {
-  it('renders header, tabs, and order cards', () => {
-    render(<OrderHistoryApp />);
+  it('renders tabs and order cards', async () => {
+    await renderOrderHistory();
 
-    expect(screen.getByText('Order History')).toBeInTheDocument();
-    expect(screen.getByText('All')).toBeInTheDocument();
-    expect(screen.getByText('Order #ORD-88291')).toBeInTheDocument();
+    expect(screen.getByText('全部')).toBeInTheDocument();
+    expect(screen.getByText('待处理')).toBeInTheDocument();
+    expect(await screen.findByText('ORD-88291')).toBeInTheDocument();
   });
 
-  it('updates search input value', () => {
-    render(<OrderHistoryApp />);
-
-    const input = screen.getByPlaceholderText('Search by Order ID or Product...');
-    fireEvent.change(input, { target: { value: 'ORD-88' } });
-
-    expect(input).toHaveValue('ORD-88');
-  });
-
-  it('switches active tab', () => {
-    render(<OrderHistoryApp />);
+  it('switches active tab', async () => {
+    await renderOrderHistory();
 
     const shippedTab = screen
-      .getAllByText('Shipped')
+      .getAllByText('已发货')
       .find((node) => node.closest('button'));
     const shippedButton = shippedTab ? shippedTab.closest('button') : null;
 

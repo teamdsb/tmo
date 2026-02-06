@@ -1,0 +1,19 @@
+{
+  "name": "@tmo/gateway-api-client",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./runtime": "./src/runtime.ts"
+  },
+  "scripts": {
+    "generate": "orval --config ./orval.config.ts"
+  },
+  "dependencies": {
+    "@tmo/openapi-client": "workspace:*"
+  },
+  "devDependencies": {
+    "orval": "^7.5.1"
+  }
+}

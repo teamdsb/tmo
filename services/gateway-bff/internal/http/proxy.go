@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -19,9 +21,11 @@ import (
 type ProxyHandler struct {
 	identity *httputil.ReverseProxy
 	commerce *httputil.ReverseProxy
+	payment  *httputil.ReverseProxy
+	ai       *httputil.ReverseProxy
 }
 
-func NewProxyHandler(identityBaseURL, commerceBaseURL string, logger *slog.Logger) (*ProxyHandler, error) {
+func NewProxyHandler(identityBaseURL, commerceBaseURL, paymentBaseURL, aiBaseURL string, logger *slog.Logger, timeout time.Duration) (*ProxyHandler, error) {
 	identityTarget, err := parseBaseURL(identityBaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("identity base url: %w", err)
@@ -30,10 +34,29 @@ func NewProxyHandler(identityBaseURL, commerceBaseURL string, logger *slog.Logge
 	if err != nil {
 		return nil, fmt.Errorf("commerce base url: %w", err)
 	}
+	paymentTarget, err := parseBaseURL(paymentBaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("payment base url: %w", err)
+	}
+	aiTarget, aiEnabled, err := parseOptionalBaseURL(aiBaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("ai base url: %w", err)
+	}
+
+	transport := newProxyTransport(timeout)
+	identityProxy := newReverseProxy(identityTarget, logger, transport)
+	commerceProxy := newReverseProxy(commerceTarget, logger, transport)
+	paymentProxy := newReverseProxy(paymentTarget, logger, transport)
+	var aiProxy *httputil.ReverseProxy
+	if aiEnabled {
+		aiProxy = newReverseProxy(aiTarget, logger, transport)
+	}
 
 	return &ProxyHandler{
-		identity: newReverseProxy(identityTarget, logger),
-		commerce: newReverseProxy(commerceTarget, logger),
+		identity: identityProxy,
+		commerce: commerceProxy,
+		payment:  paymentProxy,
+		ai:       aiProxy,
 	}, nil
 }
 
@@ -45,6 +68,30 @@ func (p *ProxyHandler) Identity(c *gin.Context) {
 func (p *ProxyHandler) Commerce(c *gin.Context) {
 	setRequestIDHeader(c)
 	p.commerce.ServeHTTP(c.Writer, c.Request)
+}
+
+func (p *ProxyHandler) Payment(c *gin.Context) {
+	if p.payment == nil {
+		apierrors.Write(c, http.StatusServiceUnavailable, apierrors.APIError{
+			Code:    "payment_unavailable",
+			Message: "payment service unavailable",
+		})
+		return
+	}
+	setRequestIDHeader(c)
+	p.payment.ServeHTTP(c.Writer, c.Request)
+}
+
+func (p *ProxyHandler) AI(c *gin.Context) {
+	if p.ai == nil {
+		apierrors.Write(c, http.StatusNotImplemented, apierrors.APIError{
+			Code:    "not_implemented",
+			Message: "ai service not implemented",
+		})
+		return
+	}
+	setRequestIDHeader(c)
+	p.ai.ServeHTTP(c.Writer, c.Request)
 }
 
 func setRequestIDHeader(c *gin.Context) {
@@ -69,8 +116,23 @@ func parseBaseURL(raw string) (*url.URL, error) {
 	return parsed, nil
 }
 
-func newReverseProxy(target *url.URL, logger *slog.Logger) *httputil.ReverseProxy {
+func parseOptionalBaseURL(raw string) (*url.URL, bool, error) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return nil, false, nil
+	}
+	parsed, err := parseBaseURL(value)
+	if err != nil {
+		return nil, false, err
+	}
+	return parsed, true, nil
+}
+
+func newReverseProxy(target *url.URL, logger *slog.Logger, transport http.RoundTripper) *httputil.ReverseProxy {
 	proxy := httputil.NewSingleHostReverseProxy(target)
+	if transport != nil {
+		proxy.Transport = transport
+	}
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		requestID := r.Header.Get("X-Request-ID")
 		if requestID == "" {
@@ -95,4 +157,24 @@ func newReverseProxy(target *url.URL, logger *slog.Logger) *httputil.ReverseProx
 		})
 	}
 	return proxy
+}
+
+func newProxyTransport(timeout time.Duration) *http.Transport {
+	adjusted := timeout
+	if adjusted <= 0 {
+		adjusted = 10 * time.Second
+	}
+	return &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   adjusted,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout:   adjusted,
+		ResponseHeaderTimeout: adjusted,
+		ExpectContinueTimeout: 1 * time.Second,
+		IdleConnTimeout:       90 * time.Second,
+		MaxIdleConns:          100,
+		MaxIdleConnsPerHost:   25,
+	}
 }

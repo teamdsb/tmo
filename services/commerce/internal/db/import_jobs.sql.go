@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -48,6 +49,28 @@ func (q *Queries) CreateImportJob(ctx context.Context, arg CreateImportJobParams
 		arg.ErrorReportUrl,
 		arg.CreatedByUserID,
 	)
+	var i ImportJob
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Status,
+		&i.Progress,
+		&i.ResultFileUrl,
+		&i.ErrorReportUrl,
+		&i.CreatedByUserID,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getImportJob = `-- name: GetImportJob :one
+SELECT id, type, status, progress, result_file_url, error_report_url, created_by_user_id, created_at
+FROM import_jobs
+WHERE id = $1
+`
+
+func (q *Queries) GetImportJob(ctx context.Context, id uuid.UUID) (ImportJob, error) {
+	row := q.db.QueryRow(ctx, getImportJob, id)
 	var i ImportJob
 	err := row.Scan(
 		&i.ID,

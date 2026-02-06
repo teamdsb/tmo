@@ -22,6 +22,9 @@ const postcssConfig = {
 }
 
 export default defineConfig<'vite'>(async (merge) => {
+  const taroEnv = process.env.TARO_ENV || 'weapp'
+  const outputRoot = `dist/${taroEnv}`
+
   const baseConfig: UserConfigExport<'vite'> = {
     projectName: 'miniapp',
     date: '2026-1-22',
@@ -33,14 +36,49 @@ export default defineConfig<'vite'>(async (merge) => {
       828: 1.81 / 2
     },
     sourceRoot: 'src',
-    outputRoot: 'dist',
+    outputRoot,
     plugins: [
       "@tarojs/plugin-generator"
     ],
     defineConstants: {
     },
+    modifyViteConfig(config) {
+      if (process.env.TARO_ENV !== 'alipay') {
+        return
+      }
+
+      const build = config.build ?? {}
+      config.build = {
+        ...build,
+        target: 'es5',
+        cssCodeSplit: false
+      }
+      config.esbuild = {
+        ...(config.esbuild ?? {}),
+        target: 'es5'
+      }
+
+      config.plugins = config.plugins ?? []
+      config.plugins.push({
+        name: 'taro-alipay-es5-override',
+        enforce: 'post',
+        config: () => ({
+          build: {
+            target: 'es5',
+            cssCodeSplit: false
+          },
+          esbuild: {
+            target: 'es5'
+          }
+        })
+      })
+    },
     copy: {
       patterns: [
+        {
+          from: 'src/assets/fonts',
+          to: 'assets/fonts'
+        }
       ],
       options: {
       }

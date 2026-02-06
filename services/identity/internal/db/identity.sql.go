@@ -300,6 +300,25 @@ func (q *Queries) DeleteUserRoles(ctx context.Context, userID uuid.UUID) error {
 	return err
 }
 
+const getFeatureFlags = `-- name: GetFeatureFlags :one
+SELECT payment_enabled, wechat_pay_enabled, alipay_pay_enabled
+FROM feature_flags
+WHERE id = 1
+`
+
+type GetFeatureFlagsRow struct {
+	PaymentEnabled   bool `db:"payment_enabled" json:"payment_enabled"`
+	WechatPayEnabled bool `db:"wechat_pay_enabled" json:"wechat_pay_enabled"`
+	AlipayPayEnabled bool `db:"alipay_pay_enabled" json:"alipay_pay_enabled"`
+}
+
+func (q *Queries) GetFeatureFlags(ctx context.Context) (GetFeatureFlagsRow, error) {
+	row := q.db.QueryRow(ctx, getFeatureFlags)
+	var i GetFeatureFlagsRow
+	err := row.Scan(&i.PaymentEnabled, &i.WechatPayEnabled, &i.AlipayPayEnabled)
+	return i, err
+}
+
 const getLatestSalesQrCode = `-- name: GetLatestSalesQrCode :one
 SELECT scene, sales_user_id, expires_at, created_at, platform, qr_code_url, updated_at FROM sales_qr_codes
 WHERE sales_user_id = $1 AND platform = $2 AND (expires_at IS NULL OR expires_at > now())
@@ -744,6 +763,65 @@ WHERE token = $1
 func (q *Queries) MarkStaffBindingTokenUsed(ctx context.Context, token string) error {
 	_, err := q.db.Exec(ctx, markStaffBindingTokenUsed, token)
 	return err
+}
+
+const transferCustomerOwnership = `-- name: TransferCustomerOwnership :one
+UPDATE users
+SET owner_sales_user_id = $2,
+    updated_at = now()
+WHERE id = $1 AND user_type = 'customer'
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason
+`
+
+type TransferCustomerOwnershipParams struct {
+	ID               uuid.UUID   `db:"id" json:"id"`
+	OwnerSalesUserID pgtype.UUID `db:"owner_sales_user_id" json:"owner_sales_user_id"`
+}
+
+func (q *Queries) TransferCustomerOwnership(ctx context.Context, arg TransferCustomerOwnershipParams) (User, error) {
+	row := q.db.QueryRow(ctx, transferCustomerOwnership, arg.ID, arg.OwnerSalesUserID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.DisplayName,
+		&i.UserType,
+		&i.OwnerSalesUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Status,
+		&i.DisabledAt,
+		&i.DisabledReason,
+	)
+	return i, err
+}
+
+const updateFeatureFlags = `-- name: UpdateFeatureFlags :one
+UPDATE feature_flags
+SET payment_enabled = $1,
+    wechat_pay_enabled = $2,
+    alipay_pay_enabled = $3,
+    updated_at = now()
+WHERE id = 1
+RETURNING payment_enabled, wechat_pay_enabled, alipay_pay_enabled
+`
+
+type UpdateFeatureFlagsParams struct {
+	PaymentEnabled   bool `db:"payment_enabled" json:"payment_enabled"`
+	WechatPayEnabled bool `db:"wechat_pay_enabled" json:"wechat_pay_enabled"`
+	AlipayPayEnabled bool `db:"alipay_pay_enabled" json:"alipay_pay_enabled"`
+}
+
+type UpdateFeatureFlagsRow struct {
+	PaymentEnabled   bool `db:"payment_enabled" json:"payment_enabled"`
+	WechatPayEnabled bool `db:"wechat_pay_enabled" json:"wechat_pay_enabled"`
+	AlipayPayEnabled bool `db:"alipay_pay_enabled" json:"alipay_pay_enabled"`
+}
+
+func (q *Queries) UpdateFeatureFlags(ctx context.Context, arg UpdateFeatureFlagsParams) (UpdateFeatureFlagsRow, error) {
+	row := q.db.QueryRow(ctx, updateFeatureFlags, arg.PaymentEnabled, arg.WechatPayEnabled, arg.AlipayPayEnabled)
+	var i UpdateFeatureFlagsRow
+	err := row.Scan(&i.PaymentEnabled, &i.WechatPayEnabled, &i.AlipayPayEnabled)
+	return i, err
 }
 
 const updateSalesQrCode = `-- name: UpdateSalesQrCode :exec

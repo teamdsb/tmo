@@ -19,6 +19,6 @@ go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.5.1 \
   -generate types,gin \
   -package oapi \
   -o "$commerce_dir/internal/http/oapi/api.gen.go" \
-  -include-tags Catalog,Cart,Orders,Tracking \
+  -include-tags Catalog,Wishlist,Cart,Orders,Tracking,ProductRequests,AfterSales,Inquiries \
   --import-mapping="./common.yaml:github.com/teamdsb/tmo/services/commerce/internal/http/oapi/common" \
   "$root_dir/contracts/openapi/commerce.yaml"

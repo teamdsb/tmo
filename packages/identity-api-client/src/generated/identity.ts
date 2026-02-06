@@ -874,6 +874,20 @@ page?: number;
 pageSize?: number;
 };
 
+export type GetCustomersParams = {
+q?: string;
+ownerSalesUserId?: string;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
 /**
  * @summary Mini program login (customer/staff, WeChat/Alipay)
  */
@@ -1687,6 +1701,109 @@ export const getGetAuditLogsUrl = (params?: GetAuditLogsParams,) => {
 export const getAuditLogs = async (params?: GetAuditLogsParams, options?: RequestInit): Promise<getAuditLogsResponse> => {
   
   return apiMutator<getAuditLogsResponse>(getGetAuditLogsUrl(params),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+
+
+
+/**
+ * @summary List customers (scope by role)
+ */
+export type getCustomersResponse200 = {
+  data: PagedCustomerList
+  status: 200
+}
+
+export type getCustomersResponse401 = {
+  data: UnauthorizedResponse
+  status: 401
+}
+
+export type getCustomersResponse403 = {
+  data: ForbiddenResponse
+  status: 403
+}
+    
+export type getCustomersResponseSuccess = (getCustomersResponse200) & {
+  headers: Headers;
+};
+export type getCustomersResponseError = (getCustomersResponse401 | getCustomersResponse403) & {
+  headers: Headers;
+};
+
+export type getCustomersResponse = (getCustomersResponseSuccess | getCustomersResponseError)
+
+export const getGetCustomersUrl = (params?: GetCustomersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/customers?${stringifiedParams}` : `/customers`
+}
+
+export const getCustomers = async (params?: GetCustomersParams, options?: RequestInit): Promise<getCustomersResponse> => {
+  
+  return apiMutator<getCustomersResponse>(getGetCustomersUrl(params),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+
+
+
+/**
+ * @summary Get customer detail
+ */
+export type getCustomersCustomerIdResponse200 = {
+  data: Customer
+  status: 200
+}
+
+export type getCustomersCustomerIdResponse401 = {
+  data: UnauthorizedResponse
+  status: 401
+}
+
+export type getCustomersCustomerIdResponse403 = {
+  data: ForbiddenResponse
+  status: 403
+}
+    
+export type getCustomersCustomerIdResponseSuccess = (getCustomersCustomerIdResponse200) & {
+  headers: Headers;
+};
+export type getCustomersCustomerIdResponseError = (getCustomersCustomerIdResponse401 | getCustomersCustomerIdResponse403) & {
+  headers: Headers;
+};
+
+export type getCustomersCustomerIdResponse = (getCustomersCustomerIdResponseSuccess | getCustomersCustomerIdResponseError)
+
+export const getGetCustomersCustomerIdUrl = (customerId: string,) => {
+
+
+  
+
+  return `/customers/${customerId}`
+}
+
+export const getCustomersCustomerId = async (customerId: string, options?: RequestInit): Promise<getCustomersCustomerIdResponse> => {
+  
+  return apiMutator<getCustomersCustomerIdResponse>(getGetCustomersCustomerIdUrl(customerId),
   {      
     ...options,
     method: 'GET'

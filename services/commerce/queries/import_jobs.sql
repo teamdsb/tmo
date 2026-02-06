@@ -15,3 +15,8 @@ INSERT INTO import_jobs (
     $6
 )
 RETURNING id, type, status, progress, result_file_url, error_report_url, created_by_user_id, created_at;
+
+-- name: GetImportJob :one
+SELECT id, type, status, progress, result_file_url, error_report_url, created_by_user_id, created_at
+FROM import_jobs
+WHERE id = $1;

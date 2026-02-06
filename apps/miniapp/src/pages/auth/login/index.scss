@@ -1,0 +1,58 @@
+.login-page {
+  background: #f6f7f8;
+}
+
+.login-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: #137fec;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-primary,
+.login-secondary {
+  height: 48px;
+  border-radius: 18px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.login-primary {
+  box-shadow: 0 10px 20px rgb(19 127 236 / 20%);
+}
+
+.login-secondary {
+  border: 2px solid #e2e8f0;
+  color: #334155;
+}
+
+.login-checkbox {
+  width: 16px;
+  height: 16px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+  position: relative;
+}
+
+.login-checkbox--checked {
+  border-color: #137fec;
+  background: #137fec;
+}
+
+.login-checkbox--checked::after {
+  content: '';
+  width: 6px;
+  height: 10px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  display: block;
+}

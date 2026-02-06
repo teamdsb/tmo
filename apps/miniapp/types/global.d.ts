@@ -24,10 +24,12 @@ declare namespace NodeJS {
      */
     TARO_APP_ID: string
     TARO_APP_API_BASE_URL?: string
+    TARO_APP_GATEWAY_BASE_URL?: string
+    TARO_APP_GATEWAY_DEV_TOKEN?: string
     TARO_APP_COMMERCE_BASE_URL?: string
     TARO_APP_COMMERCE_DEV_TOKEN?: string
+    TARO_APP_COMMERCE_MOCK_FALLBACK?: string
     TARO_APP_IDENTITY_BASE_URL?: string
     TARO_APP_IDENTITY_DEV_TOKEN?: string
   }
 }
-

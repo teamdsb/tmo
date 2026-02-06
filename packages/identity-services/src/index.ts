@@ -2,6 +2,7 @@ import { getPlatform, login as platformLogin } from '@tmo/platform-adapter'
 import { Platform } from '@tmo/shared/enums'
 import {
   getMe,
+  getMePermissions,
   getMeSalesQrCode,
   postAuthMiniLogin,
   postAuthPasswordLogin,
@@ -13,6 +14,7 @@ import {
   type MiniLoginRequestPlatform,
   type MiniLoginRequestRole,
   type PasswordLoginRequest,
+  type PermissionList,
   type SalesQrCode,
   type User
 } from '@tmo/identity-api-client'
@@ -45,6 +47,7 @@ export interface IdentityServices {
   }
   me: {
     get: () => Promise<User>
+    getPermissions: () => Promise<PermissionList>
     getSalesQrCode: () => Promise<SalesQrCode>
   }
   tokens: TokenStore
@@ -144,6 +147,13 @@ export const createIdentityServices = (config: IdentityServicesConfig = {}): Ide
       const response = await getMe()
       if (response.status !== 200) {
         throw new ApiError('failed to fetch user', response.status)
+      }
+      return response.data
+    },
+    getPermissions: async (): Promise<PermissionList> => {
+      const response = await getMePermissions()
+      if (response.status !== 200) {
+        throw new ApiError('failed to fetch permissions', response.status)
       }
       return response.data
     },

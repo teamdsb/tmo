@@ -1,0 +1,15 @@
+{
+  "name": "@tmo/gateway-services",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@tmo/gateway-api-client": "workspace:*",
+    "@tmo/openapi-client": "workspace:*",
+    "@tmo/platform-adapter": "workspace:*",
+    "@tmo/shared": "workspace:*"
+  }
+}

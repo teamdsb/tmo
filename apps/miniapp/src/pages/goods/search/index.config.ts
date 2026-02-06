@@ -1,4 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: 'Search Results',
+  navigationBarTitleText: '搜索结果',
   navigationStyle: 'custom'
 })

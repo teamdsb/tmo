@@ -1,34 +1,28 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import ExcelImportConfirmation from './index';
 
+const flushPromises = () => new Promise((resolve) => process.nextTick(resolve));
+
+const renderCart = async () => {
+  render(<ExcelImportConfirmation />);
+  await act(async () => {
+    await flushPromises();
+  });
+};
+
 describe('ExcelImportConfirmation', () => {
-  it('renders status summary and action bar', () => {
-    render(<ExcelImportConfirmation />);
+  it('renders cart summary and items', async () => {
+    await renderCart();
 
-    expect(screen.getByText('15 Items Found')).toBeInTheDocument();
-    expect(screen.getByText('Subtotal (12 items)')).toBeInTheDocument();
+    expect(await screen.findByText('示例螺栓')).toBeInTheDocument();
+    expect(screen.getByText('数量')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
   });
 
-  it('renders pending items and allows tab switch', () => {
-    render(<ExcelImportConfirmation />);
+  it('shows the cart action buttons', async () => {
+    await renderCart();
 
-    expect(screen.getAllByText('Select Spec')).toHaveLength(3);
-
-    const confirmedTab = screen.getByText('Confirmed (12)');
-    const confirmedLabel = confirmedTab.closest('label');
-
-    expect(confirmedLabel).not.toBeNull();
-    if (!confirmedLabel) {
-      throw new Error('Expected confirmed label');
-    }
-    fireEvent.click(confirmedLabel);
-
-    expect(confirmedLabel).toHaveClass('text-[#137fec]');
-  });
-
-  it('shows the cart action button', () => {
-    render(<ExcelImportConfirmation />);
-
-    expect(screen.getByText('Add to Cart')).toBeInTheDocument();
+    expect(screen.getByText('继续浏览')).toBeInTheDocument();
+    expect(screen.getByText('去结算')).toBeInTheDocument();
   });
 });

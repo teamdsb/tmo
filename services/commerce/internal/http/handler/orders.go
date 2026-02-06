@@ -137,7 +137,7 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 		q := db.New(tx)
 		var err error
 		order, err = q.CreateOrder(ctx, db.CreateOrderParams{
-			Status:           string(oapi.SUBMITTED),
+			Status:           string(oapi.OrderStatusSUBMITTED),
 			CustomerID:       claims.UserID,
 			OwnerSalesUserID: ownerSalesUserID,
 			Address:          addressJSON,

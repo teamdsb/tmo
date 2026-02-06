@@ -1,0 +1,11 @@
+diff --git a/van/VanIcon.scss b/van/VanIcon.scss
+--- a/van/VanIcon.scss
++++ b/van/VanIcon.scss
+@@ -18,5 +18,5 @@
+   src:
+-    url('//at.alicdn.com/t/c/font_2553510_kfwma2yq1rs.woff2?t=1694918397022')
++    url('https://at.alicdn.com/t/c/font_2553510_kfwma2yq1rs.woff2?t=1694918397022')
+     format('woff2'),
+-    url('//at.alicdn.com/t/c/font_2553510_kfwma2yq1rs.woff?t=1694918397022')
++    url('https://at.alicdn.com/t/c/font_2553510_kfwma2yq1rs.woff?t=1694918397022')
+     format('woff');

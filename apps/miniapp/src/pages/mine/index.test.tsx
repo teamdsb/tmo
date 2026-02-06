@@ -1,32 +1,40 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import PersonalCenter from './index';
 
-describe('PersonalCenter', () => {
-  it('renders user info and key sections', () => {
-    render(<PersonalCenter />);
+const flushPromises = () => new Promise((resolve) => process.nextTick(resolve));
 
-    expect(screen.getByText('John Doe')).toBeInTheDocument();
-    expect(screen.getByText('TechFlow Solutions Corp')).toBeInTheDocument();
-    expect(screen.getByText('Account Manager')).toBeInTheDocument();
+const renderPersonalCenter = async () => {
+  render(<PersonalCenter />);
+  await act(async () => {
+    await flushPromises();
+  });
+};
+
+describe('PersonalCenter', () => {
+  it('renders user info and key sections', async () => {
+    await renderPersonalCenter();
+
+    expect(await screen.findByText('张三')).toBeInTheDocument();
+    expect(screen.getByText('客户经理')).toBeInTheDocument();
+    expect(screen.getByText('王经理')).toBeInTheDocument();
   });
 
-  it('renders the logout button', () => {
-    render(<PersonalCenter />);
+  it('renders the logout button', async () => {
+    await renderPersonalCenter();
 
-    const button = screen.getByText('Switch Account or Logout');
+    const button = screen.getByText('切换账号或退出登录');
     expect(button).toBeInTheDocument();
 
     fireEvent.click(button);
-    expect(screen.getByText('Switch Account or Logout')).toBeInTheDocument();
+    expect(screen.getByText('切换账号或退出登录')).toBeInTheDocument();
   });
 
-  it('renders the tabbar items', () => {
-    render(<PersonalCenter />);
+  it('renders the tabbar items', async () => {
+    await renderPersonalCenter();
 
-    expect(screen.getByText('Home')).toBeInTheDocument();
-    expect(screen.getByText('Demand')).toBeInTheDocument();
-    expect(screen.getByText('Cart')).toBeInTheDocument();
-    expect(screen.getByText('Orders')).toBeInTheDocument();
-    expect(screen.getByText('Mine')).toBeInTheDocument();
+    expect(screen.getByText('首页')).toBeInTheDocument();
+    expect(screen.getByText('分类')).toBeInTheDocument();
+    expect(screen.getByText('购物车')).toBeInTheDocument();
+    expect(screen.getByText('我的')).toBeInTheDocument();
   });
 });

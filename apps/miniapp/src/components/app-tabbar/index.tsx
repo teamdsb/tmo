@@ -1,18 +1,16 @@
 import Tabbar from '@taroify/core/tabbar'
-import Aim from '@taroify/icons/Aim'
-import OrdersOutlined from '@taroify/icons/OrdersOutlined'
 import ShoppingCartOutlined from '@taroify/icons/ShoppingCartOutlined'
 import UserOutlined from '@taroify/icons/UserOutlined'
 import WapHomeOutlined from '@taroify/icons/WapHomeOutlined'
+import AppsOutlined from '@taroify/icons/AppsOutlined'
 import { ROUTES } from '../../routes'
 import { switchTabLike } from '../../utils/navigation'
 
 const TAB_ITEMS = [
-  { key: 'home', label: 'Home', icon: <WapHomeOutlined />, url: ROUTES.home },
-  { key: 'demand', label: 'Demand', icon: <Aim />, url: ROUTES.demand },
-  { key: 'cart', label: 'Cart', icon: <ShoppingCartOutlined />, url: ROUTES.cart },
-  { key: 'orders', label: 'Orders', icon: <OrdersOutlined />, url: ROUTES.orders },
-  { key: 'mine', label: 'Mine', icon: <UserOutlined />, url: ROUTES.mine }
+  { key: 'home', label: '首页', icon: <WapHomeOutlined />, url: ROUTES.home },
+  { key: 'category', label: '分类', icon: <AppsOutlined />, url: ROUTES.category },
+  { key: 'cart', label: '购物车', icon: <ShoppingCartOutlined />, url: ROUTES.cart },
+  { key: 'mine', label: '我的', icon: <UserOutlined />, url: ROUTES.mine }
 ] as const
 
 export type AppTabKey = (typeof TAB_ITEMS)[number]['key']

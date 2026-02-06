@@ -33,9 +33,9 @@ const (
 
 // Defines values for RoleUserType.
 const (
-	Admin    RoleUserType = "admin"
-	Customer RoleUserType = "customer"
-	Staff    RoleUserType = "staff"
+	RoleUserTypeAdmin    RoleUserType = "admin"
+	RoleUserTypeCustomer RoleUserType = "customer"
+	RoleUserTypeStaff    RoleUserType = "staff"
 )
 
 // Defines values for GetMeSalesQrCodeParamsPlatform.
@@ -88,6 +88,15 @@ type CreateStaffRequest struct {
 	Roles       []string `json:"roles"`
 }
 
+// Customer defines model for Customer.
+type Customer struct {
+	CreatedAt        time.Time           `json:"createdAt"`
+	DisplayName      string              `json:"displayName"`
+	Id               openapi_types.UUID  `json:"id"`
+	OwnerSalesUserId *openapi_types.UUID `json:"ownerSalesUserId"`
+	Phone            *string             `json:"phone"`
+}
+
 // EffectivePermission defines model for EffectivePermission.
 type EffectivePermission struct {
 	Code  string          `json:"code"`
@@ -103,6 +112,14 @@ type MiniLoginRequest = externalRef0.MiniLoginRequest
 // PagedAuditLogList defines model for PagedAuditLogList.
 type PagedAuditLogList struct {
 	Items    []AuditLog `json:"items"`
+	Page     int        `json:"page"`
+	PageSize int        `json:"pageSize"`
+	Total    int        `json:"total"`
+}
+
+// PagedCustomerList defines model for PagedCustomerList.
+type PagedCustomerList struct {
+	Items    []Customer `json:"items"`
 	Page     int        `json:"page"`
 	PageSize int        `json:"pageSize"`
 	Total    int        `json:"total"`
@@ -227,6 +244,14 @@ type GetAuditLogsParams struct {
 	PageSize    *int                `form:"pageSize,omitempty" json:"pageSize,omitempty"`
 }
 
+// GetCustomersParams defines parameters for GetCustomers.
+type GetCustomersParams struct {
+	Q                *string             `form:"q,omitempty" json:"q,omitempty"`
+	OwnerSalesUserId *openapi_types.UUID `form:"ownerSalesUserId,omitempty" json:"ownerSalesUserId,omitempty"`
+	Page             *int                `form:"page,omitempty" json:"page,omitempty"`
+	PageSize         *int                `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+}
+
 // GetMeSalesQrCodeParams defines parameters for GetMeSalesQrCode.
 type GetMeSalesQrCodeParams struct {
 	Platform *GetMeSalesQrCodeParamsPlatform `form:"platform,omitempty" json:"platform,omitempty"`
@@ -276,6 +301,12 @@ type ServerInterface interface {
 	// Admin web password login
 	// (POST /auth/password/login)
 	PostAuthPasswordLogin(c *gin.Context)
+	// List customers (scope by role)
+	// (GET /customers)
+	GetCustomers(c *gin.Context, params GetCustomersParams)
+	// Get customer detail
+	// (GET /customers/{customerId})
+	GetCustomersCustomerId(c *gin.Context, customerId openapi_types.UUID)
 	// Get current user
 	// (GET /me)
 	GetMe(c *gin.Context)
@@ -410,6 +441,84 @@ func (siw *ServerInterfaceWrapper) PostAuthPasswordLogin(c *gin.Context) {
 	}
 
 	siw.Handler.PostAuthPasswordLogin(c)
+}
+
+// GetCustomers operation middleware
+func (siw *ServerInterfaceWrapper) GetCustomers(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetCustomersParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "q", c.Request.URL.Query(), &params.Q)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter q: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "ownerSalesUserId" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "ownerSalesUserId", c.Request.URL.Query(), &params.OwnerSalesUserId)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter ownerSalesUserId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", c.Request.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "pageSize" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "pageSize", c.Request.URL.Query(), &params.PageSize)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter pageSize: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetCustomers(c, params)
+}
+
+// GetCustomersCustomerId operation middleware
+func (siw *ServerInterfaceWrapper) GetCustomersCustomerId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "customerId" -------------
+	var customerId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "customerId", c.Param("customerId"), &customerId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter customerId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetCustomersCustomerId(c, customerId)
 }
 
 // GetMe operation middleware
@@ -715,6 +824,8 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/audit-logs", wrapper.GetAuditLogs)
 	router.POST(options.BaseURL+"/auth/mini/login", wrapper.PostAuthMiniLogin)
 	router.POST(options.BaseURL+"/auth/password/login", wrapper.PostAuthPasswordLogin)
+	router.GET(options.BaseURL+"/customers", wrapper.GetCustomers)
+	router.GET(options.BaseURL+"/customers/:customerId", wrapper.GetCustomersCustomerId)
 	router.GET(options.BaseURL+"/me", wrapper.GetMe)
 	router.GET(options.BaseURL+"/me/permissions", wrapper.GetMePermissions)
 	router.GET(options.BaseURL+"/me/sales-qr-code", wrapper.GetMeSalesQrCode)

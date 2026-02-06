@@ -5,4 +5,5 @@ use (
 	./services/commerce
 	./services/identity
 	./services/gateway-bff
+	./services/payment
 )
