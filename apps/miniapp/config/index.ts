@@ -22,6 +22,9 @@ const postcssConfig = {
 }
 
 export default defineConfig<'vite'>(async (merge) => {
+  const taroEnv = process.env.TARO_ENV || 'weapp'
+  const outputRoot = `dist/${taroEnv}`
+
   const baseConfig: UserConfigExport<'vite'> = {
     projectName: 'miniapp',
     date: '2026-1-22',
@@ -33,7 +36,7 @@ export default defineConfig<'vite'>(async (merge) => {
       828: 1.81 / 2
     },
     sourceRoot: 'src',
-    outputRoot: 'dist',
+    outputRoot,
     plugins: [
       "@tarojs/plugin-generator"
     ],

@@ -4,7 +4,7 @@ const path = require('path')
 const puppeteer = require('puppeteer-core')
 
 const projectDir = path.resolve(
-  process.env.ALIPAY_PROJECT_DIR || path.join(__dirname, '..', 'dist')
+  process.env.ALIPAY_PROJECT_DIR || path.join(__dirname, '..', 'dist', 'alipay')
 )
 const timeoutMs = Number(process.env.ALIPAY_CONSOLE_TIMEOUT_MS || 60000)
 const exitOnError = process.env.ALIPAY_CONSOLE_EXIT_ON_ERROR !== 'false'

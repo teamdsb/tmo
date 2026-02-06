@@ -4,7 +4,7 @@
 
 ## 构建命令
 
-在仓库根目录执行，构建产物输出到 `apps/miniapp/dist`（按平台区分子目录）：
+在仓库根目录执行，构建产物输出到 `apps/miniapp/dist/<platform>`：
 
     pnpm -C apps/miniapp build:weapp
     pnpm -C apps/miniapp build:alipay
@@ -51,6 +51,16 @@
 - `TARO_APP_COMMERCE_MOCK_FALLBACK=false` 可以强制走真实后端，不再回退 mock 数据。
 - 如果使用容器化后端，保持 `TARO_APP_API_BASE_URL=http://localhost:8080` 即可。
 
+支付宝稳定模式：
+
+- `pnpm -C apps/miniapp build:alipay` 会执行构建、后处理与产物完整性校验。
+- `pnpm -C apps/miniapp dev:alipay` 为稳定模式入口，等价于执行一次 `build:alipay`（不提供实时 watch 发布）。
+
+平台导入目录：
+
+- 微信开发者工具：`apps/miniapp/dist/weapp`
+- 支付宝开发者工具：`apps/miniapp/dist/alipay`
+
 ## 支付宝 Web 调试器 console 采集
 
 该脚本会使用 minidev 启动 DevServer，并打开 Web 模拟器来采集 console 日志，输出到 `apps/miniapp/.logs/`。
@@ -66,7 +76,7 @@
 
 可用环境变量：
 
-- `ALIPAY_PROJECT_DIR`：默认 `apps/miniapp/dist`
+- `ALIPAY_PROJECT_DIR`：默认 `apps/miniapp/dist/alipay`
 - `ALIPAY_CONSOLE_TIMEOUT_MS`：采集超时，默认 60000
 - `ALIPAY_CONSOLE_EXIT_ON_ERROR`：遇到 error 是否失败，默认 true
 - `ALIPAY_WEB_URL`：手动指定 Web 模拟器 URL
@@ -80,6 +90,12 @@
 文档参考：
 
 - https://opendocs.alipay.com/mini/02q17j?pathHash=c8856bdf
+
+排错：
+
+- 不要让微信和支付宝共用同一个导入目录，必须分别导入 `dist/weapp` 与 `dist/alipay`。
+- 如果支付宝开发者工具导入 `apps/miniapp/dist/alipay` 后出现 `ENOENT ... dist/dist/app.json`，请检查 `apps/miniapp/dist/alipay/mini.project.json` 中的 `miniprogramRoot`，应为 `./`。
+- 如果出现 `CE1000.01 cannot resolve module ...*.axml`，先执行 `pnpm -C apps/miniapp build:alipay`，再根据 `verify-alipay-dist` 输出补齐缺失文件后重试导入。
 
 ## 导航栏高度约定
 

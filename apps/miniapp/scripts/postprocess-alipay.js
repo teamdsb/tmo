@@ -3,7 +3,13 @@ const path = require('path')
 const { createRequire } = require('module')
 const babel = require('@babel/core')
 
+const distDir = path.resolve(__dirname, '..', 'dist')
+const targetDir = path.join(distDir, 'alipay')
 const workspaceRoot = path.resolve(__dirname, '..', '..', '..')
+
+const targets = {
+  ie: '11'
+}
 
 function resolvePresetEnv() {
   try {
@@ -32,12 +38,6 @@ function resolvePresetEnv() {
   }
 }
 
-const distDir = path.resolve(__dirname, '..', 'dist')
-
-const targets = {
-  ie: '11'
-}
-
 function walk(dir, files = []) {
   const entries = fs.readdirSync(dir, { withFileTypes: true })
   for (const entry of entries) {
@@ -46,17 +46,18 @@ function walk(dir, files = []) {
       walk(fullPath, files)
       continue
     }
-    if (fullPath.endsWith('.js') || fullPath.endsWith('.sjs')) {
-      files.push(fullPath)
-    }
+    files.push(fullPath)
   }
   return files
 }
 
-function transformFile(filePath) {
+function transformJsFile(filePath) {
+  if (!filePath.endsWith('.js') && !filePath.endsWith('.sjs')) {
+    return
+  }
+
   const original = fs.readFileSync(filePath, 'utf8')
   let input = original
-
   const basename = path.basename(filePath)
   const needsShim = basename === 'vendors.js' || basename === 'app.js' || basename === 'common.js'
   const shimRegex = /\/\*__tmo_global_shim__\*\/[\s\S]*?var global=__tmo_global__;/g
@@ -113,9 +114,73 @@ function transformFile(filePath) {
   }
 }
 
-if (fs.existsSync(distDir)) {
-  const files = walk(distDir)
-  for (const filePath of files) {
-    transformFile(filePath)
+function patchAppAcss() {
+  const appFile = path.join(targetDir, 'app.acss')
+  if (!fs.existsSync(appFile)) {
+    return
+  }
+
+  const content = fs.readFileSync(appFile, 'utf8')
+  const updated = content.replace(
+    /@import\s+(['"])app-origin\.acss\1;/g,
+    '@import "./app-origin.acss";'
+  )
+
+  if (updated !== content) {
+    fs.writeFileSync(appFile, updated, 'utf8')
   }
 }
+
+function patchMiniProject() {
+  const projectFile = path.join(targetDir, 'mini.project.json')
+  if (!fs.existsSync(projectFile)) {
+    const fallback = {
+      format: 2,
+      miniprogramRoot: './',
+      compileType: 'mini'
+    }
+    fs.writeFileSync(projectFile, `${JSON.stringify(fallback, null, 2)}\n`, 'utf8')
+    return
+  }
+
+  const content = fs.readFileSync(projectFile, 'utf8')
+  let projectConfig
+
+  try {
+    projectConfig = JSON.parse(content)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    throw new Error(`[postprocess-alipay] failed to parse ${projectFile}: ${message}`)
+  }
+
+  const root = typeof projectConfig.miniprogramRoot === 'string' ? projectConfig.miniprogramRoot : ''
+  const normalized = root.replace(/\\/g, '/')
+  if (
+    normalized === 'dist' ||
+    normalized === './dist' ||
+    normalized.startsWith('dist/') ||
+    normalized.startsWith('./dist/')
+  ) {
+    projectConfig.miniprogramRoot = './'
+  }
+
+  const updated = `${JSON.stringify(projectConfig, null, 2)}\n`
+  if (updated !== content) {
+    fs.writeFileSync(projectFile, updated, 'utf8')
+  }
+}
+
+function run() {
+  if (!fs.existsSync(targetDir)) {
+    process.exit(0)
+  }
+
+  const files = walk(targetDir)
+  for (const filePath of files) {
+    transformJsFile(filePath)
+  }
+  patchAppAcss()
+  patchMiniProject()
+}
+
+run()

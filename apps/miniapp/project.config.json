@@ -1,5 +1,5 @@
 {
-  "miniprogramRoot": "./dist",
+  "miniprogramRoot": "./dist/weapp",
   "projectname": "miniapp",
   "description": "crossend minirepo ali&wechat",
   "appid": "touristappid",
