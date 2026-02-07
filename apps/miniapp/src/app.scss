@@ -116,6 +116,22 @@
   padding-top: 0;
 }
 
+.taroify-tabbar__placeholder {
+  background: #fff;
+}
+
+.taroify-tabbar__placeholder .taroify-fixed-view--bottom {
+  bottom: 0;
+  z-index: 20;
+  background: #fff;
+}
+
+.taroify-tabbar__placeholder .app-tabbar--fixed,
+.taroify-tabbar__placeholder .taroify-safe-area,
+.taroify-tabbar__placeholder .taroify-safe-area--bottom {
+  background: #fff;
+}
+
 .mine-contact-card {
   display: flex;
   flex-direction: column;

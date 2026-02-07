@@ -1,1 +1,38 @@
-/* placeholder */
+.home-showcase {
+  margin: 0 16px 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid #dce4ef;
+  background: #fff;
+}
+
+.home-showcase-swiper {
+  height: 178px;
+}
+
+.home-showcase-empty {
+  height: 100%;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.home-showcase-dots {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.home-showcase-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #cfd9e8;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.home-showcase-dot.is-active {
+  background: #1677ff;
+  transform: scale(1.1);
+}

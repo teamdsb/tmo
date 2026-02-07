@@ -36,5 +36,13 @@ describe('PersonalCenter', () => {
     expect(screen.getByText('分类')).toBeInTheDocument();
     expect(screen.getByText('购物车')).toBeInTheDocument();
     expect(screen.getByText('我的')).toBeInTheDocument();
+
+    const tabbarRoot = screen.getByText('首页').closest('button')?.parentElement;
+    expect(tabbarRoot).not.toBeNull();
+    if (!tabbarRoot) {
+      throw new Error('Expected tabbar root');
+    }
+    expect(tabbarRoot).toHaveClass('app-tabbar');
+    expect(tabbarRoot).toHaveClass('app-tabbar--fixed');
   });
 });

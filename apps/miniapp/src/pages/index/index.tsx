@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Swiper, SwiperItem } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Search from '@taroify/core/search'
@@ -18,6 +18,7 @@ import { goodsDetailRoute } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
 import { navigateTo } from '../../utils/navigation'
 import { commerceServices } from '../../services/commerce'
+import './index.scss'
 
 export default function ProductCatalogApp() {
   const [categories, setCategories] = useState<Category[]>([])
@@ -82,6 +83,8 @@ export default function ProductCatalogApp() {
         />
       </View>
 
+      <HomeShowcase />
+
       <Tabs
         value={activeCategory}
         onChange={(value) => setActiveCategory(String(value))}
@@ -114,6 +117,40 @@ export default function ProductCatalogApp() {
       </Tabs>
 
       <AppTabbar value='home' />
+    </View>
+  )
+}
+
+function HomeShowcase() {
+  const showcasePages = 3
+  const [activePage, setActivePage] = useState(0)
+
+  return (
+    <View className='home-showcase'>
+      <Swiper
+        className='home-showcase-swiper'
+        current={activePage}
+        circular
+        autoplay
+        interval={4500}
+        duration={480}
+        onChange={(event) => setActivePage(event.detail.current)}
+      >
+        {Array.from({ length: showcasePages }).map((_, index) => (
+          <SwiperItem key={index}>
+            <View className='home-showcase-empty' data-testid='home-showcase-empty' />
+          </SwiperItem>
+        ))}
+      </Swiper>
+
+      <View className='home-showcase-dots' data-testid='home-showcase-dots'>
+        {Array.from({ length: showcasePages }).map((_, index) => (
+          <View
+            key={index}
+            className={`home-showcase-dot ${index === activePage ? 'is-active' : ''}`}
+          />
+        ))}
+      </View>
     </View>
   )
 }
