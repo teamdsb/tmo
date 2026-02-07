@@ -32,12 +32,12 @@ describe('PersonalCenter', () => {
   it('renders the tabbar items', async () => {
     await renderPersonalCenter();
 
-    expect(screen.getByText('首页')).toBeInTheDocument();
-    expect(screen.getByText('分类')).toBeInTheDocument();
-    expect(screen.getByText('购物车')).toBeInTheDocument();
-    expect(screen.getByText('我的')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '首页' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '分类' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '购物车' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '我的' })).toBeInTheDocument();
 
-    const tabbarRoot = screen.getByText('首页').closest('button')?.parentElement;
+    const tabbarRoot = screen.getByRole('button', { name: '首页' }).parentElement;
     expect(tabbarRoot).not.toBeNull();
     if (!tabbarRoot) {
       throw new Error('Expected tabbar root');

@@ -5,6 +5,12 @@ root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 services_dir="$root_dir/services"
 packages_dir="$root_dir/packages"
 
+# Keep Go build cache writable in restricted environments.
+if [ -z "${GOCACHE:-}" ]; then
+  export GOCACHE="${TMPDIR:-/tmp}/tmo-go-build-cache"
+fi
+mkdir -p "$GOCACHE"
+
 service_found=0
 package_found=0
 

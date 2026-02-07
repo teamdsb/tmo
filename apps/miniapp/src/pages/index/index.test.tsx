@@ -18,7 +18,7 @@ describe('ProductCatalogApp', () => {
   it('renders search and product grid', async () => {
     await renderCatalog();
 
-    expect(screen.getByTestId('home-showcase-empty')).toBeInTheDocument();
+    expect(screen.getAllByTestId('home-showcase-empty')).toHaveLength(3);
     expect(screen.getByTestId('home-showcase-dots')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('按 SKU 或名称搜索...')).toBeInTheDocument();
     expect(await screen.findByText('办公用品')).toBeInTheDocument();

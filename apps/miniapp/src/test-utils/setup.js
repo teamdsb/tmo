@@ -34,6 +34,11 @@ const stripDomProps = (props) => {
     wrap,
     direction,
     inset,
+    current,
+    circular,
+    autoplay,
+    interval,
+    duration,
     ...rest
   } = props;
   return rest;
@@ -73,6 +78,8 @@ jest.mock('@tarojs/components', () => {
     Button,
     Input,
     ScrollView: mockCreateComponent('div'),
+    Swiper: mockComponent('div'),
+    SwiperItem: mockComponent('div'),
     Image: mockCreateComponent('img')
   };
 });
