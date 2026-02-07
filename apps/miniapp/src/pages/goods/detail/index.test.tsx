@@ -19,7 +19,8 @@ describe('ProductDetail', () => {
 
     expect((await screen.findAllByText('高精度工业控制阀')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('¥185.00').length).toBeGreaterThan(0);
-    expect(screen.getByText('标准空运')).toBeInTheDocument();
+    expect(screen.getByText('标准配送')).toBeInTheDocument();
+    expect(screen.getByText('采购量越高单价越低')).toBeInTheDocument();
   });
 
   it('updates material selection', async () => {

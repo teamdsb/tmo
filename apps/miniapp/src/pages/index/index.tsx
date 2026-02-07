@@ -5,7 +5,6 @@ import Navbar from '@taroify/core/navbar'
 import Search from '@taroify/core/search'
 import Tabs from '@taroify/core/tabs'
 import Grid from '@taroify/core/grid'
-import Tag from '@taroify/core/tag'
 import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
 import AppsOutlined from '@taroify/icons/AppsOutlined'
@@ -159,16 +158,15 @@ function ProductCard({ data }: { data: ProductSummary }) {
   const tagLabel = data.tags?.[0] ?? '分类'
   return (
     <View className='product-card' onClick={() => navigateTo(goodsDetailRoute(data.id))}>
-      <SafeImage src={data.coverImageUrl} width='100%' height={150} mode='aspectFill' />
+      <SafeImage className='product-card-image' src={data.coverImageUrl} width='100%' height={198} mode='aspectFill' />
       <View className='product-card-body'>
         <Text className='product-card-title'>{data.name}</Text>
         <Text className='product-card-price'>价格详见详情</Text>
-        <Text className='product-card-min'>编号：{data.id.slice(0, 8)}</Text>
-        <Flex justify='space-between' align='center'>
-          <Tag size='small' variant='outlined' color='primary'>
-            {tagLabel}
-          </Tag>
-          <Button size='mini' color='primary'>详情</Button>
+        <Flex justify='space-between' align='center' className='product-card-footer'>
+          <View className='product-card-tag'>
+            <Text>{tagLabel}</Text>
+          </View>
+          <Button className='product-card-action' size='mini' color='primary'>详情</Button>
         </Flex>
       </View>
     </View>

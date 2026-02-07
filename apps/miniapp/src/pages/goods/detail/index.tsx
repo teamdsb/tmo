@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Button as TaroButton } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Tag from '@taroify/core/tag'
 import Grid from '@taroify/core/grid'
 import Cell from '@taroify/core/cell'
-import Button from '@taroify/core/button'
+import TaroifyButton from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
 import FixedView from '@taroify/core/fixed-view'
 import ArrowRight from '@taroify/icons/ArrowRight'
@@ -137,8 +137,10 @@ export default function ProductDetail() {
     }
   }
 
+  const actionBase = 'flex-1 h-11 rounded-xl text-sm font-semibold flex items-center justify-center'
+
   return (
-    <View className='page'>
+    <View className='page page-detail'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
         <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.home))} />
         <Navbar.Title>{detail?.product?.name ?? '商品详情'}</Navbar.Title>
@@ -148,12 +150,12 @@ export default function ProductDetail() {
         <View className='media'>
           <SafeImage
             width='100%'
-            height={168}
+            height={208}
             mode='aspectFill'
             src={images[0]}
           />
           <Tag size='small' color='default' className='media-counter'>
-            {images.length} 张图片
+            {images.length} 张
           </Tag>
         </View>
 
@@ -164,10 +166,10 @@ export default function ProductDetail() {
               <Text className='product-price-value'>
                 {selectedSku ? formatSkuPrice(selectedSku) : '询价'}
               </Text>
-              <Text className='product-price-note'>每件</Text>
+              <Text className='product-price-note'>单件参考价</Text>
             </View>
             <View className='product-price-actions'>
-              <Button
+              <TaroifyButton
                 size='mini'
                 variant='outlined'
                 icon={isFavorite ? <Star className='text-base' /> : <StarOutlined className='text-base' />}
@@ -179,42 +181,43 @@ export default function ProductDetail() {
           </View>
 
           <Flex align='center' gutter={8} className='product-meta'>
-            <Tag size='small' variant='outlined'>SKU 数量：{skus.length}</Tag>
-            <Text className='product-meta-text'>{loading ? '正在加载详情...' : '实时价格'}</Text>
+            <Tag size='small' variant='outlined' className='product-meta-tag'>可选规格 {skus.length}</Tag>
+            <Text className='product-meta-text'>{loading ? '正在加载详情...' : '含税单价'}</Text>
           </Flex>
         </View>
 
         <View className='product-section'>
           <Flex justify='space-between' align='center'>
-            <Text className='section-title'>阶梯价格</Text>
-            <Text className='section-link'>批量优惠</Text>
+            <Text className='product-section-title'>阶梯单价</Text>
+            <Text className='product-section-link'>采购量越高单价越低</Text>
           </Flex>
 
-          <Grid columns={3} gutter={8}>
+          <Grid columns={3} gutter={10} className='product-tier-grid'>
             {renderPriceTiers(selectedSku?.priceTiers)}
           </Grid>
         </View>
 
         <View className='product-section'>
-          <Text className='section-title'>SKU 选项</Text>
-          <Flex wrap='wrap' gutter={8}>
-            {skus.map((sku) => (
-              <Button
-                key={sku.id}
-                size='small'
-                color={selectedSku?.id === sku.id ? 'primary' : 'default'}
-                variant={selectedSku?.id === sku.id ? 'contained' : 'outlined'}
-                onClick={() => setSelectedSkuId(sku.id)}
-              >
-                {sku.spec ?? sku.name}
-              </Button>
-            ))}
-          </Flex>
-        </View>
+            <Text className='product-section-title'>SKU 选项</Text>
+            <Flex wrap='wrap' gutter={8}>
+              {skus.map((sku) => (
+                <TaroifyButton
+                  key={sku.id}
+                  className='product-sku-button'
+                  size='small'
+                  color={selectedSku?.id === sku.id ? 'primary' : 'default'}
+                  variant={selectedSku?.id === sku.id ? 'contained' : 'outlined'}
+                  onClick={() => setSelectedSkuId(sku.id)}
+                >
+                  {sku.spec ?? sku.name}
+                </TaroifyButton>
+              ))}
+            </Flex>
+          </View>
 
         {selectedSku?.attributes ? (
           <View className='product-section'>
-            <Text className='section-title'>属性</Text>
+            <Text className='product-section-title'>属性</Text>
             <Flex wrap='wrap' gutter={8}>
               {Object.entries(selectedSku.attributes).map(([key, value]) => (
                 <Tag key={key} size='small' variant='outlined'>
@@ -226,17 +229,30 @@ export default function ProductDetail() {
         ) : null}
 
         <Cell
+          className='product-logistics'
           icon={<Logistics />}
-          title='标准空运'
-          brief='预计 9月12日 - 9月18日送达'
+          title='标准配送'
+          brief='预计 9月12日 - 9月18日送达（工作日）'
           rightIcon={<ArrowRight />}
         />
       </View>
 
       <FixedView position='bottom' safeArea='bottom' placeholder>
         <Flex gutter={12} className='action-bar'>
-          <Button block variant='outlined' onClick={handleInquiry}>议价</Button>
-          <Button block color='primary' onClick={handleAddToCart}>加入购物车</Button>
+          <TaroButton
+            className={`${actionBase} detail-action-button cart-action-secondary`}
+            hoverClass='none'
+            onClick={handleInquiry}
+          >
+            议价
+          </TaroButton>
+          <TaroButton
+            className={`${actionBase} detail-action-button cart-action-primary`}
+            hoverClass='none'
+            onClick={handleAddToCart}
+          >
+            加入购物车
+          </TaroButton>
         </Flex>
       </FixedView>
     </View>

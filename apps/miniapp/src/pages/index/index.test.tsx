@@ -27,7 +27,7 @@ describe('ProductCatalogApp', () => {
       jest.advanceTimersByTime(300);
     });
 
-    expect(await screen.findAllByText(/编号：/)).toHaveLength(4);
+    expect(await screen.findAllByText('价格详见详情')).toHaveLength(4);
   });
 
   it('updates search input value', async () => {
