@@ -123,74 +123,78 @@ export default function CategoryPage() {
 
       <View className='category-body'>
         <ScrollView className='category-sidebar' scrollY>
-          {sortedCategories.map((entry, index) => {
-            const isActive = entry.id === activeCategoryId
-            return (
-              <View
-                key={entry.id}
-                className={`category-sidebar-item ${isActive ? 'is-active' : ''}`}
-                onClick={() => setActiveCategoryId(entry.id)}
-              >
-                <View className='category-sidebar-indicator' />
-                <View className='category-sidebar-icon'>{renderCategoryIcon(resolveCategoryIconKey(entry.name, index))}</View>
-                <Text className='category-sidebar-label'>{entry.name}</Text>
-              </View>
-            )
-          })}
+          <View className='category-sidebar-scroll-inner'>
+            {sortedCategories.map((entry, index) => {
+              const isActive = entry.id === activeCategoryId
+              return (
+                <View
+                  key={entry.id}
+                  className={`category-sidebar-item ${isActive ? 'is-active' : ''}`}
+                  onClick={() => setActiveCategoryId(entry.id)}
+                >
+                  <View className='category-sidebar-indicator' />
+                  <View className='category-sidebar-icon'>{renderCategoryIcon(resolveCategoryIconKey(entry.name, index))}</View>
+                  <Text className='category-sidebar-label'>{entry.name}</Text>
+                </View>
+              )
+            })}
 
-          {!categoriesLoading && sortedCategories.length === 0 ? (
-            <View className='category-sidebar-empty'>暂无分类</View>
-          ) : null}
+            {!categoriesLoading && sortedCategories.length === 0 ? (
+              <View className='category-sidebar-empty'>暂无分类</View>
+            ) : null}
+          </View>
         </ScrollView>
 
         <ScrollView className='category-content' scrollY>
-          <View className='category-content-inner'>
-            <View className='category-overview'>
-              <Text className='category-overview-title'>{activeCategory?.name ?? '分类'}</Text>
-              <Text className='category-overview-subtitle'>
-                {productsLoading ? '正在加载商品...' : `共 ${products.length} 件商品`}
-              </Text>
-            </View>
-
-            {productsLoading ? (
-              <View className='category-loading'>
-                <Text className='category-loading-text'>正在加载...</Text>
+          <View className='category-content-scroll-inner'>
+            <View className='category-content-inner'>
+              <View className='category-overview'>
+                <Text className='category-overview-title'>{activeCategory?.name ?? '分类'}</Text>
+                <Text className='category-overview-subtitle'>
+                  {productsLoading ? '正在加载商品...' : `共 ${products.length} 件商品`}
+                </Text>
               </View>
-            ) : null}
 
-            {!productsLoading && products.length > 0 ? (
-              <View className='category-grid'>
-                {products.map((item) => (
-                  <View
-                    key={item.id}
-                    className='category-product-card'
-                    onClick={() => navigateTo(goodsDetailRoute(item.id))}
-                  >
-                    <SafeImage
-                      className='category-product-image'
-                      src={item.coverImageUrl}
-                      width='100%'
-                      height={168}
-                      mode='aspectFill'
-                    />
-                    <View className='category-product-body'>
-                      <Text className='category-product-title'>{item.name}</Text>
-                      <View className='category-product-footer'>
-                        <Text className='category-product-tag'>{item.tags?.[0] ?? activeCategory?.name ?? '商品'}</Text>
-                        <Button size='mini' color='primary'>查看</Button>
+              {productsLoading ? (
+                <View className='category-loading'>
+                  <Text className='category-loading-text'>正在加载...</Text>
+                </View>
+              ) : null}
+
+              {!productsLoading && products.length > 0 ? (
+                <View className='category-grid'>
+                  {products.map((item) => (
+                    <View
+                      key={item.id}
+                      className='category-product-card'
+                      onClick={() => navigateTo(goodsDetailRoute(item.id))}
+                    >
+                      <SafeImage
+                        className='category-product-image'
+                        src={item.coverImageUrl}
+                        width='100%'
+                        height={168}
+                        mode='aspectFill'
+                      />
+                      <View className='category-product-body'>
+                        <Text className='category-product-title'>{item.name}</Text>
+                        <View className='category-product-footer'>
+                          <Text className='category-product-tag'>{item.tags?.[0] ?? activeCategory?.name ?? '商品'}</Text>
+                          <Button size='mini' color='primary'>查看</Button>
+                        </View>
                       </View>
                     </View>
-                  </View>
-                ))}
-              </View>
-            ) : null}
+                  ))}
+                </View>
+              ) : null}
 
-            {!productsLoading && products.length === 0 ? (
-              <View className='category-empty'>
-                <Text className='category-empty-title'>暂无商品</Text>
-                <Text className='category-empty-subtitle'>试试其他关键词或分类。</Text>
-              </View>
-            ) : null}
+              {!productsLoading && products.length === 0 ? (
+                <View className='category-empty'>
+                  <Text className='category-empty-title'>暂无商品</Text>
+                  <Text className='category-empty-subtitle'>试试其他关键词或分类。</Text>
+                </View>
+              ) : null}
+            </View>
           </View>
         </ScrollView>
       </View>

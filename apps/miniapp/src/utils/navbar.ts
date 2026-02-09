@@ -1,5 +1,6 @@
-import Taro from '@tarojs/taro'
 import type { CSSProperties } from 'react'
+import Taro from '@tarojs/taro'
+import { getRuntimeDeviceInfo } from './device-info'
 
 type NavbarMetrics = {
   height: number
@@ -11,22 +12,6 @@ let cachedMetrics: NavbarMetrics | null = null
 
 const DEFAULT_NAVBAR_HEIGHT = 44
 const DEFAULT_NAVBAR_TOP = 20
-
-const getSafeAreaTop = (systemInfo: Record<string, unknown>): number => {
-  const safeArea = systemInfo.safeArea
-  if (!safeArea || typeof safeArea !== 'object') {
-    return 0
-  }
-  const top = (safeArea as { top?: unknown }).top
-  return typeof top === 'number' && Number.isFinite(top) && top > 0 ? top : 0
-}
-
-const getStatusBarHeight = (systemInfo: Record<string, unknown>): number => {
-  const statusBarHeight = systemInfo.statusBarHeight
-  return typeof statusBarHeight === 'number' && Number.isFinite(statusBarHeight) && statusBarHeight > 0
-    ? statusBarHeight
-    : 0
-}
 
 const getValidMenuButton = () => {
   const menuButton = Taro.getMenuButtonBoundingClientRect?.()
@@ -47,9 +32,9 @@ export const getNavbarMetrics = (): NavbarMetrics => {
   }
 
   const isAlipay = process.env.TARO_ENV === 'alipay'
-  const systemInfo = Taro.getSystemInfoSync() as unknown as Record<string, unknown>
-  const statusBarHeight = getStatusBarHeight(systemInfo)
-  const safeAreaTop = getSafeAreaTop(systemInfo)
+  const runtimeInfo = getRuntimeDeviceInfo()
+  const statusBarHeight = runtimeInfo.statusBarHeight
+  const safeAreaTop = runtimeInfo.safeAreaTop
   const menuButton = getValidMenuButton()
   const topFromSystem = Math.max(statusBarHeight, safeAreaTop)
 

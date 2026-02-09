@@ -22,6 +22,7 @@ const automatorConnectTimeoutMs = Number(
 )
 const captureTimeoutMs = Number(process.env.WEAPP_DEBUG_TIMEOUT_MS || 90000)
 const failOnError = readBool(process.env.WEAPP_FAIL_ON_ERROR, true)
+const strictP1 = readBool(process.env.WEAPP_STRICT_P1, true)
 const expectedBaseUrl = (process.env.WEAPP_BASE_URL_EXPECTED || 'http://localhost:8080').trim()
 const skipBuild = readBool(process.env.WEAPP_SKIP_BUILD, false)
 const skipLaunch = readBool(process.env.WEAPP_SKIP_LAUNCH, false)
@@ -42,6 +43,11 @@ const envFileValues = parseEnvFile(envFilePath)
 const warnings = []
 const failures = []
 const screenshotPaths = []
+const severityIssues = {
+  p0: [],
+  p1: [],
+  p2: []
+}
 
 let consoleStream = null
 let networkStream = null
@@ -105,14 +111,40 @@ function sleep(ms) {
 }
 
 function appendFailure(message) {
+  appendSeverityIssue('p0', message)
   if (!failures.includes(message)) {
     failures.push(message)
   }
 }
 
+function appendP1Issue(message) {
+  appendSeverityIssue('p1', message)
+  if (strictP1) {
+    if (!failures.includes(message)) {
+      failures.push(message)
+    }
+    return
+  }
+
+  if (!warnings.includes(`[P1] ${message}`)) {
+    warnings.push(`[P1] ${message}`)
+  }
+}
+
 function appendWarning(message) {
+  appendSeverityIssue('p2', message)
   if (!warnings.includes(message)) {
     warnings.push(message)
+  }
+}
+
+function appendSeverityIssue(level, message) {
+  const bucket = severityIssues[level]
+  if (!bucket) {
+    return
+  }
+  if (!bucket.includes(message)) {
+    bucket.push(message)
   }
 }
 
@@ -132,6 +164,14 @@ function stringifyValue(value) {
   } catch {
     return String(value)
   }
+}
+
+function clipText(value, maxLength = 320) {
+  const text = String(value || '').trim()
+  if (text.length <= maxLength) {
+    return text
+  }
+  return `${text.slice(0, maxLength)}...`
 }
 
 function parseEnvFile(filePath) {
@@ -404,22 +444,46 @@ function extractConsoleText(payload) {
   return stringifyValue(payload)
 }
 
-function analyzeConsoleText(text) {
+function analyzeConsoleText(text, level = 'info') {
   const normalized = String(text || '')
   if (!normalized) {
     return
   }
 
+  const clipped = clipText(normalized)
+
   if (/request:fail\s+invalid\s+url/i.test(normalized)) {
-    appendFailure(`invalid request url detected in miniapp console: ${normalized}`)
+    appendFailure(`invalid request url detected in miniapp console: ${clipped}`)
+    return
   }
 
   if (/url not in domain list/i.test(normalized)) {
-    appendFailure(`request blocked by domain whitelist (urlCheck). message: ${normalized}`)
+    appendFailure(`request blocked by domain whitelist (urlCheck). message: ${clipped}`)
+    return
   }
 
   if (/api\.example\.com/i.test(normalized)) {
-    appendFailure(`production placeholder host leaked into runtime request: ${normalized}`)
+    appendFailure(`production placeholder host leaked into runtime request: ${clipped}`)
+    return
+  }
+
+  if (/load\s+(bootstrap|categories|products)\s+failed/i.test(normalized)) {
+    appendP1Issue(`core homepage request failed: ${clipped}`)
+    return
+  }
+
+  if (/deprecated|deprecate/i.test(normalized)) {
+    appendWarning(`platform deprecation warning: ${clipped}`)
+    return
+  }
+
+  if (level === 'error') {
+    appendP1Issue(`miniapp console error: ${clipped}`)
+    return
+  }
+
+  if (level === 'warn') {
+    appendWarning(`miniapp console warning: ${clipped}`)
   }
 }
 
@@ -448,10 +512,7 @@ function bindMiniProgramEvents() {
       time: nowIso()
     })
 
-    analyzeConsoleText(text)
-    if (level === 'error') {
-      appendWarning(`miniapp console error: ${text}`)
-    }
+    analyzeConsoleText(text, level)
   })
 
   miniProgram.on('exception', (payload) => {
@@ -725,6 +786,7 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     `- taroAppApiBaseUrl: ${runtimeInfo.apiBaseUrl}`,
     `- taroAppCommerceMockFallback: ${runtimeInfo.commerceMockFallback}`,
     `- taroAppEnableMockLogin: ${runtimeInfo.enableMockLogin}`,
+    `- strictP1: ${strictP1}`,
     '',
     '## Automator Stats',
     '',
@@ -746,13 +808,51 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     `- key endpoint requests: ${networkStats.matchedEndpointRequests}`,
     `- parse errors: ${networkStats.parseErrors}`,
     '',
+    '## Severity Stats',
+    '',
+    `- P0 blocking issues: ${severityIssues.p0.length}`,
+    `- P1 blocking issues: ${severityIssues.p1.length}${strictP1 ? ' (enforced)' : ' (non-blocking mode)'}`,
+    `- P2 warning issues: ${severityIssues.p2.length}`,
+    '',
     '## Endpoint Status',
     '',
     ...endpointLines,
     '',
-    '## Failures',
+    '## P0 Issues',
     ''
   ]
+
+  if (severityIssues.p0.length === 0) {
+    summary.push('- none')
+  } else {
+    for (const item of severityIssues.p0) {
+      summary.push(`- ${item}`)
+    }
+  }
+
+  summary.push('', '## P1 Issues', '')
+  if (severityIssues.p1.length === 0) {
+    summary.push('- none')
+  } else {
+    for (const item of severityIssues.p1) {
+      summary.push(`- ${item}`)
+    }
+  }
+
+  summary.push('', '## P2 Issues', '')
+  if (severityIssues.p2.length === 0) {
+    summary.push('- none')
+  } else {
+    for (const item of severityIssues.p2) {
+      summary.push(`- ${item}`)
+    }
+  }
+
+  summary.push(
+    '',
+    '## Failures',
+    ''
+  )
 
   if (failures.length === 0) {
     summary.push('- none')

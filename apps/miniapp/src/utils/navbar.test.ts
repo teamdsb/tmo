@@ -2,6 +2,8 @@ describe('navbar metrics', () => {
   const loadModule = () => require('./navbar') as typeof import('./navbar')
   const loadTaro = () => require('@tarojs/taro').default as {
     getSystemInfoSync: jest.Mock
+    getWindowInfo: jest.Mock
+    getAppBaseInfo: jest.Mock
     getMenuButtonBoundingClientRect: jest.Mock
   }
 
@@ -12,6 +14,13 @@ describe('navbar metrics', () => {
 
   it('uses menu button metrics when valid', () => {
     const Taro = loadTaro()
+    Taro.getWindowInfo.mockReturnValue({
+      statusBarHeight: 20,
+      safeArea: { top: 20 }
+    })
+    Taro.getAppBaseInfo.mockReturnValue({
+      theme: 'light'
+    })
     Taro.getSystemInfoSync.mockReturnValue({
       statusBarHeight: 20,
       safeArea: { top: 20 }
@@ -39,6 +48,13 @@ describe('navbar metrics', () => {
 
   it('falls back to safeArea top and default height when menu button is invalid', () => {
     const Taro = loadTaro()
+    Taro.getWindowInfo.mockReturnValue({
+      statusBarHeight: 20,
+      safeArea: { top: 28 }
+    })
+    Taro.getAppBaseInfo.mockReturnValue({
+      theme: 'light'
+    })
     Taro.getSystemInfoSync.mockReturnValue({
       statusBarHeight: 20,
       safeArea: { top: 28 }
@@ -60,6 +76,12 @@ describe('navbar metrics', () => {
 
   it('falls back to status bar top when safeArea is missing', () => {
     const Taro = loadTaro()
+    Taro.getWindowInfo.mockReturnValue({
+      statusBarHeight: 18
+    })
+    Taro.getAppBaseInfo.mockReturnValue({
+      theme: 'light'
+    })
     Taro.getSystemInfoSync.mockReturnValue({
       statusBarHeight: 18
     })
@@ -77,6 +99,13 @@ describe('navbar metrics', () => {
 
   it('caches metrics after first read', () => {
     const Taro = loadTaro()
+    Taro.getWindowInfo.mockReturnValue({
+      statusBarHeight: 20,
+      safeArea: { top: 20 }
+    })
+    Taro.getAppBaseInfo.mockReturnValue({
+      theme: 'light'
+    })
     Taro.getSystemInfoSync.mockReturnValue({
       statusBarHeight: 20,
       safeArea: { top: 20 }
@@ -93,6 +122,13 @@ describe('navbar metrics', () => {
       lineHeight: 32
     })
 
+    Taro.getWindowInfo.mockReturnValue({
+      statusBarHeight: 30,
+      safeArea: { top: 30 }
+    })
+    Taro.getAppBaseInfo.mockReturnValue({
+      theme: 'dark'
+    })
     Taro.getSystemInfoSync.mockReturnValue({
       statusBarHeight: 30,
       safeArea: { top: 30 }
@@ -112,6 +148,13 @@ describe('navbar metrics', () => {
   it('uses top 0 in alipay env', () => {
     process.env.TARO_ENV = 'alipay'
     const Taro = loadTaro()
+    Taro.getWindowInfo.mockReturnValue({
+      statusBarHeight: 24,
+      safeArea: { top: 24 }
+    })
+    Taro.getAppBaseInfo.mockReturnValue({
+      theme: 'light'
+    })
     Taro.getSystemInfoSync.mockReturnValue({
       statusBarHeight: 24,
       safeArea: { top: 24 }

@@ -99,12 +99,14 @@
 - `WEAPP_DEBUG_TIMEOUT_MS`：采集超时，默认 `90000`。
 - `WEAPP_BASE_URL_EXPECTED`：期望接口基准地址，默认 `http://localhost:8080`。
 - `WEAPP_FAIL_ON_ERROR`：遇到错误是否退出非 0，默认 `true`。
+- `WEAPP_STRICT_P1`：是否将 P1 问题按阻断处理，默认 `true`。
 - `WEAPP_SKIP_LAUNCH`：跳过自动拉起 DevTools，仅连接已有 automator 端口（默认 `false`）。
 
 排错：
 
 - 若 `summary.md` 中出现 `request:fail url not in domain list`，脚本会自动把 `dist/weapp/project.config.json` 的 `setting.urlCheck` 置为 `false`；请重跑一次采集并确认微信开发者工具“详情 -> 本地设置 -> 不校验合法域名”也已开启。
 - 若 `summary.md` 中出现连接失败，先确认微信开发者工具可执行文件路径正确（`WEAPP_DEVTOOLS_CLI_PATH`），并检查 `WEAPP_AUTOMATOR_PORT` 是否被占用。
+- `summary.md` 会输出 `P0/P1/P2` 分级：`P0`（启动/请求阻断）必失败，`P1`（核心流程失败）默认阻断，`P2`（平台告警/弃用提示）仅告警。
 
 产物：
 
