@@ -22,6 +22,8 @@ type AppTabbarProps = {
 }
 
 export default function AppTabbar({ value, fixed = true, placeholder = true }: AppTabbarProps) {
+  const tabbarClassName = fixed ? 'app-tabbar app-tabbar--fixed' : 'app-tabbar'
+
   const handleChange = (nextValue: AppTabKey) => {
     if (nextValue === value) return
     const target = TAB_ITEMS.find((item) => item.key === nextValue)
@@ -31,6 +33,7 @@ export default function AppTabbar({ value, fixed = true, placeholder = true }: A
 
   return (
     <Tabbar
+      className={tabbarClassName}
       value={value}
       fixed={fixed}
       placeholder={placeholder}

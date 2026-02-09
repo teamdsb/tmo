@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -32,6 +33,39 @@ type CreateCategoryParams struct {
 
 func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) (CatalogCategory, error) {
 	row := q.db.QueryRow(ctx, createCategory, arg.Name, arg.ParentID, arg.Sort)
+	var i CatalogCategory
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ParentID,
+		&i.Sort,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const deleteCategory = `-- name: DeleteCategory :execrows
+DELETE FROM catalog_categories
+WHERE id = $1
+`
+
+func (q *Queries) DeleteCategory(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteCategory, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const getCategory = `-- name: GetCategory :one
+SELECT id, name, parent_id, sort, created_at, updated_at
+FROM catalog_categories
+WHERE id = $1
+`
+
+func (q *Queries) GetCategory(ctx context.Context, id uuid.UUID) (CatalogCategory, error) {
+	row := q.db.QueryRow(ctx, getCategory, id)
 	var i CatalogCategory
 	err := row.Scan(
 		&i.ID,
@@ -75,4 +109,45 @@ func (q *Queries) ListCategories(ctx context.Context) ([]CatalogCategory, error)
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateCategory = `-- name: UpdateCategory :one
+UPDATE catalog_categories
+SET name = COALESCE($1::text, name),
+    parent_id = CASE
+        WHEN $2::boolean THEN $3::uuid
+        ELSE parent_id
+    END,
+    sort = COALESCE($4::integer, sort),
+    updated_at = now()
+WHERE id = $5
+RETURNING id, name, parent_id, sort, created_at, updated_at
+`
+
+type UpdateCategoryParams struct {
+	Name        *string     `db:"name" json:"name"`
+	ParentIDSet bool        `db:"parent_id_set" json:"parent_id_set"`
+	ParentID    pgtype.UUID `db:"parent_id" json:"parent_id"`
+	Sort        *int32      `db:"sort" json:"sort"`
+	ID          uuid.UUID   `db:"id" json:"id"`
+}
+
+func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) (CatalogCategory, error) {
+	row := q.db.QueryRow(ctx, updateCategory,
+		arg.Name,
+		arg.ParentIDSet,
+		arg.ParentID,
+		arg.Sort,
+		arg.ID,
+	)
+	var i CatalogCategory
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.ParentID,
+		&i.Sort,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

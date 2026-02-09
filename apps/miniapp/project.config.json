@@ -2,7 +2,7 @@
   "miniprogramRoot": "./dist/weapp",
   "projectname": "miniapp",
   "description": "crossend minirepo ali&wechat",
-  "appid": "touristappid",
+  "appid": "wx8e8831fc456f019b",
   "setting": {
     "urlCheck": true,
     "es6": false,

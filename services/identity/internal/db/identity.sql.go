@@ -96,6 +96,28 @@ func (q *Queries) CountAuditLogs(ctx context.Context, arg CountAuditLogsParams) 
 	return count, err
 }
 
+const countCustomers = `-- name: CountCustomers :one
+SELECT count(*)
+FROM users
+WHERE user_type = 'customer'
+  AND ($1::text IS NULL OR COALESCE(display_name, '') ILIKE '%' || $1 || '%')
+  AND ($2::uuid IS NULL OR owner_sales_user_id = $2)
+  AND ($3::uuid IS NULL OR id = $3)
+`
+
+type CountCustomersParams struct {
+	Q                *string     `db:"q" json:"q"`
+	OwnerSalesUserID pgtype.UUID `db:"owner_sales_user_id" json:"owner_sales_user_id"`
+	CustomerID       pgtype.UUID `db:"customer_id" json:"customer_id"`
+}
+
+func (q *Queries) CountCustomers(ctx context.Context, arg CountCustomersParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countCustomers, arg.Q, arg.OwnerSalesUserID, arg.CustomerID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countStaffUsers = `-- name: CountStaffUsers :one
 SELECT count(*) FROM users WHERE user_type = 'staff'
 `
@@ -298,6 +320,28 @@ DELETE FROM user_roles WHERE user_id = $1
 func (q *Queries) DeleteUserRoles(ctx context.Context, userID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteUserRoles, userID)
 	return err
+}
+
+const getCustomerByID = `-- name: GetCustomerByID :one
+SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason FROM users
+WHERE id = $1 AND user_type = 'customer'
+`
+
+func (q *Queries) GetCustomerByID(ctx context.Context, id uuid.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, getCustomerByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.DisplayName,
+		&i.UserType,
+		&i.OwnerSalesUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Status,
+		&i.DisabledAt,
+		&i.DisabledReason,
+	)
+	return i, err
 }
 
 const getFeatureFlags = `-- name: GetFeatureFlags :one
@@ -548,6 +592,60 @@ func (q *Queries) ListAuditLogs(ctx context.Context, arg ListAuditLogsParams) ([
 			&i.Ip,
 			&i.UserAgent,
 			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCustomers = `-- name: ListCustomers :many
+SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason FROM users
+WHERE user_type = 'customer'
+  AND ($1::text IS NULL OR COALESCE(display_name, '') ILIKE '%' || $1 || '%')
+  AND ($2::uuid IS NULL OR owner_sales_user_id = $2)
+  AND ($3::uuid IS NULL OR id = $3)
+ORDER BY created_at DESC
+LIMIT $5 OFFSET $4
+`
+
+type ListCustomersParams struct {
+	Q                *string     `db:"q" json:"q"`
+	OwnerSalesUserID pgtype.UUID `db:"owner_sales_user_id" json:"owner_sales_user_id"`
+	CustomerID       pgtype.UUID `db:"customer_id" json:"customer_id"`
+	Offset           int32       `db:"offset" json:"offset"`
+	Limit            int32       `db:"limit" json:"limit"`
+}
+
+func (q *Queries) ListCustomers(ctx context.Context, arg ListCustomersParams) ([]User, error) {
+	rows, err := q.db.Query(ctx, listCustomers,
+		arg.Q,
+		arg.OwnerSalesUserID,
+		arg.CustomerID,
+		arg.Offset,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.DisplayName,
+			&i.UserType,
+			&i.OwnerSalesUserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Status,
+			&i.DisabledAt,
+			&i.DisabledReason,
 		); err != nil {
 			return nil, err
 		}

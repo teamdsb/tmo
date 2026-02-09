@@ -14,6 +14,9 @@ describe('PersonalCenter', () => {
   it('renders user info and key sections', async () => {
     await renderPersonalCenter();
 
+    const navbar = document.querySelector('.app-navbar.app-navbar--primary');
+    expect(navbar).not.toBeNull();
+
     expect(await screen.findByText('张三')).toBeInTheDocument();
     expect(screen.getByText('客户经理')).toBeInTheDocument();
     expect(screen.getByText('王经理')).toBeInTheDocument();
@@ -29,12 +32,12 @@ describe('PersonalCenter', () => {
     expect(screen.getByText('切换账号或退出登录')).toBeInTheDocument();
   });
 
-  it('renders the tabbar items', async () => {
+  it('renders key menu entries', async () => {
     await renderPersonalCenter();
 
-    expect(screen.getByText('首页')).toBeInTheDocument();
-    expect(screen.getByText('分类')).toBeInTheDocument();
-    expect(screen.getByText('购物车')).toBeInTheDocument();
-    expect(screen.getByText('我的')).toBeInTheDocument();
+    expect(screen.getByText('订单跟踪')).toBeInTheDocument();
+    expect(screen.getByText('我的需求')).toBeInTheDocument();
+    expect(screen.getByText('收藏')).toBeInTheDocument();
+    expect(screen.getByText('系统设置')).toBeInTheDocument();
   });
 });

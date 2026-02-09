@@ -84,6 +84,13 @@ export default function LoginPage() {
         await navigateTo(ROUTES.authRoleSelect)
         return
       }
+      if (isTouristModeUnsupportedError(error)) {
+        await Taro.showToast({
+          title: '请先配置 TARO_APP_ID',
+          icon: 'none'
+        })
+        return
+      }
       console.warn('identity login failed', error)
       await Taro.showToast({
         title: '登录失败，请重试。',
@@ -164,4 +171,11 @@ export default function LoginPage() {
       <View className='mt-auto text-center text-10 text-slate-400'>需要帮助？请联系你的客户经理。</View>
     </View>
   )
+}
+
+const isTouristModeUnsupportedError = (error: unknown): boolean => {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && (error as { code?: string }).code === 'WEAPP_TOURIST_MODE_UNSUPPORTED'
 }

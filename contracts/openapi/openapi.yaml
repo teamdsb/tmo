@@ -72,6 +72,8 @@ paths:
     $ref: "./identity.yaml#/paths/~1customers~1{customerId}"
   /catalog/categories:
     $ref: "./commerce.yaml#/paths/~1catalog~1categories"
+  /catalog/categories/{categoryId}:
+    $ref: "./commerce.yaml#/paths/~1catalog~1categories~1{categoryId}"
   /catalog/products:
     $ref: "./commerce.yaml#/paths/~1catalog~1products"
   /catalog/products/{spuId}:

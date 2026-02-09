@@ -502,6 +502,24 @@ type UpdateAfterSalesTicketRequest struct {
 	Status              *TicketStatus       `json:"status,omitempty"`
 }
 
+// UpdateCatalogProductRequest defines model for UpdateCatalogProductRequest.
+type UpdateCatalogProductRequest struct {
+	CategoryId       *openapi_types.UUID `json:"categoryId,omitempty"`
+	CoverImageUrl    *string             `json:"coverImageUrl"`
+	Description      *string             `json:"description"`
+	FilterDimensions *[]string           `json:"filterDimensions,omitempty"`
+	Images           *[]string           `json:"images,omitempty"`
+	Name             *string             `json:"name,omitempty"`
+	Tags             *[]string           `json:"tags,omitempty"`
+}
+
+// UpdateCategoryRequest defines model for UpdateCategoryRequest.
+type UpdateCategoryRequest struct {
+	Name     *string             `json:"name,omitempty"`
+	ParentId *openapi_types.UUID `json:"parentId"`
+	Sort     *int                `json:"sort,omitempty"`
+}
+
 // UpdatePriceInquiryRequest defines model for UpdatePriceInquiryRequest.
 type UpdatePriceInquiryRequest struct {
 	AssignedSalesUserId *openapi_types.UUID `json:"assignedSalesUserId"`
@@ -531,6 +549,9 @@ type WishlistItem struct {
 
 // Conflict defines model for Conflict.
 type Conflict = ErrorResponse
+
+// NotFound defines model for NotFound.
+type NotFound = ErrorResponse
 
 // GetAfterSalesTicketsParams defines parameters for GetAfterSalesTickets.
 type GetAfterSalesTicketsParams struct {
@@ -636,8 +657,14 @@ type PatchCartItemsItemIdJSONRequestBody PatchCartItemsItemIdJSONBody
 // PostCatalogCategoriesJSONRequestBody defines body for PostCatalogCategories for application/json ContentType.
 type PostCatalogCategoriesJSONRequestBody = CreateCategoryRequest
 
+// PatchCatalogCategoriesCategoryIdJSONRequestBody defines body for PatchCatalogCategoriesCategoryId for application/json ContentType.
+type PatchCatalogCategoriesCategoryIdJSONRequestBody = UpdateCategoryRequest
+
 // PostCatalogProductsJSONRequestBody defines body for PostCatalogProducts for application/json ContentType.
 type PostCatalogProductsJSONRequestBody = CreateCatalogProductRequest
+
+// PatchCatalogProductsSpuIdJSONRequestBody defines body for PatchCatalogProductsSpuId for application/json ContentType.
+type PatchCatalogProductsSpuIdJSONRequestBody = UpdateCatalogProductRequest
 
 // PostCatalogProductsSpuIdSkusJSONRequestBody defines body for PostCatalogProductsSpuIdSkus for application/json ContentType.
 type PostCatalogProductsSpuIdSkusJSONRequestBody = CreateSkuRequest
@@ -713,15 +740,30 @@ type ServerInterface interface {
 	// Create category
 	// (POST /catalog/categories)
 	PostCatalogCategories(c *gin.Context)
+	// Delete category
+	// (DELETE /catalog/categories/{categoryId})
+	DeleteCatalogCategoriesCategoryId(c *gin.Context, categoryId openapi_types.UUID)
+	// Get category
+	// (GET /catalog/categories/{categoryId})
+	GetCatalogCategoriesCategoryId(c *gin.Context, categoryId openapi_types.UUID)
+	// Update category
+	// (PATCH /catalog/categories/{categoryId})
+	PatchCatalogCategoriesCategoryId(c *gin.Context, categoryId openapi_types.UUID)
 	// Search/list products (SPU list)
 	// (GET /catalog/products)
 	GetCatalogProducts(c *gin.Context, params GetCatalogProductsParams)
 	// Create product (SPU)
 	// (POST /catalog/products)
 	PostCatalogProducts(c *gin.Context)
+	// Delete product (SPU)
+	// (DELETE /catalog/products/{spuId})
+	DeleteCatalogProductsSpuId(c *gin.Context, spuId openapi_types.UUID)
 	// Get product detail (SPU + SKU summary)
 	// (GET /catalog/products/{spuId})
 	GetCatalogProductsSpuId(c *gin.Context, spuId openapi_types.UUID)
+	// Update product (SPU)
+	// (PATCH /catalog/products/{spuId})
+	PatchCatalogProductsSpuId(c *gin.Context, spuId openapi_types.UUID)
 	// Create SKU for product
 	// (POST /catalog/products/{spuId}/skus)
 	PostCatalogProductsSpuIdSkus(c *gin.Context, spuId openapi_types.UUID)
@@ -1154,6 +1196,82 @@ func (siw *ServerInterfaceWrapper) PostCatalogCategories(c *gin.Context) {
 	siw.Handler.PostCatalogCategories(c)
 }
 
+// DeleteCatalogCategoriesCategoryId operation middleware
+func (siw *ServerInterfaceWrapper) DeleteCatalogCategoriesCategoryId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "categoryId" -------------
+	var categoryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "categoryId", c.Param("categoryId"), &categoryId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter categoryId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteCatalogCategoriesCategoryId(c, categoryId)
+}
+
+// GetCatalogCategoriesCategoryId operation middleware
+func (siw *ServerInterfaceWrapper) GetCatalogCategoriesCategoryId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "categoryId" -------------
+	var categoryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "categoryId", c.Param("categoryId"), &categoryId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter categoryId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetCatalogCategoriesCategoryId(c, categoryId)
+}
+
+// PatchCatalogCategoriesCategoryId operation middleware
+func (siw *ServerInterfaceWrapper) PatchCatalogCategoriesCategoryId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "categoryId" -------------
+	var categoryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "categoryId", c.Param("categoryId"), &categoryId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter categoryId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PatchCatalogCategoriesCategoryId(c, categoryId)
+}
+
 // GetCatalogProducts operation middleware
 func (siw *ServerInterfaceWrapper) GetCatalogProducts(c *gin.Context) {
 
@@ -1207,6 +1325,8 @@ func (siw *ServerInterfaceWrapper) GetCatalogProducts(c *gin.Context) {
 // PostCatalogProducts operation middleware
 func (siw *ServerInterfaceWrapper) PostCatalogProducts(c *gin.Context) {
 
+	c.Set(BearerAuthScopes, []string{})
+
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
 		if c.IsAborted() {
@@ -1215,6 +1335,32 @@ func (siw *ServerInterfaceWrapper) PostCatalogProducts(c *gin.Context) {
 	}
 
 	siw.Handler.PostCatalogProducts(c)
+}
+
+// DeleteCatalogProductsSpuId operation middleware
+func (siw *ServerInterfaceWrapper) DeleteCatalogProductsSpuId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "spuId" -------------
+	var spuId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "spuId", c.Param("spuId"), &spuId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter spuId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteCatalogProductsSpuId(c, spuId)
 }
 
 // GetCatalogProductsSpuId operation middleware
@@ -1239,6 +1385,32 @@ func (siw *ServerInterfaceWrapper) GetCatalogProductsSpuId(c *gin.Context) {
 	}
 
 	siw.Handler.GetCatalogProductsSpuId(c, spuId)
+}
+
+// PatchCatalogProductsSpuId operation middleware
+func (siw *ServerInterfaceWrapper) PatchCatalogProductsSpuId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "spuId" -------------
+	var spuId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "spuId", c.Param("spuId"), &spuId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter spuId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PatchCatalogProductsSpuId(c, spuId)
 }
 
 // PostCatalogProductsSpuIdSkus operation middleware
@@ -1808,9 +1980,14 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.PATCH(options.BaseURL+"/cart/items/:itemId", wrapper.PatchCartItemsItemId)
 	router.GET(options.BaseURL+"/catalog/categories", wrapper.GetCatalogCategories)
 	router.POST(options.BaseURL+"/catalog/categories", wrapper.PostCatalogCategories)
+	router.DELETE(options.BaseURL+"/catalog/categories/:categoryId", wrapper.DeleteCatalogCategoriesCategoryId)
+	router.GET(options.BaseURL+"/catalog/categories/:categoryId", wrapper.GetCatalogCategoriesCategoryId)
+	router.PATCH(options.BaseURL+"/catalog/categories/:categoryId", wrapper.PatchCatalogCategoriesCategoryId)
 	router.GET(options.BaseURL+"/catalog/products", wrapper.GetCatalogProducts)
 	router.POST(options.BaseURL+"/catalog/products", wrapper.PostCatalogProducts)
+	router.DELETE(options.BaseURL+"/catalog/products/:spuId", wrapper.DeleteCatalogProductsSpuId)
 	router.GET(options.BaseURL+"/catalog/products/:spuId", wrapper.GetCatalogProductsSpuId)
+	router.PATCH(options.BaseURL+"/catalog/products/:spuId", wrapper.PatchCatalogProductsSpuId)
 	router.POST(options.BaseURL+"/catalog/products/:spuId/skus", wrapper.PostCatalogProductsSpuIdSkus)
 	router.GET(options.BaseURL+"/inquiries/price", wrapper.GetInquiriesPrice)
 	router.POST(options.BaseURL+"/inquiries/price", wrapper.PostInquiriesPrice)

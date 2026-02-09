@@ -3,9 +3,11 @@ import { saveBootstrap, savePendingRoleSelection } from './bootstrap'
 
 export const mockBootstrap: BootstrapResponse = {
   me: {
+    id: 'mock-user-id',
     displayName: '测试账号',
     roles: ['TEST'],
-    userType: 'TEST'
+    userType: 'staff',
+    createdAt: '2026-01-01T00:00:00Z'
   },
   permissions: {
     items: []

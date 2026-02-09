@@ -21,7 +21,6 @@ import {
   UserOutlined
 } from '@taroify/icons'
 import type { BootstrapResponse } from '@tmo/gateway-api-client'
-import AppTabbar from '../../components/app-tabbar'
 import { ROUTES } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../utils/navigation'
@@ -29,6 +28,7 @@ import { gatewayServices } from '../../services/gateway'
 import { commerceServices } from '../../services/commerce'
 import { identityServices } from '../../services/identity'
 import { clearBootstrap, loadBootstrap, saveBootstrap } from '../../services/bootstrap'
+import placeholderProductImage from '../../assets/images/placeholder-product.svg'
 
 type IconComponent = (props: { className?: string }) => JSX.Element
 
@@ -113,10 +113,10 @@ function OrderItem({ icon: Icon, label, badge, onClick }: OrderItemProps) {
 
 export default function PersonalCenter() {
   const navbarStyle = getNavbarStyle()
+  const isH5 = process.env.TARO_ENV === 'h5'
   const [bootstrap, setBootstrap] = useState<BootstrapResponse | null>(null)
   const [isDark] = useState(() => Taro.getSystemInfoSync().theme === 'dark')
-  const avatarFallback =
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuD6aMVVw542vMjqZUxZGYQDmSOyXCShOpx5kUCN61Wv6okrwKBUp-S_ZKLBYnnJqx_-Vx3-NhyPVZuH7gHkceoGBQajnU3ksD25p10yGt0-gT2HiURQNGy_gnhIX7OKre0UsPZyZOPchGKAqwzYVK1fBl081v0ZlwBlwVuv6RrLFj_h5OEIq0p_a7zFGn226VwTy0LMxL8E9P9LWcmgSTpQj6Tx-Th1qgUYfuhBUqvqiH9YIOAY249t69mZAho6SakEZO55UHrVJq2k'
+  const avatarFallback = placeholderProductImage
 
   useEffect(() => {
     void (async () => {
@@ -148,8 +148,8 @@ export default function PersonalCenter() {
   }
 
   return (
-    <View className={`page pb-24 font-sans mine-page ${themeClassName}`}>
-      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'></Navbar>
+    <View className={`page font-sans mine-page ${themeClassName}`} style={isH5 ? navbarStyle : undefined}>
+      {isH5 ? <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'></Navbar> : null}
 
       <View className='px-5 pt-4 pb-2 flex items-center justify-between'>
         <View
@@ -259,8 +259,6 @@ export default function PersonalCenter() {
           <Text className='text-sm font-medium mine-muted'>切换账号或退出登录</Text>
         </View>
       </View>
-
-      <AppTabbar value='mine' />
     </View>
   )
 }

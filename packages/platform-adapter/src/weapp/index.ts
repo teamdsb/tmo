@@ -19,7 +19,26 @@ import type {
 
 declare const wx: any
 
+const TOURIST_APP_ID = 'touristappid'
+
+const createTouristModeError = () => {
+  const error = new Error('WeChat tourist mode is not supported for login')
+  return Object.assign(error, { code: 'WEAPP_TOURIST_MODE_UNSUPPORTED' as const })
+}
+
+const isTouristMode = (): boolean => {
+  try {
+    const appId = wx.getAccountInfoSync?.()?.miniProgram?.appId
+    return !appId || appId === TOURIST_APP_ID
+  } catch {
+    return false
+  }
+}
+
 export const login = (): Promise<LoginResult> => {
+  if (isTouristMode()) {
+    return Promise.reject(createTouristModeError())
+  }
   return new Promise((resolve, reject) => {
     wx.login({
       success: (res: { code: string }) => resolve({ code: res.code, raw: res }),

@@ -34,6 +34,12 @@ const stripDomProps = (props) => {
     wrap,
     direction,
     inset,
+    current,
+    circular,
+    autoplay,
+    interval,
+    duration,
+    scrollY,
     ...rest
   } = props;
   return rest;
@@ -72,7 +78,9 @@ jest.mock('@tarojs/components', () => {
     Text: mockCreateComponent('span'),
     Button,
     Input,
-    ScrollView: mockCreateComponent('div'),
+    ScrollView: mockComponent('div'),
+    Swiper: mockComponent('div'),
+    SwiperItem: mockComponent('div'),
     Image: mockCreateComponent('img')
   };
 });
@@ -290,7 +298,15 @@ jest.mock('@tmo/identity-services', () => {
   };
 });
 
-const MockNavbar = mockComponent('div');
+const MockNavbar = ({ children, safeArea, className, ...props }) => (
+  <div
+    className={className}
+    data-safe-area={safeArea ?? ''}
+    {...stripDomProps(props)}
+  >
+    {children}
+  </div>
+);
 MockNavbar.NavLeft = ({ children, ...props }) => (
   <button type='button' {...stripDomProps(props)}>
     {children ?? '返回'}
@@ -340,8 +356,14 @@ MockGrid.Item = ({ icon, text, children, ...props }) => (
   </div>
 );
 
-const MockTabs = ({ children, value, onChange }) => (
-  <div>
+const MockTabs = ({ children, value, onChange, sticky }) => (
+  <div
+    data-sticky-offset-top={
+      sticky && typeof sticky === 'object' && 'offsetTop' in sticky
+        ? String(sticky.offsetTop)
+        : ''
+    }
+  >
     {mockReact.Children.map(children, (child) => {
       if (!mockReact.isValidElement(child)) return child;
       const isActive = String(child.props.value) === String(value);

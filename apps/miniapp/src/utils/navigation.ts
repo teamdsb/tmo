@@ -1,4 +1,5 @@
 import Taro from '@tarojs/taro'
+import { isTabRoute } from './tabbar'
 
 const normalizeUrl = (url: string) => (url.startsWith('/') ? url : `/${url}`)
 
@@ -22,5 +23,9 @@ export const switchTabLike = async (url: string) => {
   const target = normalizeUrl(url)
   if (!target) return
   if (stripQuery(target) === getCurrentPath()) return
+  if (isTabRoute(target)) {
+    await Taro.switchTab({ url: stripQuery(target) })
+    return
+  }
   await Taro.reLaunch({ url: target })
 }

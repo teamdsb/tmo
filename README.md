@@ -29,6 +29,8 @@
 ### 前端
 - 框架：Taro CLI + React + TypeScript + Sass
 - 构建与开发：`apps/miniapp` 的 Taro scripts（如 `dev:weapp`、`dev:alipay`）
+- 平台产物目录：`apps/miniapp/dist/weapp`（微信）与 `apps/miniapp/dist/alipay`（支付宝），请分别导入对应开发者工具
+- 微信联调前置：请在 `apps/miniapp/.env.development` 设置 `TARO_APP_ID` 为真实小程序 AppID，`touristappid` 仅用于游客预览
 - 静态检查：ESLint（taro config）、Stylelint（standard）
 - 包管理：pnpm workspace
 
@@ -40,9 +42,15 @@
 ## 常用命令
 ```bash
 pnpm install
+pnpm -C apps/miniapp build:weapp
+pnpm -C apps/miniapp build:alipay
 pnpm -C apps/miniapp dev:weapp
 pnpm -C apps/miniapp dev:alipay
 pnpm run test:backend
 make db-up
 make db-down
 ```
+
+miniapp 编译产物目录：
+- 微信：`apps/miniapp/dist/weapp`
+- 支付宝：`apps/miniapp/dist/alipay`

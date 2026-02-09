@@ -1,4 +1,5 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import Taro from '@tarojs/taro';
 import ProductCatalogApp from './index';
 
 const renderCatalog = async () => {
@@ -9,6 +10,7 @@ const renderCatalog = async () => {
 describe('ProductCatalogApp', () => {
   beforeEach(() => {
     jest.useFakeTimers();
+    jest.clearAllMocks();
   });
 
   afterEach(() => {
@@ -18,14 +20,23 @@ describe('ProductCatalogApp', () => {
   it('renders search and product grid', async () => {
     await renderCatalog();
 
+    const navbar = document.querySelector('.app-navbar.app-navbar--primary');
+    expect(navbar).not.toBeNull();
+    const pageRoot = document.querySelector('.page.page-home');
+    expect(pageRoot).not.toBeNull();
+
+    expect(screen.getAllByTestId('home-showcase-empty')).toHaveLength(3);
+    expect(screen.getByTestId('home-showcase-dots')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('按 SKU 或名称搜索...')).toBeInTheDocument();
     expect(await screen.findByText('办公用品')).toBeInTheDocument();
+    expect(screen.getAllByTestId('home-category-item')).toHaveLength(2);
+    expect(screen.queryByText('更多')).not.toBeInTheDocument();
 
     await act(async () => {
       jest.advanceTimersByTime(300);
     });
 
-    expect(await screen.findAllByText(/编号：/)).toHaveLength(4);
+    expect(await screen.findAllByText('价格详见详情')).toHaveLength(4);
   });
 
   it('updates search input value', async () => {
@@ -37,18 +48,13 @@ describe('ProductCatalogApp', () => {
     expect(input).toHaveValue('bolt');
   });
 
-  it('switches active category on click', async () => {
+  it('switches to category tab when clicking quick category', async () => {
     await renderCatalog();
 
-    const tabLabel = await screen.findByText('办公用品');
-    const tabButton = tabLabel.closest('button');
+    fireEvent.click(await screen.findByText('办公用品'));
 
-    expect(tabButton).not.toBeNull();
-    if (!tabButton) {
-      throw new Error('Expected category tab button');
-    }
-    fireEvent.click(tabButton);
-
-    expect(tabButton).toHaveClass('text-[#137fec]');
+    await waitFor(() => {
+      expect(Taro.switchTab).toHaveBeenCalledWith({ url: '/pages/category/index' });
+    });
   });
 });

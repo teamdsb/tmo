@@ -9,11 +9,16 @@ import (
 
 type Store interface {
 	CreateProduct(ctx context.Context, arg db.CreateProductParams) (db.CatalogProduct, error)
+	UpdateProduct(ctx context.Context, arg db.UpdateProductParams) (db.CatalogProduct, error)
+	DeleteProduct(ctx context.Context, id uuid.UUID) (int64, error)
 	ListProducts(ctx context.Context, arg db.ListProductsParams) ([]db.CatalogProduct, error)
 	CountProducts(ctx context.Context, arg db.CountProductsParams) (int64, error)
 	GetProduct(ctx context.Context, id uuid.UUID) (db.CatalogProduct, error)
 	CreateCategory(ctx context.Context, arg db.CreateCategoryParams) (db.CatalogCategory, error)
+	GetCategory(ctx context.Context, id uuid.UUID) (db.CatalogCategory, error)
 	ListCategories(ctx context.Context) ([]db.CatalogCategory, error)
+	UpdateCategory(ctx context.Context, arg db.UpdateCategoryParams) (db.CatalogCategory, error)
+	DeleteCategory(ctx context.Context, id uuid.UUID) (int64, error)
 	CreateSku(ctx context.Context, arg db.CreateSkuParams) (db.CatalogSku, error)
 	ListSkusByProduct(ctx context.Context, productID uuid.UUID) ([]db.CatalogSku, error)
 	ListSkusByIDs(ctx context.Context, ids []uuid.UUID) ([]db.CatalogSku, error)

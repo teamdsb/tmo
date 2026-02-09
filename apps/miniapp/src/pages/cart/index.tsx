@@ -10,7 +10,6 @@ import type {
   CartImportPendingItem,
   CartImportSelection
 } from '@tmo/api-client'
-import AppTabbar from '../../components/app-tabbar'
 import { getNavbarStyle } from '../../utils/navbar'
 import { commerceServices } from '../../services/commerce'
 import { ROUTES } from '../../routes'
@@ -47,6 +46,7 @@ export default function ExcelImportConfirmation() {
   const [selectionMap, setSelectionMap] = useState<Record<number, CartImportSelection>>({})
   const [loading, setLoading] = useState(false)
   const navbarStyle = getNavbarStyle()
+  const isH5 = process.env.TARO_ENV === 'h5'
 
   const jobIdParam = typeof router.params?.jobId === 'string' ? router.params.jobId : null
 
@@ -86,6 +86,7 @@ export default function ExcelImportConfirmation() {
 
   const selections = useMemo(() => Object.values(selectionMap), [selectionMap])
   const cartItems = cart?.items ?? []
+  const isCartEmpty = cartItems.length === 0
 
   const handleBack = () => {
     Taro.navigateBack().catch(() => switchTabLike(ROUTES.cart))
@@ -155,9 +156,13 @@ export default function ExcelImportConfirmation() {
   }
 
   return (
-    <View className='page page-compact-navbar flex flex-col'>
-      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'>
-      </Navbar>
+    <View className='page page-compact-navbar flex flex-col' style={isH5 ? navbarStyle : undefined}>
+      {isH5
+        ? (
+          <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'>
+          </Navbar>
+        )
+        : null}
 
       {importJob ? (
         <View className='flex-1 flex flex-col bg-white'>
@@ -298,7 +303,7 @@ export default function ExcelImportConfirmation() {
 
           <View className='px-4 py-3 flex justify-between items-center bg-gray-50'>
             <Text className='text-xs text-slate-500 font-medium'>
-              {cartItems.length === 0 ? '购物车为空' : `共 ${cartItems.length} 件`}
+              {`共 ${cartItems.length} 件`}
             </Text>
             <View className='flex gap-2'>
               <View className='p-2 bg-white rounded-md shadow-sm border border-gray-200 text-slate-400'>
@@ -311,7 +316,7 @@ export default function ExcelImportConfirmation() {
           </View>
 
           <View className='flex-1 px-4 pb-40 bg-gray-50 pt-2'>
-            {cartItems.length > 0 ? (
+            {!isCartEmpty ? (
               <View className='grid grid-cols-1 gap-4'>
                 {cartItems.map((item) => {
                   const meta = formatCartItemMeta(item)
@@ -338,7 +343,8 @@ export default function ExcelImportConfirmation() {
               </View>
             ) : (
               <View className='py-10 text-center'>
-                <Text className='text-sm text-slate-400'>购物车为空</Text>
+                <Text className='text-sm font-medium text-slate-500'>购物车为空</Text>
+                <Text className='text-xs text-slate-300 mt-2'>先去首页挑选商品吧</Text>
               </View>
             )}
           </View>
@@ -363,7 +369,6 @@ export default function ExcelImportConfirmation() {
             {importJob ? '确认并加入购物车' : '去结算'}
           </Button>
         </View>
-        <AppTabbar value='cart' fixed={false} placeholder={false} />
       </FixedView>
     </View>
   )

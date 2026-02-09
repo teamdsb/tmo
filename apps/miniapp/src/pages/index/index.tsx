@@ -1,46 +1,97 @@
-import { useEffect, useState } from 'react'
-import { View, Text } from '@tarojs/components'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { View, Text, Swiper, SwiperItem } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Search from '@taroify/core/search'
-import Tabs from '@taroify/core/tabs'
 import Grid from '@taroify/core/grid'
-import Image from '@taroify/core/image'
-import Tag from '@taroify/core/tag'
 import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
 import AppsOutlined from '@taroify/icons/AppsOutlined'
 import FilterOutlined from '@taroify/icons/FilterOutlined'
 import SearchIcon from '@taroify/icons/Search'
 import type { Category, ProductSummary } from '@tmo/api-client'
-import AppTabbar from '../../components/app-tabbar'
-import { goodsDetailRoute } from '../../routes'
-import { getNavbarStyle } from '../../utils/navbar'
-import { navigateTo } from '../../utils/navigation'
+import SafeImage from '../../components/safe-image'
+import { ROUTES, goodsDetailRoute } from '../../routes'
+import { type CategoryIconKey, renderCategoryIcon, resolveCategoryIconKey } from '../../utils/category-icons'
+import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { commerceServices } from '../../services/commerce'
+import { getNavbarStyle } from '../../utils/navbar'
+import './index.scss'
 
-const fallbackImage =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuDGj0LySxxnfLRBsNvxC-nPykQ5urTBjIfVH6fpVr8Mq6q86Eoc900uHrsM4CWGhiTa9mh1Hjt_59YVZA8IA8o2egRuHhPMh4OOTNdFLPyy2z65oun7A7T75qdtMxB9Gx2g6hdqG7a6CoFl7wbFQ5OqSxcViSThFyQsbrrOF2K3eSm2S5yLloAGrV9xlvJmEFK-mPaQa76VxZBF-w06tpKTQ_Ecu_J9NqQcflv5Lxn_pdg9JpuXZou5PV-r29n5aUgmxkh1RVsTN382'
+type QuickCategoryItem = {
+  id: string
+  name: string
+  iconKey: CategoryIconKey
+  isPlaceholder: boolean
+  targetRoute?: string
+}
+
+const QUICK_CATEGORY_CAPACITY = 8
+
+const sortCategories = (items: Category[]) => {
+  return [...items].sort((left, right) => {
+    const leftSort = typeof left.sort === 'number' ? left.sort : Number.MAX_SAFE_INTEGER
+    const rightSort = typeof right.sort === 'number' ? right.sort : Number.MAX_SAFE_INTEGER
+    return leftSort - rightSort
+  })
+}
+
+const buildQuickCategories = (categories: Category[]): QuickCategoryItem[] => {
+  return sortCategories(categories)
+    .filter((item) => Boolean(item.id) && Boolean(item.name))
+    .map((item, index) => ({
+      id: String(item.id),
+      name: item.name,
+      iconKey: resolveCategoryIconKey(item.name, index),
+      isPlaceholder: false,
+      targetRoute: ROUTES.category
+    }))
+}
 
 export default function ProductCatalogApp() {
   const [categories, setCategories] = useState<Category[]>([])
-  const [activeCategory, setActiveCategory] = useState('all')
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [products, setProducts] = useState<ProductSummary[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
+  const isH5 = process.env.TARO_ENV === 'h5'
+  const isAlipay = process.env.TARO_ENV === 'alipay'
   const navbarStyle = getNavbarStyle()
+  const quickCategories = useMemo(() => buildQuickCategories(categories), [categories])
+
+  const handleQuickCategoryTap = useCallback((item: QuickCategoryItem) => {
+    if (item.isPlaceholder || !item.targetRoute) {
+      return
+    }
+    void switchTabLike(item.targetRoute)
+  }, [])
+  const pageStyle = {
+    ...(isH5 ? navbarStyle : {}),
+    '--home-search-offset': isAlipay ? '0px' : '20px'
+  } as CSSProperties
 
   useEffect(() => {
+    let cancelled = false
     void (async () => {
+      setCategoriesLoading(true)
       try {
         const data = await commerceServices.catalog.listCategories()
-        setCategories(data.items ?? [])
+        if (!cancelled) {
+          setCategories(data.items ?? [])
+        }
       } catch (error) {
         console.warn('load categories failed', error)
         await Taro.showToast({ title: '加载分类失败', icon: 'none' })
+      } finally {
+        if (!cancelled) {
+          setCategoriesLoading(false)
+        }
       }
     })()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
@@ -50,7 +101,6 @@ export default function ProductCatalogApp() {
         try {
           const response = await commerceServices.catalog.listProducts({
             q: searchQuery || undefined,
-            categoryId: activeCategory === 'all' ? undefined : activeCategory,
             page: 1,
             pageSize: 20
           })
@@ -65,14 +115,11 @@ export default function ProductCatalogApp() {
       })()
     }, 300)
     return () => clearTimeout(handle)
-  }, [activeCategory, searchQuery])
-
-  const categoryTabs = [{ id: 'all', name: '全部' }, ...categories]
+  }, [searchQuery])
 
   return (
-    <View className='page page-home'>
-      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'>
-      </Navbar>
+    <View className='page page-home' style={pageStyle}>
+      {isH5 ? <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary' /> : null}
 
       <View className='page-search'>
         <Search
@@ -85,38 +132,127 @@ export default function ProductCatalogApp() {
         />
       </View>
 
-      <Tabs
-        value={activeCategory}
-        onChange={(value) => setActiveCategory(String(value))}
-        sticky
-        swipeable={false}
-      >
-        {categoryTabs.map((category) => (
-          <Tabs.TabPane key={category.id} value={category.id} title={category.name}>
-            <View className='page-content'>
-              <Flex justify='space-between' align='center'>
-                <Text className='page-subtitle'>
-                  {loading ? '正在加载商品...' : `共 ${total} 件商品`}
-                </Text>
-                <Flex justify='end' gutter={8}>
-                  <Button size='small' variant='outlined' icon={<FilterOutlined />} />
-                  <Button size='small' variant='outlined' icon={<AppsOutlined />} />
-                </Flex>
-              </Flex>
+      <HomeShowcase />
 
-              <Grid columns={2} gutter={12} className='page-grid'>
-                {products.map((product) => (
-                  <Grid.Item key={product.id}>
-                    <ProductCard data={product} />
-                  </Grid.Item>
-                ))}
-              </Grid>
+      <HomeCategoryQuickGrid
+        items={quickCategories}
+        loading={categoriesLoading}
+        onTap={handleQuickCategoryTap}
+      />
+
+      <View className='page-content home-product-section'>
+        <Flex justify='space-between' align='center' className='home-product-toolbar'>
+          <View>
+            <Text className='home-product-title'>推荐商品</Text>
+            <Text className='page-subtitle'>
+              {loading ? '正在加载商品...' : `共 ${total} 件商品`}
+            </Text>
+          </View>
+          <Flex justify='end' gutter={8}>
+            <Button size='small' variant='outlined' icon={<FilterOutlined />} />
+            <Button size='small' variant='outlined' icon={<AppsOutlined />} />
+          </Flex>
+        </Flex>
+
+        <Grid columns={2} gutter={12} className='page-grid'>
+          {products.map((product) => (
+            <Grid.Item key={product.id}>
+              <ProductCard data={product} />
+            </Grid.Item>
+          ))}
+        </Grid>
+      </View>
+    </View>
+  )
+}
+
+type HomeCategoryQuickGridProps = {
+  items: QuickCategoryItem[]
+  loading: boolean
+  onTap: (item: QuickCategoryItem) => void
+}
+
+function HomeCategoryQuickGrid({ items, loading, onTap }: HomeCategoryQuickGridProps) {
+  if (loading) {
+    return (
+      <View className='home-category-panel' data-testid='home-category-panel'>
+        <View className='home-category-grid'>
+          {Array.from({ length: QUICK_CATEGORY_CAPACITY }).map((_, index) => (
+            <View key={`home-category-skeleton-${index}`} className='home-category-item is-skeleton' data-testid='home-category-item'>
+              <View className='home-category-icon home-category-icon--skeleton' />
+              <View className='home-category-label home-category-label--skeleton' />
             </View>
-          </Tabs.TabPane>
-        ))}
-      </Tabs>
+          ))}
+        </View>
+      </View>
+    )
+  }
 
-      <AppTabbar value='home' />
+  if (items.length === 0) {
+    return (
+      <View className='home-category-panel' data-testid='home-category-panel'>
+        <View className='home-category-empty'>
+          <Text className='home-category-empty-text'>暂无分类</Text>
+        </View>
+      </View>
+    )
+  }
+
+  return (
+    <View className='home-category-panel' data-testid='home-category-panel'>
+      <View className='home-category-grid'>
+        {items.map((item) => {
+          const className = `home-category-item ${item.isPlaceholder ? 'is-placeholder' : ''}`
+          return (
+            <View
+              key={item.id}
+              className={className}
+              role={item.isPlaceholder ? undefined : 'button'}
+              onClick={item.isPlaceholder ? undefined : () => onTap(item)}
+              data-testid='home-category-item'
+            >
+              <View className='home-category-icon'>
+                {renderCategoryIcon(item.iconKey)}
+              </View>
+              <Text className='home-category-label'>{item.name}</Text>
+            </View>
+          )
+        })}
+      </View>
+    </View>
+  )
+}
+
+function HomeShowcase() {
+  const showcasePages = 3
+  const [activePage, setActivePage] = useState(0)
+
+  return (
+    <View className='home-showcase'>
+      <Swiper
+        className='home-showcase-swiper'
+        current={activePage}
+        circular
+        autoplay
+        interval={4500}
+        duration={480}
+        onChange={(event) => setActivePage(event.detail.current)}
+      >
+        {Array.from({ length: showcasePages }).map((_, index) => (
+          <SwiperItem key={index}>
+            <View className='home-showcase-empty' data-testid='home-showcase-empty' />
+          </SwiperItem>
+        ))}
+      </Swiper>
+
+      <View className='home-showcase-dots' data-testid='home-showcase-dots'>
+        {Array.from({ length: showcasePages }).map((_, index) => (
+          <View
+            key={index}
+            className={`home-showcase-dot ${index === activePage ? 'is-active' : ''}`}
+          />
+        ))}
+      </View>
     </View>
   )
 }
@@ -125,16 +261,15 @@ function ProductCard({ data }: { data: ProductSummary }) {
   const tagLabel = data.tags?.[0] ?? '分类'
   return (
     <View className='product-card' onClick={() => navigateTo(goodsDetailRoute(data.id))}>
-      <Image src={data.coverImageUrl || fallbackImage} width='100%' height={150} mode='aspectFill' />
+      <SafeImage className='product-card-image' src={data.coverImageUrl} width='100%' height={198} mode='aspectFill' />
       <View className='product-card-body'>
         <Text className='product-card-title'>{data.name}</Text>
         <Text className='product-card-price'>价格详见详情</Text>
-        <Text className='product-card-min'>编号：{data.id.slice(0, 8)}</Text>
-        <Flex justify='space-between' align='center'>
-          <Tag size='small' variant='outlined' color='primary'>
-            {tagLabel}
-          </Tag>
-          <Button size='mini' color='primary'>详情</Button>
+        <Flex justify='space-between' align='center' className='product-card-footer'>
+          <View className='product-card-tag'>
+            <Text>{tagLabel}</Text>
+          </View>
+          <Button className='product-card-action' size='mini' color='primary'>详情</Button>
         </Flex>
       </View>
     </View>

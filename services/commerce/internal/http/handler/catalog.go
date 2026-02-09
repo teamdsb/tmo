@@ -23,6 +23,43 @@ type catalogCategoriesResponse struct {
 	Items []oapi.Category `json:"items"`
 }
 
+type patchCategoryRequest struct {
+	Name     *string          `json:"name"`
+	ParentID *json.RawMessage `json:"parentId"`
+	Sort     *int             `json:"sort"`
+}
+
+type optionalNullableString struct {
+	Set   bool
+	Value *string
+}
+
+func (o *optionalNullableString) UnmarshalJSON(data []byte) error {
+	o.Set = true
+	trimmed := strings.TrimSpace(string(data))
+	if trimmed == "null" {
+		o.Value = nil
+		return nil
+	}
+
+	var value string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	o.Value = &value
+	return nil
+}
+
+type patchProductRequest struct {
+	Name             *string                `json:"name"`
+	CategoryID       *types.UUID            `json:"categoryId"`
+	Description      optionalNullableString `json:"description"`
+	CoverImageURL    optionalNullableString `json:"coverImageUrl"`
+	Images           *[]string              `json:"images"`
+	Tags             *[]string              `json:"tags"`
+	FilterDimensions *[]string              `json:"filterDimensions"`
+}
+
 func (h *Handler) GetCatalogCategories(c *gin.Context) {
 	categories, err := h.CatalogStore.ListCategories(c.Request.Context())
 	if err != nil {
@@ -37,6 +74,21 @@ func (h *Handler) GetCatalogCategories(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, catalogCategoriesResponse{Items: items})
+}
+
+func (h *Handler) GetCatalogCategoriesCategoryId(c *gin.Context, categoryId types.UUID) {
+	category, err := h.CatalogStore.GetCategory(c.Request.Context(), uuid.UUID(categoryId))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			h.writeError(c, http.StatusNotFound, "not_found", "category not found")
+			return
+		}
+		h.logError("get category failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to fetch category")
+		return
+	}
+
+	c.JSON(http.StatusOK, categoryFromModel(category))
 }
 
 func (h *Handler) PostCatalogCategories(c *gin.Context) {
@@ -77,6 +129,91 @@ func (h *Handler) PostCatalogCategories(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, categoryFromModel(category))
+}
+
+func (h *Handler) PatchCatalogCategoriesCategoryId(c *gin.Context, categoryId types.UUID) {
+	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+		return
+	}
+
+	var request patchCategoryRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
+		return
+	}
+
+	if request.Name == nil && request.ParentID == nil && request.Sort == nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "at least one field must be provided")
+		return
+	}
+
+	var name *string
+	if request.Name != nil {
+		trimmed := strings.TrimSpace(*request.Name)
+		if trimmed == "" {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "name is required")
+			return
+		}
+		name = &trimmed
+	}
+
+	parentIDSet := request.ParentID != nil
+	parentID := pgtype.UUID{}
+	if parentIDSet {
+		raw := strings.TrimSpace(string(*request.ParentID))
+		if raw != "" && raw != "null" {
+			var parsed types.UUID
+			if err := json.Unmarshal(*request.ParentID, &parsed); err != nil {
+				h.writeError(c, http.StatusBadRequest, "invalid_request", "parentId must be a valid uuid or null")
+				return
+			}
+			parentID = pgtype.UUID{Bytes: uuid.UUID(parsed), Valid: true}
+		}
+	}
+
+	var sort *int32
+	if request.Sort != nil {
+		value := clampInt32(*request.Sort)
+		sort = &value
+	}
+
+	category, err := h.CatalogStore.UpdateCategory(c.Request.Context(), db.UpdateCategoryParams{
+		ID:          uuid.UUID(categoryId),
+		Name:        name,
+		ParentIDSet: parentIDSet,
+		ParentID:    parentID,
+		Sort:        sort,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			h.writeError(c, http.StatusNotFound, "not_found", "category not found")
+			return
+		}
+		h.logError("update category failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update category")
+		return
+	}
+
+	c.JSON(http.StatusOK, categoryFromModel(category))
+}
+
+func (h *Handler) DeleteCatalogCategoriesCategoryId(c *gin.Context, categoryId types.UUID) {
+	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+		return
+	}
+
+	affected, err := h.CatalogStore.DeleteCategory(c.Request.Context(), uuid.UUID(categoryId))
+	if err != nil {
+		h.logError("delete category failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to delete category")
+		return
+	}
+	if affected == 0 {
+		h.writeError(c, http.StatusNotFound, "not_found", "category not found")
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }
 
 func (h *Handler) GetCatalogProducts(c *gin.Context, params oapi.GetCatalogProductsParams) {
@@ -137,6 +274,10 @@ func (h *Handler) GetCatalogProducts(c *gin.Context, params oapi.GetCatalogProdu
 }
 
 func (h *Handler) PostCatalogProducts(c *gin.Context) {
+	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+		return
+	}
+
 	var request oapi.CreateCatalogProductRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
@@ -221,6 +362,156 @@ func (h *Handler) GetCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 	}
 
 	c.JSON(http.StatusOK, detail)
+}
+
+func (h *Handler) PatchCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
+	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+		return
+	}
+
+	var request patchProductRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
+		return
+	}
+
+	if request.Name == nil &&
+		request.CategoryID == nil &&
+		!request.Description.Set &&
+		!request.CoverImageURL.Set &&
+		request.Images == nil &&
+		request.Tags == nil &&
+		request.FilterDimensions == nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "at least one field must be provided")
+		return
+	}
+
+	existing, err := h.CatalogStore.GetProduct(c.Request.Context(), uuid.UUID(spuId))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			h.writeError(c, http.StatusNotFound, "not_found", "product not found")
+			return
+		}
+		h.logError("get product failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update product")
+		return
+	}
+
+	name := existing.Name
+	if request.Name != nil {
+		trimmed := strings.TrimSpace(*request.Name)
+		if trimmed == "" {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "name is required")
+			return
+		}
+		name = trimmed
+	}
+
+	categoryID := existing.CategoryID
+	if request.CategoryID != nil {
+		if *request.CategoryID == (types.UUID{}) {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "categoryId is required")
+			return
+		}
+		categoryID = uuid.UUID(*request.CategoryID)
+	}
+
+	description := existing.Description
+	if request.Description.Set {
+		description = request.Description.Value
+	}
+
+	coverImageURL := existing.CoverImageUrl
+	if request.CoverImageURL.Set {
+		coverImageURL = request.CoverImageURL.Value
+	}
+
+	images := existing.Images
+	if request.Images != nil {
+		images = make([]string, len(*request.Images))
+		copy(images, *request.Images)
+	}
+
+	tags := existing.Tags
+	if request.Tags != nil {
+		tags = make([]string, len(*request.Tags))
+		copy(tags, *request.Tags)
+	}
+
+	filterDimensions := existing.FilterDimensions
+	if request.FilterDimensions != nil {
+		filterDimensions = make([]string, len(*request.FilterDimensions))
+		copy(filterDimensions, *request.FilterDimensions)
+	}
+
+	product, err := h.CatalogStore.UpdateProduct(c.Request.Context(), db.UpdateProductParams{
+		ID:               uuid.UUID(spuId),
+		Name:             name,
+		Description:      description,
+		CategoryID:       categoryID,
+		CoverImageUrl:    coverImageURL,
+		Images:           images,
+		Tags:             tags,
+		FilterDimensions: filterDimensions,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			h.writeError(c, http.StatusNotFound, "not_found", "product not found")
+			return
+		}
+		h.logError("update product failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update product")
+		return
+	}
+
+	skus, err := h.CatalogStore.ListSkusByProduct(c.Request.Context(), product.ID)
+	if err != nil {
+		h.logError("list skus failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update product")
+		return
+	}
+
+	var priceTiers []db.CatalogPriceTier
+	if len(skus) > 0 {
+		skuIDs := make([]uuid.UUID, 0, len(skus))
+		for _, sku := range skus {
+			skuIDs = append(skuIDs, sku.ID)
+		}
+		priceTiers, err = h.CatalogStore.ListPriceTiersBySkus(c.Request.Context(), skuIDs)
+		if err != nil {
+			h.logError("list price tiers failed", err)
+			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update product")
+			return
+		}
+	}
+
+	detail, err := productDetailFromModel(product, skus, priceTiers)
+	if err != nil {
+		h.logError("map product detail failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update product")
+		return
+	}
+
+	c.JSON(http.StatusOK, detail)
+}
+
+func (h *Handler) DeleteCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
+	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+		return
+	}
+
+	affected, err := h.CatalogStore.DeleteProduct(c.Request.Context(), uuid.UUID(spuId))
+	if err != nil {
+		h.logError("delete product failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to delete product")
+		return
+	}
+	if affected == 0 {
+		h.writeError(c, http.StatusNotFound, "not_found", "product not found")
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }
 
 func (h *Handler) PostCatalogProductsSpuIdSkus(c *gin.Context, spuId types.UUID) {
