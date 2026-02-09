@@ -5,6 +5,7 @@ import type {
   ChooseImageOptions,
   ChooseImageResult,
   LoginResult,
+  PhoneProofResult,
   PayOptions,
   PayResult,
   RequestOptions,
@@ -26,6 +27,11 @@ const createTouristModeError = () => {
   return Object.assign(error, { code: 'WEAPP_TOURIST_MODE_UNSUPPORTED' as const })
 }
 
+const createPhoneAuthError = (code: string, message: string) => {
+  const error = new Error(message)
+  return Object.assign(error, { code })
+}
+
 const isTouristMode = (): boolean => {
   try {
     const appId = wx.getAccountInfoSync?.()?.miniProgram?.appId
@@ -43,6 +49,37 @@ export const login = (): Promise<LoginResult> => {
     wx.login({
       success: (res: { code: string }) => resolve({ code: res.code, raw: res }),
       fail: reject
+    })
+  })
+}
+
+export const getPhoneNumber = (): Promise<PhoneProofResult> => {
+  if (typeof wx.getPhoneNumber !== 'function') {
+    return Promise.reject(createPhoneAuthError('WEAPP_GET_PHONE_UNSUPPORTED', 'WeChat getPhoneNumber is not supported'))
+  }
+
+  return new Promise((resolve, reject) => {
+    wx.getPhoneNumber({
+      success: (res: { code?: string; phoneNumber?: string }) => {
+        const code = typeof res.code === 'string' && res.code.trim() ? res.code.trim() : undefined
+        const phone = typeof res.phoneNumber === 'string' && res.phoneNumber.trim()
+          ? res.phoneNumber.trim()
+          : undefined
+
+        if (!code && !phone) {
+          reject(createPhoneAuthError('WEAPP_PHONE_PROOF_MISSING', 'WeChat phone proof missing'))
+          return
+        }
+
+        resolve({ code, phone, raw: res })
+      },
+      fail: (err: { errMsg?: string }) => {
+        if (err?.errMsg?.toLowerCase().includes('deny')) {
+          reject(createPhoneAuthError('PHONE_AUTH_DENIED', err.errMsg))
+          return
+        }
+        reject(err)
+      }
     })
   })
 }

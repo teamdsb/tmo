@@ -50,7 +50,7 @@ const bindOwnerSalesUser = `-- name: BindOwnerSalesUser :one
 UPDATE users
 SET owner_sales_user_id = $2, updated_at = now()
 WHERE id = $1 AND owner_sales_user_id IS NULL
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone
 `
 
 type BindOwnerSalesUserParams struct {
@@ -71,6 +71,39 @@ func (q *Queries) BindOwnerSalesUser(ctx context.Context, arg BindOwnerSalesUser
 		&i.Status,
 		&i.DisabledAt,
 		&i.DisabledReason,
+		&i.Phone,
+	)
+	return i, err
+}
+
+const bindUserPhone = `-- name: BindUserPhone :one
+UPDATE users
+SET phone = $2,
+    updated_at = now()
+WHERE id = $1
+  AND (phone IS NULL OR phone = $2)
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone
+`
+
+type BindUserPhoneParams struct {
+	ID    uuid.UUID `db:"id" json:"id"`
+	Phone *string   `db:"phone" json:"phone"`
+}
+
+func (q *Queries) BindUserPhone(ctx context.Context, arg BindUserPhoneParams) (User, error) {
+	row := q.db.QueryRow(ctx, bindUserPhone, arg.ID, arg.Phone)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.DisplayName,
+		&i.UserType,
+		&i.OwnerSalesUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Status,
+		&i.DisabledAt,
+		&i.DisabledReason,
+		&i.Phone,
 	)
 	return i, err
 }
@@ -100,7 +133,11 @@ const countCustomers = `-- name: CountCustomers :one
 SELECT count(*)
 FROM users
 WHERE user_type = 'customer'
-  AND ($1::text IS NULL OR COALESCE(display_name, '') ILIKE '%' || $1 || '%')
+  AND (
+    $1::text IS NULL
+    OR COALESCE(display_name, '') ILIKE '%' || $1 || '%'
+    OR COALESCE(phone, '') ILIKE '%' || $1 || '%'
+  )
   AND ($2::uuid IS NULL OR owner_sales_user_id = $2)
   AND ($3::uuid IS NULL OR id = $3)
 `
@@ -235,14 +272,15 @@ func (q *Queries) CreateStaffBindingToken(ctx context.Context, arg CreateStaffBi
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (id, display_name, user_type, owner_sales_user_id)
-VALUES ($1, $2, $3, $4)
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason
+INSERT INTO users (id, display_name, phone, user_type, owner_sales_user_id)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone
 `
 
 type CreateUserParams struct {
 	ID               uuid.UUID   `db:"id" json:"id"`
 	DisplayName      *string     `db:"display_name" json:"display_name"`
+	Phone            *string     `db:"phone" json:"phone"`
 	UserType         string      `db:"user_type" json:"user_type"`
 	OwnerSalesUserID pgtype.UUID `db:"owner_sales_user_id" json:"owner_sales_user_id"`
 }
@@ -251,6 +289,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	row := q.db.QueryRow(ctx, createUser,
 		arg.ID,
 		arg.DisplayName,
+		arg.Phone,
 		arg.UserType,
 		arg.OwnerSalesUserID,
 	)
@@ -265,6 +304,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Status,
 		&i.DisabledAt,
 		&i.DisabledReason,
+		&i.Phone,
 	)
 	return i, err
 }
@@ -323,7 +363,7 @@ func (q *Queries) DeleteUserRoles(ctx context.Context, userID uuid.UUID) error {
 }
 
 const getCustomerByID = `-- name: GetCustomerByID :one
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason FROM users
+SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone FROM users
 WHERE id = $1 AND user_type = 'customer'
 `
 
@@ -340,6 +380,7 @@ func (q *Queries) GetCustomerByID(ctx context.Context, id uuid.UUID) (User, erro
 		&i.Status,
 		&i.DisabledAt,
 		&i.DisabledReason,
+		&i.Phone,
 	)
 	return i, err
 }
@@ -458,7 +499,7 @@ func (q *Queries) GetStaffBindingToken(ctx context.Context, token string) (Staff
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason FROM users WHERE id = $1
+SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -474,12 +515,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Status,
 		&i.DisabledAt,
 		&i.DisabledReason,
+		&i.Phone,
 	)
 	return i, err
 }
 
 const getUserByIdentity = `-- name: GetUserByIdentity :one
-SELECT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason FROM users u
+SELECT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone FROM users u
 JOIN user_identities i ON i.user_id = u.id
 WHERE i.provider = $1 AND i.provider_user_id = $2
 LIMIT 1
@@ -503,6 +545,31 @@ func (q *Queries) GetUserByIdentity(ctx context.Context, arg GetUserByIdentityPa
 		&i.Status,
 		&i.DisabledAt,
 		&i.DisabledReason,
+		&i.Phone,
+	)
+	return i, err
+}
+
+const getUserByPhone = `-- name: GetUserByPhone :one
+SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone FROM users
+WHERE phone = $1
+LIMIT 1
+`
+
+func (q *Queries) GetUserByPhone(ctx context.Context, phone *string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByPhone, phone)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.DisplayName,
+		&i.UserType,
+		&i.OwnerSalesUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Status,
+		&i.DisabledAt,
+		&i.DisabledReason,
+		&i.Phone,
 	)
 	return i, err
 }
@@ -604,9 +671,13 @@ func (q *Queries) ListAuditLogs(ctx context.Context, arg ListAuditLogsParams) ([
 }
 
 const listCustomers = `-- name: ListCustomers :many
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason FROM users
+SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone FROM users
 WHERE user_type = 'customer'
-  AND ($1::text IS NULL OR COALESCE(display_name, '') ILIKE '%' || $1 || '%')
+  AND (
+    $1::text IS NULL
+    OR COALESCE(display_name, '') ILIKE '%' || $1 || '%'
+    OR COALESCE(phone, '') ILIKE '%' || $1 || '%'
+  )
   AND ($2::uuid IS NULL OR owner_sales_user_id = $2)
   AND ($3::uuid IS NULL OR id = $3)
 ORDER BY created_at DESC
@@ -646,6 +717,7 @@ func (q *Queries) ListCustomers(ctx context.Context, arg ListCustomersParams) ([
 			&i.Status,
 			&i.DisabledAt,
 			&i.DisabledReason,
+			&i.Phone,
 		); err != nil {
 			return nil, err
 		}
@@ -787,7 +859,7 @@ func (q *Queries) ListRoles(ctx context.Context) ([]Role, error) {
 }
 
 const listStaffUsers = `-- name: ListStaffUsers :many
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason FROM users
+SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone FROM users
 WHERE user_type = 'staff'
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $1
@@ -817,6 +889,7 @@ func (q *Queries) ListStaffUsers(ctx context.Context, arg ListStaffUsersParams) 
 			&i.Status,
 			&i.DisabledAt,
 			&i.DisabledReason,
+			&i.Phone,
 		); err != nil {
 			return nil, err
 		}
@@ -868,7 +941,7 @@ UPDATE users
 SET owner_sales_user_id = $2,
     updated_at = now()
 WHERE id = $1 AND user_type = 'customer'
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone
 `
 
 type TransferCustomerOwnershipParams struct {
@@ -889,6 +962,7 @@ func (q *Queries) TransferCustomerOwnership(ctx context.Context, arg TransferCus
 		&i.Status,
 		&i.DisabledAt,
 		&i.DisabledReason,
+		&i.Phone,
 	)
 	return i, err
 }
@@ -946,7 +1020,7 @@ UPDATE users
 SET display_name = COALESCE($2, display_name),
     updated_at = now()
 WHERE id = $1
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone
 `
 
 type UpdateUserProfileParams struct {
@@ -967,6 +1041,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.Status,
 		&i.DisabledAt,
 		&i.DisabledReason,
+		&i.Phone,
 	)
 	return i, err
 }
@@ -978,7 +1053,7 @@ SET status = $2,
     disabled_reason = $4,
     updated_at = now()
 WHERE id = $1
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone
 `
 
 type UpdateUserStatusParams struct {
@@ -1006,6 +1081,7 @@ func (q *Queries) UpdateUserStatus(ctx context.Context, arg UpdateUserStatusPara
 		&i.Status,
 		&i.DisabledAt,
 		&i.DisabledReason,
+		&i.Phone,
 	)
 	return i, err
 }

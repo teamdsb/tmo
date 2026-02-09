@@ -20,6 +20,7 @@ type weappClient struct {
 	sessionURL  string
 	tokenURL    string
 	qrCodeURL   string
+	phoneURL    string
 	httpClient  *http.Client
 	tokenMutex  sync.Mutex
 	accessToken string
@@ -36,6 +37,7 @@ func newWeappClient(cfg Config, client *http.Client) *weappClient {
 		sessionURL: cfg.WeappSessionURL,
 		tokenURL:   cfg.WeappTokenURL,
 		qrCodeURL:  cfg.WeappQRCodeURL,
+		phoneURL:   cfg.WeappPhoneURL,
 		httpClient: client,
 	}
 }
@@ -142,6 +144,65 @@ func (c *weappClient) GenerateQRCode(ctx context.Context, scene, page string, wi
 	return data, nil
 }
 
+func (c *weappClient) ResolvePhone(ctx context.Context, code string) (string, error) {
+	trimmedCode := strings.TrimSpace(code)
+	if trimmedCode == "" {
+		return "", errors.New("weapp phone code is required")
+	}
+
+	token, err := c.getAccessToken(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	endpoint, err := url.Parse(c.phoneURL)
+	if err != nil {
+		return "", fmt.Errorf("resolve weapp phone endpoint: %w", err)
+	}
+	query := endpoint.Query()
+	query.Set("access_token", token)
+	endpoint.RawQuery = query.Encode()
+
+	body, err := json.Marshal(map[string]string{
+		"code": trimmedCode,
+	})
+	if err != nil {
+		return "", fmt.Errorf("marshal weapp phone request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint.String(), bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("create weapp phone request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("weapp phone request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("weapp phone status %d", resp.StatusCode)
+	}
+
+	var payload weappPhoneResponse
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return "", fmt.Errorf("decode weapp phone response: %w", err)
+	}
+	if payload.ErrCode != 0 {
+		return "", fmt.Errorf("weapp phone error %d: %s", payload.ErrCode, payload.ErrMsg)
+	}
+
+	if payload.PhoneInfo.PhoneNumber != "" {
+		return payload.PhoneInfo.PhoneNumber, nil
+	}
+	if payload.PhoneInfo.PurePhoneNumber != "" {
+		return payload.PhoneInfo.PurePhoneNumber, nil
+	}
+	return "", errors.New("weapp phone missing")
+}
+
 func (c *weappClient) getAccessToken(ctx context.Context) (string, error) {
 	c.tokenMutex.Lock()
 	defer c.tokenMutex.Unlock()
@@ -209,4 +270,14 @@ type weappTokenResponse struct {
 type weappErrorResponse struct {
 	ErrCode int    `json:"errcode"`
 	ErrMsg  string `json:"errmsg"`
+}
+
+type weappPhoneResponse struct {
+	ErrCode   int    `json:"errcode"`
+	ErrMsg    string `json:"errmsg"`
+	PhoneInfo struct {
+		PhoneNumber     string `json:"phoneNumber"`
+		PurePhoneNumber string `json:"purePhoneNumber"`
+		CountryCode     string `json:"countryCode"`
+	} `json:"phone_info"`
 }

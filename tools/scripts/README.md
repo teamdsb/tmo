@@ -12,3 +12,4 @@ Bootstrap and local dev scripts.
 - `identity-seed.sh`: seed identity dev users/roles.
 - `dev-bootstrap.sh`: start Postgres, run commerce + identity migrations and seed.
 - `gateway-verify.sh`: smoke-check gateway health/ready and auth flows.
+- `gateway-verify-real.sh`: verify real-mode auth rejects missing/invalid phone proof.

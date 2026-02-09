@@ -55,22 +55,65 @@ func newAlipayClient(cfg Config, client *http.Client) *alipayClient {
 }
 
 func (c *alipayClient) Resolve(ctx context.Context, code string) (LoginIdentity, error) {
+	token, err := c.exchangeAuthCode(ctx, code)
+	if err != nil {
+		return LoginIdentity{}, err
+	}
+	return LoginIdentity{ProviderUserID: token.UserID}, nil
+}
+
+func (c *alipayClient) ResolvePhone(ctx context.Context, code string) (string, error) {
+	token, err := c.exchangeAuthCode(ctx, code)
+	if err != nil {
+		return "", err
+	}
+
+	params := url.Values{}
+	params.Set("auth_token", token.AccessToken)
+
+	var response alipayUserInfoResponse
+	if err := c.call(ctx, "alipay.user.info.share", params, &response); err != nil {
+		return "", err
+	}
+	if response.Response.Code != "10000" {
+		return "", fmt.Errorf("alipay user info error %s: %s", response.Response.Code, response.Response.Msg)
+	}
+
+	phone := strings.TrimSpace(response.Response.Mobile)
+	if phone == "" {
+		return "", errors.New("alipay phone missing")
+	}
+	return phone, nil
+}
+
+func (c *alipayClient) exchangeAuthCode(ctx context.Context, code string) (alipayOAuthTokenResult, error) {
+	trimmedCode := strings.TrimSpace(code)
+	if trimmedCode == "" {
+		return alipayOAuthTokenResult{}, errors.New("alipay auth code is required")
+	}
+
 	params := url.Values{}
 	params.Set("grant_type", "authorization_code")
-	params.Set("code", code)
+	params.Set("code", trimmedCode)
 
 	var response alipayOAuthResponse
 	if err := c.call(ctx, "alipay.system.oauth.token", params, &response); err != nil {
-		return LoginIdentity{}, err
+		return alipayOAuthTokenResult{}, err
 	}
 	if response.Response.Code != "10000" {
-		return LoginIdentity{}, fmt.Errorf("alipay oauth error %s: %s", response.Response.Code, response.Response.Msg)
+		return alipayOAuthTokenResult{}, fmt.Errorf("alipay oauth error %s: %s", response.Response.Code, response.Response.Msg)
 	}
 	if response.Response.UserID == "" {
-		return LoginIdentity{}, errors.New("alipay user_id missing")
+		return alipayOAuthTokenResult{}, errors.New("alipay user_id missing")
+	}
+	if response.Response.AccessToken == "" {
+		return alipayOAuthTokenResult{}, errors.New("alipay access token missing")
 	}
 
-	return LoginIdentity{ProviderUserID: response.Response.UserID}, nil
+	return alipayOAuthTokenResult{
+		UserID:      response.Response.UserID,
+		AccessToken: response.Response.AccessToken,
+	}, nil
 }
 
 func (c *alipayClient) GenerateQRCode(ctx context.Context, scene, page string) (string, error) {
@@ -219,14 +262,20 @@ func parseRSAPublicKey(pemData string) (*rsa.PublicKey, error) {
 
 type alipayOAuthResponse struct {
 	Response struct {
-		Code      string `json:"code"`
-		Msg       string `json:"msg"`
-		UserID    string `json:"user_id"`
-		SubCode   string `json:"sub_code"`
-		SubMsg    string `json:"sub_msg"`
-		ExpiresIn string `json:"expires_in"`
+		Code        string `json:"code"`
+		Msg         string `json:"msg"`
+		UserID      string `json:"user_id"`
+		AccessToken string `json:"access_token"`
+		SubCode     string `json:"sub_code"`
+		SubMsg      string `json:"sub_msg"`
+		ExpiresIn   string `json:"expires_in"`
 	} `json:"alipay_system_oauth_token_response"`
 	Sign string `json:"sign"`
+}
+
+type alipayOAuthTokenResult struct {
+	UserID      string
+	AccessToken string
 }
 
 type alipayQRCodeResponse struct {
@@ -237,6 +286,17 @@ type alipayQRCodeResponse struct {
 		SubMsg    string `json:"sub_msg"`
 		QRCodeURL string `json:"qr_code_url"`
 	} `json:"alipay_open_app_qrcode_create_response"`
+	Sign string `json:"sign"`
+}
+
+type alipayUserInfoResponse struct {
+	Response struct {
+		Code    string `json:"code"`
+		Msg     string `json:"msg"`
+		SubCode string `json:"sub_code"`
+		SubMsg  string `json:"sub_msg"`
+		Mobile  string `json:"mobile"`
+	} `json:"alipay_user_info_share_response"`
 	Sign string `json:"sign"`
 }
 

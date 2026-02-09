@@ -5,6 +5,12 @@ export interface LoginResult {
   raw?: unknown
 }
 
+export interface PhoneProofResult {
+  code?: string
+  phone?: string
+  raw?: unknown
+}
+
 export interface RequestOptions {
   url: string
   method?: RequestMethod

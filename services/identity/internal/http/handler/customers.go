@@ -175,6 +175,9 @@ func customerFromModel(user db.User) oapi.Customer {
 		DisplayName: displayName,
 		CreatedAt:   user.CreatedAt.Time,
 	}
+	if user.Phone != nil {
+		response.Phone = user.Phone
+	}
 	if user.OwnerSalesUserID.Valid {
 		ownerSalesUserID := openapi_types.UUID(user.OwnerSalesUserID.Bytes)
 		response.OwnerSalesUserId = &ownerSalesUserID

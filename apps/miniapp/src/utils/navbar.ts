@@ -47,7 +47,7 @@ export const getNavbarMetrics = (): NavbarMetrics => {
   }
 
   const isAlipay = process.env.TARO_ENV === 'alipay'
-  const systemInfo = Taro.getSystemInfoSync() as Record<string, unknown>
+  const systemInfo = Taro.getSystemInfoSync() as unknown as Record<string, unknown>
   const statusBarHeight = getStatusBarHeight(systemInfo)
   const safeAreaTop = getSafeAreaTop(systemInfo)
   const menuButton = getValidMenuButton()

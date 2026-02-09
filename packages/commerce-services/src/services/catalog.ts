@@ -36,6 +36,13 @@ export interface CatalogService {
 }
 
 export const createCatalogService = (): CatalogService => {
+  const ensureProductDetail = (data: ProductDetail | { message?: string }): ProductDetail => {
+    if ('product' in data) {
+      return data
+    }
+    throw new Error(data.message || 'failed to fetch product detail')
+  }
+
   return {
     listCategories: () => withRetry(async () => (await getCatalogCategories()).data),
     getCategory: (categoryId) => withRetry(async () => {
@@ -51,11 +58,20 @@ export const createCatalogService = (): CatalogService => {
       await deleteCatalogCategoriesCategoryId(categoryId)
     }),
     listProducts: (params) => withRetry(async () => (await getCatalogProducts(params)).data),
-    createProduct: (payload) => withRetry(async () => (await postCatalogProducts(payload)).data),
-    updateProduct: (spuId, payload) => withRetry(async () => (await patchCatalogProductsSpuId(spuId, payload)).data),
+    createProduct: (payload) => withRetry(async () => {
+      const data = (await postCatalogProducts(payload)).data
+      return ensureProductDetail(data)
+    }),
+    updateProduct: (spuId, payload) => withRetry(async () => {
+      const data = (await patchCatalogProductsSpuId(spuId, payload)).data
+      return ensureProductDetail(data)
+    }),
     deleteProduct: (spuId) => withRetry(async () => {
       await deleteCatalogProductsSpuId(spuId)
     }),
-    getProductDetail: (spuId) => withRetry(async () => (await getCatalogProductsSpuId(spuId)).data)
+    getProductDetail: (spuId) => withRetry(async () => {
+      const data = (await getCatalogProductsSpuId(spuId)).data
+      return ensureProductDetail(data)
+    })
   }
 }

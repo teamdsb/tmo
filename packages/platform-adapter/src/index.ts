@@ -7,6 +7,7 @@ import type {
   ChooseImageOptions,
   ChooseImageResult,
   LoginResult,
+  PhoneProofResult,
   PayOptions,
   PayResult,
   RequestMethod,
@@ -47,6 +48,17 @@ export const login = (): Promise<LoginResult> => {
       return alipay.login()
     default:
       return Promise.reject(new Error('login is not supported on this platform'))
+  }
+}
+
+export const getPhoneNumber = (): Promise<PhoneProofResult> => {
+  switch (getPlatform()) {
+    case Platform.Weapp:
+      return weapp.getPhoneNumber()
+    case Platform.Alipay:
+      return alipay.getPhoneNumber()
+    default:
+      return Promise.reject(new Error('getPhoneNumber is not supported on this platform'))
   }
 }
 
@@ -156,6 +168,7 @@ export type {
   ChooseImageOptions,
   ChooseImageResult,
   LoginResult,
+  PhoneProofResult,
   PayOptions,
   PayResult,
   RequestMethod,

@@ -5,6 +5,7 @@ import type {
   ChooseImageOptions,
   ChooseImageResult,
   LoginResult,
+  PhoneProofResult,
   PayOptions,
   PayResult,
   RequestOptions,
@@ -27,6 +28,65 @@ export const login = (): Promise<LoginResult> => {
       fail: reject
     })
   })
+}
+
+const requestAuthUserCode = (): Promise<PhoneProofResult> => {
+  return new Promise((resolve, reject) => {
+    my.getAuthCode({
+      scopes: 'auth_user',
+      success: (res: { authCode?: string }) => {
+        const code = typeof res.authCode === 'string' && res.authCode.trim() ? res.authCode.trim() : undefined
+        if (!code) {
+          reject(new Error('Alipay auth_user code missing'))
+          return
+        }
+        resolve({ code, raw: res })
+      },
+      fail: reject
+    })
+  })
+}
+
+export const getPhoneNumber = async (): Promise<PhoneProofResult> => {
+  if (typeof my.getPhoneNumber === 'function') {
+    try {
+      const fromPhoneAPI = await new Promise<PhoneProofResult>((resolve, reject) => {
+        my.getPhoneNumber({
+          success: (res: { response?: string; code?: string; mobile?: string; phoneNumber?: string }) => {
+            const phone = typeof res.mobile === 'string' && res.mobile.trim()
+              ? res.mobile.trim()
+              : typeof res.phoneNumber === 'string' && res.phoneNumber.trim()
+                ? res.phoneNumber.trim()
+                : undefined
+            const code = typeof res.code === 'string' && res.code.trim()
+              ? res.code.trim()
+              : typeof res.response === 'string' && res.response.trim()
+                ? res.response.trim()
+                : undefined
+            if (!code && !phone) {
+              reject(new Error('Alipay phone proof missing'))
+              return
+            }
+            resolve({ code, phone, raw: res })
+          },
+          fail: reject
+        })
+      })
+      return fromPhoneAPI
+    } catch (error) {
+      // Fallback to auth_user when getPhoneNumber fails in older runtimes.
+      if (typeof error === 'object' && error !== null) {
+        const errMsg = String((error as { errorMessage?: string; errMsg?: string }).errorMessage
+          ?? (error as { errMsg?: string }).errMsg
+          ?? '')
+        if (errMsg.toLowerCase().includes('deny')) {
+          throw Object.assign(new Error(errMsg || 'phone authorization denied'), { code: 'PHONE_AUTH_DENIED' })
+        }
+      }
+    }
+  }
+
+  return requestAuthUserCode()
 }
 
 export const request = async <T>(options: RequestOptions): Promise<RequestResult<T>> => {

@@ -49,6 +49,7 @@ func (h *Handler) PostStaff(c *gin.Context) {
 		createdUser, err := q.CreateUser(c.Request.Context(), db.CreateUserParams{
 			ID:               userID,
 			DisplayName:      request.DisplayName,
+			Phone:            nil,
 			UserType:         "staff",
 			OwnerSalesUserID: pgtype.UUID{},
 		})

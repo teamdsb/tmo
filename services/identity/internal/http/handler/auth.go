@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -15,6 +16,7 @@ import (
 	shareddb "github.com/teamdsb/tmo/packages/go-shared/db"
 	"github.com/teamdsb/tmo/services/identity/internal/db"
 	"github.com/teamdsb/tmo/services/identity/internal/http/oapi"
+	"github.com/teamdsb/tmo/services/identity/internal/platform"
 )
 
 func (h *Handler) PostAuthMiniLogin(c *gin.Context) {
@@ -34,6 +36,11 @@ func (h *Handler) PostAuthMiniLogin(c *gin.Context) {
 	}
 
 	platformName := strings.ToLower(strings.TrimSpace(string(request.Platform)))
+	phone, ok := h.resolveMiniLoginPhone(c, platformName, request)
+	if !ok {
+		return
+	}
+
 	identity, err := h.Platform.Resolve(c.Request.Context(), platformName, request.Code)
 	if err != nil {
 		h.logError("resolve mini login failed", err)
@@ -65,6 +72,9 @@ func (h *Handler) PostAuthMiniLogin(c *gin.Context) {
 			}
 			user = boundUser
 			roles = boundRoles
+			if err := h.bindMiniLoginPhone(c, &user, phone); err != nil {
+				return
+			}
 		} else {
 			requestedRole := ""
 			if request.Role != nil {
@@ -75,55 +85,19 @@ func (h *Handler) PostAuthMiniLogin(c *gin.Context) {
 				return
 			}
 
-			var createdUser db.User
-			var unionID *string
-			if strings.TrimSpace(identity.UnionID) != "" {
-				unionID = &identity.UnionID
-			}
-			err = shareddb.WithTx(c.Request.Context(), h.DB, func(tx pgx.Tx) error {
-				q := h.Store.WithTx(tx)
-				newUser, err := q.CreateUser(c.Request.Context(), db.CreateUserParams{
-					ID:               uuid.New(),
-					DisplayName:      nil,
-					UserType:         "customer",
-					OwnerSalesUserID: pgtype.UUID{},
-				})
-				if err != nil {
-					return err
-				}
-				if err := q.AddUserRole(c.Request.Context(), db.AddUserRoleParams{
-					UserID: newUser.ID,
-					Role:   "CUSTOMER",
-				}); err != nil {
-					return err
-				}
-				if _, err := q.CreateUserIdentity(c.Request.Context(), db.CreateUserIdentityParams{
-					ID:              uuid.New(),
-					Provider:        platformName,
-					ProviderUserID:  identity.ProviderUserID,
-					ProviderUnionID: unionID,
-					UserID:          newUser.ID,
-				}); err != nil {
-					return err
-				}
-				createdUser = newUser
-				return nil
-			})
-			if err != nil {
-				if shareddb.IsUniqueViolation(err) {
-					h.writeError(c, http.StatusConflict, "conflict", "identity already bound")
-					return
-				}
-				h.logError("create user failed", err)
-				h.writeError(c, http.StatusInternalServerError, "internal_error", "login failed")
+			linkedUser, linkedRoles, linkErr := h.findOrCreateMiniLoginCustomer(c, platformName, identity, phone)
+			if linkErr != nil {
 				return
 			}
-			user = createdUser
-			roles = []string{"CUSTOMER"}
+			user = linkedUser
+			roles = linkedRoles
 		}
 	} else {
 		if request.BindingToken != nil && strings.TrimSpace(*request.BindingToken) != "" {
 			h.writeError(c, http.StatusConflict, "conflict", "identity already bound")
+			return
+		}
+		if err := h.bindMiniLoginPhone(c, &user, phone); err != nil {
 			return
 		}
 		roles, err = h.Store.ListUserRoles(c.Request.Context(), user.ID)
@@ -187,6 +161,266 @@ func (h *Handler) PostAuthMiniLogin(c *gin.Context) {
 		User:        userFromModel(user, roles, userType),
 	}
 	c.JSON(http.StatusOK, response)
+}
+
+func (h *Handler) resolveMiniLoginPhone(c *gin.Context, platformName string, request oapi.MiniLoginRequest) (string, bool) {
+	var proof platform.PhoneProof
+	if request.PhoneProof != nil {
+		if request.PhoneProof.Code != nil {
+			proof.Code = strings.TrimSpace(*request.PhoneProof.Code)
+		}
+		if request.PhoneProof.Phone != nil {
+			proof.Phone = strings.TrimSpace(*request.PhoneProof.Phone)
+		}
+	}
+
+	if h.Platform.RequiresPhoneProof() && strings.TrimSpace(proof.Code) == "" && strings.TrimSpace(proof.Phone) == "" {
+		h.writeError(c, http.StatusBadRequest, "phone_required", "phone proof is required")
+		return "", false
+	}
+
+	if strings.TrimSpace(proof.Code) == "" && strings.TrimSpace(proof.Phone) == "" {
+		return "", true
+	}
+
+	phone, err := h.Platform.ResolvePhone(c.Request.Context(), platformName, proof)
+	if err != nil {
+		h.logError("resolve phone proof failed", err)
+		if h.Platform.RequiresPhoneProof() {
+			h.writeError(c, http.StatusBadRequest, "invalid_phone_proof", "failed to verify phone proof")
+			return "", false
+		}
+		return "", true
+	}
+
+	normalized, err := normalizePhone(phone)
+	if err != nil {
+		if h.Platform.RequiresPhoneProof() {
+			h.writeError(c, http.StatusBadRequest, "invalid_phone", "invalid phone number")
+			return "", false
+		}
+		return "", true
+	}
+	return normalized, true
+}
+
+func (h *Handler) findOrCreateMiniLoginCustomer(
+	c *gin.Context,
+	platformName string,
+	identity platform.LoginIdentity,
+	phone string,
+) (db.User, []string, error) {
+	if strings.TrimSpace(phone) != "" {
+		phoneParam := phone
+		existing, err := h.Store.GetUserByPhone(c.Request.Context(), &phoneParam)
+		if err == nil {
+			if strings.ToLower(existing.UserType) != "customer" {
+				h.writeError(c, http.StatusConflict, "conflict", "phone already linked to a non-customer account")
+				return db.User{}, nil, errors.New("phone linked to non-customer")
+			}
+
+			roles, err := h.Store.ListUserRoles(c.Request.Context(), existing.ID)
+			if err != nil {
+				h.logError("list roles by phone failed", err)
+				h.writeError(c, http.StatusInternalServerError, "internal_error", "login failed")
+				return db.User{}, nil, err
+			}
+			roles = normalizeRoles(roles)
+
+			var unionID *string
+			if strings.TrimSpace(identity.UnionID) != "" {
+				unionID = &identity.UnionID
+			}
+
+			err = shareddb.WithTx(c.Request.Context(), h.DB, func(tx pgx.Tx) error {
+				q := h.Store.WithTx(tx)
+				if !containsRole(roles, "CUSTOMER") {
+					if err := q.AddUserRole(c.Request.Context(), db.AddUserRoleParams{
+						UserID: existing.ID,
+						Role:   "CUSTOMER",
+					}); err != nil {
+						return err
+					}
+				}
+				if _, err := q.CreateUserIdentity(c.Request.Context(), db.CreateUserIdentityParams{
+					ID:              uuid.New(),
+					Provider:        platformName,
+					ProviderUserID:  identity.ProviderUserID,
+					ProviderUnionID: unionID,
+					UserID:          existing.ID,
+				}); err != nil {
+					return err
+				}
+				return nil
+			})
+			if err != nil {
+				if shareddb.IsUniqueViolation(err) {
+					h.writeError(c, http.StatusConflict, "conflict", "identity already bound")
+					return db.User{}, nil, err
+				}
+				h.logError("bind identity by phone failed", err)
+				h.writeError(c, http.StatusInternalServerError, "internal_error", "login failed")
+				return db.User{}, nil, err
+			}
+
+			if !containsRole(roles, "CUSTOMER") {
+				roles = append(roles, "CUSTOMER")
+			}
+			return existing, normalizeRoles(roles), nil
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			h.logError("lookup user by phone failed", err)
+			h.writeError(c, http.StatusInternalServerError, "internal_error", "login failed")
+			return db.User{}, nil, err
+		}
+	}
+
+	var createdUser db.User
+	var unionID *string
+	if strings.TrimSpace(identity.UnionID) != "" {
+		unionID = &identity.UnionID
+	}
+	displayName := defaultDisplayNameFromPhone(phone)
+	var phonePtr *string
+	if strings.TrimSpace(phone) != "" {
+		phonePtr = &phone
+	}
+	err := shareddb.WithTx(c.Request.Context(), h.DB, func(tx pgx.Tx) error {
+		q := h.Store.WithTx(tx)
+		newUser, err := q.CreateUser(c.Request.Context(), db.CreateUserParams{
+			ID:               uuid.New(),
+			DisplayName:      displayName,
+			Phone:            phonePtr,
+			UserType:         "customer",
+			OwnerSalesUserID: pgtype.UUID{},
+		})
+		if err != nil {
+			return err
+		}
+		if err := q.AddUserRole(c.Request.Context(), db.AddUserRoleParams{
+			UserID: newUser.ID,
+			Role:   "CUSTOMER",
+		}); err != nil {
+			return err
+		}
+		if _, err := q.CreateUserIdentity(c.Request.Context(), db.CreateUserIdentityParams{
+			ID:              uuid.New(),
+			Provider:        platformName,
+			ProviderUserID:  identity.ProviderUserID,
+			ProviderUnionID: unionID,
+			UserID:          newUser.ID,
+		}); err != nil {
+			return err
+		}
+		createdUser = newUser
+		return nil
+	})
+	if err != nil {
+		if shareddb.IsUniqueViolation(err) {
+			h.writeError(c, http.StatusConflict, "conflict", "identity already bound")
+			return db.User{}, nil, err
+		}
+		h.logError("create user failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "login failed")
+		return db.User{}, nil, err
+	}
+	return createdUser, []string{"CUSTOMER"}, nil
+}
+
+func (h *Handler) bindMiniLoginPhone(c *gin.Context, user *db.User, phone string) error {
+	trimmedPhone := strings.TrimSpace(phone)
+	if trimmedPhone == "" {
+		return nil
+	}
+
+	if user.Phone != nil && strings.TrimSpace(*user.Phone) != "" {
+		existing, err := normalizePhone(*user.Phone)
+		if err != nil {
+			h.logError("normalize existing phone failed", err)
+			h.writeError(c, http.StatusConflict, "conflict", "phone already linked to another account")
+			return err
+		}
+		if existing != trimmedPhone {
+			h.writeError(c, http.StatusConflict, "conflict", "phone already linked to another account")
+			return errors.New("phone mismatch")
+		}
+		return nil
+	}
+
+	updated, err := h.Store.BindUserPhone(c.Request.Context(), db.BindUserPhoneParams{
+		ID:    user.ID,
+		Phone: &trimmedPhone,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			h.writeError(c, http.StatusConflict, "conflict", "phone already linked to another account")
+			return err
+		}
+		if shareddb.IsUniqueViolation(err) {
+			h.writeError(c, http.StatusConflict, "conflict", "phone already linked to another account")
+			return err
+		}
+		h.logError("bind user phone failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "login failed")
+		return err
+	}
+	*user = updated
+	return nil
+}
+
+func normalizePhone(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "", errors.New("phone is empty")
+	}
+
+	var digitsBuilder strings.Builder
+	hasPlus := strings.HasPrefix(trimmed, "+")
+	for _, char := range trimmed {
+		if unicode.IsDigit(char) {
+			digitsBuilder.WriteRune(char)
+		}
+	}
+	digits := digitsBuilder.String()
+	if digits == "" {
+		return "", errors.New("phone has no digits")
+	}
+
+	if hasPlus {
+		return "+" + digits, nil
+	}
+	if strings.HasPrefix(digits, "00") && len(digits) > 2 {
+		return "+" + digits[2:], nil
+	}
+	if strings.HasPrefix(digits, "86") && len(digits) == 13 {
+		return "+" + digits, nil
+	}
+	if len(digits) == 11 && strings.HasPrefix(digits, "1") {
+		return "+86" + digits, nil
+	}
+	if len(digits) >= 7 {
+		return "+" + digits, nil
+	}
+	return "", errors.New("phone length is invalid")
+}
+
+func defaultDisplayNameFromPhone(phone string) *string {
+	digits := make([]rune, 0, len(phone))
+	for _, char := range phone {
+		if unicode.IsDigit(char) {
+			digits = append(digits, char)
+		}
+	}
+	if len(digits) == 0 {
+		return nil
+	}
+
+	start := len(digits) - 4
+	if start < 0 {
+		start = 0
+	}
+	value := "用户" + string(digits[start:])
+	return &value
 }
 
 func (h *Handler) PostAuthPasswordLogin(c *gin.Context) {

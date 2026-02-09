@@ -79,6 +79,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		WeappSessionURL:  cfg.WeappSessionURL,
 		WeappTokenURL:    cfg.WeappTokenURL,
 		WeappQRCodeURL:   cfg.WeappQRCodeURL,
+		WeappPhoneURL:    cfg.WeappPhoneURL,
 		WeappSalesPage:   cfg.WeappSalesPage,
 		WeappQRWidth:     cfg.WeappQRWidth,
 		AlipayAppID:      cfg.AlipayAppID,

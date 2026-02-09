@@ -22,7 +22,8 @@
 
     TARO_APP_ID=wx8e8831fc456f019b
     TARO_APP_API_BASE_URL=http://localhost:8080
-    TARO_APP_COMMERCE_MOCK_FALLBACK=true
+    TARO_APP_COMMERCE_MOCK_FALLBACK=false
+    TARO_APP_ENABLE_MOCK_LOGIN=false
 
 启动后端（本地）：
 
@@ -45,13 +46,18 @@
 
     docker compose -f infra/dev/docker-compose.yml up -d
     bash tools/scripts/dev-bootstrap.sh
-    docker compose -f infra/dev/docker-compose.yml -f infra/dev/docker-compose.backend.yml up -d
+    cp infra/dev/backend.env.example infra/dev/backend.env.local
+    docker compose --env-file infra/dev/backend.env.local \
+      -f infra/dev/docker-compose.yml \
+      -f infra/dev/docker-compose.backend.yml up -d
 
 说明：
 
-- `TARO_APP_COMMERCE_MOCK_FALLBACK=false` 可以强制走真实后端，不再回退 mock 数据。
+- `TARO_APP_COMMERCE_MOCK_FALLBACK` 默认为关闭（`false`）；只有显式设为 `true` 才会回退 mock 数据。
+- `TARO_APP_ENABLE_MOCK_LOGIN` 默认为关闭（`false`）；只有显式设为 `true` 才会展示“测试登录”按钮。
 - 如果使用容器化后端，保持 `TARO_APP_API_BASE_URL=http://localhost:8080` 即可。
-- 微信环境建议使用真实 `TARO_APP_ID`；游客模式（`touristappid`）下，微信登录相关 API 可能受限。
+- 微信环境建议使用真实 `TARO_APP_ID`；游客模式（`touristappid`）下，微信登录和手机号授权会受限。
+- `IDENTITY_LOGIN_MODE=real` 时，`/auth/mini/login` 必须携带 `phoneProof`，小程序登录会触发手机号授权。
 
 支付宝稳定模式：
 
