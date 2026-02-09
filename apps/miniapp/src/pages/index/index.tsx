@@ -11,7 +11,6 @@ import AppsOutlined from '@taroify/icons/AppsOutlined'
 import FilterOutlined from '@taroify/icons/FilterOutlined'
 import SearchIcon from '@taroify/icons/Search'
 import type { Category, ProductSummary } from '@tmo/api-client'
-import AppTabbar from '../../components/app-tabbar'
 import SafeImage from '../../components/safe-image'
 import { goodsDetailRoute } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
@@ -114,8 +113,6 @@ export default function ProductCatalogApp() {
           </Tabs.TabPane>
         ))}
       </Tabs>
-
-      <AppTabbar value='home' />
     </View>
   )
 }

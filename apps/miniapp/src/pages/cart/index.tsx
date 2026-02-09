@@ -10,7 +10,6 @@ import type {
   CartImportPendingItem,
   CartImportSelection
 } from '@tmo/api-client'
-import AppTabbar from '../../components/app-tabbar'
 import { getNavbarStyle } from '../../utils/navbar'
 import { commerceServices } from '../../services/commerce'
 import { ROUTES } from '../../routes'
@@ -365,7 +364,6 @@ export default function ExcelImportConfirmation() {
             {importJob ? '确认并加入购物车' : '去结算'}
           </Button>
         </View>
-        <AppTabbar value='cart' fixed={false} placeholder={false} />
       </FixedView>
     </View>
   )

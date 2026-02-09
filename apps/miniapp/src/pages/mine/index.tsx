@@ -21,7 +21,6 @@ import {
   UserOutlined
 } from '@taroify/icons'
 import type { BootstrapResponse } from '@tmo/gateway-api-client'
-import AppTabbar from '../../components/app-tabbar'
 import { ROUTES } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../utils/navigation'
@@ -148,7 +147,7 @@ export default function PersonalCenter() {
   }
 
   return (
-    <View className={`page pb-24 font-sans mine-page ${themeClassName}`}>
+    <View className={`page font-sans mine-page ${themeClassName}`}>
       <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'></Navbar>
 
       <View className='px-5 pt-4 pb-2 flex items-center justify-between'>
@@ -259,8 +258,6 @@ export default function PersonalCenter() {
           <Text className='text-sm font-medium mine-muted'>切换账号或退出登录</Text>
         </View>
       </View>
-
-      <AppTabbar value='mine' />
     </View>
   )
 }

@@ -241,20 +241,3 @@
     transform: translateY(0);
   }
 }
-
-.category-tabbar {
-  pointer-events: auto;
-}
-
-
-.category-tabbar .taroify-tabbar {
-  background: #fff;
-  transition: transform 0.2s ease, opacity 0.2s ease;
-  will-change: transform, opacity;
-}
-
-.category-tabbar.is-hidden .taroify-tabbar {
-  transform: translateY(100%);
-  opacity: 0;
-  pointer-events: none;
-}

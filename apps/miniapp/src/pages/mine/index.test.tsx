@@ -29,7 +29,7 @@ describe('PersonalCenter', () => {
     expect(screen.getByText('切换账号或退出登录')).toBeInTheDocument();
   });
 
-  it('renders the tabbar items', async () => {
+  it('renders key menu entries', async () => {
     await renderPersonalCenter();
 
     expect(screen.getByRole('button', { name: '首页' })).toBeInTheDocument();
