@@ -24,6 +24,7 @@ const sortCategories = (items: Category[]) => {
 
 export default function CategoryPage() {
   const navbarStyle = getNavbarStyle()
+  const isH5 = process.env.TARO_ENV === 'h5'
   const [categories, setCategories] = useState<Category[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [activeCategoryId, setActiveCategoryId] = useState('')
@@ -106,8 +107,8 @@ export default function CategoryPage() {
   }, [activeCategoryId, query])
 
   return (
-    <View className='page category-page'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar app-navbar--primary'></Navbar>
+    <View className='page category-page' style={isH5 ? navbarStyle : undefined}>
+      {isH5 ? <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary' /> : null}
 
       <View className='category-search'>
         <Search

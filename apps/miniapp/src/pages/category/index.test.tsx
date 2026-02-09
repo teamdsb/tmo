@@ -7,7 +7,6 @@ describe('CategoryPage', () => {
 
     const navbar = document.querySelector('.app-navbar.app-navbar--primary');
     expect(navbar).not.toBeNull();
-    expect(navbar).toHaveAttribute('data-safe-area', 'top');
     expect(screen.getByPlaceholderText('搜索 SKU 或商品...')).toBeInTheDocument();
 
     expect((await screen.findAllByText('办公用品')).length).toBeGreaterThan(0);

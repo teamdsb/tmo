@@ -7,6 +7,7 @@ describe('navbar metrics', () => {
 
   beforeEach(() => {
     jest.resetModules()
+    process.env.TARO_ENV = 'h5'
   })
 
   it('uses menu button metrics when valid', () => {
@@ -23,17 +24,17 @@ describe('navbar metrics', () => {
     const { getNavbarMetrics, getNavbarStyle, getNavbarTotalHeight } = loadModule()
 
     expect(getNavbarMetrics()).toEqual({
-      top: 24,
+      top: 20,
       height: 32,
       lineHeight: 32
     })
     expect(getNavbarStyle()).toMatchObject({
-      '--navbar-top': '24px',
+      '--navbar-top': '20px',
       '--navbar-height': '32px',
       '--navbar-line-height': '32px',
-      '--navbar-total-height': '56px'
+      '--navbar-total-height': '52px'
     })
-    expect(getNavbarTotalHeight()).toBe(56)
+    expect(getNavbarTotalHeight()).toBe(52)
   })
 
   it('falls back to safeArea top and default height when menu button is invalid', () => {
@@ -87,7 +88,7 @@ describe('navbar metrics', () => {
 
     const { getNavbarMetrics } = loadModule()
     expect(getNavbarMetrics()).toEqual({
-      top: 24,
+      top: 20,
       height: 32,
       lineHeight: 32
     })
@@ -102,9 +103,37 @@ describe('navbar metrics', () => {
     })
 
     expect(getNavbarMetrics()).toEqual({
-      top: 24,
+      top: 20,
       height: 32,
       lineHeight: 32
     })
+  })
+
+  it('uses top 0 in alipay env', () => {
+    process.env.TARO_ENV = 'alipay'
+    const Taro = loadTaro()
+    Taro.getSystemInfoSync.mockReturnValue({
+      statusBarHeight: 24,
+      safeArea: { top: 24 }
+    })
+    Taro.getMenuButtonBoundingClientRect.mockReturnValue({
+      top: 32,
+      height: 36
+    })
+
+    const { getNavbarMetrics, getNavbarStyle, getNavbarTotalHeight } = loadModule()
+
+    expect(getNavbarMetrics()).toEqual({
+      top: 0,
+      height: 36,
+      lineHeight: 36
+    })
+    expect(getNavbarStyle()).toMatchObject({
+      '--navbar-top': '0px',
+      '--navbar-height': '36px',
+      '--navbar-line-height': '36px',
+      '--navbar-total-height': '36px'
+    })
+    expect(getNavbarTotalHeight()).toBe(36)
   })
 })

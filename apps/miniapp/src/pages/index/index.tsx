@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { View, Text, Swiper, SwiperItem } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
@@ -12,10 +12,10 @@ import SearchIcon from '@taroify/icons/Search'
 import type { Category, ProductSummary } from '@tmo/api-client'
 import SafeImage from '../../components/safe-image'
 import { ROUTES, goodsDetailRoute } from '../../routes'
-import { getNavbarStyle } from '../../utils/navbar'
 import { type CategoryIconKey, renderCategoryIcon, resolveCategoryIconKey } from '../../utils/category-icons'
 import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { commerceServices } from '../../services/commerce'
+import { getNavbarStyle } from '../../utils/navbar'
 import './index.scss'
 
 type QuickCategoryItem = {
@@ -55,6 +55,8 @@ export default function ProductCatalogApp() {
   const [products, setProducts] = useState<ProductSummary[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
+  const isH5 = process.env.TARO_ENV === 'h5'
+  const isAlipay = process.env.TARO_ENV === 'alipay'
   const navbarStyle = getNavbarStyle()
   const quickCategories = useMemo(() => buildQuickCategories(categories), [categories])
 
@@ -64,6 +66,10 @@ export default function ProductCatalogApp() {
     }
     void switchTabLike(item.targetRoute)
   }, [])
+  const pageStyle = {
+    ...(isH5 ? navbarStyle : {}),
+    '--home-search-offset': isAlipay ? '0px' : '20px'
+  } as CSSProperties
 
   useEffect(() => {
     let cancelled = false
@@ -112,9 +118,8 @@ export default function ProductCatalogApp() {
   }, [searchQuery])
 
   return (
-    <View className='page page-home'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar app-navbar--primary'>
-      </Navbar>
+    <View className='page page-home' style={pageStyle}>
+      {isH5 ? <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary' /> : null}
 
       <View className='page-search'>
         <Search

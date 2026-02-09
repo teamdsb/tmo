@@ -186,7 +186,7 @@
 }
 
 .page-home .page-search {
-  margin-top: 20px;
+  margin-top: var(--home-search-offset, 20px);
 }
 
 .page-content {

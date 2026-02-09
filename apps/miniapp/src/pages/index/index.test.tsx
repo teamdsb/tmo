@@ -22,7 +22,8 @@ describe('ProductCatalogApp', () => {
 
     const navbar = document.querySelector('.app-navbar.app-navbar--primary');
     expect(navbar).not.toBeNull();
-    expect(navbar).toHaveAttribute('data-safe-area', 'top');
+    const pageRoot = document.querySelector('.page.page-home');
+    expect(pageRoot).not.toBeNull();
 
     expect(screen.getAllByTestId('home-showcase-empty')).toHaveLength(3);
     expect(screen.getByTestId('home-showcase-dots')).toBeInTheDocument();

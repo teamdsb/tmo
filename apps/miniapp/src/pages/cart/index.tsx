@@ -46,6 +46,7 @@ export default function ExcelImportConfirmation() {
   const [selectionMap, setSelectionMap] = useState<Record<number, CartImportSelection>>({})
   const [loading, setLoading] = useState(false)
   const navbarStyle = getNavbarStyle()
+  const isH5 = process.env.TARO_ENV === 'h5'
 
   const jobIdParam = typeof router.params?.jobId === 'string' ? router.params.jobId : null
 
@@ -155,9 +156,13 @@ export default function ExcelImportConfirmation() {
   }
 
   return (
-    <View className='page page-compact-navbar flex flex-col'>
-      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'>
-      </Navbar>
+    <View className='page page-compact-navbar flex flex-col' style={isH5 ? navbarStyle : undefined}>
+      {isH5
+        ? (
+          <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'>
+          </Navbar>
+        )
+        : null}
 
       {importJob ? (
         <View className='flex-1 flex flex-col bg-white'>

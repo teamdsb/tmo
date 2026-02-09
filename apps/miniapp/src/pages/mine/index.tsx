@@ -113,6 +113,7 @@ function OrderItem({ icon: Icon, label, badge, onClick }: OrderItemProps) {
 
 export default function PersonalCenter() {
   const navbarStyle = getNavbarStyle()
+  const isH5 = process.env.TARO_ENV === 'h5'
   const [bootstrap, setBootstrap] = useState<BootstrapResponse | null>(null)
   const [isDark] = useState(() => Taro.getSystemInfoSync().theme === 'dark')
   const avatarFallback = placeholderProductImage
@@ -147,8 +148,8 @@ export default function PersonalCenter() {
   }
 
   return (
-    <View className={`page font-sans mine-page ${themeClassName}`}>
-      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'></Navbar>
+    <View className={`page font-sans mine-page ${themeClassName}`} style={isH5 ? navbarStyle : undefined}>
+      {isH5 ? <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'></Navbar> : null}
 
       <View className='px-5 pt-4 pb-2 flex items-center justify-between'>
         <View

@@ -10,6 +10,7 @@ type NavbarMetrics = {
 let cachedMetrics: NavbarMetrics | null = null
 
 const DEFAULT_NAVBAR_HEIGHT = 44
+const DEFAULT_NAVBAR_TOP = 20
 
 const getSafeAreaTop = (systemInfo: Record<string, unknown>): number => {
   const safeArea = systemInfo.safeArea
@@ -45,15 +46,17 @@ export const getNavbarMetrics = (): NavbarMetrics => {
     return cachedMetrics
   }
 
+  const isAlipay = process.env.TARO_ENV === 'alipay'
   const systemInfo = Taro.getSystemInfoSync() as Record<string, unknown>
   const statusBarHeight = getStatusBarHeight(systemInfo)
   const safeAreaTop = getSafeAreaTop(systemInfo)
   const menuButton = getValidMenuButton()
+  const topFromSystem = Math.max(statusBarHeight, safeAreaTop)
 
   cachedMetrics = {
     height: menuButton?.height ?? DEFAULT_NAVBAR_HEIGHT,
     lineHeight: menuButton?.height ?? DEFAULT_NAVBAR_HEIGHT,
-    top: Math.max(statusBarHeight, safeAreaTop, menuButton?.top ?? 0)
+    top: isAlipay ? 0 : (topFromSystem > 0 ? topFromSystem : DEFAULT_NAVBAR_TOP)
   }
   return cachedMetrics
 }
