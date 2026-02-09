@@ -19,6 +19,8 @@ import (
 
 type stubStore struct {
 	createProductFn         func(context.Context, db.CreateProductParams) (db.CatalogProduct, error)
+	updateProductFn         func(context.Context, db.UpdateProductParams) (db.CatalogProduct, error)
+	deleteProductFn         func(context.Context, uuid.UUID) (int64, error)
 	listProductsFn          func(context.Context, db.ListProductsParams) ([]db.CatalogProduct, error)
 	countProductsFn         func(context.Context, db.CountProductsParams) (int64, error)
 	getProductFn            func(context.Context, uuid.UUID) (db.CatalogProduct, error)
@@ -43,6 +45,20 @@ func (s *stubStore) CreateProduct(ctx context.Context, arg db.CreateProductParam
 		return db.CatalogProduct{}, pgx.ErrTxClosed
 	}
 	return s.createProductFn(ctx, arg)
+}
+
+func (s *stubStore) UpdateProduct(ctx context.Context, arg db.UpdateProductParams) (db.CatalogProduct, error) {
+	if s.updateProductFn == nil {
+		return db.CatalogProduct{}, pgx.ErrTxClosed
+	}
+	return s.updateProductFn(ctx, arg)
+}
+
+func (s *stubStore) DeleteProduct(ctx context.Context, id uuid.UUID) (int64, error) {
+	if s.deleteProductFn == nil {
+		return 0, pgx.ErrTxClosed
+	}
+	return s.deleteProductFn(ctx, id)
 }
 
 func (s *stubStore) ListProducts(ctx context.Context, arg db.ListProductsParams) ([]db.CatalogProduct, error) {
@@ -328,6 +344,133 @@ func TestPostCatalogProducts_Creates(t *testing.T) {
 	}
 	if len(response.Skus) != 0 {
 		t.Fatalf("expected empty skus")
+	}
+}
+
+func TestPatchCatalogProductsSpuId_Updates(t *testing.T) {
+	productID := uuid.New()
+	oldCategoryID := uuid.New()
+	newCategoryID := uuid.New()
+	description := "新描述"
+
+	var gotUpdate db.UpdateProductParams
+	store := &stubStore{
+		getProductFn: func(ctx context.Context, id uuid.UUID) (db.CatalogProduct, error) {
+			if id != productID {
+				t.Fatalf("expected product id %s, got %s", productID, id)
+			}
+			oldDescription := "旧描述"
+			oldCover := "https://example.com/old.jpg"
+			return db.CatalogProduct{
+				ID:               productID,
+				Name:             "旧商品名",
+				Description:      &oldDescription,
+				CategoryID:       oldCategoryID,
+				CoverImageUrl:    &oldCover,
+				Images:           []string{"https://example.com/old-1.jpg"},
+				Tags:             []string{"old"},
+				FilterDimensions: []string{"旧维度"},
+			}, nil
+		},
+		updateProductFn: func(ctx context.Context, arg db.UpdateProductParams) (db.CatalogProduct, error) {
+			gotUpdate = arg
+			return db.CatalogProduct{
+				ID:               arg.ID,
+				Name:             arg.Name,
+				Description:      arg.Description,
+				CategoryID:       arg.CategoryID,
+				CoverImageUrl:    arg.CoverImageUrl,
+				Images:           arg.Images,
+				Tags:             arg.Tags,
+				FilterDimensions: arg.FilterDimensions,
+			}, nil
+		},
+		listSkusByProductFn: func(ctx context.Context, productID uuid.UUID) ([]db.CatalogSku, error) {
+			return []db.CatalogSku{}, nil
+		},
+	}
+
+	payload := map[string]interface{}{
+		"name":             "新商品名",
+		"categoryId":       newCategoryID.String(),
+		"description":      description,
+		"coverImageUrl":    nil,
+		"images":           []string{"https://example.com/new-1.jpg", "https://example.com/new-2.jpg"},
+		"tags":             []string{"new", "hot"},
+		"filterDimensions": []string{"材质", "长度"},
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	router := newTestRouter(store)
+	req := httptest.NewRequest(http.MethodPatch, "/catalog/products/"+productID.String(), bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+	if gotUpdate.ID != productID {
+		t.Fatalf("expected update id %s, got %s", productID, gotUpdate.ID)
+	}
+	if gotUpdate.Name != "新商品名" {
+		t.Fatalf("unexpected update name: %s", gotUpdate.Name)
+	}
+	if gotUpdate.CategoryID != newCategoryID {
+		t.Fatalf("unexpected update category id: %s", gotUpdate.CategoryID)
+	}
+	if gotUpdate.Description == nil || *gotUpdate.Description != description {
+		t.Fatalf("unexpected update description: %#v", gotUpdate.Description)
+	}
+	if gotUpdate.CoverImageUrl != nil {
+		t.Fatalf("expected coverImageUrl to be nil, got %#v", gotUpdate.CoverImageUrl)
+	}
+	if len(gotUpdate.Images) != 2 || gotUpdate.Images[0] != "https://example.com/new-1.jpg" {
+		t.Fatalf("unexpected images: %+v", gotUpdate.Images)
+	}
+	if len(gotUpdate.Tags) != 2 || gotUpdate.Tags[0] != "new" {
+		t.Fatalf("unexpected tags: %+v", gotUpdate.Tags)
+	}
+	if len(gotUpdate.FilterDimensions) != 2 || gotUpdate.FilterDimensions[0] != "材质" {
+		t.Fatalf("unexpected filterDimensions: %+v", gotUpdate.FilterDimensions)
+	}
+
+	var response oapi.ProductDetail
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Product.Id != productID {
+		t.Fatalf("expected product id %s, got %s", productID, response.Product.Id)
+	}
+	if response.Product.Name != "新商品名" {
+		t.Fatalf("unexpected response product name: %s", response.Product.Name)
+	}
+	if response.Product.Description == nil || *response.Product.Description != description {
+		t.Fatalf("unexpected response description: %#v", response.Product.Description)
+	}
+}
+
+func TestDeleteCatalogProductsSpuId_NotFound(t *testing.T) {
+	productID := uuid.New()
+	store := &stubStore{
+		deleteProductFn: func(ctx context.Context, id uuid.UUID) (int64, error) {
+			if id != productID {
+				t.Fatalf("expected product id %s, got %s", productID, id)
+			}
+			return 0, nil
+		},
+	}
+
+	router := newTestRouter(store)
+	req := httptest.NewRequest(http.MethodDelete, "/catalog/products/"+productID.String(), nil)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d", recorder.Code)
 	}
 }
 

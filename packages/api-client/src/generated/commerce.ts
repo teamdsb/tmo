@@ -59,6 +59,18 @@ export interface CreateCatalogProductRequest {
   filterDimensions?: string[];
 }
 
+export interface UpdateCatalogProductRequest {
+  name?: string;
+  categoryId?: string;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  coverImageUrl?: string | null;
+  images?: string[];
+  tags?: string[];
+  filterDimensions?: string[];
+}
+
 export type CreateSkuRequestAttributes = {[key: string]: string};
 
 export interface CreateSkuRequest {
@@ -1108,13 +1120,20 @@ export type getCatalogProductsSpuIdResponse200 = {
   data: ProductDetail
   status: 200
 }
+
+export type getCatalogProductsSpuIdResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
     
 export type getCatalogProductsSpuIdResponseSuccess = (getCatalogProductsSpuIdResponse200) & {
   headers: Headers;
 };
-;
+export type getCatalogProductsSpuIdResponseError = (getCatalogProductsSpuIdResponse404) & {
+  headers: Headers;
+};
 
-export type getCatalogProductsSpuIdResponse = (getCatalogProductsSpuIdResponseSuccess)
+export type getCatalogProductsSpuIdResponse = (getCatalogProductsSpuIdResponseSuccess | getCatalogProductsSpuIdResponseError)
 
 export const getGetCatalogProductsSpuIdUrl = (spuId: string,) => {
 
@@ -1130,6 +1149,94 @@ export const getCatalogProductsSpuId = async (spuId: string, options?: RequestIn
   {      
     ...options,
     method: 'GET'
+    
+    
+  }
+);}
+
+
+
+/**
+ * @summary Update product (SPU)
+ */
+export type patchCatalogProductsSpuIdResponse200 = {
+  data: ProductDetail
+  status: 200
+}
+
+export type patchCatalogProductsSpuIdResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+    
+export type patchCatalogProductsSpuIdResponseSuccess = (patchCatalogProductsSpuIdResponse200) & {
+  headers: Headers;
+};
+export type patchCatalogProductsSpuIdResponseError = (patchCatalogProductsSpuIdResponse404) & {
+  headers: Headers;
+};
+
+export type patchCatalogProductsSpuIdResponse = (patchCatalogProductsSpuIdResponseSuccess | patchCatalogProductsSpuIdResponseError)
+
+export const getPatchCatalogProductsSpuIdUrl = (spuId: string,) => {
+
+
+  
+
+  return `/catalog/products/${spuId}`
+}
+
+export const patchCatalogProductsSpuId = async (spuId: string,
+    updateCatalogProductRequest: UpdateCatalogProductRequest, options?: RequestInit): Promise<patchCatalogProductsSpuIdResponse> => {
+  
+  return apiMutator<patchCatalogProductsSpuIdResponse>(getPatchCatalogProductsSpuIdUrl(spuId),
+  {      
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateCatalogProductRequest,)
+  }
+);}
+
+
+
+/**
+ * @summary Delete product (SPU)
+ */
+export type deleteCatalogProductsSpuIdResponse204 = {
+  data: void
+  status: 204
+}
+
+export type deleteCatalogProductsSpuIdResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+    
+export type deleteCatalogProductsSpuIdResponseSuccess = (deleteCatalogProductsSpuIdResponse204) & {
+  headers: Headers;
+};
+export type deleteCatalogProductsSpuIdResponseError = (deleteCatalogProductsSpuIdResponse404) & {
+  headers: Headers;
+};
+
+export type deleteCatalogProductsSpuIdResponse = (deleteCatalogProductsSpuIdResponseSuccess | deleteCatalogProductsSpuIdResponseError)
+
+export const getDeleteCatalogProductsSpuIdUrl = (spuId: string,) => {
+
+
+  
+
+  return `/catalog/products/${spuId}`
+}
+
+export const deleteCatalogProductsSpuId = async (spuId: string, options?: RequestInit): Promise<deleteCatalogProductsSpuIdResponse> => {
+  
+  return apiMutator<deleteCatalogProductsSpuIdResponse>(getDeleteCatalogProductsSpuIdUrl(spuId),
+  {      
+    ...options,
+    method: 'DELETE'
     
     
   }

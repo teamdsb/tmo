@@ -1,5 +1,13 @@
 import { createCommerceServices, type CommerceServices } from '@tmo/commerce-services'
-import type { Category, CreateCategoryRequest, ProductDetail, ProductSummary, UpdateCategoryRequest } from '@tmo/api-client'
+import type {
+  Category,
+  CreateCatalogProductRequest,
+  CreateCategoryRequest,
+  ProductDetail,
+  ProductSummary,
+  UpdateCatalogProductRequest,
+  UpdateCategoryRequest
+} from '@tmo/api-client'
 import { buildMockProductDetail, mockCategories, mockProductDetails, mockProducts } from './mocks/catalog'
 
 // 小程序运行时没有 Node.js process，全局读取必须做守卫。
@@ -112,6 +120,51 @@ const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
         params?.q
       )
       return paginate(filtered, params?.page, params?.pageSize)
+    }
+  },
+  createProduct: async (payload: CreateCatalogProductRequest): Promise<ProductDetail> => {
+    try {
+      return await catalog.createProduct(payload)
+    } catch (error) {
+      console.warn('catalog createProduct failed, fallback to mock', error)
+      const detail = buildMockProductDetail(`mock-${Date.now()}`)
+      return {
+        ...detail,
+        product: {
+          ...detail.product,
+          name: payload.name,
+          categoryId: payload.categoryId,
+          description: payload.description ?? detail.product.description,
+          images: payload.images ?? detail.product.images,
+          filterDimensions: payload.filterDimensions ?? detail.product.filterDimensions
+        }
+      }
+    }
+  },
+  updateProduct: async (spuId: string, payload: UpdateCatalogProductRequest): Promise<ProductDetail> => {
+    try {
+      return await catalog.updateProduct(spuId, payload)
+    } catch (error) {
+      console.warn('catalog updateProduct failed, fallback to mock', error)
+      const detail = mockProductDetails[spuId] ?? buildMockProductDetail(spuId)
+      return {
+        ...detail,
+        product: {
+          ...detail.product,
+          name: payload.name ?? detail.product.name,
+          categoryId: payload.categoryId ?? detail.product.categoryId,
+          description: payload.description === undefined ? detail.product.description : payload.description,
+          images: payload.images ?? detail.product.images,
+          filterDimensions: payload.filterDimensions ?? detail.product.filterDimensions
+        }
+      }
+    }
+  },
+  deleteProduct: async (spuId: string): Promise<void> => {
+    try {
+      await catalog.deleteProduct(spuId)
+    } catch (error) {
+      console.warn('catalog deleteProduct failed, fallback to mock', error)
     }
   },
   getProductDetail: async (spuId: string): Promise<ProductDetail> => {

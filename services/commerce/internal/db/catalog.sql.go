@@ -88,6 +88,19 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (C
 	return i, err
 }
 
+const deleteProduct = `-- name: DeleteProduct :execrows
+DELETE FROM catalog_products
+WHERE id = $1
+`
+
+func (q *Queries) DeleteProduct(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteProduct, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getProduct = `-- name: GetProduct :one
 SELECT id, name, description, category_id, cover_image_url, images, tags, filter_dimensions, created_at, updated_at
 FROM catalog_products
@@ -162,4 +175,56 @@ func (q *Queries) ListProducts(ctx context.Context, arg ListProductsParams) ([]C
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateProduct = `-- name: UpdateProduct :one
+UPDATE catalog_products
+SET name = $2,
+    description = $3,
+    category_id = $4,
+    cover_image_url = $5,
+    images = $6,
+    tags = $7,
+    filter_dimensions = $8,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, name, description, category_id, cover_image_url, images, tags, filter_dimensions, created_at, updated_at
+`
+
+type UpdateProductParams struct {
+	ID               uuid.UUID `db:"id" json:"id"`
+	Name             string    `db:"name" json:"name"`
+	Description      *string   `db:"description" json:"description"`
+	CategoryID       uuid.UUID `db:"category_id" json:"category_id"`
+	CoverImageUrl    *string   `db:"cover_image_url" json:"cover_image_url"`
+	Images           []string  `db:"images" json:"images"`
+	Tags             []string  `db:"tags" json:"tags"`
+	FilterDimensions []string  `db:"filter_dimensions" json:"filter_dimensions"`
+}
+
+func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (CatalogProduct, error) {
+	row := q.db.QueryRow(ctx, updateProduct,
+		arg.ID,
+		arg.Name,
+		arg.Description,
+		arg.CategoryID,
+		arg.CoverImageUrl,
+		arg.Images,
+		arg.Tags,
+		arg.FilterDimensions,
+	)
+	var i CatalogProduct
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Description,
+		&i.CategoryID,
+		&i.CoverImageUrl,
+		&i.Images,
+		&i.Tags,
+		&i.FilterDimensions,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

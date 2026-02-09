@@ -162,7 +162,6 @@ paths:
       tags:
       - Catalog
       summary: Create product (SPU)
-      security: []
       requestBody:
         required: true
         content:
@@ -196,6 +195,50 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ProductDetail"
+        '404':
+          "$ref": "#/components/responses/NotFound"
+    patch:
+      tags:
+      - Catalog
+      summary: Update product (SPU)
+      parameters:
+      - in: path
+        name: spuId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UpdateCatalogProductRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ProductDetail"
+        '404':
+          "$ref": "#/components/responses/NotFound"
+    delete:
+      tags:
+      - Catalog
+      summary: Delete product (SPU)
+      parameters:
+      - in: path
+        name: spuId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: No Content
+        '404':
+          "$ref": "#/components/responses/NotFound"
   "/catalog/products/{spuId}/skus":
     post:
       tags:
@@ -1073,6 +1116,32 @@ components:
       required:
       - name
       - categoryId
+    UpdateCatalogProductRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        categoryId:
+          type: string
+          format: uuid
+        description:
+          type: string
+          nullable: true
+        coverImageUrl:
+          type: string
+          nullable: true
+        images:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            type: string
+        filterDimensions:
+          type: array
+          items:
+            type: string
     CreateSkuRequest:
       type: object
       properties:

@@ -48,6 +48,27 @@ LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 -- name: CountStaffUsers :one
 SELECT count(*) FROM users WHERE user_type = 'staff';
 
+-- name: ListCustomers :many
+SELECT * FROM users
+WHERE user_type = 'customer'
+  AND (sqlc.narg('q')::text IS NULL OR COALESCE(display_name, '') ILIKE '%' || sqlc.narg('q') || '%')
+  AND (sqlc.narg('owner_sales_user_id')::uuid IS NULL OR owner_sales_user_id = sqlc.narg('owner_sales_user_id'))
+  AND (sqlc.narg('customer_id')::uuid IS NULL OR id = sqlc.narg('customer_id'))
+ORDER BY created_at DESC
+LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
+
+-- name: CountCustomers :one
+SELECT count(*)
+FROM users
+WHERE user_type = 'customer'
+  AND (sqlc.narg('q')::text IS NULL OR COALESCE(display_name, '') ILIKE '%' || sqlc.narg('q') || '%')
+  AND (sqlc.narg('owner_sales_user_id')::uuid IS NULL OR owner_sales_user_id = sqlc.narg('owner_sales_user_id'))
+  AND (sqlc.narg('customer_id')::uuid IS NULL OR id = sqlc.narg('customer_id'));
+
+-- name: GetCustomerByID :one
+SELECT * FROM users
+WHERE id = $1 AND user_type = 'customer';
+
 -- name: ListUserRoles :many
 SELECT role FROM user_roles WHERE user_id = $1 ORDER BY role;
 

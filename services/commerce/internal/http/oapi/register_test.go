@@ -76,6 +76,14 @@ func (server *stubServer) GetCatalogProductsSpuId(context *gin.Context, spuId op
 	context.Status(http.StatusNotImplemented)
 }
 
+func (server *stubServer) PatchCatalogProductsSpuId(context *gin.Context, spuId openapi_types.UUID) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) DeleteCatalogProductsSpuId(context *gin.Context, spuId openapi_types.UUID) {
+	context.Status(http.StatusNotImplemented)
+}
+
 func (server *stubServer) PostCatalogProductsSpuIdSkus(context *gin.Context, spuId openapi_types.UUID) {
 	context.Status(http.StatusNotImplemented)
 }

@@ -278,6 +278,154 @@ func TestMePermissions(t *testing.T) {
 	}
 }
 
+func TestGetCustomersAdminListAndDetail(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedAdmin(ctx, pool); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+	if err := seedSales(ctx, pool); err != nil {
+		t.Fatalf("seed sales: %v", err)
+	}
+
+	ownedCustomerID := uuid.New()
+	otherCustomerID := uuid.New()
+	if err := seedCustomer(ctx, pool, ownedCustomerID, "客户A", &salesID); err != nil {
+		t.Fatalf("seed owned customer: %v", err)
+	}
+	if err := seedCustomer(ctx, pool, otherCustomerID, "客户B", nil); err != nil {
+		t.Fatalf("seed customer: %v", err)
+	}
+
+	adminLogin := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": adminUsername,
+		"password": adminPassword,
+	}, "")
+	if adminLogin.Code != http.StatusOK {
+		t.Fatalf("expected admin login 200, got %d: %s", adminLogin.Code, adminLogin.Body.String())
+	}
+	var adminAuth oapi.AuthResponse
+	if err := json.NewDecoder(adminLogin.Body).Decode(&adminAuth); err != nil {
+		t.Fatalf("decode admin auth: %v", err)
+	}
+
+	listResp := doJSON(t, router, http.MethodGet, "/customers?page=1&pageSize=10&q=客户", nil, adminAuth.AccessToken)
+	if listResp.Code != http.StatusOK {
+		t.Fatalf("expected list customers 200, got %d: %s", listResp.Code, listResp.Body.String())
+	}
+
+	var list oapi.PagedCustomerList
+	if err := json.NewDecoder(listResp.Body).Decode(&list); err != nil {
+		t.Fatalf("decode customers list: %v", err)
+	}
+	if list.Total != 2 || len(list.Items) != 2 {
+		t.Fatalf("expected total/items = 2, got total=%d items=%d", list.Total, len(list.Items))
+	}
+
+	found := map[uuid.UUID]bool{}
+	for _, item := range list.Items {
+		found[uuid.UUID(item.Id)] = true
+	}
+	if !found[ownedCustomerID] || !found[otherCustomerID] {
+		t.Fatalf("expected customers in list, got %+v", found)
+	}
+
+	detailResp := doJSON(t, router, http.MethodGet, "/customers/"+ownedCustomerID.String(), nil, adminAuth.AccessToken)
+	if detailResp.Code != http.StatusOK {
+		t.Fatalf("expected customer detail 200, got %d: %s", detailResp.Code, detailResp.Body.String())
+	}
+
+	var detail oapi.Customer
+	if err := json.NewDecoder(detailResp.Body).Decode(&detail); err != nil {
+		t.Fatalf("decode customer detail: %v", err)
+	}
+	if uuid.UUID(detail.Id) != ownedCustomerID {
+		t.Fatalf("expected customer id %s, got %s", ownedCustomerID, detail.Id)
+	}
+	if detail.OwnerSalesUserId == nil || uuid.UUID(*detail.OwnerSalesUserId) != salesID {
+		t.Fatalf("expected ownerSalesUserId %s, got %#v", salesID, detail.OwnerSalesUserId)
+	}
+}
+
+func TestGetCustomersSalesScopeOwned(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedSales(ctx, pool); err != nil {
+		t.Fatalf("seed sales: %v", err)
+	}
+
+	otherSalesID := uuid.New()
+	if err := seedUser(ctx, pool, otherSalesID, "Other Sales", "staff"); err != nil {
+		t.Fatalf("seed other sales: %v", err)
+	}
+	if err := seedRole(ctx, pool, otherSalesID, "SALES"); err != nil {
+		t.Fatalf("seed other sales role: %v", err)
+	}
+
+	ownedCustomerID := uuid.New()
+	unownedCustomerID := uuid.New()
+	if err := seedCustomer(ctx, pool, ownedCustomerID, "我的客户", &salesID); err != nil {
+		t.Fatalf("seed owned customer: %v", err)
+	}
+	if err := seedCustomer(ctx, pool, unownedCustomerID, "别人的客户", &otherSalesID); err != nil {
+		t.Fatalf("seed unowned customer: %v", err)
+	}
+
+	loginResp := doJSON(t, router, http.MethodPost, "/auth/mini/login", map[string]interface{}{
+		"platform": "weapp",
+		"code":     "mock_sales_001",
+		"role":     "SALES",
+	}, "")
+	if loginResp.Code != http.StatusOK {
+		t.Fatalf("expected login 200, got %d: %s", loginResp.Code, loginResp.Body.String())
+	}
+	var salesAuth oapi.AuthResponse
+	if err := json.NewDecoder(loginResp.Body).Decode(&salesAuth); err != nil {
+		t.Fatalf("decode sales auth: %v", err)
+	}
+
+	listResp := doJSON(
+		t,
+		router,
+		http.MethodGet,
+		"/customers?page=1&pageSize=10&ownerSalesUserId="+otherSalesID.String(),
+		nil,
+		salesAuth.AccessToken,
+	)
+	if listResp.Code != http.StatusOK {
+		t.Fatalf("expected list customers 200, got %d: %s", listResp.Code, listResp.Body.String())
+	}
+
+	var list oapi.PagedCustomerList
+	if err := json.NewDecoder(listResp.Body).Decode(&list); err != nil {
+		t.Fatalf("decode customers list: %v", err)
+	}
+	if list.Total != 1 || len(list.Items) != 1 {
+		t.Fatalf("expected total/items = 1, got total=%d items=%d", list.Total, len(list.Items))
+	}
+	if uuid.UUID(list.Items[0].Id) != ownedCustomerID {
+		t.Fatalf("expected owned customer %s, got %s", ownedCustomerID, list.Items[0].Id)
+	}
+
+	ownedResp := doJSON(t, router, http.MethodGet, "/customers/"+ownedCustomerID.String(), nil, salesAuth.AccessToken)
+	if ownedResp.Code != http.StatusOK {
+		t.Fatalf("expected owned customer detail 200, got %d: %s", ownedResp.Code, ownedResp.Body.String())
+	}
+
+	unownedResp := doJSON(t, router, http.MethodGet, "/customers/"+unownedCustomerID.String(), nil, salesAuth.AccessToken)
+	if unownedResp.Code != http.StatusForbidden {
+		t.Fatalf("expected unowned customer detail 403, got %d: %s", unownedResp.Code, unownedResp.Body.String())
+	}
+}
+
 func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool) {
 	t.Helper()
 
@@ -438,4 +586,26 @@ VALUES ($1, $2, $3, $4)
 ON CONFLICT (provider, provider_user_id) DO NOTHING
 `, uuid.New(), "weapp", providerUserID, userID)
 	return err
+}
+
+func seedCustomer(ctx context.Context, pool *pgxpool.Pool, id uuid.UUID, name string, ownerSalesID *uuid.UUID) error {
+	owner := pgtype.UUID{}
+	if ownerSalesID != nil {
+		owner = pgtype.UUID{Bytes: *ownerSalesID, Valid: true}
+	}
+
+	_, err := pool.Exec(ctx, `
+INSERT INTO users (id, display_name, user_type, owner_sales_user_id)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (id) DO UPDATE
+SET display_name = EXCLUDED.display_name,
+    user_type = EXCLUDED.user_type,
+    owner_sales_user_id = EXCLUDED.owner_sales_user_id,
+    updated_at = now()
+`, id, &name, "customer", owner)
+	if err != nil {
+		return err
+	}
+
+	return seedRole(ctx, pool, id, "CUSTOMER")
 }
