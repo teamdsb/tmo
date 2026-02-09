@@ -16,6 +16,7 @@ type ProxyHandlers struct {
 	Payment   gin.HandlerFunc
 	AI        gin.HandlerFunc
 	Bootstrap gin.HandlerFunc
+	Image     gin.HandlerFunc
 }
 
 func NewRouter(handlers ProxyHandlers, logger *slog.Logger, readyCheck func(context.Context) error, maxBodyBytes int64) *gin.Engine {
@@ -32,6 +33,7 @@ func NewRouter(handlers ProxyHandlers, logger *slog.Logger, readyCheck func(cont
 	router.GET("/ready", httpx.Ready(readyCheck))
 
 	router.GET("/bff/bootstrap", handlers.Bootstrap)
+	router.GET("/assets/img", handlers.Image)
 
 	router.Any("/auth", handlers.Identity)
 	router.Any("/auth/*path", handlers.Identity)

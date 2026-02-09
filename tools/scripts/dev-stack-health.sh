@@ -53,5 +53,6 @@ wait_for_status "identity /health" "${identity_base_url%/}/health" "200"
 wait_for_status "commerce /health" "${commerce_base_url%/}/health" "200"
 wait_for_status "payment /health" "${payment_base_url%/}/health" "200"
 wait_for_status "gateway /health" "${gateway_base_url%/}/health" "200"
+wait_for_status "gateway /assets/img (validation)" "${gateway_base_url%/}/assets/img" "400"
 
 echo "[dev-stack-health] all checks passed."

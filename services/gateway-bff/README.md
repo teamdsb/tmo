@@ -20,3 +20,11 @@ Minimal API gateway that routes identity + commerce behind a single base URL.
 - All other paths are proxied to commerce.
 - `/health` returns `OK`.
 - `/ready` returns 200 only when identity, commerce, and payment are ready.
+- `/assets/img?url=<encoded>` proxies allowlisted remote images (for miniapp product images).
+
+## Image proxy env
+
+- `GATEWAY_IMAGE_PROXY_ALLOWLIST` (default: `images.unsplash.com`)
+- `GATEWAY_IMAGE_PROXY_TIMEOUT` (default: `10s`)
+- `GATEWAY_IMAGE_PROXY_MAX_BYTES` (default: `8388608`)
+- `GATEWAY_IMAGE_PROXY_CACHE_MAX_AGE_SECONDS` (default: `3600`)

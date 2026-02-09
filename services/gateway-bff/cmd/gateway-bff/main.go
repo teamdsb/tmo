@@ -69,6 +69,14 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		Timeout: cfg.UpstreamTimeout,
 	}
 	bootstrapHandler := httpserver.NewBootstrapHandler(cfg.IdentityBaseURL, upstreamClient, logger)
+	imageProxyHandler := httpserver.NewImageProxyHandler(
+		nil,
+		cfg.ImageProxyAllowlist,
+		cfg.ImageProxyTimeout,
+		int64(cfg.ImageProxyMaxBytes),
+		cfg.ImageProxyCacheMaxAgeSeconds,
+		logger,
+	)
 
 	router := httpserver.NewRouter(httpserver.ProxyHandlers{
 		Identity:  proxyHandler.Identity,
@@ -76,6 +84,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		Payment:   proxyHandler.Payment,
 		AI:        proxyHandler.AI,
 		Bootstrap: bootstrapHandler.Handle,
+		Image:     imageProxyHandler.Handle,
 	}, logger, readyChecker.Check, int64(cfg.MaxBodyBytes))
 
 	server := httpserver.NewServer(cfg.HTTPAddr, router)

@@ -58,6 +58,7 @@
 - `TARO_APP_COMMERCE_MOCK_FALLBACK` 默认为关闭（`false`）；只有显式设为 `true` 才会回退 mock 数据。
 - `TARO_APP_ENABLE_MOCK_LOGIN` 默认为关闭（`false`）；只有显式设为 `true` 才会展示“测试登录”按钮。
 - 如果使用容器化后端，保持 `TARO_APP_API_BASE_URL=http://localhost:8080` 即可。
+- `SafeImage` 组件会自动把外部 `http/https` 图片 URL 改写为 `${TARO_APP_API_BASE_URL}/assets/img?url=...`，由 gateway 统一代理与缓存。
 - 微信环境建议使用真实 `TARO_APP_ID`；游客模式（`touristappid`）下，微信登录和手机号授权会受限。
 - `IDENTITY_LOGIN_MODE=real` 时，`/auth/mini/login` 必须携带 `phoneProof`，小程序登录会触发手机号授权。
 
@@ -149,7 +150,7 @@
 
 - 不要让微信和支付宝共用同一个导入目录，必须分别导入 `dist/weapp` 与 `dist/alipay`。
 - 如果首页仍显示 mock 商品，先确认 `.env.development` 中 `TARO_APP_COMMERCE_MOCK_FALLBACK=false`，然后删除 `apps/miniapp/dist/weapp` 并重新执行 `pnpm -C apps/miniapp dev:weapp` 后重新导入开发者工具。
-- 若微信端图片显示异常，请在小程序后台/开发者工具将 `images.unsplash.com`（以及你实际使用的图床域名，如 `lh3.googleusercontent.com`）加入图片下载白名单（downloadFile 合法域名）。
+- 若微信端图片显示异常，先检查 gateway 的 `GATEWAY_IMAGE_PROXY_ALLOWLIST` 是否包含图床域名；默认通过 `/assets/img` 代理时不需要把第三方图床直接加入小程序图片白名单。
 - 如果支付宝开发者工具导入 `apps/miniapp/dist/alipay` 后出现 `ENOENT ... dist/dist/app.json`，请检查 `apps/miniapp/dist/alipay/mini.project.json` 中的 `miniprogramRoot`，应为 `./`。
 - 如果出现 `CE1000.01 cannot resolve module ...*.axml`，先执行 `pnpm -C apps/miniapp build:alipay`，再根据 `verify-alipay-dist` 输出补齐缺失文件后重试导入。
 

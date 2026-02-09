@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Image from '@taroify/core/image'
 
 import placeholderImage from '../../assets/images/placeholder-product.svg'
+import { toGatewayImageUrl } from '../../utils/image-url'
 
 type SafeImageProps = {
   src?: string | null
@@ -15,10 +16,10 @@ export default function SafeImage({
   onError,
   ...rest
 }: SafeImageProps) {
-  const [resolvedSrc, setResolvedSrc] = useState(src || fallback)
+  const [resolvedSrc, setResolvedSrc] = useState(toGatewayImageUrl(src) || fallback)
 
   useEffect(() => {
-    setResolvedSrc(src || fallback)
+    setResolvedSrc(toGatewayImageUrl(src) || fallback)
   }, [src, fallback])
 
   return (
