@@ -9,25 +9,10 @@ import type {
   UpdateCategoryRequest
 } from '@tmo/api-client'
 import { buildMockProductDetail, mockCategories, mockProductDetails, mockProducts } from './mocks/catalog'
-
-// 小程序运行时没有 Node.js process，全局读取必须做守卫。
-const readEnv = (name: string): string | undefined => {
-  if (typeof process === 'undefined' || !process?.env) {
-    return undefined
-  }
-  return process.env[name]
-}
+import { requireCommerceBaseUrl, runtimeEnv } from '../config/runtime-env'
 
 const shouldFallbackToMock = (): boolean => {
-  const raw = readEnv('TARO_APP_COMMERCE_MOCK_FALLBACK')
-  const value = raw ? raw.trim().toLowerCase() : ''
-  if (value === '') {
-    return false
-  }
-  if (value === 'true' || value === '1' || value === 'on' || value === 'yes') {
-    return true
-  }
-  return false
+  return runtimeEnv.commerceMockFallback
 }
 
 const applyQuery = (items: ProductSummary[], query?: string) => {
@@ -195,7 +180,10 @@ const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
 })
 
 const createCommerceServicesWithFallback = (): CommerceServices => {
-  const services = createCommerceServices()
+  const services = createCommerceServices({
+    baseUrl: requireCommerceBaseUrl(),
+    devToken: runtimeEnv.commerceDevToken
+  })
   if (!shouldFallbackToMock()) {
     return services
   }

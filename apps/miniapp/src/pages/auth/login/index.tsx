@@ -11,23 +11,13 @@ import { saveBootstrap, savePendingRoleSelection } from '../../../services/boots
 import { applyMockLogin } from '../../../services/mock-auth'
 import { ROUTES } from '../../../routes'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
+import { runtimeEnv } from '../../../config/runtime-env'
 
 import './index.scss'
 
 type LaunchContext = {
   scene?: string
   bindingToken?: string
-}
-
-declare const process: { env?: Record<string, string | undefined> } | undefined
-
-const isMockLoginEnabled = (): boolean => {
-  if (typeof process === 'undefined' || !process?.env) {
-    return false
-  }
-  const raw = process.env.TARO_APP_ENABLE_MOCK_LOGIN
-  const value = raw ? raw.trim().toLowerCase() : ''
-  return value === 'true' || value === '1' || value === 'on' || value === 'yes'
 }
 
 const readLaunchContext = (): LaunchContext => {
@@ -55,7 +45,7 @@ export default function LoginPage() {
   const [agreed, setAgreed] = useState(false)
   const [loading, setLoading] = useState(false)
   const launchContext = useMemo(readLaunchContext, [])
-  const enableMockLogin = useMemo(isMockLoginEnabled, [])
+  const enableMockLogin = useMemo(() => runtimeEnv.enableMockLogin, [])
   const redirect = (() => {
     if (typeof router.params?.redirect !== 'string') {
       return ''

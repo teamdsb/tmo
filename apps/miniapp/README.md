@@ -28,6 +28,7 @@
 启动后端（本地）：
 
     bash tools/scripts/dev-bootstrap.sh
+    bash tools/scripts/dev-seed.sh
     cd services/identity && IDENTITY_HTTP_ADDR=":8081" go run ./cmd/identity
     cd services/commerce && COMMERCE_HTTP_ADDR=":8082" go run ./cmd/commerce
     cd services/payment && PAYMENT_HTTP_ADDR=":8083" go run ./cmd/payment
@@ -46,6 +47,7 @@
 
     docker compose -f infra/dev/docker-compose.yml up -d
     bash tools/scripts/dev-bootstrap.sh
+    bash tools/scripts/dev-seed.sh
     cp infra/dev/backend.env.example infra/dev/backend.env.local
     docker compose --env-file infra/dev/backend.env.local \
       -f infra/dev/docker-compose.yml \
@@ -68,6 +70,48 @@
 
 - 微信开发者工具：`apps/miniapp/dist/weapp`
 - 支付宝开发者工具：`apps/miniapp/dist/alipay`
+
+## 微信 DevTools CDP 自动抓包调试
+
+该方案用于“无 mock 的联调抓错”：会校验开发环境变量、构建 weapp（`NODE_ENV=development`）、通过 `miniprogram-automator` 连接微信 DevTools，并采集 console/network/截图到 `apps/miniapp/.logs/weapp/`。
+
+执行方式（在仓库根目录）：
+
+    pnpm -C apps/miniapp debug:weapp:auto
+
+说明：
+
+- `debug:weapp:auto` 会先执行 `tools/scripts/dev-stack-up.sh`（拉起 postgres + backend 容器、migrate/seed、健康检查），再执行采集脚本。
+- `dev-stack-up.sh` 默认不强制重建镜像；如需重建可加 `DEV_STACK_BUILD_IMAGES=true`。
+- 如果你只想采集（后端已在运行），执行：
+
+      pnpm -C apps/miniapp debug:weapp:collect
+
+关键环境变量：
+
+- `WEAPP_DEVTOOLS_CLI_PATH`：微信开发者工具 CLI 路径（可选）。
+- `WEAPP_AUTOMATOR_PORT`：automator websocket 端口，默认 `9527`。
+- `WEAPP_AUTOMATOR_CONNECT_TIMEOUT_MS`：automator 连接等待超时，默认 `45000`（兼容旧变量 `WEAPP_CDP_CONNECT_TIMEOUT_MS`）。
+- `WEAPP_AUTOMATOR_ROUTE`：采集前自动跳转路由，默认 `/pages/index/index`。
+- `WEAPP_AUTOMATOR_FORCE_RELAUNCH`：采集前是否强制 `reLaunch` 到目标路由，默认 `true`。
+- `WEAPP_AUTOMATOR_ACCOUNT`：指定 automator 启动账号（可选）。
+- `WEAPP_AUTOMATOR_TRUST_PROJECT`：是否信任项目，默认 `true`。
+- `WEAPP_DEBUG_TIMEOUT_MS`：采集超时，默认 `90000`。
+- `WEAPP_BASE_URL_EXPECTED`：期望接口基准地址，默认 `http://localhost:8080`。
+- `WEAPP_FAIL_ON_ERROR`：遇到错误是否退出非 0，默认 `true`。
+- `WEAPP_SKIP_LAUNCH`：跳过自动拉起 DevTools，仅连接已有 automator 端口（默认 `false`）。
+
+排错：
+
+- 若 `summary.md` 中出现 `request:fail url not in domain list`，脚本会自动把 `dist/weapp/project.config.json` 的 `setting.urlCheck` 置为 `false`；请重跑一次采集并确认微信开发者工具“详情 -> 本地设置 -> 不校验合法域名”也已开启。
+- 若 `summary.md` 中出现连接失败，先确认微信开发者工具可执行文件路径正确（`WEAPP_DEVTOOLS_CLI_PATH`），并检查 `WEAPP_AUTOMATOR_PORT` 是否被占用。
+
+产物：
+
+- `apps/miniapp/.logs/weapp/console.jsonl`
+- `apps/miniapp/.logs/weapp/network.jsonl`
+- `apps/miniapp/.logs/weapp/summary.md`
+- `apps/miniapp/.logs/weapp/failures/*.png`
 
 ## 支付宝 Web 调试器 console 采集
 
@@ -102,6 +146,7 @@
 排错：
 
 - 不要让微信和支付宝共用同一个导入目录，必须分别导入 `dist/weapp` 与 `dist/alipay`。
+- 如果首页仍显示 mock 商品，先确认 `.env.development` 中 `TARO_APP_COMMERCE_MOCK_FALLBACK=false`，然后删除 `apps/miniapp/dist/weapp` 并重新执行 `pnpm -C apps/miniapp dev:weapp` 后重新导入开发者工具。
 - 若微信端图片显示异常，请在小程序后台/开发者工具将 `images.unsplash.com`（以及你实际使用的图床域名，如 `lh3.googleusercontent.com`）加入图片下载白名单（downloadFile 合法域名）。
 - 如果支付宝开发者工具导入 `apps/miniapp/dist/alipay` 后出现 `ENOENT ... dist/dist/app.json`，请检查 `apps/miniapp/dist/alipay/mini.project.json` 中的 `miniprogramRoot`，应为 `./`。
 - 如果出现 `CE1000.01 cannot resolve module ...*.axml`，先执行 `pnpm -C apps/miniapp build:alipay`，再根据 `verify-alipay-dist` 输出补齐缺失文件后重试导入。

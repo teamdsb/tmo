@@ -21,6 +21,18 @@ const postcssConfig = {
   }
 }
 
+const defineConstants = {
+  __TMO_API_BASE_URL__: JSON.stringify(process.env.TARO_APP_API_BASE_URL ?? ''),
+  __TMO_GATEWAY_BASE_URL__: JSON.stringify(process.env.TARO_APP_GATEWAY_BASE_URL ?? ''),
+  __TMO_COMMERCE_BASE_URL__: JSON.stringify(process.env.TARO_APP_COMMERCE_BASE_URL ?? ''),
+  __TMO_IDENTITY_BASE_URL__: JSON.stringify(process.env.TARO_APP_IDENTITY_BASE_URL ?? ''),
+  __TMO_GATEWAY_DEV_TOKEN__: JSON.stringify(process.env.TARO_APP_GATEWAY_DEV_TOKEN ?? ''),
+  __TMO_COMMERCE_DEV_TOKEN__: JSON.stringify(process.env.TARO_APP_COMMERCE_DEV_TOKEN ?? ''),
+  __TMO_IDENTITY_DEV_TOKEN__: JSON.stringify(process.env.TARO_APP_IDENTITY_DEV_TOKEN ?? ''),
+  __TMO_COMMERCE_MOCK_FALLBACK__: JSON.stringify(process.env.TARO_APP_COMMERCE_MOCK_FALLBACK ?? ''),
+  __TMO_ENABLE_MOCK_LOGIN__: JSON.stringify(process.env.TARO_APP_ENABLE_MOCK_LOGIN ?? '')
+}
+
 export default defineConfig<'vite'>(async (merge) => {
   const taroEnv = process.env.TARO_ENV || 'weapp'
   const outputRoot = `dist/${taroEnv}`
@@ -40,8 +52,7 @@ export default defineConfig<'vite'>(async (merge) => {
     plugins: [
       "@tarojs/plugin-generator"
     ],
-    defineConstants: {
-    },
+    defineConstants,
     modifyViteConfig(config) {
       if (process.env.TARO_ENV !== 'alipay') {
         return

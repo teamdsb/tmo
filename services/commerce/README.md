@@ -19,10 +19,18 @@ bash tools/scripts/commerce-migrate.sh
 bash tools/scripts/commerce-seed.sh
 ```
 
+`commerce-seed.sh` 为幂等写入：会 upsert 多个分类、商品、SKU 与阶梯价，适合反复联调执行。
+
 Or one-shot:
 
 ```bash
 bash tools/scripts/commerce-bootstrap.sh
+```
+
+如果你同时需要 identity 调试数据，可执行：
+
+```bash
+bash tools/scripts/dev-seed.sh
 ```
 
 ## Validation (smoke)

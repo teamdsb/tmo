@@ -11,10 +11,17 @@ import './app.scss'
 import { identityServices } from './services/identity'
 import { gatewayServices } from './services/gateway'
 import { saveBootstrap } from './services/bootstrap'
+import { assertRuntimeApiConfig } from './config/runtime-env'
 
 function App({ children }: PropsWithChildren<any>) {
   useLaunch(() => {
     console.log('App launched.')
+    try {
+      assertRuntimeApiConfig()
+    } catch (error) {
+      console.error('runtime api config invalid', error)
+      return
+    }
     void bootstrapApp()
   })
 

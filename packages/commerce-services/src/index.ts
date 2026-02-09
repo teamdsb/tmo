@@ -29,8 +29,18 @@ export interface CommerceServices {
   }
 }
 
+const assertBaseUrl = (baseUrl: string): string => {
+  const value = baseUrl.trim()
+  if (value) {
+    return value
+  }
+  throw new Error(
+    '[commerce-services] baseUrl is required. Pass config.baseUrl or set TARO_APP_API_BASE_URL/TARO_APP_COMMERCE_BASE_URL.'
+  )
+}
+
 export const createCommerceServices = (config: CommerceServicesConfig = {}): CommerceServices => {
-  const baseUrl = resolveBaseUrl(config.baseUrl)
+  const baseUrl = assertBaseUrl(resolveBaseUrl(config.baseUrl))
   const devToken = resolveDevToken(config.devToken)
   const tokenKey = config.tokenStorageKey ?? defaultTokenStorageKey
 

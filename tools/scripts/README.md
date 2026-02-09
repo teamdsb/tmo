@@ -10,6 +10,9 @@ Bootstrap and local dev scripts.
 - `identity-generate.sh`: regenerate identity sqlc + oapi-codegen outputs.
 - `identity-migrate.sh`: apply identity migrations via Go runner.
 - `identity-seed.sh`: seed identity dev users/roles.
+- `dev-seed.sh`: run commerce + identity seed scripts in one shot.
 - `dev-bootstrap.sh`: start Postgres, run commerce + identity migrations and seed.
+- `dev-stack-up.sh`: start local Docker stack (postgres + backend services), run bootstrap/seed, then wait for readiness (`DEV_STACK_BUILD_IMAGES=true` to force image rebuild).
+- `dev-stack-health.sh`: check local identity/commerce/payment/gateway `/ready` and `/health` endpoints.
 - `gateway-verify.sh`: smoke-check gateway health/ready and auth flows.
 - `gateway-verify-real.sh`: verify real-mode auth rejects missing/invalid phone proof.
