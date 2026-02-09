@@ -16,7 +16,6 @@ describe('PersonalCenter', () => {
 
     const navbar = document.querySelector('.app-navbar.app-navbar--primary');
     expect(navbar).not.toBeNull();
-    expect(navbar).toHaveAttribute('data-safe-area', 'top');
 
     expect(await screen.findByText('张三')).toBeInTheDocument();
     expect(screen.getByText('客户经理')).toBeInTheDocument();

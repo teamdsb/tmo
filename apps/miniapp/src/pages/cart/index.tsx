@@ -156,7 +156,7 @@ export default function ExcelImportConfirmation() {
 
   return (
     <View className='page page-compact-navbar flex flex-col'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar app-navbar--primary'>
+      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'>
       </Navbar>
 
       {importJob ? (

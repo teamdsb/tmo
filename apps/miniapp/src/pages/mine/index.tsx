@@ -148,7 +148,7 @@ export default function PersonalCenter() {
 
   return (
     <View className={`page font-sans mine-page ${themeClassName}`}>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar app-navbar--primary'></Navbar>
+      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'></Navbar>
 
       <View className='px-5 pt-4 pb-2 flex items-center justify-between'>
         <View

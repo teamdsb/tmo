@@ -212,7 +212,7 @@ export default function CategoryPage() {
 
   return (
     <View className='page category-page'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar app-navbar--primary'></Navbar>
+      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'></Navbar>
 
       <View className='category-search'>
         <Search

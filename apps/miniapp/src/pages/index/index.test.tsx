@@ -20,10 +20,12 @@ describe('ProductCatalogApp', () => {
 
     const navbar = document.querySelector('.app-navbar.app-navbar--primary');
     expect(navbar).not.toBeNull();
-    expect(navbar).toHaveAttribute('data-safe-area', 'top');
+    const pageRoot = document.querySelector('.page.page-home');
+    expect(pageRoot).not.toBeNull();
+    expect(pageRoot).toHaveStyle('--navbar-total-height: 56px');
     const tabsRoot = document.querySelector('[data-sticky-offset-top]');
     expect(tabsRoot).not.toBeNull();
-    expect(tabsRoot).toHaveAttribute('data-sticky-offset-top', '56');
+    expect(tabsRoot).toHaveAttribute('data-sticky-offset-top', '');
 
     expect(screen.getAllByTestId('home-showcase-empty')).toHaveLength(3);
     expect(screen.getByTestId('home-showcase-dots')).toBeInTheDocument();

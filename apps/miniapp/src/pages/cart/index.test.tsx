@@ -17,7 +17,6 @@ describe('ExcelImportConfirmation', () => {
 
     const navbar = document.querySelector('.app-navbar.app-navbar--primary');
     expect(navbar).not.toBeNull();
-    expect(navbar).toHaveAttribute('data-safe-area', 'top');
 
     expect(await screen.findByText('示例螺栓')).toBeInTheDocument();
     expect(screen.getByText('数量')).toBeInTheDocument();

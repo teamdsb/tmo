@@ -36,3 +36,11 @@
   background: #1677ff;
   transform: scale(1.1);
 }
+
+.page-home .taroify-tabs__wrap {
+  position: sticky;
+  top: var(--navbar-total-height);
+  z-index: 8;
+  background: #fff;
+  border-bottom: 1px solid #eef2f7;
+}
