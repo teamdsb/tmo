@@ -314,8 +314,8 @@ func buildCatalogSeed() catalogSeed {
 			Name:             "镀锌槽钢 C100",
 			Description:      "高强度镀锌槽钢，适合综合管廊和电缆桥架主梁。",
 			CategoryID:       metalsID,
-			CoverImageURL:    "https://images.unsplash.com/photo-1581093588401-16e2f75c0f5b",
-			Images:           []string{"https://images.unsplash.com/photo-1581093588401-16e2f75c0f5b"},
+			CoverImageURL:    "https://images.unsplash.com/photo-1545239351-1141bd82e8a6",
+			Images:           []string{"https://images.unsplash.com/photo-1545239351-1141bd82e8a6"},
 			Tags:             []string{"镀锌", "槽钢"},
 			FilterDimensions: []string{"型号", "厚度", "长度"},
 			SKUs: []skuSeed{
@@ -384,8 +384,8 @@ func buildCatalogSeed() catalogSeed {
 			Name:             "PT100 温度传感器",
 			Description:      "工业温控专用探头，适配 PLC 温控模块。",
 			CategoryID:       electricalID,
-			CoverImageURL:    "https://images.unsplash.com/photo-1581093458791-9f3c3900df4b",
-			Images:           []string{"https://images.unsplash.com/photo-1581093458791-9f3c3900df4b"},
+			CoverImageURL:    "https://images.unsplash.com/photo-1517048676732-d65bc937f952",
+			Images:           []string{"https://images.unsplash.com/photo-1517048676732-d65bc937f952"},
 			Tags:             []string{"传感器", "温控"},
 			FilterDimensions: []string{"探杆长度", "线缆长度"},
 			SKUs: []skuSeed{
@@ -398,8 +398,8 @@ func buildCatalogSeed() catalogSeed {
 			Name:             "防割手套 5 级",
 			Description:      "金属加工/搬运作业手部防护。",
 			CategoryID:       safetyID,
-			CoverImageURL:    "https://images.unsplash.com/photo-1581579186899-1b1b5f1c0f50",
-			Images:           []string{"https://images.unsplash.com/photo-1581579186899-1b1b5f1c0f50"},
+			CoverImageURL:    "https://images.unsplash.com/photo-1585776245991-cf89dd7fc73a",
+			Images:           []string{"https://images.unsplash.com/photo-1585776245991-cf89dd7fc73a"},
 			Tags:             []string{"PPE", "手部防护"},
 			FilterDimensions: []string{"尺码"},
 			SKUs: []skuSeed{
