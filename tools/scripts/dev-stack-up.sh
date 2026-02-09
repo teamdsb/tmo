@@ -29,6 +29,8 @@ if [[ ! -f "$backend_env_local" ]]; then
   echo "[dev-stack-up] created $backend_env_local from template"
 fi
 
+mkdir -p "$root_dir/infra/dev/media"
+
 echo "[dev-stack-up] starting postgres container..."
 docker compose -f "$compose_base" up -d postgres
 

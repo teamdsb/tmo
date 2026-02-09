@@ -11,6 +11,7 @@ import (
 const (
 	defaultHTTPAddr                    = ":8080"
 	defaultPublicBaseURL               = "http://localhost:8080"
+	defaultMediaLocalDir               = ""
 	defaultIdentityBaseURL             = "http://localhost:8081"
 	defaultCommerceBaseURL             = "http://localhost:8082"
 	defaultPaymentBaseURL              = "http://localhost:8083"
@@ -27,6 +28,7 @@ const (
 type Config struct {
 	HTTPAddr                     string
 	PublicBaseURL                string
+	MediaLocalDir                string
 	IdentityBaseURL              string
 	CommerceBaseURL              string
 	PaymentBaseURL               string
@@ -64,6 +66,7 @@ func Load() Config {
 	return Config{
 		HTTPAddr:                     sharedconfig.String("GATEWAY_HTTP_ADDR", defaultHTTPAddr),
 		PublicBaseURL:                sharedconfig.String("GATEWAY_PUBLIC_BASE_URL", defaultPublicBaseURL),
+		MediaLocalDir:                sharedconfig.String("GATEWAY_MEDIA_LOCAL_DIR", defaultMediaLocalDir),
 		IdentityBaseURL:              sharedconfig.String("GATEWAY_IDENTITY_BASE_URL", defaultIdentityBaseURL),
 		CommerceBaseURL:              sharedconfig.String("GATEWAY_COMMERCE_BASE_URL", defaultCommerceBaseURL),
 		PaymentBaseURL:               sharedconfig.String("GATEWAY_PAYMENT_BASE_URL", defaultPaymentBaseURL),

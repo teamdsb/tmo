@@ -64,8 +64,16 @@ services:
       GATEWAY_COMMERCE_BASE_URL: "http://commerce:8082"
       GATEWAY_PAYMENT_BASE_URL: "http://payment:8083"
       GATEWAY_AI_BASE_URL: ""
+      GATEWAY_PUBLIC_BASE_URL: "${GATEWAY_PUBLIC_BASE_URL:-http://localhost:8080}"
+      GATEWAY_MEDIA_LOCAL_DIR: "${GATEWAY_MEDIA_LOCAL_DIR:-/data/media}"
+      GATEWAY_IMAGE_PROXY_ALLOWLIST: "${GATEWAY_IMAGE_PROXY_ALLOWLIST:-images.unsplash.com}"
+      GATEWAY_IMAGE_PROXY_TIMEOUT: "${GATEWAY_IMAGE_PROXY_TIMEOUT:-10s}"
+      GATEWAY_IMAGE_PROXY_MAX_BYTES: "${GATEWAY_IMAGE_PROXY_MAX_BYTES:-8388608}"
+      GATEWAY_IMAGE_PROXY_CACHE_MAX_AGE_SECONDS: "${GATEWAY_IMAGE_PROXY_CACHE_MAX_AGE_SECONDS:-3600}"
     ports:
       - "8080:8080"
+    volumes:
+      - ./media:/data/media
     depends_on:
       identity:
         condition: service_started

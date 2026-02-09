@@ -86,12 +86,18 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		cfg.ImageProxyCacheMaxAgeSeconds,
 		logger,
 	)
+	localMediaHandler := httpserver.NewLocalMediaHandler(
+		cfg.MediaLocalDir,
+		cfg.ImageProxyCacheMaxAgeSeconds,
+		logger,
+	)
 
 	router := httpserver.NewRouter(httpserver.ProxyHandlers{
 		Identity:             proxyHandler.Identity,
 		Commerce:             proxyHandler.Commerce,
 		CatalogProducts:      catalogRewriteHandler.ListProducts,
 		CatalogProductDetail: catalogRewriteHandler.GetProductDetail,
+		Media:                localMediaHandler.Handle,
 		Payment:              proxyHandler.Payment,
 		AI:                   proxyHandler.AI,
 		Bootstrap:            bootstrapHandler.Handle,

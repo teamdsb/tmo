@@ -15,6 +15,7 @@ type ProxyHandlers struct {
 	Commerce             gin.HandlerFunc
 	CatalogProducts      gin.HandlerFunc
 	CatalogProductDetail gin.HandlerFunc
+	Media                gin.HandlerFunc
 	Payment              gin.HandlerFunc
 	AI                   gin.HandlerFunc
 	Bootstrap            gin.HandlerFunc
@@ -36,6 +37,9 @@ func NewRouter(handlers ProxyHandlers, logger *slog.Logger, readyCheck func(cont
 
 	router.GET("/bff/bootstrap", handlers.Bootstrap)
 	router.GET("/assets/img", handlers.Image)
+	if handlers.Media != nil {
+		router.GET("/assets/media/*path", handlers.Media)
+	}
 	if handlers.CatalogProducts != nil {
 		router.GET("/catalog/products", handlers.CatalogProducts)
 	} else {

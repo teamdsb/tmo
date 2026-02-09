@@ -58,7 +58,7 @@
 - `TARO_APP_COMMERCE_MOCK_FALLBACK` 默认为关闭（`false`）；只有显式设为 `true` 才会回退 mock 数据。
 - `TARO_APP_ENABLE_MOCK_LOGIN` 默认为关闭（`false`）；只有显式设为 `true` 才会展示“测试登录”按钮。
 - 如果使用容器化后端，保持 `TARO_APP_API_BASE_URL=http://localhost:8080` 即可。
-- 商品接口返回的图片 URL 由 gateway 服务端统一改写为 `${TARO_APP_API_BASE_URL}/assets/img?url=...`，前端仅负责渲染与占位兜底。
+- 商品接口返回的图片 URL 默认由 gateway 服务端改写为 `${TARO_APP_API_BASE_URL}/assets/img?url=...`；若已迁移到本地媒体目录则会直接返回 `${TARO_APP_API_BASE_URL}/assets/media/...`。前端仅负责渲染与占位兜底。
 - 微信环境建议使用真实 `TARO_APP_ID`；游客模式（`touristappid`）下，微信登录和手机号授权会受限。
 - `IDENTITY_LOGIN_MODE=real` 时，`/auth/mini/login` 必须携带 `phoneProof`，小程序登录会触发手机号授权。
 
@@ -86,6 +86,9 @@
 - `debug:weapp:auto` 会先执行 `tools/scripts/dev-stack-up.sh`（拉起 postgres + backend 容器、migrate/seed、健康检查），再执行采集脚本。
 - `dev-stack-up.sh` 默认不强制重建镜像；如需重建可加 `DEV_STACK_BUILD_IMAGES=true`。
 - `debug:weapp:smoke` 默认执行 4 条核心路由（首页/分类/搜索/商品详情）的 automator 烟测，并把每条路由的日志单独归档到 `apps/miniapp/.logs/weapp/routes/`。
+- 若只想快速验证后端核心接口和图片代理，不启用微信 DevTools，可执行：
+
+      bash tools/scripts/miniapp-http-smoke.sh
 - 如果你只想采集（后端已在运行），执行：
 
       pnpm -C apps/miniapp debug:weapp:collect
