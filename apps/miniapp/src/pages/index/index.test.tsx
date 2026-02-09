@@ -18,6 +18,13 @@ describe('ProductCatalogApp', () => {
   it('renders search and product grid', async () => {
     await renderCatalog();
 
+    const navbar = document.querySelector('.app-navbar.app-navbar--primary');
+    expect(navbar).not.toBeNull();
+    expect(navbar).toHaveAttribute('data-safe-area', 'top');
+    const tabsRoot = document.querySelector('[data-sticky-offset-top]');
+    expect(tabsRoot).not.toBeNull();
+    expect(tabsRoot).toHaveAttribute('data-sticky-offset-top', '56');
+
     expect(screen.getAllByTestId('home-showcase-empty')).toHaveLength(3);
     expect(screen.getByTestId('home-showcase-dots')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('按 SKU 或名称搜索...')).toBeInTheDocument();

@@ -102,7 +102,13 @@
 
 ## 导航栏高度约定
 
-自定义导航栏高度通过 `apps/miniapp/src/utils/navbar.ts` 动态计算（基于微信胶囊按钮与状态栏高度），并在各页面的 `Navbar` 上注入 `--navbar-height` 与 `--navbar-line-height`。这样可以保证顶部不遮挡原生区域且与胶囊按钮对齐。
+自定义导航栏高度通过 `apps/miniapp/src/utils/navbar.ts` 动态计算（综合状态栏、safeArea.top、微信胶囊按钮），并在各页面的 `Navbar` 上注入 `--navbar-top`、`--navbar-height`、`--navbar-line-height`、`--navbar-total-height`。
+
+约定：
+
+- 主标签页（首页/分类/购物车/我的）与二级页面统一使用 `safeArea='top'`。
+- `app-navbar--primary` 仅作为视觉变体类，不应覆盖导航栏高度。
+- 当微信开发者工具返回异常胶囊参数时，导航栏使用 `44px` 作为内容高度兜底，避免顶部重叠。
 
 ## 原子 CSS (Tailwind)
 

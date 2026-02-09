@@ -14,6 +14,10 @@ describe('PersonalCenter', () => {
   it('renders user info and key sections', async () => {
     await renderPersonalCenter();
 
+    const navbar = document.querySelector('.app-navbar.app-navbar--primary');
+    expect(navbar).not.toBeNull();
+    expect(navbar).toHaveAttribute('data-safe-area', 'top');
+
     expect(await screen.findByText('张三')).toBeInTheDocument();
     expect(screen.getByText('客户经理')).toBeInTheDocument();
     expect(screen.getByText('王经理')).toBeInTheDocument();
@@ -32,17 +36,9 @@ describe('PersonalCenter', () => {
   it('renders key menu entries', async () => {
     await renderPersonalCenter();
 
-    expect(screen.getByRole('button', { name: '首页' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '分类' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '购物车' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '我的' })).toBeInTheDocument();
-
-    const tabbarRoot = screen.getByRole('button', { name: '首页' }).parentElement;
-    expect(tabbarRoot).not.toBeNull();
-    if (!tabbarRoot) {
-      throw new Error('Expected tabbar root');
-    }
-    expect(tabbarRoot).toHaveClass('app-tabbar');
-    expect(tabbarRoot).toHaveClass('app-tabbar--fixed');
+    expect(screen.getByText('订单跟踪')).toBeInTheDocument();
+    expect(screen.getByText('我的需求')).toBeInTheDocument();
+    expect(screen.getByText('收藏')).toBeInTheDocument();
+    expect(screen.getByText('系统设置')).toBeInTheDocument();
   });
 });

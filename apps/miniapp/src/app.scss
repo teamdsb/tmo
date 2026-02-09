@@ -100,20 +100,11 @@
 
 .app-navbar .taroify-navbar__content,
 .app-navbar .taroify-navbar__placeholder {
-  height: calc(var(--navbar-height) + var(--navbar-top));
+  height: var(--navbar-total-height, calc(var(--navbar-height) + var(--navbar-top)));
 }
 
 .app-navbar .taroify-navbar__content {
   padding-top: var(--navbar-top);
-}
-
-.app-navbar--primary .taroify-navbar__content,
-.app-navbar--primary .taroify-navbar__placeholder {
-  height: var(--navbar-top);
-}
-
-.app-navbar--primary .taroify-navbar__content {
-  padding-top: 0;
 }
 
 .taroify-tabbar__placeholder {

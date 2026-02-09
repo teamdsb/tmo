@@ -13,7 +13,7 @@ import SearchIcon from '@taroify/icons/Search'
 import type { Category, ProductSummary } from '@tmo/api-client'
 import SafeImage from '../../components/safe-image'
 import { goodsDetailRoute } from '../../routes'
-import { getNavbarStyle } from '../../utils/navbar'
+import { getNavbarStyle, getNavbarTotalHeight } from '../../utils/navbar'
 import { navigateTo } from '../../utils/navigation'
 import { commerceServices } from '../../services/commerce'
 import './index.scss'
@@ -26,6 +26,7 @@ export default function ProductCatalogApp() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const navbarStyle = getNavbarStyle()
+  const stickyOffsetTop = getNavbarTotalHeight()
 
   useEffect(() => {
     void (async () => {
@@ -67,7 +68,7 @@ export default function ProductCatalogApp() {
 
   return (
     <View className='page page-home'>
-      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar app-navbar--primary'>
       </Navbar>
 
       <View className='page-search'>
@@ -86,7 +87,7 @@ export default function ProductCatalogApp() {
       <Tabs
         value={activeCategory}
         onChange={(value) => setActiveCategory(String(value))}
-        sticky
+        sticky={{ offsetTop: stickyOffsetTop }}
         swipeable={false}
       >
         {categoryTabs.map((category) => (

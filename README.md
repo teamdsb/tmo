@@ -42,9 +42,15 @@
 ## 常用命令
 ```bash
 pnpm install
+pnpm -C apps/miniapp build:weapp
+pnpm -C apps/miniapp build:alipay
 pnpm -C apps/miniapp dev:weapp
 pnpm -C apps/miniapp dev:alipay
 pnpm run test:backend
 make db-up
 make db-down
 ```
+
+miniapp 编译产物目录：
+- 微信：`apps/miniapp/dist/weapp`
+- 支付宝：`apps/miniapp/dist/alipay`
