@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import PersonalCenter from './index';
+import { gatewayServices } from '../../services/gateway';
 
 const flushPromises = () => new Promise((resolve) => process.nextTick(resolve));
 
@@ -11,6 +12,10 @@ const renderPersonalCenter = async () => {
 };
 
 describe('PersonalCenter', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('renders user info and key sections', async () => {
     await renderPersonalCenter();
 
@@ -20,6 +25,25 @@ describe('PersonalCenter', () => {
     expect(await screen.findByText('张三')).toBeInTheDocument();
     expect(screen.getByText('王经理')).toBeInTheDocument();
     expect(screen.queryByText('客户经理')).not.toBeInTheDocument();
+  });
+
+  it('shows mock account name for mock login user', async () => {
+    (gatewayServices.bootstrap.get as jest.Mock).mockResolvedValueOnce({
+      me: {
+        id: 'mock-user-id',
+        displayName: '测试账号',
+        roles: ['TEST'],
+        userType: 'staff',
+        createdAt: '2026-01-01T00:00:00Z'
+      },
+      permissions: { items: [] },
+      featureFlags: {}
+    });
+
+    await renderPersonalCenter();
+
+    expect(screen.getByText('测试账号')).toBeInTheDocument();
+    expect(screen.queryByText('未登录')).not.toBeInTheDocument();
   });
 
   it('renders the logout button', async () => {

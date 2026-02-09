@@ -1,9 +1,11 @@
 import type { BootstrapResponse } from '@tmo/gateway-api-client'
 import { saveBootstrap, savePendingRoleSelection } from './bootstrap'
 
+export const MOCK_USER_ID = 'mock-user-id'
+
 export const mockBootstrap: BootstrapResponse = {
   me: {
-    id: 'mock-user-id',
+    id: MOCK_USER_ID,
     displayName: '测试账号',
     roles: ['TEST'],
     userType: 'staff',

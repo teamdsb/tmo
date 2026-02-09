@@ -99,16 +99,8 @@
   margin-top: 32rpx
 }
 
-.mt-5 {
-  margin-top: 40rpx
-}
-
 .mt-6 {
   margin-top: 48rpx
-}
-
-.mt-auto {
-  margin-top: auto
 }
 
 .block {
@@ -454,8 +446,8 @@
   padding-bottom: 40rpx
 }
 
-.pb-12 {
-  padding-bottom: 96rpx
+.pb-10 {
+  padding-bottom: 80rpx
 }
 
 .pb-2 {
@@ -486,8 +478,8 @@
   padding-bottom: 64rpx
 }
 
-.pt-16 {
-  padding-top: 128rpx
+.pt-14 {
+  padding-top: 112rpx
 }
 
 .pt-2 {
@@ -570,10 +562,6 @@
 
 .leading-relaxed {
   line-height: 1.625
-}
-
-.leading-snug {
-  line-height: 1.375
 }
 
 .tracking-tight {

@@ -120,55 +120,66 @@ export default function LoginPage() {
   }
 
   return (
-    <View className='page login-page px-6 pt-16 pb-12 flex flex-col min-h-screen'>
-      <View className='flex-1 flex flex-col justify-center'>
-        <View className='flex flex-col items-center text-center gap-3'>
-          <View className='login-logo shadow-md'>
-            <AppsOutlined className='text-white text-2xl' />
+    <View className='page login-page'>
+      <View className='login-bg login-bg--top' />
+      <View className='login-bg login-bg--mid' />
+
+      <View className='login-content px-6 pt-14 pb-10 flex flex-col min-h-screen'>
+        <View className='login-main flex-1 flex flex-col justify-center'>
+          <View className='login-hero'>
+            <View className='login-logo-shell'>
+              <View className='login-logo'>
+                <AppsOutlined className='text-white text-2xl' />
+              </View>
+            </View>
+            <View className='login-copy'>
+              <Text className='login-title'>批发合作伙伴</Text>
+              <Text className='login-subtitle'>登录后可查看专属价格。</Text>
+            </View>
           </View>
-          <View>
-            <Text className='text-xl font-semibold text-slate-900'>批发合作伙伴</Text>
-            <Text className='block text-xs text-slate-500 mt-2'>登录后可查看专属价格。</Text>
+
+          <View className='login-actions mt-10'>
+            <Button
+              color='primary'
+              block
+              loading={loading}
+              onClick={handleLogin}
+              className='login-primary'
+            >
+              快速登录
+            </Button>
+            <Button
+              variant='outlined'
+              block
+              onClick={handleMockLogin}
+              className='login-secondary'
+            >
+              测试登录
+            </Button>
+            <Button
+              variant='outlined'
+              block
+              onClick={handleAltLogin}
+              className='login-ghost'
+            >
+              暂不登录
+            </Button>
+          </View>
+
+          <View className='login-agreement' onClick={() => setAgreed((prev) => !prev)}>
+            <View className={`login-checkbox ${agreed ? 'login-checkbox--checked' : ''}`} />
+            <Text className='login-agreement-text'>
+              我已阅读并同意
+              <Text className='login-agreement-link'>隐私政策</Text>
+              与
+              <Text className='login-agreement-link'>服务条款</Text>
+              。
+            </Text>
           </View>
         </View>
 
-        <View className='mt-10 flex flex-col gap-4'>
-          <Button
-            color='primary'
-            block
-            loading={loading}
-            onClick={handleLogin}
-            className='login-primary'
-          >
-            快速登录
-          </Button>
-          <Button
-            variant='outlined'
-            block
-            onClick={handleMockLogin}
-            className='login-secondary'
-          >
-            测试登录
-          </Button>
-          <Button
-            variant='outlined'
-            block
-            onClick={handleAltLogin}
-            className='login-secondary'
-          >
-            暂不登录
-          </Button>
-        </View>
-
-        <View className='mt-5 flex items-start gap-3' onClick={() => setAgreed((prev) => !prev)}>
-          <View className={`login-checkbox ${agreed ? 'login-checkbox--checked' : ''}`} />
-          <Text className='text-10 text-slate-500 leading-snug'>
-            我已阅读并同意隐私政策与服务条款。
-          </Text>
-        </View>
+        <View className='login-footer'>需要帮助？请联系你的客户经理。</View>
       </View>
-
-      <View className='mt-auto text-center text-10 text-slate-400'>需要帮助？请联系你的客户经理。</View>
     </View>
   )
 }
