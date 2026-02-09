@@ -62,6 +62,66 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Category"
+  "/catalog/categories/{categoryId}":
+    get:
+      tags:
+      - Catalog
+      summary: Get category
+      security: []
+      parameters:
+      - in: path
+        name: categoryId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Category"
+        '404':
+          "$ref": "#/components/responses/NotFound"
+    patch:
+      tags:
+      - Catalog
+      summary: Update category
+      parameters:
+      - in: path
+        name: categoryId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UpdateCategoryRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Category"
+    delete:
+      tags:
+      - Catalog
+      summary: Delete category
+      parameters:
+      - in: path
+        name: categoryId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: No Content
   "/catalog/products":
     get:
       tags:
@@ -902,6 +962,12 @@ components:
         application/json:
           schema:
             "$ref": "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/ErrorResponse"
   schemas:
     ErrorResponse:
       "$ref": "./common.yaml#/components/schemas/ErrorResponse"
@@ -929,6 +995,17 @@ components:
           default: 0
       required:
       - name
+    UpdateCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        parentId:
+          type: string
+          format: uuid
+          nullable: true
+        sort:
+          type: integer
     Category:
       type: object
       properties:

@@ -23,7 +23,10 @@ type stubStore struct {
 	countProductsFn         func(context.Context, db.CountProductsParams) (int64, error)
 	getProductFn            func(context.Context, uuid.UUID) (db.CatalogProduct, error)
 	createCategoryFn        func(context.Context, db.CreateCategoryParams) (db.CatalogCategory, error)
+	getCategoryFn           func(context.Context, uuid.UUID) (db.CatalogCategory, error)
 	listCategoriesFn        func(context.Context) ([]db.CatalogCategory, error)
+	updateCategoryFn        func(context.Context, db.UpdateCategoryParams) (db.CatalogCategory, error)
+	deleteCategoryFn        func(context.Context, uuid.UUID) (int64, error)
 	createSkuFn             func(context.Context, db.CreateSkuParams) (db.CatalogSku, error)
 	listSkusByProductFn     func(context.Context, uuid.UUID) ([]db.CatalogSku, error)
 	listSkusByIDsFn         func(context.Context, []uuid.UUID) ([]db.CatalogSku, error)
@@ -70,11 +73,32 @@ func (s *stubStore) CreateCategory(ctx context.Context, arg db.CreateCategoryPar
 	return s.createCategoryFn(ctx, arg)
 }
 
+func (s *stubStore) GetCategory(ctx context.Context, id uuid.UUID) (db.CatalogCategory, error) {
+	if s.getCategoryFn == nil {
+		return db.CatalogCategory{}, pgx.ErrTxClosed
+	}
+	return s.getCategoryFn(ctx, id)
+}
+
 func (s *stubStore) ListCategories(ctx context.Context) ([]db.CatalogCategory, error) {
 	if s.listCategoriesFn == nil {
 		return nil, pgx.ErrTxClosed
 	}
 	return s.listCategoriesFn(ctx)
+}
+
+func (s *stubStore) UpdateCategory(ctx context.Context, arg db.UpdateCategoryParams) (db.CatalogCategory, error) {
+	if s.updateCategoryFn == nil {
+		return db.CatalogCategory{}, pgx.ErrTxClosed
+	}
+	return s.updateCategoryFn(ctx, arg)
+}
+
+func (s *stubStore) DeleteCategory(ctx context.Context, id uuid.UUID) (int64, error) {
+	if s.deleteCategoryFn == nil {
+		return 0, pgx.ErrTxClosed
+	}
+	return s.deleteCategoryFn(ctx, id)
 }
 
 func (s *stubStore) CreateSku(ctx context.Context, arg db.CreateSkuParams) (db.CatalogSku, error) {
@@ -348,5 +372,108 @@ func TestGetCatalogCategories_Empty(t *testing.T) {
 	}
 	if response.Items == nil || len(response.Items) != 0 {
 		t.Fatalf("expected empty categories list")
+	}
+}
+
+func TestGetCatalogCategoriesCategoryId_OK(t *testing.T) {
+	categoryID := uuid.New()
+	store := &stubStore{
+		getCategoryFn: func(ctx context.Context, id uuid.UUID) (db.CatalogCategory, error) {
+			if id != categoryID {
+				t.Fatalf("expected category id %s, got %s", categoryID, id)
+			}
+			return db.CatalogCategory{
+				ID:   categoryID,
+				Name: "紧固件",
+				Sort: 2,
+			}, nil
+		},
+	}
+
+	router := newTestRouter(store)
+	req := httptest.NewRequest(http.MethodGet, "/catalog/categories/"+categoryID.String(), nil)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+
+	var response oapi.Category
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.Id != categoryID {
+		t.Fatalf("expected category id %s, got %s", categoryID, response.Id)
+	}
+	if response.Name != "紧固件" {
+		t.Fatalf("expected category name")
+	}
+}
+
+func TestPatchCatalogCategoriesCategoryId_Updates(t *testing.T) {
+	categoryID := uuid.New()
+	parentID := uuid.New()
+	var gotUpdate db.UpdateCategoryParams
+	store := &stubStore{
+		updateCategoryFn: func(ctx context.Context, arg db.UpdateCategoryParams) (db.CatalogCategory, error) {
+			gotUpdate = arg
+			return db.CatalogCategory{
+				ID:       categoryID,
+				Name:     "紧固件",
+				ParentID: arg.ParentID,
+				Sort:     9,
+			}, nil
+		},
+	}
+
+	payload := map[string]interface{}{
+		"name":     "紧固件",
+		"parentId": parentID.String(),
+		"sort":     9,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+
+	router := newTestRouter(store)
+	req := httptest.NewRequest(http.MethodPatch, "/catalog/categories/"+categoryID.String(), bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+	if gotUpdate.ID != categoryID {
+		t.Fatalf("expected update id %s, got %s", categoryID, gotUpdate.ID)
+	}
+	if gotUpdate.Name == nil || *gotUpdate.Name != "紧固件" {
+		t.Fatalf("unexpected update name: %#v", gotUpdate.Name)
+	}
+	if !gotUpdate.ParentIDSet || !gotUpdate.ParentID.Valid || gotUpdate.ParentID.Bytes != parentID {
+		t.Fatalf("unexpected update parent: %+v", gotUpdate.ParentID)
+	}
+	if gotUpdate.Sort == nil || *gotUpdate.Sort != 9 {
+		t.Fatalf("unexpected update sort: %#v", gotUpdate.Sort)
+	}
+}
+
+func TestDeleteCatalogCategoriesCategoryId_NotFound(t *testing.T) {
+	categoryID := uuid.New()
+	store := &stubStore{
+		deleteCategoryFn: func(ctx context.Context, id uuid.UUID) (int64, error) {
+			return 0, nil
+		},
+	}
+
+	router := newTestRouter(store)
+	req := httptest.NewRequest(http.MethodDelete, "/catalog/categories/"+categoryID.String(), nil)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("expected status 404, got %d", recorder.Code)
 	}
 }

@@ -1,9 +1,9 @@
 .home-showcase {
-  margin: 0 16px 12px;
+  margin: 0 16px 10px;
   padding: 12px;
   border-radius: 14px;
   border: 1px solid #dce4ef;
-  background: #fff;
+  background: linear-gradient(180deg, #fff, #f9fbff);
 }
 
 .home-showcase-swiper {
@@ -37,10 +37,131 @@
   transform: scale(1.1);
 }
 
-.page-home .taroify-tabs__wrap {
-  position: sticky;
-  top: var(--navbar-total-height);
-  z-index: 8;
+.home-category-panel {
+  margin: 0 16px 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid #dce4ef;
   background: #fff;
-  border-bottom: 1px solid #eef2f7;
+  box-shadow: 0 6px 18px rgb(15 23 42 / 4%);
+}
+
+.home-category-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px 8px;
+}
+
+.home-category-empty {
+  min-height: 86px;
+  border-radius: 12px;
+  border: 1px dashed #d8e2f0;
+  background: #f8fbff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-category-empty-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: #90a4b8;
+}
+
+.home-category-item {
+  min-height: 84px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f1;
+  background: #f8fbff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 4px;
+  transition: transform 0.16s ease, background-color 0.16s ease;
+}
+
+.home-category-item:active {
+  transform: scale(0.98);
+  background: #eff5ff;
+}
+
+.home-category-item.is-placeholder {
+  border-style: dashed;
+  background: #f6f7f8;
+  color: #94a3b8;
+}
+
+.home-category-item.is-placeholder:active {
+  transform: none;
+  background: #f6f7f8;
+}
+
+.home-category-item.is-skeleton {
+  pointer-events: none;
+  border-color: #e8edf3;
+  background: #f8fafc;
+}
+
+.home-category-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #ecf4ff, #f2f8ff);
+  color: #137fec;
+}
+
+.home-category-icon .taroify-icon {
+  font-size: 20px;
+}
+
+.home-category-icon--skeleton {
+  width: 34px;
+  height: 34px;
+  margin-bottom: 10px;
+  background: #e5e7eb;
+}
+
+.home-category-label {
+  width: 100%;
+  padding: 0 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.25;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.home-category-label--skeleton {
+  width: 52px;
+  height: 10px;
+  border-radius: 999px;
+  background: #e5e7eb;
+}
+
+.home-category-item.is-placeholder .home-category-label {
+  color: #9ca3af;
+}
+
+.home-product-section {
+  padding-top: 10px;
+}
+
+.home-product-toolbar {
+  margin-bottom: 12px;
+}
+
+.home-product-title {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #111418;
 }

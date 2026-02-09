@@ -2,21 +2,31 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import CategoryPage from './index';
 
 describe('CategoryPage', () => {
-  it('renders category page shell and navbar', () => {
+  it('renders category shell with backend categories', async () => {
     render(<CategoryPage />);
 
     const navbar = document.querySelector('.app-navbar.app-navbar--primary');
     expect(navbar).not.toBeNull();
+    expect(navbar).toHaveAttribute('data-safe-area', 'top');
     expect(screen.getByPlaceholderText('搜索 SKU 或商品...')).toBeInTheDocument();
-    expect(screen.getAllByText('办公用品').length).toBeGreaterThan(0);
+
+    expect((await screen.findAllByText('办公用品')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('工业')).length).toBeGreaterThan(0);
+    expect(await screen.findByText('A4 办公用纸')).toBeInTheDocument();
   });
 
-  it('switches category from sidebar', () => {
+  it('switches active category from sidebar', async () => {
     render(<CategoryPage />);
 
-    const safetyEntry = screen.getByText('安全防护');
-    fireEvent.click(safetyEntry);
+    const industrialEntry = await screen.findByText('工业');
+    fireEvent.click(industrialEntry);
 
-    expect(screen.getByText('保护最重要的资产')).toBeInTheDocument();
+    const sidebarItem = industrialEntry.closest('.category-sidebar-item');
+    expect(sidebarItem).not.toBeNull();
+    if (!sidebarItem) {
+      throw new Error('Expected category sidebar item');
+    }
+    expect(sidebarItem).toHaveClass('is-active');
+    expect(await screen.findByText('共 4 件商品')).toBeInTheDocument();
   });
 });

@@ -52,6 +52,18 @@ func (server *stubServer) PostCatalogCategories(context *gin.Context) {
 	context.Status(http.StatusNotImplemented)
 }
 
+func (server *stubServer) DeleteCatalogCategoriesCategoryId(context *gin.Context, categoryId openapi_types.UUID) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) GetCatalogCategoriesCategoryId(context *gin.Context, categoryId openapi_types.UUID) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) PatchCatalogCategoriesCategoryId(context *gin.Context, categoryId openapi_types.UUID) {
+	context.Status(http.StatusNotImplemented)
+}
+
 func (server *stubServer) GetCatalogProducts(context *gin.Context, params oapi.GetCatalogProductsParams) {
 	context.Status(http.StatusNotImplemented)
 }

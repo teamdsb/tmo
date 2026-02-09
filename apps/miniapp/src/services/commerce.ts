@@ -1,5 +1,5 @@
 import { createCommerceServices, type CommerceServices } from '@tmo/commerce-services'
-import type { Category, ProductDetail, ProductSummary } from '@tmo/api-client'
+import type { Category, CreateCategoryRequest, ProductDetail, ProductSummary, UpdateCategoryRequest } from '@tmo/api-client'
 import { buildMockProductDetail, mockCategories, mockProductDetails, mockProducts } from './mocks/catalog'
 
 // 小程序运行时没有 Node.js process，全局读取必须做守卫。
@@ -49,6 +49,55 @@ const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
     } catch (error) {
       console.warn('catalog listCategories failed, fallback to mock', error)
       return { items: mockCategories }
+    }
+  },
+  getCategory: async (categoryId: string): Promise<Category> => {
+    try {
+      return await catalog.getCategory(categoryId)
+    } catch (error) {
+      console.warn('catalog getCategory failed, fallback to mock', error)
+      const found = mockCategories.find((item) => item.id === categoryId)
+      if (!found) {
+        throw error
+      }
+      return found
+    }
+  },
+  createCategory: async (payload: CreateCategoryRequest): Promise<Category> => {
+    try {
+      return await catalog.createCategory(payload)
+    } catch (error) {
+      console.warn('catalog createCategory failed, fallback to mock', error)
+      return {
+        id: `mock-${Date.now()}`,
+        name: payload.name,
+        parentId: payload.parentId ?? null,
+        sort: payload.sort ?? 0
+      }
+    }
+  },
+  updateCategory: async (categoryId: string, payload: UpdateCategoryRequest): Promise<Category> => {
+    try {
+      return await catalog.updateCategory(categoryId, payload)
+    } catch (error) {
+      console.warn('catalog updateCategory failed, fallback to mock', error)
+      const found = mockCategories.find((item) => item.id === categoryId)
+      if (!found) {
+        throw error
+      }
+      return {
+        id: found.id,
+        name: payload.name ?? found.name,
+        parentId: payload.parentId === undefined ? (found.parentId ?? null) : payload.parentId,
+        sort: payload.sort ?? found.sort
+      }
+    }
+  },
+  deleteCategory: async (categoryId: string): Promise<void> => {
+    try {
+      await catalog.deleteCategory(categoryId)
+    } catch (error) {
+      console.warn('catalog deleteCategory failed, fallback to mock', error)
     }
   },
   listProducts: async (params?: { q?: string; categoryId?: string; page?: number; pageSize?: number }) => {
