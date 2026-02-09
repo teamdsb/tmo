@@ -18,8 +18,8 @@ describe('PersonalCenter', () => {
     expect(navbar).not.toBeNull();
 
     expect(await screen.findByText('张三')).toBeInTheDocument();
-    expect(screen.getByText('客户经理')).toBeInTheDocument();
     expect(screen.getByText('王经理')).toBeInTheDocument();
+    expect(screen.queryByText('客户经理')).not.toBeInTheDocument();
   });
 
   it('renders the logout button', async () => {

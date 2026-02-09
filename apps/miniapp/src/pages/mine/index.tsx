@@ -168,11 +168,11 @@ export default function PersonalCenter() {
             <>
               <View className='relative'>
                 <Image
-                  className='w-16 h-16 rounded-full'
+                  className='mine-profile-avatar'
                   src={avatarFallback}
                   mode='aspectFill'
                 />
-                <View className='absolute bottom-0 right-0 w-3 h-3 rounded-full mine-accent-solid border-2 mine-avatar-border' />
+                <View className='mine-profile-status mine-accent-solid mine-avatar-border' />
               </View>
               <View>
                 <Text className='text-xl font-semibold'>{displayName}</Text>
@@ -181,10 +181,10 @@ export default function PersonalCenter() {
           ) : (
             <>
               <View
-                className='w-16 h-16 rounded-full border border-slate-200 bg-slate-100 flex items-center justify-center'
+                className='mine-profile-avatar mine-profile-avatar--placeholder flex items-center justify-center'
                 onClick={() => navigateTo(ROUTES.authLogin)}
               >
-                <UserOutlined className='text-2xl text-slate-400' />
+                <UserOutlined className='mine-profile-avatar-icon text-slate-400' />
               </View>
               <View className='flex-1'>
                 <Text className='text-xl font-semibold'>未登录</Text>
@@ -204,13 +204,12 @@ export default function PersonalCenter() {
             <View className='mine-contact-icon'>
               <ServiceOutlined className='text-base mine-accent' />
             </View>
-            <Text className='mine-contact-label'>客户经理</Text>
+            <Text className='mine-contact-name'>王经理</Text>
             <View className='mine-contact-spacer' />
             <View className='mine-contact-action'>
               <ChatOutlined className='text-base' />
             </View>
           </View>
-          <Text className='mine-contact-name'>王经理</Text>
         </View>
       </View>
 

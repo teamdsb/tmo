@@ -98,6 +98,32 @@
   border-color: var(--mine-card-bg);
 }
 
+.mine-profile-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 9999px;
+}
+
+.mine-profile-avatar--placeholder {
+  border: 1px solid #e2e8f0;
+  background: #f1f5f9;
+}
+
+.mine-profile-avatar-icon {
+  font-size: 24px;
+}
+
+.mine-profile-status {
+  position: absolute;
+  right: 0;
+  bottom: 1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  border-width: 2px;
+  border-style: solid;
+}
+
 .app-navbar .taroify-navbar__content,
 .app-navbar .taroify-navbar__placeholder {
   height: var(--navbar-total-height, calc(var(--navbar-height) + var(--navbar-top)));
@@ -136,8 +162,8 @@
 }
 
 .mine-contact-icon {
-  width: 32px;
-  height: 32px;
+  width: 64px;
+  height: 64px;
   border-radius: 9999px;
   background: var(--mine-accent-bg);
   display: flex;
@@ -146,9 +172,9 @@
 }
 
 .mine-contact-label {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   color: var(--mine-subtle);
 }
 
