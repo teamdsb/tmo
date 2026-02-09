@@ -14,5 +14,6 @@ Bootstrap and local dev scripts.
 - `dev-bootstrap.sh`: start Postgres, run commerce + identity migrations and seed.
 - `dev-stack-up.sh`: start local Docker stack (postgres + backend services), run bootstrap/seed, then wait for readiness (`DEV_STACK_BUILD_IMAGES=true` to force image rebuild).
 - `dev-stack-health.sh`: check local identity/commerce/payment/gateway `/ready` and `/health` endpoints.
+- `miniapp-smoke.sh`: run multi-route WeChat automator smoke on `apps/miniapp` (`MINIAPP_SMOKE_STACK_UP=true` to auto start backend stack).
 - `gateway-verify.sh`: smoke-check gateway health/ready and auth flows.
 - `gateway-verify-real.sh`: verify real-mode auth rejects missing/invalid phone proof.

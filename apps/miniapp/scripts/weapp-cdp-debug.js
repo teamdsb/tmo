@@ -31,11 +31,22 @@ const forceRelaunch = readBool(process.env.WEAPP_AUTOMATOR_FORCE_RELAUNCH, true)
 const automatorRoute = ensureRoute(process.env.WEAPP_AUTOMATOR_ROUTE || '/pages/index/index')
 const automatorAccount = (process.env.WEAPP_AUTOMATOR_ACCOUNT || '').trim()
 const automatorTrustProject = readBool(process.env.WEAPP_AUTOMATOR_TRUST_PROJECT, true)
+const smokeSpuId = (process.env.WEAPP_SMOKE_SPU_ID || '22222222-2222-2222-2222-222222222222').trim()
+const defaultSmokeRoutes = [
+  '/pages/index/index',
+  '/pages/category/index',
+  '/pages/goods/search/index',
+  `/pages/goods/detail/index?id=${encodeURIComponent(smokeSpuId)}`
+]
+const multiRouteChild = readBool(process.env.WEAPP_MULTI_CHILD, false)
+const automatorRoutes = parseRoutes(process.env.WEAPP_AUTOMATOR_ROUTES || '')
 
 const keyEndpoints = ['/bff/bootstrap', '/catalog/categories', '/catalog/products']
+const imageEndpoint = '/assets/img'
 const endpointState = new Map(
   keyEndpoints.map((endpoint) => [endpoint, { seen: false, ok: false, statuses: [], errors: [] }])
 )
+const imageProxyState = { seen: false, ok: false, statuses: [], errors: [] }
 
 const envFilePath = path.join(miniappDir, '.env.development')
 const envFileValues = parseEnvFile(envFilePath)
@@ -69,6 +80,7 @@ const automatorStats = {
 const networkStats = {
   totalGatewayRequests: 0,
   matchedEndpointRequests: 0,
+  imageProxyRequests: 0,
   parseErrors: 0
 }
 
@@ -92,6 +104,35 @@ function ensureRoute(value) {
     return '/pages/index/index'
   }
   return trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+}
+
+function parseRoutes(rawValue) {
+  const raw = String(rawValue || '').trim()
+  if (!raw) {
+    return []
+  }
+
+  const seen = new Set()
+  const routes = []
+  for (const token of raw.split(/[\n,]/)) {
+    const route = ensureRoute(token)
+    if (!route || seen.has(route)) {
+      continue
+    }
+    seen.add(route)
+    routes.push(route)
+  }
+  return routes
+}
+
+function routeToSlug(route) {
+  return String(route || '')
+    .trim()
+    .replace(/^\/+/, '')
+    .replace(/[/?&=:#]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    || 'route'
 }
 
 function normalizeRoutePath(value) {
@@ -243,6 +284,116 @@ function runCommand(command, args, options = {}) {
   }
 
   return result
+}
+
+function copyArtifactIfExists(sourcePath, targetPath) {
+  if (!fs.existsSync(sourcePath)) {
+    return false
+  }
+  fs.copyFileSync(sourcePath, targetPath)
+  return true
+}
+
+function extractSummaryMetrics(content) {
+  const parseCount = (pattern) => {
+    const match = content.match(pattern)
+    if (!match) {
+      return 0
+    }
+    return Number(match[1] || 0)
+  }
+
+  return {
+    p0: parseCount(/- P0 blocking issues:\s*(\d+)/),
+    p1: parseCount(/- P1 blocking issues:\s*(\d+)/),
+    p2: parseCount(/- P2 warning issues:\s*(\d+)/)
+  }
+}
+
+function runMultiRouteDriver(routeList) {
+  const routes = routeList.length > 0 ? routeList : defaultSmokeRoutes
+  const routeLogsRoot = path.join(logsDir, 'routes')
+  ensureDir(logsDir)
+  ensureDir(routeLogsRoot)
+
+  const startedAt = nowIso()
+  const results = []
+  let hasFailure = false
+
+  for (let index = 0; index < routes.length; index += 1) {
+    const route = routes[index]
+    const routeSlug = `${String(index + 1).padStart(2, '0')}-${routeToSlug(route)}`
+    const routeDir = path.join(routeLogsRoot, routeSlug)
+    ensureDir(routeDir)
+
+    const childEnv = {
+      ...process.env,
+      WEAPP_MULTI_CHILD: 'true',
+      WEAPP_AUTOMATOR_ROUTE: route,
+      WEAPP_AUTOMATOR_ROUTES: ''
+    }
+    if (index > 0) {
+      childEnv.WEAPP_SKIP_BUILD = 'true'
+    }
+
+    console.log(`[weapp-cdp-debug] route[${index + 1}/${routes.length}] ${route}`)
+    const result = spawnSync(process.execPath, [__filename], {
+      cwd: miniappDir,
+      env: childEnv,
+      stdio: 'inherit',
+      encoding: 'utf8'
+    })
+    const statusCode = typeof result.status === 'number' ? result.status : 1
+    if (statusCode !== 0) {
+      hasFailure = true
+    }
+
+    copyArtifactIfExists(consoleLogPath, path.join(routeDir, 'console.jsonl'))
+    copyArtifactIfExists(networkLogPath, path.join(routeDir, 'network.jsonl'))
+
+    let summaryContent = ''
+    if (fs.existsSync(summaryPath)) {
+      summaryContent = fs.readFileSync(summaryPath, 'utf8')
+      fs.writeFileSync(path.join(routeDir, 'summary.md'), summaryContent, 'utf8')
+    }
+    const metrics = extractSummaryMetrics(summaryContent)
+
+    results.push({
+      route,
+      statusCode,
+      artifactsDir: path.relative(rootDir, routeDir),
+      ...metrics
+    })
+  }
+
+  const finishedAt = nowIso()
+  const lines = [
+    '# Weapp CDP Multi-route Summary',
+    '',
+    `- startedAt: ${startedAt}`,
+    `- finishedAt: ${finishedAt}`,
+    `- routes total: ${routes.length}`,
+    `- routes failed: ${results.filter((item) => item.statusCode !== 0).length}`,
+    '',
+    '| route | status | p0 | p1 | p2 | artifacts |',
+    '| --- | --- | --- | --- | --- | --- |'
+  ]
+
+  for (const item of results) {
+    lines.push(
+      `| ${item.route} | ${item.statusCode === 0 ? 'ok' : `fail(${item.statusCode})`} | `
+      + `${item.p0} | ${item.p1} | ${item.p2} | ${item.artifactsDir} |`
+    )
+  }
+
+  lines.push('', '## Notes', '')
+  lines.push('- Each route has its own `summary.md`, `console.jsonl`, and `network.jsonl` under `apps/miniapp/.logs/weapp/routes/`.')
+  lines.push('- This aggregate file is written to `apps/miniapp/.logs/weapp/summary.md`.', '')
+
+  fs.writeFileSync(summaryPath, lines.join('\n'), 'utf8')
+  if (hasFailure && failOnError) {
+    throw new Error(`multi-route smoke has failures. summary: ${summaryPath}`)
+  }
 }
 
 function assertRuntimeInputs() {
@@ -666,6 +817,25 @@ function updateEndpointState(pathValue, status) {
       state.errors.push(`status ${status}`)
     }
   }
+
+  if (!pathValue.includes(imageEndpoint)) {
+    return
+  }
+
+  networkStats.imageProxyRequests += 1
+  imageProxyState.seen = true
+  imageProxyState.statuses.push(status)
+
+  if (status >= 200 && status < 400) {
+    imageProxyState.ok = true
+    return
+  }
+
+  if (status === 499) {
+    return
+  }
+
+  imageProxyState.errors.push(`status ${status}`)
 }
 
 function collectGatewayLogs(startedAtIso) {
@@ -723,6 +893,15 @@ function finalizeEndpointValidation() {
       appendFailure(`${endpoint} has no successful response, statuses: ${state.statuses.join(', ')}`)
     }
   }
+
+  if (!imageProxyState.seen) {
+    appendP1Issue(`${imageEndpoint} was not observed in gateway logs during capture window`)
+    return
+  }
+
+  if (!imageProxyState.ok) {
+    appendP1Issue(`${imageEndpoint} has no successful response, statuses: ${imageProxyState.statuses.join(', ')}`)
+  }
 }
 
 async function captureScreenshot(name) {
@@ -772,6 +951,12 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     )
   }
 
+  endpointLines.push(
+    `| ${imageEndpoint} | ${imageProxyState.seen ? 'yes' : 'no'} | ${imageProxyState.ok ? 'yes' : 'no'} | `
+      + `${imageProxyState.statuses.length > 0 ? imageProxyState.statuses.join(', ') : '-'} | `
+      + `${imageProxyState.errors.length > 0 ? imageProxyState.errors.join('; ') : '-'} |`
+  )
+
   const summary = [
     '# Weapp CDP Debug Summary',
     '',
@@ -806,6 +991,7 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     `- gateway container: ${gatewayContainer}`,
     `- gateway requests captured: ${networkStats.totalGatewayRequests}`,
     `- key endpoint requests: ${networkStats.matchedEndpointRequests}`,
+    `- image proxy requests: ${networkStats.imageProxyRequests}`,
     `- parse errors: ${networkStats.parseErrors}`,
     '',
     '## Severity Stats',
@@ -910,6 +1096,19 @@ async function cleanup() {
 }
 
 async function main() {
+  if (!multiRouteChild && automatorRoutes.length > 0) {
+    try {
+      runMultiRouteDriver(automatorRoutes)
+      console.log(`[weapp-cdp-debug] multi-route completed. summary: ${summaryPath}`)
+    } catch (error) {
+      console.error(`[weapp-cdp-debug] multi-route failed: ${error?.message || String(error)}`)
+      if (failOnError) {
+        process.exit(1)
+      }
+    }
+    return
+  }
+
   ensureDir(logsDir)
   ensureDir(screenshotDir)
 

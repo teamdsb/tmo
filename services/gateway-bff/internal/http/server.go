@@ -11,12 +11,14 @@ import (
 )
 
 type ProxyHandlers struct {
-	Identity  gin.HandlerFunc
-	Commerce  gin.HandlerFunc
-	Payment   gin.HandlerFunc
-	AI        gin.HandlerFunc
-	Bootstrap gin.HandlerFunc
-	Image     gin.HandlerFunc
+	Identity             gin.HandlerFunc
+	Commerce             gin.HandlerFunc
+	CatalogProducts      gin.HandlerFunc
+	CatalogProductDetail gin.HandlerFunc
+	Payment              gin.HandlerFunc
+	AI                   gin.HandlerFunc
+	Bootstrap            gin.HandlerFunc
+	Image                gin.HandlerFunc
 }
 
 func NewRouter(handlers ProxyHandlers, logger *slog.Logger, readyCheck func(context.Context) error, maxBodyBytes int64) *gin.Engine {
@@ -34,6 +36,16 @@ func NewRouter(handlers ProxyHandlers, logger *slog.Logger, readyCheck func(cont
 
 	router.GET("/bff/bootstrap", handlers.Bootstrap)
 	router.GET("/assets/img", handlers.Image)
+	if handlers.CatalogProducts != nil {
+		router.GET("/catalog/products", handlers.CatalogProducts)
+	} else {
+		router.GET("/catalog/products", handlers.Commerce)
+	}
+	if handlers.CatalogProductDetail != nil {
+		router.GET("/catalog/products/:spuId", handlers.CatalogProductDetail)
+	} else {
+		router.GET("/catalog/products/:spuId", handlers.Commerce)
+	}
 
 	router.Any("/auth", handlers.Identity)
 	router.Any("/auth/*path", handlers.Identity)
