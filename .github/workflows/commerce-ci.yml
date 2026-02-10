@@ -58,7 +58,7 @@ jobs:
           go test ./internal/http/handler -run=^$ -fuzz=FuzzCatalogProducts
           -fuzztime=5s
         working-directory: services/commerce
-      - uses: golangci/golangci-lint-action@v6
+      - uses: golangci/golangci-lint-action@v9
         with:
           version: latest
           install-mode: source
