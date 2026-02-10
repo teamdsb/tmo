@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { View, Text, Image } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import { useCallback, useEffect, useState } from 'react'
+import { View, Text, Image, Button as NativeButton } from '@tarojs/components'
+import Taro, { useDidShow } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import {
   AppsOutlined,
@@ -117,35 +117,62 @@ export default function PersonalCenter() {
   const isH5 = process.env.TARO_ENV === 'h5'
   const [bootstrap, setBootstrap] = useState<BootstrapResponse | null>(null)
   const [isDark] = useState(() => getRuntimeTheme() === 'dark')
+  const [loggingOut, setLoggingOut] = useState(false)
   const avatarFallback = placeholderProductImage
 
-  useEffect(() => {
-    void (async () => {
-      const cached = await loadBootstrap()
-      if (cached) {
-        setBootstrap(cached)
-      }
-      try {
-        const fresh = await gatewayServices.bootstrap.get()
-        setBootstrap(fresh)
-        await saveBootstrap(fresh)
-      } catch (error) {
-        console.warn('bootstrap refresh failed', error)
-      }
-    })()
+  const refreshBootstrap = useCallback(async () => {
+    const cached = await loadBootstrap()
+    if (cached) {
+      setBootstrap(cached)
+    }
+    try {
+      const fresh = await gatewayServices.bootstrap.get()
+      setBootstrap(fresh)
+      await saveBootstrap(fresh)
+    } catch (error) {
+      console.warn('bootstrap refresh failed', error)
+    }
   }, [])
+
+  useEffect(() => {
+    void refreshBootstrap()
+  }, [refreshBootstrap])
+
+  useDidShow(() => {
+    void (async () => {
+      await refreshBootstrap()
+    })()
+  })
 
   const isLoggedIn = Boolean(bootstrap?.me)
   const displayName = bootstrap?.me?.displayName ?? '访客'
   const themeClassName = isDark ? 'mine-theme mine-theme--dark' : 'mine-theme'
 
   const handleLogout = async () => {
-    await gatewayServices.tokens.setToken(null)
-    await commerceServices.tokens.setToken(null)
-    await identityServices.tokens.setToken(null)
-    await clearBootstrap()
-    await Taro.showToast({ title: '已退出登录', icon: 'none' })
-    await switchTabLike(ROUTES.home)
+    if (loggingOut) {
+      return
+    }
+
+    setLoggingOut(true)
+    try {
+      const results = await Promise.allSettled([
+        gatewayServices.tokens.setToken(null),
+        commerceServices.tokens.setToken(null),
+        identityServices.tokens.setToken(null),
+        clearBootstrap()
+      ])
+      const hasFailedTask = results.some((item) => item.status === 'rejected')
+      if (hasFailedTask) {
+        throw new Error('logout cleanup failed')
+      }
+      setBootstrap(null)
+      await Taro.showToast({ title: '已退出登录', icon: 'none' })
+    } catch (error) {
+      console.warn('logout failed', error)
+      await Taro.showToast({ title: '退出失败，请重试', icon: 'none' })
+    } finally {
+      setLoggingOut(false)
+    }
   }
 
   return (
@@ -196,24 +223,26 @@ export default function PersonalCenter() {
         </View>
       </View>
 
-      <View className='px-5 mb-6'>
-        <View
-          className='mine-card mine-shadow border rounded-2xl p-4 mine-contact-card'
-          onClick={() => navigateTo(ROUTES.support)}
-        >
-          <View className='mine-contact-row'>
-            <View className='mine-contact-icon'>
-              <ServiceOutlined className='text-base mine-accent' />
+      {isLoggedIn ? (
+        <View className='px-5 mb-6'>
+          <View
+            className='mine-card mine-shadow border rounded-2xl p-4 mine-contact-card'
+            onClick={() => navigateTo(ROUTES.support)}
+          >
+            <View className='mine-contact-row'>
+              <View className='mine-contact-icon'>
+                <ServiceOutlined className='text-base mine-accent' />
+              </View>
+              <Text className='mine-contact-label'>客户经理</Text>
+              <View className='mine-contact-spacer' />
+              <View className='mine-contact-action'>
+                <ChatOutlined className='text-base' />
+              </View>
             </View>
-            <Text className='mine-contact-label'>客户经理</Text>
-            <View className='mine-contact-spacer' />
-            <View className='mine-contact-action'>
-              <ChatOutlined className='text-base' />
-            </View>
+            <Text className='mine-contact-name'>王经理</Text>
           </View>
-          <Text className='mine-contact-name'>王经理</Text>
         </View>
-      </View>
+      ) : null}
 
       <View className='px-5 mb-6'>
         <View className='flex items-center justify-between mb-4'>
@@ -251,14 +280,18 @@ export default function PersonalCenter() {
         </View>
       </View>
 
-      <View className='px-5 pb-8'>
-        <View
-          className='mine-card border rounded-xl py-3 flex items-center justify-center gap-2'
+      <View className='px-5 pb-8 mine-logout-section'>
+        <NativeButton
+          id='mine-logout-btn'
+          className={`mine-card border rounded-xl py-3 flex items-center justify-center gap-2 mine-logout-btn ${
+            loggingOut ? 'opacity-60' : ''
+          }`}
+          disabled={loggingOut}
           onClick={handleLogout}
         >
           <Revoke className='text-base mine-subtle' />
           <Text className='text-sm font-medium mine-muted'>切换账号或退出登录</Text>
-        </View>
+        </NativeButton>
       </View>
     </View>
   )

@@ -175,6 +175,22 @@
   justify-content: center;
 }
 
+.mine-logout-section {
+  padding-bottom: calc(8px + var(--tabbar-safe-offset));
+  padding-bottom: calc(8px + var(--tabbar-safe-offset-legacy));
+}
+
+.mine-logout-btn {
+  width: 100%;
+  background: var(--mine-card-bg);
+  border: 1px solid var(--mine-card-border);
+  line-height: 1.2;
+}
+
+.mine-logout-btn::after {
+  border: none;
+}
+
 .page {
   min-height: 100vh;
   background: #f6f7f8;

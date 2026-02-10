@@ -132,7 +132,8 @@ jest.mock('@tarojs/taro', () => {
       if (typeof callback === 'function') {
         callback();
       }
-    })
+    }),
+    useDidShow: jest.fn(() => {})
   };
 });
 
