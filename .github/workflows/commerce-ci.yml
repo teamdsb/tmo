@@ -32,7 +32,7 @@ jobs:
       COMMERCE_DB_DSN: >-
         postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-go@v5
         with:
           go-version: "stable"
