@@ -1,0 +1,55 @@
+version: "3.9"
+
+services:
+  identity:
+    build:
+      context: ../..
+      dockerfile: services/identity/Dockerfile.dev
+    working_dir: /workspace
+    command: >
+      sh -c "go run ./services/identity/cmd/identity-migrate && air -c services/identity/.air.toml"
+    volumes:
+      - ../..:/workspace
+      - tmo-go-mod-cache:/go/pkg/mod
+      - tmo-go-build-cache:/root/.cache/go-build
+
+  commerce:
+    build:
+      context: ../..
+      dockerfile: services/commerce/Dockerfile.dev
+    working_dir: /workspace
+    command: >
+      sh -c "go run ./services/commerce/cmd/commerce-migrate && air -c services/commerce/.air.toml"
+    volumes:
+      - ../..:/workspace
+      - tmo-go-mod-cache:/go/pkg/mod
+      - tmo-go-build-cache:/root/.cache/go-build
+
+  payment:
+    build:
+      context: ../..
+      dockerfile: services/payment/Dockerfile.dev
+    working_dir: /workspace
+    command: >
+      sh -c "air -c services/payment/.air.toml"
+    volumes:
+      - ../..:/workspace
+      - tmo-go-mod-cache:/go/pkg/mod
+      - tmo-go-build-cache:/root/.cache/go-build
+
+  gateway-bff:
+    build:
+      context: ../..
+      dockerfile: services/gateway-bff/Dockerfile.dev
+    working_dir: /workspace
+    command: >
+      sh -c "air -c services/gateway-bff/.air.toml"
+    volumes:
+      - ./media:/data/media
+      - ../..:/workspace
+      - tmo-go-mod-cache:/go/pkg/mod
+      - tmo-go-build-cache:/root/.cache/go-build
+
+volumes:
+  tmo-go-mod-cache:
+  tmo-go-build-cache:

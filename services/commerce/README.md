@@ -33,6 +33,31 @@ bash tools/scripts/commerce-bootstrap.sh
 bash tools/scripts/dev-seed.sh
 ```
 
+## Dev container + Air hot reload
+
+在仓库根目录执行：
+
+```bash
+make dev-stack-up-air
+```
+
+该命令会启动 Postgres + backend 全栈，并使用 `infra/dev/docker-compose.dev.yml` 覆盖后端服务配置：
+- 所有 Go 服务运行在开发专用容器内。
+- `commerce` 与 `identity` 启动前自动执行 migrate，然后由 Air 托管进程。
+- 修改 `services/commerce` 或 `packages/go-shared` 下的 Go 文件后，Air 会自动重新编译并重启服务。
+
+查看 Air 日志：
+
+```bash
+docker compose -f infra/dev/docker-compose.yml -f infra/dev/docker-compose.backend.yml -f infra/dev/docker-compose.dev.yml logs -f commerce
+```
+
+停止 Air 开发容器栈：
+
+```bash
+make dev-stack-down-air
+```
+
 ## Catalog image audit & migration (no CDN stage)
 
 审计当前商品图片来源分布：

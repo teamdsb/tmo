@@ -1,4 +1,4 @@
-.PHONY: help docker-build docker-push docker-up docker-down docker-logs docker-clean db-up db-down db-clean all-up all-down
+.PHONY: help docker-build docker-push docker-up docker-down docker-logs docker-clean db-up db-down db-clean dev-stack-up dev-stack-up-air dev-stack-down-air all-up all-down
 
 IMAGE_REPO ?= tmo
 IMAGE_TAG ?= dev
@@ -6,7 +6,7 @@ PLATFORM ?= linux/amd64
 SERVICES := commerce identity payment gateway-bff
 
 help:
-	@echo "Common targets: dev-up, dev-down, lint, test, gen, db-up, db-down, docker-build, docker-push, docker-up, docker-down, all-up, all-down"
+	@echo "Common targets: db-up, db-down, dev-stack-up, dev-stack-up-air, dev-stack-down-air, docker-build, docker-push, docker-up, docker-down, all-up, all-down"
 
 docker-build: $(SERVICES:%=docker-build-%)
 
@@ -42,3 +42,12 @@ db-down:
 
 db-clean:
 	docker compose -f infra/dev/docker-compose.yml down -v
+
+dev-stack-up:
+	bash tools/scripts/dev-stack-up.sh
+
+dev-stack-up-air:
+	DEV_STACK_AIR=true DEV_STACK_BUILD_IMAGES=true bash tools/scripts/dev-stack-up.sh
+
+dev-stack-down-air:
+	docker compose -f infra/dev/docker-compose.yml -f infra/dev/docker-compose.backend.yml -f infra/dev/docker-compose.dev.yml down

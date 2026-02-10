@@ -1,0 +1,9 @@
+FROM golang:1.25.6
+
+WORKDIR /workspace
+
+ENV PATH="/go/bin:${PATH}"
+
+RUN go install github.com/air-verse/air@v1.64.5
+
+CMD ["air", "-c", "services/gateway-bff/.air.toml"]

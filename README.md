@@ -49,7 +49,16 @@ pnpm -C apps/miniapp dev:alipay
 pnpm run test:backend
 make db-up
 make db-down
+make dev-stack-up
+make dev-stack-up-air
+make dev-stack-down-air
 ```
+
+后端 Air 开发容器：
+- `make dev-stack-up-air`：启动 Postgres + backend 全栈，Go 服务运行在容器内并由 Air 托管热更新。
+- `make dev-stack-down-air`：关闭 Air 开发容器栈。
+- 若需查看 Air 重编译日志，可执行：
+  `docker compose -f infra/dev/docker-compose.yml -f infra/dev/docker-compose.backend.yml -f infra/dev/docker-compose.dev.yml logs -f identity commerce payment gateway-bff`
 
 miniapp 编译产物目录：
 - 微信：`apps/miniapp/dist/weapp`
