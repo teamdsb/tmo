@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Text, View } from '@tarojs/components'
+import { Button as NativeButton, Text, View } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import Button from '@taroify/core/button'
 import AppsOutlined from '@taroify/icons/AppsOutlined'
+import { getPhoneNumber as platformGetPhoneNumber, getPlatform, type PhoneProofResult } from '@tmo/platform-adapter'
 import { RoleSelectionRequiredError, isApiError } from '@tmo/identity-services'
 
 import { identityServices } from '../../../services/identity'
@@ -20,12 +21,16 @@ type LaunchContext = {
   bindingToken?: string
 }
 
+type RecordValue = Record<string, unknown>
+type MiniPlatform = 'weapp' | 'alipay' | 'unknown'
+
+const simulatedWeappPhoneProof: PhoneProofResult = Object.freeze({
+  code: 'simulated_weapp_phone_proof'
+})
+
 const readLaunchContext = (): LaunchContext => {
   const options = Taro.getLaunchOptionsSync?.()
   const query = (options?.query ?? {}) as Record<string, unknown>
-  const sceneFromOptions = options?.scene !== undefined && options?.scene !== null
-    ? String(options.scene)
-    : undefined
   const sceneFromQuery = typeof query.scene === 'string' && query.scene.trim()
     ? query.scene.trim()
     : undefined
@@ -35,8 +40,49 @@ const readLaunchContext = (): LaunchContext => {
       ? query.binding_token
       : undefined
   return {
-    scene: sceneFromOptions ?? sceneFromQuery,
+    scene: sceneFromQuery,
     bindingToken
+  }
+}
+
+const pickString = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') {
+    return undefined
+  }
+  const trimmed = value.trim()
+  return trimmed ? trimmed : undefined
+}
+
+const asRecord = (value: unknown): RecordValue | null => {
+  if (typeof value === 'object' && value !== null) {
+    return value as RecordValue
+  }
+  return null
+}
+
+const createPhoneAuthError = (code: string, message: string): Error => {
+  const error = new Error(message)
+  return Object.assign(error, { code })
+}
+
+const extractWeappPhoneProof = (event: unknown): PhoneProofResult => {
+  const eventRecord = asRecord(event)
+  const detail = asRecord(eventRecord?.detail)
+  const errMsg = pickString(detail?.errMsg)
+  if (errMsg && errMsg.toLowerCase().includes('deny')) {
+    throw createPhoneAuthError('PHONE_AUTH_DENIED', errMsg)
+  }
+
+  const code = pickString(detail?.code)
+  const phone = pickString(detail?.phoneNumber)
+  if (!code && !phone) {
+    throw createPhoneAuthError('WEAPP_PHONE_PROOF_MISSING', 'WeChat phone proof missing')
+  }
+
+  return {
+    code,
+    phone,
+    raw: event
   }
 }
 
@@ -46,6 +92,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const launchContext = useMemo(readLaunchContext, [])
   const enableMockLogin = useMemo(() => runtimeEnv.enableMockLogin, [])
+  const enableWeappPhoneProofSimulation = useMemo(() => runtimeEnv.weappPhoneProofSimulation, [])
+  const platform = useMemo(() => getPlatform() as MiniPlatform, [])
   const redirect = (() => {
     if (typeof router.params?.redirect !== 'string') {
       return ''
@@ -57,7 +105,7 @@ export default function LoginPage() {
     }
   })()
 
-  const handleLogin = async () => {
+  const handleLoginFlow = async (resolvePhoneProof?: () => Promise<PhoneProofResult | undefined>) => {
     if (!agreed) {
       await Taro.showToast({
         title: '请先同意条款。',
@@ -66,11 +114,14 @@ export default function LoginPage() {
       return
     }
     if (loading) return
+
     setLoading(true)
     try {
+      const phoneProof = resolvePhoneProof ? await resolvePhoneProof() : undefined
       await identityServices.auth.miniLogin({
         scene: launchContext.scene,
-        bindingToken: launchContext.bindingToken
+        bindingToken: launchContext.bindingToken,
+        phoneProof
       })
       const bootstrap = await gatewayServices.bootstrap.get()
       await saveBootstrap(bootstrap)
@@ -110,6 +161,27 @@ export default function LoginPage() {
     }
   }
 
+  const handleWeappGetPhoneNumber = async (event: unknown) => {
+    await handleLoginFlow(async () => extractWeappPhoneProof(event))
+  }
+
+  const handleWeappSimulatedLogin = async () => {
+    await handleLoginFlow(async () => simulatedWeappPhoneProof)
+  }
+
+  const handleAlipayGetAuthorize = async () => {
+    await handleLoginFlow(async () => platformGetPhoneNumber())
+  }
+
+  const handleAlipayAuthorizeError = async (event: unknown) => {
+    const detail = asRecord(asRecord(event)?.detail) ?? asRecord(event)
+    const errMsg = pickString(detail?.errorMessage) ?? pickString(detail?.errMsg)
+    await Taro.showToast({
+      title: errMsg && errMsg.trim() ? '请先授权手机号' : '手机号授权失败',
+      icon: 'none'
+    })
+  }
+
   const handleAltLogin = async () => {
     await identityServices.tokens.setToken(null)
     if (redirect) {
@@ -142,15 +214,55 @@ export default function LoginPage() {
         </View>
 
         <View className='mt-10 flex flex-col gap-4'>
-          <Button
-            color='primary'
-            block
-            loading={loading}
-            onClick={handleLogin}
-            className='login-primary'
-          >
-            快速登录
-          </Button>
+          {platform === 'weapp' && enableWeappPhoneProofSimulation ? (
+            <NativeButton
+              className='login-primary login-native-button'
+              disabled={!agreed || loading}
+              loading={loading}
+              onClick={handleWeappSimulatedLogin}
+            >
+              快速登录
+            </NativeButton>
+          ) : null}
+
+          {platform === 'weapp' && !enableWeappPhoneProofSimulation ? (
+            <NativeButton
+              className='login-primary login-native-button'
+              disabled={!agreed || loading}
+              loading={loading}
+              openType='getPhoneNumber'
+              onGetPhoneNumber={handleWeappGetPhoneNumber}
+            >
+              快速登录
+            </NativeButton>
+          ) : null}
+
+          {platform === 'alipay' ? (
+            <NativeButton
+              className='login-primary login-native-button'
+              disabled={!agreed || loading}
+              loading={loading}
+              openType='getAuthorize'
+              scope='phoneNumber'
+              onGetAuthorize={handleAlipayGetAuthorize}
+              onError={handleAlipayAuthorizeError}
+            >
+              快速登录
+            </NativeButton>
+          ) : null}
+
+          {platform === 'unknown' ? (
+            <Button
+              color='primary'
+              block
+              loading={loading}
+              onClick={() => handleLoginFlow()}
+              className='login-primary'
+            >
+              快速登录
+            </Button>
+          ) : null}
+
           {enableMockLogin ? (
             <Button
               variant='outlined'
@@ -171,7 +283,7 @@ export default function LoginPage() {
           </Button>
         </View>
 
-        <View className='mt-5 flex items-start gap-3' onClick={() => setAgreed((prev) => !prev)}>
+        <View className='login-agreement-toggle mt-5 flex items-start gap-3' onClick={() => setAgreed((prev) => !prev)}>
           <View className={`login-checkbox ${agreed ? 'login-checkbox--checked' : ''}`} />
           <Text className='text-10 text-slate-500 leading-snug'>
             我已阅读并同意隐私政策与服务条款。

@@ -61,6 +61,9 @@ const commerceMockFallbackConst = typeof __TMO_COMMERCE_MOCK_FALLBACK__ !== 'und
 const mockLoginEnabledConst = typeof __TMO_ENABLE_MOCK_LOGIN__ !== 'undefined'
   ? __TMO_ENABLE_MOCK_LOGIN__
   : ''
+const weappPhoneProofSimulationConst = typeof __TMO_WEAPP_PHONE_PROOF_SIMULATION__ !== 'undefined'
+  ? __TMO_WEAPP_PHONE_PROOF_SIMULATION__
+  : ''
 
 const optional = (value: string): string | undefined => value || undefined
 
@@ -106,6 +109,10 @@ export const runtimeEnv = Object.freeze({
   enableMockLogin: readBoolean(firstNonEmpty(
     readConst(mockLoginEnabledConst),
     readProcessEnv('TARO_APP_ENABLE_MOCK_LOGIN')
+  )),
+  weappPhoneProofSimulation: readBoolean(firstNonEmpty(
+    readConst(weappPhoneProofSimulationConst),
+    readProcessEnv('TARO_APP_WEAPP_PHONE_PROOF_SIMULATION')
   ))
 })
 

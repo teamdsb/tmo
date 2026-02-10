@@ -59,6 +59,21 @@ components:
         phone:
           type: string
           description: Optional direct phone fallback for environments where code exchange is unavailable.
+        response:
+          type: string
+          description: Alipay encrypted response payload returned by my.getPhoneNumber.
+        sign:
+          type: string
+          description: Signature corresponding to Alipay phone response.
+        signType:
+          type: string
+          description: Signature algorithm for Alipay phone response (typically RSA2).
+        encryptType:
+          type: string
+          description: Encryption algorithm for Alipay phone response (typically AES).
+        charset:
+          type: string
+          description: Charset metadata for Alipay phone response.
       additionalProperties: false
       description: Phone authorization proof from mini program platform APIs.
     PasswordLoginRequest:

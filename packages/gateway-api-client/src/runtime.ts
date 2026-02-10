@@ -33,11 +33,23 @@ export const getGatewayApiClientConfig = (): ApiClientConfig => {
   return gatewayApiClientConfig
 }
 
+const getHeadersConstructor = (): typeof Headers | undefined => {
+  const globalObject = typeof globalThis !== 'undefined'
+    ? (globalThis as { Headers?: typeof Headers })
+    : undefined
+  return globalObject?.Headers
+}
+
+const isHeadersInstance = (headers: HeadersInit): headers is Headers => {
+  const headersConstructor = getHeadersConstructor()
+  return Boolean(headersConstructor && headers instanceof headersConstructor)
+}
+
 const toHeaderRecord = (headers?: HeadersInit): Record<string, string> | undefined => {
   if (!headers) {
     return undefined
   }
-  if (headers instanceof Headers) {
+  if (isHeadersInstance(headers)) {
     const record: Record<string, string> = {}
     headers.forEach((value, key) => {
       record[key] = value
@@ -54,10 +66,11 @@ const toHeaderRecord = (headers?: HeadersInit): Record<string, string> | undefin
 }
 
 const toHeaders = (headers?: Record<string, string>): Headers => {
-  if (typeof Headers !== 'undefined') {
-    return new Headers(headers)
+  const headersConstructor = getHeadersConstructor()
+  if (headersConstructor) {
+    return new headersConstructor(headers)
   }
-  return headers as unknown as Headers
+  return (headers ?? {}) as unknown as Headers
 }
 
 export const apiMutator = async <T>(url: string, options: RequestInit): Promise<T> => {

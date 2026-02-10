@@ -24,6 +24,24 @@
   box-shadow: 0 10px 20px rgb(19 127 236 / 20%);
 }
 
+.login-native-button {
+  width: 100%;
+  border: none;
+  line-height: 48px;
+  padding: 0;
+  color: #fff;
+  background: #137fec;
+  text-align: center;
+}
+
+.login-native-button::after {
+  border: none;
+}
+
+.login-native-button[disabled] {
+  opacity: 0.6;
+}
+
 .login-secondary {
   border: 2px solid #e2e8f0;
   color: #334155;

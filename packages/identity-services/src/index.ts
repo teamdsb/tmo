@@ -98,7 +98,8 @@ export const createIdentityServices = (config: IdentityServicesConfig = {}): Ide
     miniLogin: async (input: MiniLoginInput): Promise<AuthResponse> => {
       const platform = resolvePlatform(input.platform)
       const loginResult = await platformLogin()
-      const phoneProof = input.phoneProof ?? await platformGetPhoneNumber()
+      const shouldFetchPhoneProof = !input.phoneProof && !input.role
+      const phoneProof = input.phoneProof ?? (shouldFetchPhoneProof ? await platformGetPhoneNumber() : undefined)
       const payload: MiniLoginRequest = {
         platform,
         code: loginResult.code
@@ -112,10 +113,23 @@ export const createIdentityServices = (config: IdentityServicesConfig = {}): Ide
       if (input.role) {
         payload.role = input.role
       }
-      if (phoneProof.code || phoneProof.phone) {
+      if (phoneProof && (
+        phoneProof.code
+        || phoneProof.phone
+        || phoneProof.response
+        || phoneProof.sign
+        || phoneProof.signType
+        || phoneProof.encryptType
+        || phoneProof.charset
+      )) {
         payload.phoneProof = {
           code: phoneProof.code,
-          phone: phoneProof.phone
+          phone: phoneProof.phone,
+          response: phoneProof.response,
+          sign: phoneProof.sign,
+          signType: phoneProof.signType,
+          encryptType: phoneProof.encryptType,
+          charset: phoneProof.charset
         }
       }
 

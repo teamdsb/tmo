@@ -36,6 +36,8 @@
     "debug:weapp:collect": "node scripts/weapp-cdp-debug.js",
     "debug:weapp:smoke": "bash ../../tools/scripts/miniapp-smoke.sh",
     "debug:weapp:auto": "bash ../../tools/scripts/dev-stack-up.sh && node scripts/weapp-cdp-debug.js",
+    "test:e2e:weapp:auth": "node scripts/weapp-auth-e2e.js",
+    "test:e2e:weapp:auth:dev": "NODE_ENV=development pnpm run build:weapp && pnpm run test:e2e:weapp:auth",
     "dev:weapp": "node scripts/dev-weapp.js",
     "dev:swan": "npm run build:swan -- --watch",
     "dev:alipay": "pnpm run build:alipay",

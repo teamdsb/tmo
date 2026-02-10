@@ -45,13 +45,24 @@ Identity service for authentication, JWT issuing, and sales binding.
 - `IDENTITY_WEAPP_PHONE_NUMBER_URL`
 - `IDENTITY_WEAPP_SALES_QR_PAGE` / `IDENTITY_WEAPP_QR_WIDTH`
 - `IDENTITY_ALIPAY_APP_ID` / `IDENTITY_ALIPAY_PRIVATE_KEY` / `IDENTITY_ALIPAY_PUBLIC_KEY`
+- `IDENTITY_ALIPAY_AES_KEY` (用于解密 `my.getPhoneNumber` 的密文 `response`)
 - `IDENTITY_ALIPAY_GATEWAY_URL` / `IDENTITY_ALIPAY_SIGN_TYPE` / `IDENTITY_ALIPAY_SALES_QR_PAGE`
+- `IDENTITY_ALIPAY_PHONE_FALLBACK_AUTH_USER` (default `true`，开启后可在 `my.getPhoneNumber` 失败时回退 `auth_user`)
+- `IDENTITY_ENABLE_PHONE_PROOF_SIMULATION` (default `false`，审核前联调可开启模拟手机号)
+- `IDENTITY_PHONE_PROOF_SIMULATION_PHONE` (default `+15550009999`)
 
 ## Real-mode mini login
 
-- 当 `IDENTITY_LOGIN_MODE=real` 时，`POST /auth/mini/login` 必须携带 `phoneProof`。
+- 当 `IDENTITY_LOGIN_MODE=real` 时，首次登录（该 identity 尚无已绑定手机号）需要手机号证明。
 - `phoneProof.code` 用于服务端向平台换取手机号；`phoneProof.phone` 仅作为极端兼容兜底。
+- 支付宝建议上送 `phoneProof.response/sign/signType/encryptType/charset`（`my.getPhoneNumber` 原始结果），后端会验签并解密取号。
+- 已绑定手机号的 identity 可在后续仅做角色选择时不重复提交手机号证明（避免二次授权/一次性 code 失效）。
 - 新手机号默认自动注册为 `CUSTOMER`；员工角色不会自动创建（需现有员工绑定流程）。
+
+## 审核期模拟策略
+
+- 小程序审核未通过期间，可开启 `IDENTITY_ENABLE_PHONE_PROOF_SIMULATION=true`，后端在手机号证明校验失败时回退到模拟手机号。
+- 过审后建议关闭模拟开关，并确保支付宝公钥与 AES Key 配置正确，即可直接切换生产。
 
 ## Scripts
 

@@ -1,6 +1,6 @@
 # Miniapp 测试说明
 
-当前 miniapp 使用 Jest 作为单元测试框架，暂未配置专门的 UI 或集成测试。
+当前 miniapp 使用 Jest 作为单元测试框架，并提供基于 `miniprogram-automator` 的微信端 E2E 脚本（登录/退出主流程）。
 
 ## 构建命令
 
@@ -130,6 +130,43 @@
 - `apps/miniapp/.logs/weapp/routes/*/{summary.md,console.jsonl,network.jsonl}`（多路由模式）
 - `apps/miniapp/.logs/weapp/failures/*.png`
 
+## 微信登录/退出 E2E（Auth）
+
+该 E2E 用于固定验证“快速登录 + mine 页退出登录”主链路，脚本在 `apps/miniapp/scripts/weapp-auth-e2e.js`。
+
+执行方式（在仓库根目录）：
+
+    pnpm -C apps/miniapp test:e2e:weapp:auth:dev
+
+如果你已经提前构建好 `dist/weapp`，可仅执行：
+
+    pnpm -C apps/miniapp test:e2e:weapp:auth
+
+脚本覆盖的断言：
+
+- 进入登录页，勾选协议并点击“快速登录”。
+- 登录后必须离开 `/pages/auth/login/index`。
+- `tmo:auth:token` 必须写入，`tmo:bootstrap` 必须包含 `me`。
+- 进入 mine 页点击 `#mine-logout-btn` 后，`tmo:auth:token` 与 `tmo:bootstrap` 必须清空。
+- 控制台不得出现以下错误：`Headers is not defined`、`identity login failed`、`logout failed`，且 runtime exception 必须为 0。
+
+前置条件：
+
+- 已安装微信开发者工具，且可用 CLI（默认自动探测；必要时设置 `WEAPP_DEVTOOLS_CLI_PATH`）。
+- 本地后端可用（通常为 `http://localhost:8080`），并完成基础 seed。
+- 建议使用 `test:e2e:weapp:auth:dev`，会以 `NODE_ENV=development` 构建，便于审核期模拟手机号链路联调。
+
+可用环境变量：
+
+- `WEAPP_DEVTOOLS_CLI_PATH`：微信开发者工具 CLI 路径（可选）。
+- `WEAPP_AUTOMATOR_PORT`：automator websocket 端口，默认 `9527`。
+- `WEAPP_AUTH_E2E_TIMEOUT_MS`：E2E 执行超时，默认 `90000`。
+
+输出与退出码：
+
+- 成功时输出 `WEAPP_AUTH_E2E:PASS`。
+- 失败时输出 `WEAPP_AUTH_E2E:FAIL`，并返回非 0 退出码（可直接接入本地脚本或 CI 的阻断条件）。
+
 ## 支付宝 Web 调试器 console 采集
 
 该脚本会使用 minidev 启动 DevServer，并打开 Web 模拟器来采集 console 日志，输出到 `apps/miniapp/.logs/`。
@@ -211,5 +248,6 @@ miniapp 已启用 Tailwind CSS 作为原子 CSS 框架。配置位于 `apps/mini
 ## 测试覆盖情况
 
 - 单元测试由 Jest 执行，配置文件在 `apps/miniapp/jest.config.cjs`。
+- 已提供微信登录/退出主流程 E2E（`test:e2e:weapp:auth` / `test:e2e:weapp:auth:dev`），用于回归验证 token/bootstrap 写入与清理。
 - 已提供基于 `miniprogram-automator` 的 WeChat 多路由烟测脚本（`debug:weapp:smoke`），并输出路由级别日志与截图。
 - TypeScript 类型检查已包含在 `pnpm -C apps/miniapp lint` 中，命令为 `tsc -p tsconfig.json --noEmit`。

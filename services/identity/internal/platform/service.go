@@ -22,36 +22,47 @@ type LoginIdentity struct {
 }
 
 type PhoneProof struct {
-	Code  string
-	Phone string
+	Code        string
+	Phone       string
+	Response    string
+	Sign        string
+	SignType    string
+	EncryptType string
+	Charset     string
 }
 
 type Config struct {
-	Mode             LoginMode
-	WeappAppID       string
-	WeappAppSecret   string
-	WeappSessionURL  string
-	WeappTokenURL    string
-	WeappQRCodeURL   string
-	WeappPhoneURL    string
-	WeappSalesPage   string
-	WeappQRWidth     int
-	AlipayAppID      string
-	AlipayPrivateKey string
-	AlipayPublicKey  string
-	AlipayGatewayURL string
-	AlipaySignType   string
-	AlipaySalesPage  string
-	HTTPClient       *http.Client
+	Mode                        LoginMode
+	WeappAppID                  string
+	WeappAppSecret              string
+	WeappSessionURL             string
+	WeappTokenURL               string
+	WeappQRCodeURL              string
+	WeappPhoneURL               string
+	WeappSalesPage              string
+	WeappQRWidth                int
+	AlipayAppID                 string
+	AlipayPrivateKey            string
+	AlipayPublicKey             string
+	AlipayAESKey                string
+	AlipayGatewayURL            string
+	AlipaySignType              string
+	AlipaySalesPage             string
+	AlipayPhoneFallbackAuthUser bool
+	EnablePhoneProofSimulation  bool
+	PhoneProofSimulationPhone   string
+	HTTPClient                  *http.Client
 }
 
 type MiniLoginResolver struct {
-	mode            LoginMode
-	weapp           *weappClient
-	alipay          *alipayClient
-	weappSalesPage  string
-	weappQRWidth    int
-	alipaySalesPage string
+	mode                       LoginMode
+	weapp                      *weappClient
+	alipay                     *alipayClient
+	weappSalesPage             string
+	weappQRWidth               int
+	alipaySalesPage            string
+	enablePhoneProofSimulation bool
+	phoneProofSimulationPhone  string
 }
 
 func NewMiniLoginResolver(cfg Config) *MiniLoginResolver {
@@ -68,12 +79,14 @@ func NewMiniLoginResolver(cfg Config) *MiniLoginResolver {
 	}
 
 	return &MiniLoginResolver{
-		mode:            mode,
-		weapp:           newWeappClient(cfg, client),
-		alipay:          newAlipayClient(cfg, client),
-		weappSalesPage:  cfg.WeappSalesPage,
-		weappQRWidth:    cfg.WeappQRWidth,
-		alipaySalesPage: cfg.AlipaySalesPage,
+		mode:                       mode,
+		weapp:                      newWeappClient(cfg, client),
+		alipay:                     newAlipayClient(cfg, client),
+		weappSalesPage:             cfg.WeappSalesPage,
+		weappQRWidth:               cfg.WeappQRWidth,
+		alipaySalesPage:            cfg.AlipaySalesPage,
+		enablePhoneProofSimulation: cfg.EnablePhoneProofSimulation,
+		phoneProofSimulationPhone:  strings.TrimSpace(cfg.PhoneProofSimulationPhone),
 	}
 }
 
@@ -109,23 +122,42 @@ func (r *MiniLoginResolver) ResolvePhone(ctx context.Context, platform string, p
 		return strings.TrimSpace(proof.Phone), nil
 	}
 
+	resolveWithFallback := func(resolve func() (string, error)) (string, error) {
+		phone, err := resolve()
+		if err == nil {
+			trimmed := strings.TrimSpace(phone)
+			if trimmed != "" {
+				return trimmed, nil
+			}
+			err = errors.New("phone missing")
+		}
+		if r.SupportsPhoneProofSimulation() {
+			return r.phoneProofSimulationPhone, nil
+		}
+		return "", err
+	}
+
 	switch strings.ToLower(platform) {
 	case "weapp":
-		if r.mode == LoginModeMock && r.weapp == nil {
-			return "", errors.New("weapp phone proof is not configured")
-		}
-		if r.weapp == nil {
-			return "", errors.New("weapp is not configured")
-		}
-		return r.weapp.ResolvePhone(ctx, proof.Code)
+		return resolveWithFallback(func() (string, error) {
+			if r.mode == LoginModeMock && r.weapp == nil {
+				return "", errors.New("weapp phone proof is not configured")
+			}
+			if r.weapp == nil {
+				return "", errors.New("weapp is not configured")
+			}
+			return r.weapp.ResolvePhone(ctx, proof.Code)
+		})
 	case "alipay":
-		if r.mode == LoginModeMock && r.alipay == nil {
-			return "", errors.New("alipay phone proof is not configured")
-		}
-		if r.alipay == nil {
-			return "", errors.New("alipay is not configured")
-		}
-		return r.alipay.ResolvePhone(ctx, proof.Code)
+		return resolveWithFallback(func() (string, error) {
+			if r.mode == LoginModeMock && r.alipay == nil {
+				return "", errors.New("alipay phone proof is not configured")
+			}
+			if r.alipay == nil {
+				return "", errors.New("alipay is not configured")
+			}
+			return r.alipay.ResolvePhone(ctx, proof)
+		})
 	default:
 		return "", ErrUnsupportedPlatform
 	}
@@ -133,6 +165,10 @@ func (r *MiniLoginResolver) ResolvePhone(ctx context.Context, platform string, p
 
 func (r *MiniLoginResolver) RequiresPhoneProof() bool {
 	return r.mode == LoginModeReal
+}
+
+func (r *MiniLoginResolver) SupportsPhoneProofSimulation() bool {
+	return r.enablePhoneProofSimulation && strings.TrimSpace(r.phoneProofSimulationPhone) != ""
 }
 
 func (r *MiniLoginResolver) GenerateSalesQRCode(ctx context.Context, platform, scene string) (string, error) {

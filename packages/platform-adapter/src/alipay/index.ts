@@ -20,6 +20,65 @@ import type {
 
 declare const my: any
 
+type AlipayPhoneAPIResult = {
+  response?: string
+  sign?: string
+  signType?: string
+  sign_type?: string
+  encryptType?: string
+  encrypt_type?: string
+  charset?: string
+  code?: string
+  mobile?: string
+  phoneNumber?: string
+}
+
+const pickString = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') {
+    return undefined
+  }
+  const trimmed = value.trim()
+  return trimmed ? trimmed : undefined
+}
+
+const parsePhoneProofFromResponse = (res: AlipayPhoneAPIResult): PhoneProofResult => {
+  let response = pickString(res.response)
+  let sign = pickString(res.sign)
+  let signType = pickString(res.signType) ?? pickString(res.sign_type)
+  let encryptType = pickString(res.encryptType) ?? pickString(res.encrypt_type)
+  let charset = pickString(res.charset)
+
+  let phone = pickString(res.mobile) ?? pickString(res.phoneNumber)
+  const code = pickString(res.code)
+
+  if (response) {
+    try {
+      const parsed = JSON.parse(response) as Record<string, unknown>
+      if (!phone) {
+        phone = pickString(parsed.mobile) ?? pickString(parsed.phoneNumber) ?? pickString(parsed.phone_number)
+      }
+      response = pickString(parsed.response) ?? response
+      sign = sign ?? pickString(parsed.sign)
+      signType = signType ?? pickString(parsed.signType) ?? pickString(parsed.sign_type)
+      encryptType = encryptType ?? pickString(parsed.encryptType) ?? pickString(parsed.encrypt_type)
+      charset = charset ?? pickString(parsed.charset)
+    } catch {
+      // keep original response payload when it's encrypted/base64 string
+    }
+  }
+
+  return {
+    code,
+    phone,
+    response,
+    sign,
+    signType,
+    encryptType,
+    charset,
+    raw: res
+  }
+}
+
 export const login = (): Promise<LoginResult> => {
   return new Promise((resolve, reject) => {
     my.getAuthCode({
@@ -52,22 +111,13 @@ export const getPhoneNumber = async (): Promise<PhoneProofResult> => {
     try {
       const fromPhoneAPI = await new Promise<PhoneProofResult>((resolve, reject) => {
         my.getPhoneNumber({
-          success: (res: { response?: string; code?: string; mobile?: string; phoneNumber?: string }) => {
-            const phone = typeof res.mobile === 'string' && res.mobile.trim()
-              ? res.mobile.trim()
-              : typeof res.phoneNumber === 'string' && res.phoneNumber.trim()
-                ? res.phoneNumber.trim()
-                : undefined
-            const code = typeof res.code === 'string' && res.code.trim()
-              ? res.code.trim()
-              : typeof res.response === 'string' && res.response.trim()
-                ? res.response.trim()
-                : undefined
-            if (!code && !phone) {
+          success: (res: AlipayPhoneAPIResult) => {
+            const proof = parsePhoneProofFromResponse(res)
+            if (!proof.code && !proof.phone && !proof.response) {
               reject(new Error('Alipay phone proof missing'))
               return
             }
-            resolve({ code, phone, raw: res })
+            resolve(proof)
           },
           fail: reject
         })

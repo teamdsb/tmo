@@ -69,6 +69,16 @@ export interface PhoneProof {
   code?: string;
   /** Optional direct phone fallback for environments where code exchange is unavailable. */
   phone?: string;
+  /** Alipay encrypted response payload returned by my.getPhoneNumber. */
+  response?: string;
+  /** Signature corresponding to Alipay phone response. */
+  sign?: string;
+  /** Signature algorithm for Alipay phone response (typically RSA2). */
+  signType?: string;
+  /** Encryption algorithm for Alipay phone response (typically AES). */
+  encryptType?: string;
+  /** Charset metadata for Alipay phone response. */
+  charset?: string;
 }
 
 /**
