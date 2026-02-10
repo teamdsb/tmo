@@ -12,6 +12,22 @@ name: weapp-automator-smoke
         description: "Optional route matrix (comma separated)"
         required: false
         default: ""
+      assert_min_products:
+        description: "Minimum product count assertion for home route"
+        required: false
+        default: "1"
+      assert_category_min:
+        description: "Minimum category count assertion"
+        required: false
+        default: "1"
+      assert_image_success_min:
+        description: "Minimum successful image request count"
+        required: false
+        default: "1"
+      assert_no_console_error:
+        description: "Fail on any console.error logs"
+        required: false
+        default: "true"
   pull_request:
     paths:
       - "apps/miniapp/**"
@@ -53,6 +69,10 @@ jobs:
           MINIAPP_SMOKE_STACK_UP: "true"
           WEAPP_STRICT_P1: ${{ github.event.inputs.strict_p1 || 'true' }}
           WEAPP_AUTOMATOR_ROUTES: ${{ github.event.inputs.routes || '' }}
+          WEAPP_SMOKE_ASSERT_MIN_PRODUCTS: ${{ github.event.inputs.assert_min_products || '1' }}
+          WEAPP_SMOKE_ASSERT_CATEGORY_MIN: ${{ github.event.inputs.assert_category_min || '1' }}
+          WEAPP_SMOKE_ASSERT_IMAGE_SUCCESS_MIN: ${{ github.event.inputs.assert_image_success_min || '1' }}
+          WEAPP_SMOKE_ASSERT_NO_CONSOLE_ERROR: ${{ github.event.inputs.assert_no_console_error || 'true' }}
         run: pnpm -C apps/miniapp debug:weapp:smoke
 
       - name: Upload weapp logs

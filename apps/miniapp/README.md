@@ -104,6 +104,11 @@
 - `WEAPP_AUTOMATOR_ACCOUNT`：指定 automator 启动账号（可选）。
 - `WEAPP_AUTOMATOR_TRUST_PROJECT`：是否信任项目，默认 `true`。
 - `WEAPP_SMOKE_SPU_ID`：烟测详情页使用的 `spuId`，默认 `22222222-2222-2222-2222-222222222222`。
+- `WEAPP_SMOKE_ASSERT_MIN_PRODUCTS`：首页最小商品数断言，默认 `1`。
+- `WEAPP_SMOKE_ASSERT_CATEGORY_MIN`：分类最小数量断言，默认 `1`。
+- `WEAPP_SMOKE_ASSERT_IMAGE_SUCCESS_MIN`：图片请求成功数最小断言，默认 `1`。
+- `WEAPP_SMOKE_ASSERT_NO_CONSOLE_ERROR`：是否要求 `console.error` 必须为 0，默认 `true`。
+- `WEAPP_SMOKE_ROUTE_WAIT_MS`：路由稳定等待时长（毫秒），默认 `8000`。
 - `WEAPP_DEBUG_TIMEOUT_MS`：采集超时，默认 `90000`。
 - `WEAPP_BASE_URL_EXPECTED`：期望接口基准地址，默认 `http://localhost:8080`。
 - `WEAPP_FAIL_ON_ERROR`：遇到错误是否退出非 0，默认 `true`。

@@ -32,6 +32,18 @@ const automatorRoute = ensureRoute(process.env.WEAPP_AUTOMATOR_ROUTE || '/pages/
 const automatorAccount = (process.env.WEAPP_AUTOMATOR_ACCOUNT || '').trim()
 const automatorTrustProject = readBool(process.env.WEAPP_AUTOMATOR_TRUST_PROJECT, true)
 const smokeSpuId = (process.env.WEAPP_SMOKE_SPU_ID || '22222222-2222-2222-2222-222222222222').trim()
+const smokeAssertMinProducts = Number(process.env.WEAPP_SMOKE_ASSERT_MIN_PRODUCTS || 1)
+const smokeAssertCategoryMin = Number(process.env.WEAPP_SMOKE_ASSERT_CATEGORY_MIN || 1)
+const smokeAssertImageSuccessMin = Number(process.env.WEAPP_SMOKE_ASSERT_IMAGE_SUCCESS_MIN || 1)
+const smokeAssertNoConsoleError = readBool(process.env.WEAPP_SMOKE_ASSERT_NO_CONSOLE_ERROR, true)
+const smokeRouteWaitMs = Number(process.env.WEAPP_SMOKE_ROUTE_WAIT_MS || 8000)
+const assertionConfig = {
+  minProducts: toNonNegativeInt(smokeAssertMinProducts, 1),
+  minCategories: toNonNegativeInt(smokeAssertCategoryMin, 1),
+  minImageSuccess: toNonNegativeInt(smokeAssertImageSuccessMin, 1),
+  assertNoConsoleError: smokeAssertNoConsoleError,
+  routeWaitMs: toNonNegativeInt(smokeRouteWaitMs, 8000)
+}
 const defaultSmokeRoutes = [
   '/pages/index/index',
   '/pages/category/index',
@@ -43,10 +55,21 @@ const automatorRoutes = parseRoutes(process.env.WEAPP_AUTOMATOR_ROUTES || '')
 
 const keyEndpoints = ['/bff/bootstrap', '/catalog/categories', '/catalog/products']
 const imageEndpoint = '/assets/img'
+const mediaEndpoint = '/assets/media/'
 const endpointState = new Map(
-  keyEndpoints.map((endpoint) => [endpoint, { seen: false, ok: false, statuses: [], errors: [] }])
+  keyEndpoints.map((endpoint) => [endpoint, { seen: false, ok: false, statuses: [], errors: [], successCount: 0 }])
 )
-const imageProxyState = { seen: false, ok: false, statuses: [], errors: [] }
+const imageProxyState = {
+  seen: false,
+  ok: false,
+  statuses: [],
+  errors: [],
+  successCount: 0,
+  endpointCounts: {
+    [imageEndpoint]: { total: 0, success: 0 },
+    [mediaEndpoint]: { total: 0, success: 0 }
+  }
+}
 
 const envFilePath = path.join(miniappDir, '.env.development')
 const envFileValues = parseEnvFile(envFilePath)
@@ -58,6 +81,18 @@ const severityIssues = {
   p0: [],
   p1: [],
   p2: []
+}
+const assertionState = {
+  routeAssertions: [],
+  networkAssertions: [],
+  renderAssertions: []
+}
+const routeSnapshot = {
+  route: automatorRoute,
+  pagePath: '',
+  pageQuery: {},
+  data: null,
+  dataKeys: []
 }
 
 let consoleStream = null
@@ -81,6 +116,7 @@ const networkStats = {
   totalGatewayRequests: 0,
   matchedEndpointRequests: 0,
   imageProxyRequests: 0,
+  imageSuccessRequests: 0,
   parseErrors: 0
 }
 
@@ -96,6 +132,14 @@ function readBool(raw, defaultValue) {
     return false
   }
   return defaultValue
+}
+
+function toNonNegativeInt(raw, defaultValue) {
+  const value = Number(raw)
+  if (!Number.isFinite(value) || value < 0) {
+    return defaultValue
+  }
+  return Math.floor(value)
 }
 
 function ensureRoute(value) {
@@ -137,6 +181,185 @@ function routeToSlug(route) {
 
 function normalizeRoutePath(value) {
   return String(value || '').replace(/^\/+/, '').split('?')[0]
+}
+
+function routeKind(routePath) {
+  const normalized = normalizeRoutePath(routePath)
+  if (normalized === 'pages/index/index') {
+    return 'home'
+  }
+  if (normalized === 'pages/category/index') {
+    return 'category'
+  }
+  if (normalized === 'pages/goods/detail/index') {
+    return 'detail'
+  }
+  return 'other'
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function walkNodes(root, visitor, maxDepth = 5) {
+  const queue = [{ value: root, depth: 0 }]
+  const seen = new Set()
+  while (queue.length > 0) {
+    const node = queue.shift()
+    const value = node.value
+    const depth = node.depth
+    if (!value || depth > maxDepth) {
+      continue
+    }
+    if (typeof value === 'object') {
+      if (seen.has(value)) {
+        continue
+      }
+      seen.add(value)
+    }
+
+    visitor(value, depth)
+
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        queue.push({ value: item, depth: depth + 1 })
+      }
+      continue
+    }
+
+    if (isPlainObject(value)) {
+      for (const child of Object.values(value)) {
+        queue.push({ value: child, depth: depth + 1 })
+      }
+    }
+  }
+}
+
+function inferProductsCount(data) {
+  if (!isPlainObject(data)) {
+    return 0
+  }
+  const candidates = ['products', 'productList', 'items', 'list', 'hotProducts']
+  for (const key of candidates) {
+    const value = data[key]
+    if (Array.isArray(value)) {
+      return value.length
+    }
+  }
+
+  let best = 0
+  walkNodes(data, (node) => {
+    if (!Array.isArray(node) || node.length === 0) {
+      return
+    }
+    const first = node[0]
+    if (!isPlainObject(first)) {
+      return
+    }
+    if (!('id' in first) || !('name' in first)) {
+      return
+    }
+    if (!('coverImageUrl' in first) && !('tags' in first)) {
+      return
+    }
+    best = Math.max(best, node.length)
+  })
+  return best
+}
+
+function inferCategoriesCount(data) {
+  if (!isPlainObject(data)) {
+    return 0
+  }
+  const candidates = ['categories', 'categoryList', 'tabs', 'categoryTabs']
+  for (const key of candidates) {
+    const value = data[key]
+    if (Array.isArray(value)) {
+      return value.length
+    }
+  }
+
+  let best = 0
+  walkNodes(data, (node) => {
+    if (!Array.isArray(node) || node.length === 0) {
+      return
+    }
+    const first = node[0]
+    if (!isPlainObject(first)) {
+      return
+    }
+    if (!('id' in first) || !('name' in first)) {
+      return
+    }
+    best = Math.max(best, node.length)
+  })
+  return best
+}
+
+function inferDetailProduct(data) {
+  const empty = { id: '', imageUrl: '' }
+  if (!isPlainObject(data)) {
+    return empty
+  }
+
+  const directCandidates = ['product', 'detail', 'item', 'goods']
+  for (const key of directCandidates) {
+    const value = data[key]
+    if (!isPlainObject(value)) {
+      continue
+    }
+    const id = String(value.id || '').trim()
+    const imageUrl = firstImageURL(value)
+    if (id || imageUrl) {
+      return { id, imageUrl }
+    }
+  }
+
+  let fallback = empty
+  walkNodes(data, (node) => {
+    if (!isPlainObject(node)) {
+      return
+    }
+    const id = String(node.id || '').trim()
+    const imageUrl = firstImageURL(node)
+    if (!id && !imageUrl) {
+      return
+    }
+    if (!fallback.id && id) {
+      fallback.id = id
+    }
+    if (!fallback.imageUrl && imageUrl) {
+      fallback.imageUrl = imageUrl
+    }
+  })
+  return fallback
+}
+
+function firstImageURL(payload) {
+  if (!isPlainObject(payload)) {
+    return ''
+  }
+  const cover = String(payload.coverImageUrl || '').trim()
+  if (cover) {
+    return cover
+  }
+  if (Array.isArray(payload.images)) {
+    for (const value of payload.images) {
+      const image = String(value || '').trim()
+      if (image) {
+        return image
+      }
+    }
+  }
+  return ''
+}
+
+function isGatewayImageURL(value) {
+  const raw = String(value || '').trim()
+  if (!raw) {
+    return false
+  }
+  return raw.includes('/assets/img?url=') || raw.includes('/assets/media/')
 }
 
 function ensureDir(target) {
@@ -187,6 +410,49 @@ function appendSeverityIssue(level, message) {
   if (!bucket.includes(message)) {
     bucket.push(message)
   }
+}
+
+function assertionBucket(scope) {
+  switch (scope) {
+    case 'network':
+      return assertionState.networkAssertions
+    case 'render':
+      return assertionState.renderAssertions
+    default:
+      return assertionState.routeAssertions
+  }
+}
+
+function addAssertion(scope, key, passed, severity, evidence) {
+  const bucket = assertionBucket(scope)
+  bucket.push({
+    key,
+    passed,
+    severity,
+    evidence: clipText(evidence || '-', 400)
+  })
+}
+
+function assertCheck(scope, key, condition, options = {}) {
+  const passed = Boolean(condition)
+  const severity = options.severity || 'p1'
+  const evidence = options.evidence || ''
+  const failMessage = options.failMessage || `${scope} assertion failed: ${key}`
+
+  addAssertion(scope, key, passed, severity, evidence)
+  if (passed) {
+    return true
+  }
+
+  const withEvidence = evidence ? `${failMessage} (evidence: ${clipText(evidence, 300)})` : failMessage
+  if (severity === 'p0') {
+    appendFailure(withEvidence)
+  } else if (severity === 'p2') {
+    appendWarning(withEvidence)
+  } else {
+    appendP1Issue(withEvidence)
+  }
+  return false
 }
 
 function writeJsonLine(stream, payload) {
@@ -303,10 +569,20 @@ function extractSummaryMetrics(content) {
     return Number(match[1] || 0)
   }
 
+  const parseText = (pattern) => {
+    const match = content.match(pattern)
+    if (!match) {
+      return ''
+    }
+    return String(match[1] || '').trim()
+  }
+
   return {
     p0: parseCount(/- P0 blocking issues:\s*(\d+)/),
     p1: parseCount(/- P1 blocking issues:\s*(\d+)/),
-    p2: parseCount(/- P2 warning issues:\s*(\d+)/)
+    p2: parseCount(/- P2 warning issues:\s*(\d+)/),
+    assertionFailedCount: parseCount(/- assertion failed count:\s*(\d+)/),
+    assertionFailedKeys: parseText(/- assertion failed keys:\s*(.+)/)
   }
 }
 
@@ -375,15 +651,27 @@ function runMultiRouteDriver(routeList) {
     `- routes total: ${routes.length}`,
     `- routes failed: ${results.filter((item) => item.statusCode !== 0).length}`,
     '',
-    '| route | status | p0 | p1 | p2 | artifacts |',
-    '| --- | --- | --- | --- | --- | --- |'
+    '| route | status | p0 | p1 | p2 | assertFails | failedKeys | artifacts |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- |'
   ]
 
   for (const item of results) {
+    const failedKeys = item.assertionFailedKeys || '-'
     lines.push(
       `| ${item.route} | ${item.statusCode === 0 ? 'ok' : `fail(${item.statusCode})`} | `
-      + `${item.p0} | ${item.p1} | ${item.p2} | ${item.artifactsDir} |`
+      + `${item.p0} | ${item.p1} | ${item.p2} | ${item.assertionFailedCount} | `
+      + `${failedKeys} | ${item.artifactsDir} |`
     )
+  }
+
+  const firstFailed = results.find((item) => item.statusCode !== 0)
+  lines.push('', '## Failure Highlight', '')
+  if (!firstFailed) {
+    lines.push('- first failed route: none')
+    lines.push('- first failed assertion keys: none')
+  } else {
+    lines.push(`- first failed route: ${firstFailed.route}`)
+    lines.push(`- first failed assertion keys: ${firstFailed.assertionFailedKeys || 'unknown'}`)
   }
 
   lines.push('', '## Notes', '')
@@ -684,6 +972,12 @@ async function warmupAndNavigate() {
     return
   }
 
+  routeSnapshot.route = automatorRoute
+  routeSnapshot.pagePath = ''
+  routeSnapshot.pageQuery = {}
+  routeSnapshot.data = null
+  routeSnapshot.dataKeys = []
+
   let pageStack = []
   try {
     pageStack = await miniProgram.pageStack()
@@ -728,11 +1022,13 @@ async function warmupAndNavigate() {
     }
   }
 
-  await sleep(1500)
+  await sleep(Math.max(1000, assertionConfig.routeWaitMs))
 
   try {
     currentPage = await miniProgram.currentPage()
     automatorStats.currentPage = currentPage?.path || ''
+    routeSnapshot.pagePath = currentPage?.path || ''
+    routeSnapshot.pageQuery = currentPage?.query || {}
     writeJsonLine(consoleStream, {
       type: 'current-page',
       page: currentPage
@@ -751,11 +1047,13 @@ async function warmupAndNavigate() {
   if (currentPage) {
     try {
       const data = await currentPage.data()
+      routeSnapshot.data = data
+      routeSnapshot.dataKeys = data && typeof data === 'object' ? Object.keys(data) : []
       const preview = stringifyValue(data).slice(0, 2000)
       writeJsonLine(consoleStream, {
         type: 'current-page-data',
         path: currentPage.path,
-        keys: data && typeof data === 'object' ? Object.keys(data) : [],
+        keys: routeSnapshot.dataKeys,
         preview,
         time: nowIso()
       })
@@ -813,13 +1111,29 @@ function updateEndpointState(pathValue, status) {
     state.statuses.push(status)
     if (status >= 200 && status < 400) {
       state.ok = true
+      state.successCount += 1
     } else {
       state.errors.push(`status ${status}`)
     }
   }
 
-  if (!pathValue.includes(imageEndpoint)) {
+  const imageHit = []
+  if (pathValue.includes(imageEndpoint)) {
+    imageHit.push(imageEndpoint)
+  }
+  if (pathValue.includes(mediaEndpoint)) {
+    imageHit.push(mediaEndpoint)
+  }
+  if (imageHit.length === 0) {
     return
+  }
+
+  for (const endpoint of imageHit) {
+    const count = imageProxyState.endpointCounts[endpoint]
+    if (!count) {
+      continue
+    }
+    count.total += 1
   }
 
   networkStats.imageProxyRequests += 1
@@ -828,6 +1142,15 @@ function updateEndpointState(pathValue, status) {
 
   if (status >= 200 && status < 400) {
     imageProxyState.ok = true
+    imageProxyState.successCount += 1
+    networkStats.imageSuccessRequests += 1
+    for (const endpoint of imageHit) {
+      const count = imageProxyState.endpointCounts[endpoint]
+      if (!count) {
+        continue
+      }
+      count.success += 1
+    }
     return
   }
 
@@ -882,26 +1205,114 @@ function collectGatewayLogs(startedAtIso) {
   }
 }
 
-function finalizeEndpointValidation() {
+function runNetworkAssertions() {
   for (const [endpoint, state] of endpointState.entries()) {
-    if (!state.seen) {
-      appendFailure(`${endpoint} was not observed in gateway logs during capture window`)
-      continue
-    }
-
-    if (!state.ok) {
-      appendFailure(`${endpoint} has no successful response, statuses: ${state.statuses.join(', ')}`)
-    }
+    assertCheck('network', `endpoint:${endpoint}:seen`, state.seen, {
+      severity: 'p0',
+      evidence: `statuses=${state.statuses.join(', ') || '-'}`,
+      failMessage: `${endpoint} was not observed in gateway logs during capture window`
+    })
+    assertCheck('network', `endpoint:${endpoint}:success`, state.ok, {
+      severity: 'p0',
+      evidence: `statuses=${state.statuses.join(', ') || '-'}`,
+      failMessage: `${endpoint} has no successful response`
+    })
   }
 
-  if (!imageProxyState.seen) {
-    appendP1Issue(`${imageEndpoint} was not observed in gateway logs during capture window`)
+  assertCheck('network', 'image.success.min', imageProxyState.successCount >= assertionConfig.minImageSuccess, {
+    severity: 'p1',
+    evidence: `success=${imageProxyState.successCount}, required=${assertionConfig.minImageSuccess}, imageRequests=${networkStats.imageProxyRequests}`,
+    failMessage: 'image successful request count below minimum threshold'
+  })
+}
+
+function runRouteAssertions() {
+  assertCheck('route', 'route.path.available', Boolean(routeSnapshot.pagePath), {
+    severity: 'p0',
+    evidence: `targetRoute=${routeSnapshot.route}, currentPage=${routeSnapshot.pagePath || '-'}`,
+    failMessage: 'current miniapp route is unavailable'
+  })
+
+  const noConsoleError = automatorStats.consoleErrorCount === 0
+  const noConsoleErrorCondition = assertionConfig.assertNoConsoleError ? noConsoleError : true
+  assertCheck('route', 'console.error.none', noConsoleErrorCondition, {
+    severity: 'p1',
+    evidence: `consoleErrorCount=${automatorStats.consoleErrorCount}, assertNoConsoleError=${assertionConfig.assertNoConsoleError}`,
+    failMessage: 'miniapp console error count is above zero'
+  })
+}
+
+function runRenderAssertions() {
+  const kind = routeKind(routeSnapshot.route)
+  const data = routeSnapshot.data
+
+  if (kind === 'home') {
+    const productsCount = inferProductsCount(data)
+    const categoriesCount = inferCategoriesCount(data)
+    assertCheck('render', 'home.products.min', productsCount >= assertionConfig.minProducts, {
+      severity: 'p1',
+      evidence: `productsCount=${productsCount}, required=${assertionConfig.minProducts}, keys=${routeSnapshot.dataKeys.join(',')}`,
+      failMessage: 'home products count is below minimum threshold'
+    })
+    assertCheck('render', 'home.categories.min', categoriesCount >= assertionConfig.minCategories, {
+      severity: 'p1',
+      evidence: `categoriesCount=${categoriesCount}, required=${assertionConfig.minCategories}, keys=${routeSnapshot.dataKeys.join(',')}`,
+      failMessage: 'home categories count is below minimum threshold'
+    })
     return
   }
 
-  if (!imageProxyState.ok) {
-    appendP1Issue(`${imageEndpoint} has no successful response, statuses: ${imageProxyState.statuses.join(', ')}`)
+  if (kind === 'category') {
+    const categoriesCount = inferCategoriesCount(data)
+    assertCheck('render', 'category.categories.min', categoriesCount >= assertionConfig.minCategories, {
+      severity: 'p1',
+      evidence: `categoriesCount=${categoriesCount}, required=${assertionConfig.minCategories}, keys=${routeSnapshot.dataKeys.join(',')}`,
+      failMessage: 'category page categories count is below minimum threshold'
+    })
+    return
   }
+
+  if (kind === 'detail') {
+    const detail = inferDetailProduct(data)
+    assertCheck('render', 'detail.product.id', Boolean(detail.id), {
+      severity: 'p1',
+      evidence: `detailId=${detail.id || '-'}, keys=${routeSnapshot.dataKeys.join(',')}`,
+      failMessage: 'detail page product id is missing'
+    })
+    assertCheck('render', 'detail.product.image', isGatewayImageURL(detail.imageUrl), {
+      severity: 'p1',
+      evidence: `imageUrl=${detail.imageUrl || '-'}`,
+      failMessage: 'detail page image url is invalid'
+    })
+    return
+  }
+
+  assertCheck('render', 'route.no-specific-assertion', true, {
+    severity: 'p2',
+    evidence: `route=${routeSnapshot.route}, kind=${kind}`
+  })
+}
+
+function runAssertionSuite() {
+  runRouteAssertions()
+  runNetworkAssertions()
+  runRenderAssertions()
+}
+
+function failedAssertions() {
+  return [
+    ...assertionState.routeAssertions,
+    ...assertionState.networkAssertions,
+    ...assertionState.renderAssertions
+  ].filter((item) => !item.passed)
+}
+
+function failedAssertionKeys() {
+  const keys = failedAssertions().map((item) => item.key)
+  if (keys.length === 0) {
+    return []
+  }
+  return [...new Set(keys)]
 }
 
 async function captureScreenshot(name) {
@@ -937,7 +1348,26 @@ async function captureScreenshot(name) {
   }
 }
 
+function appendAssertionSection(lines, title, assertions) {
+  lines.push('', `## ${title}`, '')
+  lines.push('| key | status | severity | evidence |')
+  lines.push('| --- | --- | --- | --- |')
+
+  if (!Array.isArray(assertions) || assertions.length === 0) {
+    lines.push('| - | - | - | no assertions |')
+    return
+  }
+
+  for (const item of assertions) {
+    lines.push(
+      `| ${item.key} | ${item.passed ? 'PASS' : 'FAIL'} | ${item.severity} | ${item.evidence || '-'} |`
+    )
+  }
+}
+
 function buildSummary(runtimeInfo, startedAt, finishedAt) {
+  const failedKeys = failedAssertionKeys()
+  const failedCount = failedAssertions().length
   const endpointLines = [
     '| endpoint | seen | ok | statuses | errors |',
     '| --- | --- | --- | --- | --- |'
@@ -972,6 +1402,13 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     `- taroAppCommerceMockFallback: ${runtimeInfo.commerceMockFallback}`,
     `- taroAppEnableMockLogin: ${runtimeInfo.enableMockLogin}`,
     `- strictP1: ${strictP1}`,
+    `- assertMinProducts: ${assertionConfig.minProducts}`,
+    `- assertMinCategories: ${assertionConfig.minCategories}`,
+    `- assertMinImageSuccess: ${assertionConfig.minImageSuccess}`,
+    `- assertNoConsoleError: ${assertionConfig.assertNoConsoleError}`,
+    `- routeWaitMs: ${assertionConfig.routeWaitMs}`,
+    `- assertion failed count: ${failedCount}`,
+    `- assertion failed keys: ${failedKeys.length > 0 ? failedKeys.join(', ') : 'none'}`,
     '',
     '## Automator Stats',
     '',
@@ -992,6 +1429,7 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     `- gateway requests captured: ${networkStats.totalGatewayRequests}`,
     `- key endpoint requests: ${networkStats.matchedEndpointRequests}`,
     `- image proxy requests: ${networkStats.imageProxyRequests}`,
+    `- image success requests: ${networkStats.imageSuccessRequests}`,
     `- parse errors: ${networkStats.parseErrors}`,
     '',
     '## Severity Stats',
@@ -1066,6 +1504,10 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     summary.push(`- screenshot: ${screenshotPath}`)
   }
 
+  appendAssertionSection(summary, 'Route Assertions', assertionState.routeAssertions)
+  appendAssertionSection(summary, 'Network Assertions', assertionState.networkAssertions)
+  appendAssertionSection(summary, 'Render Assertions', assertionState.renderAssertions)
+
   summary.push('')
   fs.writeFileSync(summaryPath, summary.join('\n'), 'utf8')
 }
@@ -1136,10 +1578,12 @@ async function main() {
     bindMiniProgramEvents()
     await warmupAndNavigate()
 
-    await sleep(Math.max(8000, captureTimeoutMs))
+    const waitMs = Math.max(assertionConfig.routeWaitMs, captureTimeoutMs)
+    automatorStats.requestWaitMs = waitMs
+    await sleep(waitMs)
 
     collectGatewayLogs(startedAt)
-    finalizeEndpointValidation()
+    runAssertionSuite()
 
     if (failures.length > 0) {
       await captureScreenshot('failure')

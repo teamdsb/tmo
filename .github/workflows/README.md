@@ -13,4 +13,5 @@
   - WeChat DevTools automator smoke for route matrix capture.
   - Requires a self-hosted macOS runner with WeChat DevTools installed and automator-capable environment.
   - On PR, job runs only when repository variable `ENABLE_WEAPP_AUTOMATOR=true`; otherwise it is skipped.
+  - `workflow_dispatch` supports assertion inputs (`assert_min_products`, `assert_category_min`, `assert_image_success_min`, `assert_no_console_error`).
   - Always uploads `apps/miniapp/.logs/weapp` artifacts.
