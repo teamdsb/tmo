@@ -46,7 +46,7 @@ jobs:
       - name: Coverage summary
         run: go tool cover -func=coverage.out
         working-directory: services/commerce
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: commerce-coverage
           path: services/commerce/coverage.out
