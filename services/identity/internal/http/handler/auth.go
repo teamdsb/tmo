@@ -36,13 +36,14 @@ func (h *Handler) PostAuthMiniLogin(c *gin.Context) {
 	}
 
 	platformName := strings.ToLower(strings.TrimSpace(string(request.Platform)))
-	phone, ok := h.resolveMiniLoginPhone(c, platformName, request)
-	if !ok {
-		return
-	}
-
+	proof := miniLoginPhoneProofFromRequest(request)
+	hasPhoneProof := hasMiniLoginPhoneProof(proof)
 	identity, err := h.Platform.Resolve(c.Request.Context(), platformName, request.Code)
 	if err != nil {
+		if h.Platform.RequiresPhoneProof() && !hasPhoneProof && !h.Platform.SupportsPhoneProofSimulation() {
+			h.writeError(c, http.StatusBadRequest, "phone_required", "phone proof is required")
+			return
+		}
 		h.logError("resolve mini login failed", err)
 		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid login code")
 		return
@@ -52,6 +53,15 @@ func (h *Handler) PostAuthMiniLogin(c *gin.Context) {
 		Provider:       platformName,
 		ProviderUserID: identity.ProviderUserID,
 	})
+	var existingUser *db.User
+	if err == nil {
+		existingUser = &user
+	}
+
+	phone, ok := h.resolveMiniLoginPhone(c, platformName, proof, existingUser)
+	if !ok {
+		return
+	}
 
 	var roles []string
 	if err != nil {
@@ -163,28 +173,37 @@ func (h *Handler) PostAuthMiniLogin(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-func (h *Handler) resolveMiniLoginPhone(c *gin.Context, platformName string, request oapi.MiniLoginRequest) (string, bool) {
-	var proof platform.PhoneProof
-	if request.PhoneProof != nil {
-		if request.PhoneProof.Code != nil {
-			proof.Code = strings.TrimSpace(*request.PhoneProof.Code)
+func (h *Handler) resolveMiniLoginPhone(
+	c *gin.Context,
+	platformName string,
+	proof platform.PhoneProof,
+	existingUser *db.User,
+) (string, bool) {
+	hasProof := hasMiniLoginPhoneProof(proof)
+	if !hasProof {
+		if existingUser != nil && existingUser.Phone != nil && strings.TrimSpace(*existingUser.Phone) != "" {
+			normalized, err := normalizePhone(*existingUser.Phone)
+			if err == nil {
+				return normalized, true
+			}
 		}
-		if request.PhoneProof.Phone != nil {
-			proof.Phone = strings.TrimSpace(*request.PhoneProof.Phone)
+		if !h.Platform.RequiresPhoneProof() {
+			return "", true
 		}
-	}
-
-	if h.Platform.RequiresPhoneProof() && strings.TrimSpace(proof.Code) == "" && strings.TrimSpace(proof.Phone) == "" {
-		h.writeError(c, http.StatusBadRequest, "phone_required", "phone proof is required")
-		return "", false
-	}
-
-	if strings.TrimSpace(proof.Code) == "" && strings.TrimSpace(proof.Phone) == "" {
-		return "", true
+		if !h.Platform.SupportsPhoneProofSimulation() {
+			h.writeError(c, http.StatusBadRequest, "phone_required", "phone proof is required")
+			return "", false
+		}
 	}
 
 	phone, err := h.Platform.ResolvePhone(c.Request.Context(), platformName, proof)
 	if err != nil {
+		if existingUser != nil && existingUser.Phone != nil && strings.TrimSpace(*existingUser.Phone) != "" {
+			normalizedExistingPhone, normalizeErr := normalizePhone(*existingUser.Phone)
+			if normalizeErr == nil {
+				return normalizedExistingPhone, true
+			}
+		}
 		h.logError("resolve phone proof failed", err)
 		if h.Platform.RequiresPhoneProof() {
 			h.writeError(c, http.StatusBadRequest, "invalid_phone_proof", "failed to verify phone proof")
@@ -202,6 +221,41 @@ func (h *Handler) resolveMiniLoginPhone(c *gin.Context, platformName string, req
 		return "", true
 	}
 	return normalized, true
+}
+
+func hasMiniLoginPhoneProof(proof platform.PhoneProof) bool {
+	return strings.TrimSpace(proof.Phone) != "" ||
+		strings.TrimSpace(proof.Code) != "" ||
+		strings.TrimSpace(proof.Response) != ""
+}
+
+func miniLoginPhoneProofFromRequest(request oapi.MiniLoginRequest) platform.PhoneProof {
+	var proof platform.PhoneProof
+	if request.PhoneProof == nil {
+		return proof
+	}
+	if request.PhoneProof.Code != nil {
+		proof.Code = strings.TrimSpace(*request.PhoneProof.Code)
+	}
+	if request.PhoneProof.Phone != nil {
+		proof.Phone = strings.TrimSpace(*request.PhoneProof.Phone)
+	}
+	if request.PhoneProof.Response != nil {
+		proof.Response = strings.TrimSpace(*request.PhoneProof.Response)
+	}
+	if request.PhoneProof.Sign != nil {
+		proof.Sign = strings.TrimSpace(*request.PhoneProof.Sign)
+	}
+	if request.PhoneProof.SignType != nil {
+		proof.SignType = strings.TrimSpace(*request.PhoneProof.SignType)
+	}
+	if request.PhoneProof.EncryptType != nil {
+		proof.EncryptType = strings.TrimSpace(*request.PhoneProof.EncryptType)
+	}
+	if request.PhoneProof.Charset != nil {
+		proof.Charset = strings.TrimSpace(*request.PhoneProof.Charset)
+	}
+	return proof
 }
 
 func (h *Handler) findOrCreateMiniLoginCustomer(

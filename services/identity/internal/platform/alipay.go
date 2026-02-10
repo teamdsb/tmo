@@ -3,11 +3,14 @@ package platform
 import (
 	"context"
 	"crypto"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -20,12 +23,15 @@ import (
 )
 
 type alipayClient struct {
-	appID      string
-	privateKey *rsa.PrivateKey
-	publicKey  *rsa.PublicKey
-	gatewayURL string
-	signType   string
-	httpClient *http.Client
+	appID                 string
+	privateKey            *rsa.PrivateKey
+	publicKey             *rsa.PublicKey
+	aesKey                []byte
+	aesKeyErr             error
+	gatewayURL            string
+	signType              string
+	phoneFallbackAuthUser bool
+	httpClient            *http.Client
 }
 
 func newAlipayClient(cfg Config, client *http.Client) *alipayClient {
@@ -44,13 +50,23 @@ func newAlipayClient(cfg Config, client *http.Client) *alipayClient {
 	if signType == "" {
 		signType = "RSA2"
 	}
+
+	var aesKey []byte
+	var aesKeyErr error
+	if strings.TrimSpace(cfg.AlipayAESKey) != "" {
+		aesKey, aesKeyErr = parseAESKey(cfg.AlipayAESKey)
+	}
+
 	return &alipayClient{
-		appID:      cfg.AlipayAppID,
-		privateKey: privateKey,
-		publicKey:  publicKey,
-		gatewayURL: cfg.AlipayGatewayURL,
-		signType:   signType,
-		httpClient: client,
+		appID:                 cfg.AlipayAppID,
+		privateKey:            privateKey,
+		publicKey:             publicKey,
+		aesKey:                aesKey,
+		aesKeyErr:             aesKeyErr,
+		gatewayURL:            cfg.AlipayGatewayURL,
+		signType:              signType,
+		phoneFallbackAuthUser: cfg.AlipayPhoneFallbackAuthUser,
+		httpClient:            client,
 	}
 }
 
@@ -62,7 +78,32 @@ func (c *alipayClient) Resolve(ctx context.Context, code string) (LoginIdentity,
 	return LoginIdentity{ProviderUserID: token.UserID}, nil
 }
 
-func (c *alipayClient) ResolvePhone(ctx context.Context, code string) (string, error) {
+func (c *alipayClient) ResolvePhone(ctx context.Context, proof PhoneProof) (string, error) {
+	var resolveErrors []error
+
+	if strings.TrimSpace(proof.Response) != "" {
+		phone, err := c.resolvePhoneFromEncryptedProof(proof)
+		if err == nil {
+			return phone, nil
+		}
+		resolveErrors = append(resolveErrors, err)
+	}
+
+	if c.phoneFallbackAuthUser && strings.TrimSpace(proof.Code) != "" {
+		phone, err := c.resolvePhoneByAuthUser(ctx, proof.Code)
+		if err == nil {
+			return phone, nil
+		}
+		resolveErrors = append(resolveErrors, err)
+	}
+
+	if len(resolveErrors) > 0 {
+		return "", errors.Join(resolveErrors...)
+	}
+	return "", errors.New("alipay phone proof is required")
+}
+
+func (c *alipayClient) resolvePhoneByAuthUser(ctx context.Context, code string) (string, error) {
 	token, err := c.exchangeAuthCode(ctx, code)
 	if err != nil {
 		return "", err
@@ -80,6 +121,44 @@ func (c *alipayClient) ResolvePhone(ctx context.Context, code string) (string, e
 	}
 
 	phone := strings.TrimSpace(response.Response.Mobile)
+	if phone == "" {
+		return "", errors.New("alipay phone missing")
+	}
+	return phone, nil
+}
+
+func (c *alipayClient) resolvePhoneFromEncryptedProof(proof PhoneProof) (string, error) {
+	envelope, err := normalizeAlipayPhoneEnvelope(proof)
+	if err != nil {
+		return "", err
+	}
+
+	if envelope.SignType != "" && !strings.EqualFold(envelope.SignType, "RSA2") {
+		return "", fmt.Errorf("unsupported alipay sign type: %s", envelope.SignType)
+	}
+	if envelope.EncryptType != "" && !strings.EqualFold(envelope.EncryptType, "AES") {
+		return "", fmt.Errorf("unsupported alipay encrypt type: %s", envelope.EncryptType)
+	}
+
+	if c.publicKey == nil {
+		return "", errors.New("alipay public key is required to verify phone payload")
+	}
+	if envelope.Sign == "" {
+		return "", errors.New("alipay phone signature is required")
+	}
+	if err := verifyAlipaySignature(envelope.Response, envelope.Sign, c.publicKey); err != nil {
+		return "", fmt.Errorf("verify alipay phone payload signature: %w", err)
+	}
+
+	if phone := extractPhoneFromPayloadString(envelope.Response); phone != "" {
+		return phone, nil
+	}
+
+	plaintext, err := c.decryptPhonePayload(envelope.Response)
+	if err != nil {
+		return "", err
+	}
+	phone := extractPhoneFromPayloadString(string(plaintext))
 	if phone == "" {
 		return "", errors.New("alipay phone missing")
 	}
@@ -260,6 +339,260 @@ func parseRSAPublicKey(pemData string) (*rsa.PublicKey, error) {
 	return rsaKey, nil
 }
 
+func parseAESKey(raw string) ([]byte, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil, errors.New("alipay aes key is empty")
+	}
+	if isValidAESKeyLength(len(trimmed)) {
+		return []byte(trimmed), nil
+	}
+
+	decoded, err := decodeBase64String(trimmed)
+	if err == nil && isValidAESKeyLength(len(decoded)) {
+		return decoded, nil
+	}
+
+	hexDecoded, err := hex.DecodeString(trimmed)
+	if err == nil && isValidAESKeyLength(len(hexDecoded)) {
+		return hexDecoded, nil
+	}
+
+	return nil, errors.New("alipay aes key length must be 16, 24, or 32 bytes")
+}
+
+func isValidAESKeyLength(length int) bool {
+	return length == 16 || length == 24 || length == 32
+}
+
+type alipayPhoneEnvelope struct {
+	Response    string
+	Sign        string
+	SignType    string
+	EncryptType string
+	Charset     string
+}
+
+func normalizeAlipayPhoneEnvelope(proof PhoneProof) (alipayPhoneEnvelope, error) {
+	envelope := alipayPhoneEnvelope{
+		Response:    strings.TrimSpace(proof.Response),
+		Sign:        strings.TrimSpace(proof.Sign),
+		SignType:    strings.TrimSpace(proof.SignType),
+		EncryptType: strings.TrimSpace(proof.EncryptType),
+		Charset:     strings.TrimSpace(proof.Charset),
+	}
+	if envelope.Response == "" {
+		return alipayPhoneEnvelope{}, errors.New("alipay phone response is required")
+	}
+
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(envelope.Response), &payload); err == nil {
+		if nested := readStringFromMap(payload, "response"); nested != "" {
+			envelope.Response = nested
+			if envelope.Sign == "" {
+				envelope.Sign = readStringFromMap(payload, "sign")
+			}
+			if envelope.SignType == "" {
+				envelope.SignType = readStringFromMap(payload, "signType", "sign_type")
+			}
+			if envelope.EncryptType == "" {
+				envelope.EncryptType = readStringFromMap(payload, "encryptType", "encrypt_type")
+			}
+			if envelope.Charset == "" {
+				envelope.Charset = readStringFromMap(payload, "charset")
+			}
+		}
+	}
+
+	return envelope, nil
+}
+
+func (c *alipayClient) decryptPhonePayload(encrypted string) ([]byte, error) {
+	if c.aesKeyErr != nil {
+		return nil, fmt.Errorf("invalid alipay aes key: %w", c.aesKeyErr)
+	}
+	if len(c.aesKey) == 0 {
+		return nil, errors.New("alipay aes key is required to decrypt phone payload")
+	}
+
+	iv, ciphertext, err := splitEncryptedPayload(encrypted)
+	if err != nil {
+		return nil, err
+	}
+
+	block, err := aes.NewCipher(c.aesKey)
+	if err != nil {
+		return nil, fmt.Errorf("create aes cipher: %w", err)
+	}
+	if len(iv) != block.BlockSize() {
+		return nil, errors.New("invalid alipay payload iv length")
+	}
+	if len(ciphertext) == 0 || len(ciphertext)%block.BlockSize() != 0 {
+		return nil, errors.New("invalid alipay payload ciphertext length")
+	}
+
+	plaintext := make([]byte, len(ciphertext))
+	copy(plaintext, ciphertext)
+	cipher.NewCBCDecrypter(block, iv).CryptBlocks(plaintext, plaintext)
+
+	unpadded, err := pkcs5Unpad(plaintext, block.BlockSize())
+	if err != nil {
+		return nil, err
+	}
+	return unpadded, nil
+}
+
+func splitEncryptedPayload(raw string) ([]byte, []byte, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil, nil, errors.New("alipay encrypted payload is empty")
+	}
+
+	if strings.Contains(trimmed, ":") {
+		parts := strings.SplitN(trimmed, ":", 2)
+		iv, err := decodeBase64String(strings.TrimSpace(parts[0]))
+		if err != nil {
+			return nil, nil, fmt.Errorf("decode alipay payload iv: %w", err)
+		}
+		ciphertext, err := decodeBase64String(strings.TrimSpace(parts[1]))
+		if err != nil {
+			return nil, nil, fmt.Errorf("decode alipay payload ciphertext: %w", err)
+		}
+		return iv, ciphertext, nil
+	}
+
+	if strings.HasPrefix(trimmed, "{") {
+		var payload map[string]interface{}
+		if err := json.Unmarshal([]byte(trimmed), &payload); err != nil {
+			return nil, nil, fmt.Errorf("decode alipay encrypted json: %w", err)
+		}
+		ivRaw := readStringFromMap(payload, "iv")
+		dataRaw := readStringFromMap(payload, "encryptedData", "encrypted_data", "data")
+		if ivRaw != "" && dataRaw != "" {
+			iv, err := decodeBase64String(ivRaw)
+			if err != nil {
+				return nil, nil, fmt.Errorf("decode alipay json iv: %w", err)
+			}
+			ciphertext, err := decodeBase64String(dataRaw)
+			if err != nil {
+				return nil, nil, fmt.Errorf("decode alipay json ciphertext: %w", err)
+			}
+			return iv, ciphertext, nil
+		}
+	}
+
+	ciphertext, err := decodeBase64String(trimmed)
+	if err != nil {
+		return nil, nil, fmt.Errorf("decode alipay encrypted payload: %w", err)
+	}
+	if len(ciphertext) <= aes.BlockSize {
+		return nil, nil, errors.New("alipay payload is too short")
+	}
+	iv := make([]byte, aes.BlockSize)
+	copy(iv, ciphertext[:aes.BlockSize])
+	data := make([]byte, len(ciphertext)-aes.BlockSize)
+	copy(data, ciphertext[aes.BlockSize:])
+	return iv, data, nil
+}
+
+func decodeBase64String(raw string) ([]byte, error) {
+	encodings := []*base64.Encoding{
+		base64.StdEncoding,
+		base64.RawStdEncoding,
+		base64.URLEncoding,
+		base64.RawURLEncoding,
+	}
+	var decodeErr error
+	for _, encoding := range encodings {
+		decoded, err := encoding.DecodeString(raw)
+		if err == nil {
+			return decoded, nil
+		}
+		decodeErr = err
+	}
+	return nil, decodeErr
+}
+
+func pkcs5Unpad(raw []byte, blockSize int) ([]byte, error) {
+	if len(raw) == 0 || len(raw)%blockSize != 0 {
+		return nil, errors.New("invalid alipay payload padding size")
+	}
+	padding := int(raw[len(raw)-1])
+	if padding == 0 || padding > blockSize || padding > len(raw) {
+		return nil, errors.New("invalid alipay payload padding")
+	}
+	for _, value := range raw[len(raw)-padding:] {
+		if int(value) != padding {
+			return nil, errors.New("invalid alipay payload padding")
+		}
+	}
+	return raw[:len(raw)-padding], nil
+}
+
+func extractPhoneFromPayloadString(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return ""
+	}
+
+	var payload interface{}
+	if err := json.Unmarshal([]byte(trimmed), &payload); err != nil {
+		return ""
+	}
+	return extractPhoneFromPayload(payload)
+}
+
+func extractPhoneFromPayload(payload interface{}) string {
+	switch value := payload.(type) {
+	case map[string]interface{}:
+		for _, key := range []string{"mobile", "phoneNumber", "phone_number", "purePhoneNumber", "pure_phone_number"} {
+			if phone := strings.TrimSpace(readStringFromMap(value, key)); phone != "" {
+				return phone
+			}
+		}
+		for _, key := range []string{"phoneInfo", "phone_info", "response", "result", "data"} {
+			nested, ok := value[key]
+			if !ok {
+				continue
+			}
+			if phone := extractPhoneFromPayload(nested); phone != "" {
+				return phone
+			}
+		}
+	case []interface{}:
+		for _, item := range value {
+			if phone := extractPhoneFromPayload(item); phone != "" {
+				return phone
+			}
+		}
+	case string:
+		return extractPhoneFromPayloadString(value)
+	}
+	return ""
+}
+
+func readStringFromMap(payload map[string]interface{}, keys ...string) string {
+	for _, key := range keys {
+		value, ok := payload[key]
+		if !ok || value == nil {
+			continue
+		}
+		switch cast := value.(type) {
+		case string:
+			if trimmed := strings.TrimSpace(cast); trimmed != "" {
+				return trimmed
+			}
+		case float64:
+			return strings.TrimSpace(fmt.Sprintf("%.0f", cast))
+		case json.Number:
+			if trimmed := strings.TrimSpace(cast.String()); trimmed != "" {
+				return trimmed
+			}
+		}
+	}
+	return ""
+}
+
 type alipayOAuthResponse struct {
 	Response struct {
 		Code        string `json:"code"`
@@ -331,7 +664,11 @@ func verifyAlipayResponse(out interface{}, key *rsa.PublicKey) error {
 	}
 
 	content := strings.TrimSpace(string(payload[contentKey]))
-	decoded, err := base64.StdEncoding.DecodeString(sign)
+	return verifyAlipaySignature(content, sign, key)
+}
+
+func verifyAlipaySignature(content, signature string, key *rsa.PublicKey) error {
+	decoded, err := decodeBase64String(strings.TrimSpace(signature))
 	if err != nil {
 		return fmt.Errorf("decode alipay sign: %w", err)
 	}

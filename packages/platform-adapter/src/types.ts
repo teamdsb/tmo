@@ -8,6 +8,11 @@ export interface LoginResult {
 export interface PhoneProofResult {
   code?: string
   phone?: string
+  response?: string
+  sign?: string
+  signType?: string
+  encryptType?: string
+  charset?: string
   raw?: unknown
 }
 

@@ -12,45 +12,52 @@ const (
 	defaultDBDSN    = "postgres://commerce:commerce@localhost:5432/identity?sslmode=disable"
 	defaultLogLevel = "info"
 	// #nosec G101 -- local dev JWT defaults are safe for test environments.
-	defaultJWTSecret        = "dev-secret"
-	defaultJWTIssuer        = "tmo-identity"
-	defaultAccessTokenTTL   = 168 * time.Hour
-	defaultLoginMode        = "mock"
-	defaultWeappAppID       = ""
-	defaultWeappSecret      = ""
-	defaultWeappTokenURL    = "https://api.weixin.qq.com/cgi-bin/token"
-	defaultWeappSessionURL  = "https://api.weixin.qq.com/sns/jscode2session"
-	defaultWeappQRCodeURL   = "https://api.weixin.qq.com/wxa/getwxacodeunlimit"
-	defaultWeappPhoneURL    = "https://api.weixin.qq.com/wxa/business/getuserphonenumber"
-	defaultWeappSalesPage   = "pages/index/index"
-	defaultWeappQRWidth     = 256
-	defaultAlipayGatewayURL = "https://openapi.alipay.com/gateway.do"
-	defaultAlipaySignType   = "RSA2"
-	defaultAlipaySalesPage  = "pages/index/index"
+	defaultJWTSecret                   = "dev-secret"
+	defaultJWTIssuer                   = "tmo-identity"
+	defaultAccessTokenTTL              = 168 * time.Hour
+	defaultLoginMode                   = "mock"
+	defaultWeappAppID                  = ""
+	defaultWeappSecret                 = ""
+	defaultWeappTokenURL               = "https://api.weixin.qq.com/cgi-bin/token"
+	defaultWeappSessionURL             = "https://api.weixin.qq.com/sns/jscode2session"
+	defaultWeappQRCodeURL              = "https://api.weixin.qq.com/wxa/getwxacodeunlimit"
+	defaultWeappPhoneURL               = "https://api.weixin.qq.com/wxa/business/getuserphonenumber"
+	defaultWeappSalesPage              = "pages/index/index"
+	defaultWeappQRWidth                = 256
+	defaultPhoneProofSimulationEnabled = false
+	defaultPhoneProofSimulationPhone   = "+15550009999"
+	defaultAlipayGatewayURL            = "https://openapi.alipay.com/gateway.do"
+	defaultAlipaySignType              = "RSA2"
+	defaultAlipaySalesPage             = "pages/index/index"
+	defaultAlipayPhoneFallbackAuthUser = true
 )
 
 type Config struct {
-	HTTPAddr         string
-	DBDSN            string
-	LogLevel         string
-	JWTSecret        string
-	JWTIssuer        string
-	AccessTokenTTL   time.Duration
-	LoginMode        string
-	WeappAppID       string
-	WeappAppSecret   string
-	WeappTokenURL    string
-	WeappSessionURL  string
-	WeappQRCodeURL   string
-	WeappPhoneURL    string
-	WeappSalesPage   string
-	WeappQRWidth     int
-	AlipayAppID      string
-	AlipayPrivateKey string
-	AlipayPublicKey  string
-	AlipayGatewayURL string
-	AlipaySignType   string
-	AlipaySalesPage  string
+	HTTPAddr                    string
+	DBDSN                       string
+	LogLevel                    string
+	JWTSecret                   string
+	JWTIssuer                   string
+	AccessTokenTTL              time.Duration
+	LoginMode                   string
+	WeappAppID                  string
+	WeappAppSecret              string
+	WeappTokenURL               string
+	WeappSessionURL             string
+	WeappQRCodeURL              string
+	WeappPhoneURL               string
+	WeappSalesPage              string
+	WeappQRWidth                int
+	AlipayAppID                 string
+	AlipayPrivateKey            string
+	AlipayPublicKey             string
+	AlipayAESKey                string
+	AlipayGatewayURL            string
+	AlipaySignType              string
+	AlipaySalesPage             string
+	AlipayPhoneFallbackAuthUser bool
+	EnablePhoneProofSimulation  bool
+	PhoneProofSimulationPhone   string
 }
 
 func Load() Config {
@@ -73,8 +80,21 @@ func Load() Config {
 		AlipayAppID:      sharedconfig.String("IDENTITY_ALIPAY_APP_ID", ""),
 		AlipayPrivateKey: sharedconfig.String("IDENTITY_ALIPAY_PRIVATE_KEY", ""),
 		AlipayPublicKey:  sharedconfig.String("IDENTITY_ALIPAY_PUBLIC_KEY", ""),
+		AlipayAESKey:     sharedconfig.String("IDENTITY_ALIPAY_AES_KEY", ""),
 		AlipayGatewayURL: sharedconfig.String("IDENTITY_ALIPAY_GATEWAY_URL", defaultAlipayGatewayURL),
 		AlipaySignType:   sharedconfig.String("IDENTITY_ALIPAY_SIGN_TYPE", defaultAlipaySignType),
 		AlipaySalesPage:  sharedconfig.String("IDENTITY_ALIPAY_SALES_QR_PAGE", defaultAlipaySalesPage),
+		AlipayPhoneFallbackAuthUser: sharedconfig.Bool(
+			"IDENTITY_ALIPAY_PHONE_FALLBACK_AUTH_USER",
+			defaultAlipayPhoneFallbackAuthUser,
+		),
+		EnablePhoneProofSimulation: sharedconfig.Bool(
+			"IDENTITY_ENABLE_PHONE_PROOF_SIMULATION",
+			defaultPhoneProofSimulationEnabled,
+		),
+		PhoneProofSimulationPhone: sharedconfig.String(
+			"IDENTITY_PHONE_PROOF_SIMULATION_PHONE",
+			defaultPhoneProofSimulationPhone,
+		),
 	}
 }

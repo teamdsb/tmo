@@ -101,11 +101,26 @@ type PasswordLoginRequestRole string
 
 // PhoneProof Phone authorization proof from mini program platform APIs.
 type PhoneProof struct {
+	// Charset Charset metadata for Alipay phone response.
+	Charset *string `json:"charset,omitempty"`
+
 	// Code Platform-issued one-time code used by backend to resolve phone number.
 	Code *string `json:"code,omitempty"`
 
+	// EncryptType Encryption algorithm for Alipay phone response (typically AES).
+	EncryptType *string `json:"encryptType,omitempty"`
+
 	// Phone Optional direct phone fallback for environments where code exchange is unavailable.
 	Phone *string `json:"phone,omitempty"`
+
+	// Response Alipay encrypted response payload returned by my.getPhoneNumber.
+	Response *string `json:"response,omitempty"`
+
+	// Sign Signature corresponding to Alipay phone response.
+	Sign *string `json:"sign,omitempty"`
+
+	// SignType Signature algorithm for Alipay phone response (typically RSA2).
+	SignType *string `json:"signType,omitempty"`
 }
 
 // SalesQrCode defines model for SalesQrCode.
