@@ -1,9 +1,9 @@
-go 1.25.6
+go 1.25
 
 use (
 	./packages/go-shared
 	./services/commerce
-	./services/identity
 	./services/gateway-bff
+	./services/identity
 	./services/payment
 )

@@ -1,7 +1,7 @@
 # commerce
 
 Catalog, pricing, cart, order, and after-sales (initially here).
-Go version: 1.25.6.
+Go version: 1.25.x stable.
 Planned layout: cmd/, internal/modules (catalog, pricing, cart, order, aftersale), events, db.
 
 ## Run locally
