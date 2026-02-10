@@ -13,7 +13,7 @@
 
 ## 构建、测试与开发命令
 除非特别说明，命令在对应模块目录执行。
-- Go workspace：`go.work` 固定 Go `1.25.6`，包含 `services/commerce` 与 `packages/go-shared`。
+- Go workspace：`go.work` 使用 Go `1.25`（建议保持 `1.25.x stable`），包含 `services/commerce`、`services/identity`、`services/payment`、`services/gateway-bff` 与 `packages/go-shared`。
 - 启动本地 Postgres（用于 commerce）：`docker compose -f infra/dev/docker-compose.yml up -d`。
 - 前端 miniapp（在 `apps/miniapp/` 执行）：
   - 微信开发：`pnpm dev:weapp`
