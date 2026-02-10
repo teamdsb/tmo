@@ -308,20 +308,38 @@ export interface UpdateTrackingRequest {
 
 export interface CreateProductRequest {
   name: string;
+  /** @nullable */
+  categoryId?: string | null;
   spec?: string;
+  material?: string;
+  dimensions?: string;
+  color?: string;
   /** Free-form, e.g., '10 boxes' or '5 pcs' */
   qty?: string;
   note?: string;
+  referenceImageUrls?: string[];
 }
 
 export interface ProductRequest {
   id: string;
   createdByUserId: string;
   name: string;
+  /** @nullable */
+  categoryId?: string | null;
   spec?: string;
+  material?: string;
+  dimensions?: string;
+  color?: string;
   qty?: string;
   note?: string;
+  referenceImageUrls?: string[];
   createdAt: string;
+}
+
+export interface ProductRequestAsset {
+  url: string;
+  contentType: string;
+  size: number;
 }
 
 export interface PagedProductRequestList {
@@ -657,6 +675,10 @@ page?: number;
 pageSize?: number;
 };
 
+export type PostProductRequestsAssetsBody = {
+  file: Blob;
+};
+
 export type GetAfterSalesTicketsParams = {
 status?: TicketStatus;
 orderId?: string;
@@ -778,6 +800,16 @@ export interface PhoneProof {
   code?: string;
   /** Optional direct phone fallback for environments where code exchange is unavailable. */
   phone?: string;
+  /** Alipay encrypted response payload returned by my.getPhoneNumber. */
+  response?: string;
+  /** Signature corresponding to Alipay phone response. */
+  sign?: string;
+  /** Signature algorithm for Alipay phone response (typically RSA2). */
+  signType?: string;
+  /** Encryption algorithm for Alipay phone response (typically AES). */
+  encryptType?: string;
+  /** Charset metadata for Alipay phone response. */
+  charset?: string;
 }
 
 /**
@@ -1939,6 +1971,45 @@ export const postProductRequests = async (createProductRequest: CreateProductReq
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
       createProductRequest,)
+  }
+);}
+
+
+
+/**
+ * @summary Upload product request asset
+ */
+export type postProductRequestsAssetsResponse201 = {
+  data: ProductRequestAsset
+  status: 201
+}
+    
+export type postProductRequestsAssetsResponseSuccess = (postProductRequestsAssetsResponse201) & {
+  headers: Headers;
+};
+;
+
+export type postProductRequestsAssetsResponse = (postProductRequestsAssetsResponseSuccess)
+
+export const getPostProductRequestsAssetsUrl = () => {
+
+
+  
+
+  return `/product-requests/assets`
+}
+
+export const postProductRequestsAssets = async (postProductRequestsAssetsBody: PostProductRequestsAssetsBody, options?: RequestInit): Promise<postProductRequestsAssetsResponse> => {
+    const formData = new FormData();
+formData.append(`file`, postProductRequestsAssetsBody.file)
+
+  return apiMutator<postProductRequestsAssetsResponse>(getPostProductRequestsAssetsUrl(),
+  {      
+    ...options,
+    method: 'POST'
+    ,
+    body: 
+      formData,
   }
 );}
 

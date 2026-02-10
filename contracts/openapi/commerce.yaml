@@ -647,6 +647,30 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ProductRequest"
+  "/product-requests/assets":
+    post:
+      tags:
+      - ProductRequests
+      summary: Upload product request asset
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+              - file
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ProductRequestAsset"
   "/after-sales/tickets":
     get:
       tags:
@@ -1596,13 +1620,27 @@ components:
       properties:
         name:
           type: string
+        categoryId:
+          type: string
+          format: uuid
+          nullable: true
         spec:
+          type: string
+        material:
+          type: string
+        dimensions:
+          type: string
+        color:
           type: string
         qty:
           type: string
           description: Free-form, e.g., '10 boxes' or '5 pcs'
         note:
           type: string
+        referenceImageUrls:
+          type: array
+          items:
+            type: string
       required:
       - name
     ProductRequest:
@@ -1616,12 +1654,26 @@ components:
           format: uuid
         name:
           type: string
+        categoryId:
+          type: string
+          format: uuid
+          nullable: true
         spec:
+          type: string
+        material:
+          type: string
+        dimensions:
+          type: string
+        color:
           type: string
         qty:
           type: string
         note:
           type: string
+        referenceImageUrls:
+          type: array
+          items:
+            type: string
         createdAt:
           type: string
           format: date-time
@@ -1630,6 +1682,20 @@ components:
       - createdByUserId
       - name
       - createdAt
+    ProductRequestAsset:
+      type: object
+      properties:
+        url:
+          type: string
+        contentType:
+          type: string
+        size:
+          type: integer
+          format: int64
+      required:
+      - url
+      - contentType
+      - size
     PagedProductRequestList:
       type: object
       properties:

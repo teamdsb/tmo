@@ -168,6 +168,10 @@ func (server *stubServer) PostProductRequests(context *gin.Context) {
 	context.Status(http.StatusNotImplemented)
 }
 
+func (server *stubServer) PostProductRequestsAssets(context *gin.Context) {
+	context.Status(http.StatusNotImplemented)
+}
+
 func (server *stubServer) GetWishlist(context *gin.Context) {
 	context.Status(http.StatusNotImplemented)
 }

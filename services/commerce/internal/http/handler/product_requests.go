@@ -1,16 +1,29 @@
 package handler
 
 import (
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 )
+
+const maxProductRequestAssetSize int64 = 5 * 1024 * 1024
+
+var allowedProductRequestAssetTypes = map[string]string{
+	"image/jpeg":      ".jpg",
+	"image/png":       ".png",
+	"image/webp":      ".webp",
+	"application/pdf": ".pdf",
+}
 
 func (h *Handler) GetProductRequests(c *gin.Context, params oapi.GetProductRequestsParams) {
 	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "ADMIN")
@@ -111,12 +124,17 @@ func (h *Handler) PostProductRequests(c *gin.Context) {
 	}
 
 	created, err := h.ProductRequestStore.CreateProductRequest(c.Request.Context(), db.CreateProductRequestParams{
-		CreatedByUserID:  claims.UserID,
-		OwnerSalesUserID: ownerSales,
-		Name:             request.Name,
-		Spec:             request.Spec,
-		Qty:              request.Qty,
-		Note:             request.Note,
+		CreatedByUserID:    claims.UserID,
+		OwnerSalesUserID:   ownerSales,
+		Name:               request.Name,
+		CategoryID:         uuidToPgtype(request.CategoryId),
+		Spec:               request.Spec,
+		Material:           request.Material,
+		Dimensions:         request.Dimensions,
+		Color:              request.Color,
+		Qty:                request.Qty,
+		Note:               request.Note,
+		ReferenceImageUrls: defaultStringSlice(request.ReferenceImageUrls),
 	})
 	if err != nil {
 		h.logError("create product request failed", err)
@@ -137,11 +155,156 @@ func productRequestFromModel(request db.ProductRequest) oapi.ProductRequest {
 	if request.Spec != nil {
 		response.Spec = request.Spec
 	}
+	if request.CategoryID.Valid {
+		value := openapi_types.UUID(request.CategoryID.Bytes)
+		response.CategoryId = &value
+	}
+	if request.Material != nil {
+		response.Material = request.Material
+	}
+	if request.Dimensions != nil {
+		response.Dimensions = request.Dimensions
+	}
+	if request.Color != nil {
+		response.Color = request.Color
+	}
 	if request.Qty != nil {
 		response.Qty = request.Qty
 	}
 	if request.Note != nil {
 		response.Note = request.Note
 	}
+	if request.ReferenceImageUrls != nil {
+		referenceImageURLs := append([]string(nil), request.ReferenceImageUrls...)
+		response.ReferenceImageUrls = &referenceImageURLs
+	}
 	return response
+}
+
+func (h *Handler) PostProductRequestsAssets(c *gin.Context) {
+	if _, ok := h.requireRole(c, "CUSTOMER", "ADMIN"); !ok {
+		return
+	}
+
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "missing file")
+		return
+	}
+	if fileHeader.Size > maxProductRequestAssetSize {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "file exceeds 5MB limit")
+		return
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "failed to read file")
+		return
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+
+	sniff := make([]byte, 512)
+	n, err := io.ReadFull(file, sniff)
+	if err != nil && err != io.ErrUnexpectedEOF {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "failed to read file")
+		return
+	}
+	sniff = sniff[:n]
+	contentType := http.DetectContentType(sniff)
+	ext, allowed := allowedProductRequestAssetTypes[contentType]
+	if !allowed {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "unsupported file type")
+		return
+	}
+
+	localDir := strings.TrimSpace(h.MediaLocalOutputDir)
+	baseURL := strings.TrimSpace(h.MediaPublicBaseURL)
+	if localDir == "" || baseURL == "" {
+		h.logError("product request asset upload is not configured", nil)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "media upload is not configured")
+		return
+	}
+
+	subDir := filepath.Join(localDir, "product-requests")
+	if err := os.MkdirAll(subDir, 0o755); err != nil {
+		h.logError("create media directory failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to save file")
+		return
+	}
+
+	fileName := uuid.NewString() + ext
+	localPath := filepath.Join(subDir, fileName)
+	dst, err := os.Create(localPath)
+	if err != nil {
+		h.logError("create media file failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to save file")
+		return
+	}
+
+	written := int64(0)
+	cleanup := func() {
+		_ = dst.Close()
+		_ = os.Remove(localPath)
+	}
+
+	if n > 0 {
+		bytesWritten, writeErr := dst.Write(sniff)
+		if writeErr != nil {
+			cleanup()
+			h.logError("write media file failed", writeErr)
+			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to save file")
+			return
+		}
+		written += int64(bytesWritten)
+	}
+
+	remaining := maxProductRequestAssetSize + 1 - written
+	if remaining < 0 {
+		cleanup()
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "file exceeds 5MB limit")
+		return
+	}
+
+	copied, copyErr := io.Copy(dst, io.LimitReader(file, remaining))
+	written += copied
+	if copyErr != nil {
+		cleanup()
+		h.logError("write media file failed", copyErr)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to save file")
+		return
+	}
+	if written > maxProductRequestAssetSize {
+		cleanup()
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "file exceeds 5MB limit")
+		return
+	}
+	if err := dst.Close(); err != nil {
+		_ = os.Remove(localPath)
+		h.logError("close media file failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to save file")
+		return
+	}
+
+	publicURL := strings.TrimRight(baseURL, "/") + "/product-requests/" + fileName
+	c.JSON(http.StatusCreated, oapi.ProductRequestAsset{
+		Url:         publicURL,
+		ContentType: contentType,
+		Size:        written,
+	})
+}
+
+func defaultStringSlice(value *[]string) []string {
+	if value == nil {
+		return []string{}
+	}
+	return *value
+}
+
+func uuidToPgtype(value *uuid.UUID) pgtype.UUID {
+	if value == nil {
+		return pgtype.UUID{}
+	}
+	return pgtype.UUID{Bytes: *value, Valid: true}
 }

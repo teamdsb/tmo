@@ -367,6 +367,7 @@ func resetCommerceTables(t *testing.T, pool *pgxpool.Pool) {
 	_, err := pool.Exec(ctx, `
 TRUNCATE order_tracking_shipments,
 import_jobs,
+product_requests,
 order_items,
 orders,
 cart_items,
@@ -463,11 +464,12 @@ func newIntegrationRouter(pool *pgxpool.Pool, store *db.Queries) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := httpx.NewRouter()
 	oapi.RegisterHandlers(router, &Handler{
-		CatalogStore:  store,
-		CartStore:     store,
-		OrderStore:    store,
-		TrackingStore: store,
-		DB:            pool,
+		CatalogStore:        store,
+		CartStore:           store,
+		OrderStore:          store,
+		TrackingStore:       store,
+		ProductRequestStore: store,
+		DB:                  pool,
 	})
 	return router
 }
@@ -477,12 +479,13 @@ func newAuthIntegrationRouter(pool *pgxpool.Pool, store *db.Queries) *gin.Engine
 	router := httpx.NewRouter()
 	authenticator := middleware.NewAuthenticator(true, testJWTSecret, testJWTIssuer)
 	oapi.RegisterHandlers(router, &Handler{
-		CatalogStore:  store,
-		CartStore:     store,
-		OrderStore:    store,
-		TrackingStore: store,
-		DB:            pool,
-		Auth:          authenticator,
+		CatalogStore:        store,
+		CartStore:           store,
+		OrderStore:          store,
+		TrackingStore:       store,
+		ProductRequestStore: store,
+		DB:                  pool,
+		Auth:                authenticator,
 	})
 	return router
 }

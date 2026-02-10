@@ -45,27 +45,56 @@ INSERT INTO product_requests (
     created_by_user_id,
     owner_sales_user_id,
     name,
+    category_id,
     spec,
+    material,
+    dimensions,
+    color,
     qty,
-    note
+    note,
+    reference_image_urls
 ) VALUES (
     $1,
     $2,
     $3,
     $4,
     $5,
-    $6
+    $6,
+    $7,
+    $8,
+    $9,
+    $10,
+    $11
 )
-RETURNING id, created_by_user_id, owner_sales_user_id, name, spec, qty, note, created_at, updated_at
+RETURNING
+    id,
+    created_by_user_id,
+    owner_sales_user_id,
+    name,
+    spec,
+    qty,
+    note,
+    created_at,
+    updated_at,
+    category_id,
+    material,
+    dimensions,
+    color,
+    reference_image_urls
 `
 
 type CreateProductRequestParams struct {
-	CreatedByUserID  uuid.UUID   `db:"created_by_user_id" json:"created_by_user_id"`
-	OwnerSalesUserID pgtype.UUID `db:"owner_sales_user_id" json:"owner_sales_user_id"`
-	Name             string      `db:"name" json:"name"`
-	Spec             *string     `db:"spec" json:"spec"`
-	Qty              *string     `db:"qty" json:"qty"`
-	Note             *string     `db:"note" json:"note"`
+	CreatedByUserID    uuid.UUID   `db:"created_by_user_id" json:"created_by_user_id"`
+	OwnerSalesUserID   pgtype.UUID `db:"owner_sales_user_id" json:"owner_sales_user_id"`
+	Name               string      `db:"name" json:"name"`
+	CategoryID         pgtype.UUID `db:"category_id" json:"category_id"`
+	Spec               *string     `db:"spec" json:"spec"`
+	Material           *string     `db:"material" json:"material"`
+	Dimensions         *string     `db:"dimensions" json:"dimensions"`
+	Color              *string     `db:"color" json:"color"`
+	Qty                *string     `db:"qty" json:"qty"`
+	Note               *string     `db:"note" json:"note"`
+	ReferenceImageUrls []string    `db:"reference_image_urls" json:"reference_image_urls"`
 }
 
 func (q *Queries) CreateProductRequest(ctx context.Context, arg CreateProductRequestParams) (ProductRequest, error) {
@@ -73,9 +102,14 @@ func (q *Queries) CreateProductRequest(ctx context.Context, arg CreateProductReq
 		arg.CreatedByUserID,
 		arg.OwnerSalesUserID,
 		arg.Name,
+		arg.CategoryID,
 		arg.Spec,
+		arg.Material,
+		arg.Dimensions,
+		arg.Color,
 		arg.Qty,
 		arg.Note,
+		arg.ReferenceImageUrls,
 	)
 	var i ProductRequest
 	err := row.Scan(
@@ -88,12 +122,31 @@ func (q *Queries) CreateProductRequest(ctx context.Context, arg CreateProductReq
 		&i.Note,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CategoryID,
+		&i.Material,
+		&i.Dimensions,
+		&i.Color,
+		&i.ReferenceImageUrls,
 	)
 	return i, err
 }
 
 const listProductRequests = `-- name: ListProductRequests :many
-SELECT id, created_by_user_id, owner_sales_user_id, name, spec, qty, note, created_at, updated_at
+SELECT
+    id,
+    created_by_user_id,
+    owner_sales_user_id,
+    name,
+    spec,
+    qty,
+    note,
+    created_at,
+    updated_at,
+    category_id,
+    material,
+    dimensions,
+    color,
+    reference_image_urls
 FROM product_requests
 WHERE ($1::uuid IS NULL OR created_by_user_id = $1)
   AND ($2::uuid IS NULL OR owner_sales_user_id = $2)
@@ -138,6 +191,11 @@ func (q *Queries) ListProductRequests(ctx context.Context, arg ListProductReques
 			&i.Note,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.CategoryID,
+			&i.Material,
+			&i.Dimensions,
+			&i.Color,
+			&i.ReferenceImageUrls,
 		); err != nil {
 			return nil, err
 		}

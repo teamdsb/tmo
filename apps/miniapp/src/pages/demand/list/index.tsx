@@ -4,10 +4,11 @@ import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Cell from '@taroify/core/cell'
 import Tag from '@taroify/core/tag'
+import Button from '@taroify/core/button'
 import type { ProductRequest } from '@tmo/api-client'
 import { ROUTES } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
-import { switchTabLike } from '../../../utils/navigation'
+import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
 
 export default function DemandList() {
@@ -37,6 +38,11 @@ export default function DemandList() {
         <Navbar.Title>我的需求</Navbar.Title>
       </Navbar>
       <View className='page-content'>
+        <View className='demand-list-create'>
+          <Button block color='primary' onClick={() => navigateTo(ROUTES.demandCreate)}>
+            创建新需求
+          </Button>
+        </View>
         <Cell.Group inset>
           {requests.map((request) => (
             <Cell

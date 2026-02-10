@@ -252,6 +252,11 @@
   color: #137fec;
 }
 
+.demand-inline-link {
+  display: block;
+  margin: 8px 0 12px;
+}
+
 .section-subtitle {
   font-size: 12px;
   color: #617589;
@@ -263,6 +268,59 @@
 
 .placeholder-actions {
   margin-top: 16px;
+}
+
+.demand-form-group .taroify-cell__title {
+  min-width: 112px;
+}
+
+.demand-reference-editor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.demand-reference-editor .taroify-button {
+  flex-shrink: 0;
+}
+
+.demand-category-tags {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.demand-reference-list {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.demand-reference-item {
+  width: 66px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.demand-reference-thumb {
+  width: 66px;
+  height: 66px;
+  border-radius: 8px;
+  border: 1px solid #dbe2ea;
+  background: #f8fafc;
+}
+
+.demand-reference-remove {
+  font-size: 11px;
+  color: #137fec;
+}
+
+.demand-list-create {
+  margin-bottom: 12px;
 }
 
 .cart-action-primary {

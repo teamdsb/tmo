@@ -9,6 +9,8 @@ func TestLoadDefaults(test *testing.T) {
 	test.Setenv("COMMERCE_AUTH_ENABLED", "")
 	test.Setenv("COMMERCE_JWT_SECRET", "")
 	test.Setenv("COMMERCE_JWT_ISSUER", "")
+	test.Setenv("MEDIA_LOCAL_OUTPUT_DIR", "")
+	test.Setenv("MEDIA_PUBLIC_BASE_URL", "")
 
 	loaded := Load()
 
@@ -30,6 +32,12 @@ func TestLoadDefaults(test *testing.T) {
 	if loaded.JWTIssuer != defaultJWTIssuer {
 		test.Fatalf("expected default JWT issuer %q, got %q", defaultJWTIssuer, loaded.JWTIssuer)
 	}
+	if loaded.MediaLocalOutputDir != defaultMediaLocalOutputDir {
+		test.Fatalf("expected default media local dir %q, got %q", defaultMediaLocalOutputDir, loaded.MediaLocalOutputDir)
+	}
+	if loaded.MediaPublicBaseURL != defaultMediaPublicBaseURL {
+		test.Fatalf("expected default media public base URL %q, got %q", defaultMediaPublicBaseURL, loaded.MediaPublicBaseURL)
+	}
 }
 
 func TestLoadOverrides(test *testing.T) {
@@ -39,6 +47,8 @@ func TestLoadOverrides(test *testing.T) {
 	test.Setenv("COMMERCE_AUTH_ENABLED", "true")
 	test.Setenv("COMMERCE_JWT_SECRET", "custom-secret")
 	test.Setenv("COMMERCE_JWT_ISSUER", "custom-issuer")
+	test.Setenv("MEDIA_LOCAL_OUTPUT_DIR", "/tmp/media")
+	test.Setenv("MEDIA_PUBLIC_BASE_URL", "http://localhost:8080/assets/media-test")
 
 	loaded := Load()
 
@@ -59,5 +69,11 @@ func TestLoadOverrides(test *testing.T) {
 	}
 	if loaded.JWTIssuer != "custom-issuer" {
 		test.Fatalf("expected JWT issuer override, got %q", loaded.JWTIssuer)
+	}
+	if loaded.MediaLocalOutputDir != "/tmp/media" {
+		test.Fatalf("expected media local dir override, got %q", loaded.MediaLocalOutputDir)
+	}
+	if loaded.MediaPublicBaseURL != "http://localhost:8080/assets/media-test" {
+		test.Fatalf("expected media public base URL override, got %q", loaded.MediaPublicBaseURL)
 	}
 }

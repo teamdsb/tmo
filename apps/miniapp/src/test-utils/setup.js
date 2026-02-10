@@ -67,6 +67,20 @@ jest.mock('@tarojs/components', () => {
     />
   );
 
+  const Textarea = ({ onInput, onChange, ...props }) => (
+    <textarea
+      {...props}
+      onChange={(event) => {
+        if (onInput) {
+          onInput({ detail: { value: event.target.value } });
+        }
+        if (onChange) {
+          onChange(event);
+        }
+      }}
+    />
+  );
+
   const Button = ({ children, ...props }) => (
     <button type='button' {...stripDomProps(props)}>
       {children}
@@ -78,6 +92,7 @@ jest.mock('@tarojs/components', () => {
     Text: mockCreateComponent('span'),
     Button,
     Input,
+    Textarea,
     ScrollView: mockComponent('div'),
     Swiper: mockComponent('div'),
     SwiperItem: mockComponent('div'),
@@ -97,6 +112,7 @@ jest.mock('@tarojs/taro', () => {
   const Taro = {
     showToast: jest.fn(() => Promise.resolve()),
     showActionSheet: jest.fn(() => Promise.resolve({ tapIndex: 0 })),
+    chooseImage: jest.fn(() => Promise.resolve({ tempFilePaths: ['/tmp/mock.png'] })),
     navigateTo: jest.fn(() => Promise.resolve()),
     reLaunch: jest.fn(() => Promise.resolve()),
     switchTab: jest.fn(() => Promise.resolve()),
@@ -247,7 +263,8 @@ jest.mock('@tmo/commerce-services', () => {
       },
       productRequests: {
         list: jest.fn(async () => ({ items: [], total: 0 })),
-        create: jest.fn(async () => ({}))
+        create: jest.fn(async () => ({})),
+        uploadAsset: jest.fn(async () => ({ url: 'https://img.example.com/mock.png', contentType: 'image/png', size: 12 }))
       },
       tracking: {
         getTracking: jest.fn(async () => ({ items: [] })),
