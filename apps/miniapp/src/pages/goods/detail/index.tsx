@@ -238,7 +238,7 @@ export default function ProductDetail() {
       </View>
 
       <FixedView position='bottom' safeArea='bottom' placeholder>
-        <Flex gutter={12} className='action-bar'>
+        <Flex className='action-bar detail-action-bar'>
           <TaroButton
             className={`${actionBase} detail-action-button cart-action-secondary`}
             hoverClass='none'

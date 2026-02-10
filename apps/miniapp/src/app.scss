@@ -5,6 +5,7 @@
 @import url("./styles/tailwind.generated.css");
 
 :root {
+  --font-size-step: 2px;
   --tabbar-height: 60px;
   --tabbar-safe-offset: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
   --tabbar-safe-offset-legacy: calc(var(--tabbar-height) + constant(safe-area-inset-bottom));
@@ -44,6 +45,7 @@
 }
 
 .page.mine-page {
+  --font-size-step: 0px;
   background: var(--mine-bg);
   color: var(--mine-text);
 }
@@ -110,7 +112,7 @@
 }
 
 .mine-profile-avatar-icon {
-  font-size: 24px;
+  font-size: calc(24px + var(--font-size-step, 0px));
 }
 
 .mine-profile-status {
@@ -149,6 +151,18 @@
   background: #fff;
 }
 
+.app-tabbar .taroify-tabbar-item__icon,
+.app-tabbar .taroify-tabbar-item__icon .taroify-icon,
+.app-tabbar .taroify-icon {
+  font-size: calc(22px + var(--font-size-step, 0px));
+  line-height: 1;
+}
+
+.app-tabbar .taroify-tabbar-item__text,
+.app-tabbar .taroify-tabbar-item__title {
+  font-size: calc(16.5px + var(--font-size-step, 0px));
+}
+
 .mine-contact-card {
   display: flex;
   flex-direction: column;
@@ -172,14 +186,14 @@
 }
 
 .mine-contact-label {
-  font-size: 14px;
+  font-size: calc(14px + var(--font-size-step, 0px));
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--mine-subtle);
 }
 
 .mine-contact-name {
-  font-size: 16px;
+  font-size: calc(16px + var(--font-size-step, 0px));
   font-weight: 600;
   color: var(--mine-text);
 }
@@ -221,23 +235,47 @@
 }
 
 .page-subtitle {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-step, 0px));
   color: #617589;
 }
 
 .text-9 {
-  font-size: 9px;
+  font-size: calc(9px + var(--font-size-step, 0px));
   line-height: 1.2;
 }
 
 .text-10 {
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-step, 0px));
   line-height: 1.2;
 }
 
 .text-11 {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-step, 0px));
   line-height: 1.2;
+}
+
+.text-xs {
+  font-size: calc(0.75rem + var(--font-size-step, 0px));
+}
+
+.text-sm {
+  font-size: calc(0.875rem + var(--font-size-step, 0px));
+}
+
+.text-base {
+  font-size: calc(1rem + var(--font-size-step, 0px));
+}
+
+.text-lg {
+  font-size: calc(1.125rem + var(--font-size-step, 0px));
+}
+
+.text-xl {
+  font-size: calc(1.25rem + var(--font-size-step, 0px));
+}
+
+.text-2xl {
+  font-size: calc(1.5rem + var(--font-size-step, 0px));
 }
 
 .page-grid {
@@ -249,7 +287,7 @@
 }
 
 .section-title {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-step, 0px));
   font-weight: 700;
   color: #617589;
   text-transform: uppercase;
@@ -257,13 +295,13 @@
 }
 
 .section-link {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-step, 0px));
   font-weight: 600;
   color: #137fec;
 }
 
 .section-subtitle {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-step, 0px));
   color: #617589;
 }
 
@@ -315,57 +353,49 @@
 
 .product-card-body {
   padding: 12px;
+  box-sizing: border-box;
+  min-height: 160px;
 }
 
 .product-card-title {
   display: block;
-  font-size: 14px;
+  font-size: calc(22px + var(--font-size-step, 0px));
   font-weight: 600;
-  line-height: 1.45;
+  line-height: 1.35;
   color: #111418;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-bottom: 5px;
+  margin-bottom: 8px;
 }
 
 .product-card-price {
   display: block;
-  font-size: 12px;
+  font-size: calc(19px + var(--font-size-step, 0px));
   font-weight: 600;
+  line-height: 1.25;
   color: #4b5f73;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .product-card-footer {
-  min-height: 24px;
+  min-height: 32px;
 }
 
 .product-card-tag {
-  max-width: 92px;
-  height: 20px;
-  padding: 0 7px;
+  max-width: 148px;
+  height: 32px;
+  padding: 0 12px;
   border-radius: 6px;
   border: 1px solid #b9d2f8;
   background: #f2f7ff;
   color: #2e6fcb;
-  font-size: 9px;
+  font-size: calc(14px + var(--font-size-step, 0px));
   font-weight: 600;
-  line-height: 20px;
+  line-height: 32px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.product-card-action.taroify-button {
-  min-width: 50px;
-  border-radius: 6px;
-}
-
-.product-card-action.taroify-button--mini {
-  height: 24px;
-  padding: 0 10px;
-  font-size: 11px;
 }
 
 .page-grid .taroify-grid-item__content {
@@ -383,27 +413,27 @@
 }
 
 .order-id {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-step, 0px));
   font-weight: 700;
   color: #111418;
   display: block;
 }
 
 .order-date {
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-step, 0px));
   color: #617589;
   display: block;
 }
 
 .order-title {
   margin-top: 8px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-step, 0px));
   font-weight: 600;
   color: #111418;
 }
 
 .order-meta {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-step, 0px));
   color: #617589;
 }
 
@@ -414,12 +444,12 @@
 }
 
 .order-label {
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-step, 0px));
   color: #617589;
 }
 
 .order-value {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-step, 0px));
   font-weight: 700;
   color: #111418;
 }
@@ -436,7 +466,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-step, 0px));
   color: #617589;
 }
 
@@ -456,13 +486,13 @@
 }
 
 .confirm-card-title {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-step, 0px));
   font-weight: 600;
   color: #111418;
 }
 
 .confirm-card-qty {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-step, 0px));
   color: #617589;
 }
 
@@ -471,6 +501,10 @@
   background: #fff;
   border-top: 1px solid #e6ebf2;
   box-shadow: 0 -1px 0 rgb(15 23 42 / 3%);
+}
+
+.detail-action-bar .detail-action-button + .detail-action-button {
+  margin-left: 10px;
 }
 
 .media {
@@ -485,7 +519,7 @@
   position: absolute;
   right: 8px;
   bottom: 8px;
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-step, 0px));
   font-weight: 600;
   color: #fff;
   background: rgb(15 23 42 / 48%);
@@ -502,7 +536,7 @@
 }
 
 .product-title {
-  font-size: 17px;
+  font-size: calc(17px + var(--font-size-step, 0px));
   font-weight: 700;
   line-height: 1.4;
   color: #111418;
@@ -521,7 +555,7 @@
 }
 
 .product-price-value {
-  font-size: 22px;
+  font-size: calc(22px + var(--font-size-step, 0px));
   font-weight: 700;
   line-height: 1.2;
   color: #1677ff;
@@ -530,7 +564,7 @@
 
 .product-price-note {
   margin-top: 2px;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-step, 0px));
   color: #6a7f95;
 }
 
@@ -558,11 +592,11 @@
   border-color: #c7d8ef;
   color: #35597f;
   background: #f7faff;
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-step, 0px));
 }
 
 .product-meta-text {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-step, 0px));
   color: #6a7f95;
 }
 
@@ -575,13 +609,13 @@
 }
 
 .product-section-title {
-  font-size: 13px;
+  font-size: calc(13px + var(--font-size-step, 0px));
   font-weight: 700;
   color: #2b3a4d;
 }
 
 .product-section-link {
-  font-size: 11px;
+  font-size: calc(11px + var(--font-size-step, 0px));
   color: #1677ff;
 }
 
@@ -621,18 +655,18 @@
 .tier-card-range {
   display: block;
   margin-bottom: 4px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-step, 0px));
   color: #617589;
 }
 
 .tier-card-price {
-  font-size: 16px;
+  font-size: calc(16px + var(--font-size-step, 0px));
   font-weight: 700;
   color: #24384f;
 }
 
 .tier-card-discount {
-  font-size: 10px;
+  font-size: calc(10px + var(--font-size-step, 0px));
   color: #2b8a3e;
 }
 
@@ -640,7 +674,7 @@
   height: 34px;
   padding: 0 14px;
   border-radius: 9px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-step, 0px));
 }
 
 .product-logistics {
@@ -654,14 +688,14 @@
 }
 
 .product-logistics .taroify-cell__title {
-  font-size: 14px;
+  font-size: calc(14px + var(--font-size-step, 0px));
   font-weight: 600;
   color: #2b3a4d;
 }
 
 .product-logistics .taroify-cell__brief {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-step, 0px));
   color: #6a7f95;
 }
 
@@ -677,14 +711,14 @@
 }
 
 .recommend-card-title {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-step, 0px));
   font-weight: 600;
   color: #111418;
   margin-bottom: 4px;
 }
 
 .recommend-card-price {
-  font-size: 12px;
+  font-size: calc(12px + var(--font-size-step, 0px));
   font-weight: 700;
   color: #137fec;
   margin-bottom: 8px;
