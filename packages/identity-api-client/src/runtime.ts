@@ -37,7 +37,7 @@ const toHeaderRecord = (headers?: HeadersInit): Record<string, string> | undefin
   if (!headers) {
     return undefined
   }
-  if (headers instanceof Headers) {
+  if (typeof Headers !== 'undefined' && headers instanceof Headers) {
     const record: Record<string, string> = {}
     headers.forEach((value, key) => {
       record[key] = value

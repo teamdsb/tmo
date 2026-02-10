@@ -30,7 +30,8 @@ const defineConstants = {
   __TMO_COMMERCE_DEV_TOKEN__: JSON.stringify(process.env.TARO_APP_COMMERCE_DEV_TOKEN ?? ''),
   __TMO_IDENTITY_DEV_TOKEN__: JSON.stringify(process.env.TARO_APP_IDENTITY_DEV_TOKEN ?? ''),
   __TMO_COMMERCE_MOCK_FALLBACK__: JSON.stringify(process.env.TARO_APP_COMMERCE_MOCK_FALLBACK ?? ''),
-  __TMO_ENABLE_MOCK_LOGIN__: JSON.stringify(process.env.TARO_APP_ENABLE_MOCK_LOGIN ?? '')
+  __TMO_ENABLE_MOCK_LOGIN__: JSON.stringify(process.env.TARO_APP_ENABLE_MOCK_LOGIN ?? ''),
+  __TMO_WEAPP_PHONE_PROOF_SIMULATION__: JSON.stringify(process.env.TARO_APP_WEAPP_PHONE_PROOF_SIMULATION ?? '')
 }
 
 export default defineConfig<'vite'>(async (merge) => {

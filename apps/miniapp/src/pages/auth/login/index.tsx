@@ -24,12 +24,13 @@ type LaunchContext = {
 type RecordValue = Record<string, unknown>
 type MiniPlatform = 'weapp' | 'alipay' | 'unknown'
 
+const simulatedWeappPhoneProof: PhoneProofResult = Object.freeze({
+  code: 'simulated_weapp_phone_proof'
+})
+
 const readLaunchContext = (): LaunchContext => {
   const options = Taro.getLaunchOptionsSync?.()
   const query = (options?.query ?? {}) as Record<string, unknown>
-  const sceneFromOptions = options?.scene !== undefined && options?.scene !== null
-    ? String(options.scene)
-    : undefined
   const sceneFromQuery = typeof query.scene === 'string' && query.scene.trim()
     ? query.scene.trim()
     : undefined
@@ -39,7 +40,7 @@ const readLaunchContext = (): LaunchContext => {
       ? query.binding_token
       : undefined
   return {
-    scene: sceneFromOptions ?? sceneFromQuery,
+    scene: sceneFromQuery,
     bindingToken
   }
 }
@@ -91,6 +92,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const launchContext = useMemo(readLaunchContext, [])
   const enableMockLogin = useMemo(() => runtimeEnv.enableMockLogin, [])
+  const enableWeappPhoneProofSimulation = useMemo(() => runtimeEnv.weappPhoneProofSimulation, [])
   const platform = useMemo(() => getPlatform() as MiniPlatform, [])
   const redirect = (() => {
     if (typeof router.params?.redirect !== 'string') {
@@ -163,6 +165,10 @@ export default function LoginPage() {
     await handleLoginFlow(async () => extractWeappPhoneProof(event))
   }
 
+  const handleWeappSimulatedLogin = async () => {
+    await handleLoginFlow(async () => simulatedWeappPhoneProof)
+  }
+
   const handleAlipayGetAuthorize = async () => {
     await handleLoginFlow(async () => platformGetPhoneNumber())
   }
@@ -208,7 +214,18 @@ export default function LoginPage() {
         </View>
 
         <View className='mt-10 flex flex-col gap-4'>
-          {platform === 'weapp' ? (
+          {platform === 'weapp' && enableWeappPhoneProofSimulation ? (
+            <NativeButton
+              className='login-primary login-native-button'
+              disabled={!agreed || loading}
+              loading={loading}
+              onClick={handleWeappSimulatedLogin}
+            >
+              快速登录
+            </NativeButton>
+          ) : null}
+
+          {platform === 'weapp' && !enableWeappPhoneProofSimulation ? (
             <NativeButton
               className='login-primary login-native-button'
               disabled={!agreed || loading}
@@ -266,7 +283,7 @@ export default function LoginPage() {
           </Button>
         </View>
 
-        <View className='mt-5 flex items-start gap-3' onClick={() => setAgreed((prev) => !prev)}>
+        <View className='login-agreement-toggle mt-5 flex items-start gap-3' onClick={() => setAgreed((prev) => !prev)}>
           <View className={`login-checkbox ${agreed ? 'login-checkbox--checked' : ''}`} />
           <Text className='text-10 text-slate-500 leading-snug'>
             我已阅读并同意隐私政策与服务条款。
