@@ -1,4 +1,4 @@
-import { getPlatform, login as platformLogin } from '@tmo/platform-adapter'
+import { getPhoneNumber as platformGetPhoneNumber, getPlatform, login as platformLogin, type PhoneProofResult } from '@tmo/platform-adapter'
 import { Platform } from '@tmo/shared/enums'
 import {
   getMe,
@@ -58,6 +58,7 @@ export interface MiniLoginInput {
   scene?: string
   role?: MiniLoginRequestRole
   bindingToken?: string
+  phoneProof?: PhoneProofResult
 }
 
 export interface PasswordLoginInput {
@@ -66,8 +67,18 @@ export interface PasswordLoginInput {
   role?: PasswordLoginRequest['role']
 }
 
+const assertBaseUrl = (baseUrl: string): string => {
+  const value = baseUrl.trim()
+  if (value) {
+    return value
+  }
+  throw new Error(
+    '[identity-services] baseUrl is required. Pass config.baseUrl or set TARO_APP_API_BASE_URL/TARO_APP_IDENTITY_BASE_URL.'
+  )
+}
+
 export const createIdentityServices = (config: IdentityServicesConfig = {}): IdentityServices => {
-  const baseUrl = resolveBaseUrl(config.baseUrl)
+  const baseUrl = assertBaseUrl(resolveBaseUrl(config.baseUrl))
   const devToken = resolveDevToken(config.devToken)
   const tokenKey = config.tokenStorageKey ?? defaultTokenStorageKey
 
@@ -87,6 +98,7 @@ export const createIdentityServices = (config: IdentityServicesConfig = {}): Ide
     miniLogin: async (input: MiniLoginInput): Promise<AuthResponse> => {
       const platform = resolvePlatform(input.platform)
       const loginResult = await platformLogin()
+      const phoneProof = input.phoneProof ?? await platformGetPhoneNumber()
       const payload: MiniLoginRequest = {
         platform,
         code: loginResult.code
@@ -99,6 +111,12 @@ export const createIdentityServices = (config: IdentityServicesConfig = {}): Ide
       }
       if (input.role) {
         payload.role = input.role
+      }
+      if (phoneProof.code || phoneProof.phone) {
+        payload.phoneProof = {
+          code: phoneProof.code,
+          phone: phoneProof.phone
+        }
       }
 
       try {

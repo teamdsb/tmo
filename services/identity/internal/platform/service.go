@@ -21,6 +21,11 @@ type LoginIdentity struct {
 	UnionID        string
 }
 
+type PhoneProof struct {
+	Code  string
+	Phone string
+}
+
 type Config struct {
 	Mode             LoginMode
 	WeappAppID       string
@@ -28,6 +33,7 @@ type Config struct {
 	WeappSessionURL  string
 	WeappTokenURL    string
 	WeappQRCodeURL   string
+	WeappPhoneURL    string
 	WeappSalesPage   string
 	WeappQRWidth     int
 	AlipayAppID      string
@@ -96,6 +102,37 @@ func (r *MiniLoginResolver) Resolve(ctx context.Context, platform, code string) 
 	default:
 		return LoginIdentity{}, ErrUnsupportedPlatform
 	}
+}
+
+func (r *MiniLoginResolver) ResolvePhone(ctx context.Context, platform string, proof PhoneProof) (string, error) {
+	if strings.TrimSpace(proof.Phone) != "" {
+		return strings.TrimSpace(proof.Phone), nil
+	}
+
+	switch strings.ToLower(platform) {
+	case "weapp":
+		if r.mode == LoginModeMock && r.weapp == nil {
+			return "", errors.New("weapp phone proof is not configured")
+		}
+		if r.weapp == nil {
+			return "", errors.New("weapp is not configured")
+		}
+		return r.weapp.ResolvePhone(ctx, proof.Code)
+	case "alipay":
+		if r.mode == LoginModeMock && r.alipay == nil {
+			return "", errors.New("alipay phone proof is not configured")
+		}
+		if r.alipay == nil {
+			return "", errors.New("alipay is not configured")
+		}
+		return r.alipay.ResolvePhone(ctx, proof.Code)
+	default:
+		return "", ErrUnsupportedPlatform
+	}
+}
+
+func (r *MiniLoginResolver) RequiresPhoneProof() bool {
+	return r.mode == LoginModeReal
 }
 
 func (r *MiniLoginResolver) GenerateSalesQRCode(ctx context.Context, platform, scene string) (string, error) {

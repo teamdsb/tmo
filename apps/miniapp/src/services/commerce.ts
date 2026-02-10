@@ -9,25 +9,10 @@ import type {
   UpdateCategoryRequest
 } from '@tmo/api-client'
 import { buildMockProductDetail, mockCategories, mockProductDetails, mockProducts } from './mocks/catalog'
-
-// 小程序运行时没有 Node.js process，全局读取必须做守卫。
-const readEnv = (name: string): string | undefined => {
-  if (typeof process === 'undefined' || !process?.env) {
-    return undefined
-  }
-  return process.env[name]
-}
+import { requireCommerceBaseUrl, runtimeEnv } from '../config/runtime-env'
 
 const shouldFallbackToMock = (): boolean => {
-  const raw = readEnv('TARO_APP_COMMERCE_MOCK_FALLBACK')
-  const value = raw ? raw.trim().toLowerCase() : ''
-  if (value === '') {
-    return true
-  }
-  if (value === 'false' || value === '0' || value === 'off' || value === 'no') {
-    return false
-  }
-  return true
+  return runtimeEnv.commerceMockFallback
 }
 
 const applyQuery = (items: ProductSummary[], query?: string) => {
@@ -47,6 +32,23 @@ const paginate = (items: ProductSummary[], page?: number, pageSize?: number) => 
     total: items.length,
     page: safePage,
     pageSize: safeSize
+  }
+}
+
+const buildFallbackProductDetail = (spuId: string): ProductDetail => {
+  const detail = mockProductDetails[spuId] ?? buildMockProductDetail(spuId)
+  if (detail) {
+    return detail
+  }
+  return {
+    product: {
+      id: spuId,
+      name: '离线商品',
+      categoryId: mockCategories[0]?.id ?? 'mock-category',
+      images: [],
+      description: '离线预览数据'
+    },
+    skus: []
   }
 }
 
@@ -127,7 +129,7 @@ const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
       return await catalog.createProduct(payload)
     } catch (error) {
       console.warn('catalog createProduct failed, fallback to mock', error)
-      const detail = buildMockProductDetail(`mock-${Date.now()}`)
+      const detail = buildFallbackProductDetail(`mock-${Date.now()}`)
       return {
         ...detail,
         product: {
@@ -146,14 +148,14 @@ const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
       return await catalog.updateProduct(spuId, payload)
     } catch (error) {
       console.warn('catalog updateProduct failed, fallback to mock', error)
-      const detail = mockProductDetails[spuId] ?? buildMockProductDetail(spuId)
+      const detail = buildFallbackProductDetail(spuId)
       return {
         ...detail,
         product: {
           ...detail.product,
           name: payload.name ?? detail.product.name,
           categoryId: payload.categoryId ?? detail.product.categoryId,
-          description: payload.description === undefined ? detail.product.description : payload.description,
+          description: payload.description === undefined ? detail.product.description : (payload.description ?? undefined),
           images: payload.images ?? detail.product.images,
           filterDimensions: payload.filterDimensions ?? detail.product.filterDimensions
         }
@@ -172,15 +174,16 @@ const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
       return await catalog.getProductDetail(spuId)
     } catch (error) {
       console.warn('catalog getProductDetail failed, fallback to mock', error)
-      const detail = mockProductDetails[spuId] ?? buildMockProductDetail(spuId)
-      if (detail) return detail
-      throw error
+      return buildFallbackProductDetail(spuId)
     }
   }
 })
 
 const createCommerceServicesWithFallback = (): CommerceServices => {
-  const services = createCommerceServices()
+  const services = createCommerceServices({
+    baseUrl: requireCommerceBaseUrl(),
+    devToken: runtimeEnv.commerceDevToken
+  })
   if (!shouldFallbackToMock()) {
     return services
   }

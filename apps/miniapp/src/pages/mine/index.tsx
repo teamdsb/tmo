@@ -29,6 +29,7 @@ import { commerceServices } from '../../services/commerce'
 import { identityServices } from '../../services/identity'
 import { clearBootstrap, loadBootstrap, saveBootstrap } from '../../services/bootstrap'
 import placeholderProductImage from '../../assets/images/placeholder-product.svg'
+import { getRuntimeTheme } from '../../utils/device-info'
 
 type IconComponent = (props: { className?: string }) => JSX.Element
 
@@ -115,7 +116,7 @@ export default function PersonalCenter() {
   const navbarStyle = getNavbarStyle()
   const isH5 = process.env.TARO_ENV === 'h5'
   const [bootstrap, setBootstrap] = useState<BootstrapResponse | null>(null)
-  const [isDark] = useState(() => Taro.getSystemInfoSync().theme === 'dark')
+  const [isDark] = useState(() => getRuntimeTheme() === 'dark')
   const avatarFallback = placeholderProductImage
 
   useEffect(() => {

@@ -87,7 +87,7 @@ export const mockProducts: ProductSummary[] = [
     name: '防割手套',
     categoryId: 'cat-ppe',
     tags: ['EN388'],
-    coverImageUrl: 'https://images.unsplash.com/photo-1581579186899-1b1b5f1c0f50'
+    coverImageUrl: 'https://images.unsplash.com/photo-1585776245991-cf89dd7fc73a'
   },
   {
     id: 'spu-helmet-pro',
@@ -108,7 +108,7 @@ export const mockProducts: ProductSummary[] = [
     name: 'N95 呼吸防护口罩',
     categoryId: 'cat-ppe',
     tags: ['口罩'],
-    coverImageUrl: 'https://images.unsplash.com/photo-1581579186899-1b1b5f1c0f50'
+    coverImageUrl: 'https://images.unsplash.com/photo-1585776245991-cf89dd7fc73a'
   }
 ]
 
@@ -221,7 +221,7 @@ export const mockProductDetails: Record<string, ProductDetail> = {
     product: {
       id: 'spu-gloves-cut5',
       name: '防割手套',
-      images: ['https://images.unsplash.com/photo-1581579186899-1b1b5f1c0f50'],
+      images: ['https://images.unsplash.com/photo-1585776245991-cf89dd7fc73a'],
       categoryId: 'cat-ppe',
       description: '适用于金属搬运的 5 级防割手套。'
     },
@@ -260,7 +260,7 @@ export const mockProductDetails: Record<string, ProductDetail> = {
     product: {
       id: 'spu-mask-n95',
       name: 'N95 呼吸防护口罩',
-      images: ['https://images.unsplash.com/photo-1581579186899-1b1b5f1c0f50'],
+      images: ['https://images.unsplash.com/photo-1585776245991-cf89dd7fc73a'],
       categoryId: 'cat-ppe',
       description: '通过认证的工业防颗粒呼吸防护口罩。'
     },

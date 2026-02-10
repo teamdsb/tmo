@@ -1,6 +1,6 @@
 -- name: CreateUser :one
-INSERT INTO users (id, display_name, user_type, owner_sales_user_id)
-VALUES ($1, $2, $3, $4)
+INSERT INTO users (id, display_name, phone, user_type, owner_sales_user_id)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
 -- name: UpdateUserProfile :one
@@ -28,6 +28,11 @@ JOIN user_identities i ON i.user_id = u.id
 WHERE i.provider = $1 AND i.provider_user_id = $2
 LIMIT 1;
 
+-- name: GetUserByPhone :one
+SELECT * FROM users
+WHERE phone = $1
+LIMIT 1;
+
 -- name: GetUserIdentity :one
 SELECT * FROM user_identities
 WHERE provider = $1 AND provider_user_id = $2
@@ -37,6 +42,14 @@ LIMIT 1;
 UPDATE users
 SET owner_sales_user_id = $2, updated_at = now()
 WHERE id = $1 AND owner_sales_user_id IS NULL
+RETURNING *;
+
+-- name: BindUserPhone :one
+UPDATE users
+SET phone = $2,
+    updated_at = now()
+WHERE id = $1
+  AND (phone IS NULL OR phone = $2)
 RETURNING *;
 
 -- name: ListStaffUsers :many
@@ -51,7 +64,11 @@ SELECT count(*) FROM users WHERE user_type = 'staff';
 -- name: ListCustomers :many
 SELECT * FROM users
 WHERE user_type = 'customer'
-  AND (sqlc.narg('q')::text IS NULL OR COALESCE(display_name, '') ILIKE '%' || sqlc.narg('q') || '%')
+  AND (
+    sqlc.narg('q')::text IS NULL
+    OR COALESCE(display_name, '') ILIKE '%' || sqlc.narg('q') || '%'
+    OR COALESCE(phone, '') ILIKE '%' || sqlc.narg('q') || '%'
+  )
   AND (sqlc.narg('owner_sales_user_id')::uuid IS NULL OR owner_sales_user_id = sqlc.narg('owner_sales_user_id'))
   AND (sqlc.narg('customer_id')::uuid IS NULL OR id = sqlc.narg('customer_id'))
 ORDER BY created_at DESC
@@ -61,7 +78,11 @@ LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 SELECT count(*)
 FROM users
 WHERE user_type = 'customer'
-  AND (sqlc.narg('q')::text IS NULL OR COALESCE(display_name, '') ILIKE '%' || sqlc.narg('q') || '%')
+  AND (
+    sqlc.narg('q')::text IS NULL
+    OR COALESCE(display_name, '') ILIKE '%' || sqlc.narg('q') || '%'
+    OR COALESCE(phone, '') ILIKE '%' || sqlc.narg('q') || '%'
+  )
   AND (sqlc.narg('owner_sales_user_id')::uuid IS NULL OR owner_sales_user_id = sqlc.narg('owner_sales_user_id'))
   AND (sqlc.narg('customer_id')::uuid IS NULL OR id = sqlc.narg('customer_id'));
 

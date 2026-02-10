@@ -70,6 +70,15 @@ type StaffBindingToken struct {
 	CreatedAt   pgtype.Timestamptz `db:"created_at" json:"created_at"`
 }
 
+type StaffPhoneWhitelist struct {
+	Phone     string             `db:"phone" json:"phone"`
+	Roles     []string           `db:"roles" json:"roles"`
+	Enabled   bool               `db:"enabled" json:"enabled"`
+	Note      *string            `db:"note" json:"note"`
+	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
 type User struct {
 	ID               uuid.UUID          `db:"id" json:"id"`
 	DisplayName      *string            `db:"display_name" json:"display_name"`
@@ -80,6 +89,7 @@ type User struct {
 	Status           string             `db:"status" json:"status"`
 	DisabledAt       pgtype.Timestamptz `db:"disabled_at" json:"disabled_at"`
 	DisabledReason   *string            `db:"disabled_reason" json:"disabled_reason"`
+	Phone            *string            `db:"phone" json:"phone"`
 }
 
 type UserIdentity struct {

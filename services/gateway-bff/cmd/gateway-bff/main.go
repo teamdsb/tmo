@@ -69,13 +69,39 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		Timeout: cfg.UpstreamTimeout,
 	}
 	bootstrapHandler := httpserver.NewBootstrapHandler(cfg.IdentityBaseURL, upstreamClient, logger)
+	catalogRewriteHandler, err := httpserver.NewCatalogRewriteHandler(
+		cfg.CommerceBaseURL,
+		cfg.PublicBaseURL,
+		cfg.UpstreamTimeout,
+		logger,
+	)
+	if err != nil {
+		return fmt.Errorf("init catalog rewrite failed: %w", err)
+	}
+	imageProxyHandler := httpserver.NewImageProxyHandler(
+		nil,
+		cfg.ImageProxyAllowlist,
+		cfg.ImageProxyTimeout,
+		int64(cfg.ImageProxyMaxBytes),
+		cfg.ImageProxyCacheMaxAgeSeconds,
+		logger,
+	)
+	localMediaHandler := httpserver.NewLocalMediaHandler(
+		cfg.MediaLocalDir,
+		cfg.ImageProxyCacheMaxAgeSeconds,
+		logger,
+	)
 
 	router := httpserver.NewRouter(httpserver.ProxyHandlers{
-		Identity:  proxyHandler.Identity,
-		Commerce:  proxyHandler.Commerce,
-		Payment:   proxyHandler.Payment,
-		AI:        proxyHandler.AI,
-		Bootstrap: bootstrapHandler.Handle,
+		Identity:             proxyHandler.Identity,
+		Commerce:             proxyHandler.Commerce,
+		CatalogProducts:      catalogRewriteHandler.ListProducts,
+		CatalogProductDetail: catalogRewriteHandler.GetProductDetail,
+		Media:                localMediaHandler.Handle,
+		Payment:              proxyHandler.Payment,
+		AI:                   proxyHandler.AI,
+		Bootstrap:            bootstrapHandler.Handle,
+		Image:                imageProxyHandler.Handle,
 	}, logger, readyChecker.Check, int64(cfg.MaxBodyBytes))
 
 	server := httpserver.NewServer(cfg.HTTPAddr, router)

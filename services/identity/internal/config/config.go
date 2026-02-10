@@ -21,6 +21,7 @@ const (
 	defaultWeappTokenURL    = "https://api.weixin.qq.com/cgi-bin/token"
 	defaultWeappSessionURL  = "https://api.weixin.qq.com/sns/jscode2session"
 	defaultWeappQRCodeURL   = "https://api.weixin.qq.com/wxa/getwxacodeunlimit"
+	defaultWeappPhoneURL    = "https://api.weixin.qq.com/wxa/business/getuserphonenumber"
 	defaultWeappSalesPage   = "pages/index/index"
 	defaultWeappQRWidth     = 256
 	defaultAlipayGatewayURL = "https://openapi.alipay.com/gateway.do"
@@ -41,6 +42,7 @@ type Config struct {
 	WeappTokenURL    string
 	WeappSessionURL  string
 	WeappQRCodeURL   string
+	WeappPhoneURL    string
 	WeappSalesPage   string
 	WeappQRWidth     int
 	AlipayAppID      string
@@ -65,6 +67,7 @@ func Load() Config {
 		WeappTokenURL:    sharedconfig.String("IDENTITY_WEAPP_TOKEN_URL", defaultWeappTokenURL),
 		WeappSessionURL:  sharedconfig.String("IDENTITY_WEAPP_SESSION_URL", defaultWeappSessionURL),
 		WeappQRCodeURL:   sharedconfig.String("IDENTITY_WEAPP_QRCODE_URL", defaultWeappQRCodeURL),
+		WeappPhoneURL:    sharedconfig.String("IDENTITY_WEAPP_PHONE_NUMBER_URL", defaultWeappPhoneURL),
 		WeappSalesPage:   sharedconfig.String("IDENTITY_WEAPP_SALES_QR_PAGE", defaultWeappSalesPage),
 		WeappQRWidth:     sharedconfig.Int("IDENTITY_WEAPP_QR_WIDTH", defaultWeappQRWidth),
 		AlipayAppID:      sharedconfig.String("IDENTITY_ALIPAY_APP_ID", ""),

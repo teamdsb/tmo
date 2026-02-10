@@ -20,3 +20,15 @@ Minimal API gateway that routes identity + commerce behind a single base URL.
 - All other paths are proxied to commerce.
 - `/health` returns `OK`.
 - `/ready` returns 200 only when identity, commerce, and payment are ready.
+- `/assets/img?url=<encoded>` proxies allowlisted remote images (for miniapp product images).
+- `/assets/media/*` serves locally migrated media files when `GATEWAY_MEDIA_LOCAL_DIR` is configured.
+- `GET /catalog/products` and `GET /catalog/products/{spuId}` rewrite third-party image URLs to gateway image URLs (`/assets/img`) before returning to clients; URLs already under gateway origin (for example `/assets/media`) are preserved.
+
+## Image proxy env
+
+- `GATEWAY_PUBLIC_BASE_URL` (default: `http://localhost:8080`)
+- `GATEWAY_MEDIA_LOCAL_DIR` (default: empty/disabled)
+- `GATEWAY_IMAGE_PROXY_ALLOWLIST` (default: `images.unsplash.com`)
+- `GATEWAY_IMAGE_PROXY_TIMEOUT` (default: `10s`)
+- `GATEWAY_IMAGE_PROXY_MAX_BYTES` (default: `8388608`)
+- `GATEWAY_IMAGE_PROXY_CACHE_MAX_AGE_SECONDS` (default: `3600`)

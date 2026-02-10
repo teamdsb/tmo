@@ -767,6 +767,17 @@ export interface MiniLoginRequest {
   bindingToken?: string;
   /** Optional current role; required when multiple roles. ADMIN is not allowed. */
   role?: MiniLoginRequestRole;
+  phoneProof?: PhoneProof;
+}
+
+/**
+ * Phone authorization proof from mini program platform APIs.
+ */
+export interface PhoneProof {
+  /** Platform-issued one-time code used by backend to resolve phone number. */
+  code?: string;
+  /** Optional direct phone fallback for environments where code exchange is unavailable. */
+  phone?: string;
 }
 
 /**
@@ -808,6 +819,8 @@ export interface User {
   userType: UserUserType;
   status?: UserStatus;
   displayName?: string;
+  /** @nullable */
+  phone?: string | null;
   roles: string[];
   /** @nullable */
   disabledAt?: string | null;

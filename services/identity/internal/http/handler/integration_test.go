@@ -76,6 +76,31 @@ func TestMiniLoginCreatesCustomer(t *testing.T) {
 	}
 }
 
+func TestMiniLoginRequiresPhoneProofInRealMode(t *testing.T) {
+	router, pool := setupTestRouterWithMode(t, platform.LoginModeReal)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+
+	resp := doJSON(t, router, http.MethodPost, "/auth/mini/login", map[string]interface{}{
+		"platform": "weapp",
+		"code":     "mock_customer_001",
+	}, "")
+	if resp.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	var errResp map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
+		t.Fatalf("decode error response: %v", err)
+	}
+	if errResp["code"] != "phone_required" {
+		t.Fatalf("expected phone_required, got %#v", errResp["code"])
+	}
+}
+
 func TestPasswordLoginAdmin(t *testing.T) {
 	router, pool := setupTestRouter(t)
 	ctx := context.Background()
@@ -427,6 +452,10 @@ func TestGetCustomersSalesScopeOwned(t *testing.T) {
 }
 
 func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool) {
+	return setupTestRouterWithMode(t, platform.LoginModeMock)
+}
+
+func setupTestRouterWithMode(t *testing.T, mode platform.LoginMode) (*gin.Engine, *pgxpool.Pool) {
 	t.Helper()
 
 	dsn := os.Getenv("IDENTITY_DB_DSN")
@@ -465,7 +494,7 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool) {
 		Auth:   auth.NewTokenManager("test-secret", "test-issuer", 2*time.Hour),
 		Store:  store,
 		Platform: platform.NewMiniLoginResolver(platform.Config{
-			Mode:            platform.LoginModeMock,
+			Mode:            mode,
 			WeappSalesPage:  "pages/index/index",
 			WeappQRWidth:    256,
 			AlipaySalesPage: "pages/index/index",

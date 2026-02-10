@@ -21,6 +21,9 @@
   width: 112px;
   background: #f0f2f4;
   border-right: 1px solid #e5e7eb;
+}
+
+.category-sidebar-scroll-inner {
   padding-bottom: var(--tabbar-safe-offset);
 }
 
@@ -91,6 +94,9 @@
 .category-content {
   flex: 1;
   background: #fff;
+}
+
+.category-content-scroll-inner {
   padding: 12px;
   padding-bottom: calc(16px + var(--tabbar-safe-offset));
 }

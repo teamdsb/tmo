@@ -3,7 +3,7 @@ import { Text, View } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import Button from '@taroify/core/button'
 import AppsOutlined from '@taroify/icons/AppsOutlined'
-import { RoleSelectionRequiredError } from '@tmo/identity-services'
+import { RoleSelectionRequiredError, isApiError } from '@tmo/identity-services'
 
 import { identityServices } from '../../../services/identity'
 import { gatewayServices } from '../../../services/gateway'
@@ -11,6 +11,7 @@ import { saveBootstrap, savePendingRoleSelection } from '../../../services/boots
 import { applyMockLogin } from '../../../services/mock-auth'
 import { ROUTES } from '../../../routes'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
+import { runtimeEnv } from '../../../config/runtime-env'
 
 import './index.scss'
 
@@ -44,6 +45,7 @@ export default function LoginPage() {
   const [agreed, setAgreed] = useState(false)
   const [loading, setLoading] = useState(false)
   const launchContext = useMemo(readLaunchContext, [])
+  const enableMockLogin = useMemo(() => runtimeEnv.enableMockLogin, [])
   const redirect = (() => {
     if (typeof router.params?.redirect !== 'string') {
       return ''
@@ -87,6 +89,13 @@ export default function LoginPage() {
       if (isTouristModeUnsupportedError(error)) {
         await Taro.showToast({
           title: '请先配置 TARO_APP_ID',
+          icon: 'none'
+        })
+        return
+      }
+      if (isPhoneAuthorizationError(error) || isPhoneProofApiError(error)) {
+        await Taro.showToast({
+          title: '请先授权手机号',
           icon: 'none'
         })
         return
@@ -142,14 +151,16 @@ export default function LoginPage() {
           >
             快速登录
           </Button>
-          <Button
-            variant='outlined'
-            block
-            onClick={handleMockLogin}
-            className='login-secondary'
-          >
-            测试登录
-          </Button>
+          {enableMockLogin ? (
+            <Button
+              variant='outlined'
+              block
+              onClick={handleMockLogin}
+              className='login-secondary'
+            >
+              测试登录
+            </Button>
+          ) : null}
           <Button
             variant='outlined'
             block
@@ -178,4 +189,20 @@ const isTouristModeUnsupportedError = (error: unknown): boolean => {
     && error !== null
     && 'code' in error
     && (error as { code?: string }).code === 'WEAPP_TOURIST_MODE_UNSUPPORTED'
+}
+
+const isPhoneAuthorizationError = (error: unknown): boolean => {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && [
+      'PHONE_AUTH_DENIED',
+      'WEAPP_GET_PHONE_UNSUPPORTED',
+      'WEAPP_PHONE_PROOF_MISSING'
+    ].includes((error as { code?: string }).code ?? '')
+}
+
+const isPhoneProofApiError = (error: unknown): boolean => {
+  return isApiError(error)
+    && ['phone_required', 'invalid_phone_proof', 'invalid_phone'].includes(error.code ?? '')
 }

@@ -24,8 +24,18 @@ export interface GatewayServices {
   tokens: TokenStore
 }
 
+const assertBaseUrl = (baseUrl: string): string => {
+  const value = baseUrl.trim()
+  if (value) {
+    return value
+  }
+  throw new Error(
+    '[gateway-services] baseUrl is required. Pass config.baseUrl or set TARO_APP_API_BASE_URL/TARO_APP_GATEWAY_BASE_URL.'
+  )
+}
+
 export const createGatewayServices = (config: GatewayServicesConfig = {}): GatewayServices => {
-  const baseUrl = resolveBaseUrl(config.baseUrl)
+  const baseUrl = assertBaseUrl(resolveBaseUrl(config.baseUrl))
   const devToken = resolveDevToken(config.devToken)
   const tokenKey = config.tokenStorageKey ?? defaultTokenStorageKey
 

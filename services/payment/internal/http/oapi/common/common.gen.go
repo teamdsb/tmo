@@ -67,9 +67,12 @@ type ErrorResponse struct {
 // MiniLoginRequest defines model for MiniLoginRequest.
 type MiniLoginRequest struct {
 	// BindingToken Optional: staff binding token for first-time login
-	BindingToken *string                  `json:"bindingToken,omitempty"`
-	Code         string                   `json:"code"`
-	Platform     MiniLoginRequestPlatform `json:"platform"`
+	BindingToken *string `json:"bindingToken,omitempty"`
+	Code         string  `json:"code"`
+
+	// PhoneProof Phone authorization proof from mini program platform APIs.
+	PhoneProof *PhoneProof              `json:"phoneProof,omitempty"`
+	Platform   MiniLoginRequestPlatform `json:"platform"`
 
 	// Role Optional current role; required when multiple roles. ADMIN is not allowed.
 	Role *MiniLoginRequestRole `json:"role,omitempty"`
@@ -96,6 +99,15 @@ type PasswordLoginRequest struct {
 // PasswordLoginRequestRole Optional; must be ADMIN when provided.
 type PasswordLoginRequestRole string
 
+// PhoneProof Phone authorization proof from mini program platform APIs.
+type PhoneProof struct {
+	// Code Platform-issued one-time code used by backend to resolve phone number.
+	Code *string `json:"code,omitempty"`
+
+	// Phone Optional direct phone fallback for environments where code exchange is unavailable.
+	Phone *string `json:"phone,omitempty"`
+}
+
 // SalesQrCode defines model for SalesQrCode.
 type SalesQrCode struct {
 	ExpiresAt *time.Time           `json:"expiresAt"`
@@ -116,6 +128,7 @@ type User struct {
 	DisabledReason *string            `json:"disabledReason"`
 	DisplayName    *string            `json:"displayName,omitempty"`
 	Id             openapi_types.UUID `json:"id"`
+	Phone          *string            `json:"phone"`
 	Roles          []string           `json:"roles"`
 	Status         *UserStatus        `json:"status,omitempty"`
 	UserType       UserUserType       `json:"userType"`

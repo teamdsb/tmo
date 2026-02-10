@@ -106,6 +106,13 @@ jest.mock('@tarojs/taro', () => {
       windowWidth: 375,
       windowHeight: 667
     })),
+    getWindowInfo: jest.fn(() => ({
+      statusBarHeight: 20,
+      safeArea: { top: 20 }
+    })),
+    getAppBaseInfo: jest.fn(() => ({
+      theme: 'light'
+    })),
     getMenuButtonBoundingClientRect: jest.fn(() => ({
       top: 24,
       bottom: 56,

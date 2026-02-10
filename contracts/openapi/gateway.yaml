@@ -30,6 +30,38 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/BootstrapResponse"
+  "/assets/img":
+    get:
+      tags:
+      - BFF
+      summary: Proxy remote image through gateway allowlist
+      security: []
+      parameters:
+      - name: url
+        in: query
+        required: true
+        description: Absolute image URL to fetch from allowlisted hosts.
+        schema:
+          type: string
+          format: uri
+      responses:
+        '200':
+          description: Image content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          "$ref": "#/components/responses/BadRequest"
+        '403':
+          "$ref": "#/components/responses/Forbidden"
+        '502':
+          description: Upstream image request failed
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
 components:
   securitySchemes:
     bearerAuth:

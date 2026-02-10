@@ -1,6 +1,5 @@
 import { PropsWithChildren } from 'react'
-import Taro, { useLaunch } from '@tarojs/taro'
-import { RoleSelectionRequiredError } from '@tmo/identity-services'
+import { useLaunch } from '@tarojs/taro'
 
 /* #ifdef rn */
 import './app.rn.scss'
@@ -11,13 +10,18 @@ import './app.scss'
 
 import { identityServices } from './services/identity'
 import { gatewayServices } from './services/gateway'
-import { saveBootstrap, savePendingRoleSelection } from './services/bootstrap'
-import { ROUTES } from './routes'
-import { navigateTo } from './utils/navigation'
+import { saveBootstrap } from './services/bootstrap'
+import { assertRuntimeApiConfig } from './config/runtime-env'
 
 function App({ children }: PropsWithChildren<any>) {
   useLaunch(() => {
     console.log('App launched.')
+    try {
+      assertRuntimeApiConfig()
+    } catch (error) {
+      console.error('runtime api config invalid', error)
+      return
+    }
     void bootstrapApp()
   })
 
@@ -27,13 +31,7 @@ function App({ children }: PropsWithChildren<any>) {
 
 export default App
 
-type LaunchContext = {
-  scene?: string
-  bindingToken?: string
-}
-
 const bootstrapApp = async (): Promise<void> => {
-  const context = readLaunchContext()
   const bootstrap = await tryBootstrap()
   if (bootstrap?.me) {
     return
@@ -42,8 +40,7 @@ const bootstrapApp = async (): Promise<void> => {
   if (!token) {
     return
   }
-
-  await loginAndBootstrap(context)
+  await fallbackIdentityBootstrap()
 }
 
 const tryBootstrap = async () => {
@@ -58,42 +55,6 @@ const tryBootstrap = async () => {
     console.warn('bootstrap failed', error)
     return null
   }
-}
-
-const loginAndBootstrap = async (context: LaunchContext): Promise<void> => {
-  try {
-    await identityServices.auth.miniLogin({
-      scene: context.scene,
-      bindingToken: context.bindingToken
-    })
-  } catch (error) {
-    if (error instanceof RoleSelectionRequiredError) {
-      await savePendingRoleSelection({
-        roles: error.availableRoles,
-        scene: context.scene,
-        bindingToken: context.bindingToken
-      })
-      await navigateTo(ROUTES.authRoleSelect)
-      return
-    }
-    if (isTouristModeUnsupportedError(error)) {
-      await Taro.showToast({
-        title: '请配置 TARO_APP_ID 后重启微信构建',
-        icon: 'none'
-      })
-      return
-    }
-    console.warn('identity login failed', error)
-    await identityServices.tokens.setToken(null)
-    return
-  }
-
-  const bootstrap = await tryBootstrap()
-  if (bootstrap?.me) {
-    await savePendingRoleSelection(null)
-    return
-  }
-  await fallbackIdentityBootstrap()
 }
 
 const fallbackIdentityBootstrap = async (): Promise<void> => {
@@ -116,36 +77,9 @@ const fallbackIdentityBootstrap = async (): Promise<void> => {
   }
 }
 
-const readLaunchContext = (): LaunchContext => {
-  const options = Taro.getLaunchOptionsSync?.()
-  const query = (options?.query ?? {}) as Record<string, unknown>
-  const sceneFromOptions = options?.scene !== undefined && options?.scene !== null
-    ? String(options.scene)
-    : undefined
-  const sceneFromQuery = typeof query.scene === 'string' && query.scene.trim()
-    ? query.scene.trim()
-    : undefined
-  const bindingToken = typeof query.bindingToken === 'string'
-    ? query.bindingToken
-    : typeof query.binding_token === 'string'
-      ? query.binding_token
-      : undefined
-  return {
-    scene: sceneFromOptions ?? sceneFromQuery,
-    bindingToken
-  }
-}
-
 const isUnauthorized = (error: unknown): boolean => {
   return typeof error === 'object'
     && error !== null
     && 'statusCode' in error
     && (error as { statusCode?: number }).statusCode === 401
-}
-
-const isTouristModeUnsupportedError = (error: unknown): boolean => {
-  return typeof error === 'object'
-    && error !== null
-    && 'code' in error
-    && (error as { code?: string }).code === 'WEAPP_TOURIST_MODE_UNSUPPORTED'
 }

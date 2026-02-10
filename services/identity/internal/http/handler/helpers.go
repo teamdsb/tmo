@@ -124,6 +124,9 @@ func userFromModel(user db.User, roles []string, userType oapi.UserUserType) oap
 	if user.DisplayName != nil {
 		response.DisplayName = user.DisplayName
 	}
+	if user.Phone != nil {
+		response.Phone = user.Phone
+	}
 	if user.Status != "" {
 		status := oapi.UserStatus(user.Status)
 		response.Status = &status

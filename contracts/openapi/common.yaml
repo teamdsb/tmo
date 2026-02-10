@@ -45,9 +45,22 @@ components:
           - PROCUREMENT
           - CS
           description: Optional current role; required when multiple roles. ADMIN is not allowed.
+        phoneProof:
+          "$ref": "#/components/schemas/PhoneProof"
       required:
       - platform
       - code
+    PhoneProof:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Platform-issued one-time code used by backend to resolve phone number.
+        phone:
+          type: string
+          description: Optional direct phone fallback for environments where code exchange is unavailable.
+      additionalProperties: false
+      description: Phone authorization proof from mini program platform APIs.
     PasswordLoginRequest:
       type: object
       properties:
@@ -92,6 +105,9 @@ components:
           "$ref": "#/components/schemas/UserStatus"
         displayName:
           type: string
+        phone:
+          type: string
+          nullable: true
         roles:
           type: array
           items:
