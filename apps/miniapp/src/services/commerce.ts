@@ -9,6 +9,7 @@ import type {
   UpdateCategoryRequest
 } from '@tmo/api-client'
 import { buildMockProductDetail, mockCategories, mockProductDetails, mockProducts } from './mocks/catalog'
+import { resolveApiBaseUrl } from './api-base-url'
 
 // 小程序运行时没有 Node.js process，全局读取必须做守卫。
 const readEnv = (name: string): string | undefined => {
@@ -180,7 +181,9 @@ const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
 })
 
 const createCommerceServicesWithFallback = (): CommerceServices => {
-  const services = createCommerceServices()
+  const services = createCommerceServices({
+    baseUrl: resolveApiBaseUrl()
+  })
   if (!shouldFallbackToMock()) {
     return services
   }

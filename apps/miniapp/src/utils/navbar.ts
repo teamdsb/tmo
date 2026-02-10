@@ -1,5 +1,6 @@
 import Taro from '@tarojs/taro'
 import type { CSSProperties } from 'react'
+import { getWindowSystemInfo } from './system-info'
 
 type NavbarMetrics = {
   height: number
@@ -47,7 +48,7 @@ export const getNavbarMetrics = (): NavbarMetrics => {
   }
 
   const isAlipay = process.env.TARO_ENV === 'alipay'
-  const systemInfo = Taro.getSystemInfoSync() as Record<string, unknown>
+  const systemInfo = getWindowSystemInfo()
   const statusBarHeight = getStatusBarHeight(systemInfo)
   const safeAreaTop = getSafeAreaTop(systemInfo)
   const menuButton = getValidMenuButton()

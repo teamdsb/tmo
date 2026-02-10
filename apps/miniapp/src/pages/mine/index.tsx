@@ -23,6 +23,7 @@ import {
 import type { BootstrapResponse } from '@tmo/gateway-api-client'
 import { ROUTES } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
+import { getAppTheme } from '../../utils/system-info'
 import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { gatewayServices } from '../../services/gateway'
 import { commerceServices } from '../../services/commerce'
@@ -115,7 +116,7 @@ export default function PersonalCenter() {
   const navbarStyle = getNavbarStyle()
   const isH5 = process.env.TARO_ENV === 'h5'
   const [bootstrap, setBootstrap] = useState<BootstrapResponse | null>(null)
-  const [isDark] = useState(() => Taro.getSystemInfoSync().theme === 'dark')
+  const [isDark] = useState(() => getAppTheme() === 'dark')
   const avatarFallback = placeholderProductImage
 
   useEffect(() => {

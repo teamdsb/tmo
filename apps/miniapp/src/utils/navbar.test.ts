@@ -1,6 +1,7 @@
 describe('navbar metrics', () => {
   const loadModule = () => require('./navbar') as typeof import('./navbar')
   const loadTaro = () => require('@tarojs/taro').default as {
+    getWindowInfo: jest.Mock
     getSystemInfoSync: jest.Mock
     getMenuButtonBoundingClientRect: jest.Mock
   }
@@ -12,6 +13,7 @@ describe('navbar metrics', () => {
 
   it('uses menu button metrics when valid', () => {
     const Taro = loadTaro()
+    Taro.getWindowInfo.mockReturnValue(undefined)
     Taro.getSystemInfoSync.mockReturnValue({
       statusBarHeight: 20,
       safeArea: { top: 20 }
@@ -39,6 +41,7 @@ describe('navbar metrics', () => {
 
   it('falls back to safeArea top and default height when menu button is invalid', () => {
     const Taro = loadTaro()
+    Taro.getWindowInfo.mockReturnValue(undefined)
     Taro.getSystemInfoSync.mockReturnValue({
       statusBarHeight: 20,
       safeArea: { top: 28 }
@@ -60,6 +63,7 @@ describe('navbar metrics', () => {
 
   it('falls back to status bar top when safeArea is missing', () => {
     const Taro = loadTaro()
+    Taro.getWindowInfo.mockReturnValue(undefined)
     Taro.getSystemInfoSync.mockReturnValue({
       statusBarHeight: 18
     })
@@ -77,6 +81,7 @@ describe('navbar metrics', () => {
 
   it('caches metrics after first read', () => {
     const Taro = loadTaro()
+    Taro.getWindowInfo.mockReturnValue(undefined)
     Taro.getSystemInfoSync.mockReturnValue({
       statusBarHeight: 20,
       safeArea: { top: 20 }
@@ -112,6 +117,7 @@ describe('navbar metrics', () => {
   it('uses top 0 in alipay env', () => {
     process.env.TARO_ENV = 'alipay'
     const Taro = loadTaro()
+    Taro.getWindowInfo.mockReturnValue(undefined)
     Taro.getSystemInfoSync.mockReturnValue({
       statusBarHeight: 24,
       safeArea: { top: 24 }
@@ -135,5 +141,30 @@ describe('navbar metrics', () => {
       '--navbar-total-height': '36px'
     })
     expect(getNavbarTotalHeight()).toBe(36)
+  })
+
+  it('prefers getWindowInfo over getSystemInfoSync', () => {
+    const Taro = loadTaro()
+    Taro.getWindowInfo.mockReturnValue({
+      statusBarHeight: 26,
+      safeArea: { top: 30 }
+    })
+    Taro.getSystemInfoSync.mockReturnValue({
+      statusBarHeight: 20,
+      safeArea: { top: 20 }
+    })
+    Taro.getMenuButtonBoundingClientRect.mockReturnValue({
+      top: 34,
+      height: 30
+    })
+
+    const { getNavbarMetrics } = loadModule()
+
+    expect(getNavbarMetrics()).toEqual({
+      top: 30,
+      height: 30,
+      lineHeight: 30
+    })
+    expect(Taro.getSystemInfoSync).not.toHaveBeenCalled()
   })
 })
