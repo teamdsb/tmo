@@ -104,6 +104,8 @@ paths:
     $ref: "./commerce.yaml#/paths/~1orders~1{orderId}~1tracking"
   /product-requests:
     $ref: "./commerce.yaml#/paths/~1product-requests"
+  /product-requests/assets:
+    $ref: "./commerce.yaml#/paths/~1product-requests~1assets"
   /after-sales/tickets:
     $ref: "./commerce.yaml#/paths/~1after-sales~1tickets"
   /after-sales/tickets/{ticketId}:

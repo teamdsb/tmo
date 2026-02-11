@@ -2,6 +2,9 @@
   "name": "@tmo/commerce-services",
   "version": "0.1.0",
   "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
   "main": "src/index.ts",
   "exports": {
     ".": "./src/index.ts"
@@ -11,5 +14,8 @@
     "@tmo/openapi-client": "workspace:*",
     "@tmo/platform-adapter": "workspace:*",
     "@tmo/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
   }
 }

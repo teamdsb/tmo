@@ -275,6 +275,10 @@ importers:
       '@tmo/shared':
         specifier: workspace:*
         version: link:../shared
+    devDependencies:
+      typescript:
+        specifier: ^5.4.5
+        version: 5.9.3
 
   packages/gateway-api-client:
     dependencies:

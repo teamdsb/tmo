@@ -17,3 +17,7 @@ vendor/
 # IDE
 .idea/
 .vscode/
+
+# Local dev uploaded media artifacts
+infra/dev/media/product-requests/*
+!infra/dev/media/.gitkeep

@@ -77,7 +77,7 @@ export const createCommerceServices = (config: CommerceServicesConfig = {}): Com
     orders: createOrdersService(idempotency),
     tracking: createTrackingService(uploadClient),
     wishlist: createWishlistService(),
-    productRequests: createProductRequestService(),
+    productRequests: createProductRequestService(uploadClient),
     afterSales: createAfterSalesService(),
     inquiries: createInquiryService(),
     tokens,

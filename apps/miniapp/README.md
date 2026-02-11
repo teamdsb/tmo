@@ -6,6 +6,7 @@
 
 在仓库根目录执行，构建产物输出到 `apps/miniapp/dist/<platform>`：
 
+    pnpm -C apps/miniapp build:weapp:dev
     pnpm -C apps/miniapp build:weapp
     pnpm -C apps/miniapp build:alipay
     pnpm -C apps/miniapp build:tt
@@ -14,7 +15,11 @@
     pnpm -C apps/miniapp build:jd
     pnpm -C apps/miniapp build:h5
 
-说明：`build:*` 会生成对应平台的静态产物，可用于发布或在平台开发者工具中打开。
+说明：
+
+- `build:weapp:dev` 用于本地联调（默认校验 API 基址应指向 `localhost:8080`）。
+- `build:weapp` 用于生产构建，若仍使用占位域名 `api.example.com` 会直接失败。
+- 如需临时允许占位域名（例如演示包），可设置 `MINIAPP_ALLOW_PLACEHOLDER_API=true`。
 
 ## 前后端联调（WeChat/Alipay）
 
@@ -58,6 +63,7 @@
 - `TARO_APP_COMMERCE_MOCK_FALLBACK` 默认为关闭（`false`）；只有显式设为 `true` 才会回退 mock 数据。
 - `TARO_APP_ENABLE_MOCK_LOGIN` 默认为关闭（`false`）；只有显式设为 `true` 才会展示“测试登录”按钮。
 - 如果使用容器化后端，保持 `TARO_APP_API_BASE_URL=http://localhost:8080` 即可。
+- `dev:weapp` 启动前会清理 `dist/weapp`，并在 watch 构建后自动校验页面路由、tabBar 图标与 API 基址，避免旧产物导致 `demand 2`、`__route__`、`api.example.com` 类问题。
 - 商品接口返回的图片 URL 默认由 gateway 服务端改写为 `${TARO_APP_API_BASE_URL}/assets/img?url=...`；若已迁移到本地媒体目录则会直接返回 `${TARO_APP_API_BASE_URL}/assets/media/...`。前端仅负责渲染与占位兜底。
 - 微信环境建议使用真实 `TARO_APP_ID`；游客模式（`touristappid`）下，微信登录和手机号授权会受限。
 - `IDENTITY_LOGIN_MODE=real` 时，`/auth/mini/login` 必须携带 `phoneProof`，小程序登录会触发手机号授权。
@@ -200,6 +206,13 @@
 排错：
 
 - 不要让微信和支付宝共用同一个导入目录，必须分别导入 `dist/weapp` 与 `dist/alipay`。
+- 如果微信工具报 `ENOENT ... pages/demand 2/index.wxml` 或 `__route__ is not defined`：
+  1) 关闭项目并清除微信开发者工具编译缓存；
+  2) 在 `apps/miniapp` 目录重新执行 `pnpm run build:weapp:dev`（已内置清理、路由产物校验、API 基址校验）；
+  3) 重新导入 `apps/miniapp`（不要导入仓库根目录或 `dist/weapp` 本身）。
+- 如果构建报 `[verify-weapp-api-base] ... api.example.com`：
+  - 优先检查 `apps/miniapp/.env.development` 与终端环境变量 `TARO_APP_API_BASE_URL`；
+  - 本地联调请使用 `pnpm -C apps/miniapp build:weapp:dev` 或 `pnpm -C apps/miniapp dev:weapp`。
 - 如果首页仍显示 mock 商品，先确认 `.env.development` 中 `TARO_APP_COMMERCE_MOCK_FALLBACK=false`，然后删除 `apps/miniapp/dist/weapp` 并重新执行 `pnpm -C apps/miniapp dev:weapp` 后重新导入开发者工具。
 - 若微信端图片显示异常，先检查 gateway 的 `GATEWAY_PUBLIC_BASE_URL` 与 `GATEWAY_IMAGE_PROXY_ALLOWLIST`；默认通过 `/assets/img` 代理时不需要把第三方图床直接加入小程序图片白名单。
 - 如果支付宝开发者工具导入 `apps/miniapp/dist/alipay` 后出现 `ENOENT ... dist/dist/app.json`，请检查 `apps/miniapp/dist/alipay/mini.project.json` 中的 `miniprogramRoot`，应为 `./`。

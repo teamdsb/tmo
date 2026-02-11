@@ -10,7 +10,7 @@ import Button from '@taroify/core/button'
 import Flex from '@taroify/core/flex'
 import Plus from '@taroify/icons/Plus'
 import type { ProductSummary } from '@tmo/api-client'
-import { ROUTES, goodsDetailRoute } from '../../../routes'
+import { ROUTES, goodsDetailRoute, withQuery } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
@@ -22,6 +22,7 @@ export default function SearchEmptyState() {
   const [recommended, setRecommended] = useState<ProductSummary[]>([])
   const [loading, setLoading] = useState(false)
   const navbarStyle = getNavbarStyle()
+  const trimmedQuery = searchValue.trim()
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -82,6 +83,15 @@ export default function SearchEmptyState() {
                   : `未找到与“${searchValue || '你的关键词'}”匹配的结果。请调整关键词或提交需求。`}
               </Empty.Description>
             </Empty>
+
+            {!loading && trimmedQuery ? (
+              <Text
+                className='section-link demand-inline-link'
+                onClick={() => navigateTo(withQuery(ROUTES.demandCreate, { kw: trimmedQuery }))}
+              >
+                未找到“{trimmedQuery}”？点击发布需求
+              </Text>
+            ) : null}
 
             <Button block color='primary' icon={<Plus />} onClick={() => navigateTo(ROUTES.demandCreate)}>
               提交需求

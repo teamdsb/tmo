@@ -266,12 +266,17 @@ type CreatePriceInquiry struct {
 
 // CreateProductRequest defines model for CreateProductRequest.
 type CreateProductRequest struct {
-	Name string  `json:"name"`
-	Note *string `json:"note,omitempty"`
+	CategoryId *openapi_types.UUID `json:"categoryId"`
+	Color      *string             `json:"color,omitempty"`
+	Dimensions *string             `json:"dimensions,omitempty"`
+	Material   *string             `json:"material,omitempty"`
+	Name       string              `json:"name"`
+	Note       *string             `json:"note,omitempty"`
 
 	// Qty Free-form, e.g., '10 boxes' or '5 pcs'
-	Qty  *string `json:"qty,omitempty"`
-	Spec *string `json:"spec,omitempty"`
+	Qty                *string   `json:"qty,omitempty"`
+	ReferenceImageUrls *[]string `json:"referenceImageUrls,omitempty"`
+	Spec               *string   `json:"spec,omitempty"`
 }
 
 // CreateSkuRequest defines model for CreateSkuRequest.
@@ -450,13 +455,25 @@ type ProductDetail struct {
 
 // ProductRequest defines model for ProductRequest.
 type ProductRequest struct {
-	CreatedAt       time.Time          `json:"createdAt"`
-	CreatedByUserId openapi_types.UUID `json:"createdByUserId"`
-	Id              openapi_types.UUID `json:"id"`
-	Name            string             `json:"name"`
-	Note            *string            `json:"note,omitempty"`
-	Qty             *string            `json:"qty,omitempty"`
-	Spec            *string            `json:"spec,omitempty"`
+	CategoryId         *openapi_types.UUID `json:"categoryId"`
+	Color              *string             `json:"color,omitempty"`
+	CreatedAt          time.Time           `json:"createdAt"`
+	CreatedByUserId    openapi_types.UUID  `json:"createdByUserId"`
+	Dimensions         *string             `json:"dimensions,omitempty"`
+	Id                 openapi_types.UUID  `json:"id"`
+	Material           *string             `json:"material,omitempty"`
+	Name               string              `json:"name"`
+	Note               *string             `json:"note,omitempty"`
+	Qty                *string             `json:"qty,omitempty"`
+	ReferenceImageUrls *[]string           `json:"referenceImageUrls,omitempty"`
+	Spec               *string             `json:"spec,omitempty"`
+}
+
+// ProductRequestAsset defines model for ProductRequestAsset.
+type ProductRequestAsset struct {
+	ContentType string `json:"contentType"`
+	Size        int64  `json:"size"`
+	Url         string `json:"url"`
 }
 
 // ProductSummary defines model for ProductSummary.
@@ -623,6 +640,11 @@ type GetProductRequestsParams struct {
 	PageSize      *int       `form:"pageSize,omitempty" json:"pageSize,omitempty"`
 }
 
+// PostProductRequestsAssetsMultipartBody defines parameters for PostProductRequestsAssets.
+type PostProductRequestsAssetsMultipartBody struct {
+	File openapi_types.File `json:"file"`
+}
+
 // PostShipmentsImportJobsMultipartBody defines parameters for PostShipmentsImportJobs.
 type PostShipmentsImportJobsMultipartBody struct {
 	ExcelFile openapi_types.File `json:"excelFile"`
@@ -686,6 +708,9 @@ type PostOrdersOrderIdTrackingJSONRequestBody = UpdateTrackingRequest
 
 // PostProductRequestsJSONRequestBody defines body for PostProductRequests for application/json ContentType.
 type PostProductRequestsJSONRequestBody = CreateProductRequest
+
+// PostProductRequestsAssetsMultipartRequestBody defines body for PostProductRequestsAssets for multipart/form-data ContentType.
+type PostProductRequestsAssetsMultipartRequestBody PostProductRequestsAssetsMultipartBody
 
 // PostShipmentsImportJobsMultipartRequestBody defines body for PostShipmentsImportJobs for multipart/form-data ContentType.
 type PostShipmentsImportJobsMultipartRequestBody PostShipmentsImportJobsMultipartBody
@@ -806,6 +831,9 @@ type ServerInterface interface {
 	// Submit "can't find product" request
 	// (POST /product-requests)
 	PostProductRequests(c *gin.Context)
+	// Upload product request asset
+	// (POST /product-requests/assets)
+	PostProductRequestsAssets(c *gin.Context)
 	// Upload Excel for bulk waybill import (procurement)
 	// (POST /shipments/import-jobs)
 	PostShipmentsImportJobs(c *gin.Context)
@@ -1867,6 +1895,21 @@ func (siw *ServerInterfaceWrapper) PostProductRequests(c *gin.Context) {
 	siw.Handler.PostProductRequests(c)
 }
 
+// PostProductRequestsAssets operation middleware
+func (siw *ServerInterfaceWrapper) PostProductRequestsAssets(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostProductRequestsAssets(c)
+}
+
 // PostShipmentsImportJobs operation middleware
 func (siw *ServerInterfaceWrapper) PostShipmentsImportJobs(c *gin.Context) {
 
@@ -2002,6 +2045,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.POST(options.BaseURL+"/orders/:orderId/tracking", wrapper.PostOrdersOrderIdTracking)
 	router.GET(options.BaseURL+"/product-requests", wrapper.GetProductRequests)
 	router.POST(options.BaseURL+"/product-requests", wrapper.PostProductRequests)
+	router.POST(options.BaseURL+"/product-requests/assets", wrapper.PostProductRequestsAssets)
 	router.POST(options.BaseURL+"/shipments/import-jobs", wrapper.PostShipmentsImportJobs)
 	router.GET(options.BaseURL+"/wishlist", wrapper.GetWishlist)
 	router.POST(options.BaseURL+"/wishlist", wrapper.PostWishlist)

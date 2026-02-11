@@ -81,6 +81,8 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		ProductRequestStore: store,
 		AfterSalesStore:     store,
 		InquiryStore:        store,
+		MediaLocalOutputDir: cfg.MediaLocalOutputDir,
+		MediaPublicBaseURL:  cfg.MediaPublicBaseURL,
 		DB:                  pool,
 		Auth:                auth,
 		Logger:              logger,

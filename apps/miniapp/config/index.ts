@@ -90,6 +90,10 @@ export default defineConfig<'vite'>(async (merge) => {
         {
           from: 'src/assets/fonts',
           to: 'assets/fonts'
+        },
+        {
+          from: 'src/assets/tabbar',
+          to: 'assets/tabbar'
         }
       ],
       options: {

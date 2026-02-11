@@ -25,6 +25,8 @@ type Handler struct {
 	ProductRequestStore productrequest.Store
 	AfterSalesStore     aftersales.Store
 	InquiryStore        inquiry.Store
+	MediaLocalOutputDir string
+	MediaPublicBaseURL  string
 	DB                  *pgxpool.Pool
 	Auth                *middleware.Authenticator
 	Logger              *slog.Logger

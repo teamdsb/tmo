@@ -80,6 +80,18 @@ type CatalogCategory struct {
 	UpdatedAt pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }
 
+type CatalogMediaAsset struct {
+	ID            uuid.UUID          `db:"id" json:"id"`
+	ProductID     uuid.UUID          `db:"product_id" json:"product_id"`
+	SourceUrl     string             `db:"source_url" json:"source_url"`
+	StorageUrl    *string            `db:"storage_url" json:"storage_url"`
+	ContentSha256 *string            `db:"content_sha256" json:"content_sha256"`
+	Status        string             `db:"status" json:"status"`
+	ErrorMessage  *string            `db:"error_message" json:"error_message"`
+	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
 type CatalogPriceTier struct {
 	ID           uuid.UUID          `db:"id" json:"id"`
 	SkuID        uuid.UUID          `db:"sku_id" json:"sku_id"`
@@ -183,15 +195,20 @@ type PriceInquiry struct {
 }
 
 type ProductRequest struct {
-	ID               uuid.UUID          `db:"id" json:"id"`
-	CreatedByUserID  uuid.UUID          `db:"created_by_user_id" json:"created_by_user_id"`
-	OwnerSalesUserID pgtype.UUID        `db:"owner_sales_user_id" json:"owner_sales_user_id"`
-	Name             string             `db:"name" json:"name"`
-	Spec             *string            `db:"spec" json:"spec"`
-	Qty              *string            `db:"qty" json:"qty"`
-	Note             *string            `db:"note" json:"note"`
-	CreatedAt        pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt        pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	ID                 uuid.UUID          `db:"id" json:"id"`
+	CreatedByUserID    uuid.UUID          `db:"created_by_user_id" json:"created_by_user_id"`
+	OwnerSalesUserID   pgtype.UUID        `db:"owner_sales_user_id" json:"owner_sales_user_id"`
+	Name               string             `db:"name" json:"name"`
+	Spec               *string            `db:"spec" json:"spec"`
+	Qty                *string            `db:"qty" json:"qty"`
+	Note               *string            `db:"note" json:"note"`
+	CreatedAt          pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	CategoryID         pgtype.UUID        `db:"category_id" json:"category_id"`
+	Material           *string            `db:"material" json:"material"`
+	Dimensions         *string            `db:"dimensions" json:"dimensions"`
+	Color              *string            `db:"color" json:"color"`
+	ReferenceImageUrls []string           `db:"reference_image_urls" json:"reference_image_urls"`
 }
 
 type WishlistItem struct {
