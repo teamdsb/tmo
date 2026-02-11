@@ -11,11 +11,18 @@ import './app.scss'
 import { identityServices } from './services/identity'
 import { gatewayServices } from './services/gateway'
 import { saveBootstrap } from './services/bootstrap'
-import { assertRuntimeApiConfig } from './config/runtime-env'
+import { assertRuntimeApiConfig, runtimeEnv } from './config/runtime-env'
 
 function App({ children }: PropsWithChildren<any>) {
   useLaunch(() => {
     console.log('App launched.')
+    if (process.env.NODE_ENV !== 'production') {
+      console.info('[runtime-env]', {
+        gatewayBaseUrl: runtimeEnv.gatewayBaseUrl,
+        commerceBaseUrl: runtimeEnv.commerceBaseUrl,
+        identityBaseUrl: runtimeEnv.identityBaseUrl
+      })
+    }
     try {
       assertRuntimeApiConfig()
     } catch (error) {
