@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Button as NativeButton } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Cell from '@taroify/core/cell'
@@ -7,6 +7,9 @@ import Switch from '@taroify/core/switch'
 import { ROUTES } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
 import { switchTabLike } from '../../utils/navigation'
+import { clearBootstrap } from '../../services/bootstrap'
+import { resetIsolatedMockState } from '../../services/mock/runtime'
+import { runtimeEnv } from '../../config/runtime-env'
 
 type SettingsState = {
   notifications: boolean
@@ -24,6 +27,7 @@ const DEFAULT_SETTINGS: SettingsState = {
 export default function SettingsPage() {
   const navbarStyle = getNavbarStyle()
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS)
+  const [resettingMock, setResettingMock] = useState(false)
 
   useEffect(() => {
     const stored = Taro.getStorageSync(STORAGE_KEY)
@@ -38,6 +42,29 @@ export default function SettingsPage() {
 
   const handleToggle = (key: keyof SettingsState) => {
     setSettings((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const handleResetMock = async () => {
+    if (!runtimeEnv.isIsolatedMock || resettingMock) {
+      return
+    }
+    setResettingMock(true)
+    try {
+      await resetIsolatedMockState()
+      await clearBootstrap()
+      await Taro.showToast({
+        title: 'Mock 数据已重置',
+        icon: 'none'
+      })
+    } catch (error) {
+      console.warn('reset isolated mock data failed', error)
+      await Taro.showToast({
+        title: '重置失败，请重试',
+        icon: 'none'
+      })
+    } finally {
+      setResettingMock(false)
+    }
   }
 
   return (
@@ -86,6 +113,22 @@ export default function SettingsPage() {
             }
           />
         </Cell.Group>
+
+        {runtimeEnv.isIsolatedMock ? (
+          <View className='mt-6 bg-white rounded-2xl border border-slate-100 p-4'>
+            <Text className='text-xs uppercase tracking-wide text-slate-400'>Mock</Text>
+            <Text className='text-sm text-slate-600 mt-2'>
+              当前为离线 Mock 模式，可重置本地购物车、收藏与订单等数据。
+            </Text>
+            <NativeButton
+              className='mt-3 rounded-xl border border-slate-200 py-2 text-sm text-slate-700'
+              disabled={resettingMock}
+              onClick={handleResetMock}
+            >
+              {resettingMock ? '重置中...' : '重置 Mock 数据'}
+            </NativeButton>
+          </View>
+        ) : null}
 
         <View className='mt-6 bg-white rounded-2xl border border-slate-100 p-4'>
           <Text className='text-xs uppercase tracking-wide text-slate-400'>关于</Text>

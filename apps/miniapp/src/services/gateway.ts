@@ -1,7 +1,15 @@
 import { createGatewayServices } from '@tmo/gateway-services'
 import { requireGatewayBaseUrl, runtimeEnv } from '../config/runtime-env'
+import { createMockGatewayServices } from './mock/gateway'
 
-export const gatewayServices = createGatewayServices({
-  baseUrl: requireGatewayBaseUrl(),
-  devToken: runtimeEnv.gatewayDevToken
-})
+const createGatewayServicesRuntime = () => {
+  if (runtimeEnv.isIsolatedMock) {
+    return createMockGatewayServices()
+  }
+  return createGatewayServices({
+    baseUrl: requireGatewayBaseUrl(),
+    devToken: runtimeEnv.gatewayDevToken
+  })
+}
+
+export const gatewayServices = createGatewayServicesRuntime()

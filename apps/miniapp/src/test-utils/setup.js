@@ -157,13 +157,23 @@ jest.mock('@tmo/platform-adapter', () => {
   const storage = new Map();
   return {
     __esModule: true,
+    getPlatform: jest.fn(() => 'weapp'),
+    login: jest.fn(async () => ({ code: 'mock-login-code' })),
+    getPhoneNumber: jest.fn(async () => ({ code: 'mock-phone-proof' })),
     getStorage: jest.fn(async (key) => ({ data: storage.get(key) })),
     setStorage: jest.fn(async (key, value) => {
       storage.set(key, value);
     }),
     removeStorage: jest.fn(async (key) => {
       storage.delete(key);
-    })
+    }),
+    chooseFile: jest.fn(async () => ({
+      files: [{ path: '/tmp/mock.xlsx', name: 'mock.xlsx', size: 0 }]
+    })),
+    uploadFile: jest.fn(async () => ({
+      statusCode: 200,
+      data: '{}'
+    }))
   };
 });
 
@@ -274,6 +284,7 @@ jest.mock('@tmo/commerce-services', () => {
         chooseExcelFile: jest.fn(async () => ({ path: '/tmp/fake.xlsx' }))
       },
       tokens: {
+        getToken: jest.fn(async () => null),
         setToken: jest.fn(async () => ({}))
       }
     })
@@ -293,6 +304,7 @@ jest.mock('@tmo/gateway-services', () => {
         }))
       },
       tokens: {
+        getToken: jest.fn(async () => null),
         setToken: jest.fn(async () => ({}))
       }
     })
@@ -304,6 +316,7 @@ jest.mock('@tmo/identity-services', () => {
     __esModule: true,
     createIdentityServices: () => ({
       tokens: {
+        getToken: jest.fn(async () => null),
         setToken: jest.fn(async () => ({}))
       },
       auth: {

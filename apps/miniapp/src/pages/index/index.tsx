@@ -50,11 +50,12 @@ export default function ProductCatalogApp() {
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [products, setProducts] = useState<ProductSummary[]>([])
+  const [productsLoading, setProductsLoading] = useState(false)
   const isH5 = process.env.TARO_ENV === 'h5'
   const navbarStyle = getNavbarStyle()
   const quickCategories = useMemo(() => buildQuickCategories(categories), [categories])
   const trimmedSearchQuery = searchQuery.trim()
-  const showEmptyDemandHint = !loading && trimmedSearchQuery.length > 0 && products.length === 0
+  const showEmptyDemandHint = !productsLoading && trimmedSearchQuery.length > 0 && products.length === 0
 
   const handleQuickCategoryTap = useCallback((item: QuickCategoryItem) => {
     if (item.isPlaceholder || !item.targetRoute) {
@@ -88,22 +89,37 @@ export default function ProductCatalogApp() {
   }, [])
 
   useEffect(() => {
+    let cancelled = false
     const handle = setTimeout(() => {
       void (async () => {
+        if (!cancelled) {
+          setProductsLoading(true)
+        }
         try {
           const response = await commerceServices.catalog.listProducts({
             q: searchQuery || undefined,
             page: 1,
             pageSize: 20
           })
-          setProducts(response.items ?? [])
+          if (!cancelled) {
+            setProducts(response.items ?? [])
+          }
         } catch (error) {
           console.warn('load products failed', error)
-          await Taro.showToast({ title: '加载商品失败', icon: 'none' })
+          if (!cancelled) {
+            await Taro.showToast({ title: '加载商品失败', icon: 'none' })
+          }
+        } finally {
+          if (!cancelled) {
+            setProductsLoading(false)
+          }
         }
       })()
     }, 300)
-    return () => clearTimeout(handle)
+    return () => {
+      cancelled = true
+      clearTimeout(handle)
+    }
   }, [searchQuery])
 
   return (
