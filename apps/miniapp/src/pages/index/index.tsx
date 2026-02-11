@@ -11,7 +11,7 @@ import FilterOutlined from '@taroify/icons/FilterOutlined'
 import SearchIcon from '@taroify/icons/Search'
 import type { Category, ProductSummary } from '@tmo/api-client'
 import SafeImage from '../../components/safe-image'
-import { ROUTES, goodsDetailRoute } from '../../routes'
+import { ROUTES, goodsDetailRoute, withQuery } from '../../routes'
 import { type CategoryIconKey, renderCategoryIcon, resolveCategoryIconKey } from '../../utils/category-icons'
 import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { commerceServices } from '../../services/commerce'
@@ -59,6 +59,8 @@ export default function ProductCatalogApp() {
   const isAlipay = process.env.TARO_ENV === 'alipay'
   const navbarStyle = getNavbarStyle()
   const quickCategories = useMemo(() => buildQuickCategories(categories), [categories])
+  const trimmedSearchQuery = searchQuery.trim()
+  const showEmptyDemandHint = !loading && trimmedSearchQuery.length > 0 && products.length === 0
 
   const handleQuickCategoryTap = useCallback((item: QuickCategoryItem) => {
     if (item.isPlaceholder || !item.targetRoute) {
@@ -153,6 +155,18 @@ export default function ProductCatalogApp() {
             <Button size='small' variant='outlined' icon={<AppsOutlined />} />
           </Flex>
         </Flex>
+
+        {showEmptyDemandHint ? (
+          <Text className='home-empty-demand-tip'>
+            未找到“{trimmedSearchQuery}”？
+            <Text
+              className='home-empty-demand-action'
+              onClick={() => navigateTo(withQuery(ROUTES.demandCreate, { kw: trimmedSearchQuery }))}
+            >
+              点击发布需求
+            </Text>
+          </Text>
+        ) : null}
 
         <Grid columns={2} gutter={12} className='page-grid'>
           {products.map((product) => (

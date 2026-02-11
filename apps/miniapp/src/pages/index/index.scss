@@ -158,6 +158,25 @@
   margin-bottom: 12px;
 }
 
+.home-empty-demand-tip {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 13px;
+  line-height: 20px;
+  color: #6b7280;
+}
+
+.home-empty-demand-action {
+  margin-left: 4px;
+  color: #137fec;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.home-empty-demand-action:active {
+  opacity: 0.7;
+}
+
 .home-product-title {
   display: block;
   margin-bottom: 2px;
