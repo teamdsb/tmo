@@ -56,7 +56,6 @@ export default function ProductCatalogApp() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const isH5 = process.env.TARO_ENV === 'h5'
-  const isAlipay = process.env.TARO_ENV === 'alipay'
   const navbarStyle = getNavbarStyle()
   const quickCategories = useMemo(() => buildQuickCategories(categories), [categories])
   const trimmedSearchQuery = searchQuery.trim()
@@ -68,10 +67,7 @@ export default function ProductCatalogApp() {
     }
     void switchTabLike(item.targetRoute)
   }, [])
-  const pageStyle = {
-    ...(isH5 ? navbarStyle : {}),
-    '--home-search-offset': isAlipay ? '0px' : '20px'
-  } as CSSProperties
+  const pageStyle = (isH5 ? navbarStyle : undefined) as CSSProperties | undefined
 
   useEffect(() => {
     let cancelled = false
