@@ -28,9 +28,17 @@ const readBoolean = (raw: string): boolean => {
   return value === 'true' || value === '1' || value === 'on' || value === 'yes'
 }
 
-const isTestEnv = readProcessEnv('NODE_ENV') === 'test'
+const parseMockMode = (raw: string): 'off' | 'isolated' => {
+  const value = raw.toLowerCase()
+  if (value === 'isolated') {
+    return 'isolated'
+  }
+  return 'off'
+}
 
-const testFallbackBaseUrl = isTestEnv ? 'http://localhost:8080' : ''
+const nodeEnv = readProcessEnv('NODE_ENV')
+const nonProductionFallbackBaseUrl = nodeEnv === 'production' ? '' : 'http://localhost:8080'
+const developmentDefaultCommerceMockFallback = nodeEnv === 'development' ? 'true' : ''
 
 const apiBaseUrlConst = typeof __TMO_API_BASE_URL__ !== 'undefined'
   ? __TMO_API_BASE_URL__
@@ -58,6 +66,9 @@ const identityDevTokenConst = typeof __TMO_IDENTITY_DEV_TOKEN__ !== 'undefined'
 const commerceMockFallbackConst = typeof __TMO_COMMERCE_MOCK_FALLBACK__ !== 'undefined'
   ? __TMO_COMMERCE_MOCK_FALLBACK__
   : ''
+const mockModeConst = typeof __TMO_MOCK_MODE__ !== 'undefined'
+  ? __TMO_MOCK_MODE__
+  : ''
 const mockLoginEnabledConst = typeof __TMO_ENABLE_MOCK_LOGIN__ !== 'undefined'
   ? __TMO_ENABLE_MOCK_LOGIN__
   : ''
@@ -66,28 +77,40 @@ const weappPhoneProofSimulationConst = typeof __TMO_WEAPP_PHONE_PROOF_SIMULATION
   : ''
 
 const optional = (value: string): string | undefined => value || undefined
+const mockMode = parseMockMode(firstNonEmpty(
+  readConst(mockModeConst),
+  readProcessEnv('TARO_APP_MOCK_MODE')
+))
+const isIsolatedMock = mockMode === 'isolated'
+const legacyCommerceMockFallback = readBoolean(firstNonEmpty(
+  readConst(commerceMockFallbackConst),
+  readProcessEnv('TARO_APP_COMMERCE_MOCK_FALLBACK'),
+  developmentDefaultCommerceMockFallback
+))
 
 export const runtimeEnv = Object.freeze({
+  mockMode,
+  isIsolatedMock,
   gatewayBaseUrl: firstNonEmpty(
     readConst(apiBaseUrlConst),
     readConst(gatewayBaseUrlConst),
     readProcessEnv('TARO_APP_API_BASE_URL'),
     readProcessEnv('TARO_APP_GATEWAY_BASE_URL'),
-    testFallbackBaseUrl
+    nonProductionFallbackBaseUrl
   ),
   commerceBaseUrl: firstNonEmpty(
     readConst(apiBaseUrlConst),
     readConst(commerceBaseUrlConst),
     readProcessEnv('TARO_APP_API_BASE_URL'),
     readProcessEnv('TARO_APP_COMMERCE_BASE_URL'),
-    testFallbackBaseUrl
+    nonProductionFallbackBaseUrl
   ),
   identityBaseUrl: firstNonEmpty(
     readConst(apiBaseUrlConst),
     readConst(identityBaseUrlConst),
     readProcessEnv('TARO_APP_API_BASE_URL'),
     readProcessEnv('TARO_APP_IDENTITY_BASE_URL'),
-    testFallbackBaseUrl
+    nonProductionFallbackBaseUrl
   ),
   gatewayDevToken: optional(firstNonEmpty(
     readConst(gatewayDevTokenConst),
@@ -102,10 +125,7 @@ export const runtimeEnv = Object.freeze({
     readConst(identityDevTokenConst),
     readProcessEnv('TARO_APP_IDENTITY_DEV_TOKEN')
   )),
-  commerceMockFallback: readBoolean(firstNonEmpty(
-    readConst(commerceMockFallbackConst),
-    readProcessEnv('TARO_APP_COMMERCE_MOCK_FALLBACK')
-  )),
+  commerceMockFallback: isIsolatedMock || legacyCommerceMockFallback,
   enableMockLogin: readBoolean(firstNonEmpty(
     readConst(mockLoginEnabledConst),
     readProcessEnv('TARO_APP_ENABLE_MOCK_LOGIN')
@@ -155,6 +175,9 @@ export const requireIdentityBaseUrl = (): string => {
 }
 
 export const assertRuntimeApiConfig = (): void => {
+  if (runtimeEnv.isIsolatedMock) {
+    return
+  }
   requireGatewayBaseUrl()
   requireCommerceBaseUrl()
   requireIdentityBaseUrl()

@@ -14,9 +14,10 @@ import type {
 import { getStorage, setStorage } from '@tmo/platform-adapter'
 import { buildMockProductDetail, mockCategories, mockProductDetails, mockProducts } from './mocks/catalog'
 import { requireCommerceBaseUrl, runtimeEnv } from '../config/runtime-env'
+import { createMockCommerceServices } from './mock/commerce'
 
 const shouldFallbackToMock = (): boolean => {
-  return runtimeEnv.commerceMockFallback
+  return runtimeEnv.commerceMockFallback && !runtimeEnv.isIsolatedMock
 }
 
 const mockCommerceStorageKey = 'tmo:commerce:mock-state'
@@ -208,6 +209,9 @@ const buildFallbackProductDetail = (spuId: string): ProductDetail => {
 
 const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
   listCategories: async (): Promise<{ items: Category[] }> => {
+    if (shouldFallbackToMock()) {
+      return { items: mockCategories }
+    }
     try {
       return await catalog.listCategories()
     } catch (error) {
@@ -216,6 +220,13 @@ const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
     }
   },
   getCategory: async (categoryId: string): Promise<Category> => {
+    if (shouldFallbackToMock()) {
+      const found = mockCategories.find((item) => item.id === categoryId)
+      if (!found) {
+        throw new Error(`category not found: ${categoryId}`)
+      }
+      return found
+    }
     try {
       return await catalog.getCategory(categoryId)
     } catch (error) {
@@ -228,6 +239,14 @@ const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
     }
   },
   createCategory: async (payload: CreateCategoryRequest): Promise<Category> => {
+    if (shouldFallbackToMock()) {
+      return {
+        id: `mock-${Date.now()}`,
+        name: payload.name,
+        parentId: payload.parentId ?? null,
+        sort: payload.sort ?? 0
+      }
+    }
     try {
       return await catalog.createCategory(payload)
     } catch (error) {
@@ -241,6 +260,18 @@ const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
     }
   },
   updateCategory: async (categoryId: string, payload: UpdateCategoryRequest): Promise<Category> => {
+    if (shouldFallbackToMock()) {
+      const found = mockCategories.find((item) => item.id === categoryId)
+      if (!found) {
+        throw new Error(`category not found: ${categoryId}`)
+      }
+      return {
+        id: found.id,
+        name: payload.name ?? found.name,
+        parentId: payload.parentId === undefined ? (found.parentId ?? null) : payload.parentId,
+        sort: payload.sort ?? found.sort
+      }
+    }
     try {
       return await catalog.updateCategory(categoryId, payload)
     } catch (error) {
@@ -258,6 +289,9 @@ const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
     }
   },
   deleteCategory: async (categoryId: string): Promise<void> => {
+    if (shouldFallbackToMock()) {
+      return
+    }
     try {
       await catalog.deleteCategory(categoryId)
     } catch (error) {
@@ -265,6 +299,15 @@ const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
     }
   },
   listProducts: async (params?: { q?: string; categoryId?: string; page?: number; pageSize?: number }) => {
+    if (shouldFallbackToMock()) {
+      const filtered = applyQuery(
+        params?.categoryId
+          ? mockProducts.filter((item) => item.categoryId === params.categoryId)
+          : mockProducts,
+        params?.q
+      )
+      return paginate(filtered, params?.page, params?.pageSize)
+    }
     try {
       return await catalog.listProducts(params)
     } catch (error) {
@@ -279,6 +322,20 @@ const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
     }
   },
   createProduct: async (payload: CreateCatalogProductRequest): Promise<ProductDetail> => {
+    if (shouldFallbackToMock()) {
+      const detail = buildFallbackProductDetail(`mock-${Date.now()}`)
+      return {
+        ...detail,
+        product: {
+          ...detail.product,
+          name: payload.name,
+          categoryId: payload.categoryId,
+          description: payload.description ?? detail.product.description,
+          images: payload.images ?? detail.product.images,
+          filterDimensions: payload.filterDimensions ?? detail.product.filterDimensions
+        }
+      }
+    }
     try {
       return await catalog.createProduct(payload)
     } catch (error) {
@@ -298,6 +355,20 @@ const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
     }
   },
   updateProduct: async (spuId: string, payload: UpdateCatalogProductRequest): Promise<ProductDetail> => {
+    if (shouldFallbackToMock()) {
+      const detail = buildFallbackProductDetail(spuId)
+      return {
+        ...detail,
+        product: {
+          ...detail.product,
+          name: payload.name ?? detail.product.name,
+          categoryId: payload.categoryId ?? detail.product.categoryId,
+          description: payload.description === undefined ? detail.product.description : (payload.description ?? undefined),
+          images: payload.images ?? detail.product.images,
+          filterDimensions: payload.filterDimensions ?? detail.product.filterDimensions
+        }
+      }
+    }
     try {
       return await catalog.updateProduct(spuId, payload)
     } catch (error) {
@@ -317,6 +388,9 @@ const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
     }
   },
   deleteProduct: async (spuId: string): Promise<void> => {
+    if (shouldFallbackToMock()) {
+      return
+    }
     try {
       await catalog.deleteProduct(spuId)
     } catch (error) {
@@ -324,6 +398,9 @@ const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
     }
   },
   getProductDetail: async (spuId: string): Promise<ProductDetail> => {
+    if (shouldFallbackToMock()) {
+      return buildFallbackProductDetail(spuId)
+    }
     try {
       return await catalog.getProductDetail(spuId)
     } catch (error) {
@@ -335,6 +412,10 @@ const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
 
 const createMockedWishlist = (wishlist: CommerceServices['wishlist']): CommerceServices['wishlist'] => ({
   list: async (): Promise<WishlistItem[]> => {
+    if (shouldFallbackToMock()) {
+      const state = await loadMockCommerceState()
+      return toMockWishlist(state)
+    }
     try {
       return await wishlist.list()
     } catch (error) {
@@ -344,6 +425,19 @@ const createMockedWishlist = (wishlist: CommerceServices['wishlist']): CommerceS
     }
   },
   add: async (skuId: string): Promise<void> => {
+    if (shouldFallbackToMock()) {
+      const state = await loadMockCommerceState()
+      if (state.wishlistSkuIds.includes(skuId)) {
+        return
+      }
+      const nextState: MockCommerceState = {
+        ...state,
+        wishlistSkuIds: [...state.wishlistSkuIds, skuId],
+        updatedAt: nowIso()
+      }
+      await saveMockCommerceState(nextState)
+      return
+    }
     try {
       await wishlist.add(skuId)
     } catch (error) {
@@ -361,6 +455,16 @@ const createMockedWishlist = (wishlist: CommerceServices['wishlist']): CommerceS
     }
   },
   remove: async (skuId: string): Promise<void> => {
+    if (shouldFallbackToMock()) {
+      const state = await loadMockCommerceState()
+      const nextState: MockCommerceState = {
+        ...state,
+        wishlistSkuIds: state.wishlistSkuIds.filter((id) => id !== skuId),
+        updatedAt: nowIso()
+      }
+      await saveMockCommerceState(nextState)
+      return
+    }
     try {
       await wishlist.remove(skuId)
     } catch (error) {
@@ -379,6 +483,10 @@ const createMockedWishlist = (wishlist: CommerceServices['wishlist']): CommerceS
 const createMockedCart = (cart: CommerceServices['cart']): CommerceServices['cart'] => ({
   ...cart,
   getCart: async (): Promise<Cart> => {
+    if (shouldFallbackToMock()) {
+      const state = await loadMockCommerceState()
+      return toMockCart(state)
+    }
     try {
       return await cart.getCart()
     } catch (error) {
@@ -388,6 +496,27 @@ const createMockedCart = (cart: CommerceServices['cart']): CommerceServices['car
     }
   },
   addItem: async (skuId: string, qty: number): Promise<Cart> => {
+    if (shouldFallbackToMock()) {
+      const state = await loadMockCommerceState()
+      const safeQty = normalizeQty(qty)
+      const existing = state.cartEntries.find((entry) => entry.skuId === skuId)
+      const nextEntries = existing
+        ? state.cartEntries.map((entry) => {
+          if (entry.skuId !== skuId) return entry
+          return {
+            ...entry,
+            qty: normalizeQty(entry.qty + safeQty)
+          }
+        })
+        : [...state.cartEntries, { skuId, qty: safeQty }]
+      const nextState: MockCommerceState = {
+        ...state,
+        cartEntries: nextEntries,
+        updatedAt: nowIso()
+      }
+      await saveMockCommerceState(nextState)
+      return toMockCart(nextState)
+    }
     try {
       return await cart.addItem(skuId, qty)
     } catch (error) {
@@ -414,6 +543,25 @@ const createMockedCart = (cart: CommerceServices['cart']): CommerceServices['car
     }
   },
   updateItemQty: async (itemId: string, qty: number): Promise<Cart> => {
+    if (shouldFallbackToMock()) {
+      const state = await loadMockCommerceState()
+      const skuId = toSkuIdFromCartItemId(itemId)
+      const safeQty = normalizeQty(qty)
+      const exists = state.cartEntries.some((entry) => entry.skuId === skuId)
+      const nextEntries = exists
+        ? state.cartEntries.map((entry) => {
+          if (entry.skuId !== skuId) return entry
+          return { ...entry, qty: safeQty }
+        })
+        : [...state.cartEntries, { skuId, qty: safeQty }]
+      const nextState: MockCommerceState = {
+        ...state,
+        cartEntries: nextEntries,
+        updatedAt: nowIso()
+      }
+      await saveMockCommerceState(nextState)
+      return toMockCart(nextState)
+    }
     try {
       return await cart.updateItemQty(itemId, qty)
     } catch (error) {
@@ -438,6 +586,17 @@ const createMockedCart = (cart: CommerceServices['cart']): CommerceServices['car
     }
   },
   removeItem: async (itemId: string): Promise<void> => {
+    if (shouldFallbackToMock()) {
+      const state = await loadMockCommerceState()
+      const skuId = toSkuIdFromCartItemId(itemId)
+      const nextState: MockCommerceState = {
+        ...state,
+        cartEntries: state.cartEntries.filter((entry) => entry.skuId !== skuId),
+        updatedAt: nowIso()
+      }
+      await saveMockCommerceState(nextState)
+      return
+    }
     try {
       await cart.removeItem(itemId)
     } catch (error) {
@@ -470,4 +629,11 @@ const createCommerceServicesWithFallback = (): CommerceServices => {
   }
 }
 
-export const commerceServices = createCommerceServicesWithFallback()
+const createCommerceServicesRuntime = (): CommerceServices => {
+  if (runtimeEnv.isIsolatedMock) {
+    return createMockCommerceServices()
+  }
+  return createCommerceServicesWithFallback()
+}
+
+export const commerceServices = createCommerceServicesRuntime()
