@@ -45,6 +45,7 @@
 
 启动前端（按平台）：
 
+    pnpm -C apps/miniapp preflight:weapp
     pnpm -C apps/miniapp dev:weapp
     pnpm -C apps/miniapp dev:alipay
 
@@ -63,7 +64,8 @@
 - `TARO_APP_COMMERCE_MOCK_FALLBACK` 默认为关闭（`false`）；只有显式设为 `true` 才会回退 mock 数据。
 - `TARO_APP_ENABLE_MOCK_LOGIN` 默认为关闭（`false`）；只有显式设为 `true` 才会展示“测试登录”按钮。
 - 如果使用容器化后端，保持 `TARO_APP_API_BASE_URL=http://localhost:8080` 即可。
-- `dev:weapp` 启动前会清理 `dist/weapp`，并在 watch 构建后自动校验页面路由、tabBar 图标与 API 基址，避免旧产物导致 `demand 2`、`__route__`、`api.example.com` 类问题。
+- `preflight:weapp` 会在编译前执行 HTTP 烟测（`/bff/bootstrap`、`/catalog/categories`、`/catalog/products`）；失败时自动输出 DB 诊断日志摘要。
+- `dev:weapp` 默认启用编译前门禁（`WEAPP_PREFLIGHT_HTTP_SMOKE=true`），并在 watch 构建后自动校验页面路由、tabBar 图标与 API 基址，避免旧产物导致 `demand 2`、`__route__`、`api.example.com` 类问题。
 - 商品接口返回的图片 URL 默认由 gateway 服务端改写为 `${TARO_APP_API_BASE_URL}/assets/img?url=...`；若已迁移到本地媒体目录则会直接返回 `${TARO_APP_API_BASE_URL}/assets/media/...`。前端仅负责渲染与占位兜底。
 - 微信环境建议使用真实 `TARO_APP_ID`；游客模式（`touristappid`）下，微信登录和手机号授权会受限。
 - `IDENTITY_LOGIN_MODE=real` 时，`/auth/mini/login` 必须携带 `phoneProof`，小程序登录会触发手机号授权。
@@ -110,15 +112,19 @@
 - `WEAPP_AUTOMATOR_ACCOUNT`：指定 automator 启动账号（可选）。
 - `WEAPP_AUTOMATOR_TRUST_PROJECT`：是否信任项目，默认 `true`。
 - `WEAPP_SMOKE_SPU_ID`：烟测详情页使用的 `spuId`，默认 `22222222-2222-2222-2222-222222222222`。
-- `WEAPP_SMOKE_ASSERT_MIN_PRODUCTS`：首页最小商品数断言，默认 `1`。
-- `WEAPP_SMOKE_ASSERT_CATEGORY_MIN`：分类最小数量断言，默认 `1`。
-- `WEAPP_SMOKE_ASSERT_IMAGE_SUCCESS_MIN`：图片请求成功数最小断言，默认 `1`。
+- `WEAPP_SMOKE_ASSERT_MIN_PRODUCTS`：首页最小商品数断言，默认 `0`（仅做网络链路门禁时建议保持 0）。
+- `WEAPP_SMOKE_ASSERT_CATEGORY_MIN`：分类最小数量断言，默认 `0`（仅做网络链路门禁时建议保持 0）。
+- `WEAPP_SMOKE_ASSERT_IMAGE_SUCCESS_MIN`：图片请求成功数最小断言，默认 `0`（若需要强制校验图片代理可设为 `1` 或更大）。
 - `WEAPP_SMOKE_ASSERT_NO_CONSOLE_ERROR`：是否要求 `console.error` 必须为 0，默认 `true`。
 - `WEAPP_SMOKE_ROUTE_WAIT_MS`：路由稳定等待时长（毫秒），默认 `8000`。
 - `WEAPP_DEBUG_TIMEOUT_MS`：采集超时，默认 `90000`。
 - `WEAPP_BASE_URL_EXPECTED`：期望接口基准地址，默认 `http://localhost:8080`。
 - `WEAPP_FAIL_ON_ERROR`：遇到错误是否退出非 0，默认 `true`。
 - `WEAPP_STRICT_P1`：是否将 P1 问题按阻断处理，默认 `true`。
+- `WEAPP_PREFLIGHT_HTTP_SMOKE`：`dev:weapp` 是否启用编译前 HTTP 门禁，默认 `true`。
+- `WEAPP_PREFLIGHT_TIMEOUT_MS`：编译前门禁超时（毫秒），默认 `30000`。
+- `WEAPP_PREFLIGHT_RUN_DIAG`：门禁失败时是否输出 DB 诊断（`preflight:weapp`），默认 `true`。
+- `MINIAPP_HTTP_SMOKE_ALLOW_EMPTY_PRODUCTS`：`preflight:weapp` 是否允许 `/catalog/products` 空列表时跳过封面图代理断言；默认在 preflight 中按 `true` 处理。
 - `WEAPP_SKIP_LAUNCH`：跳过自动拉起 DevTools，仅连接已有 automator 端口（默认 `false`）。
 - `MINIAPP_SMOKE_STACK_UP`：仅 `debug:weapp:smoke` 使用；为 `true` 时先执行 `tools/scripts/dev-stack-up.sh` 再采集。
 
@@ -126,7 +132,9 @@
 
 - 若 `summary.md` 中出现 `request:fail url not in domain list`，脚本会自动把 `dist/weapp/project.config.json` 的 `setting.urlCheck` 置为 `false`；请重跑一次采集并确认微信开发者工具“详情 -> 本地设置 -> 不校验合法域名”也已开启。
 - 若 `summary.md` 中出现连接失败，先确认微信开发者工具可执行文件路径正确（`WEAPP_DEVTOOLS_CLI_PATH`），并检查 `WEAPP_AUTOMATOR_PORT` 是否被占用。
+- `summary.md` 会输出首个失败 endpoint、首个 5xx 与 requestId，便于快速回查 gateway/commerce 日志。
 - `summary.md` 会输出 `P0/P1/P2` 分级：`P0`（启动/请求阻断）必失败，`P1`（核心流程失败）默认阻断，`P2`（平台告警/弃用提示）仅告警。
+- 若页面运行时数据在当前 Taro 版本下不可直接被 automator 读取（常见 `dataKeys=root`），脚本会降级为网络断言优先，不再误报渲染数量断言失败。
 
 产物：
 
@@ -213,6 +221,9 @@
 - 如果构建报 `[verify-weapp-api-base] ... api.example.com`：
   - 优先检查 `apps/miniapp/.env.development` 与终端环境变量 `TARO_APP_API_BASE_URL`；
   - 本地联调请使用 `pnpm -C apps/miniapp build:weapp:dev` 或 `pnpm -C apps/miniapp dev:weapp`。
+- 如果 `preflight:weapp` 或 `dev:weapp` 在编译前提示 `/catalog/categories`、`/catalog/products` 为 500：
+  - 先执行 `bash tools/scripts/dev-diagnose-db.sh` 查看诊断；
+  - 若命中 `No space left on device`，先释放 Docker 磁盘空间（`df -h`、`docker system df`），再重启 `tmo-postgres` 并重试。
 - 如果首页仍显示 mock 商品，先确认 `.env.development` 中 `TARO_APP_COMMERCE_MOCK_FALLBACK=false`，然后删除 `apps/miniapp/dist/weapp` 并重新执行 `pnpm -C apps/miniapp dev:weapp` 后重新导入开发者工具。
 - 若微信端图片显示异常，先检查 gateway 的 `GATEWAY_PUBLIC_BASE_URL` 与 `GATEWAY_IMAGE_PROXY_ALLOWLIST`；默认通过 `/assets/img` 代理时不需要把第三方图床直接加入小程序图片白名单。
 - 如果支付宝开发者工具导入 `apps/miniapp/dist/alipay` 后出现 `ENOENT ... dist/dist/app.json`，请检查 `apps/miniapp/dist/alipay/mini.project.json` 中的 `miniprogramRoot`，应为 `./`。

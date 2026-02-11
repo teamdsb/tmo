@@ -37,6 +37,7 @@
     "prebuild:harmony-hybrid": "npm run build:tailwind",
     "build:harmony-hybrid": "taro build --type harmony-hybrid --no-check",
     "test:alipay-console": "pnpm run build:alipay && node scripts/alipay-console.js",
+    "preflight:weapp": "node scripts/preflight-weapp.js",
     "debug:weapp:collect": "node scripts/weapp-cdp-debug.js",
     "debug:weapp:smoke": "bash ../../tools/scripts/miniapp-smoke.sh",
     "debug:weapp:auto": "bash ../../tools/scripts/dev-stack-up.sh && node scripts/weapp-cdp-debug.js",

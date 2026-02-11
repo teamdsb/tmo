@@ -2,6 +2,8 @@
 set -euo pipefail
 
 base_url="${GATEWAY_BASE_URL:-http://localhost:8080}"
+allow_empty_products_raw="${MINIAPP_HTTP_SMOKE_ALLOW_EMPTY_PRODUCTS:-false}"
+allow_empty_products="$(printf '%s' "$allow_empty_products_raw" | tr '[:upper:]' '[:lower:]')"
 
 http_code=""
 http_body=""
@@ -29,7 +31,7 @@ request_upload_probe() {
   local file_path
   local resp
 
-  file_path="$(mktemp "${TMPDIR:-/tmp}/tmo-upload-probe-XXXXXX.png")"
+  file_path="$(mktemp "${TMPDIR:-/tmp}/tmo-upload-probe-XXXXXX")"
   node -e '
 const fs = require("node:fs")
 const out = process.argv[1]
@@ -122,7 +124,24 @@ for (const item of items) {
 }
 ')"
 
+products_count="$(printf '%s' "$products_body" | node -e '
+const fs = require("node:fs")
+const content = fs.readFileSync(0, "utf8")
+try {
+  const payload = JSON.parse(content)
+  const items = Array.isArray(payload?.items) ? payload.items : []
+  process.stdout.write(String(items.length))
+} catch {
+  process.stdout.write("0")
+}
+')"
+
 if [[ -z "$proxy_url" ]]; then
+  if [[ "$products_count" == "0" && "$allow_empty_products" == "true" ]]; then
+    echo "[miniapp-http-smoke] products list is empty, skip product image proxy check."
+    echo "[miniapp-http-smoke] smoke checks passed."
+    exit 0
+  fi
   echo "[miniapp-http-smoke] could not extract coverImageUrl from products response." >&2
   echo "$products_body" >&2
   exit 1

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+db_diag_script="$root_dir/tools/scripts/dev-diagnose-db.sh"
+
 health_timeout_seconds="${DEV_STACK_HEALTH_TIMEOUT_SECONDS:-180}"
 health_interval_seconds="${DEV_STACK_HEALTH_INTERVAL_SECONDS:-2}"
 
@@ -21,6 +24,11 @@ fi
 request_code() {
   local url="$1"
   curl -sS -o /dev/null -w "%{http_code}" "$url" || true
+}
+
+request_with_body() {
+  local url="$1"
+  curl -sS -w "\n%{http_code}" "$url" || true
 }
 
 request_upload() {
@@ -50,7 +58,27 @@ try {
     process.stdout.write(payload.url.trim())
   }
 } catch {}
-'
+  '
+}
+
+run_db_diagnose() {
+  if [[ ! -x "$db_diag_script" ]]; then
+    echo "[dev-stack-health] DB diagnose script unavailable: $db_diag_script" >&2
+    return
+  fi
+  echo "[dev-stack-health] running DB diagnosis..."
+  bash "$db_diag_script" || true
+}
+
+should_diagnose_by_status() {
+  local status="${1:-}"
+  if [[ -z "$status" || "$status" == "000" ]]; then
+    return 0
+  fi
+  if [[ "$status" =~ ^[0-9]+$ && "$status" -ge 500 ]]; then
+    return 0
+  fi
+  return 1
 }
 
 wait_for_status() {
@@ -71,6 +99,40 @@ wait_for_status() {
   done
 
   echo "[dev-stack-health] timeout waiting for ${name}: expected ${expected_status}, got ${code} (${url})" >&2
+  if should_diagnose_by_status "$code"; then
+    run_db_diagnose
+  fi
+  return 1
+}
+
+wait_for_status_with_body() {
+  local name="$1"
+  local url="$2"
+  local expected_status="$3"
+  local deadline
+  local code=""
+  local body=""
+
+  deadline=$((SECONDS + health_timeout_seconds))
+  while (( SECONDS < deadline )); do
+    local resp
+    resp="$(request_with_body "$url")"
+    body="$(echo "$resp" | sed '$d')"
+    code="$(echo "$resp" | tail -n1)"
+    if [[ "$code" == "$expected_status" ]]; then
+      echo "[dev-stack-health] ready: ${name} (${url})"
+      return 0
+    fi
+    sleep "$health_interval_seconds"
+  done
+
+  echo "[dev-stack-health] timeout waiting for ${name}: expected ${expected_status}, got ${code} (${url})" >&2
+  if [[ -n "$body" ]]; then
+    echo "$body" >&2
+  fi
+  if should_diagnose_by_status "$code"; then
+    run_db_diagnose
+  fi
   return 1
 }
 
@@ -84,7 +146,7 @@ wait_for_upload_and_readback() {
   local media_code=""
   local file_path
 
-  file_path="$(mktemp "${TMPDIR:-/tmp}/tmo-upload-probe-XXXXXX.png")"
+  file_path="$(mktemp "${TMPDIR:-/tmp}/tmo-upload-probe-XXXXXX")"
   write_probe_png "$file_path"
 
   deadline=$((SECONDS + health_timeout_seconds))
@@ -125,6 +187,9 @@ wait_for_upload_and_readback() {
   if [[ -n "$upload_body" ]]; then
     echo "$upload_body" >&2
   fi
+  if should_diagnose_by_status "$upload_code" || should_diagnose_by_status "${media_code:-}"; then
+    run_db_diagnose
+  fi
   return 1
 }
 
@@ -141,6 +206,9 @@ wait_for_status "identity /health" "${identity_base_url%/}/health" "200"
 wait_for_status "commerce /health" "${commerce_base_url%/}/health" "200"
 wait_for_status "payment /health" "${payment_base_url%/}/health" "200"
 wait_for_status "gateway /health" "${gateway_base_url%/}/health" "200"
+wait_for_status_with_body "gateway /bff/bootstrap" "${gateway_base_url%/}/bff/bootstrap" "200"
+wait_for_status_with_body "gateway /catalog/categories" "${gateway_base_url%/}/catalog/categories" "200"
+wait_for_status_with_body "gateway /catalog/products" "${gateway_base_url%/}/catalog/products?page=1&pageSize=20" "200"
 wait_for_status "gateway /assets/img (validation)" "${gateway_base_url%/}/assets/img" "400"
 wait_for_status "gateway /assets/media (validation)" "${gateway_base_url%/}/assets/media/catalog/non-existent.jpg" "404"
 wait_for_upload_and_readback "gateway /product-requests/assets (multipart route)" "${gateway_base_url%/}/product-requests/assets"

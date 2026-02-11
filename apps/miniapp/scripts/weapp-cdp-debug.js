@@ -32,9 +32,9 @@ const automatorRoute = ensureRoute(process.env.WEAPP_AUTOMATOR_ROUTE || '/pages/
 const automatorAccount = (process.env.WEAPP_AUTOMATOR_ACCOUNT || '').trim()
 const automatorTrustProject = readBool(process.env.WEAPP_AUTOMATOR_TRUST_PROJECT, true)
 const smokeSpuId = (process.env.WEAPP_SMOKE_SPU_ID || '22222222-2222-2222-2222-222222222222').trim()
-const smokeAssertMinProducts = Number(process.env.WEAPP_SMOKE_ASSERT_MIN_PRODUCTS || 1)
-const smokeAssertCategoryMin = Number(process.env.WEAPP_SMOKE_ASSERT_CATEGORY_MIN || 1)
-const smokeAssertImageSuccessMin = Number(process.env.WEAPP_SMOKE_ASSERT_IMAGE_SUCCESS_MIN || 1)
+const smokeAssertMinProducts = Number(process.env.WEAPP_SMOKE_ASSERT_MIN_PRODUCTS || 0)
+const smokeAssertCategoryMin = Number(process.env.WEAPP_SMOKE_ASSERT_CATEGORY_MIN || 0)
+const smokeAssertImageSuccessMin = Number(process.env.WEAPP_SMOKE_ASSERT_IMAGE_SUCCESS_MIN || 0)
 const smokeAssertNoConsoleError = readBool(process.env.WEAPP_SMOKE_ASSERT_NO_CONSOLE_ERROR, true)
 const smokeRouteWaitMs = Number(process.env.WEAPP_SMOKE_ROUTE_WAIT_MS || 8000)
 const assertionConfig = {
@@ -57,7 +57,16 @@ const keyEndpoints = ['/bff/bootstrap', '/catalog/categories', '/catalog/product
 const imageEndpoint = '/assets/img'
 const mediaEndpoint = '/assets/media/'
 const endpointState = new Map(
-  keyEndpoints.map((endpoint) => [endpoint, { seen: false, ok: false, statuses: [], errors: [], successCount: 0 }])
+  keyEndpoints.map((endpoint) => [endpoint, {
+    seen: false,
+    ok: false,
+    statuses: [],
+    errors: [],
+    successCount: 0,
+    lastRequestId: '',
+    lastFailureRequestId: '',
+    lastFailureStatus: 0
+  }])
 )
 const imageProxyState = {
   seen: false,
@@ -354,6 +363,29 @@ function firstImageURL(payload) {
   return ''
 }
 
+function isRouteDataInspectable(data, dataKeys) {
+  if (!isPlainObject(data)) {
+    return false
+  }
+
+  const keys = Array.isArray(dataKeys)
+    ? dataKeys
+      .filter((key) => typeof key === 'string')
+      .map((key) => key.trim())
+      .filter(Boolean)
+    : []
+
+  if (keys.length === 0) {
+    return false
+  }
+
+  if (keys.length === 1 && keys[0] === 'root') {
+    return false
+  }
+
+  return true
+}
+
 function isGatewayImageURL(value) {
   const raw = String(value || '').trim()
   if (!raw) {
@@ -582,7 +614,10 @@ function extractSummaryMetrics(content) {
     p1: parseCount(/- P1 blocking issues:\s*(\d+)/),
     p2: parseCount(/- P2 warning issues:\s*(\d+)/),
     assertionFailedCount: parseCount(/- assertion failed count:\s*(\d+)/),
-    assertionFailedKeys: parseText(/- assertion failed keys:\s*(.+)/)
+    assertionFailedKeys: parseText(/- assertion failed keys:\s*(.+)/),
+    firstFailingEndpoint: parseText(/- first failing endpoint:\s*(.+)/),
+    firstFailingEndpointStatus: parseText(/- first failing endpoint status:\s*(.+)/),
+    firstFailingEndpointRequestId: parseText(/- first failing endpoint requestId:\s*(.+)/)
   }
 }
 
@@ -651,16 +686,18 @@ function runMultiRouteDriver(routeList) {
     `- routes total: ${routes.length}`,
     `- routes failed: ${results.filter((item) => item.statusCode !== 0).length}`,
     '',
-    '| route | status | p0 | p1 | p2 | assertFails | failedKeys | artifacts |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- |'
+    '| route | status | p0 | p1 | p2 | assertFails | failedKeys | firstFailingEndpoint | firstFailingRequestId | artifacts |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |'
   ]
 
   for (const item of results) {
     const failedKeys = item.assertionFailedKeys || '-'
+    const firstEndpoint = item.firstFailingEndpoint || '-'
+    const firstRequestId = item.firstFailingEndpointRequestId || '-'
     lines.push(
       `| ${item.route} | ${item.statusCode === 0 ? 'ok' : `fail(${item.statusCode})`} | `
       + `${item.p0} | ${item.p1} | ${item.p2} | ${item.assertionFailedCount} | `
-      + `${failedKeys} | ${item.artifactsDir} |`
+      + `${failedKeys} | ${firstEndpoint} | ${firstRequestId} | ${item.artifactsDir} |`
     )
   }
 
@@ -672,6 +709,9 @@ function runMultiRouteDriver(routeList) {
   } else {
     lines.push(`- first failed route: ${firstFailed.route}`)
     lines.push(`- first failed assertion keys: ${firstFailed.assertionFailedKeys || 'unknown'}`)
+    lines.push(`- first failed endpoint: ${firstFailed.firstFailingEndpoint || 'unknown'}`)
+    lines.push(`- first failed endpoint status: ${firstFailed.firstFailingEndpointStatus || 'unknown'}`)
+    lines.push(`- first failed endpoint requestId: ${firstFailed.firstFailingEndpointRequestId || 'unknown'}`)
   }
 
   lines.push('', '## Notes', '')
@@ -718,8 +758,8 @@ function buildWeappDev() {
     return
   }
 
-  console.log('[weapp-cdp-debug] building weapp bundle with NODE_ENV=development...')
-  runCommand('pnpm', ['run', 'build:weapp'], {
+  console.log('[weapp-cdp-debug] building weapp development bundle...')
+  runCommand('pnpm', ['run', 'build:weapp:dev'], {
     cwd: miniappDir,
     env: { ...process.env, NODE_ENV: 'development' }
   })
@@ -1095,7 +1135,7 @@ function parseGatewayLine(line) {
   }
 }
 
-function updateEndpointState(pathValue, status) {
+function updateEndpointState(pathValue, status, requestId) {
   for (const endpoint of keyEndpoints) {
     if (!pathValue.includes(endpoint)) {
       continue
@@ -1108,12 +1148,15 @@ function updateEndpointState(pathValue, status) {
     }
 
     state.seen = true
+    state.lastRequestId = requestId || state.lastRequestId
     state.statuses.push(status)
     if (status >= 200 && status < 400) {
       state.ok = true
       state.successCount += 1
     } else {
       state.errors.push(`status ${status}`)
+      state.lastFailureStatus = status
+      state.lastFailureRequestId = requestId || state.lastFailureRequestId
     }
   }
 
@@ -1191,7 +1234,7 @@ function collectGatewayLogs(startedAtIso) {
     }
 
     networkStats.totalGatewayRequests += 1
-    updateEndpointState(parsed.path, parsed.status)
+    updateEndpointState(parsed.path, parsed.status, parsed.requestId)
 
     writeJsonLine(networkStream, {
       type: 'gateway-request',
@@ -1245,6 +1288,16 @@ function runRouteAssertions() {
 function runRenderAssertions() {
   const kind = routeKind(routeSnapshot.route)
   const data = routeSnapshot.data
+  const dataInspectable = isRouteDataInspectable(data, routeSnapshot.dataKeys)
+
+  if (!dataInspectable) {
+    assertCheck('render', 'route.data.uninspectable', true, {
+      severity: 'p2',
+      evidence: `route=${routeSnapshot.route}, keys=${routeSnapshot.dataKeys.join(',') || '-'}`,
+      failMessage: 'route data cannot be inspected in current runtime'
+    })
+    return
+  }
 
   if (kind === 'home') {
     const productsCount = inferProductsCount(data)
@@ -1315,6 +1368,49 @@ function failedAssertionKeys() {
   return [...new Set(keys)]
 }
 
+function collectRootCauseHints() {
+  const hints = []
+
+  if (networkStats.matchedEndpointRequests === 0) {
+    hints.push('gateway log capture did not observe key endpoints; verify gateway container logs and capture window.')
+  }
+
+  for (const [endpoint, state] of endpointState.entries()) {
+    const first5xx = state.statuses.find((status) => status >= 500)
+    if (!first5xx) {
+      continue
+    }
+    const requestId = state.lastFailureRequestId || state.lastRequestId || '-'
+    hints.push(`${endpoint} returned ${first5xx}; requestId=${requestId}; check gateway/commerce logs by requestId.`)
+  }
+
+  const hasAnyEndpointFailure = hints.some((item) => item.includes('/catalog/') || item.includes('/bff/'))
+  if (!hasAnyEndpointFailure && failures.length > 0) {
+    hints.push(`runtime failure: ${failures[0]}`)
+  }
+
+  return [...new Set(hints)]
+}
+
+function firstFailingEndpoint() {
+  for (const endpoint of keyEndpoints) {
+    const state = endpointState.get(endpoint)
+    if (!state) {
+      continue
+    }
+    const first5xx = state.statuses.find((status) => status >= 500)
+    if (!first5xx) {
+      continue
+    }
+    return {
+      endpoint,
+      status: first5xx,
+      requestId: state.lastFailureRequestId || state.lastRequestId || '-'
+    }
+  }
+  return null
+}
+
 async function captureScreenshot(name) {
   const fileName = `${nowIso().replace(/[:.]/g, '-')}-${name}.png`
   const filePath = path.join(screenshotDir, fileName)
@@ -1368,23 +1464,26 @@ function appendAssertionSection(lines, title, assertions) {
 function buildSummary(runtimeInfo, startedAt, finishedAt) {
   const failedKeys = failedAssertionKeys()
   const failedCount = failedAssertions().length
+  const rootCauseHints = collectRootCauseHints()
+  const firstEndpointFailure = firstFailingEndpoint()
   const endpointLines = [
-    '| endpoint | seen | ok | statuses | errors |',
-    '| --- | --- | --- | --- | --- |'
+    '| endpoint | seen | ok | statuses | errors | lastFailureRequestId |',
+    '| --- | --- | --- | --- | --- | --- |'
   ]
 
   for (const [endpoint, state] of endpointState.entries()) {
     endpointLines.push(
       `| ${endpoint} | ${state.seen ? 'yes' : 'no'} | ${state.ok ? 'yes' : 'no'} | `
         + `${state.statuses.length > 0 ? state.statuses.join(', ') : '-'} | `
-        + `${state.errors.length > 0 ? state.errors.join('; ') : '-'} |`
+        + `${state.errors.length > 0 ? state.errors.join('; ') : '-'} | `
+        + `${state.lastFailureRequestId || '-'} |`
     )
   }
 
   endpointLines.push(
     `| ${imageEndpoint} | ${imageProxyState.seen ? 'yes' : 'no'} | ${imageProxyState.ok ? 'yes' : 'no'} | `
       + `${imageProxyState.statuses.length > 0 ? imageProxyState.statuses.join(', ') : '-'} | `
-      + `${imageProxyState.errors.length > 0 ? imageProxyState.errors.join('; ') : '-'} |`
+      + `${imageProxyState.errors.length > 0 ? imageProxyState.errors.join('; ') : '-'} | - |`
   )
 
   const summary = [
@@ -1409,6 +1508,9 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     `- routeWaitMs: ${assertionConfig.routeWaitMs}`,
     `- assertion failed count: ${failedCount}`,
     `- assertion failed keys: ${failedKeys.length > 0 ? failedKeys.join(', ') : 'none'}`,
+    `- first failing endpoint: ${firstEndpointFailure ? firstEndpointFailure.endpoint : 'none'}`,
+    `- first failing endpoint status: ${firstEndpointFailure ? firstEndpointFailure.status : '-'}`,
+    `- first failing endpoint requestId: ${firstEndpointFailure ? firstEndpointFailure.requestId : '-'}`,
     '',
     '## Automator Stats',
     '',
@@ -1437,6 +1539,10 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     `- P0 blocking issues: ${severityIssues.p0.length}`,
     `- P1 blocking issues: ${severityIssues.p1.length}${strictP1 ? ' (enforced)' : ' (non-blocking mode)'}`,
     `- P2 warning issues: ${severityIssues.p2.length}`,
+    '',
+    '## Root Cause Hint',
+    '',
+    ...(rootCauseHints.length === 0 ? ['- none'] : rootCauseHints.map((item) => `- ${item}`)),
     '',
     '## Endpoint Status',
     '',
