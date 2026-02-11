@@ -74,11 +74,7 @@ function resolveUrlCheck() {
     return readBool(process.env.TARO_APP_WEAPP_URL_CHECK, true)
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    return false
-  }
-
-  return null
+  return false
 }
 
 function readConfigValue(name) {
@@ -99,9 +95,7 @@ function processWeappProjectConfig() {
   }
 
   const appId = readConfigValue('TARO_APP_ID')
-  if (!appId) {
-    return { status: 'no-appid' }
-  }
+  const hasAppId = Boolean(appId)
 
   const raw = fs.readFileSync(projectConfigPath, 'utf8')
   const config = JSON.parse(raw)
@@ -113,7 +107,7 @@ function processWeappProjectConfig() {
 
   let changed = false
 
-  if (config.appid !== appId) {
+  if (hasAppId && config.appid !== appId) {
     config.appid = appId
     changed = true
   }
@@ -126,21 +120,33 @@ function processWeappProjectConfig() {
   }
 
   if (!changed) {
-    return { status: 'unchanged', appId, urlCheck }
+    return {
+      status: hasAppId ? 'unchanged' : 'unchanged-no-appid',
+      appId: hasAppId ? appId : config.appid,
+      urlCheck
+    }
   }
 
   fs.writeFileSync(projectConfigPath, `${JSON.stringify(config, null, 2)}\n`)
-  return { status: 'updated', appId, urlCheck }
+  return {
+    status: hasAppId ? 'updated' : 'updated-no-appid',
+    appId: hasAppId ? appId : config.appid,
+    urlCheck
+  }
 }
 
 if (require.main === module) {
   const result = processWeappProjectConfig()
   if (result.status === 'missing') {
     console.warn('[postprocess-weapp-project] skip: project.config.json not found')
-  } else if (result.status === 'no-appid') {
+  } else if (result.status === 'updated-no-appid') {
+    console.warn('[postprocess-weapp-project] TARO_APP_ID is empty, keep touristappid (guest mode)')
+    console.log(`[postprocess-weapp-project] set urlCheck=${String(result.urlCheck)}`)
+  } else if (result.status === 'unchanged-no-appid') {
     console.warn(
       '[postprocess-weapp-project] TARO_APP_ID is empty, keep touristappid (guest mode)'
     )
+    console.log(`[postprocess-weapp-project] appid already ${result.appId}, urlCheck=${String(result.urlCheck)}`)
   } else if (result.status === 'updated') {
     console.log(`[postprocess-weapp-project] set appid to ${result.appId}, urlCheck=${String(result.urlCheck)}`)
   } else {
