@@ -41,7 +41,7 @@ describe('DemandCreate', () => {
     fireEvent.change(screen.getByPlaceholderText('例如：无线降噪耳机'), {
       target: { value: '定制阀门' }
     });
-    fireEvent.change(screen.getByPlaceholderText('输入类目 ID'), {
+    fireEvent.change(screen.getByPlaceholderText('请选择下方类目标签，或留空'), {
       target: { value: '3fa85f64-5717-4562-b3fc-2c963f66afa6' }
     });
     fireEvent.change(screen.getByPlaceholderText('例如：500 件'), {
@@ -106,6 +106,28 @@ describe('DemandCreate', () => {
     expect(screen.getByText('删除')).toBeInTheDocument();
   });
 
+  it('shows backend upload message when image upload fails', async () => {
+    (Taro.chooseImage as jest.Mock).mockResolvedValueOnce({ tempFilePaths: ['/tmp/demand.png'] });
+    (commerceServices.productRequests.uploadAsset as jest.Mock).mockRejectedValueOnce({
+      statusCode: 401,
+      code: 'unauthorized',
+      message: 'missing authorization'
+    });
+
+    render(<DemandCreate />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    fireEvent.click(screen.getByText('上传图片'));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: 'missing authorization', icon: 'none' });
+  });
+
   it('shows toast when name is empty', async () => {
     render(<DemandCreate />);
     await act(async () => {
@@ -120,5 +142,33 @@ describe('DemandCreate', () => {
 
     expect(Taro.showToast).toHaveBeenCalledWith({ title: '请输入产品名称', icon: 'none' });
     expect(commerceServices.productRequests.create).not.toHaveBeenCalled();
+  });
+
+  it('shows category selection hint when categoryId does not exist', async () => {
+    (commerceServices.productRequests.create as jest.Mock).mockRejectedValueOnce({
+      statusCode: 400,
+      code: 'invalid_request',
+      message: 'categoryId does not exist'
+    });
+
+    render(<DemandCreate />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText('例如：无线降噪耳机'), {
+      target: { value: '定制阀门' }
+    });
+    fireEvent.change(screen.getByPlaceholderText('请选择下方类目标签，或留空'), {
+      target: { value: '3fa85f64-5717-4562-b3fc-2c963f66afa6' }
+    });
+
+    fireEvent.click(screen.getByText('提交需求'));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '类目不存在，请从下方标签选择', icon: 'none' });
   });
 });

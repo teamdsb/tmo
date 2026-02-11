@@ -113,6 +113,42 @@ func TestProductRequestsCreateAndListWithNewFields(t *testing.T) {
 	}
 }
 
+func TestProductRequestsCreateInvalidCategoryIDReturnsBadRequest(t *testing.T) {
+	pool := openHandlerTestPool(t)
+	resetCommerceTables(t, pool)
+	queries := db.New(pool)
+
+	customerID := uuid.New()
+	router := newAuthIntegrationRouter(pool, queries)
+
+	payload := map[string]interface{}{
+		"name":       "Need custom sheet",
+		"categoryId": uuid.New().String(),
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest(http.MethodPost, "/product-requests", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, customerID, "CUSTOMER", nil))
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+
+	var apiError map[string]interface{}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &apiError); err != nil {
+		t.Fatalf("decode error response: %v", err)
+	}
+	if apiError["code"] != "invalid_request" {
+		t.Fatalf("expected invalid_request code, got %#v", apiError["code"])
+	}
+	if apiError["message"] != "categoryId does not exist" {
+		t.Fatalf("expected categoryId does not exist message, got %#v", apiError["message"])
+	}
+}
+
 func TestProductRequestsPermissions(t *testing.T) {
 	pool := openHandlerTestPool(t)
 	resetCommerceTables(t, pool)

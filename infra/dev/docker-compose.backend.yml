@@ -35,8 +35,12 @@ services:
     environment:
       COMMERCE_HTTP_ADDR: ":8082"
       COMMERCE_DB_DSN: "postgres://commerce:commerce@postgres:5432/commerce?sslmode=disable"
+      MEDIA_LOCAL_OUTPUT_DIR: "${MEDIA_LOCAL_OUTPUT_DIR:-/data/media}"
+      MEDIA_PUBLIC_BASE_URL: "${MEDIA_PUBLIC_BASE_URL:-http://localhost:8080/assets/media}"
     ports:
       - "8082:8082"
+    volumes:
+      - ./media:/data/media
     depends_on:
       postgres:
         condition: service_healthy

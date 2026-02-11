@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
@@ -17,12 +19,21 @@ import (
 )
 
 const maxProductRequestAssetSize int64 = 5 * 1024 * 1024
+const productRequestsCategoryForeignKey = "product_requests_category_id_fkey"
 
 var allowedProductRequestAssetTypes = map[string]string{
 	"image/jpeg":      ".jpg",
 	"image/png":       ".png",
 	"image/webp":      ".webp",
 	"application/pdf": ".pdf",
+}
+
+func isCategoryForeignKeyViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return false
+	}
+	return pgErr.Code == "23503" && pgErr.ConstraintName == productRequestsCategoryForeignKey
 }
 
 func (h *Handler) GetProductRequests(c *gin.Context, params oapi.GetProductRequestsParams) {
@@ -137,6 +148,10 @@ func (h *Handler) PostProductRequests(c *gin.Context) {
 		ReferenceImageUrls: defaultStringSlice(request.ReferenceImageUrls),
 	})
 	if err != nil {
+		if isCategoryForeignKeyViolation(err) {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "categoryId does not exist")
+			return
+		}
 		h.logError("create product request failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to create product request")
 		return

@@ -22,6 +22,117 @@ const decodeQueryValue = (value?: string) => {
 
 const isUUID = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 
+type ApiLikeError = {
+  message?: unknown
+  statusCode?: unknown
+  code?: unknown
+}
+
+const readUploadError = (error: unknown) => {
+  const fallbackMessage = '上传失败'
+  if (!error || typeof error !== 'object') {
+    return {
+      toastMessage: fallbackMessage
+    }
+  }
+
+  const apiError = error as ApiLikeError
+  const statusCode = typeof apiError.statusCode === 'number' ? apiError.statusCode : undefined
+  const code = typeof apiError.code === 'string' ? apiError.code : undefined
+  const message = typeof apiError.message === 'string' ? apiError.message.trim() : ''
+
+  if (message && message !== 'request failed') {
+    return {
+      toastMessage: message,
+      statusCode,
+      code,
+      message
+    }
+  }
+
+  if (statusCode === 404) {
+    return {
+      toastMessage: '上传服务未就绪',
+      statusCode,
+      code,
+      message
+    }
+  }
+
+  if (statusCode === 401 || code === 'unauthorized') {
+    return {
+      toastMessage: '请先登录后再上传',
+      statusCode,
+      code,
+      message
+    }
+  }
+
+  if (statusCode === 413) {
+    return {
+      toastMessage: '图片过大，请压缩后重试',
+      statusCode,
+      code,
+      message
+    }
+  }
+
+  if (statusCode === 415) {
+    return {
+      toastMessage: '仅支持上传图片',
+      statusCode,
+      code,
+      message
+    }
+  }
+
+  return {
+    toastMessage: fallbackMessage,
+    statusCode,
+    code,
+    message
+  }
+}
+
+const readCreateError = (error: unknown) => {
+  const fallbackMessage = '提交失败'
+  if (!error || typeof error !== 'object') {
+    return {
+      toastMessage: fallbackMessage
+    }
+  }
+
+  const apiError = error as ApiLikeError
+  const statusCode = typeof apiError.statusCode === 'number' ? apiError.statusCode : undefined
+  const code = typeof apiError.code === 'string' ? apiError.code : undefined
+  const message = typeof apiError.message === 'string' ? apiError.message.trim() : ''
+
+  if (message === 'categoryId does not exist') {
+    return {
+      toastMessage: '类目不存在，请从下方标签选择',
+      statusCode,
+      code,
+      message
+    }
+  }
+
+  if (message && message !== 'request failed') {
+    return {
+      toastMessage: message,
+      statusCode,
+      code,
+      message
+    }
+  }
+
+  return {
+    toastMessage: fallbackMessage,
+    statusCode,
+    code,
+    message
+  }
+}
+
 export default function DemandCreate() {
   const router = useRouter()
   const navbarStyle = getNavbarStyle()
@@ -75,8 +186,13 @@ export default function DemandCreate() {
       setReferenceImageUrls((current) => [...current, uploaded.url])
       await Taro.showToast({ title: '图片已上传', icon: 'success' })
     } catch (error) {
-      console.warn('upload demand image failed', error)
-      await Taro.showToast({ title: '上传失败', icon: 'none' })
+      const uploadError = readUploadError(error)
+      console.warn('upload demand image failed', {
+        statusCode: uploadError.statusCode,
+        code: uploadError.code,
+        message: uploadError.message
+      }, error)
+      await Taro.showToast({ title: uploadError.toastMessage, icon: 'none' })
     } finally {
       setUploading(false)
     }
@@ -107,8 +223,13 @@ export default function DemandCreate() {
       await Taro.showToast({ title: '已提交需求', icon: 'success' })
       await navigateTo(ROUTES.demandList)
     } catch (error) {
-      console.warn('create demand failed', error)
-      await Taro.showToast({ title: '提交失败', icon: 'none' })
+      const createError = readCreateError(error)
+      console.warn('create demand failed', {
+        statusCode: createError.statusCode,
+        code: createError.code,
+        message: createError.message
+      }, error)
+      await Taro.showToast({ title: createError.toastMessage, icon: 'none' })
     } finally {
       setSubmitting(false)
     }
@@ -131,12 +252,13 @@ export default function DemandCreate() {
               onInput={(event) => setName(event.detail.value)}
             />
           </Cell>
-          <Cell title='产品类目ID'>
+          <Cell title='产品类目ID（可选）'>
             <Input
               value={categoryId}
-              placeholder='输入类目 ID'
+              placeholder='请选择下方类目标签，或留空'
               onInput={(event) => setCategoryId(event.detail.value)}
             />
+            <Text className='demand-category-tip'>需选择系统内已有类目，不能随意填写 UUID。</Text>
             {categories.length > 0 ? (
               <View className='demand-category-tags'>
                 {categories.slice(0, 8).map((item) => (
