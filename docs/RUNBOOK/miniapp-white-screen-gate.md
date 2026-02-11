@@ -69,6 +69,12 @@ For release-grade strict checks:
 pnpm -C apps/miniapp debug:weapp:smoke:strict
 ```
 
+Print machine-readable automator verdict:
+
+```bash
+pnpm -C apps/miniapp debug:weapp:summary
+```
+
 ## CI Interpretation
 
 ### `gateway-miniapp-ci`
@@ -89,6 +95,10 @@ Artifacts:
 
 - `apps/miniapp/.logs/preflight`
 - `apps/miniapp/.logs/weapp`
+
+Key file:
+
+- `apps/miniapp/.logs/weapp/run.json` (single source of truth for status/firstFail/assertions in CI)
 
 ## Common Failure Signatures
 
@@ -114,5 +124,5 @@ Escalate to backend owners when:
 Provide:
 
 - `apps/miniapp/.logs/preflight/result.json`
-- failing `summary.md` (if automator was used)
+- failing `summary.md` and `run.json` (if automator was used)
 - backend container logs around matching `requestId`

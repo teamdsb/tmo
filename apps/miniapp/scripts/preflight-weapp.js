@@ -7,6 +7,8 @@ const rootDir = path.resolve(miniappDir, '..', '..')
 const smokeScript = path.resolve(rootDir, 'tools/scripts/miniapp-http-smoke.sh')
 const diagnoseScript = path.resolve(rootDir, 'tools/scripts/dev-diagnose-db.sh')
 const preflightResultPath = path.resolve(miniappDir, '.logs', 'preflight', 'result.json')
+const preflightSchemaVersion = 'miniapp-preflight/v1'
+const preflightRunId = `${Date.now()}-${process.pid}`
 
 const parsePositiveInt = (raw, fallback) => {
   const value = Number(raw)
@@ -25,7 +27,12 @@ const ensureResultDir = () => {
 
 const writeResult = (payload) => {
   ensureResultDir()
-  fs.writeFileSync(preflightResultPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
+  const normalized = {
+    schemaVersion: preflightSchemaVersion,
+    runId: preflightRunId,
+    ...payload
+  }
+  fs.writeFileSync(preflightResultPath, `${JSON.stringify(normalized, null, 2)}\n`, 'utf8')
 }
 
 const toEndpointFromLabel = (label) => {

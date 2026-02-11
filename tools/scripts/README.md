@@ -17,8 +17,9 @@ Bootstrap and local dev scripts.
 - `dev-stack-health.sh`: check local identity/commerce/payment/gateway `/ready` and `/health` endpoints, then validate gateway business endpoints (`/bff/bootstrap`, `/catalog/categories`, `/catalog/products`).
 - `dev-diagnose-db.sh`: print DB failure diagnostics from container health/logs (used by stack health and preflight failure paths).
 - `miniapp-http-smoke.sh`: smoke-check miniapp core API paths via gateway (`/bff/bootstrap`, `/catalog/categories`, `/catalog/products`) and validate product images from `/assets/img` or `/assets/media` (`MINIAPP_HTTP_SMOKE_ALLOW_EMPTY_PRODUCTS=true` to skip image-proxy assertion when products are empty).
-- `miniapp-smoke.sh`: run multi-route WeChat automator smoke on `apps/miniapp` (`MINIAPP_SMOKE_STACK_UP=true` to auto start backend stack; supports `WEAPP_SMOKE_ASSERT_*` assertion thresholds, default all minimum-count thresholds to `0` to focus on endpoint health first).
+- `miniapp-smoke.sh`: run multi-route WeChat automator smoke on `apps/miniapp` (`MINIAPP_SMOKE_STACK_UP=true` to auto start backend stack; `WEAPP_SMOKE_PREFLIGHT=true` to run preflight gate first; supports `WEAPP_SMOKE_ASSERT_*` assertion thresholds, default all minimum-count thresholds to `0` to focus on endpoint health first).
 - Preflight result file: `apps/miniapp/.logs/preflight/result.json` (machine-readable status for CI and local diagnosis).
+- Automator result file: `apps/miniapp/.logs/weapp/run.json` (machine-readable run summary, first failure, and assertion stats).
 - Troubleshooting runbook: `docs/RUNBOOK/miniapp-white-screen-gate.md`.
 - `catalog-image-audit.sh`: audit `catalog_products` image refs and print domain distribution.
 - `catalog-image-migrate.sh`: migrate external catalog images into local media output and rewrite DB URLs.

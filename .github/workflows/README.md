@@ -18,4 +18,5 @@
     - `standard`: network-first gate (`assert_*_min=0`)
     - `strict`: render/image thresholds enabled (`assert_*_min=1`)
   - `workflow_dispatch` still supports assertion overrides (`assert_min_products`, `assert_category_min`, `assert_image_success_min`, `assert_no_console_error`).
+  - Smoke run includes preflight (`WEAPP_SMOKE_PREFLIGHT=true`) and prints structured `run.json` summary.
   - Always uploads `apps/miniapp/.logs/weapp` artifacts.

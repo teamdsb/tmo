@@ -90,6 +90,7 @@
     pnpm -C apps/miniapp debug:weapp:smoke
     pnpm -C apps/miniapp debug:weapp:smoke:standard
     pnpm -C apps/miniapp debug:weapp:smoke:strict
+    pnpm -C apps/miniapp debug:weapp:summary
 
 说明：
 
@@ -130,12 +131,14 @@
 - `MINIAPP_HTTP_SMOKE_ALLOW_EMPTY_PRODUCTS`：`preflight:weapp` 是否允许 `/catalog/products` 空列表时跳过封面图代理断言；默认在 preflight 中按 `true` 处理。
 - `WEAPP_SKIP_LAUNCH`：跳过自动拉起 DevTools，仅连接已有 automator 端口（默认 `false`）。
 - `MINIAPP_SMOKE_STACK_UP`：仅 `debug:weapp:smoke` 使用；为 `true` 时先执行 `tools/scripts/dev-stack-up.sh` 再采集。
+- `WEAPP_SMOKE_PREFLIGHT`：仅 `debug:weapp:smoke` 使用；为 `true` 时先执行 `preflight:weapp`，默认 `true`。
 
 排错：
 
 - 若 `summary.md` 中出现 `request:fail url not in domain list`，脚本会自动把 `dist/weapp/project.config.json` 的 `setting.urlCheck` 置为 `false`；请重跑一次采集并确认微信开发者工具“详情 -> 本地设置 -> 不校验合法域名”也已开启。
 - 若 `summary.md` 中出现连接失败，先确认微信开发者工具可执行文件路径正确（`WEAPP_DEVTOOLS_CLI_PATH`），并检查 `WEAPP_AUTOMATOR_PORT` 是否被占用。
 - `summary.md` 会输出首个失败 endpoint、首个 5xx 与 requestId，便于快速回查 gateway/commerce 日志。
+- `run.json` 提供机器可读结果（`firstFail`、`severity`、`assertions`、`gateway capture window`），可直接用于 CI 注释与脚本解析。
 - `summary.md` 会输出 `P0/P1/P2` 分级：`P0`（启动/请求阻断）必失败，`P1`（核心流程失败）默认阻断，`P2`（平台告警/弃用提示）仅告警。
 - 若页面运行时数据在当前 Taro 版本下不可直接被 automator 读取（常见 `dataKeys=root`），脚本会降级为网络断言优先，不再误报渲染数量断言失败。
 - `preflight:weapp` 会写入结构化结果：`apps/miniapp/.logs/preflight/result.json`（包含 `failedEndpoint`、`statusCode`、`requestId`、`diagnoseSummary`）。
@@ -146,7 +149,8 @@
 - `apps/miniapp/.logs/weapp/console.jsonl`
 - `apps/miniapp/.logs/weapp/network.jsonl`
 - `apps/miniapp/.logs/weapp/summary.md`
-- `apps/miniapp/.logs/weapp/routes/*/{summary.md,console.jsonl,network.jsonl}`（多路由模式）
+- `apps/miniapp/.logs/weapp/run.json`
+- `apps/miniapp/.logs/weapp/routes/*/{summary.md,console.jsonl,network.jsonl,run.json}`（多路由模式）
 - `apps/miniapp/.logs/weapp/failures/*.png`
 
 ## 微信登录/退出 E2E（Auth）

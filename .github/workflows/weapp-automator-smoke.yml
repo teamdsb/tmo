@@ -125,6 +125,7 @@ jobs:
       - name: Run weapp automator smoke
         env:
           MINIAPP_SMOKE_STACK_UP: "true"
+          WEAPP_SMOKE_PREFLIGHT: "true"
           WEAPP_WARNING_ALLOWLIST: "\\[deprecation\\],SharedArrayBuffer will require cross-origin isolation,getSystemInfo API 提示,正在使用灰度中的基础库,文章推荐,工具未校验合法域名"
           WEAPP_STRICT_P1: ${{ github.event.inputs.strict_p1 || 'true' }}
           WEAPP_AUTOMATOR_ROUTES: ${{ github.event.inputs.routes || '' }}
@@ -133,6 +134,10 @@ jobs:
           WEAPP_SMOKE_ASSERT_IMAGE_SUCCESS_MIN: ${{ steps.smoke_profile.outputs.assert_image_success_min }}
           WEAPP_SMOKE_ASSERT_NO_CONSOLE_ERROR: ${{ steps.smoke_profile.outputs.assert_no_console_error }}
         run: pnpm -C apps/miniapp debug:weapp:smoke
+
+      - name: Print structured automator summary
+        if: always()
+        run: pnpm -C apps/miniapp debug:weapp:summary
 
       - name: Upload weapp logs
         if: always()

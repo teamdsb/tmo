@@ -11,7 +11,13 @@ const logsDir = path.join(miniappDir, '.logs', 'weapp')
 const consoleLogPath = path.join(logsDir, 'console.jsonl')
 const networkLogPath = path.join(logsDir, 'network.jsonl')
 const summaryPath = path.join(logsDir, 'summary.md')
+const runJsonPath = path.join(logsDir, 'run.json')
 const screenshotDir = path.join(logsDir, 'failures')
+const runSchemaVersion = 'weapp-automator-run/v1'
+const eventSchemaVersion = 'weapp-automator-event/v1'
+const runId = `${Date.now()}-${process.pid}-${Math.random().toString(16).slice(2, 8)}`
+const routeRunId = runId
+let eventSeq = 0
 
 const projectDir = path.resolve(process.env.WEAPP_PROJECT_DIR || path.join(miniappDir, 'dist', 'weapp'))
 const automatorPort = Number(process.env.WEAPP_AUTOMATOR_PORT || 9527)
@@ -115,6 +121,16 @@ const routeSnapshot = {
   data: null,
   dataKeys: []
 }
+const runtimeDiagnostics = {
+  systemInfo: null,
+  systemInfoCaptureError: '',
+  pageDataPoll: {
+    attempts: 0,
+    ready: false,
+    elapsedMs: 0,
+    lastKeys: []
+  }
+}
 
 let consoleStream = null
 let networkStream = null
@@ -138,7 +154,14 @@ const networkStats = {
   matchedEndpointRequests: 0,
   imageProxyRequests: 0,
   imageSuccessRequests: 0,
-  parseErrors: 0
+  parseErrors: 0,
+  rawLogLines: 0,
+  parsedGatewayLines: 0,
+  skippedGatewayLines: 0,
+  captureSince: '',
+  captureUntil: '',
+  firstRequestAt: '',
+  lastRequestAt: ''
 }
 
 function readBool(raw, defaultValue) {
@@ -519,7 +542,7 @@ function recordSuppressedWarning(message, item, level = 'warn') {
     level,
     text,
     time: nowIso()
-  })
+  }, 'console')
 }
 
 function appendSeverityIssue(level, message) {
@@ -575,11 +598,31 @@ function assertCheck(scope, key, condition, options = {}) {
   return false
 }
 
-function writeJsonLine(stream, payload) {
+function writeJsonLine(stream, payload, channel = 'general') {
   if (!stream || stream.destroyed || stream.writableEnded) {
     return
   }
-  stream.write(`${JSON.stringify(payload)}\n`)
+  const emittedAt = nowIso()
+  const base = {
+    schemaVersion: eventSchemaVersion,
+    runId,
+    routeRunId,
+    seq: ++eventSeq,
+    channel,
+    route: routeSnapshot.route || automatorRoute,
+    emittedAt
+  }
+
+  const merged = {
+    ...base,
+    ...payload
+  }
+
+  if (!merged.time) {
+    merged.time = emittedAt
+  }
+
+  stream.write(`${JSON.stringify(merged)}\n`)
 }
 
 function stringifyValue(value) {
@@ -599,6 +642,22 @@ function clipText(value, maxLength = 320) {
     return text
   }
   return `${text.slice(0, maxLength)}...`
+}
+
+function topSuppressedPatterns(limit = 5) {
+  if (suppressedWarningPatternCounts.size === 0) {
+    return []
+  }
+
+  return [...suppressedWarningPatternCounts.entries()]
+    .sort((a, b) => {
+      if (b[1] !== a[1]) {
+        return b[1] - a[1]
+      }
+      return a[0].localeCompare(b[0])
+    })
+    .slice(0, Math.max(0, limit))
+    .map(([pattern, count]) => ({ pattern, count }))
 }
 
 function parseEnvFile(filePath) {
@@ -709,6 +768,17 @@ function extractSummaryMetrics(content) {
   }
 }
 
+function readJsonIfExists(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return null
+  }
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'))
+  } catch {
+    return null
+  }
+}
+
 function runMultiRouteDriver(routeList) {
   const routes = routeList.length > 0 ? routeList : defaultSmokeRoutes
   const routeLogsRoot = path.join(logsDir, 'routes')
@@ -743,12 +813,10 @@ function runMultiRouteDriver(routeList) {
       encoding: 'utf8'
     })
     const statusCode = typeof result.status === 'number' ? result.status : 1
-    if (statusCode !== 0) {
-      hasFailure = true
-    }
 
     copyArtifactIfExists(consoleLogPath, path.join(routeDir, 'console.jsonl'))
     copyArtifactIfExists(networkLogPath, path.join(routeDir, 'network.jsonl'))
+    copyArtifactIfExists(runJsonPath, path.join(routeDir, 'run.json'))
 
     let summaryContent = ''
     if (fs.existsSync(summaryPath)) {
@@ -756,40 +824,58 @@ function runMultiRouteDriver(routeList) {
       fs.writeFileSync(path.join(routeDir, 'summary.md'), summaryContent, 'utf8')
     }
     const metrics = extractSummaryMetrics(summaryContent)
+    const childRun = readJsonIfExists(path.join(routeDir, 'run.json'))
+    const childFirstFail = childRun?.firstFail || {}
+    const childFirstEndpoint = childFirstFail.endpoint || {}
+    const runStatus = childRun?.status || (statusCode === 0 ? 'pass' : 'fail')
+    if (runStatus !== 'pass') {
+      hasFailure = true
+    }
 
     results.push({
       route,
       statusCode,
       artifactsDir: path.relative(rootDir, routeDir),
-      ...metrics
+      routeRunId: childRun?.routeRunId || '',
+      runStatus,
+      ...metrics,
+      firstFailMessage: childFirstFail.message || '',
+      firstFailHint: childFirstFail.hint || '',
+      firstFailEndpointPath: childFirstEndpoint.path || '',
+      firstFailEndpointStatus: childFirstEndpoint.status || 0,
+      firstFailEndpointRequestId: childFirstEndpoint.requestId || ''
     })
   }
 
   const finishedAt = nowIso()
+  const failedRoutesCount = results.filter((item) => item.runStatus !== 'pass').length
   const lines = [
     '# Weapp CDP Multi-route Summary',
     '',
+    `- runId: ${runId}`,
     `- startedAt: ${startedAt}`,
     `- finishedAt: ${finishedAt}`,
+    `- durationMs: ${durationMsBetween(startedAt, finishedAt)}`,
     `- routes total: ${routes.length}`,
-    `- routes failed: ${results.filter((item) => item.statusCode !== 0).length}`,
+    `- routes failed: ${failedRoutesCount}`,
     '',
-    '| route | status | p0 | p1 | p2 | assertFails | failedKeys | firstFailingEndpoint | firstFailingRequestId | artifacts |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |'
+    '| route | status | p0 | p1 | p2 | assertFails | failedKeys | firstFailingEndpoint | firstFailingRequestId | firstFailMessage | artifacts |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |'
   ]
 
   for (const item of results) {
     const failedKeys = item.assertionFailedKeys || '-'
-    const firstEndpoint = item.firstFailingEndpoint || '-'
-    const firstRequestId = item.firstFailingEndpointRequestId || '-'
+    const firstEndpoint = item.firstFailEndpointPath || item.firstFailingEndpoint || '-'
+    const firstRequestId = item.firstFailEndpointRequestId || item.firstFailingEndpointRequestId || '-'
+    const firstFailMessage = item.firstFailMessage || '-'
     lines.push(
-      `| ${item.route} | ${item.statusCode === 0 ? 'ok' : `fail(${item.statusCode})`} | `
+      `| ${item.route} | ${item.runStatus === 'pass' ? 'ok' : `fail(${item.statusCode})`} | `
       + `${item.p0} | ${item.p1} | ${item.p2} | ${item.assertionFailedCount} | `
-      + `${failedKeys} | ${firstEndpoint} | ${firstRequestId} | ${item.artifactsDir} |`
+      + `${failedKeys} | ${firstEndpoint} | ${firstRequestId} | ${clipText(firstFailMessage, 64) || '-'} | ${item.artifactsDir} |`
     )
   }
 
-  const firstFailed = results.find((item) => item.statusCode !== 0)
+  const firstFailed = results.find((item) => item.runStatus !== 'pass')
   lines.push('', '## Failure Highlight', '')
   if (!firstFailed) {
     lines.push('- first failed route: none')
@@ -797,16 +883,79 @@ function runMultiRouteDriver(routeList) {
   } else {
     lines.push(`- first failed route: ${firstFailed.route}`)
     lines.push(`- first failed assertion keys: ${firstFailed.assertionFailedKeys || 'unknown'}`)
-    lines.push(`- first failed endpoint: ${firstFailed.firstFailingEndpoint || 'unknown'}`)
-    lines.push(`- first failed endpoint status: ${firstFailed.firstFailingEndpointStatus || 'unknown'}`)
-    lines.push(`- first failed endpoint requestId: ${firstFailed.firstFailingEndpointRequestId || 'unknown'}`)
+    lines.push(`- first failed endpoint: ${firstFailed.firstFailEndpointPath || firstFailed.firstFailingEndpoint || 'unknown'}`)
+    lines.push(`- first failed endpoint status: ${firstFailed.firstFailEndpointStatus || firstFailed.firstFailingEndpointStatus || 'unknown'}`)
+    lines.push(`- first failed endpoint requestId: ${firstFailed.firstFailEndpointRequestId || firstFailed.firstFailingEndpointRequestId || 'unknown'}`)
+    lines.push(`- first failed message: ${firstFailed.firstFailMessage || 'unknown'}`)
+    lines.push(`- first failed hint: ${firstFailed.firstFailHint || 'unknown'}`)
   }
 
   lines.push('', '## Notes', '')
-  lines.push('- Each route has its own `summary.md`, `console.jsonl`, and `network.jsonl` under `apps/miniapp/.logs/weapp/routes/`.')
+  lines.push('- Each route has its own `summary.md`, `console.jsonl`, `network.jsonl`, and `run.json` under `apps/miniapp/.logs/weapp/routes/`.')
   lines.push('- This aggregate file is written to `apps/miniapp/.logs/weapp/summary.md`.', '')
 
   fs.writeFileSync(summaryPath, lines.join('\n'), 'utf8')
+
+  const runtimeInfo = {
+    apiBaseUrl: readConfigValue('TARO_APP_API_BASE_URL'),
+    commerceMockFallback: readConfigValue('TARO_APP_COMMERCE_MOCK_FALLBACK', 'false'),
+    enableMockLogin: readConfigValue('TARO_APP_ENABLE_MOCK_LOGIN', 'false')
+  }
+  const firstFailedRoute = results.find((item) => item.runStatus !== 'pass')
+  writeRunReport({
+    schemaVersion: runSchemaVersion,
+    runId,
+    routeRunId,
+    mode: 'multi-route',
+    status: hasFailure ? 'fail' : 'pass',
+    exitCode: hasFailure && failOnError ? 1 : 0,
+    startedAt,
+    finishedAt,
+    durationMs: durationMsBetween(startedAt, finishedAt),
+    envSnapshot: buildEnvSnapshot(runtimeInfo),
+    routesTotal: routes.length,
+    routesFailed: failedRoutesCount,
+    firstFail: firstFailedRoute
+      ? {
+          route: firstFailedRoute.route,
+          assertionKeys: firstFailedRoute.assertionFailedKeys || '',
+          endpoint: {
+            path: firstFailedRoute.firstFailEndpointPath || firstFailedRoute.firstFailingEndpoint || '',
+            status: firstFailedRoute.firstFailEndpointStatus || firstFailedRoute.firstFailingEndpointStatus || 0,
+            requestId: firstFailedRoute.firstFailEndpointRequestId || firstFailedRoute.firstFailingEndpointRequestId || ''
+          },
+          message: firstFailedRoute.firstFailMessage || '',
+          hint: firstFailedRoute.firstFailHint || ''
+        }
+      : {
+          route: '',
+          assertionKeys: '',
+          endpoint: null,
+          message: '',
+          hint: ''
+        },
+    routes: results.map((item) => ({
+      route: item.route,
+      routeRunId: item.routeRunId || '',
+      status: item.runStatus,
+      statusCode: item.statusCode,
+      p0: item.p0,
+      p1: item.p1,
+      p2: item.p2,
+      assertionFailedCount: item.assertionFailedCount,
+      assertionFailedKeys: item.assertionFailedKeys,
+      firstFailingEndpoint: item.firstFailEndpointPath || item.firstFailingEndpoint || '',
+      firstFailingEndpointRequestId: item.firstFailEndpointRequestId || item.firstFailingEndpointRequestId || '',
+      firstFailMessage: item.firstFailMessage || '',
+      artifactsDir: item.artifactsDir
+    })),
+    artifacts: {
+      summary: path.relative(rootDir, summaryPath),
+      run: path.relative(rootDir, runJsonPath),
+      routesDir: path.relative(rootDir, routeLogsRoot)
+    }
+  })
+
   if (hasFailure && failOnError) {
     throw new Error(`multi-route smoke has failures. summary: ${summaryPath}`)
   }
@@ -944,7 +1093,7 @@ async function connectMiniProgram(cliPath) {
       mode: automatorStats.launchMode,
       wsEndpoint,
       time: nowIso()
-    })
+    }, 'console')
     return automator.connect({ wsEndpoint })
   }
 
@@ -962,7 +1111,7 @@ async function connectMiniProgram(cliPath) {
     account: automatorAccount,
     trustProject: automatorTrustProject,
     time: nowIso()
-  })
+  }, 'console')
 
   return automator.launch({
     cliPath,
@@ -1085,7 +1234,7 @@ function bindMiniProgramEvents() {
       text,
       payload,
       time: nowIso()
-    })
+    }, 'console')
 
     analyzeConsoleText(text, level)
   })
@@ -1096,11 +1245,93 @@ function bindMiniProgramEvents() {
       type: 'miniapp-exception',
       payload,
       time: nowIso()
-    })
+    }, 'console')
 
     const text = extractConsoleText(payload)
     appendFailure(`miniapp runtime exception: ${text}`)
   })
+}
+
+async function captureSystemInfo() {
+  if (!miniProgram) {
+    return
+  }
+
+  if (typeof miniProgram.systemInfo !== 'function') {
+    runtimeDiagnostics.systemInfoCaptureError = 'miniProgram.systemInfo is unavailable'
+    writeJsonLine(consoleStream, {
+      type: 'miniapp-system-info',
+      supported: false,
+      reason: runtimeDiagnostics.systemInfoCaptureError
+    }, 'console')
+    return
+  }
+
+  try {
+    const info = await miniProgram.systemInfo()
+    runtimeDiagnostics.systemInfo = info
+    writeJsonLine(consoleStream, {
+      type: 'miniapp-system-info',
+      supported: true,
+      info
+    }, 'console')
+  } catch (error) {
+    runtimeDiagnostics.systemInfoCaptureError = error?.message || String(error)
+    appendWarning(`failed to collect miniProgram.systemInfo: ${runtimeDiagnostics.systemInfoCaptureError}`)
+    writeJsonLine(consoleStream, {
+      type: 'miniapp-system-info',
+      supported: true,
+      error: runtimeDiagnostics.systemInfoCaptureError
+    }, 'console')
+  }
+}
+
+function extractDataKeys(value) {
+  if (!value || typeof value !== 'object') {
+    return []
+  }
+  return Object.keys(value)
+}
+
+async function pollCurrentPageData(currentPage, timeoutMs) {
+  const startedMs = Date.now()
+  const safeTimeout = Math.max(500, timeoutMs)
+  const intervalMs = 350
+  let attempts = 0
+  let lastData = null
+  let lastKeys = []
+
+  while ((Date.now() - startedMs) <= safeTimeout) {
+    attempts += 1
+    try {
+      const data = await currentPage.data()
+      const keys = extractDataKeys(data)
+      lastData = data
+      lastKeys = keys
+
+      if (isRouteDataInspectable(data, keys)) {
+        return {
+          ready: true,
+          attempts,
+          elapsedMs: Date.now() - startedMs,
+          data,
+          keys
+        }
+      }
+    } catch {
+      // ignore temporary polling failures
+    }
+
+    await sleep(intervalMs)
+  }
+
+  return {
+    ready: false,
+    attempts,
+    elapsedMs: Date.now() - startedMs,
+    data: lastData,
+    keys: lastKeys
+  }
 }
 
 async function warmupAndNavigate() {
@@ -1113,6 +1344,12 @@ async function warmupAndNavigate() {
   routeSnapshot.pageQuery = {}
   routeSnapshot.data = null
   routeSnapshot.dataKeys = []
+  runtimeDiagnostics.pageDataPoll = {
+    attempts: 0,
+    ready: false,
+    elapsedMs: 0,
+    lastKeys: []
+  }
 
   let pageStack = []
   try {
@@ -1127,7 +1364,7 @@ async function warmupAndNavigate() {
         query: page.query
       })),
       time: nowIso()
-    })
+    }, 'console')
   } catch (error) {
     appendWarning(`failed to read pageStack: ${error?.message || String(error)}`)
   }
@@ -1152,13 +1389,13 @@ async function warmupAndNavigate() {
         route: routeTarget,
         success: true,
         time: nowIso()
-      })
+      }, 'console')
     } catch (error) {
       appendWarning(`failed to reLaunch ${routeTarget}: ${error?.message || String(error)}`)
     }
   }
 
-  await sleep(Math.max(1000, assertionConfig.routeWaitMs))
+  await sleep(1000)
 
   try {
     currentPage = await miniProgram.currentPage()
@@ -1175,24 +1412,34 @@ async function warmupAndNavigate() {
           }
         : null,
       time: nowIso()
-    })
+    }, 'console')
   } catch (error) {
     appendWarning(`failed to read currentPage after reLaunch: ${error?.message || String(error)}`)
   }
 
   if (currentPage) {
     try {
-      const data = await currentPage.data()
-      routeSnapshot.data = data
-      routeSnapshot.dataKeys = data && typeof data === 'object' ? Object.keys(data) : []
-      const preview = stringifyValue(data).slice(0, 2000)
+      const pollResult = await pollCurrentPageData(currentPage, assertionConfig.routeWaitMs)
+      routeSnapshot.data = pollResult.data
+      routeSnapshot.dataKeys = Array.isArray(pollResult.keys) ? pollResult.keys : []
+      runtimeDiagnostics.pageDataPoll = {
+        attempts: pollResult.attempts,
+        ready: pollResult.ready,
+        elapsedMs: pollResult.elapsedMs,
+        lastKeys: routeSnapshot.dataKeys
+      }
+
+      const preview = stringifyValue(pollResult.data).slice(0, 2000)
       writeJsonLine(consoleStream, {
         type: 'current-page-data',
         path: currentPage.path,
         keys: routeSnapshot.dataKeys,
+        ready: pollResult.ready,
+        attempts: pollResult.attempts,
+        elapsedMs: pollResult.elapsedMs,
         preview,
         time: nowIso()
-      })
+      }, 'console')
     } catch (error) {
       appendWarning(`failed to read currentPage data: ${error?.message || String(error)}`)
     }
@@ -1300,6 +1547,31 @@ function updateEndpointState(pathValue, status, requestId) {
   imageProxyState.errors.push(`status ${status}`)
 }
 
+function normalizeIsoTime(value) {
+  const raw = String(value || '').trim()
+  if (!raw) {
+    return ''
+  }
+  const ms = Date.parse(raw)
+  if (!Number.isFinite(ms)) {
+    return ''
+  }
+  return new Date(ms).toISOString()
+}
+
+function trackGatewayRequestTime(requestTime) {
+  const normalized = normalizeIsoTime(requestTime)
+  if (!normalized) {
+    return
+  }
+  if (!networkStats.firstRequestAt || normalized < networkStats.firstRequestAt) {
+    networkStats.firstRequestAt = normalized
+  }
+  if (!networkStats.lastRequestAt || normalized > networkStats.lastRequestAt) {
+    networkStats.lastRequestAt = normalized
+  }
+}
+
 function collectGatewayLogs(startedAtIso) {
   const hasDocker = spawnSync('docker', ['ps'], { stdio: 'ignore' }).status === 0
   if (!hasDocker) {
@@ -1307,9 +1579,12 @@ function collectGatewayLogs(startedAtIso) {
     return
   }
 
+  networkStats.captureSince = startedAtIso
+  networkStats.captureUntil = nowIso()
+
   const logsResult = spawnSync(
     'docker',
-    ['logs', '--since', startedAtIso, gatewayContainer],
+    ['logs', '--since', networkStats.captureSince, gatewayContainer],
     { encoding: 'utf8' }
   )
 
@@ -1322,15 +1597,26 @@ function collectGatewayLogs(startedAtIso) {
 
   const content = `${logsResult.stdout || ''}${logsResult.stderr || ''}`
   const lines = content.split(/\r?\n/).filter(Boolean)
+  networkStats.rawLogLines = lines.length
+  writeJsonLine(networkStream, {
+    type: 'gateway-capture-window',
+    container: gatewayContainer,
+    since: networkStats.captureSince,
+    until: networkStats.captureUntil,
+    rawLines: networkStats.rawLogLines
+  }, 'network')
 
   for (const line of lines) {
     const parsed = parseGatewayLine(line)
     if (!parsed) {
+      networkStats.skippedGatewayLines += 1
       continue
     }
 
+    networkStats.parsedGatewayLines += 1
     networkStats.totalGatewayRequests += 1
     updateEndpointState(parsed.path, parsed.status, parsed.requestId)
+    trackGatewayRequestTime(parsed.time)
 
     writeJsonLine(networkStream, {
       type: 'gateway-request',
@@ -1340,7 +1626,7 @@ function collectGatewayLogs(startedAtIso) {
       durationMs: parsed.durationMs,
       requestId: parsed.requestId,
       time: parsed.time
-    })
+    }, 'network')
   }
 }
 
@@ -1557,11 +1843,42 @@ function appendAssertionSection(lines, title, assertions) {
   }
 }
 
+function durationMsBetween(startedAt, finishedAt) {
+  const started = Date.parse(String(startedAt || ''))
+  const finished = Date.parse(String(finishedAt || ''))
+  if (!Number.isFinite(started) || !Number.isFinite(finished)) {
+    return 0
+  }
+  return Math.max(0, finished - started)
+}
+
+function buildEnvSnapshot(runtimeInfo) {
+  return {
+    nodeVersion: process.version,
+    platform: process.platform,
+    arch: process.arch,
+    expectedBaseUrl,
+    taroAppApiBaseUrl: runtimeInfo.apiBaseUrl || '',
+    taroAppCommerceMockFallback: runtimeInfo.commerceMockFallback || '',
+    taroAppEnableMockLogin: runtimeInfo.enableMockLogin || '',
+    strictP1,
+    assertionConfig: {
+      minProducts: assertionConfig.minProducts,
+      minCategories: assertionConfig.minCategories,
+      minImageSuccess: assertionConfig.minImageSuccess,
+      assertNoConsoleError: assertionConfig.assertNoConsoleError,
+      routeWaitMs: assertionConfig.routeWaitMs
+    },
+    warningAllowlistPatterns: warningAllowlist.map((item) => item.pattern)
+  }
+}
+
 function buildSummary(runtimeInfo, startedAt, finishedAt) {
   const failedKeys = failedAssertionKeys()
   const failedCount = failedAssertions().length
   const rootCauseHints = collectRootCauseHints()
   const firstEndpointFailure = firstFailingEndpoint()
+  const suppressedTop = topSuppressedPatterns(10)
   const endpointLines = [
     '| endpoint | seen | ok | statuses | errors | lastFailureRequestId |',
     '| --- | --- | --- | --- | --- | --- |'
@@ -1586,8 +1903,11 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     '# Weapp CDP Debug Summary',
     '',
     '- mode: miniprogram-automator + gateway-log-capture',
+    `- runId: ${runId}`,
+    `- routeRunId: ${routeRunId}`,
     `- startedAt: ${startedAt}`,
     `- finishedAt: ${finishedAt}`,
+    `- durationMs: ${durationMsBetween(startedAt, finishedAt)}`,
     `- automatorPort: ${automatorPort}`,
     `- automatorConnectTimeoutMs: ${automatorConnectTimeoutMs}`,
     `- timeoutMs: ${captureTimeoutMs}`,
@@ -1604,7 +1924,7 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     `- routeWaitMs: ${assertionConfig.routeWaitMs}`,
     `- warning allowlist patterns: ${warningAllowlist.length > 0 ? warningAllowlist.map((item) => item.pattern).join(', ') : 'none'}`,
     `- suppressed warnings count: ${suppressedWarnings.length}`,
-    `- suppressed warning patterns: ${suppressedWarningPatternCounts.size > 0 ? [...suppressedWarningPatternCounts.keys()].join(', ') : 'none'}`,
+    `- suppressed warning top patterns: ${suppressedTop.length > 0 ? suppressedTop.map((item) => `${item.pattern} (${item.count})`).join(', ') : 'none'}`,
     `- assertion failed count: ${failedCount}`,
     `- assertion failed keys: ${failedKeys.length > 0 ? failedKeys.join(', ') : 'none'}`,
     `- first failing endpoint: ${firstEndpointFailure ? firstEndpointFailure.endpoint : 'none'}`,
@@ -1623,6 +1943,10 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     `- console error count: ${automatorStats.consoleErrorCount}`,
     `- exception count: ${automatorStats.exceptionCount}`,
     `- request wait ms: ${automatorStats.requestWaitMs}`,
+    `- page data poll attempts: ${runtimeDiagnostics.pageDataPoll.attempts}`,
+    `- page data poll ready: ${runtimeDiagnostics.pageDataPoll.ready}`,
+    `- page data poll elapsedMs: ${runtimeDiagnostics.pageDataPoll.elapsedMs}`,
+    `- page data poll keys: ${runtimeDiagnostics.pageDataPoll.lastKeys.join(',') || '-'}`,
     '',
     '## Network Stats',
     '',
@@ -1632,6 +1956,13 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     `- image proxy requests: ${networkStats.imageProxyRequests}`,
     `- image success requests: ${networkStats.imageSuccessRequests}`,
     `- parse errors: ${networkStats.parseErrors}`,
+    `- capture since: ${networkStats.captureSince || '-'}`,
+    `- capture until: ${networkStats.captureUntil || '-'}`,
+    `- raw log lines: ${networkStats.rawLogLines}`,
+    `- parsed gateway lines: ${networkStats.parsedGatewayLines}`,
+    `- skipped gateway lines: ${networkStats.skippedGatewayLines}`,
+    `- first request at: ${networkStats.firstRequestAt || '-'}`,
+    `- last request at: ${networkStats.lastRequestAt || '-'}`,
     '',
     '## Severity Stats',
     '',
@@ -1677,12 +2008,7 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     }
   }
 
-  summary.push(
-    '',
-    '## Failures',
-    ''
-  )
-
+  summary.push('', '## Failures', '')
   if (failures.length === 0) {
     summary.push('- none')
   } else {
@@ -1701,11 +2027,20 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
   }
 
   summary.push('', '## Suppressed Warnings', '')
-  if (suppressedWarningPatternCounts.size === 0) {
+  if (suppressedTop.length === 0) {
     summary.push('- none')
   } else {
-    for (const [pattern, count] of suppressedWarningPatternCounts.entries()) {
-      summary.push(`- ${pattern} (${count})`)
+    for (const item of suppressedTop) {
+      summary.push(`- ${item.pattern} (${item.count})`)
+    }
+  }
+
+  summary.push('', '## Suppressed Warning Samples', '')
+  if (suppressedWarnings.length === 0) {
+    summary.push('- none')
+  } else {
+    for (const item of suppressedWarnings.slice(0, 10)) {
+      summary.push(`- [${item.level}] ${item.pattern} => ${item.text}`)
     }
   }
 
@@ -1713,6 +2048,7 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
   summary.push(`- console: ${path.relative(rootDir, consoleLogPath)}`)
   summary.push(`- network: ${path.relative(rootDir, networkLogPath)}`)
   summary.push(`- summary: ${path.relative(rootDir, summaryPath)}`)
+  summary.push(`- run: ${path.relative(rootDir, runJsonPath)}`)
 
   for (const screenshotPath of screenshotPaths) {
     summary.push(`- screenshot: ${screenshotPath}`)
@@ -1724,6 +2060,93 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
 
   summary.push('')
   fs.writeFileSync(summaryPath, summary.join('\n'), 'utf8')
+
+  return {
+    failedCount,
+    failedKeys,
+    rootCauseHints,
+    firstEndpointFailure,
+    suppressedTop
+  }
+}
+
+function writeRunReport(payload) {
+  fs.writeFileSync(runJsonPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
+}
+
+function buildSingleRunReport(runtimeInfo, startedAt, finishedAt, summaryMeta, exitCode) {
+  const status = failures.length > 0 ? 'fail' : 'pass'
+  const firstFailureMessage = failures.length > 0 ? failures[0] : ''
+  const hints = Array.isArray(summaryMeta?.rootCauseHints) ? summaryMeta.rootCauseHints : []
+  const firstEndpointFailure = summaryMeta?.firstEndpointFailure || null
+  const failedKeys = Array.isArray(summaryMeta?.failedKeys) ? summaryMeta.failedKeys : []
+  const failedCount = Number(summaryMeta?.failedCount || 0)
+  const suppressedTop = Array.isArray(summaryMeta?.suppressedTop) ? summaryMeta.suppressedTop : topSuppressedPatterns(10)
+
+  const report = {
+    schemaVersion: runSchemaVersion,
+    runId,
+    routeRunId,
+    mode: 'single-route',
+    status,
+    exitCode,
+    startedAt,
+    finishedAt,
+    durationMs: durationMsBetween(startedAt, finishedAt),
+    route: {
+      target: automatorRoute,
+      current: routeSnapshot.pagePath || '',
+      query: routeSnapshot.pageQuery || {}
+    },
+    envSnapshot: buildEnvSnapshot(runtimeInfo),
+    automatorStats,
+    networkStats,
+    diagnostics: runtimeDiagnostics,
+    severity: {
+      p0: severityIssues.p0.length,
+      p1: severityIssues.p1.length,
+      p2: severityIssues.p2.length
+    },
+    assertions: {
+      failedCount,
+      failedKeys,
+      route: assertionState.routeAssertions,
+      network: assertionState.networkAssertions,
+      render: assertionState.renderAssertions
+    },
+    firstFail: {
+      route: status === 'fail' ? routeSnapshot.route : '',
+      assertionKeys: failedKeys,
+      endpoint: firstEndpointFailure
+        ? {
+            path: firstEndpointFailure.endpoint,
+            status: firstEndpointFailure.status,
+            requestId: firstEndpointFailure.requestId
+          }
+        : null,
+      message: firstFailureMessage,
+      hint: hints.length > 0 ? hints[0] : ''
+    },
+    rootCauseHints: hints,
+    warnings: {
+      total: warnings.length,
+      items: warnings,
+      suppressedTotal: suppressedWarnings.length,
+      suppressedTopPatterns: suppressedTop,
+      suppressedSamples: suppressedWarnings.slice(0, 20)
+    },
+    failures,
+    artifacts: {
+      console: path.relative(rootDir, consoleLogPath),
+      network: path.relative(rootDir, networkLogPath),
+      summary: path.relative(rootDir, summaryPath),
+      run: path.relative(rootDir, runJsonPath),
+      screenshots: screenshotPaths
+    }
+  }
+
+  writeRunReport(report)
+  return report
 }
 
 async function cleanup() {
@@ -1774,6 +2197,7 @@ async function main() {
   const startedAt = nowIso()
   let finishedAt = startedAt
   let runtimeInfo = null
+  let summaryMeta = null
 
   try {
     runtimeInfo = assertRuntimeInputs()
@@ -1790,6 +2214,7 @@ async function main() {
     automatorStats.connected = true
 
     bindMiniProgramEvents()
+    await captureSystemInfo()
     await warmupAndNavigate()
 
     const waitMs = Math.max(assertionConfig.routeWaitMs, captureTimeoutMs)
@@ -1818,18 +2243,30 @@ async function main() {
     await captureScreenshot('fatal')
   } finally {
     finishedAt = nowIso()
-    buildSummary(runtimeInfo, startedAt, finishedAt)
+    if (!runtimeInfo) {
+      runtimeInfo = {
+        apiBaseUrl: readConfigValue('TARO_APP_API_BASE_URL'),
+        commerceMockFallback: readConfigValue('TARO_APP_COMMERCE_MOCK_FALLBACK', 'false'),
+        enableMockLogin: readConfigValue('TARO_APP_ENABLE_MOCK_LOGIN', 'false')
+      }
+    }
+    summaryMeta = buildSummary(runtimeInfo, startedAt, finishedAt)
+    const exitCode = failures.length > 0 && failOnError ? 1 : 0
+    buildSingleRunReport(runtimeInfo, startedAt, finishedAt, summaryMeta, exitCode)
     await cleanup()
   }
 
   if (failures.length > 0) {
-    console.error(`[weapp-cdp-debug] failed. summary: ${summaryPath}`)
+    console.error(`[weapp-cdp-debug] failed. summary: ${summaryPath}, run: ${runJsonPath}`)
     if (failOnError) {
       process.exit(1)
     }
   }
 
-  console.log(`[weapp-cdp-debug] completed. summary: ${summaryPath}`)
+  if (summaryMeta && summaryMeta.failedCount > 0) {
+    console.warn(`[weapp-cdp-debug] completed with assertion failures: ${summaryMeta.failedCount}`)
+  }
+  console.log(`[weapp-cdp-debug] completed. summary: ${summaryPath}, run: ${runJsonPath}`)
 }
 
 process.on('SIGINT', async () => {
@@ -1845,15 +2282,15 @@ process.on('SIGTERM', async () => {
 main().catch(async (error) => {
   appendFailure(error?.message || String(error))
   try {
-    buildSummary(
-      {
-        apiBaseUrl: readConfigValue('TARO_APP_API_BASE_URL'),
-        commerceMockFallback: readConfigValue('TARO_APP_COMMERCE_MOCK_FALLBACK', 'false'),
-        enableMockLogin: readConfigValue('TARO_APP_ENABLE_MOCK_LOGIN', 'false')
-      },
-      nowIso(),
-      nowIso()
-    )
+    const fallbackRuntimeInfo = {
+      apiBaseUrl: readConfigValue('TARO_APP_API_BASE_URL'),
+      commerceMockFallback: readConfigValue('TARO_APP_COMMERCE_MOCK_FALLBACK', 'false'),
+      enableMockLogin: readConfigValue('TARO_APP_ENABLE_MOCK_LOGIN', 'false')
+    }
+    const startedAt = nowIso()
+    const finishedAt = nowIso()
+    const summaryMeta = buildSummary(fallbackRuntimeInfo, startedAt, finishedAt)
+    buildSingleRunReport(fallbackRuntimeInfo, startedAt, finishedAt, summaryMeta, 1)
   } catch {
     // ignore secondary errors
   }
