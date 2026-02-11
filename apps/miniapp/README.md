@@ -88,6 +88,8 @@
 
     pnpm -C apps/miniapp debug:weapp:auto
     pnpm -C apps/miniapp debug:weapp:smoke
+    pnpm -C apps/miniapp debug:weapp:smoke:standard
+    pnpm -C apps/miniapp debug:weapp:smoke:strict
 
 说明：
 
@@ -117,6 +119,7 @@
 - `WEAPP_SMOKE_ASSERT_IMAGE_SUCCESS_MIN`：图片请求成功数最小断言，默认 `0`（若需要强制校验图片代理可设为 `1` 或更大）。
 - `WEAPP_SMOKE_ASSERT_NO_CONSOLE_ERROR`：是否要求 `console.error` 必须为 0，默认 `true`。
 - `WEAPP_SMOKE_ROUTE_WAIT_MS`：路由稳定等待时长（毫秒），默认 `8000`。
+- `WEAPP_WARNING_ALLOWLIST`：automator warning 降噪正则列表（逗号或换行分隔，仅影响 warning，不影响 error/P0/P1 判定）。
 - `WEAPP_DEBUG_TIMEOUT_MS`：采集超时，默认 `90000`。
 - `WEAPP_BASE_URL_EXPECTED`：期望接口基准地址，默认 `http://localhost:8080`。
 - `WEAPP_FAIL_ON_ERROR`：遇到错误是否退出非 0，默认 `true`。
@@ -135,6 +138,8 @@
 - `summary.md` 会输出首个失败 endpoint、首个 5xx 与 requestId，便于快速回查 gateway/commerce 日志。
 - `summary.md` 会输出 `P0/P1/P2` 分级：`P0`（启动/请求阻断）必失败，`P1`（核心流程失败）默认阻断，`P2`（平台告警/弃用提示）仅告警。
 - 若页面运行时数据在当前 Taro 版本下不可直接被 automator 读取（常见 `dataKeys=root`），脚本会降级为网络断言优先，不再误报渲染数量断言失败。
+- `preflight:weapp` 会写入结构化结果：`apps/miniapp/.logs/preflight/result.json`（包含 `failedEndpoint`、`statusCode`、`requestId`、`diagnoseSummary`）。
+- 推荐按 `docs/RUNBOOK/miniapp-white-screen-gate.md` 排障流程执行，避免重复手工排查。
 
 产物：
 

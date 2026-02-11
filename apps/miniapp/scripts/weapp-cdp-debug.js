@@ -37,6 +37,16 @@ const smokeAssertCategoryMin = Number(process.env.WEAPP_SMOKE_ASSERT_CATEGORY_MI
 const smokeAssertImageSuccessMin = Number(process.env.WEAPP_SMOKE_ASSERT_IMAGE_SUCCESS_MIN || 0)
 const smokeAssertNoConsoleError = readBool(process.env.WEAPP_SMOKE_ASSERT_NO_CONSOLE_ERROR, true)
 const smokeRouteWaitMs = Number(process.env.WEAPP_SMOKE_ROUTE_WAIT_MS || 8000)
+const warningAllowlistRaw = String(process.env.WEAPP_WARNING_ALLOWLIST || '')
+const defaultWarningAllowlistPatterns = [
+  '\\[deprecation\\]',
+  'sharedarraybuffer will require cross-origin isolation',
+  'getsysteminfo\\s*api\\s*提示',
+  '正在使用灰度中的基础库',
+  '文章推荐',
+  '工具未校验合法域名'
+]
+const warningAllowlist = compileWarningAllowlist(warningAllowlistRaw, defaultWarningAllowlistPatterns)
 const assertionConfig = {
   minProducts: toNonNegativeInt(smokeAssertMinProducts, 1),
   minCategories: toNonNegativeInt(smokeAssertCategoryMin, 1),
@@ -84,6 +94,8 @@ const envFilePath = path.join(miniappDir, '.env.development')
 const envFileValues = parseEnvFile(envFilePath)
 
 const warnings = []
+const suppressedWarnings = []
+const suppressedWarningPatternCounts = new Map()
 const failures = []
 const screenshotPaths = []
 const severityIssues = {
@@ -176,6 +188,50 @@ function parseRoutes(rawValue) {
     routes.push(route)
   }
   return routes
+}
+
+function parseAllowlistTokens(rawValue) {
+  const raw = String(rawValue || '').trim()
+  if (!raw) {
+    return []
+  }
+
+  const values = []
+  for (const token of raw.split(/[\n,]/)) {
+    const value = token.trim()
+    if (!value) {
+      continue
+    }
+    values.push(value)
+  }
+  return values
+}
+
+function compileWarningAllowlist(rawValue, defaults = []) {
+  const tokens = [...defaults, ...parseAllowlistTokens(rawValue)]
+  if (tokens.length === 0) {
+    return []
+  }
+
+  const seen = new Set()
+  const list = []
+
+  for (const token of tokens) {
+    if (seen.has(token)) {
+      continue
+    }
+    seen.add(token)
+    try {
+      list.push({
+        pattern: token,
+        regex: new RegExp(token, 'i')
+      })
+    } catch {
+      // ignore invalid regex tokens
+    }
+  }
+
+  return list
 }
 
 function routeToSlug(route) {
@@ -432,6 +488,38 @@ function appendWarning(message) {
   if (!warnings.includes(message)) {
     warnings.push(message)
   }
+}
+
+function matchWarningAllowlist(message) {
+  const text = String(message || '')
+  if (!text) {
+    return null
+  }
+
+  for (const item of warningAllowlist) {
+    if (item.regex.test(text)) {
+      return item
+    }
+  }
+  return null
+}
+
+function recordSuppressedWarning(message, item, level = 'warn') {
+  if (!item || !item.pattern) {
+    return
+  }
+
+  const text = clipText(message, 320)
+  const pattern = item.pattern
+  suppressedWarnings.push({ pattern, level, text })
+  suppressedWarningPatternCounts.set(pattern, (suppressedWarningPatternCounts.get(pattern) || 0) + 1)
+  writeJsonLine(consoleStream, {
+    type: 'suppressed-warning',
+    pattern,
+    level,
+    text,
+    time: nowIso()
+  })
 }
 
 function appendSeverityIssue(level, message) {
@@ -949,6 +1037,14 @@ function analyzeConsoleText(text, level = 'info') {
   if (/load\s+(bootstrap|categories|products)\s+failed/i.test(normalized)) {
     appendP1Issue(`core homepage request failed: ${clipped}`)
     return
+  }
+
+  if (level === 'warn' || /deprecated|deprecate/i.test(normalized)) {
+    const allowlistMatch = matchWarningAllowlist(normalized)
+    if (allowlistMatch) {
+      recordSuppressedWarning(normalized, allowlistMatch, level)
+      return
+    }
   }
 
   if (/deprecated|deprecate/i.test(normalized)) {
@@ -1506,6 +1602,9 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     `- assertMinImageSuccess: ${assertionConfig.minImageSuccess}`,
     `- assertNoConsoleError: ${assertionConfig.assertNoConsoleError}`,
     `- routeWaitMs: ${assertionConfig.routeWaitMs}`,
+    `- warning allowlist patterns: ${warningAllowlist.length > 0 ? warningAllowlist.map((item) => item.pattern).join(', ') : 'none'}`,
+    `- suppressed warnings count: ${suppressedWarnings.length}`,
+    `- suppressed warning patterns: ${suppressedWarningPatternCounts.size > 0 ? [...suppressedWarningPatternCounts.keys()].join(', ') : 'none'}`,
     `- assertion failed count: ${failedCount}`,
     `- assertion failed keys: ${failedKeys.length > 0 ? failedKeys.join(', ') : 'none'}`,
     `- first failing endpoint: ${firstEndpointFailure ? firstEndpointFailure.endpoint : 'none'}`,
@@ -1598,6 +1697,15 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
   } else {
     for (const item of warnings) {
       summary.push(`- ${item}`)
+    }
+  }
+
+  summary.push('', '## Suppressed Warnings', '')
+  if (suppressedWarningPatternCounts.size === 0) {
+    summary.push('- none')
+  } else {
+    for (const [pattern, count] of suppressedWarningPatternCounts.entries()) {
+      summary.push(`- ${pattern} (${count})`)
     }
   }
 

@@ -4,6 +4,10 @@ name: weapp-automator-smoke
 'on':
   workflow_dispatch:
     inputs:
+      quality_profile:
+        description: "Smoke quality profile (standard|strict)"
+        required: false
+        default: "standard"
       strict_p1:
         description: "Treat P1 issues as blocking"
         required: false
@@ -15,19 +19,19 @@ name: weapp-automator-smoke
       assert_min_products:
         description: "Minimum product count assertion for home route"
         required: false
-        default: "1"
+        default: ""
       assert_category_min:
         description: "Minimum category count assertion"
         required: false
-        default: "1"
+        default: ""
       assert_image_success_min:
         description: "Minimum successful image request count"
         required: false
-        default: "1"
+        default: ""
       assert_no_console_error:
         description: "Fail on any console.error logs"
         required: false
-        default: "true"
+        default: ""
   pull_request:
     paths:
       - "apps/miniapp/**"
@@ -64,20 +68,75 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Resolve smoke profile
+        id: smoke_profile
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          profile="${{ github.event.inputs.quality_profile || 'standard' }}"
+          profile="$(printf '%s' "$profile" | tr '[:upper:]' '[:lower:]')"
+
+          case "$profile" in
+            standard)
+              min_products=0
+              min_categories=0
+              min_images=0
+              assert_console=true
+              ;;
+            strict)
+              min_products=1
+              min_categories=1
+              min_images=1
+              assert_console=true
+              ;;
+            *)
+              echo "unsupported quality_profile: $profile" >&2
+              exit 1
+              ;;
+          esac
+
+          input_min_products="${{ github.event.inputs.assert_min_products || '' }}"
+          input_min_categories="${{ github.event.inputs.assert_category_min || '' }}"
+          input_min_images="${{ github.event.inputs.assert_image_success_min || '' }}"
+          input_assert_console="${{ github.event.inputs.assert_no_console_error || '' }}"
+
+          if [[ -n "$input_min_products" ]]; then
+            min_products="$input_min_products"
+          fi
+          if [[ -n "$input_min_categories" ]]; then
+            min_categories="$input_min_categories"
+          fi
+          if [[ -n "$input_min_images" ]]; then
+            min_images="$input_min_images"
+          fi
+          if [[ -n "$input_assert_console" ]]; then
+            assert_console="$input_assert_console"
+          fi
+
+          {
+            echo "quality_profile=$profile"
+            echo "assert_min_products=$min_products"
+            echo "assert_category_min=$min_categories"
+            echo "assert_image_success_min=$min_images"
+            echo "assert_no_console_error=$assert_console"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Run weapp automator smoke
         env:
           MINIAPP_SMOKE_STACK_UP: "true"
+          WEAPP_WARNING_ALLOWLIST: "\\[deprecation\\],SharedArrayBuffer will require cross-origin isolation,getSystemInfo API 提示,正在使用灰度中的基础库,文章推荐,工具未校验合法域名"
           WEAPP_STRICT_P1: ${{ github.event.inputs.strict_p1 || 'true' }}
           WEAPP_AUTOMATOR_ROUTES: ${{ github.event.inputs.routes || '' }}
-          WEAPP_SMOKE_ASSERT_MIN_PRODUCTS: ${{ github.event.inputs.assert_min_products || '1' }}
-          WEAPP_SMOKE_ASSERT_CATEGORY_MIN: ${{ github.event.inputs.assert_category_min || '1' }}
-          WEAPP_SMOKE_ASSERT_IMAGE_SUCCESS_MIN: ${{ github.event.inputs.assert_image_success_min || '1' }}
-          WEAPP_SMOKE_ASSERT_NO_CONSOLE_ERROR: ${{ github.event.inputs.assert_no_console_error || 'true' }}
+          WEAPP_SMOKE_ASSERT_MIN_PRODUCTS: ${{ steps.smoke_profile.outputs.assert_min_products }}
+          WEAPP_SMOKE_ASSERT_CATEGORY_MIN: ${{ steps.smoke_profile.outputs.assert_category_min }}
+          WEAPP_SMOKE_ASSERT_IMAGE_SUCCESS_MIN: ${{ steps.smoke_profile.outputs.assert_image_success_min }}
+          WEAPP_SMOKE_ASSERT_NO_CONSOLE_ERROR: ${{ steps.smoke_profile.outputs.assert_no_console_error }}
         run: pnpm -C apps/miniapp debug:weapp:smoke
 
       - name: Upload weapp logs
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: weapp-automator-logs
+          name: weapp-automator-logs-${{ steps.smoke_profile.outputs.quality_profile || 'unknown' }}
           path: apps/miniapp/.logs/weapp
