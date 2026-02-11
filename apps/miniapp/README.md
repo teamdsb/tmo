@@ -51,6 +51,7 @@
 
 - `TARO_APP_COMMERCE_MOCK_FALLBACK=false` 可以强制走真实后端，不再回退 mock 数据。
 - 如果使用容器化后端，保持 `TARO_APP_API_BASE_URL=http://localhost:8080` 即可。
+- 微信开发者工具若报“request 合法域名”错误：当前工程默认将 `project.config.json` 的 `setting.urlCheck` 设为 `false`（构建后处理也会同步），用于本地联调 `localhost`。
 - 微信环境建议使用真实 `TARO_APP_ID`；游客模式（`touristappid`）下，微信登录相关 API 可能受限。
 
 支付宝稳定模式：

@@ -21,8 +21,8 @@ describe('resolveApiBaseUrl', () => {
   })
 
   it('falls back to commerce base url when api base url is missing', () => {
-    process.env.TARO_APP_COMMERCE_BASE_URL = 'http://127.0.0.1:8080'
-    expect(resolveApiBaseUrl()).toBe('http://127.0.0.1:8080')
+    process.env.TARO_APP_COMMERCE_BASE_URL = 'http://localhost:8080'
+    expect(resolveApiBaseUrl()).toBe('http://localhost:8080')
   })
 
   it('uses default base url when all env values are missing', () => {

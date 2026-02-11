@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8080'
+const DEFAULT_API_BASE_URL = 'http://localhost:8080'
 
 declare const process: { env?: Record<string, string | undefined> } | undefined
 

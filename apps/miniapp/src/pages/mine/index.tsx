@@ -159,7 +159,6 @@ export default function PersonalCenter() {
         >
           <HomeOutlined className='text-base mine-icon' />
         </View>
-        <Text className='text-base font-medium'>我的</Text>
         <View className='w-8 h-8' />
       </View>
 

@@ -31,7 +31,7 @@ describe('ExcelImportConfirmation', () => {
   });
 
   it('shows a single empty-state title and count summary when cart is empty', async () => {
-    (commerceServices.cart.getCart as jest.Mock).mockResolvedValueOnce({ items: [] });
+    jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({ items: [] });
 
     await renderCart();
 
