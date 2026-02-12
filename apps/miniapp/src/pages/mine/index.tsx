@@ -30,6 +30,7 @@ import { identityServices } from '../../services/identity'
 import { clearBootstrap, loadBootstrap, saveBootstrap } from '../../services/bootstrap'
 import placeholderProductImage from '../../assets/images/placeholder-product.svg'
 import { getRuntimeTheme } from '../../utils/device-info'
+import { runtimeEnv } from '../../config/runtime-env'
 
 type IconComponent = (props: { className?: string }) => JSX.Element
 
@@ -124,6 +125,10 @@ export default function PersonalCenter() {
     const cached = await loadBootstrap()
     if (cached) {
       setBootstrap(cached)
+    }
+    const token = await gatewayServices.tokens.getToken()
+    if (!token && runtimeEnv.commerceMockFallback) {
+      return
     }
     try {
       const fresh = await gatewayServices.bootstrap.get()

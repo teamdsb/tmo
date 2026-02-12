@@ -93,6 +93,9 @@ export default function ProductCatalogApp() {
     setProductsLoading(true)
     const handle = setTimeout(() => {
       void (async () => {
+        if (!cancelled) {
+          setProductsLoading(true)
+        }
         try {
           const response = await commerceServices.catalog.listProducts({
             q: searchQuery || undefined,
@@ -104,7 +107,9 @@ export default function ProductCatalogApp() {
           }
         } catch (error) {
           console.warn('load products failed', error)
-          await Taro.showToast({ title: '加载商品失败', icon: 'none' })
+          if (!cancelled) {
+            await Taro.showToast({ title: '加载商品失败', icon: 'none' })
+          }
         } finally {
           if (!cancelled) {
             setProductsLoading(false)

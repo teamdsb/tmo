@@ -26,6 +26,7 @@
 默认通过 gateway-bff 访问 identity + commerce。建议在 `apps/miniapp/.env.development` 配置：
 
     TARO_APP_ID=wx8e8831fc456f019b
+    TARO_APP_MOCK_MODE=off
     TARO_APP_API_BASE_URL=http://localhost:8080
     TARO_APP_COMMERCE_MOCK_FALLBACK=false
     TARO_APP_ENABLE_MOCK_LOGIN=false
@@ -61,7 +62,8 @@
 
 说明：
 
-- `TARO_APP_COMMERCE_MOCK_FALLBACK` 默认为关闭（`false`）；只有显式设为 `true` 才会回退 mock 数据。
+- `TARO_APP_MOCK_MODE=isolated` 会启用“分离 mock 模式”：gateway/identity/commerce 全链路离线，不访问后端，数据本地持久化（支持设置页重置）。
+- `TARO_APP_MOCK_MODE=off`（默认）时走真实后端；此时可继续使用 `TARO_APP_COMMERCE_MOCK_FALLBACK` 作为兼容开关，仅对 commerce 接口回退 mock。
 - `TARO_APP_ENABLE_MOCK_LOGIN` 默认为关闭（`false`）；只有显式设为 `true` 才会展示“测试登录”按钮。
 - 如果使用容器化后端，保持 `TARO_APP_API_BASE_URL=http://localhost:8080` 即可。
 - `preflight:weapp` 会在编译前执行 HTTP 烟测（`/bff/bootstrap`、`/catalog/categories`、`/catalog/products`）；失败时自动输出 DB 诊断日志摘要。
@@ -233,7 +235,7 @@
 - 如果 `preflight:weapp` 或 `dev:weapp` 在编译前提示 `/catalog/categories`、`/catalog/products` 为 500：
   - 先执行 `bash tools/scripts/dev-diagnose-db.sh` 查看诊断；
   - 若命中 `No space left on device`，先释放 Docker 磁盘空间（`df -h`、`docker system df`），再重启 `tmo-postgres` 并重试。
-- 如果首页仍显示 mock 商品，先确认 `.env.development` 中 `TARO_APP_COMMERCE_MOCK_FALLBACK=false`，然后删除 `apps/miniapp/dist/weapp` 并重新执行 `pnpm -C apps/miniapp dev:weapp` 后重新导入开发者工具。
+- 如果首页仍显示 mock 商品，先确认 `.env.development` 中 `TARO_APP_MOCK_MODE=off` 且 `TARO_APP_COMMERCE_MOCK_FALLBACK=false`，然后删除 `apps/miniapp/dist/weapp` 并重新执行 `pnpm -C apps/miniapp dev:weapp` 后重新导入开发者工具。
 - 若微信端图片显示异常，先检查 gateway 的 `GATEWAY_PUBLIC_BASE_URL` 与 `GATEWAY_IMAGE_PROXY_ALLOWLIST`；默认通过 `/assets/img` 代理时不需要把第三方图床直接加入小程序图片白名单。
 - 如果支付宝开发者工具导入 `apps/miniapp/dist/alipay` 后出现 `ENOENT ... dist/dist/app.json`，请检查 `apps/miniapp/dist/alipay/mini.project.json` 中的 `miniprogramRoot`，应为 `./`。
 - 如果出现 `CE1000.01 cannot resolve module ...*.axml`，先执行 `pnpm -C apps/miniapp build:alipay`，再根据 `verify-alipay-dist` 输出补齐缺失文件后重试导入。

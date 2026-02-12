@@ -9,7 +9,10 @@
     "enhance": false,
     "compileHotReLoad": false,
     "postcss": false,
-    "minified": false
+    "minified": false,
+    "packNpmManually": true,
+    "packNpmRelationList": [],
+    "ignoreUploadUnusedFiles": true
   },
   "compileType": "miniprogram"
 }

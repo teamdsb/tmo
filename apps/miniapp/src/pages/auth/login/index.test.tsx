@@ -79,7 +79,7 @@ describe('LoginPage', () => {
     })
 
     expect(Taro.switchTab).toHaveBeenCalledWith({ url: '/pages/index/index' })
-    ;(Taro as { navigateBack?: jest.Mock }).navigateBack = jest.fn(() => Promise.resolve())
+    ;(Taro as unknown as { navigateBack?: jest.Mock }).navigateBack = jest.fn(() => Promise.resolve())
 
     await act(async () => {
       fireEvent.click(screen.getByText('暂不登录'))
