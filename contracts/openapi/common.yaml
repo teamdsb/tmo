@@ -123,6 +123,13 @@ components:
         phone:
           type: string
           nullable: true
+        ownerSalesUserId:
+          type: string
+          format: uuid
+          nullable: true
+        ownerSalesDisplayName:
+          type: string
+          nullable: true
         roles:
           type: array
           items:

@@ -686,7 +686,6 @@ function runMultiRouteDriver(routeList) {
 
 function assertRuntimeInputs() {
   const apiBaseUrl = readConfigValue('TARO_APP_API_BASE_URL')
-  const commerceMockFallback = readConfigValue('TARO_APP_COMMERCE_MOCK_FALLBACK', 'false')
   const enableMockLogin = readConfigValue('TARO_APP_ENABLE_MOCK_LOGIN', 'false')
 
   if (!apiBaseUrl) {
@@ -697,17 +696,12 @@ function assertRuntimeInputs() {
     throw new Error(`TARO_APP_API_BASE_URL mismatch: expected ${expectedBaseUrl}, got ${apiBaseUrl}`)
   }
 
-  if (readBool(commerceMockFallback, false)) {
-    throw new Error('TARO_APP_COMMERCE_MOCK_FALLBACK=true is not allowed for full-stack debugging.')
-  }
-
   if (readBool(enableMockLogin, false)) {
     appendWarning('TARO_APP_ENABLE_MOCK_LOGIN=true. mock login button may affect debugging flow.')
   }
 
   return {
     apiBaseUrl,
-    commerceMockFallback,
     enableMockLogin
   }
 }
@@ -1399,7 +1393,6 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     `- projectDir: ${projectDir}`,
     `- expectedBaseUrl: ${expectedBaseUrl}`,
     `- taroAppApiBaseUrl: ${runtimeInfo.apiBaseUrl}`,
-    `- taroAppCommerceMockFallback: ${runtimeInfo.commerceMockFallback}`,
     `- taroAppEnableMockLogin: ${runtimeInfo.enableMockLogin}`,
     `- strictP1: ${strictP1}`,
     `- assertMinProducts: ${assertionConfig.minProducts}`,
@@ -1596,7 +1589,6 @@ async function main() {
     if (!runtimeInfo) {
       runtimeInfo = {
         apiBaseUrl: readConfigValue('TARO_APP_API_BASE_URL'),
-        commerceMockFallback: readConfigValue('TARO_APP_COMMERCE_MOCK_FALLBACK', 'false'),
         enableMockLogin: readConfigValue('TARO_APP_ENABLE_MOCK_LOGIN', 'false')
       }
     }
@@ -1634,7 +1626,6 @@ main().catch(async (error) => {
     buildSummary(
       {
         apiBaseUrl: readConfigValue('TARO_APP_API_BASE_URL'),
-        commerceMockFallback: readConfigValue('TARO_APP_COMMERCE_MOCK_FALLBACK', 'false'),
         enableMockLogin: readConfigValue('TARO_APP_ENABLE_MOCK_LOGIN', 'false')
       },
       nowIso(),

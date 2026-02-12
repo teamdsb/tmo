@@ -46,6 +46,14 @@ WHERE (sqlc.narg('customer_id')::uuid IS NULL OR customer_id = sqlc.narg('custom
   AND (sqlc.narg('owner_sales_user_id')::uuid IS NULL OR owner_sales_user_id = sqlc.narg('owner_sales_user_id'))
   AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status'));
 
+-- name: ListOrderStatusStats :many
+SELECT status, count(*)::bigint AS order_count
+FROM orders
+WHERE (sqlc.narg('customer_id')::uuid IS NULL OR customer_id = sqlc.narg('customer_id'))
+  AND (sqlc.narg('owner_sales_user_id')::uuid IS NULL OR owner_sales_user_id = sqlc.narg('owner_sales_user_id'))
+GROUP BY status
+ORDER BY status;
+
 -- name: GetOrder :one
 SELECT id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at
 FROM orders

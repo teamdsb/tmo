@@ -24,6 +24,7 @@ tags:
   - name: Wishlist
   - name: Cart
   - name: Orders
+  - name: Addresses
   - name: Tracking
   - name: ProductRequests
   - name: AfterSales
@@ -100,6 +101,12 @@ paths:
     $ref: "./commerce.yaml#/paths/~1orders"
   /orders/{orderId}:
     $ref: "./commerce.yaml#/paths/~1orders~1{orderId}"
+  /orders/stats:
+    $ref: "./commerce.yaml#/paths/~1orders~1stats"
+  /addresses:
+    $ref: "./commerce.yaml#/paths/~1addresses"
+  /addresses/{addressId}:
+    $ref: "./commerce.yaml#/paths/~1addresses~1{addressId}"
   /orders/{orderId}/tracking:
     $ref: "./commerce.yaml#/paths/~1orders~1{orderId}~1tracking"
   /product-requests:
@@ -193,6 +200,7 @@ components:
         displayName: { type: string }
         phone: { type: string, nullable: true }
         ownerSalesUserId: { type: string, format: uuid, nullable: true }
+        ownerSalesDisplayName: { type: string, nullable: true }
         createdAt: { type: string, format: date-time }
       required: [id, displayName, createdAt]
 

@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/teamdsb/tmo/services/commerce/internal/http/middleware"
+	"github.com/teamdsb/tmo/services/commerce/internal/modules/address"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/aftersales"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/cart"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/catalog"
@@ -17,6 +18,7 @@ import (
 )
 
 type Handler struct {
+	AddressStore        address.Store
 	CatalogStore        catalog.Store
 	CartStore           cart.Store
 	OrderStore          order.Store

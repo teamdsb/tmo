@@ -28,7 +28,6 @@
     TARO_APP_ID=wx8e8831fc456f019b
     TARO_APP_MOCK_MODE=off
     TARO_APP_API_BASE_URL=http://localhost:8080
-    TARO_APP_COMMERCE_MOCK_FALLBACK=false
     TARO_APP_ENABLE_MOCK_LOGIN=false
 
 启动后端（本地）：
@@ -62,8 +61,8 @@
 说明：
 
 - `TARO_APP_MOCK_MODE=isolated` 会启用“分离 mock 模式”：gateway/identity/commerce 全链路离线，不访问后端，数据本地持久化（支持设置页重置）。
-- `TARO_APP_MOCK_MODE=off`（默认）时走真实后端；此时可继续使用 `TARO_APP_COMMERCE_MOCK_FALLBACK` 作为兼容开关，仅对 commerce 接口回退 mock。
-- `TARO_APP_ENABLE_MOCK_LOGIN` 默认为关闭（`false`）；只有显式设为 `true` 才会展示“测试登录”按钮。
+- `TARO_APP_MOCK_MODE=off`（默认）时走真实后端，不再提供运行时 commerce 自动 fallback 到 mock。
+- `TARO_APP_ENABLE_MOCK_LOGIN` 默认为关闭（`false`）；且仅在 `TARO_APP_MOCK_MODE=isolated` 时才会展示“测试登录”按钮。
 - 如果使用容器化后端，保持 `TARO_APP_API_BASE_URL=http://localhost:8080` 即可。
 - `dev:weapp` 启动前会清理 `dist/weapp`，并在 watch 构建后自动校验页面路由、tabBar 图标与 API 基址，避免旧产物导致 `demand 2`、`__route__`、`api.example.com` 类问题。
 - 商品接口返回的图片 URL 默认由 gateway 服务端改写为 `${TARO_APP_API_BASE_URL}/assets/img?url=...`；若已迁移到本地媒体目录则会直接返回 `${TARO_APP_API_BASE_URL}/assets/media/...`。前端仅负责渲染与占位兜底。
@@ -215,7 +214,7 @@
 - 如果构建报 `[verify-weapp-api-base] ... api.example.com`：
   - 优先检查 `apps/miniapp/.env.development` 与终端环境变量 `TARO_APP_API_BASE_URL`；
   - 本地联调请使用 `pnpm -C apps/miniapp build:weapp:dev` 或 `pnpm -C apps/miniapp dev:weapp`。
-- 如果首页仍显示 mock 商品，先确认 `.env.development` 中 `TARO_APP_MOCK_MODE=off` 且 `TARO_APP_COMMERCE_MOCK_FALLBACK=false`，然后删除 `apps/miniapp/dist/weapp` 并重新执行 `pnpm -C apps/miniapp dev:weapp` 后重新导入开发者工具。
+- 如果首页仍显示 mock 商品，先确认 `.env.development` 中 `TARO_APP_MOCK_MODE=off`，然后删除 `apps/miniapp/dist/weapp` 并重新执行 `pnpm -C apps/miniapp dev:weapp` 后重新导入开发者工具。
 - 若微信端图片显示异常，先检查 gateway 的 `GATEWAY_PUBLIC_BASE_URL` 与 `GATEWAY_IMAGE_PROXY_ALLOWLIST`；默认通过 `/assets/img` 代理时不需要把第三方图床直接加入小程序图片白名单。
 - 如果支付宝开发者工具导入 `apps/miniapp/dist/alipay` 后出现 `ENOENT ... dist/dist/app.json`，请检查 `apps/miniapp/dist/alipay/mini.project.json` 中的 `miniprogramRoot`，应为 `./`。
 - 如果出现 `CE1000.01 cannot resolve module ...*.axml`，先执行 `pnpm -C apps/miniapp build:alipay`，再根据 `verify-alipay-dist` 输出补齐缺失文件后重试导入。

@@ -39,8 +39,8 @@ Identity service for authentication, JWT issuing, and sales binding.
 - `IDENTITY_LOG_LEVEL` (default `info`)
 - `IDENTITY_JWT_SECRET` / `IDENTITY_JWT_ISSUER`
 - `IDENTITY_ACCESS_TOKEN_TTL` (default `168h`)
-- `IDENTITY_LOGIN_MODE` (`mock` or `real`, default `mock`)
-- `IDENTITY_WEAPP_APPID` / `IDENTITY_WEAPP_APPSECRET` (empty + `mock` = dev/mock)
+- `IDENTITY_LOGIN_MODE` (`mock` or `real`, default `real`)
+- `IDENTITY_WEAPP_APPID` / `IDENTITY_WEAPP_APPSECRET`（显式 `IDENTITY_LOGIN_MODE=mock` 时可使用 dev/mock 登录夹具）
 - `IDENTITY_WEAPP_TOKEN_URL` / `IDENTITY_WEAPP_SESSION_URL` / `IDENTITY_WEAPP_QRCODE_URL`
 - `IDENTITY_WEAPP_PHONE_NUMBER_URL`
 - `IDENTITY_WEAPP_SALES_QR_PAGE` / `IDENTITY_WEAPP_QR_WIDTH`

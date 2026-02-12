@@ -14,6 +14,7 @@ import {
   type Category,
   type ImportJob,
   type Order,
+  type OrderStatsResponse,
   type PriceInquiry,
   type ProductDetail,
   type ProductRequest,
@@ -21,6 +22,7 @@ import {
   type ProductSummary,
   type Sku,
   type TrackingInfo,
+  type UserAddress,
   type WishlistItem
 } from '@tmo/api-client'
 import type { ChooseFile } from '@tmo/platform-adapter'
@@ -197,6 +199,19 @@ const getFileNameFromPath = (filePath: string): string => {
     return 'mock-file'
   }
   return segments[segments.length - 1]
+}
+
+const buildOrderStats = (orders: Order[]): OrderStatsResponse => {
+  const countByStatus = new Map<string, number>()
+  for (const order of orders) {
+    countByStatus.set(order.status, (countByStatus.get(order.status) ?? 0) + 1)
+  }
+  return {
+    items: Array.from(countByStatus.entries()).map(([status, count]) => ({
+      status: status as Order['status'],
+      count
+    }))
+  }
 }
 
 export const createMockCommerceServices = (): CommerceServices => {
@@ -416,6 +431,10 @@ export const createMockCommerceServices = (): CommerceServices => {
         : state.orders
       return paginate(filtered, params?.page, params?.pageSize)
     },
+    stats: async () => {
+      const state = await loadIsolatedMockState()
+      return buildOrderStats(state.orders)
+    },
     get: async (orderId) => {
       const state = await loadIsolatedMockState()
       const order = state.orders.find((item) => item.id === orderId)
@@ -425,6 +444,102 @@ export const createMockCommerceServices = (): CommerceServices => {
       return order
     },
     resetIdempotency: () => {}
+  }
+
+  const addresses: CommerceServices['addresses'] = {
+    list: async () => {
+      const state = await loadIsolatedMockState()
+      return { items: state.addresses }
+    },
+    create: async (payload) => {
+      let created: UserAddress | null = null
+      await updateIsolatedMockState((state) => {
+        const timestamp = nowIso()
+        const shouldSetDefault = state.addresses.length === 0 || payload.isDefault === true
+        const existing = shouldSetDefault
+          ? state.addresses.map((item) => ({ ...item, isDefault: false, updatedAt: timestamp }))
+          : state.addresses
+
+        created = {
+          id: `mock-address-${Date.now().toString(36)}`,
+          receiverName: payload.receiverName,
+          receiverPhone: payload.receiverPhone,
+          detail: payload.detail,
+          isDefault: shouldSetDefault,
+          createdAt: timestamp,
+          updatedAt: timestamp
+        }
+
+        return {
+          ...state,
+          addresses: created ? [created, ...existing] : existing
+        }
+      })
+      if (!created) {
+        throw new Error('failed to create address')
+      }
+      return created
+    },
+    update: async (addressId, payload) => {
+      let updated: UserAddress | null = null
+      await updateIsolatedMockState((state) => {
+        const current = state.addresses.find((item) => item.id === addressId)
+        if (!current) {
+          return state
+        }
+        const timestamp = nowIso()
+        const shouldSetDefault = payload.isDefault === true
+        const nextAddresses = state.addresses.map((item) => {
+          if (item.id !== addressId) {
+            return shouldSetDefault ? { ...item, isDefault: false, updatedAt: timestamp } : item
+          }
+          updated = {
+            ...item,
+            receiverName: payload.receiverName ?? item.receiverName,
+            receiverPhone: payload.receiverPhone ?? item.receiverPhone,
+            detail: payload.detail ?? item.detail,
+            isDefault: shouldSetDefault ? true : item.isDefault,
+            updatedAt: timestamp
+          }
+          return updated
+        })
+        return {
+          ...state,
+          addresses: nextAddresses
+        }
+      })
+      if (!updated) {
+        throw new Error(`address not found: ${addressId}`)
+      }
+      return updated
+    },
+    remove: async (addressId) => {
+      let removed = false
+      await updateIsolatedMockState((state) => {
+        const target = state.addresses.find((item) => item.id === addressId)
+        if (!target) {
+          return state
+        }
+        removed = true
+        const nextAddresses = state.addresses.filter((item) => item.id !== addressId)
+        if (!target.isDefault || nextAddresses.length === 0) {
+          return {
+            ...state,
+            addresses: nextAddresses
+          }
+        }
+
+        const timestamp = nowIso()
+        const [first, ...rest] = nextAddresses
+        return {
+          ...state,
+          addresses: [{ ...first, isDefault: true, updatedAt: timestamp }, ...rest]
+        }
+      })
+      if (!removed) {
+        throw new Error(`address not found: ${addressId}`)
+      }
+    }
   }
 
   const tracking: CommerceServices['tracking'] = {
@@ -695,6 +810,7 @@ export const createMockCommerceServices = (): CommerceServices => {
     catalog,
     cart,
     orders,
+    addresses,
     tracking,
     wishlist,
     productRequests,

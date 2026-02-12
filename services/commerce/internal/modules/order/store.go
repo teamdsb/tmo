@@ -12,6 +12,7 @@ type Store interface {
 	CreateOrderItem(ctx context.Context, arg db.CreateOrderItemParams) (db.OrderItem, error)
 	ListOrders(ctx context.Context, arg db.ListOrdersParams) ([]db.Order, error)
 	CountOrders(ctx context.Context, arg db.CountOrdersParams) (int64, error)
+	ListOrderStatusStats(ctx context.Context, arg db.ListOrderStatusStatsParams) ([]db.ListOrderStatusStatsRow, error)
 	GetOrder(ctx context.Context, id uuid.UUID) (db.Order, error)
 	ListOrderItems(ctx context.Context, orderID uuid.UUID) ([]db.OrderItem, error)
 	GetOrderByIdempotencyKey(ctx context.Context, arg db.GetOrderByIdempotencyKeyParams) (db.Order, error)

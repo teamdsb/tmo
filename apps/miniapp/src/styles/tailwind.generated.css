@@ -22,6 +22,10 @@
   top: -8rpx
 }
 
+.bottom-0 {
+  bottom: 0px
+}
+
 .bottom-8 {
   bottom: 64rpx
 }
@@ -99,8 +103,16 @@
   margin-top: 32rpx
 }
 
+.mt-5 {
+  margin-top: 40rpx
+}
+
 .mt-6 {
   margin-top: 48rpx
+}
+
+.mt-auto {
+  margin-top: auto
 }
 
 .block {
@@ -139,6 +151,10 @@
   height: 128rpx
 }
 
+.h-3 {
+  height: 24rpx
+}
+
 .h-4 {
   height: 32rpx
 }
@@ -173,6 +189,10 @@
 
 .w-16 {
   width: 128rpx
+}
+
+.w-3 {
+  width: 24rpx
 }
 
 .w-4 {
@@ -326,6 +346,10 @@
   border-width: 1px
 }
 
+.border-2 {
+  border-width: 2px
+}
+
 .border-b {
   border-bottom-width: 1px
 }
@@ -446,8 +470,8 @@
   padding-bottom: 40rpx
 }
 
-.pb-10 {
-  padding-bottom: 80rpx
+.pb-12 {
+  padding-bottom: 96rpx
 }
 
 .pb-2 {
@@ -478,8 +502,8 @@
   padding-bottom: 64rpx
 }
 
-.pt-14 {
-  padding-top: 112rpx
+.pt-16 {
+  padding-top: 128rpx
 }
 
 .pt-2 {
@@ -564,6 +588,10 @@
   line-height: 1.625
 }
 
+.leading-snug {
+  line-height: 1.375
+}
+
 .tracking-tight {
   letter-spacing: -0.025em
 }
@@ -571,6 +599,7 @@
 .tracking-wide {
   letter-spacing: 0.025em
 }
+
 
 
 

@@ -6,8 +6,7 @@ describe('isolated mock mode', () => {
     jest.restoreAllMocks()
     process.env = {
       ...originalEnv,
-      TARO_APP_MOCK_MODE: 'isolated',
-      TARO_APP_COMMERCE_MOCK_FALLBACK: 'false'
+      TARO_APP_MOCK_MODE: 'isolated'
     }
   })
 

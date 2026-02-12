@@ -6,7 +6,8 @@ import type {
   PriceInquiry,
   ProductRequest,
   TrackingInfo,
-  User
+  User,
+  UserAddress
 } from '@tmo/api-client'
 import type { BootstrapResponse, PermissionList } from '@tmo/gateway-api-client'
 import { getStorage, removeStorage, setStorage } from '@tmo/platform-adapter'
@@ -39,6 +40,7 @@ export type MockCartEntry = {
 export type IsolatedMockState = {
   wishlistSkuIds: string[]
   cartEntries: MockCartEntry[]
+  addresses: UserAddress[]
   orders: Order[]
   trackingByOrderId: Record<string, TrackingInfo>
   productRequests: ProductRequest[]
@@ -118,6 +120,7 @@ const normalizeCartEntries = (value: unknown): MockCartEntry[] => {
 const createDefaultState = (): IsolatedMockState => ({
   wishlistSkuIds: [],
   cartEntries: [],
+  addresses: [],
   orders: [],
   trackingByOrderId: {},
   productRequests: [],
@@ -138,6 +141,7 @@ const normalizeState = (value: unknown): IsolatedMockState => {
   return {
     wishlistSkuIds: normalizeStringArray(state.wishlistSkuIds),
     cartEntries: normalizeCartEntries(state.cartEntries),
+    addresses: Array.isArray(state.addresses) ? state.addresses : [],
     orders: Array.isArray(state.orders) ? state.orders : [],
     trackingByOrderId: isRecord(state.trackingByOrderId)
       ? (state.trackingByOrderId as Record<string, TrackingInfo>)

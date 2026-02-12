@@ -297,6 +297,14 @@ type CreateTicketMessage struct {
 	Content string `json:"content"`
 }
 
+// CreateUserAddressRequest defines model for CreateUserAddressRequest.
+type CreateUserAddressRequest struct {
+	Detail        string `json:"detail"`
+	IsDefault     *bool  `json:"isDefault,omitempty"`
+	ReceiverName  string `json:"receiverName"`
+	ReceiverPhone string `json:"receiverPhone"`
+}
+
 // ErrorResponse defines model for ErrorResponse.
 type ErrorResponse = externalRef0.ErrorResponse
 
@@ -327,6 +335,11 @@ type InquiryMessage struct {
 // JobStatus defines model for JobStatus.
 type JobStatus string
 
+// ListAddressesResponse defines model for ListAddressesResponse.
+type ListAddressesResponse struct {
+	Items []UserAddress `json:"items"`
+}
+
 // MessageSenderType defines model for MessageSenderType.
 type MessageSenderType string
 
@@ -350,8 +363,19 @@ type OrderItem struct {
 	UnitPriceFen int64 `json:"unitPriceFen"`
 }
 
+// OrderStatsResponse defines model for OrderStatsResponse.
+type OrderStatsResponse struct {
+	Items []OrderStatusStat `json:"items"`
+}
+
 // OrderStatus defines model for OrderStatus.
 type OrderStatus string
+
+// OrderStatusStat defines model for OrderStatusStat.
+type OrderStatusStat struct {
+	Count  int         `json:"count"`
+	Status OrderStatus `json:"status"`
+}
 
 // PagedAfterSalesMessageList defines model for PagedAfterSalesMessageList.
 type PagedAfterSalesMessageList struct {
@@ -558,6 +582,25 @@ type UpdateTrackingRequest struct {
 	} `json:"shipments"`
 }
 
+// UpdateUserAddressRequest defines model for UpdateUserAddressRequest.
+type UpdateUserAddressRequest struct {
+	Detail        *string `json:"detail,omitempty"`
+	IsDefault     *bool   `json:"isDefault,omitempty"`
+	ReceiverName  *string `json:"receiverName,omitempty"`
+	ReceiverPhone *string `json:"receiverPhone,omitempty"`
+}
+
+// UserAddress defines model for UserAddress.
+type UserAddress struct {
+	CreatedAt     time.Time          `json:"createdAt"`
+	Detail        string             `json:"detail"`
+	Id            openapi_types.UUID `json:"id"`
+	IsDefault     bool               `json:"isDefault"`
+	ReceiverName  string             `json:"receiverName"`
+	ReceiverPhone string             `json:"receiverPhone"`
+	UpdatedAt     time.Time          `json:"updatedAt"`
+}
+
 // WishlistItem defines model for WishlistItem.
 type WishlistItem struct {
 	CreatedAt time.Time `json:"createdAt"`
@@ -655,6 +698,12 @@ type PostWishlistJSONBody struct {
 	SkuId openapi_types.UUID `json:"skuId"`
 }
 
+// PostAddressesJSONRequestBody defines body for PostAddresses for application/json ContentType.
+type PostAddressesJSONRequestBody = CreateUserAddressRequest
+
+// PatchAddressesAddressIdJSONRequestBody defines body for PatchAddressesAddressId for application/json ContentType.
+type PatchAddressesAddressIdJSONRequestBody = UpdateUserAddressRequest
+
 // PostAfterSalesTicketsJSONRequestBody defines body for PostAfterSalesTickets for application/json ContentType.
 type PostAfterSalesTicketsJSONRequestBody = CreateAfterSalesTicket
 
@@ -720,6 +769,18 @@ type PostWishlistJSONRequestBody PostWishlistJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// List current user's addresses
+	// (GET /addresses)
+	GetAddresses(c *gin.Context)
+	// Create current user's address
+	// (POST /addresses)
+	PostAddresses(c *gin.Context)
+	// Delete current user's address
+	// (DELETE /addresses/{addressId})
+	DeleteAddressesAddressId(c *gin.Context, addressId openapi_types.UUID)
+	// Update current user's address
+	// (PATCH /addresses/{addressId})
+	PatchAddressesAddressId(c *gin.Context, addressId openapi_types.UUID)
 	// List after-sales tickets
 	// (GET /after-sales/tickets)
 	GetAfterSalesTickets(c *gin.Context, params GetAfterSalesTicketsParams)
@@ -816,6 +877,9 @@ type ServerInterface interface {
 	// Submit intent order
 	// (POST /orders)
 	PostOrders(c *gin.Context, params PostOrdersParams)
+	// Get current user's order status counts
+	// (GET /orders/stats)
+	GetOrdersStats(c *gin.Context)
 	// Get my order detail
 	// (GET /orders/{orderId})
 	GetOrdersOrderId(c *gin.Context, orderId openapi_types.UUID)
@@ -856,6 +920,88 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(c *gin.Context)
+
+// GetAddresses operation middleware
+func (siw *ServerInterfaceWrapper) GetAddresses(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAddresses(c)
+}
+
+// PostAddresses operation middleware
+func (siw *ServerInterfaceWrapper) PostAddresses(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAddresses(c)
+}
+
+// DeleteAddressesAddressId operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAddressesAddressId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "addressId" -------------
+	var addressId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "addressId", c.Param("addressId"), &addressId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter addressId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.DeleteAddressesAddressId(c, addressId)
+}
+
+// PatchAddressesAddressId operation middleware
+func (siw *ServerInterfaceWrapper) PatchAddressesAddressId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "addressId" -------------
+	var addressId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "addressId", c.Param("addressId"), &addressId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter addressId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PatchAddressesAddressId(c, addressId)
+}
 
 // GetAfterSalesTickets operation middleware
 func (siw *ServerInterfaceWrapper) GetAfterSalesTickets(c *gin.Context) {
@@ -1750,6 +1896,21 @@ func (siw *ServerInterfaceWrapper) PostOrders(c *gin.Context) {
 	siw.Handler.PostOrders(c, params)
 }
 
+// GetOrdersStats operation middleware
+func (siw *ServerInterfaceWrapper) GetOrdersStats(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetOrdersStats(c)
+}
+
 // GetOrdersOrderId operation middleware
 func (siw *ServerInterfaceWrapper) GetOrdersOrderId(c *gin.Context) {
 
@@ -2008,6 +2169,10 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 		ErrorHandler:       errorHandler,
 	}
 
+	router.GET(options.BaseURL+"/addresses", wrapper.GetAddresses)
+	router.POST(options.BaseURL+"/addresses", wrapper.PostAddresses)
+	router.DELETE(options.BaseURL+"/addresses/:addressId", wrapper.DeleteAddressesAddressId)
+	router.PATCH(options.BaseURL+"/addresses/:addressId", wrapper.PatchAddressesAddressId)
 	router.GET(options.BaseURL+"/after-sales/tickets", wrapper.GetAfterSalesTickets)
 	router.POST(options.BaseURL+"/after-sales/tickets", wrapper.PostAfterSalesTickets)
 	router.GET(options.BaseURL+"/after-sales/tickets/:ticketId", wrapper.GetAfterSalesTicketsTicketId)
@@ -2040,6 +2205,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.POST(options.BaseURL+"/inquiries/price/:inquiryId/messages", wrapper.PostInquiriesPriceInquiryIdMessages)
 	router.GET(options.BaseURL+"/orders", wrapper.GetOrders)
 	router.POST(options.BaseURL+"/orders", wrapper.PostOrders)
+	router.GET(options.BaseURL+"/orders/stats", wrapper.GetOrdersStats)
 	router.GET(options.BaseURL+"/orders/:orderId", wrapper.GetOrdersOrderId)
 	router.GET(options.BaseURL+"/orders/:orderId/tracking", wrapper.GetOrdersOrderIdTracking)
 	router.POST(options.BaseURL+"/orders/:orderId/tracking", wrapper.PostOrdersOrderIdTracking)
