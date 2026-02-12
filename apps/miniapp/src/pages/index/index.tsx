@@ -50,7 +50,7 @@ export default function ProductCatalogApp() {
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [products, setProducts] = useState<ProductSummary[]>([])
-  const [productsLoading, setProductsLoading] = useState(false)
+  const [productsLoading, setProductsLoading] = useState(true)
   const isH5 = process.env.TARO_ENV === 'h5'
   const navbarStyle = getNavbarStyle()
   const quickCategories = useMemo(() => buildQuickCategories(categories), [categories])
@@ -90,6 +90,7 @@ export default function ProductCatalogApp() {
 
   useEffect(() => {
     let cancelled = false
+    setProductsLoading(true)
     const handle = setTimeout(() => {
       void (async () => {
         if (!cancelled) {
