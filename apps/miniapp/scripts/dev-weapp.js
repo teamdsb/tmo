@@ -4,12 +4,39 @@ const { spawn, spawnSync } = require('node:child_process')
 const { processWeappWxss } = require('./postprocess-weapp')
 const { processWeappProjectConfig } = require('./postprocess-weapp-project')
 
+const miniappDir = path.resolve(__dirname, '..')
+const rootDir = path.resolve(miniappDir, '..', '..')
 const weappDistDir = path.resolve(__dirname, '../dist/weapp')
 const verifyRoutesScript = path.resolve(__dirname, './verify-weapp-routes.js')
 const verifyApiBaseScript = path.resolve(__dirname, './verify-weapp-api-base.js')
+const preflightScript = path.resolve(__dirname, './preflight-weapp.js')
+const preflightEnabled = readBool(process.env.WEAPP_PREFLIGHT_HTTP_SMOKE, true)
+const preflightTimeoutMs = parsePositiveInt(process.env.WEAPP_PREFLIGHT_TIMEOUT_MS, 30000)
 
 let lastWxssMtimeMs = -1
 let lastAppJsonMtimeMs = -1
+
+function readBool(rawValue, defaultValue) {
+  if (typeof rawValue !== 'string' || rawValue.trim() === '') {
+    return defaultValue
+  }
+  const value = rawValue.trim().toLowerCase()
+  if (['1', 'true', 'yes', 'on'].includes(value)) {
+    return true
+  }
+  if (['0', 'false', 'no', 'off'].includes(value)) {
+    return false
+  }
+  return defaultValue
+}
+
+function parsePositiveInt(rawValue, fallback) {
+  const value = Number(rawValue)
+  if (!Number.isFinite(value) || value <= 0) {
+    return fallback
+  }
+  return Math.floor(value)
+}
 
 function cleanWeappDist() {
   fs.rmSync(weappDistDir, { recursive: true, force: true })
@@ -46,6 +73,34 @@ function runNodeScript(scriptPath, extraEnv) {
 function runBuildVerifications() {
   runNodeScript(verifyRoutesScript)
   runNodeScript(verifyApiBaseScript, { NODE_ENV: 'development' })
+}
+
+function runPreflightChecks() {
+  if (!preflightEnabled) {
+    console.log('[dev-weapp] WEAPP_PREFLIGHT_HTTP_SMOKE=false, skip preflight gate.')
+    return
+  }
+  if (!fs.existsSync(preflightScript)) {
+    throw new Error(`preflight script not found: ${path.relative(rootDir, preflightScript)}`)
+  }
+
+  console.log(`[dev-weapp] running preflight gate (timeout=${preflightTimeoutMs}ms)...`)
+  const result = spawnSync(process.execPath, [preflightScript], {
+    cwd: miniappDir,
+    stdio: 'inherit',
+    env: process.env,
+    timeout: preflightTimeoutMs
+  })
+
+  if (result.error && result.error.code === 'ETIMEDOUT') {
+    throw new Error(`preflight timed out after ${preflightTimeoutMs}ms`)
+  }
+  if (result.error) {
+    throw result.error
+  }
+  if (result.status !== 0) {
+    throw new Error(`preflight failed with status ${result.status}`)
+  }
 }
 
 let child
@@ -92,6 +147,12 @@ function watchBuildArtifacts() {
       exitWithFailure('verify build artifacts failed', error)
     }
   }, 700)
+}
+
+try {
+  runPreflightChecks()
+} catch (error) {
+  exitWithFailure('preflight check failed', error)
 }
 
 cleanWeappDist()
