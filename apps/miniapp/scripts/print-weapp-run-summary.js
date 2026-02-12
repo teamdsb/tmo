@@ -24,11 +24,29 @@ function normalizeEndpoint(value) {
   if (!value || typeof value !== 'object') {
     return { path: '', requestId: '', status: '' }
   }
+  const rawPath = String(value.path || '')
+  const rawRequestId = String(value.requestId || '')
+  const rawStatus = String(value.status || '')
+  const path = normalizeOptionalText(rawPath)
+  const requestId = normalizeOptionalText(rawRequestId)
+  const status = normalizeOptionalText(rawStatus)
   return {
-    path: String(value.path || ''),
-    requestId: String(value.requestId || ''),
-    status: String(value.status || '')
+    path,
+    requestId,
+    status
   }
+}
+
+function normalizeOptionalText(value) {
+  const text = String(value || '').trim()
+  if (!text) {
+    return ''
+  }
+  const normalized = text.toLowerCase()
+  if (normalized === 'none' || normalized === '-' || normalized === 'unknown' || normalized === 'null') {
+    return ''
+  }
+  return text
 }
 
 function appendGithubSummary(line, report) {
@@ -40,6 +58,12 @@ function appendGithubSummary(line, report) {
   const firstFail = report.firstFail && typeof report.firstFail === 'object' ? report.firstFail : {}
   const endpoint = normalizeEndpoint(firstFail.endpoint)
   const failedKeys = stringifyFailedKeys(firstFail.assertionKeys || report?.assertions?.failedKeys)
+  const suiteAssertions = report.suiteAssertions && typeof report.suiteAssertions === 'object' ? report.suiteAssertions : {}
+  const hasSuiteImageGate = Object.prototype.hasOwnProperty.call(suiteAssertions, 'imageSuccessApplied')
+  const suiteImageLine = hasSuiteImageGate
+    ? `${Boolean(suiteAssertions.imageSuccessApplied)}:${Boolean(suiteAssertions.imageSuccessPassed)} `
+      + `(${Number(suiteAssertions.imageSuccessTotal || 0)}/${Number(suiteAssertions.imageSuccessRequired || 0)})`
+    : '-'
 
   const lines = [
     '### Weapp Automator Structured Summary',
@@ -54,6 +78,7 @@ function appendGithubSummary(line, report) {
     `| endpoint | ${endpoint.path || '-'} |`,
     `| requestId | ${endpoint.requestId || '-'} |`,
     `| p0/p1/p2 | ${Number(report?.severity?.p0 || 0)}/${Number(report?.severity?.p1 || 0)}/${Number(report?.severity?.p2 || 0)} |`,
+    `| suiteImageGate(applied:passed total/required) | ${suiteImageLine} |`,
     `| summary | ${String(report?.artifacts?.summary || '-')} |`,
     `| run | ${String(report?.artifacts?.run || '-')} |`,
     '',
@@ -100,6 +125,11 @@ const route = String(firstFail.route || report?.route?.target || '-')
 const p0 = Number(report?.severity?.p0 || 0)
 const p1 = Number(report?.severity?.p1 || 0)
 const p2 = Number(report?.severity?.p2 || 0)
+const suiteAssertions = report.suiteAssertions && typeof report.suiteAssertions === 'object' ? report.suiteAssertions : {}
+const suiteGateApplied = Boolean(suiteAssertions.imageSuccessApplied)
+const suiteGatePassed = Boolean(suiteAssertions.imageSuccessPassed)
+const suiteGateTotal = Number(suiteAssertions.imageSuccessTotal || 0)
+const suiteGateRequired = Number(suiteAssertions.imageSuccessRequired || 0)
 
 const line = [
   `[weapp-run] status=${status}`,
@@ -112,6 +142,7 @@ const line = [
   `p0=${p0}`,
   `p1=${p1}`,
   `p2=${p2}`,
+  `suiteImageGate=${suiteGateApplied ? `${suiteGatePassed ? 'pass' : 'fail'}(${suiteGateTotal}/${suiteGateRequired})` : 'n/a'}`,
   `run=${path.relative(process.cwd(), runPath) || runPath}`
 ].join(' ')
 

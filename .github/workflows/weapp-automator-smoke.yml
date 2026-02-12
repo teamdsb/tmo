@@ -82,12 +82,16 @@ jobs:
               min_products=0
               min_categories=0
               min_images=0
+              image_scope=route
+              connect_timeout_ms=45000
               assert_console=true
               ;;
             strict)
               min_products=1
               min_categories=1
               min_images=1
+              image_scope=suite
+              connect_timeout_ms=120000
               assert_console=true
               ;;
             *)
@@ -119,6 +123,8 @@ jobs:
             echo "assert_min_products=$min_products"
             echo "assert_category_min=$min_categories"
             echo "assert_image_success_min=$min_images"
+            echo "assert_image_scope=$image_scope"
+            echo "automator_connect_timeout_ms=$connect_timeout_ms"
             echo "assert_no_console_error=$assert_console"
           } >> "$GITHUB_OUTPUT"
 
@@ -132,6 +138,8 @@ jobs:
           WEAPP_SMOKE_ASSERT_MIN_PRODUCTS: ${{ steps.smoke_profile.outputs.assert_min_products }}
           WEAPP_SMOKE_ASSERT_CATEGORY_MIN: ${{ steps.smoke_profile.outputs.assert_category_min }}
           WEAPP_SMOKE_ASSERT_IMAGE_SUCCESS_MIN: ${{ steps.smoke_profile.outputs.assert_image_success_min }}
+          WEAPP_SMOKE_ASSERT_IMAGE_SCOPE: ${{ steps.smoke_profile.outputs.assert_image_scope }}
+          WEAPP_AUTOMATOR_CONNECT_TIMEOUT_MS: ${{ steps.smoke_profile.outputs.automator_connect_timeout_ms }}
           WEAPP_SMOKE_ASSERT_NO_CONSOLE_ERROR: ${{ steps.smoke_profile.outputs.assert_no_console_error }}
         run: pnpm -C apps/miniapp debug:weapp:smoke
 

@@ -26,8 +26,21 @@ const automatorConnectTimeoutMs = Number(
   || process.env.WEAPP_CDP_CONNECT_TIMEOUT_MS
   || 45000
 )
+const automatorConnectHardTimeoutMs = toNonNegativeInt(
+  process.env.WEAPP_AUTOMATOR_CONNECT_HARD_TIMEOUT_MS || (automatorConnectTimeoutMs + 10000),
+  automatorConnectTimeoutMs + 10000
+)
 const captureTimeoutMs = Number(process.env.WEAPP_DEBUG_TIMEOUT_MS || 90000)
+const miniProgramCloseTimeoutMs = toNonNegativeInt(
+  process.env.WEAPP_MINIPROGRAM_CLOSE_TIMEOUT_MS || 8000,
+  8000
+)
+const miniProgramScreenshotTimeoutMs = toNonNegativeInt(
+  process.env.WEAPP_MINIPROGRAM_SCREENSHOT_TIMEOUT_MS || 8000,
+  8000
+)
 const failOnError = readBool(process.env.WEAPP_FAIL_ON_ERROR, true)
+const forceExit = readBool(process.env.WEAPP_FORCE_EXIT, false)
 const strictP1 = readBool(process.env.WEAPP_STRICT_P1, true)
 const expectedBaseUrl = (process.env.WEAPP_BASE_URL_EXPECTED || 'http://localhost:8080').trim()
 const skipBuild = readBool(process.env.WEAPP_SKIP_BUILD, false)
@@ -53,6 +66,14 @@ const defaultWarningAllowlistPatterns = [
   '工具未校验合法域名'
 ]
 const warningAllowlist = compileWarningAllowlist(warningAllowlistRaw, defaultWarningAllowlistPatterns)
+const multiRouteChildTimeoutMs = toNonNegativeInt(
+  process.env.WEAPP_MULTI_ROUTE_CHILD_TIMEOUT_MS || 240000,
+  240000
+)
+const multiRoutePortBase = toNonNegativeInt(
+  process.env.WEAPP_MULTI_ROUTE_PORT_BASE || (automatorPort + 10000),
+  automatorPort + 10000
+)
 const assertionConfig = {
   minProducts: toNonNegativeInt(smokeAssertMinProducts, 1),
   minCategories: toNonNegativeInt(smokeAssertCategoryMin, 1),
@@ -68,6 +89,10 @@ const defaultSmokeRoutes = [
 ]
 const multiRouteChild = readBool(process.env.WEAPP_MULTI_CHILD, false)
 const automatorRoutes = parseRoutes(process.env.WEAPP_AUTOMATOR_ROUTES || '')
+const imageAssertionScope = resolveImageAssertionScope({
+  raw: process.env.WEAPP_SMOKE_ASSERT_IMAGE_SCOPE,
+  isMultiRouteParent: !multiRouteChild && automatorRoutes.length > 0
+})
 
 const keyEndpoints = ['/bff/bootstrap', '/catalog/categories', '/catalog/products']
 const imageEndpoint = '/assets/img'
@@ -213,6 +238,37 @@ function parseRoutes(rawValue) {
   return routes
 }
 
+function resolveImageAssertionScope({ raw, isMultiRouteParent }) {
+  const value = String(raw || '').trim().toLowerCase()
+  if (value === 'suite' || value === 'route') {
+    return value
+  }
+  if (isMultiRouteParent) {
+    return 'suite'
+  }
+  return 'route'
+}
+
+function normalizeOptionalText(value) {
+  const text = String(value || '').trim()
+  if (!text) {
+    return ''
+  }
+  const normalized = text.toLowerCase()
+  if (normalized === 'none' || normalized === '-' || normalized === 'unknown' || normalized === 'null') {
+    return ''
+  }
+  return text
+}
+
+function normalizeOptionalNumber(value) {
+  const n = Number(value)
+  if (!Number.isFinite(n) || n <= 0) {
+    return 0
+  }
+  return n
+}
+
 function parseAllowlistTokens(rawValue) {
   const raw = String(rawValue || '').trim()
   if (!raw) {
@@ -265,6 +321,26 @@ function routeToSlug(route) {
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
     || 'route'
+}
+
+function withTimeout(promise, timeoutMs, label) {
+  const safeTimeout = Math.max(1, Number(timeoutMs) || 1)
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${safeTimeout}ms`))
+    }, safeTimeout)
+
+    Promise.resolve(promise).then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (error) => {
+        clearTimeout(timer)
+        reject(error)
+      }
+    )
+  })
 }
 
 function normalizeRoutePath(value) {
@@ -784,35 +860,32 @@ function runMultiRouteDriver(routeList) {
   const routeLogsRoot = path.join(logsDir, 'routes')
   ensureDir(logsDir)
   ensureDir(routeLogsRoot)
+  const suiteImageScope = imageAssertionScope === 'suite'
+  const suiteImageGateRequired = assertionConfig.minImageSuccess
 
   const startedAt = nowIso()
   const results = []
   let hasFailure = false
 
-  for (let index = 0; index < routes.length; index += 1) {
-    const route = routes[index]
-    const routeSlug = `${String(index + 1).padStart(2, '0')}-${routeToSlug(route)}`
-    const routeDir = path.join(routeLogsRoot, routeSlug)
-    ensureDir(routeDir)
-
-    const childEnv = {
-      ...process.env,
-      WEAPP_MULTI_CHILD: 'true',
-      WEAPP_AUTOMATOR_ROUTE: route,
-      WEAPP_AUTOMATOR_ROUTES: ''
-    }
-    if (index > 0) {
-      childEnv.WEAPP_SKIP_BUILD = 'true'
+  const executeRouteChild = ({ route, routeDir, env }) => {
+    for (const artifactPath of [consoleLogPath, networkLogPath, summaryPath, runJsonPath]) {
+      if (fs.existsSync(artifactPath)) {
+        fs.rmSync(artifactPath, { force: true })
+      }
     }
 
-    console.log(`[weapp-cdp-debug] route[${index + 1}/${routes.length}] ${route}`)
-    const result = spawnSync(process.execPath, [__filename], {
+    const spawnResult = spawnSync(process.execPath, [__filename], {
       cwd: miniappDir,
-      env: childEnv,
+      env,
       stdio: 'inherit',
+      timeout: Math.max(30000, multiRouteChildTimeoutMs),
       encoding: 'utf8'
     })
-    const statusCode = typeof result.status === 'number' ? result.status : 1
+    const statusCode = typeof spawnResult.status === 'number' ? spawnResult.status : 1
+    const childTimedOut = spawnResult?.error?.code === 'ETIMEDOUT'
+    const childError = childTimedOut
+      ? `route child timed out after ${Math.max(30000, multiRouteChildTimeoutMs)}ms`
+      : (spawnResult?.error?.message || '')
 
     copyArtifactIfExists(consoleLogPath, path.join(routeDir, 'console.jsonl'))
     copyArtifactIfExists(networkLogPath, path.join(routeDir, 'network.jsonl'))
@@ -823,11 +896,87 @@ function runMultiRouteDriver(routeList) {
       summaryContent = fs.readFileSync(summaryPath, 'utf8')
       fs.writeFileSync(path.join(routeDir, 'summary.md'), summaryContent, 'utf8')
     }
+
     const metrics = extractSummaryMetrics(summaryContent)
+    if (!summaryContent.trim() && statusCode !== 0) {
+      metrics.p0 = 1
+      metrics.assertionFailedCount = 1
+      metrics.assertionFailedKeys = childTimedOut ? 'child.timeout' : 'child.exit'
+    }
+
     const childRun = readJsonIfExists(path.join(routeDir, 'run.json'))
     const childFirstFail = childRun?.firstFail || {}
     const childFirstEndpoint = childFirstFail.endpoint || {}
+    const childNetworkStats = isPlainObject(childRun?.networkStats) ? childRun.networkStats : {}
+
+    return {
+      route,
+      statusCode,
+      metrics,
+      childRun,
+      childTimedOut,
+      childError,
+      childFirstFail,
+      childFirstEndpoint,
+      routeImageSuccess: normalizeOptionalNumber(childNetworkStats.imageSuccessRequests),
+      routeImageRequests: normalizeOptionalNumber(childNetworkStats.imageProxyRequests)
+    }
+  }
+
+  for (let index = 0; index < routes.length; index += 1) {
+    const route = routes[index]
+    const routeSlug = `${String(index + 1).padStart(2, '0')}-${routeToSlug(route)}`
+    const routeDir = path.join(routeLogsRoot, routeSlug)
+    const childAutomatorPort = multiRoutePortBase + index
+    ensureDir(routeDir)
+
+    const childEnv = {
+      ...process.env,
+      WEAPP_MULTI_CHILD: 'true',
+      WEAPP_FORCE_EXIT: 'true',
+      WEAPP_AUTOMATOR_ROUTE: route,
+      WEAPP_AUTOMATOR_ROUTES: '',
+      WEAPP_AUTOMATOR_PORT: String(childAutomatorPort),
+      WEAPP_SMOKE_ASSERT_IMAGE_SCOPE: imageAssertionScope
+    }
+    if (index > 0) {
+      childEnv.WEAPP_SKIP_BUILD = 'true'
+    }
+
+    console.log(`[weapp-cdp-debug] route[${index + 1}/${routes.length}] ${route} (port=${childAutomatorPort})`)
+    let childAttempt = executeRouteChild({ route, routeDir, env: childEnv })
+    const retrySource = `${childAttempt.childError} ${childAttempt.childFirstFail?.message || ''}`.toLowerCase()
+    const shouldRetryConnectExisting = childAttempt.statusCode !== 0
+      && (
+        childAttempt.childTimedOut
+        || retrySource.includes('wait timed out')
+        || retrySource.includes('failed to launch wechat web devtools')
+        || (retrySource.includes('port') && retrySource.includes('in use'))
+      )
+    if (shouldRetryConnectExisting) {
+      const retryEnv = {
+        ...childEnv,
+        WEAPP_SKIP_LAUNCH: 'true',
+        WEAPP_SKIP_BUILD: 'true'
+      }
+      console.warn(`[weapp-cdp-debug] route[${index + 1}/${routes.length}] retry with WEAPP_SKIP_LAUNCH=true (port=${childAutomatorPort})`)
+      childAttempt = executeRouteChild({ route, routeDir, env: retryEnv })
+    }
+
+    const statusCode = childAttempt.statusCode
+    const metrics = childAttempt.metrics
+    const childRun = childAttempt.childRun
+    const childFirstFail = childAttempt.childFirstFail || {}
+    const childFirstEndpoint = childAttempt.childFirstEndpoint || {}
+    const routeImageSuccess = childAttempt.routeImageSuccess
+    const routeImageRequests = childAttempt.routeImageRequests
+    const childError = childAttempt.childError
     const runStatus = childRun?.status || (statusCode === 0 ? 'pass' : 'fail')
+    const assertionFailedKey = normalizeOptionalText(metrics.assertionFailedKeys)
+      || (runStatus !== 'pass' ? (childAttempt.childTimedOut ? 'child.timeout' : 'infra.runtime') : 'none')
+    const assertionFailedCount = Number(metrics.assertionFailedCount || 0) > 0
+      ? Number(metrics.assertionFailedCount)
+      : (runStatus !== 'pass' ? 1 : 0)
     if (runStatus !== 'pass') {
       hasFailure = true
     }
@@ -839,16 +988,45 @@ function runMultiRouteDriver(routeList) {
       routeRunId: childRun?.routeRunId || '',
       runStatus,
       ...metrics,
-      firstFailMessage: childFirstFail.message || '',
-      firstFailHint: childFirstFail.hint || '',
-      firstFailEndpointPath: childFirstEndpoint.path || '',
-      firstFailEndpointStatus: childFirstEndpoint.status || 0,
-      firstFailEndpointRequestId: childFirstEndpoint.requestId || ''
+      assertionFailedCount,
+      assertionFailedKeys: assertionFailedKey,
+      firstFailMessage: childFirstFail.message || childError,
+      firstFailHint: childFirstFail.hint || (childTimedOut ? 'increase WEAPP_MULTI_ROUTE_CHILD_TIMEOUT_MS if needed' : ''),
+      firstFailEndpointPath: normalizeOptionalText(childFirstEndpoint.path || metrics.firstFailingEndpoint),
+      firstFailEndpointStatus: normalizeOptionalNumber(childFirstEndpoint.status || metrics.firstFailingEndpointStatus),
+      firstFailEndpointRequestId: normalizeOptionalText(childFirstEndpoint.requestId || metrics.firstFailingEndpointRequestId),
+      routeImageSuccess,
+      routeImageRequests,
+      imageScope: String(childRun?.assertions?.imageScope || ''),
+      imageGateApplied: Boolean(childRun?.assertions?.imageGateApplied)
     })
   }
 
   const finishedAt = nowIso()
   const failedRoutesCount = results.filter((item) => item.runStatus !== 'pass').length
+  const suiteImageSuccessTotal = results.reduce((sum, item) => sum + normalizeOptionalNumber(item.routeImageSuccess), 0)
+  const hasSuiteImageEvidence = results.some((item) => {
+    if (item.runStatus === 'pass') {
+      return true
+    }
+    return normalizeOptionalNumber(item.routeImageRequests) > 0 || normalizeOptionalNumber(item.routeImageSuccess) > 0
+  })
+  const suiteImageGateApplied = suiteImageScope && suiteImageGateRequired > 0 && hasSuiteImageEvidence
+  const suiteImageGatePassed = !suiteImageGateApplied || suiteImageSuccessTotal >= suiteImageGateRequired
+  if (!suiteImageGatePassed) {
+    hasFailure = true
+  }
+
+  const suiteFailure = !suiteImageGatePassed
+    ? {
+        route: '(suite)',
+        assertionKeys: 'image.success.min.suite',
+        endpoint: null,
+        message: `suite image successful request count below minimum threshold (totalSuccess=${suiteImageSuccessTotal}, required=${suiteImageGateRequired}, routes=${routes.length})`,
+        hint: 'no route produced enough successful image proxy requests in this multi-route run'
+      }
+    : null
+
   const lines = [
     '# Weapp CDP Multi-route Summary',
     '',
@@ -877,18 +1055,34 @@ function runMultiRouteDriver(routeList) {
 
   const firstFailed = results.find((item) => item.runStatus !== 'pass')
   lines.push('', '## Failure Highlight', '')
-  if (!firstFailed) {
-    lines.push('- first failed route: none')
-    lines.push('- first failed assertion keys: none')
-  } else {
+  if (firstFailed) {
+    const endpointStatus = firstFailed.firstFailEndpointStatus > 0 ? firstFailed.firstFailEndpointStatus : 'unknown'
     lines.push(`- first failed route: ${firstFailed.route}`)
     lines.push(`- first failed assertion keys: ${firstFailed.assertionFailedKeys || 'unknown'}`)
-    lines.push(`- first failed endpoint: ${firstFailed.firstFailEndpointPath || firstFailed.firstFailingEndpoint || 'unknown'}`)
-    lines.push(`- first failed endpoint status: ${firstFailed.firstFailEndpointStatus || firstFailed.firstFailingEndpointStatus || 'unknown'}`)
-    lines.push(`- first failed endpoint requestId: ${firstFailed.firstFailEndpointRequestId || firstFailed.firstFailingEndpointRequestId || 'unknown'}`)
+    lines.push(`- first failed endpoint: ${firstFailed.firstFailEndpointPath || 'unknown'}`)
+    lines.push(`- first failed endpoint status: ${endpointStatus}`)
+    lines.push(`- first failed endpoint requestId: ${firstFailed.firstFailEndpointRequestId || 'unknown'}`)
     lines.push(`- first failed message: ${firstFailed.firstFailMessage || 'unknown'}`)
     lines.push(`- first failed hint: ${firstFailed.firstFailHint || 'unknown'}`)
+  } else if (suiteFailure) {
+    lines.push(`- first failed route: ${suiteFailure.route}`)
+    lines.push(`- first failed assertion keys: ${suiteFailure.assertionKeys}`)
+    lines.push(`- first failed endpoint: none`)
+    lines.push(`- first failed endpoint status: -`)
+    lines.push(`- first failed endpoint requestId: -`)
+    lines.push(`- first failed message: ${suiteFailure.message}`)
+    lines.push(`- first failed hint: ${suiteFailure.hint}`)
+  } else {
+    lines.push('- first failed route: none')
+    lines.push('- first failed assertion keys: none')
   }
+
+  lines.push('', '## Suite Image Gate', '')
+  lines.push(`- image scope: ${imageAssertionScope}`)
+  lines.push(`- applied: ${suiteImageGateApplied}`)
+  lines.push(`- total success: ${suiteImageSuccessTotal}`)
+  lines.push(`- required min: ${suiteImageGateRequired}`)
+  lines.push(`- passed: ${suiteImageGatePassed}`)
 
   lines.push('', '## Notes', '')
   lines.push('- Each route has its own `summary.md`, `console.jsonl`, `network.jsonl`, and `run.json` under `apps/miniapp/.logs/weapp/routes/`.')
@@ -902,6 +1096,36 @@ function runMultiRouteDriver(routeList) {
     enableMockLogin: readConfigValue('TARO_APP_ENABLE_MOCK_LOGIN', 'false')
   }
   const firstFailedRoute = results.find((item) => item.runStatus !== 'pass')
+  const firstFailPayload = firstFailedRoute
+    ? {
+        route: firstFailedRoute.route,
+        assertionKeys: firstFailedRoute.assertionFailedKeys || '',
+        endpoint: firstFailedRoute.firstFailEndpointPath
+          ? {
+              path: firstFailedRoute.firstFailEndpointPath,
+              status: firstFailedRoute.firstFailEndpointStatus || 0,
+              requestId: firstFailedRoute.firstFailEndpointRequestId || ''
+            }
+          : null,
+        message: firstFailedRoute.firstFailMessage || '',
+        hint: firstFailedRoute.firstFailHint || ''
+      }
+    : suiteFailure
+      ? {
+          route: suiteFailure.route,
+          assertionKeys: suiteFailure.assertionKeys,
+          endpoint: null,
+          message: suiteFailure.message,
+          hint: suiteFailure.hint
+        }
+      : {
+          route: '',
+          assertionKeys: '',
+          endpoint: null,
+          message: '',
+          hint: ''
+        }
+
   writeRunReport({
     schemaVersion: runSchemaVersion,
     runId,
@@ -915,25 +1139,14 @@ function runMultiRouteDriver(routeList) {
     envSnapshot: buildEnvSnapshot(runtimeInfo),
     routesTotal: routes.length,
     routesFailed: failedRoutesCount,
-    firstFail: firstFailedRoute
-      ? {
-          route: firstFailedRoute.route,
-          assertionKeys: firstFailedRoute.assertionFailedKeys || '',
-          endpoint: {
-            path: firstFailedRoute.firstFailEndpointPath || firstFailedRoute.firstFailingEndpoint || '',
-            status: firstFailedRoute.firstFailEndpointStatus || firstFailedRoute.firstFailingEndpointStatus || 0,
-            requestId: firstFailedRoute.firstFailEndpointRequestId || firstFailedRoute.firstFailingEndpointRequestId || ''
-          },
-          message: firstFailedRoute.firstFailMessage || '',
-          hint: firstFailedRoute.firstFailHint || ''
-        }
-      : {
-          route: '',
-          assertionKeys: '',
-          endpoint: null,
-          message: '',
-          hint: ''
-        },
+    firstFail: firstFailPayload,
+    suiteAssertions: {
+      imageScope: imageAssertionScope,
+      imageSuccessTotal: suiteImageSuccessTotal,
+      imageSuccessRequired: suiteImageGateRequired,
+      imageSuccessApplied: suiteImageGateApplied,
+      imageSuccessPassed: suiteImageGatePassed
+    },
     routes: results.map((item) => ({
       route: item.route,
       routeRunId: item.routeRunId || '',
@@ -944,9 +1157,13 @@ function runMultiRouteDriver(routeList) {
       p2: item.p2,
       assertionFailedCount: item.assertionFailedCount,
       assertionFailedKeys: item.assertionFailedKeys,
-      firstFailingEndpoint: item.firstFailEndpointPath || item.firstFailingEndpoint || '',
-      firstFailingEndpointRequestId: item.firstFailEndpointRequestId || item.firstFailingEndpointRequestId || '',
+      firstFailingEndpoint: item.firstFailEndpointPath || '',
+      firstFailingEndpointRequestId: item.firstFailEndpointRequestId || '',
       firstFailMessage: item.firstFailMessage || '',
+      routeImageRequests: item.routeImageRequests || 0,
+      routeImageSuccess: item.routeImageSuccess || 0,
+      imageScope: item.imageScope || imageAssertionScope,
+      imageGateApplied: item.imageGateApplied,
       artifactsDir: item.artifactsDir
     })),
     artifacts: {
@@ -1094,7 +1311,11 @@ async function connectMiniProgram(cliPath) {
       wsEndpoint,
       time: nowIso()
     }, 'console')
-    return automator.connect({ wsEndpoint })
+    return withTimeout(
+      automator.connect({ wsEndpoint }),
+      automatorConnectHardTimeoutMs,
+      'automator.connect'
+    )
   }
 
   if (!cliPath) {
@@ -1113,15 +1334,19 @@ async function connectMiniProgram(cliPath) {
     time: nowIso()
   }, 'console')
 
-  return automator.launch({
-    cliPath,
-    projectPath: projectDir,
-    port: automatorPort,
-    timeout: automatorConnectTimeoutMs,
-    account: automatorAccount,
-    trustProject: automatorTrustProject,
-    cwd: rootDir
-  })
+  return withTimeout(
+    automator.launch({
+      cliPath,
+      projectPath: projectDir,
+      port: automatorPort,
+      timeout: automatorConnectTimeoutMs,
+      account: automatorAccount,
+      trustProject: automatorTrustProject,
+      cwd: rootDir
+    }),
+    automatorConnectHardTimeoutMs,
+    'automator.launch'
+  )
 }
 
 function extractConsoleLevel(payload) {
@@ -1644,11 +1869,17 @@ function runNetworkAssertions() {
     })
   }
 
-  assertCheck('network', 'image.success.min', imageProxyState.successCount >= assertionConfig.minImageSuccess, {
-    severity: 'p1',
-    evidence: `success=${imageProxyState.successCount}, required=${assertionConfig.minImageSuccess}, imageRequests=${networkStats.imageProxyRequests}`,
-    failMessage: 'image successful request count below minimum threshold'
-  })
+  const imageEvidence = `scope=${imageAssertionScope}, success=${imageProxyState.successCount}, required=${assertionConfig.minImageSuccess}, imageRequests=${networkStats.imageProxyRequests}`
+  if (imageAssertionScope === 'route') {
+    assertCheck('network', 'image.success.min', imageProxyState.successCount >= assertionConfig.minImageSuccess, {
+      severity: 'p1',
+      evidence: imageEvidence,
+      failMessage: 'image successful request count below minimum threshold'
+    })
+    return
+  }
+
+  addAssertion('network', 'image.success.min.route-skipped', true, 'p2', imageEvidence)
 }
 
 function runRouteAssertions() {
@@ -1799,7 +2030,11 @@ async function captureScreenshot(name) {
 
   if (miniProgram && typeof miniProgram.screenshot === 'function') {
     try {
-      await miniProgram.screenshot({ path: filePath })
+      await withTimeout(
+        miniProgram.screenshot({ path: filePath }),
+        miniProgramScreenshotTimeoutMs,
+        'miniProgram.screenshot'
+      )
       if (fs.existsSync(filePath)) {
         screenshotPaths.push(path.relative(rootDir, filePath))
         return
@@ -1866,6 +2101,7 @@ function buildEnvSnapshot(runtimeInfo) {
       minProducts: assertionConfig.minProducts,
       minCategories: assertionConfig.minCategories,
       minImageSuccess: assertionConfig.minImageSuccess,
+      imageScope: imageAssertionScope,
       assertNoConsoleError: assertionConfig.assertNoConsoleError,
       routeWaitMs: assertionConfig.routeWaitMs
     },
@@ -1920,6 +2156,7 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     `- assertMinProducts: ${assertionConfig.minProducts}`,
     `- assertMinCategories: ${assertionConfig.minCategories}`,
     `- assertMinImageSuccess: ${assertionConfig.minImageSuccess}`,
+    `- assertImageScope: ${imageAssertionScope}`,
     `- assertNoConsoleError: ${assertionConfig.assertNoConsoleError}`,
     `- routeWaitMs: ${assertionConfig.routeWaitMs}`,
     `- warning allowlist patterns: ${warningAllowlist.length > 0 ? warningAllowlist.map((item) => item.pattern).join(', ') : 'none'}`,
@@ -1955,6 +2192,7 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     `- key endpoint requests: ${networkStats.matchedEndpointRequests}`,
     `- image proxy requests: ${networkStats.imageProxyRequests}`,
     `- image success requests: ${networkStats.imageSuccessRequests}`,
+    `- image gate applied (route): ${imageAssertionScope === 'route'}`,
     `- parse errors: ${networkStats.parseErrors}`,
     `- capture since: ${networkStats.captureSince || '-'}`,
     `- capture until: ${networkStats.captureUntil || '-'}`,
@@ -2110,6 +2348,8 @@ function buildSingleRunReport(runtimeInfo, startedAt, finishedAt, summaryMeta, e
     assertions: {
       failedCount,
       failedKeys,
+      imageScope: imageAssertionScope,
+      imageGateApplied: imageAssertionScope === 'route',
       route: assertionState.routeAssertions,
       network: assertionState.networkAssertions,
       render: assertionState.renderAssertions
@@ -2151,16 +2391,26 @@ function buildSingleRunReport(runtimeInfo, startedAt, finishedAt, summaryMeta, e
 
 async function cleanup() {
   if (miniProgram) {
+    const connectedMiniProgram = miniProgram
+    miniProgram = null
     try {
-      await miniProgram.close()
-    } catch {
+      if (typeof connectedMiniProgram.close === 'function') {
+        await withTimeout(
+          connectedMiniProgram.close(),
+          miniProgramCloseTimeoutMs,
+          'miniProgram.close'
+        )
+      }
+    } catch (error) {
+      appendWarning(`miniProgram close fallback: ${error?.message || String(error)}`)
       try {
-        miniProgram.disconnect()
+        if (typeof connectedMiniProgram.disconnect === 'function') {
+          connectedMiniProgram.disconnect()
+        }
       } catch {
         // ignore cleanup errors
       }
     }
-    miniProgram = null
   }
 
   if (consoleStream) {
@@ -2267,6 +2517,9 @@ async function main() {
     console.warn(`[weapp-cdp-debug] completed with assertion failures: ${summaryMeta.failedCount}`)
   }
   console.log(`[weapp-cdp-debug] completed. summary: ${summaryPath}, run: ${runJsonPath}`)
+  if (forceExit) {
+    process.exit(0)
+  }
 }
 
 process.on('SIGINT', async () => {

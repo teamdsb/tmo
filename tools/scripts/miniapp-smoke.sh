@@ -15,8 +15,10 @@ automator_routes="${WEAPP_AUTOMATOR_ROUTES:-$default_routes}"
 assert_min_products="${WEAPP_SMOKE_ASSERT_MIN_PRODUCTS:-0}"
 assert_category_min="${WEAPP_SMOKE_ASSERT_CATEGORY_MIN:-0}"
 assert_image_success_min="${WEAPP_SMOKE_ASSERT_IMAGE_SUCCESS_MIN:-0}"
+assert_image_scope="${WEAPP_SMOKE_ASSERT_IMAGE_SCOPE:-}"
 assert_no_console_error="${WEAPP_SMOKE_ASSERT_NO_CONSOLE_ERROR:-true}"
 route_wait_ms="${WEAPP_SMOKE_ROUTE_WAIT_MS:-8000}"
+automator_connect_timeout_ms="${WEAPP_AUTOMATOR_CONNECT_TIMEOUT_MS:-}"
 summary_path="$miniapp_dir/.logs/weapp/summary.md"
 run_json_path="$miniapp_dir/.logs/weapp/run.json"
 
@@ -63,6 +65,8 @@ echo "[miniapp-smoke] routes: $automator_routes"
 echo "[miniapp-smoke] assert min products: $assert_min_products"
 echo "[miniapp-smoke] assert min categories: $assert_category_min"
 echo "[miniapp-smoke] assert min image success: $assert_image_success_min"
+echo "[miniapp-smoke] assert image scope: ${assert_image_scope:-auto}"
+echo "[miniapp-smoke] automator connect timeout: ${automator_connect_timeout_ms:-default}"
 echo "[miniapp-smoke] assert no console error: $assert_no_console_error"
 echo "[miniapp-smoke] running automator smoke..."
 
@@ -71,6 +75,7 @@ WEAPP_AUTOMATOR_ROUTES="$automator_routes" \
 WEAPP_SMOKE_ASSERT_MIN_PRODUCTS="$assert_min_products" \
 WEAPP_SMOKE_ASSERT_CATEGORY_MIN="$assert_category_min" \
 WEAPP_SMOKE_ASSERT_IMAGE_SUCCESS_MIN="$assert_image_success_min" \
+WEAPP_SMOKE_ASSERT_IMAGE_SCOPE="$assert_image_scope" \
 WEAPP_SMOKE_ASSERT_NO_CONSOLE_ERROR="$assert_no_console_error" \
 WEAPP_SMOKE_ROUTE_WAIT_MS="$route_wait_ms" \
 pnpm -C "$miniapp_dir" run debug:weapp:collect
