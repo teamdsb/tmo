@@ -8,7 +8,9 @@ import type {
   Cart,
   CartImportJob,
   CartImportPendingItem,
-  CartImportSelection
+  CartImportSelection,
+  ProductDetail,
+  Sku
 } from '@tmo/api-client'
 import { getNavbarStyle } from '../../utils/navbar'
 import { commerceServices } from '../../services/commerce'
@@ -20,6 +22,7 @@ const MATCH_TYPE_BADGES: Record<string, { label: string; className: string }> = 
   AMBIGUOUS: { label: '匹配不确定', className: 'bg-amber-50 text-amber-600' },
   NOT_FOUND: { label: '未找到', className: 'bg-red-50 text-red-600' }
 }
+const QUICK_CART_QTY_OPTIONS = [1, 2, 5, 10]
 
 const formatPendingMeta = (item: CartImportPendingItem) => {
   const parts = [
@@ -38,11 +41,33 @@ const formatCartItemMeta = (item: Cart['items'][number]) => {
   return parts.join(' • ')
 }
 
+const formatFen = (fen: number): string => `¥${(fen / 100).toFixed(2)}`
+
+const formatCartItemPrice = (item: Cart['items'][number]): string => {
+  const tier = item.sku.priceTiers?.[0]
+  if (!tier) {
+    return '询价'
+  }
+  return formatFen(tier.unitPriceFen)
+}
+
 const normalizeSpuId = (value: unknown): string => {
   if (typeof value !== 'string') {
     return ''
   }
   return value.trim()
+}
+
+const getSkuLabel = (sku: Sku): string => {
+  const spec = sku.spec?.trim()
+  if (spec) {
+    return spec
+  }
+  const name = sku.name?.trim()
+  if (name) {
+    return name
+  }
+  return sku.id
 }
 
 const getCartItemTitle = (
@@ -64,10 +89,12 @@ export default function ExcelImportConfirmation() {
   const [cart, setCart] = useState<Cart | null>(null)
   const [selectionMap, setSelectionMap] = useState<Record<number, CartImportSelection>>({})
   const [loading, setLoading] = useState(false)
-  const [updatingItemId, setUpdatingItemId] = useState<string | null>(null)
+  const [busyItemId, setBusyItemId] = useState<string | null>(null)
   const [productNameBySpuId, setProductNameBySpuId] = useState<Record<string, string>>({})
+  const [skuOptionsBySpuId, setSkuOptionsBySpuId] = useState<Record<string, Sku[]>>({})
   const productNameBySpuIdRef = useRef<Record<string, string>>({})
-  const loadingSpuIdSetRef = useRef<Set<string>>(new Set())
+  const skuOptionsBySpuIdRef = useRef<Record<string, Sku[]>>({})
+  const spuDetailRequestByIdRef = useRef<Record<string, Promise<ProductDetail | null>>>({})
   const navbarStyle = getNavbarStyle()
   const isH5 = process.env.TARO_ENV === 'h5'
 
@@ -121,60 +148,75 @@ export default function ExcelImportConfirmation() {
     productNameBySpuIdRef.current = productNameBySpuId
   }, [productNameBySpuId])
 
+  useEffect(() => {
+    skuOptionsBySpuIdRef.current = skuOptionsBySpuId
+  }, [skuOptionsBySpuId])
+
+  const cacheSpuDetail = useCallback((spuId: string, detail: ProductDetail): void => {
+    const productName = detail.product?.name?.trim()
+    if (productName) {
+      setProductNameBySpuId((prev) => {
+        if (prev[spuId] === productName) {
+          return prev
+        }
+        const next = { ...prev, [spuId]: productName }
+        productNameBySpuIdRef.current = next
+        return next
+      })
+    }
+
+    const nextSkus = Array.isArray(detail.skus) ? detail.skus : []
+    if (nextSkus.length > 0) {
+      setSkuOptionsBySpuId((prev) => {
+        const current = prev[spuId] ?? []
+        if (current.length === nextSkus.length && current.every((sku, index) => sku.id === nextSkus[index]?.id)) {
+          return prev
+        }
+        const next = { ...prev, [spuId]: nextSkus }
+        skuOptionsBySpuIdRef.current = next
+        return next
+      })
+    }
+  }, [])
+
+  const fetchSpuDetail = useCallback(async (spuId: string): Promise<ProductDetail | null> => {
+    const normalizedSpuId = normalizeSpuId(spuId)
+    if (!normalizedSpuId) {
+      return null
+    }
+    if (spuDetailRequestByIdRef.current[normalizedSpuId]) {
+      return spuDetailRequestByIdRef.current[normalizedSpuId]
+    }
+
+    const task = (async () => {
+      try {
+        const detail = await commerceServices.catalog.getProductDetail(normalizedSpuId)
+        cacheSpuDetail(normalizedSpuId, detail)
+        return detail
+      } catch (error) {
+        console.warn('load cart product detail failed', error)
+        return null
+      } finally {
+        delete spuDetailRequestByIdRef.current[normalizedSpuId]
+      }
+    })()
+
+    spuDetailRequestByIdRef.current[normalizedSpuId] = task
+    return task
+  }, [cacheSpuDetail])
+
   const hydrateProductNames = useCallback(async (items: Cart['items'][number][]) => {
     const spuIds = Array.from(new Set(
       items
         .map((item) => normalizeSpuId(item.sku.spuId))
         .filter((spuId): spuId is string => spuId.length > 0)
     ))
-    const missingSpuIds = spuIds.filter((spuId) => (
-      !productNameBySpuIdRef.current[spuId] && !loadingSpuIdSetRef.current.has(spuId)
-    ))
+    const missingSpuIds = spuIds.filter((spuId) => !productNameBySpuIdRef.current[spuId])
     if (missingSpuIds.length === 0) {
       return
     }
-
-    missingSpuIds.forEach((spuId) => loadingSpuIdSetRef.current.add(spuId))
-
-    const results = await Promise.all(
-      missingSpuIds.map(async (spuId) => {
-        try {
-          const detail = await commerceServices.catalog.getProductDetail(spuId)
-          const productName = detail.product?.name?.trim()
-          if (!productName) {
-            return null
-          }
-          return { spuId, productName }
-        } catch (error) {
-          console.warn('load cart product name failed', error)
-          return null
-        } finally {
-          loadingSpuIdSetRef.current.delete(spuId)
-        }
-      })
-    )
-
-    const validResults = results.filter((result): result is { spuId: string; productName: string } => Boolean(result))
-    if (validResults.length === 0) {
-      return
-    }
-
-    setProductNameBySpuId((prev) => {
-      let changed = false
-      const next = { ...prev }
-      for (const entry of validResults) {
-        if (!next[entry.spuId]) {
-          next[entry.spuId] = entry.productName
-          changed = true
-        }
-      }
-      if (!changed) {
-        return prev
-      }
-      productNameBySpuIdRef.current = next
-      return next
-    })
-  }, [])
+    await Promise.all(missingSpuIds.map((spuId) => fetchSpuDetail(spuId)))
+  }, [fetchSpuDetail])
 
   useEffect(() => {
     if (importJob || cartItems.length === 0) {
@@ -250,14 +292,11 @@ export default function ExcelImportConfirmation() {
     await navigateTo(ROUTES.orderConfirm)
   }
 
-  const handleChangeCartItemQty = async (
-    item: Cart['items'][number],
-    nextQty: number
-  ) => {
-    if (nextQty < 1 || updatingItemId === item.id) {
+  const handleChangeCartItemQty = async (item: Cart['items'][number], nextQty: number) => {
+    if (nextQty < 1 || busyItemId === item.id) {
       return
     }
-    setUpdatingItemId(item.id)
+    setBusyItemId(item.id)
     try {
       const updatedCart = await commerceServices.cart.updateItemQty(item.id, nextQty)
       setCart(updatedCart)
@@ -265,7 +304,120 @@ export default function ExcelImportConfirmation() {
       console.warn('update cart qty failed', error)
       await Taro.showToast({ title: '更新数量失败', icon: 'none' })
     } finally {
-      setUpdatingItemId((current) => (current === item.id ? null : current))
+      setBusyItemId((current) => (current === item.id ? null : current))
+    }
+  }
+
+  const refreshCart = useCallback(async (): Promise<void> => {
+    const latest = await commerceServices.cart.getCart()
+    setCart(latest)
+  }, [])
+
+  const loadSkuOptions = useCallback(async (spuId: string): Promise<Sku[]> => {
+    const normalizedSpuId = normalizeSpuId(spuId)
+    if (!normalizedSpuId) {
+      return []
+    }
+    const cached = skuOptionsBySpuIdRef.current[normalizedSpuId]
+    if (cached && cached.length > 0) {
+      return cached
+    }
+    const detail = await fetchSpuDetail(normalizedSpuId)
+    if (!detail?.skus || detail.skus.length === 0) {
+      return []
+    }
+    return detail.skus
+  }, [fetchSpuDetail])
+
+  const handleChangeCartItemSku = async (item: Cart['items'][number]) => {
+    if (busyItemId === item.id) {
+      return
+    }
+    const spuId = normalizeSpuId(item.sku.spuId)
+    if (!spuId) {
+      await Taro.showToast({ title: '当前商品无可选规格', icon: 'none' })
+      return
+    }
+    let options: Sku[] = []
+    try {
+      options = await loadSkuOptions(spuId)
+    } catch (error) {
+      console.warn('load cart sku options failed', error)
+      await Taro.showToast({ title: '规格加载失败', icon: 'none' })
+      return
+    }
+
+    if (options.length === 0) {
+      await Taro.showToast({ title: '当前商品无可选规格', icon: 'none' })
+      return
+    }
+
+    try {
+      const result = await Taro.showActionSheet({
+        itemList: options.map((sku) => getSkuLabel(sku))
+      })
+      const nextSku = options[result.tapIndex]
+      if (!nextSku || nextSku.id === item.sku.id) {
+        return
+      }
+
+      setBusyItemId(item.id)
+      await commerceServices.cart.removeItem(item.id)
+      await commerceServices.cart.addItem(nextSku.id, item.qty)
+      await refreshCart()
+      await Taro.showToast({ title: '规格已更新', icon: 'success' })
+    } catch (error) {
+      if ((error as { errMsg?: string })?.errMsg?.includes('cancel')) {
+        return
+      }
+      console.warn('change cart sku failed', error)
+      try {
+        await refreshCart()
+      } catch (refreshError) {
+        console.warn('refresh cart after sku change failed', refreshError)
+      }
+      await Taro.showToast({ title: '规格更新失败，请重试', icon: 'none' })
+    } finally {
+      setBusyItemId((current) => (current === item.id ? null : current))
+    }
+  }
+
+  const handleQuickChangeCartItemQty = async (item: Cart['items'][number]) => {
+    if (busyItemId === item.id) {
+      return
+    }
+    try {
+      const result = await Taro.showActionSheet({
+        itemList: QUICK_CART_QTY_OPTIONS.map((qty) => `${qty} 件`)
+      })
+      const nextQty = QUICK_CART_QTY_OPTIONS[result.tapIndex]
+      if (!nextQty || nextQty === item.qty) {
+        return
+      }
+      await handleChangeCartItemQty(item, nextQty)
+    } catch (error) {
+      if ((error as { errMsg?: string })?.errMsg?.includes('cancel')) {
+        return
+      }
+      console.warn('quick change cart qty failed', error)
+      await Taro.showToast({ title: '数量选择失败', icon: 'none' })
+    }
+  }
+
+  const handleRemoveCartItem = async (item: Cart['items'][number]) => {
+    if (busyItemId === item.id) {
+      return
+    }
+    setBusyItemId(item.id)
+    try {
+      await commerceServices.cart.removeItem(item.id)
+      await refreshCart()
+      await Taro.showToast({ title: '已移除', icon: 'none' })
+    } catch (error) {
+      console.warn('remove cart item failed', error)
+      await Taro.showToast({ title: '移除失败', icon: 'none' })
+    } finally {
+      setBusyItemId((current) => (current === item.id ? null : current))
     }
   }
 
@@ -434,43 +586,71 @@ export default function ExcelImportConfirmation() {
               <View className='grid grid-cols-1 gap-4'>
                 {cartItems.map((item) => {
                   const meta = formatCartItemMeta(item)
-                  const isUpdatingQty = updatingItemId === item.id
+                  const isBusy = busyItemId === item.id
                   const title = getCartItemTitle(item, productNameBySpuId)
+                  const specLabel = item.sku.spec?.trim() || item.sku.name
+                  const priceLabel = formatCartItemPrice(item)
                   return (
                     <View
                       key={item.id}
-                      className='bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center justify-between gap-4'
+                      className='cart-item-card'
                     >
-                      <View className='flex-1 min-w-0'>
-                        <Text className='text-sm font-medium text-slate-900 truncate'>
-                          {title}
-                        </Text>
-                        {meta ? (
-                          <Text className='text-xs text-slate-400 mt-1 truncate'>{meta}</Text>
-                        ) : null}
+                      <View className='cart-item-header'>
+                        <View className='cart-item-main'>
+                          <Text className='cart-item-title'>
+                            {title}
+                          </Text>
+                          {meta ? (
+                            <Text className='cart-item-meta'>{meta}</Text>
+                          ) : null}
+                        </View>
+                        <View
+                          className={`cart-item-remove ${isBusy ? 'cart-item-remove--disabled' : ''}`}
+                          onClick={isBusy ? undefined : () => void handleRemoveCartItem(item)}
+                        >
+                          <Text>移除</Text>
+                        </View>
                       </View>
-                      <View className='flex items-center gap-2'>
-                        <Text className='text-xs text-slate-400'>数量</Text>
-                        <View className='flex items-center rounded-lg border border-slate-200 bg-slate-50 overflow-hidden'>
+
+                      <View className='cart-item-middle'>
+                        <View
+                          className={`cart-item-spec-trigger ${isBusy ? 'cart-item-spec-trigger--disabled' : ''}`}
+                          onClick={isBusy ? undefined : () => void handleChangeCartItemSku(item)}
+                        >
+                          <Text className='cart-item-spec-label'>规格</Text>
+                          <Text className='cart-item-spec-value'>{specLabel}</Text>
+                        </View>
+                        <View className='cart-item-price'>
+                          <Text className='cart-item-price-label'>参考单价</Text>
+                          <Text className='cart-item-price-value'>{priceLabel}</Text>
+                        </View>
+                      </View>
+
+                      <View className='cart-item-footer'>
+                        <Text className='cart-item-qty-label'>数量</Text>
+                        <View className='cart-item-stepper'>
                           <View
-                            className={`w-7 h-7 flex items-center justify-center border-r border-slate-200 ${
-                              item.qty <= 1 || isUpdatingQty ? 'text-slate-300' : 'text-slate-500'
+                            className={`cart-item-stepper-btn ${
+                              item.qty <= 1 || isBusy ? 'cart-item-stepper-btn--disabled' : ''
                             }`}
                             onClick={
-                              item.qty <= 1 || isUpdatingQty
+                              item.qty <= 1 || isBusy
                                 ? undefined
                                 : () => void handleChangeCartItemQty(item, item.qty - 1)
                             }
                           >
                             <Text className='leading-none'>-</Text>
                           </View>
-                          <Text className='min-w-7 text-center text-sm font-semibold text-slate-900 px-2'>{item.qty}</Text>
                           <View
-                            className={`w-7 h-7 flex items-center justify-center border-l border-slate-200 ${
-                              isUpdatingQty ? 'text-slate-300' : 'text-slate-500'
-                            }`}
+                            className={`cart-item-stepper-value ${isBusy ? 'cart-item-stepper-value--disabled' : ''}`}
+                            onClick={isBusy ? undefined : () => void handleQuickChangeCartItemQty(item)}
+                          >
+                            <Text>{item.qty}</Text>
+                          </View>
+                          <View
+                            className={`cart-item-stepper-btn ${isBusy ? 'cart-item-stepper-btn--disabled' : ''}`}
                             onClick={
-                              isUpdatingQty
+                              isBusy
                                 ? undefined
                                 : () => void handleChangeCartItemQty(item, item.qty + 1)
                             }

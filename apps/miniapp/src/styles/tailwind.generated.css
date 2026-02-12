@@ -167,10 +167,6 @@
   height: 48rpx
 }
 
-.h-7 {
-  height: 56rpx
-}
-
 .h-8 {
   height: 64rpx
 }
@@ -211,10 +207,6 @@
   width: 48rpx
 }
 
-.w-7 {
-  width: 56rpx
-}
-
 .w-8 {
   width: 64rpx
 }
@@ -225,10 +217,6 @@
 
 .min-w-0 {
   min-width: 0px
-}
-
-.min-w-7 {
-  min-width: 56rpx
 }
 
 .max-w-md {
@@ -370,14 +358,6 @@
   border-bottom-width: 2px
 }
 
-.border-l {
-  border-left-width: 1px
-}
-
-.border-r {
-  border-right-width: 1px
-}
-
 .border-t {
   border-top-width: 1px
 }
@@ -385,7 +365,6 @@
 .border-none {
   border-style: none
 }
-
 
 
 

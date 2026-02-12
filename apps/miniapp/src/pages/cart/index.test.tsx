@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import Taro from '@tarojs/taro'
 import ExcelImportConfirmation from './index'
 import { commerceServices } from '../../services/commerce'
 
@@ -22,7 +23,7 @@ describe('ExcelImportConfirmation', () => {
     const navbar = document.querySelector('.app-navbar.app-navbar--primary')
     expect(navbar).not.toBeNull()
 
-    expect(await screen.findByText('示例螺栓')).toBeInTheDocument()
+    expect((await screen.findAllByText('示例螺栓')).length).toBeGreaterThan(0)
     expect(screen.getByText('数量')).toBeInTheDocument()
     expect(screen.getByText('2')).toBeInTheDocument()
   })
@@ -95,7 +96,7 @@ describe('ExcelImportConfirmation', () => {
 
     await renderCart()
 
-    expect(await screen.findByText('M8 x 30')).toBeInTheDocument()
+    expect((await screen.findAllByText('M8 x 30')).length).toBeGreaterThan(0)
     expect(screen.getByText('M8 x 30 • SKU BOLT-M8-30')).toBeInTheDocument()
     expect(consoleWarnSpy).toHaveBeenCalled()
   })
@@ -162,5 +163,217 @@ describe('ExcelImportConfirmation', () => {
 
     expect(updateItemQtySpy).toHaveBeenCalledWith('cart-1', 3)
     expect(await screen.findByText('3')).toBeInTheDocument()
+  })
+
+  it('supports quick qty change through action sheet', async () => {
+    jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 2,
+          sku: {
+            id: 'sku-bolt-a2-m8',
+            spuId: 'spu-bolt-a2',
+            name: 'M8 x 30',
+            spec: 'M8 x 30',
+            skuCode: 'BOLT-M8-30'
+          }
+        }
+      ]
+    } as any)
+    const updateItemQtySpy = jest.spyOn(commerceServices.cart, 'updateItemQty').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 10,
+          sku: {
+            id: 'sku-bolt-a2-m8',
+            spuId: 'spu-bolt-a2',
+            name: 'M8 x 30',
+            spec: 'M8 x 30',
+            skuCode: 'BOLT-M8-30'
+          }
+        }
+      ]
+    } as any)
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValue({
+      product: {
+        id: 'spu-bolt-a2',
+        name: '不锈钢六角螺栓 A2',
+        categoryId: 'cat-fasteners'
+      },
+      skus: [
+        { id: 'sku-bolt-a2-m8', spuId: 'spu-bolt-a2', name: 'M8 x 30', spec: 'M8 x 30', isActive: true }
+      ]
+    } as any)
+    jest.spyOn(Taro, 'showActionSheet').mockResolvedValueOnce({ tapIndex: 3 } as any)
+
+    await renderCart()
+    fireEvent.click(screen.getByText('2'))
+
+    await waitFor(() => {
+      expect(updateItemQtySpy).toHaveBeenCalledWith('cart-1', 10)
+    })
+  })
+
+  it('changes sku in cart and keeps quantity', async () => {
+    jest.spyOn(commerceServices.cart, 'getCart')
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: 'cart-1',
+            qty: 2,
+            sku: {
+              id: 'sku-bolt-a2-m8',
+              spuId: 'spu-bolt-a2',
+              name: 'M8 x 30',
+              spec: 'M8 x 30',
+              skuCode: 'BOLT-M8-30'
+            }
+          }
+        ]
+      } as any)
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: 'cart-2',
+            qty: 2,
+            sku: {
+              id: 'sku-bolt-a2-m10',
+              spuId: 'spu-bolt-a2',
+              name: 'M10 x 40',
+              spec: 'M10 x 40',
+              skuCode: 'BOLT-M10-40'
+            }
+          }
+        ]
+      } as any)
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValue({
+      product: {
+        id: 'spu-bolt-a2',
+        name: '不锈钢六角螺栓 A2',
+        categoryId: 'cat-fasteners'
+      },
+      skus: [
+        { id: 'sku-bolt-a2-m8', spuId: 'spu-bolt-a2', name: 'M8 x 30', spec: 'M8 x 30', isActive: true },
+        { id: 'sku-bolt-a2-m10', spuId: 'spu-bolt-a2', name: 'M10 x 40', spec: 'M10 x 40', isActive: true }
+      ]
+    } as any)
+    const removeItemSpy = jest.spyOn(commerceServices.cart, 'removeItem').mockResolvedValueOnce()
+    const addItemSpy = jest.spyOn(commerceServices.cart, 'addItem').mockResolvedValueOnce({ items: [] } as any)
+    jest.spyOn(Taro, 'showActionSheet').mockResolvedValueOnce({ tapIndex: 1 } as any)
+
+    await renderCart()
+    fireEvent.click(screen.getByText('规格'))
+
+    await waitFor(() => {
+      expect(removeItemSpy).toHaveBeenCalledWith('cart-1')
+      expect(addItemSpy).toHaveBeenCalledWith('sku-bolt-a2-m10', 2)
+    })
+    expect(await screen.findByText('M10 x 40')).toBeInTheDocument()
+  })
+
+  it('merges quantity when changing to existing sku', async () => {
+    jest.spyOn(commerceServices.cart, 'getCart')
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: 'cart-1',
+            qty: 2,
+            sku: {
+              id: 'sku-bolt-a2-m8',
+              spuId: 'spu-bolt-a2',
+              name: 'M8 x 30',
+              spec: 'M8 x 30',
+              skuCode: 'BOLT-M8-30'
+            }
+          },
+          {
+            id: 'cart-2',
+            qty: 1,
+            sku: {
+              id: 'sku-bolt-a2-m10',
+              spuId: 'spu-bolt-a2',
+              name: 'M10 x 40',
+              spec: 'M10 x 40',
+              skuCode: 'BOLT-M10-40'
+            }
+          }
+        ]
+      } as any)
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: 'cart-2',
+            qty: 3,
+            sku: {
+              id: 'sku-bolt-a2-m10',
+              spuId: 'spu-bolt-a2',
+              name: 'M10 x 40',
+              spec: 'M10 x 40',
+              skuCode: 'BOLT-M10-40'
+            }
+          }
+        ]
+      } as any)
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValue({
+      product: {
+        id: 'spu-bolt-a2',
+        name: '不锈钢六角螺栓 A2',
+        categoryId: 'cat-fasteners'
+      },
+      skus: [
+        { id: 'sku-bolt-a2-m8', spuId: 'spu-bolt-a2', name: 'M8 x 30', spec: 'M8 x 30', isActive: true },
+        { id: 'sku-bolt-a2-m10', spuId: 'spu-bolt-a2', name: 'M10 x 40', spec: 'M10 x 40', isActive: true }
+      ]
+    } as any)
+    jest.spyOn(commerceServices.cart, 'removeItem').mockResolvedValueOnce()
+    jest.spyOn(commerceServices.cart, 'addItem').mockResolvedValueOnce({ items: [] } as any)
+    jest.spyOn(Taro, 'showActionSheet').mockResolvedValueOnce({ tapIndex: 1 } as any)
+
+    await renderCart()
+    fireEvent.click(screen.getAllByText('规格')[0])
+
+    expect(await screen.findByText('共 1 件')).toBeInTheDocument()
+    expect(screen.getByText('3')).toBeInTheDocument()
+  })
+
+  it('removes cart item from card action', async () => {
+    const removeItemSpy = jest.spyOn(commerceServices.cart, 'removeItem').mockResolvedValueOnce()
+    jest.spyOn(commerceServices.cart, 'getCart')
+      .mockResolvedValueOnce({
+        items: [
+          {
+            id: 'cart-1',
+            qty: 2,
+            sku: {
+              id: 'sku-bolt-a2-m8',
+              spuId: 'spu-bolt-a2',
+              name: 'M8 x 30',
+              spec: 'M8 x 30',
+              skuCode: 'BOLT-M8-30'
+            }
+          }
+        ]
+      } as any)
+      .mockResolvedValueOnce({ items: [] } as any)
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValue({
+      product: {
+        id: 'spu-bolt-a2',
+        name: '不锈钢六角螺栓 A2',
+        categoryId: 'cat-fasteners'
+      },
+      skus: [
+        { id: 'sku-bolt-a2-m8', spuId: 'spu-bolt-a2', name: 'M8 x 30', spec: 'M8 x 30', isActive: true }
+      ]
+    } as any)
+
+    await renderCart()
+    fireEvent.click(screen.getByText('移除'))
+
+    await waitFor(() => {
+      expect(removeItemSpy).toHaveBeenCalledWith('cart-1')
+    })
+    expect(await screen.findByText('购物车为空')).toBeInTheDocument()
   })
 })
