@@ -132,6 +132,13 @@ components:
           "$ref": "#/components/schemas/UserStatus"
         displayName:
           type: string
+        ownerSalesUserId:
+          type: string
+          format: uuid
+          nullable: true
+        ownerSalesDisplayName:
+          type: string
+          nullable: true
         roles:
           type: array
           items:

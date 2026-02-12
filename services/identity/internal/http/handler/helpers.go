@@ -127,6 +127,10 @@ func userFromModel(user db.User, roles []string, userType oapi.UserUserType) oap
 	if user.Phone != nil {
 		response.Phone = user.Phone
 	}
+	if user.OwnerSalesUserID.Valid {
+		ownerSalesUserID := openapi_types.UUID(user.OwnerSalesUserID.Bytes)
+		response.OwnerSalesUserId = &ownerSalesUserID
+	}
 	if user.Status != "" {
 		status := oapi.UserStatus(user.Status)
 		response.Status = &status

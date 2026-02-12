@@ -73,6 +73,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	store := db.New(pool)
 	auth := middleware.NewAuthenticator(cfg.AuthEnabled, cfg.JWTSecret, cfg.JWTIssuer)
 	apiHandler := &handler.Handler{
+		AddressStore:        store,
 		CatalogStore:        store,
 		CartStore:           store,
 		OrderStore:          store,

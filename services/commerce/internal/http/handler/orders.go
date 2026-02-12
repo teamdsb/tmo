@@ -326,6 +326,44 @@ func (h *Handler) GetOrders(c *gin.Context, params oapi.GetOrdersParams) {
 	})
 }
 
+func (h *Handler) GetOrdersStats(c *gin.Context) {
+	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "PROCUREMENT", "CS", "ADMIN")
+	if !ok {
+		return
+	}
+
+	customerFilter := pgtype.UUID{}
+	ownerFilter := pgtype.UUID{}
+	switch strings.ToUpper(claims.Role) {
+	case "CUSTOMER":
+		customerFilter = pgtype.UUID{Bytes: claims.UserID, Valid: true}
+	case "SALES":
+		ownerFilter = pgtype.UUID{Bytes: claims.UserID, Valid: true}
+	}
+
+	stats, err := h.OrderStore.ListOrderStatusStats(c.Request.Context(), db.ListOrderStatusStatsParams{
+		CustomerID:       customerFilter,
+		OwnerSalesUserID: ownerFilter,
+	})
+	if err != nil {
+		h.logError("list order stats failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to fetch order stats")
+		return
+	}
+
+	items := make([]oapi.OrderStatusStat, 0, len(stats))
+	for _, row := range stats {
+		items = append(items, oapi.OrderStatusStat{
+			Status: oapi.OrderStatus(row.Status),
+			Count:  int(row.OrderCount),
+		})
+	}
+
+	c.JSON(http.StatusOK, oapi.OrderStatsResponse{
+		Items: items,
+	})
+}
+
 func (h *Handler) GetOrdersOrderId(c *gin.Context, orderId types.UUID) {
 	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "PROCUREMENT", "CS", "ADMIN")
 	if !ok {

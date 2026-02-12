@@ -211,6 +211,17 @@ type ProductRequest struct {
 	ReferenceImageUrls []string           `db:"reference_image_urls" json:"reference_image_urls"`
 }
 
+type UserAddress struct {
+	ID            uuid.UUID          `db:"id" json:"id"`
+	UserID        uuid.UUID          `db:"user_id" json:"user_id"`
+	ReceiverName  string             `db:"receiver_name" json:"receiver_name"`
+	ReceiverPhone string             `db:"receiver_phone" json:"receiver_phone"`
+	Detail        string             `db:"detail" json:"detail"`
+	IsDefault     bool               `db:"is_default" json:"is_default"`
+	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
 type WishlistItem struct {
 	ID          uuid.UUID          `db:"id" json:"id"`
 	OwnerUserID uuid.UUID          `db:"owner_user_id" json:"owner_user_id"`

@@ -138,15 +138,17 @@ type SalesQrCodePlatform string
 
 // User defines model for User.
 type User struct {
-	CreatedAt      time.Time          `json:"createdAt"`
-	DisabledAt     *time.Time         `json:"disabledAt"`
-	DisabledReason *string            `json:"disabledReason"`
-	DisplayName    *string            `json:"displayName,omitempty"`
-	Id             openapi_types.UUID `json:"id"`
-	Phone          *string            `json:"phone"`
-	Roles          []string           `json:"roles"`
-	Status         *UserStatus        `json:"status,omitempty"`
-	UserType       UserUserType       `json:"userType"`
+	CreatedAt             time.Time           `json:"createdAt"`
+	DisabledAt            *time.Time          `json:"disabledAt"`
+	DisabledReason        *string             `json:"disabledReason"`
+	DisplayName           *string             `json:"displayName,omitempty"`
+	Id                    openapi_types.UUID  `json:"id"`
+	OwnerSalesDisplayName *string             `json:"ownerSalesDisplayName"`
+	OwnerSalesUserId      *openapi_types.UUID `json:"ownerSalesUserId"`
+	Phone                 *string             `json:"phone"`
+	Roles                 []string            `json:"roles"`
+	Status                *UserStatus         `json:"status,omitempty"`
+	UserType              UserUserType        `json:"userType"`
 }
 
 // UserUserType defines model for User.UserType.

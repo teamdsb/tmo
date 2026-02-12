@@ -21,6 +21,7 @@ describe('PersonalCenter', () => {
     asMock(gatewayServices.bootstrap.get).mockImplementation(async () => ({
       me: {
         displayName: '张三',
+        ownerSalesDisplayName: '李经理',
         roles: ['客户经理']
       }
     }))
@@ -39,7 +40,7 @@ describe('PersonalCenter', () => {
 
     expect(await screen.findByText('张三')).toBeInTheDocument()
     expect(screen.getByText('客户经理')).toBeInTheDocument()
-    expect(screen.getByText('王经理')).toBeInTheDocument()
+    expect(screen.getByText('李经理')).toBeInTheDocument()
   })
 
   it('hides manager card when not logged in', async () => {
@@ -51,7 +52,7 @@ describe('PersonalCenter', () => {
 
     expect(await screen.findByText('未登录')).toBeInTheDocument()
     expect(screen.queryByText('客户经理')).not.toBeInTheDocument()
-    expect(screen.queryByText('王经理')).not.toBeInTheDocument()
+    expect(screen.queryByText('李经理')).not.toBeInTheDocument()
   })
 
   it('clears tokens and updates UI after logout', async () => {

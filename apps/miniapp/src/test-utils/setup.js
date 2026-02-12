@@ -247,8 +247,31 @@ jest.mock('@tmo/commerce-services', () => {
       },
       orders: {
         list: jest.fn(async () => ({ items: [mockOrder] })),
+        stats: jest.fn(async () => ({ items: [{ status: 'SUBMITTED', count: 2 }] })),
         get: jest.fn(async () => mockOrder),
         submit: jest.fn(async () => mockOrder)
+      },
+      addresses: {
+        list: jest.fn(async () => ({ items: [] })),
+        create: jest.fn(async (payload) => ({
+          id: 'addr-1',
+          receiverName: payload.receiverName,
+          receiverPhone: payload.receiverPhone,
+          detail: payload.detail,
+          isDefault: payload.isDefault ?? false,
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-01T00:00:00Z'
+        })),
+        update: jest.fn(async (addressId, payload) => ({
+          id: addressId,
+          receiverName: payload.receiverName ?? '收件人',
+          receiverPhone: payload.receiverPhone ?? '13800000000',
+          detail: payload.detail ?? '示例地址',
+          isDefault: payload.isDefault ?? false,
+          createdAt: '2026-01-01T00:00:00Z',
+          updatedAt: '2026-01-02T00:00:00Z'
+        })),
+        remove: jest.fn(async () => ({}))
       },
       cart: {
         getCart: jest.fn(async () => mockCart),
@@ -299,6 +322,7 @@ jest.mock('@tmo/gateway-services', () => {
         get: jest.fn(async () => ({
           me: {
             displayName: '张三',
+            ownerSalesDisplayName: '李经理',
             roles: ['客户经理']
           }
         }))
