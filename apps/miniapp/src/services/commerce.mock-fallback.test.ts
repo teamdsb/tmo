@@ -6,6 +6,9 @@ const prepareCommerceServices = () => {
 
   const commerceFactory = require('@tmo/commerce-services') as {
     createCommerceServices: () => {
+      catalog: {
+        getProductDetail: jest.Mock
+      }
       cart: {
         getCart: jest.Mock
         addItem: jest.Mock
@@ -80,5 +83,42 @@ describe('commerce mock fallback', () => {
     await commerceServices.cart.removeItem(cart.items[0].id)
     cart = await commerceServices.cart.getCart()
     expect(cart.items).toEqual([])
+  })
+
+  it('persists mock sku price tiers for product detail fallback', async () => {
+    const { commerceServices } = prepareCommerceServices()
+    const detail = await commerceServices.catalog.getProductDetail('spu-bolt-a2')
+    const skuId = detail.skus[0]?.id
+    expect(skuId).toBeTruthy()
+    if (!skuId) {
+      throw new Error('expected sku id')
+    }
+
+    const { getStorage, setStorage } = require('@tmo/platform-adapter') as {
+      getStorage: <T>(key: string) => Promise<{ data?: T }>
+      setStorage: <T>(key: string, value: T) => Promise<void>
+    }
+    const stored = await getStorage<{
+      skuPriceTiersBySkuId?: Record<string, Array<{ minQty: number; maxQty?: number | null; unitPriceFen: number }>>
+      wishlistSkuIds?: string[]
+      cartEntries?: Array<{ skuId: string; qty: number }>
+      updatedAt?: string
+    }>(mockCommerceStorageKey)
+    const storedState = stored.data ?? {}
+    expect(storedState.skuPriceTiersBySkuId?.[skuId]?.length).toBeGreaterThan(0)
+
+    await setStorage(mockCommerceStorageKey, {
+      ...storedState,
+      skuPriceTiersBySkuId: {
+        ...(storedState.skuPriceTiersBySkuId ?? {}),
+        [skuId]: [
+          { minQty: 1, maxQty: 5, unitPriceFen: 777 }
+        ]
+      }
+    })
+
+    const updated = await commerceServices.catalog.getProductDetail('spu-bolt-a2')
+    const updatedSku = updated.skus.find((sku) => sku.id === skuId)
+    expect(updatedSku?.priceTiers?.[0]?.unitPriceFen).toBe(777)
   })
 })

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, Button } from '@tarojs/components'
-import Taro, { useRouter } from '@tarojs/taro'
+import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import FixedView from '@taroify/core/fixed-view'
 import { AppsOutlined, ArrowLeft, FilterOutlined } from '@taroify/icons'
@@ -38,6 +38,25 @@ const formatCartItemMeta = (item: Cart['items'][number]) => {
   return parts.join(' • ')
 }
 
+const normalizeSpuId = (value: unknown): string => {
+  if (typeof value !== 'string') {
+    return ''
+  }
+  return value.trim()
+}
+
+const getCartItemTitle = (
+  item: Cart['items'][number],
+  productNameBySpuId: Record<string, string>
+): string => {
+  const spuId = normalizeSpuId(item.sku.spuId)
+  const productName = spuId ? productNameBySpuId[spuId] : undefined
+  if (productName) {
+    return productName
+  }
+  return item.sku.name
+}
+
 export default function ExcelImportConfirmation() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('to-confirm')
@@ -45,36 +64,46 @@ export default function ExcelImportConfirmation() {
   const [cart, setCart] = useState<Cart | null>(null)
   const [selectionMap, setSelectionMap] = useState<Record<number, CartImportSelection>>({})
   const [loading, setLoading] = useState(false)
+  const [updatingItemId, setUpdatingItemId] = useState<string | null>(null)
+  const [productNameBySpuId, setProductNameBySpuId] = useState<Record<string, string>>({})
+  const productNameBySpuIdRef = useRef<Record<string, string>>({})
+  const loadingSpuIdSetRef = useRef<Set<string>>(new Set())
   const navbarStyle = getNavbarStyle()
   const isH5 = process.env.TARO_ENV === 'h5'
 
   const jobIdParam = typeof router.params?.jobId === 'string' ? router.params.jobId : null
 
-  useEffect(() => {
-    void (async () => {
-      setLoading(true)
-      try {
-        if (jobIdParam) {
-          const job = await commerceServices.cart.getImportJob(jobIdParam)
-          setImportJob(job)
-          setCart(null)
-          setSelectionMap({})
-          if (job.result?.pendingItems?.length) {
-            setActiveTab('to-confirm')
-          }
-          return
+  const loadCartOrImport = useCallback(async () => {
+    setLoading(true)
+    try {
+      if (jobIdParam) {
+        const job = await commerceServices.cart.getImportJob(jobIdParam)
+        setImportJob(job)
+        setCart(null)
+        setSelectionMap({})
+        if (job.result?.pendingItems?.length) {
+          setActiveTab('to-confirm')
         }
-        const cartData = await commerceServices.cart.getCart()
-        setCart(cartData)
-        setImportJob(null)
-      } catch (error) {
-        console.warn('load cart/import failed', error)
-        await Taro.showToast({ title: '加载购物车失败', icon: 'none' })
-      } finally {
-        setLoading(false)
+        return
       }
-    })()
+      const cartData = await commerceServices.cart.getCart()
+      setCart(cartData)
+      setImportJob(null)
+    } catch (error) {
+      console.warn('load cart/import failed', error)
+      await Taro.showToast({ title: '加载购物车失败', icon: 'none' })
+    } finally {
+      setLoading(false)
+    }
   }, [jobIdParam])
+
+  useEffect(() => {
+    void loadCartOrImport()
+  }, [loadCartOrImport])
+
+  useDidShow(() => {
+    void loadCartOrImport()
+  })
 
   const pendingItems = importJob?.result?.pendingItems ?? []
   const autoAddedItems = importJob?.result?.autoAddedItems ?? []
@@ -87,6 +116,72 @@ export default function ExcelImportConfirmation() {
   const selections = useMemo(() => Object.values(selectionMap), [selectionMap])
   const cartItems = cart?.items ?? []
   const isCartEmpty = cartItems.length === 0
+
+  useEffect(() => {
+    productNameBySpuIdRef.current = productNameBySpuId
+  }, [productNameBySpuId])
+
+  const hydrateProductNames = useCallback(async (items: Cart['items'][number][]) => {
+    const spuIds = Array.from(new Set(
+      items
+        .map((item) => normalizeSpuId(item.sku.spuId))
+        .filter((spuId): spuId is string => spuId.length > 0)
+    ))
+    const missingSpuIds = spuIds.filter((spuId) => (
+      !productNameBySpuIdRef.current[spuId] && !loadingSpuIdSetRef.current.has(spuId)
+    ))
+    if (missingSpuIds.length === 0) {
+      return
+    }
+
+    missingSpuIds.forEach((spuId) => loadingSpuIdSetRef.current.add(spuId))
+
+    const results = await Promise.all(
+      missingSpuIds.map(async (spuId) => {
+        try {
+          const detail = await commerceServices.catalog.getProductDetail(spuId)
+          const productName = detail.product?.name?.trim()
+          if (!productName) {
+            return null
+          }
+          return { spuId, productName }
+        } catch (error) {
+          console.warn('load cart product name failed', error)
+          return null
+        } finally {
+          loadingSpuIdSetRef.current.delete(spuId)
+        }
+      })
+    )
+
+    const validResults = results.filter((result): result is { spuId: string; productName: string } => Boolean(result))
+    if (validResults.length === 0) {
+      return
+    }
+
+    setProductNameBySpuId((prev) => {
+      let changed = false
+      const next = { ...prev }
+      for (const entry of validResults) {
+        if (!next[entry.spuId]) {
+          next[entry.spuId] = entry.productName
+          changed = true
+        }
+      }
+      if (!changed) {
+        return prev
+      }
+      productNameBySpuIdRef.current = next
+      return next
+    })
+  }, [])
+
+  useEffect(() => {
+    if (importJob || cartItems.length === 0) {
+      return
+    }
+    void hydrateProductNames(cartItems)
+  }, [cartItems, hydrateProductNames, importJob])
 
   const handleBack = () => {
     Taro.navigateBack().catch(() => switchTabLike(ROUTES.cart))
@@ -153,6 +248,25 @@ export default function ExcelImportConfirmation() {
     const allowed = await ensureLoggedIn({ redirect: true })
     if (!allowed) return
     await navigateTo(ROUTES.orderConfirm)
+  }
+
+  const handleChangeCartItemQty = async (
+    item: Cart['items'][number],
+    nextQty: number
+  ) => {
+    if (nextQty < 1 || updatingItemId === item.id) {
+      return
+    }
+    setUpdatingItemId(item.id)
+    try {
+      const updatedCart = await commerceServices.cart.updateItemQty(item.id, nextQty)
+      setCart(updatedCart)
+    } catch (error) {
+      console.warn('update cart qty failed', error)
+      await Taro.showToast({ title: '更新数量失败', icon: 'none' })
+    } finally {
+      setUpdatingItemId((current) => (current === item.id ? null : current))
+    }
   }
 
   return (
@@ -320,6 +434,8 @@ export default function ExcelImportConfirmation() {
               <View className='grid grid-cols-1 gap-4'>
                 {cartItems.map((item) => {
                   const meta = formatCartItemMeta(item)
+                  const isUpdatingQty = updatingItemId === item.id
+                  const title = getCartItemTitle(item, productNameBySpuId)
                   return (
                     <View
                       key={item.id}
@@ -327,18 +443,44 @@ export default function ExcelImportConfirmation() {
                     >
                       <View className='flex-1 min-w-0'>
                         <Text className='text-sm font-medium text-slate-900 truncate'>
-                          {item.sku.name}
+                          {title}
                         </Text>
                         {meta ? (
                           <Text className='text-xs text-slate-400 mt-1 truncate'>{meta}</Text>
                         ) : null}
                       </View>
-                    <View className='flex items-center gap-2'>
-                      <Text className='text-xs text-slate-400'>数量</Text>
-                      <Text className='text-sm font-semibold text-slate-900'>{item.qty}</Text>
+                      <View className='flex items-center gap-2'>
+                        <Text className='text-xs text-slate-400'>数量</Text>
+                        <View className='flex items-center rounded-lg border border-slate-200 bg-slate-50 overflow-hidden'>
+                          <View
+                            className={`w-7 h-7 flex items-center justify-center border-r border-slate-200 ${
+                              item.qty <= 1 || isUpdatingQty ? 'text-slate-300' : 'text-slate-500'
+                            }`}
+                            onClick={
+                              item.qty <= 1 || isUpdatingQty
+                                ? undefined
+                                : () => void handleChangeCartItemQty(item, item.qty - 1)
+                            }
+                          >
+                            <Text className='leading-none'>-</Text>
+                          </View>
+                          <Text className='min-w-7 text-center text-sm font-semibold text-slate-900 px-2'>{item.qty}</Text>
+                          <View
+                            className={`w-7 h-7 flex items-center justify-center border-l border-slate-200 ${
+                              isUpdatingQty ? 'text-slate-300' : 'text-slate-500'
+                            }`}
+                            onClick={
+                              isUpdatingQty
+                                ? undefined
+                                : () => void handleChangeCartItemQty(item, item.qty + 1)
+                            }
+                          >
+                            <Text className='leading-none'>+</Text>
+                          </View>
+                        </View>
+                      </View>
                     </View>
-                  </View>
-                )
+                  )
                 })}
               </View>
             ) : (

@@ -12,6 +12,8 @@ import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { ensureLoggedIn } from '../../utils/auth'
 import { commerceServices } from '../../services/commerce'
 
+const QUICK_ADD_QTY_OPTIONS = [1, 2, 5, 10]
+
 export default function FavoritesPage() {
   const navbarStyle = getNavbarStyle()
   const [items, setItems] = useState<WishlistItem[]>([])
@@ -54,9 +56,23 @@ export default function FavoritesPage() {
   const handleAddToCart = async (skuId: string) => {
     const allowed = await ensureLoggedIn({ redirect: true })
     if (!allowed) return
+    let qty = 1
     try {
-      await commerceServices.cart.addItem(skuId, 1)
-      await Taro.showToast({ title: '已加入购物车', icon: 'success' })
+      const { tapIndex } = await Taro.showActionSheet({
+        itemList: QUICK_ADD_QTY_OPTIONS.map((value) => `${value} 件`)
+      })
+      qty = QUICK_ADD_QTY_OPTIONS[tapIndex] ?? 1
+    } catch (error) {
+      if ((error as { errMsg?: string })?.errMsg?.includes('cancel')) {
+        return
+      }
+      console.warn('choose qty failed', error)
+      await Taro.showToast({ title: '数量选择失败', icon: 'none' })
+      return
+    }
+    try {
+      await commerceServices.cart.addItem(skuId, qty)
+      await Taro.showToast({ title: `已加入购物车（${qty}）`, icon: 'success' })
     } catch (error) {
       console.warn('add to cart failed', error)
       await Taro.showToast({ title: '加入购物车失败', icon: 'none' })

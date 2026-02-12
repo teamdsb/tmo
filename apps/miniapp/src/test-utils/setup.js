@@ -257,7 +257,9 @@ jest.mock('@tmo/commerce-services', () => {
           result: { pendingItems: [], autoAddedItems: [], autoAddedCount: 0, pendingCount: 0 }
         })),
         confirmImport: jest.fn(async () => mockCart),
-        addItem: jest.fn(async () => ({}))
+        addItem: jest.fn(async () => mockCart),
+        updateItemQty: jest.fn(async () => mockCart),
+        removeItem: jest.fn(async () => ({}))
       },
       wishlist: {
         list: jest.fn(async () => []),

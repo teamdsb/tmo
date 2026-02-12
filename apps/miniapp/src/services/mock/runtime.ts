@@ -3,6 +3,7 @@ import type {
   AfterSalesTicket,
   InquiryMessage,
   Order,
+  PriceTier,
   PriceInquiry,
   ProductRequest,
   TrackingInfo,
@@ -39,6 +40,7 @@ export type MockCartEntry = {
 export type IsolatedMockState = {
   wishlistSkuIds: string[]
   cartEntries: MockCartEntry[]
+  skuPriceTiersBySkuId: Record<string, PriceTier[]>
   orders: Order[]
   trackingByOrderId: Record<string, TrackingInfo>
   productRequests: ProductRequest[]
@@ -115,9 +117,59 @@ const normalizeCartEntries = (value: unknown): MockCartEntry[] => {
     }))
 }
 
+const normalizePriceTier = (value: unknown): PriceTier | null => {
+  if (!isRecord(value)) {
+    return null
+  }
+  if (typeof value.minQty !== 'number' || !Number.isFinite(value.minQty)) {
+    return null
+  }
+  if (typeof value.unitPriceFen !== 'number' || !Number.isFinite(value.unitPriceFen)) {
+    return null
+  }
+  if (value.maxQty !== null && value.maxQty !== undefined && (typeof value.maxQty !== 'number' || !Number.isFinite(value.maxQty))) {
+    return null
+  }
+
+  const minQty = Math.max(1, Math.floor(value.minQty))
+  const unitPriceFen = Math.max(1, Math.floor(value.unitPriceFen))
+  const maxQty = value.maxQty === null || value.maxQty === undefined
+    ? null
+    : Math.max(minQty, Math.floor(value.maxQty))
+
+  return {
+    minQty,
+    maxQty,
+    unitPriceFen
+  }
+}
+
+const normalizeSkuPriceTiersBySkuId = (value: unknown): Record<string, PriceTier[]> => {
+  if (!isRecord(value)) {
+    return {}
+  }
+
+  const result: Record<string, PriceTier[]> = {}
+  Object.entries(value).forEach(([skuId, tiers]) => {
+    if (!skuId || !Array.isArray(tiers)) {
+      return
+    }
+    const normalizedTiers = tiers
+      .map((tier) => normalizePriceTier(tier))
+      .filter((tier): tier is PriceTier => tier !== null)
+
+    if (normalizedTiers.length > 0) {
+      result[skuId] = normalizedTiers
+    }
+  })
+
+  return result
+}
+
 const createDefaultState = (): IsolatedMockState => ({
   wishlistSkuIds: [],
   cartEntries: [],
+  skuPriceTiersBySkuId: {},
   orders: [],
   trackingByOrderId: {},
   productRequests: [],
@@ -138,6 +190,7 @@ const normalizeState = (value: unknown): IsolatedMockState => {
   return {
     wishlistSkuIds: normalizeStringArray(state.wishlistSkuIds),
     cartEntries: normalizeCartEntries(state.cartEntries),
+    skuPriceTiersBySkuId: normalizeSkuPriceTiersBySkuId(state.skuPriceTiersBySkuId),
     orders: Array.isArray(state.orders) ? state.orders : [],
     trackingByOrderId: isRecord(state.trackingByOrderId)
       ? (state.trackingByOrderId as Record<string, TrackingInfo>)

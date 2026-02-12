@@ -720,6 +720,16 @@
 
 .tier-card-highlight {
   background: #e8f2ff;
+  border-color: #9fc5ff;
+  box-shadow: 0 0 0 1px rgb(22 119 255 / 18%);
+}
+
+.tier-card-highlight .tier-card-range {
+  color: #45658a;
+}
+
+.tier-card-highlight .tier-card-price {
+  color: #1677ff;
 }
 
 .tier-card-range {
@@ -745,6 +755,49 @@
   padding: 0 14px;
   border-radius: 9px;
   font-size: calc(12px + var(--font-size-step, 0px));
+}
+
+.product-sku-hint {
+  display: block;
+  margin-top: 8px;
+  font-size: calc(11px + var(--font-size-step, 0px));
+  color: #6a7f95;
+}
+
+.product-qty-hint {
+  font-size: calc(11px + var(--font-size-step, 0px));
+  color: #6a7f95;
+}
+
+.product-qty-picker {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.product-qty-button {
+  width: 36px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #d4ddea;
+  background: #f8fbff;
+  color: #2b3a4d;
+  font-size: calc(16px + var(--font-size-step, 0px));
+  line-height: 1;
+  padding: 0;
+}
+
+.product-qty-button[disabled] {
+  opacity: 0.5;
+}
+
+.product-qty-value {
+  min-width: 28px;
+  text-align: center;
+  font-size: calc(16px + var(--font-size-step, 0px));
+  font-weight: 700;
+  color: #24384f;
 }
 
 .product-logistics {

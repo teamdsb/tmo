@@ -4,6 +4,7 @@ import type {
   Category,
   CreateCatalogProductRequest,
   CreateCategoryRequest,
+  PriceTier,
   ProductDetail,
   ProductSummary,
   Sku,
@@ -31,6 +32,7 @@ type MockCartEntry = {
 type MockCommerceState = {
   wishlistSkuIds: string[]
   cartEntries: MockCartEntry[]
+  skuPriceTiersBySkuId: Record<string, PriceTier[]>
   updatedAt: string
 }
 
@@ -39,6 +41,7 @@ const nowIso = (): string => new Date().toISOString()
 const createDefaultMockCommerceState = (): MockCommerceState => ({
   wishlistSkuIds: [],
   cartEntries: [],
+  skuPriceTiersBySkuId: {},
   updatedAt: nowIso()
 })
 
@@ -51,6 +54,56 @@ const normalizeQty = (qty: number): number => {
     return 1
   }
   return value
+}
+
+const normalizePriceTier = (value: unknown): PriceTier | null => {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const tier = value as Partial<PriceTier>
+  if (typeof tier.minQty !== 'number' || !Number.isFinite(tier.minQty)) {
+    return null
+  }
+  if (typeof tier.unitPriceFen !== 'number' || !Number.isFinite(tier.unitPriceFen)) {
+    return null
+  }
+  if (tier.maxQty !== null && tier.maxQty !== undefined && (typeof tier.maxQty !== 'number' || !Number.isFinite(tier.maxQty))) {
+    return null
+  }
+
+  const minQty = Math.max(1, Math.floor(tier.minQty))
+  const unitPriceFen = Math.max(1, Math.floor(tier.unitPriceFen))
+  const maxQty = tier.maxQty === null || tier.maxQty === undefined
+    ? null
+    : Math.max(minQty, Math.floor(tier.maxQty))
+
+  return {
+    minQty,
+    maxQty,
+    unitPriceFen
+  }
+}
+
+const normalizeSkuPriceTiersBySkuId = (value: unknown): Record<string, PriceTier[]> => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {}
+  }
+
+  const result: Record<string, PriceTier[]> = {}
+  Object.entries(value).forEach(([skuId, tiers]) => {
+    if (!skuId || !Array.isArray(tiers)) {
+      return
+    }
+    const normalizedTiers = tiers
+      .map((tier) => normalizePriceTier(tier))
+      .filter((tier): tier is PriceTier => tier !== null)
+    if (normalizedTiers.length > 0) {
+      result[skuId] = normalizedTiers
+    }
+  })
+
+  return result
 }
 
 const normalizeMockCommerceState = (value: unknown): MockCommerceState => {
@@ -83,6 +136,7 @@ const normalizeMockCommerceState = (value: unknown): MockCommerceState => {
   return {
     wishlistSkuIds,
     cartEntries,
+    skuPriceTiersBySkuId: normalizeSkuPriceTiersBySkuId(state.skuPriceTiersBySkuId),
     updatedAt
   }
 }
@@ -116,11 +170,31 @@ const inferSpuIdFromSkuId = (skuId: string): string => {
   return `spu-${skuId}`
 }
 
-const getMockSkuById = (skuId: string): Sku => {
+const clonePriceTier = (tier: PriceTier): PriceTier => ({
+  minQty: tier.minQty,
+  maxQty: tier.maxQty ?? null,
+  unitPriceFen: tier.unitPriceFen
+})
+
+const applySkuPriceTierOverride = (
+  sku: Sku,
+  skuPriceTiersBySkuId?: Record<string, PriceTier[]>
+): Sku => {
+  const tiers = skuPriceTiersBySkuId?.[sku.id]
+  if (!tiers || tiers.length === 0) {
+    return sku
+  }
+  return {
+    ...sku,
+    priceTiers: tiers.map(clonePriceTier)
+  }
+}
+
+const getMockSkuById = (skuId: string, skuPriceTiersBySkuId?: Record<string, PriceTier[]>): Sku => {
   for (const detail of Object.values(mockProductDetails)) {
     const found = detail.skus.find((sku) => sku.id === skuId)
     if (found) {
-      return found
+      return applySkuPriceTierOverride(found, skuPriceTiersBySkuId)
     }
   }
 
@@ -128,10 +202,10 @@ const getMockSkuById = (skuId: string): Sku => {
   const guessedDetail = buildMockProductDetail(guessedSpuId)
   const guessedSku = guessedDetail?.skus.find((sku) => sku.id === skuId)
   if (guessedSku) {
-    return guessedSku
+    return applySkuPriceTierOverride(guessedSku, skuPriceTiersBySkuId)
   }
 
-  return {
+  return applySkuPriceTierOverride({
     id: skuId,
     spuId: guessedSpuId,
     name: `示例规格 ${skuId.slice(0, 8)}`,
@@ -140,7 +214,7 @@ const getMockSkuById = (skuId: string): Sku => {
       { minQty: 1, maxQty: null, unitPriceFen: 9800 }
     ],
     isActive: true
-  }
+  }, skuPriceTiersBySkuId)
 }
 
 const toMockCartItemId = (skuId: string): string => `${mockCartItemIdPrefix}${skuId}`
@@ -154,7 +228,7 @@ const toSkuIdFromCartItemId = (itemId: string): string => {
 
 const toMockWishlist = (state: MockCommerceState): WishlistItem[] => {
   return state.wishlistSkuIds.map((skuId) => ({
-    sku: getMockSkuById(skuId),
+    sku: getMockSkuById(skuId, state.skuPriceTiersBySkuId),
     createdAt: state.updatedAt
   }))
 }
@@ -163,11 +237,78 @@ const toMockCart = (state: MockCommerceState): Cart => {
   return {
     items: state.cartEntries.map((entry) => ({
       id: toMockCartItemId(entry.skuId),
-      sku: getMockSkuById(entry.skuId),
+      sku: getMockSkuById(entry.skuId, state.skuPriceTiersBySkuId),
       qty: normalizeQty(entry.qty)
     })),
     updatedAt: state.updatedAt
   }
+}
+
+const buildSkuPriceTiersBySkuId = (skus: Sku[]): Record<string, PriceTier[]> => {
+  const result: Record<string, PriceTier[]> = {}
+  skus.forEach((sku) => {
+    if (!sku.priceTiers || sku.priceTiers.length === 0) {
+      return
+    }
+    result[sku.id] = sku.priceTiers.map(clonePriceTier)
+  })
+  return result
+}
+
+const applyProductDetailPriceTierOverrides = (
+  detail: ProductDetail,
+  skuPriceTiersBySkuId: Record<string, PriceTier[]>
+): ProductDetail => {
+  if (!detail.skus.length) {
+    return detail
+  }
+  return {
+    ...detail,
+    skus: detail.skus.map((sku) => applySkuPriceTierOverride(sku, skuPriceTiersBySkuId))
+  }
+}
+
+const ensureStateIncludesSkuPriceTiers = (
+  state: MockCommerceState,
+  detail: ProductDetail
+): MockCommerceState => {
+  const incomingMap = buildSkuPriceTiersBySkuId(detail.skus)
+  const incomingEntries = Object.entries(incomingMap)
+  if (incomingEntries.length === 0) {
+    return state
+  }
+
+  const nextMap = { ...state.skuPriceTiersBySkuId }
+  let changed = false
+  incomingEntries.forEach(([skuId, tiers]) => {
+    if (nextMap[skuId]) {
+      return
+    }
+    nextMap[skuId] = tiers.map(clonePriceTier)
+    changed = true
+  })
+
+  if (!changed) {
+    return state
+  }
+  return {
+    ...state,
+    skuPriceTiersBySkuId: nextMap,
+    updatedAt: nowIso()
+  }
+}
+
+const getPersistedMockProductDetail = async (spuId: string): Promise<ProductDetail> => {
+  const state = await loadMockCommerceState()
+  const detail = applyProductDetailPriceTierOverrides(
+    buildFallbackProductDetail(spuId),
+    state.skuPriceTiersBySkuId
+  )
+  const nextState = ensureStateIncludesSkuPriceTiers(state, detail)
+  if (nextState !== state) {
+    await saveMockCommerceState(nextState)
+  }
+  return detail
 }
 
 const applyQuery = (items: ProductSummary[], query?: string) => {
@@ -399,13 +540,13 @@ const createMockedCatalog = (catalog: CommerceServices['catalog']) => ({
   },
   getProductDetail: async (spuId: string): Promise<ProductDetail> => {
     if (shouldFallbackToMock()) {
-      return buildFallbackProductDetail(spuId)
+      return getPersistedMockProductDetail(spuId)
     }
     try {
       return await catalog.getProductDetail(spuId)
     } catch (error) {
       console.warn('catalog getProductDetail failed, fallback to mock', error)
-      return buildFallbackProductDetail(spuId)
+      return getPersistedMockProductDetail(spuId)
     }
   }
 })
