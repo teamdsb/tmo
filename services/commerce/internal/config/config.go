@@ -28,7 +28,7 @@ type Config struct {
 
 func Load() Config {
 	return Config{
-		HTTPAddr:            sharedconfig.String("COMMERCE_HTTP_ADDR", defaultHTTPAddr),
+		HTTPAddr:            sharedconfig.ListenAddr("COMMERCE_HTTP_ADDR", defaultHTTPAddr),
 		DBDSN:               sharedconfig.String("COMMERCE_DB_DSN", defaultDBDSN),
 		LogLevel:            sharedconfig.String("COMMERCE_LOG_LEVEL", defaultLogLevel),
 		AuthEnabled:         sharedconfig.Bool("COMMERCE_AUTH_ENABLED", defaultAuthEnabled),

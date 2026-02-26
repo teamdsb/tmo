@@ -62,7 +62,7 @@ type Config struct {
 
 func Load() Config {
 	return Config{
-		HTTPAddr:         sharedconfig.String("IDENTITY_HTTP_ADDR", defaultHTTPAddr),
+		HTTPAddr:         sharedconfig.ListenAddr("IDENTITY_HTTP_ADDR", defaultHTTPAddr),
 		DBDSN:            sharedconfig.String("IDENTITY_DB_DSN", defaultDBDSN),
 		LogLevel:         sharedconfig.String("IDENTITY_LOG_LEVEL", defaultLogLevel),
 		JWTSecret:        sharedconfig.String("IDENTITY_JWT_SECRET", defaultJWTSecret),

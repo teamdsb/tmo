@@ -34,7 +34,7 @@ type Config struct {
 
 func Load() Config {
 	return Config{
-		HTTPAddr:            sharedconfig.String("PAYMENT_HTTP_ADDR", defaultHTTPAddr),
+		HTTPAddr:            sharedconfig.ListenAddr("PAYMENT_HTTP_ADDR", defaultHTTPAddr),
 		LogLevel:            sharedconfig.String("PAYMENT_LOG_LEVEL", defaultLogLevel),
 		AuthEnabled:         sharedconfig.Bool("PAYMENT_AUTH_ENABLED", defaultAuthEnabled),
 		JWTSecret:           sharedconfig.String("PAYMENT_JWT_SECRET", defaultJWTSecret),

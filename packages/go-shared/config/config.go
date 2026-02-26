@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -12,6 +13,28 @@ func String(key, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+// ListenAddr resolves service listen address with precedence:
+// 1) service-specific key (for example COMMERCE_HTTP_ADDR)
+// 2) generic PORT (as commonly injected by PaaS platforms)
+// 3) fallback default.
+func ListenAddr(primaryKey, fallback string) string {
+	primary := strings.TrimSpace(os.Getenv(primaryKey))
+	if primary != "" {
+		return primary
+	}
+
+	port := strings.TrimSpace(os.Getenv("PORT"))
+	if port == "" {
+		return fallback
+	}
+
+	if strings.HasPrefix(port, ":") || strings.Contains(port, ":") {
+		return port
+	}
+
+	return ":" + port
 }
 
 func Int(key string, fallback int) int {

@@ -64,7 +64,7 @@ func Load() Config {
 	}
 
 	return Config{
-		HTTPAddr:                     sharedconfig.String("GATEWAY_HTTP_ADDR", defaultHTTPAddr),
+		HTTPAddr:                     sharedconfig.ListenAddr("GATEWAY_HTTP_ADDR", defaultHTTPAddr),
 		PublicBaseURL:                sharedconfig.String("GATEWAY_PUBLIC_BASE_URL", defaultPublicBaseURL),
 		MediaLocalDir:                sharedconfig.String("GATEWAY_MEDIA_LOCAL_DIR", defaultMediaLocalDir),
 		IdentityBaseURL:              sharedconfig.String("GATEWAY_IDENTITY_BASE_URL", defaultIdentityBaseURL),

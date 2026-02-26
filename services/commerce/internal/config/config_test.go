@@ -4,6 +4,7 @@ import "testing"
 
 func TestLoadDefaults(test *testing.T) {
 	test.Setenv("COMMERCE_HTTP_ADDR", "")
+	test.Setenv("PORT", "")
 	test.Setenv("COMMERCE_DB_DSN", "")
 	test.Setenv("COMMERCE_LOG_LEVEL", "")
 	test.Setenv("COMMERCE_AUTH_ENABLED", "")
@@ -42,6 +43,7 @@ func TestLoadDefaults(test *testing.T) {
 
 func TestLoadOverrides(test *testing.T) {
 	test.Setenv("COMMERCE_HTTP_ADDR", ":9090")
+	test.Setenv("PORT", "18080")
 	test.Setenv("COMMERCE_DB_DSN", "postgres://user:pass@localhost:5432/custom")
 	test.Setenv("COMMERCE_LOG_LEVEL", "debug")
 	test.Setenv("COMMERCE_AUTH_ENABLED", "true")
@@ -75,5 +77,27 @@ func TestLoadOverrides(test *testing.T) {
 	}
 	if loaded.MediaPublicBaseURL != "http://localhost:8080/assets/media-test" {
 		test.Fatalf("expected media public base URL override, got %q", loaded.MediaPublicBaseURL)
+	}
+}
+
+func TestLoadUsesPortFallback(test *testing.T) {
+	test.Setenv("COMMERCE_HTTP_ADDR", "")
+	test.Setenv("PORT", "18080")
+
+	loaded := Load()
+
+	if loaded.HTTPAddr != ":18080" {
+		test.Fatalf("expected HTTP addr from PORT, got %q", loaded.HTTPAddr)
+	}
+}
+
+func TestLoadUsesServiceAddrOverPort(test *testing.T) {
+	test.Setenv("COMMERCE_HTTP_ADDR", ":9090")
+	test.Setenv("PORT", "18080")
+
+	loaded := Load()
+
+	if loaded.HTTPAddr != ":9090" {
+		test.Fatalf("expected service HTTP addr to override PORT, got %q", loaded.HTTPAddr)
 	}
 }
