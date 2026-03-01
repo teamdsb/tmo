@@ -3,12 +3,12 @@
 Bootstrap and local dev scripts.
 
 - `commerce-bootstrap.sh`: start local Postgres, apply migrations, seed dev data.
-- `commerce-migrate.sh`: apply migrations via Go runner (no goose install).
+- `commerce-migrate.sh`: apply migrations via Go runner (no goose install, requires `COMMERCE_DB_DSN`).
 - `commerce-seed.sh`: seed catalog data for v0 demo.
 - `commerce-verify.sh`: smoke-check health + catalog endpoints.
 - `commerce-generate.sh`: regenerate sqlc + oapi-codegen outputs.
 - `identity-generate.sh`: regenerate identity sqlc + oapi-codegen outputs.
-- `identity-migrate.sh`: apply identity migrations via Go runner.
+- `identity-migrate.sh`: apply identity migrations via Go runner (requires `IDENTITY_DB_DSN`).
 - `identity-seed.sh`: seed identity dev users/roles.
 - `dev-seed.sh`: run commerce + identity seed scripts in one shot.
 - `dev-bootstrap.sh`: start Postgres, run commerce + identity migrations and seed.

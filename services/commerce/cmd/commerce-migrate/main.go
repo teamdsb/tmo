@@ -13,8 +13,6 @@ import (
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
 )
 
-const defaultDSN = "postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable"
-
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -23,9 +21,9 @@ func main() {
 }
 
 func run() error {
-	dsn := os.Getenv("COMMERCE_DB_DSN")
+	dsn := strings.TrimSpace(os.Getenv("COMMERCE_DB_DSN"))
 	if dsn == "" {
-		dsn = defaultDSN
+		return fmt.Errorf("COMMERCE_DB_DSN is required")
 	}
 
 	migrationsDir, err := resolveMigrationsDir()

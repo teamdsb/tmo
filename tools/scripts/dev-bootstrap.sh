@@ -3,6 +3,9 @@ set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
+export COMMERCE_DB_DSN="${COMMERCE_DB_DSN:-postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable}"
+export IDENTITY_DB_DSN="${IDENTITY_DB_DSN:-postgres://commerce:commerce@localhost:5432/identity?sslmode=disable}"
+
 "$root_dir/tools/scripts/commerce-bootstrap.sh"
 
 echo "Creating identity database..."

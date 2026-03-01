@@ -75,7 +75,8 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		Flags:  flagsProvider,
 	}
 
-	router := httpserver.NewRouter(apiHandler, logger, nil)
+	readyChecker := httpserver.NewReadyChecker(cfg.IdentityBaseURL, cfg.FeatureFlagsTimeout)
+	router := httpserver.NewRouter(apiHandler, logger, readyChecker.Check)
 	server := httpserver.NewServer(cfg.HTTPAddr, router)
 
 	logger.Info("payment service listening", "addr", cfg.HTTPAddr)

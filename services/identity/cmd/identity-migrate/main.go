@@ -13,8 +13,6 @@ import (
 	"github.com/teamdsb/tmo/services/identity/internal/db"
 )
 
-const defaultDSN = "postgres://commerce:commerce@localhost:5432/identity?sslmode=disable"
-
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -23,9 +21,9 @@ func main() {
 }
 
 func run() error {
-	dsn := os.Getenv("IDENTITY_DB_DSN")
+	dsn := strings.TrimSpace(os.Getenv("IDENTITY_DB_DSN"))
 	if dsn == "" {
-		dsn = defaultDSN
+		return fmt.Errorf("IDENTITY_DB_DSN is required")
 	}
 
 	migrationsDir, err := resolveMigrationsDir()
