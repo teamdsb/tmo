@@ -21,6 +21,8 @@ Bootstrap and local dev scripts.
 - Preflight result file: `apps/miniapp/.logs/preflight/result.json` (machine-readable status for CI and local diagnosis).
 - Automator result file: `apps/miniapp/.logs/weapp/run.json` (machine-readable run summary, first failure, and assertion stats).
 - Troubleshooting runbook: `docs/RUNBOOK/miniapp-white-screen-gate.md`.
+- `sae-push-stage0.sh`: tag local `tmo/*:sae-check` images to `<registry>/<repo>:service-<sha>`, push all Stage-0 services, and verify remote manifests.
+- `sae-image-preflight.sh`: check remote Stage-0 tags can be inspected and verify required binaries/migration paths exist inside images before SAE deployment.
 - `catalog-image-audit.sh`: audit `catalog_products` image refs and print domain distribution.
 - `catalog-image-migrate.sh`: migrate external catalog images into local media output and rewrite DB URLs.
 - `gateway-verify.sh`: smoke-check gateway health/ready and auth flows.
