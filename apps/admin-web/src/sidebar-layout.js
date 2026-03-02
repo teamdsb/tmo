@@ -28,14 +28,14 @@ if (!supportedPaths.has(currentPath)) {
 
   const itemClass = (key) => {
     if (key === currentKey) {
-      return 'flex items-center gap-3 rounded-lg bg-primary/10 px-3 py-2 text-primary transition-colors';
+      return 'flex items-center gap-2.5 rounded-lg bg-primary/10 px-3 py-1.5 text-primary transition-colors';
     }
-    return 'flex items-center gap-3 rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 transition-colors';
+    return 'flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 transition-colors';
   };
 
   const sidebar = document.createElement('aside');
   sidebar.setAttribute('data-admin-unified-sidebar', 'true');
-  sidebar.className = 'hidden md:flex w-64 flex-col border-r border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800';
+  sidebar.className = 'hidden md:flex w-64 h-screen shrink-0 overflow-hidden flex-col border-r border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800';
 
   const menuHtml = navItems.map((item) => {
     return `
@@ -48,28 +48,28 @@ if (!supportedPaths.has(currentPath)) {
   }).join('');
 
   sidebar.innerHTML = `
-    <div class="flex h-16 items-center gap-3 px-6 border-b border-slate-100 dark:border-slate-800">
-      <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white">
+    <div class="flex h-14 items-center gap-2.5 px-5 border-b border-slate-100 dark:border-slate-800">
+      <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-white">
         <span class="material-symbols-outlined text-xl">dataset</span>
       </div>
-      <h1 class="text-lg font-bold text-slate-900 dark:text-white">AdminPanel</h1>
+      <h1 class="text-base font-bold text-slate-900 dark:text-white">AdminPanel</h1>
     </div>
-    <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+    <nav class="flex-1 overflow-hidden px-2 py-2 space-y-0.5">
       ${menuHtml}
-      <div class="my-4 border-t border-slate-200 dark:border-slate-800"></div>
-      <div class="px-3 py-2">
-        <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Settings</p>
-        <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 transition-colors" href="#">
+      <div class="my-2 border-t border-slate-200 dark:border-slate-800"></div>
+      <div class="px-3 py-1.5">
+        <p class="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Settings</p>
+        <a class="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 transition-colors" href="#">
           <span class="material-symbols-outlined">settings</span>
           <span class="font-medium">General</span>
         </a>
-        <a class="flex items-center gap-3 rounded-lg px-3 py-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 transition-colors" href="#">
+        <a class="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 transition-colors" href="#">
           <span class="material-symbols-outlined">security</span>
           <span class="font-medium">Security</span>
         </a>
       </div>
     </nav>
-    <div class="border-t border-slate-200 p-4 dark:border-slate-800">
+    <div class="border-t border-slate-200 p-3 dark:border-slate-800">
       <div class="flex items-center gap-3">
         <div class="h-10 w-10 overflow-hidden rounded-full bg-slate-200 bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBPy8Zn4eTa8nLrSVxsJOuCpCUau5cDk1bcbi64t2ZdScbx9T_WYEHoZGyxwwuF-uRTEw-c_7FeK0a8aS8HmTCyF7XHqdETDILn36tuimXW7W9RhnWA_NX5-VRIzzRRstS3pDShkofKyDvukaUV2tLCLiacnsBSYfBp1wXruvemUlLGeiA2TcoEpGAGtwXI4E1v5i594_40WlbP9gQX-_knZAnho6J29vAeZ7EcMoU7sT-d6L9g_zhvTVA48r_93NS6HWAl-bfPXYo');"></div>
         <div class="flex flex-col">
@@ -81,14 +81,24 @@ if (!supportedPaths.has(currentPath)) {
   `;
 
   const mainColumn = document.createElement('div');
-  mainColumn.className = 'flex flex-1 flex-col overflow-hidden';
+  mainColumn.className = 'flex min-w-0 flex-1 h-screen flex-col overflow-hidden';
 
   const body = document.body;
   const pageNodes = Array.from(body.children).filter((node) => node.tagName !== 'SCRIPT');
   pageNodes.forEach((node) => mainColumn.appendChild(node));
 
+  const topLevelMain = Array.from(mainColumn.children).find((node) => node.tagName === 'MAIN');
+  if (topLevelMain) {
+    const existingClassName = topLevelMain.getAttribute('class') ?? '';
+    const hasOverflowClass = /\boverflow(?:-[xy])?-(?:auto|hidden|scroll)\b/.test(existingClassName);
+    const requiredClasses = hasOverflowClass
+      ? 'flex-1 min-h-0'
+      : 'flex-1 min-h-0 overflow-y-auto';
+    topLevelMain.setAttribute('class', `${existingClassName} ${requiredClasses}`.trim());
+  }
+
   const wrapper = document.createElement('div');
-  wrapper.className = 'flex min-h-screen w-full flex-row overflow-hidden';
+  wrapper.className = 'flex h-screen w-full flex-row overflow-hidden';
   wrapper.appendChild(sidebar);
   wrapper.appendChild(mainColumn);
 
