@@ -523,6 +523,79 @@ bash tools/scripts/sae-smoke.sh
   - 若 `Chrome MCP` 未恢复，立即改走 `aliyun configure set --mode AK` + OpenAPI/CLI 创建剩余应用，不再等待控制台交互恢复。
   - 若继续走控制台，禁止再用“复制应用”创建主服务，统一改“创建应用（镜像部署）”。
 
+20. CLI 接管后的实操落地（2026-03-02 23:30+，北京时间）
+- AK/SK 与 CLI 已打通：
+  - 本机 `aliyun` profile `default` 已配置为 `AK` 模式，区域 `cn-guangzhou`。
+  - 验证命令 `aliyun sts GetCallerIdentity` 已成功返回主账号身份。
+- 实际线上失败根因（已定位）：
+  - `identity`、`commerce`、`payment`、`gateway-bff` 的失败实例日志均指向未注入关键环境变量（服务默认回落到 `localhost:5432`）。
+  - 其中 `identity`/`commerce` 核心阻塞是 `*_DB_DSN` 缺失。
+- RDS 现状与修复：
+  - 实例不在广州，位于 `cn-hangzhou`：`pgm-bp106pcbun3uo9qp`（PostgreSQL 18）。
+  - 已开启公网连接地址：`tmostage0pg.pg.rds.aliyuncs.com:5432`。
+  - 已创建账号与库：
+    - 账号：`commerce`
+    - 库：`commerce`、`identity_app`（`identity` 为 RDS 关键字不可用，改为 `identity_app`）
+  - 已完成权限授权：账号 `commerce` 对上述两个库均为 `ALL/DBOwner`。
+  - 已完成迁移（本地直连 RDS 执行）：
+    - `services/identity/cmd/identity-migrate`：成功
+    - `services/commerce/cmd/commerce-migrate`：成功
+- SAE 实际发布结果（`cn-guangzhou:tmo-stage0`）：
+  - `identity`（AppId: `53547887-a98d-4e00-8a3e-7484b9058f2b`）已重发并注入 `IDENTITY_DB_DSN`，实例运行正常。
+  - `commerce`（AppId: `17ec9a7e-1a45-4092-bb4d-e9ceba313d7e`）已按正确名称新建并运行正常。
+  - `payment`（AppId: `266c1b79-bc7e-4f1d-941d-5d65b19ac71d`）已新建并运行正常。
+  - `gateway-bff`（AppId: `82980fc8-d327-481e-9697-453ce6e7d616`）已新建并运行正常。
+  - 旧错误应用已执行停服（防止持续 CrashLoop）：
+    - `identity-copycommercecommerccommerce`
+    - `identity-migrate`
+    - `commerce-migrate`
+- 公网入口推进状态：
+  - 已发起 `gateway-bff` 的公网 SLB 绑定（80 -> 8080），变更单 `9fa9bf18-4f35-45cd-af58-839fb8dab42c`。
+  - 绑定完成后应立即补做：
+    - 获取公网访问地址
+    - 执行 `tools/scripts/sae-smoke.sh` 的网关验收
+    - 回写 `GATEWAY_PUBLIC_BASE_URL` 为真实公网地址（当前为占位值）。
+
+21. 广州 RDS 切换与线上联调收敛（2026-03-03 00:15+，北京时间）
+- 新增同城 RDS（广州）并完成初始化：
+  - 实例：`pgm-7xvimd5x7ver5r74`（PostgreSQL 18，`cn-guangzhou`，同 VPC）。
+  - 账号：`commerce`。
+  - 库：`commerce`、`identity_app`。
+  - 权限：`commerce` 对两库均为 `ALL/DBOwner`。
+- 迁移执行（已成功）：
+  - 由于本机无法直连 RDS 私网地址，临时开启公网连接与白名单，仅用于迁移窗口。
+  - 执行：
+    - `go run ./services/identity/cmd/identity-migrate`
+    - `go run ./services/commerce/cmd/commerce-migrate`
+  - 日志均返回：`migrations applied from ...`。
+- 应用配置切换（已完成）：
+  - `identity` 改为广州私网 DSN，变更单 `50a6f491-1b05-4b1b-a16d-7d14e5d6e19a`（成功）。
+  - `commerce` 改为广州私网 DSN，变更单 `60ac4c81-2c39-47d6-bcb2-05b73ea6dcde`（成功）。
+- 新问题与修复（已收敛）：
+  - 现象：`gateway` 访问 `commerce` 返回 502，日志报 `lookup commerce ... no such host`。
+  - 根因：`gateway`/`payment` 使用了 `http://commerce:8082`、`http://identity:8081` 这类不可解析主机名。
+  - 修复：改为服务内网 SLB 地址：
+    - `GATEWAY_IDENTITY_BASE_URL=http://172.20.72.192`
+    - `GATEWAY_COMMERCE_BASE_URL=http://172.20.72.191`
+    - `GATEWAY_PAYMENT_BASE_URL=http://172.20.72.193`
+    - `PAYMENT_IDENTITY_BASE_URL=http://172.20.72.192`
+  - 变更单：
+    - `gateway-bff`：`4d3e7529-70c0-4efe-a11a-6f7316b015e6`（成功）
+    - `payment`：`90fda2c8-c4a9-44ac-acab-049f6d1c17c2`（成功）
+- 验收结果（公网入口 `http://8.166.134.148`）：
+  - `/health` -> `200`
+  - `/ready` -> `200`
+  - `/bff/bootstrap` -> `200`
+  - `/catalog/categories` -> `200`
+  - `/catalog/products?page=1&pageSize=20` -> `200`
+  - `/assets/img` -> `400`（预期）
+  - `tools/scripts/sae-smoke.sh` 全量通过。
+- 安全收尾（已完成）：
+  - 迁移完成后已回收公网暴露：
+    - 释放广州 RDS 公网地址 `tmostage0gz.pg.rds.aliyuncs.com`
+    - 白名单收敛回 `172.20.0.0/16`
+  - 当前仅保留 RDS 私网连接地址：`pgm-7xvimd5x7ver5r74.pg.rds.aliyuncs.com:5432`。
+
 ### 试用到期前处置
 
 1. 继续使用
