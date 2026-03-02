@@ -4,9 +4,16 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 5174",
+    "dev": "pnpm run dev:mock",
+    "dev:mock": "VITE_ADMIN_WEB_MODE=mock vite --host 0.0.0.0 --port 5174",
+    "dev:real": "VITE_ADMIN_WEB_MODE=dev VITE_ADMIN_WEB_API_BASE_URL=/api vite --host 0.0.0.0 --port 5174",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0 --port 4174"
+  },
+  "dependencies": {
+    "@tmo/api-client": "workspace:*",
+    "@tmo/gateway-api-client": "workspace:*",
+    "@tmo/identity-api-client": "workspace:*"
   },
   "devDependencies": {
     "vite": "4.5.14"

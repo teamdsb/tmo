@@ -69,6 +69,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		Timeout: cfg.UpstreamTimeout,
 	}
 	bootstrapHandler := httpserver.NewBootstrapHandler(cfg.IdentityBaseURL, upstreamClient, logger)
+	adminSummaryHandler := httpserver.NewAdminSummaryHandler(cfg.IdentityBaseURL, cfg.CommerceBaseURL, upstreamClient, logger)
 	catalogRewriteHandler, err := httpserver.NewCatalogRewriteHandler(
 		cfg.CommerceBaseURL,
 		cfg.PublicBaseURL,
@@ -101,6 +102,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		Payment:              proxyHandler.Payment,
 		AI:                   proxyHandler.AI,
 		Bootstrap:            bootstrapHandler.Handle,
+		AdminSummary:         adminSummaryHandler.Handle,
 		Image:                imageProxyHandler.Handle,
 	}, logger, readyChecker.Check, int64(cfg.MaxBodyBytes))
 

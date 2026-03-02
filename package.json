@@ -5,8 +5,12 @@
     "lint": "pnpm -C apps/miniapp lint",
     "lint:miniapp": "pnpm -C apps/miniapp lint",
     "dev:admin-web": "pnpm -C apps/admin-web dev",
+    "dev:admin-web:mock": "pnpm -C apps/admin-web dev:mock",
+    "dev:admin-web:real": "pnpm -C apps/admin-web dev:real",
+    "dev:admin-web:stack": "bash tools/scripts/admin-web-dev-stack.sh",
     "build:admin-web": "pnpm -C apps/admin-web build",
     "test:backend": "bash tools/scripts/test-backend.sh",
+    "smoke:admin-web": "bash tools/scripts/admin-web-smoke.sh",
     "test": "pnpm run test:backend && pnpm -C apps/miniapp test && pnpm -C apps/miniapp test:wxss",
     "format": "echo \"format: not configured\""
   }

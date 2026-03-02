@@ -50,6 +50,8 @@ paths:
     $ref: "./identity.yaml#/paths/~1me~1permissions"
   /bff/bootstrap:
     $ref: "./gateway.yaml#/paths/~1bff~1bootstrap"
+  /bff/admin/summary:
+    $ref: "./gateway.yaml#/paths/~1bff~1admin~1summary"
   /assets/img:
     $ref: "./gateway.yaml#/paths/~1assets~1img"
   /rbac/permissions:

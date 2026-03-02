@@ -19,6 +19,7 @@ type ProxyHandlers struct {
 	Payment              gin.HandlerFunc
 	AI                   gin.HandlerFunc
 	Bootstrap            gin.HandlerFunc
+	AdminSummary         gin.HandlerFunc
 	Image                gin.HandlerFunc
 }
 
@@ -36,6 +37,7 @@ func NewRouter(handlers ProxyHandlers, logger *slog.Logger, readyCheck func(cont
 	router.GET("/ready", httpx.Ready(readyCheck))
 
 	router.GET("/bff/bootstrap", handlers.Bootstrap)
+	router.GET("/bff/admin/summary", handlers.AdminSummary)
 	router.GET("/assets/img", handlers.Image)
 	if handlers.Media != nil {
 		router.GET("/assets/media/*path", handlers.Media)
@@ -67,6 +69,7 @@ func NewRouter(handlers ProxyHandlers, logger *slog.Logger, readyCheck func(cont
 	router.Any("/admin/config/feature-flags", handlers.Identity)
 	router.Any("/admin/customers", handlers.Identity)
 	router.Any("/admin/customers/*path", handlers.Identity)
+	router.Any("/admin/*path", handlers.Commerce)
 
 	router.Any("/payments", handlers.Payment)
 	router.Any("/payments/*path", handlers.Payment)

@@ -15,6 +15,8 @@ Bootstrap and local dev scripts.
 - `dev-stack-up.sh`: start local Docker stack (postgres + backend services), run bootstrap/seed, then wait for readiness (`DEV_STACK_BUILD_IMAGES=true` to force image rebuild; `DEV_STACK_AIR=true` to enable `infra/dev/docker-compose.dev.yml` overlay and run all Go services with Air hot reload).
 - `infra/dev/docker-compose.dev.yml`: overlay compose file for dev containers (Dockerfile.dev + source mount + Air command + Go cache volumes).
 - `dev-stack-health.sh`: check local identity/commerce/payment/gateway `/ready` and `/health` endpoints.
+- `admin-web-dev-stack.sh`: one command for backend stack + admin-web dev server (`pnpm run dev:admin-web:stack`).
+- `admin-web-smoke.sh`: smoke-check admin-web required API paths through gateway (`pnpm run smoke:admin-web`).
 - `miniapp-http-smoke.sh`: smoke-check miniapp core API paths via gateway (`/bff/bootstrap`, `/catalog/categories`, `/catalog/products`) and validate product images from `/assets/img` or `/assets/media`.
 - `miniapp-smoke.sh`: run multi-route WeChat automator smoke on `apps/miniapp` (`MINIAPP_SMOKE_STACK_UP=true` to auto start backend stack; supports `WEAPP_SMOKE_ASSERT_*` assertion thresholds).
 - `catalog-image-audit.sh`: audit `catalog_products` image refs and print domain distribution.

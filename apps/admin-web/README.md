@@ -10,20 +10,46 @@
 pnpm install
 ```
 
-2. 启动后台前端：
+2. 启动后台前端（mock 模式，纯前端数据模拟）：
 
 ```bash
-pnpm -C apps/admin-web dev
+pnpm -C apps/admin-web dev:mock
 ```
 
-3. 浏览器访问：
+3. 启动后台前端（dev 模式，连接真实后端）：
+
+```bash
+pnpm -C apps/admin-web dev:real
+```
+
+4. 一键启动 backend + admin-web（dev 模式）：
+
+```bash
+pnpm run dev:admin-web:stack
+```
+
+5. 浏览器访问：
 
 `http://localhost:5174`
 
-## 说明
+## 模式说明
 
-- 当前先集成登录页静态原型，后续可逐步接入真实接口与路由。
-- 页面入口文件：`apps/admin-web/index.html`
+- `mock`：保持现有纯前端原型行为，不请求后端。
+- `dev`：严格真实鉴权，登录走 `POST /auth/password/login`，业务数据通过 gateway 获取。
+
+默认 gateway 基址通过 Vite 代理 `/api -> http://localhost:8080`。
+可通过环境变量 `ADMIN_WEB_PROXY_TARGET` 覆盖代理目标。
+
+## 快速验收
+
+```bash
+pnpm run smoke:admin-web
+```
+
+默认测试账号：
+
+- username: `admin`
+- password: `admin123`
 
 ## 统一布局规则
 
