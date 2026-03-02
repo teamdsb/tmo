@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Order Fulfillment & Logistics Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#144bb8',
+              'primary-content': '#ffffff',
+              'primary-dark': '#0e3a96',
+              'primary-light': '#ebf1ff',
+              'background-light': '#f6f6f8',
+              'background-dark': '#111621',
+              'surface-light': '#ffffff',
+              'surface-dark': '#1a2233',
+              'text-main': '#0f172a',
+              'text-main-dark': '#f8fafc',
+              'text-sub': '#64748b',
+              'text-sub-dark': '#94a3b8',
+              'border-light': '#e2e8f0',
+              'border-dark': '#2d3748'
+            },
+            fontFamily: {
+              display: ['Inter', 'sans-serif'],
+              body: ['Inter', 'sans-serif']
+            },
+            borderRadius: {
+              DEFAULT: '0.25rem',
+              lg: '0.5rem',
+              xl: '0.75rem',
+              '2xl': '1rem',
+              full: '9999px'
+            }
+          }
+        }
+      };
+    </script>
+    <style>
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+      .dark ::-webkit-scrollbar-thumb {
+        background: #334155;
+      }
+      .dark ::-webkit-scrollbar-thumb:hover {
+        background: #475569;
+      }
+    </style>
+  </head>
+  <body class="bg-background-light dark:bg-background-dark text-text-main dark:text-text-main-dark font-body min-h-screen flex flex-col overflow-x-hidden transition-colors duration-200">
+    <header class="sticky top-0 z-30 flex items-center justify-between border-b border-border-light dark:border-border-dark bg-surface-light/80 dark:bg-surface-dark/80 backdrop-blur-md px-6 py-4">
+      <div class="flex items-center gap-8">
+        <div class="flex items-center gap-3">
+          <div class="size-8 flex items-center justify-center rounded-lg bg-primary text-primary-content">
+            <span class="material-symbols-outlined text-xl">local_shipping</span>
+          </div>
+          <h2 class="text-xl font-bold tracking-tight text-text-main dark:text-text-main-dark">Admin Console</h2>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="hidden sm:flex items-center rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark px-3 h-10 w-64 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+          <span class="material-symbols-outlined text-text-sub dark:text-text-sub-dark text-[20px]">search</span>
+          <input class="w-full bg-transparent border-none text-sm text-text-main dark:text-text-main-dark placeholder:text-text-sub dark:placeholder:text-text-sub-dark focus:ring-0" placeholder="Search orders..." />
+        </div>
+        <div class="relative group">
+          <div class="size-10 rounded-full bg-cover bg-center border border-border-light dark:border-border-dark cursor-pointer shadow-sm" data-alt="User profile avatar of a man smiling" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuA-cgHCBUtae-Yeq4htivL0q-zghx8kkGV8lTLp1eHRlAxWjiaIFAYFPIhx0QLEoc0XZtVxRR0l7xp4Y4dMZrbafdPBMeVuMEfLeZf8WqH6g65hdBksOAHYEOfMRtION01akpgMv3e2e145ccEHKliMknQEpfbQSU1hfEX43mCkPIEdDbF0yT82K6c2zOcL-ljXW66qgxtI2MqGXZOG-oBuyoCF7HV6Nzo2jQIDX7vLx7eHcVNqjKm6M8kcRXUU7fdLIYk9Zkhj8Dc");'></div>
+          <div class="absolute right-0 top-12 hidden w-48 rounded-lg bg-surface-light dark:bg-surface-dark p-2 shadow-lg ring-1 ring-black/5 group-hover:block">
+            <a class="block rounded px-4 py-2 text-sm text-text-sub dark:text-text-sub-dark hover:bg-background-light dark:hover:bg-background-dark hover:text-primary" href="#">Profile</a>
+            <a id="logout-link" class="block rounded px-4 py-2 text-sm text-text-sub dark:text-text-sub-dark hover:bg-background-light dark:hover:bg-background-dark hover:text-primary" href="#">Log out</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="flex-1 flex flex-col px-6 py-8 max-w-[1400px] mx-auto w-full gap-8">
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div class="space-y-2">
+          <h1 class="text-3xl md:text-4xl font-black tracking-tight text-text-main dark:text-text-main-dark">Order Fulfillment</h1>
+          <p class="text-text-sub dark:text-text-sub-dark text-base max-w-2xl">Manage shipments, track real-time logistics, and handle order exceptions efficiently.</p>
+        </div>
+        <a href="/import.html" class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary hover:bg-primary-dark transition-colors px-5 py-2.5 text-sm font-semibold text-primary-content shadow-sm active:scale-95">
+          <span class="material-symbols-outlined text-[20px]">upload_file</span>
+          Batch Import Logistics (Excel)
+        </a>
+      </div>
+
+      <div class="border-b border-border-light dark:border-border-dark">
+        <nav aria-label="Tabs" class="flex gap-8 overflow-x-auto">
+          <a class="group border-b-2 border-transparent py-4 px-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:border-text-sub hover:text-text-sub-dark dark:hover:text-text-main-dark" href="#">
+            Submitted
+            <span class="ml-2 rounded-full bg-background-light dark:bg-background-dark py-0.5 px-2.5 text-xs font-medium text-text-sub dark:text-text-sub-dark group-hover:bg-gray-200 dark:group-hover:bg-gray-700">12</span>
+          </a>
+          <a class="group border-b-2 border-transparent py-4 px-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:border-text-sub hover:text-text-sub-dark dark:hover:text-text-main-dark" href="#">
+            Confirmed
+            <span class="ml-2 rounded-full bg-background-light dark:bg-background-dark py-0.5 px-2.5 text-xs font-medium text-text-sub dark:text-text-sub-dark group-hover:bg-gray-200 dark:group-hover:bg-gray-700">4</span>
+          </a>
+          <a aria-current="page" class="border-b-2 border-primary py-4 px-1 text-sm font-bold text-primary" href="#">
+            Shipped
+            <span class="ml-2 rounded-full bg-primary/10 py-0.5 px-2.5 text-xs font-medium text-primary">86</span>
+          </a>
+          <a class="group border-b-2 border-transparent py-4 px-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:border-text-sub hover:text-text-sub-dark dark:hover:text-text-main-dark" href="#">
+            Delivered
+            <span class="ml-2 rounded-full bg-background-light dark:bg-background-dark py-0.5 px-2.5 text-xs font-medium text-text-sub dark:text-text-sub-dark group-hover:bg-gray-200 dark:group-hover:bg-gray-700">324</span>
+          </a>
+          <a class="group border-b-2 border-transparent py-4 px-1 text-sm font-medium text-red-500 hover:border-red-500 hover:text-red-600" href="#">
+            Returns
+            <span class="ml-2 rounded-full bg-red-50 py-0.5 px-2.5 text-xs font-medium text-red-600 dark:bg-red-900/20 dark:text-red-400">2</span>
+          </a>
+        </nav>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        <div class="lg:col-span-2 flex flex-col gap-4">
+          <div class="overflow-hidden rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark shadow-sm">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm whitespace-nowrap">
+                <thead class="bg-background-light dark:bg-background-dark border-b border-border-light dark:border-border-dark">
+                  <tr>
+                    <th class="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark" scope="col">Order ID</th>
+                    <th class="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark" scope="col">Customer</th>
+                    <th class="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark" scope="col">Date</th>
+                    <th class="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark" scope="col">Amount</th>
+                    <th class="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark" scope="col">Status</th>
+                    <th class="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark text-right" scope="col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-border-light dark:divide-border-dark">
+                  <tr class="group hover:bg-background-light dark:hover:bg-background-dark/50 transition-colors cursor-pointer bg-primary-light/30 dark:bg-primary/5">
+                    <td class="px-6 py-4 font-medium text-primary">#ORD-2023-001</td>
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-3">
+                        <div class="size-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-300 font-bold text-xs">AS</div>
+                        <div>
+                          <p class="text-text-main dark:text-text-main-dark font-medium">Alice Smith</p>
+                          <p class="text-xs text-text-sub dark:text-text-sub-dark">Premium Member</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 text-text-sub dark:text-text-sub-dark">Oct 24, 2023</td>
+                    <td class="px-6 py-4 font-medium text-text-main dark:text-text-main-dark">$120.50</td>
+                    <td class="px-6 py-4"><span class="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800"><span class="size-1.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>In Transit</span></td>
+                    <td class="px-6 py-4 text-right"><button class="text-primary hover:text-primary-dark font-medium text-sm">View</button></td>
+                  </tr>
+
+                  <tr class="group hover:bg-background-light dark:hover:bg-background-dark/50 transition-colors">
+                    <td class="px-6 py-4 font-medium text-text-main dark:text-text-main-dark">#ORD-2023-002</td>
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-3">
+                        <div class="size-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-700 dark:text-purple-300 font-bold text-xs">BJ</div>
+                        <p class="text-text-main dark:text-text-main-dark font-medium">Bob Jones</p>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 text-text-sub dark:text-text-sub-dark">Oct 23, 2023</td>
+                    <td class="px-6 py-4 font-medium text-text-main dark:text-text-main-dark">$45.00</td>
+                    <td class="px-6 py-4"><span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800"><span class="size-1.5 rounded-full bg-amber-600 dark:bg-amber-400"></span>Dispatched</span></td>
+                    <td class="px-6 py-4 text-right"><button class="text-text-sub dark:text-text-sub-dark hover:text-primary font-medium text-sm">View</button></td>
+                  </tr>
+
+                  <tr class="group hover:bg-background-light dark:hover:bg-background-dark/50 transition-colors">
+                    <td class="px-6 py-4 font-medium text-text-main dark:text-text-main-dark">#ORD-2023-003</td>
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-3">
+                        <div class="size-8 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center text-emerald-700 dark:text-emerald-300 font-bold text-xs">CB</div>
+                        <p class="text-text-main dark:text-text-main-dark font-medium">Charlie Brown</p>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 text-text-sub dark:text-text-sub-dark">Oct 23, 2023</td>
+                    <td class="px-6 py-4 font-medium text-text-main dark:text-text-main-dark">$89.99</td>
+                    <td class="px-6 py-4"><span class="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800"><span class="size-1.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>In Transit</span></td>
+                    <td class="px-6 py-4 text-right"><button class="text-text-sub dark:text-text-sub-dark hover:text-primary font-medium text-sm">View</button></td>
+                  </tr>
+
+                  <tr class="group hover:bg-background-light dark:hover:bg-background-dark/50 transition-colors">
+                    <td class="px-6 py-4 font-medium text-text-main dark:text-text-main-dark">#ORD-2023-004</td>
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-3">
+                        <div class="size-8 rounded-full bg-pink-100 dark:bg-pink-900 flex items-center justify-center text-pink-700 dark:text-pink-300 font-bold text-xs">DP</div>
+                        <p class="text-text-main dark:text-text-main-dark font-medium">Diana Prince</p>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 text-text-sub dark:text-text-sub-dark">Oct 22, 2023</td>
+                    <td class="px-6 py-4 font-medium text-text-main dark:text-text-main-dark">$210.00</td>
+                    <td class="px-6 py-4"><span class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300 border border-green-200 dark:border-green-800"><span class="size-1.5 rounded-full bg-green-600 dark:bg-green-400"></span>Delivered</span></td>
+                    <td class="px-6 py-4 text-right"><button class="text-text-sub dark:text-text-sub-dark hover:text-primary font-medium text-sm">View</button></td>
+                  </tr>
+
+                  <tr class="group hover:bg-background-light dark:hover:bg-background-dark/50 transition-colors">
+                    <td class="px-6 py-4 font-medium text-text-main dark:text-text-main-dark">#ORD-2023-005</td>
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-3">
+                        <div class="size-8 rounded-full bg-orange-100 dark:bg-orange-900 flex items-center justify-center text-orange-700 dark:text-orange-300 font-bold text-xs">EW</div>
+                        <p class="text-text-main dark:text-text-main-dark font-medium">Evan Wright</p>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4 text-text-sub dark:text-text-sub-dark">Oct 22, 2023</td>
+                    <td class="px-6 py-4 font-medium text-text-main dark:text-text-main-dark">$35.50</td>
+                    <td class="px-6 py-4"><span class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700"><span class="size-1.5 rounded-full bg-gray-500"></span>Pending</span></td>
+                    <td class="px-6 py-4 text-right"><button class="text-text-sub dark:text-text-sub-dark hover:text-primary font-medium text-sm">View</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="flex items-center justify-between border-t border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-6 py-4">
+              <p class="text-sm text-text-sub dark:text-text-sub-dark">Showing <span class="font-medium text-text-main dark:text-text-main-dark">1</span> to <span class="font-medium text-text-main dark:text-text-main-dark">5</span> of <span class="font-medium text-text-main dark:text-text-main-dark">86</span> results</p>
+              <div class="flex gap-2">
+                <button class="rounded-lg border border-border-light dark:border-border-dark px-3 py-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:bg-background-light dark:hover:bg-background-dark disabled:opacity-50">Previous</button>
+                <button class="rounded-lg border border-border-light dark:border-border-dark px-3 py-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:bg-background-light dark:hover:bg-background-dark">Next</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-1 flex flex-col gap-6">
+          <div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-lg font-bold text-text-main dark:text-text-main-dark">Logistics Details</h3>
+              <span class="inline-flex items-center justify-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">Live</span>
+            </div>
+            <div class="flex items-center gap-4 mb-8">
+              <div class="h-12 w-12 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center border border-border-light dark:border-border-dark p-2">
+                <img alt="FedEx Logo" class="w-full h-auto object-contain" data-alt="FedEx logo graphic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDJAG-x9WX_0_Z7X9ZJIoRnrx8OCtAHphBg7dyWoAi2f5vvoTcQYyc2HYRPuQKUcQgQZRJb5I7HDzq4ZJc7hH5pr5Muy7DRhztsmIoQHo4gfhW03kXtyljFSuJQWXyefxivezCIIMOtGNvHV6nZloIX2HcltENrwV-By06WDRc1SRiFXxHJDoTXhl1P4szpp-QW2nkBcySlspS8uBPL2BcND91NL0_BTWFqSiXv25O6oAN8qF_wTrp9ckshd52XCTmFb89Jo5ReIfE" />
+              </div>
+              <div>
+                <p class="text-sm font-medium text-text-sub dark:text-text-sub-dark">Tracking Number</p>
+                <div class="flex items-center gap-2">
+                  <p class="text-base font-bold text-text-main dark:text-text-main-dark">789012349981</p>
+                  <button class="text-text-sub dark:text-text-sub-dark hover:text-primary"><span class="material-symbols-outlined text-[16px]">content_copy</span></button>
+                </div>
+              </div>
+            </div>
+
+            <div class="relative h-48 w-full rounded-lg bg-background-light dark:bg-background-dark mb-8 overflow-hidden border border-border-light dark:border-border-dark">
+              <img class="h-full w-full object-cover opacity-80" data-alt="Map showing delivery location in San Francisco" data-location="San Francisco map view" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDwvx29aG-vbkEfyNaY6v8AT020sDpwc7ALKpfaCFUqfQ3u69kKBzXyZ1oeS9n5ru_uI7o4urPEVRzsFDFg8VbQewPumR68hH6gdzGTvr3gB12zgDWSXK8m1PisDRchUmYL7oOmDSQYAhZlmY95B2YGLYWLLe_aFtQjSKlBVqHIv5ATPOecQ9faPkqhaDzozhCt1dZXdwyT7ll1I8hF9dM3Tn3Lj665Maif-K0JyZc3VvHe-wYUhL9xo3Q5pymvHbz7b0jjeg6c8Ts" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCwBUJjVVwWJo4LuEY0-3oM3cdiFja9kIvpvXOro_HzN3XP-UBC1uiKNOZlI0qo24soU41U-t_WEtOE2l7l_rg_krtW7eIpPzLj0Ovt2Q-oDgOSc1BG11of-yalR2ULi4LX2a3sOyiM6zIDcejRvDKNzGyxKZPVtuV_ooRhp8jKgxBu0gtsIFEYEWe6Dpazvif8UpWl6JrTzsDWQnJzKmebuKjJbJkxNEAJdvuDRJh1G_kv7Eh__eTv9f5bmEQDbnlAV-QhIjpORvI')" />
+              <div class="absolute inset-0 flex items-center justify-center bg-black/5">
+                <div class="flex items-center gap-1 rounded-md bg-surface-light dark:bg-surface-dark p-2 shadow-lg">
+                  <span class="material-symbols-outlined text-primary text-xl">local_shipping</span>
+                  <span class="text-xs font-bold text-text-main dark:text-text-main-dark">On The Way</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="relative pl-4 border-l-2 border-border-light dark:border-border-dark space-y-8">
+              <div class="relative">
+                <span class="absolute -left-[21px] top-1 flex size-3.5 items-center justify-center rounded-full border-2 border-primary bg-surface-light dark:bg-surface-dark"><span class="size-1.5 rounded-full bg-primary"></span></span>
+                <div class="flex flex-col gap-1">
+                  <p class="text-sm font-bold text-text-main dark:text-text-main-dark">Arrived at Distribution Center</p>
+                  <p class="text-xs text-text-sub dark:text-text-sub-dark">San Francisco, CA • Today, 10:24 AM</p>
+                </div>
+              </div>
+              <div class="relative">
+                <span class="absolute -left-[21px] top-1 flex size-3.5 items-center justify-center rounded-full border-2 border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark"></span>
+                <div class="flex flex-col gap-1">
+                  <p class="text-sm font-medium text-text-sub dark:text-text-sub-dark">Departed from Facility</p>
+                  <p class="text-xs text-text-sub dark:text-text-sub-dark">Oakland, CA • Yesterday, 08:00 PM</p>
+                </div>
+              </div>
+              <div class="relative">
+                <span class="absolute -left-[21px] top-1 flex size-3.5 items-center justify-center rounded-full border-2 border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark"></span>
+                <div class="flex flex-col gap-1">
+                  <p class="text-sm font-medium text-text-sub dark:text-text-sub-dark">Picked up by Courier</p>
+                  <p class="text-xs text-text-sub dark:text-text-sub-dark">Sacramento, CA • Oct 24, 02:30 PM</p>
+                </div>
+              </div>
+              <div class="relative">
+                <span class="absolute -left-[21px] top-1 flex size-3.5 items-center justify-center rounded-full border-2 border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark"></span>
+                <div class="flex flex-col gap-1">
+                  <p class="text-sm font-medium text-text-sub dark:text-text-sub-dark">Order Processed</p>
+                  <p class="text-xs text-text-sub dark:text-text-sub-dark">Sacramento, CA • Oct 24, 09:15 AM</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-border-light dark:border-border-dark flex gap-3">
+              <button class="flex-1 rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark py-2 text-sm font-medium text-text-main dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark transition-colors">Contact Carrier</button>
+              <button class="flex-1 rounded-lg bg-primary py-2 text-sm font-medium text-primary-content hover:bg-primary-dark transition-colors">Download Receipt</button>
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark p-6 shadow-sm">
+            <h3 class="text-sm font-bold text-text-sub dark:text-text-sub-dark uppercase tracking-wider mb-4">Customer Details</h3>
+            <div class="flex items-start gap-4">
+              <div class="size-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-300 font-bold">AS</div>
+              <div>
+                <p class="font-bold text-text-main dark:text-text-main-dark">Alice Smith</p>
+                <p class="text-sm text-text-sub dark:text-text-sub-dark">alice.smith@example.com</p>
+                <p class="text-sm text-text-sub dark:text-text-sub-dark mt-1">+1 (555) 123-4567</p>
+                <div class="mt-3 flex gap-2">
+                  <span class="rounded bg-background-light dark:bg-background-dark px-2 py-1 text-xs font-medium text-text-sub dark:text-text-sub-dark">54 Orders</span>
+                  <span class="rounded bg-background-light dark:bg-background-dark px-2 py-1 text-xs font-medium text-text-sub dark:text-text-sub-dark">LTV $4.2k</span>
+                </div>
+              </div>
+            </div>
+            <div class="mt-4 border-t border-border-light dark:border-border-dark pt-4">
+              <p class="text-xs font-medium text-text-sub dark:text-text-sub-dark uppercase mb-2">Delivery Note</p>
+              <p class="text-sm text-text-main dark:text-text-main-dark italic">"Please leave the package at the back porch if no one is home. Gate code is 1234."</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="/src/sidebar-layout.js"></script>
+    <script type="module" src="/src/orders.js"></script>
+  </body>
+</html>

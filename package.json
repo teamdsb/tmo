@@ -4,6 +4,8 @@
   "scripts": {
     "lint": "pnpm -C apps/miniapp lint",
     "lint:miniapp": "pnpm -C apps/miniapp lint",
+    "dev:admin-web": "pnpm -C apps/admin-web dev",
+    "build:admin-web": "pnpm -C apps/admin-web build",
     "test:backend": "bash tools/scripts/test-backend.sh",
     "test": "pnpm run test:backend && pnpm -C apps/miniapp test && pnpm -C apps/miniapp test:wxss",
     "format": "echo \"format: not configured\""
