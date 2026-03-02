@@ -36,6 +36,8 @@ pnpm run dev:admin-web:stack
 
 - `mock`：保持现有纯前端原型行为，不请求后端。
 - `dev`：严格真实鉴权，登录走 `POST /auth/password/login`，业务数据通过 gateway 获取。
+  - 不展示固定示例数字/示例记录；没有后端数据时展示空态。
+  - 暂未接入的 dashboard 扩展区块会明确标记为不可用，而不是展示 mock 卡片。
 
 默认 gateway 基址通过 Vite 代理 `/api -> http://localhost:8080`。
 可通过环境变量 `ADMIN_WEB_PROXY_TARGET` 覆盖代理目标。

@@ -1,3 +1,5 @@
+import { isDevMode } from './lib/env';
+
 const normalizePath = (value) => {
   if (!value || value === '/') return '/dashboard.html';
   return value;
@@ -12,7 +14,7 @@ if (!supportedPaths.has(currentPath)) {
   const navItems = [
     { key: 'dashboard', href: '/dashboard.html', icon: 'dashboard', label: 'Dashboard' },
     { key: 'products', href: '/products.html', icon: 'inventory_2', label: 'Products' },
-    { key: 'orders', href: '/orders.html', icon: 'shopping_cart', label: 'Orders', badge: '12' },
+    { key: 'orders', href: '/orders.html', icon: 'shopping_cart', label: 'Orders', badge: isDevMode ? '' : '12' },
     { key: 'logistics', href: '/import.html', icon: 'local_shipping', label: 'Logistics' },
     { key: 'sourcing', href: '/inquiries.html', icon: 'language', label: 'Sourcing' },
     { key: 'users', href: '#', icon: 'group', label: 'Users' }
@@ -71,10 +73,10 @@ if (!supportedPaths.has(currentPath)) {
     </nav>
     <div class="border-t border-slate-200 p-3 dark:border-slate-800">
       <div class="flex items-center gap-3">
-        <div class="h-10 w-10 overflow-hidden rounded-full bg-slate-200 bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBPy8Zn4eTa8nLrSVxsJOuCpCUau5cDk1bcbi64t2ZdScbx9T_WYEHoZGyxwwuF-uRTEw-c_7FeK0a8aS8HmTCyF7XHqdETDILn36tuimXW7W9RhnWA_NX5-VRIzzRRstS3pDShkofKyDvukaUV2tLCLiacnsBSYfBp1wXruvemUlLGeiA2TcoEpGAGtwXI4E1v5i594_40WlbP9gQX-_knZAnho6J29vAeZ7EcMoU7sT-d6L9g_zhvTVA48r_93NS6HWAl-bfPXYo');"></div>
+        <div class="h-10 w-10 overflow-hidden rounded-full bg-slate-200 bg-cover bg-center"></div>
         <div class="flex flex-col">
-          <span class="text-sm font-semibold text-slate-900 dark:text-white">Alex Morgan</span>
-          <span class="text-xs text-slate-500 dark:text-slate-400">Senior Admin</span>
+          <span id="user-name" class="text-sm font-semibold text-slate-900 dark:text-white">Admin User</span>
+          <span id="user-role" class="text-xs text-slate-500 dark:text-slate-400">Administrator</span>
         </div>
       </div>
     </div>

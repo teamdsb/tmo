@@ -69,7 +69,10 @@ func NewRouter(handlers ProxyHandlers, logger *slog.Logger, readyCheck func(cont
 	router.Any("/admin/config/feature-flags", handlers.Identity)
 	router.Any("/admin/customers", handlers.Identity)
 	router.Any("/admin/customers/*path", handlers.Identity)
-	router.Any("/admin/*path", handlers.Commerce)
+	router.Any("/admin/products/import-jobs", handlers.Commerce)
+	router.Any("/admin/shipments/import-jobs", handlers.Commerce)
+	router.Any("/admin/product-requests/export-jobs", handlers.Commerce)
+	router.Any("/admin/import-jobs/:jobId", handlers.Commerce)
 
 	router.Any("/payments", handlers.Payment)
 	router.Any("/payments/*path", handlers.Payment)

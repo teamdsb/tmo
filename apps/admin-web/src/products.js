@@ -17,8 +17,16 @@ const renderProducts = (payload) => {
   tbody.innerHTML = items.map((item) => {
     const image = safeText(item.coverImageUrl, '');
     const tag = Array.isArray(item.tags) && item.tags.length > 0 ? item.tags[0] : 'Uncategorized';
-    const inventory = Math.floor(Math.random() * 1000) + 10;
+    const rawInventory = [
+      item.inventory,
+      item.inventoryQty,
+      item.stock,
+      item.stockQty,
+      item.availableQty
+    ].find((value) => Number.isFinite(Number(value)));
+    const inventory = rawInventory === undefined ? '--' : Number(rawInventory);
     const tier = Array.isArray(item.tags) && item.tags.length > 1 ? item.tags[1] : 'Standard Tier';
+    const status = item.status || 'UNKNOWN';
 
     return `
       <tr class="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
@@ -35,7 +43,7 @@ const renderProducts = (payload) => {
         <td class="px-6 py-4"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">${escape(safeText(tag))}</span></td>
         <td class="px-6 py-4"><span class="text-sm text-slate-600 dark:text-slate-300">${escape(safeText(tier))}</span></td>
         <td class="px-6 py-4 text-right"><span class="font-medium text-slate-900 dark:text-white">${escape(inventory)}</span></td>
-        <td class="px-6 py-4 text-center">${toStatusBadge('ON_SHELF')}</td>
+        <td class="px-6 py-4 text-center">${toStatusBadge(status)}</td>
         <td class="px-6 py-4 text-right"><button class="text-slate-400 hover:text-primary transition-colors p-1"><span class="material-symbols-outlined">more_vert</span></button></td>
       </tr>
     `;

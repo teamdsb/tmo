@@ -1,54 +1,143 @@
 import { fetchAdminSummary, fetchInquiries, fetchOrders, fetchProductRequests } from './lib/api';
 import { ensureProtectedPage } from './lib/guard';
-import { escape, formatDateTime, safeText, toStatusBadge } from './lib/render';
+import {
+  buildEmptyState,
+  buildErrorState,
+  escape,
+  formatDateTime,
+  safeText,
+  toStatusBadge
+} from './lib/render';
 
-const renderLiveSummary = (summary) => {
-  const mainContainer = document.querySelector('main .mx-auto.max-w-7xl');
-  if (!mainContainer || !summary) {
+const buildRows = (orders, inquiries, requests) => {
+  const rows = [];
+
+  for (const order of orders.slice(0, 4)) {
+    rows.push({
+      action: `Order ${safeText(order.id)} status update`,
+      user: order.address?.receiverName || order.createdByUserId || 'Customer',
+      time: order.updatedAt || order.createdAt,
+      status: order.status || 'UNKNOWN'
+    });
+  }
+
+  for (const inquiry of inquiries.slice(0, 3)) {
+    rows.push({
+      action: `Inquiry ${safeText(inquiry.id)} follow-up`,
+      user: inquiry.createdByUserId || 'Customer',
+      time: inquiry.updatedAt || inquiry.createdAt,
+      status: inquiry.status || 'OPEN'
+    });
+  }
+
+  for (const request of requests.slice(0, 3)) {
+    rows.push({
+      action: `Product request ${safeText(request.id)}`,
+      user: request.createdByUserId || 'Customer',
+      time: request.createdAt,
+      status: 'SUBMITTED'
+    });
+  }
+
+  return rows.slice(0, 8);
+};
+
+const mountDevLayout = (root) => {
+  root.innerHTML = `
+    <section class="mb-6" data-role="status"></section>
+
+    <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900">Live Dashboard Summary</h2>
+          <p class="text-sm text-slate-500">All values are from backend endpoints in dev mode.</p>
+        </div>
+        <p class="text-xs text-slate-500" data-role="updated-at">updated: --</p>
+      </div>
+      <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6" data-role="summary-cards"></div>
+      <div class="mt-4" data-role="warnings"></div>
+    </section>
+
+    <div class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+      <section class="xl:col-span-2 rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-200 px-6 py-4">
+          <h3 class="text-base font-semibold text-slate-900">Recent Activity (Live)</h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-600">
+            <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <tr>
+                <th class="px-6 py-3">Action</th>
+                <th class="px-6 py-3">User</th>
+                <th class="px-6 py-3">Date</th>
+                <th class="px-6 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100" data-role="activity-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="space-y-4" data-role="extra-panels"></section>
+    </div>
+  `;
+};
+
+const renderSummaryCards = (container, summary) => {
+  if (!container || !summary) {
     return;
   }
 
   const metrics = summary.metrics || {};
   const flags = summary.featureFlags || {};
-
-  const panel = document.createElement('section');
-  panel.className = 'mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-slate-800';
-  panel.innerHTML = `
-    <div class="flex flex-wrap items-center justify-between gap-4">
-      <div>
-        <h3 class="text-sm font-semibold uppercase tracking-wide text-blue-700">Live Backend Summary</h3>
-        <p class="text-xs text-slate-600">Data from gateway admin summary endpoint</p>
-      </div>
-      <div class="text-xs text-slate-600">updated: ${escape(formatDateTime(summary.generatedAt || new Date().toISOString()))}</div>
-    </div>
-    <div class="mt-3 grid grid-cols-2 gap-3 md:grid-cols-5">
-      <div class="rounded-lg bg-white p-3"><p class="text-xs text-slate-500">Products</p><p class="text-lg font-bold">${escape(metrics.productsTotal ?? 0)}</p></div>
-      <div class="rounded-lg bg-white p-3"><p class="text-xs text-slate-500">Orders</p><p class="text-lg font-bold">${escape(metrics.ordersTotal ?? 0)}</p></div>
-      <div class="rounded-lg bg-white p-3"><p class="text-xs text-slate-500">Pending Orders</p><p class="text-lg font-bold">${escape(metrics.ordersPending ?? 0)}</p></div>
-      <div class="rounded-lg bg-white p-3"><p class="text-xs text-slate-500">Inquiries Open</p><p class="text-lg font-bold">${escape(metrics.inquiriesOpen ?? 0)}</p></div>
-      <div class="rounded-lg bg-white p-3"><p class="text-xs text-slate-500">Feature Flags</p><p class="text-xs font-semibold">pay:${flags.paymentEnabled ? 'on' : 'off'} wx:${flags.wechatPayEnabled ? 'on' : 'off'} ali:${flags.alipayPayEnabled ? 'on' : 'off'}</p></div>
-    </div>
+  container.innerHTML = `
+    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs text-slate-500">Products</p><p class="mt-1 text-lg font-bold text-slate-900">${escape(metrics.productsTotal ?? 0)}</p></div>
+    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs text-slate-500">Orders</p><p class="mt-1 text-lg font-bold text-slate-900">${escape(metrics.ordersTotal ?? 0)}</p></div>
+    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs text-slate-500">Pending Orders</p><p class="mt-1 text-lg font-bold text-slate-900">${escape(metrics.ordersPending ?? 0)}</p></div>
+    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs text-slate-500">Inquiries Total</p><p class="mt-1 text-lg font-bold text-slate-900">${escape(metrics.inquiriesTotal ?? 0)}</p></div>
+    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs text-slate-500">Inquiries Open</p><p class="mt-1 text-lg font-bold text-slate-900">${escape(metrics.inquiriesOpen ?? 0)}</p></div>
+    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs text-slate-500">Feature Flags</p><p class="mt-1 text-xs font-semibold text-slate-800">pay:${flags.paymentEnabled ? 'on' : 'off'} wx:${flags.wechatPayEnabled ? 'on' : 'off'} ali:${flags.alipayPayEnabled ? 'on' : 'off'}</p></div>
   `;
-
-  mainContainer.prepend(panel);
 };
 
-const renderAuditRows = (rows) => {
-  const tbody = document.querySelector('table tbody');
+const renderWarnings = (container, summary) => {
+  if (!container) {
+    return;
+  }
+  const warnings = Array.isArray(summary?.warnings)
+    ? summary.warnings
+    : (Array.isArray(summary?.warningLabels) ? summary.warningLabels : []);
+
+  if (warnings.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+      <p class="font-semibold">Warnings</p>
+      <p class="mt-1">${escape(warnings.join(', '))}</p>
+    </div>
+  `;
+};
+
+const renderActivityRows = (tbody, rows) => {
   if (!tbody) {
     return;
   }
 
   if (!Array.isArray(rows) || rows.length === 0) {
     tbody.innerHTML = `
-      <tr><td class="px-6 py-4 text-sm text-slate-500" colspan="4">No live audit-like records available.</td></tr>
+      <tr>
+        <td class="px-6 py-5" colspan="4">No live records available.</td>
+      </tr>
     `;
     return;
   }
 
   tbody.innerHTML = rows.map((row) => `
-    <tr class="bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800">
-      <td class="px-6 py-4 font-medium text-slate-900 dark:text-white">${escape(safeText(row.action))}</td>
+    <tr class="hover:bg-slate-50">
+      <td class="px-6 py-4 font-medium text-slate-900">${escape(safeText(row.action))}</td>
       <td class="px-6 py-4">${escape(safeText(row.user))}</td>
       <td class="px-6 py-4">${escape(formatDateTime(row.time))}</td>
       <td class="px-6 py-4">${toStatusBadge(row.status)}</td>
@@ -56,37 +145,15 @@ const renderAuditRows = (rows) => {
   `).join('');
 };
 
-const buildRows = (orders, inquiries, requests) => {
-  const rows = [];
-
-  for (const order of orders.slice(0, 3)) {
-    rows.push({
-      action: `Order ${order.id} status check`,
-      user: order.address?.receiverName || order.createdByUserId || 'Customer',
-      time: order.updatedAt || order.createdAt,
-      status: order.status || 'UNKNOWN'
-    });
+const renderExtraPanels = (container) => {
+  if (!container) {
+    return;
   }
 
-  for (const inquiry of inquiries.slice(0, 2)) {
-    rows.push({
-      action: `Inquiry ${inquiry.id} follow-up`,
-      user: inquiry.createdByUserId || 'Customer',
-      time: inquiry.updatedAt || inquiry.createdAt,
-      status: inquiry.status || 'OPEN'
-    });
-  }
-
-  for (const request of requests.slice(0, 2)) {
-    rows.push({
-      action: `Product request ${request.id}`,
-      user: request.createdByUserId || 'Customer',
-      time: request.createdAt,
-      status: 'SUBMITTED'
-    });
-  }
-
-  return rows;
+  container.innerHTML = [
+    buildEmptyState('Role-based Access', 'No dedicated RBAC analytics endpoint is wired for dashboard cards in dev mode.'),
+    buildEmptyState('Pending Import Tasks', 'Use the Logistics page to query real import jobs by job ID.')
+  ].join('');
 };
 
 const initDashboard = async () => {
@@ -95,22 +162,51 @@ const initDashboard = async () => {
     return;
   }
 
-  const [summaryResp, ordersResp, inquiriesResp, requestsResp] = await Promise.all([
+  const root = document.querySelector('main .mx-auto.max-w-7xl');
+  if (!root) {
+    return;
+  }
+
+  mountDevLayout(root);
+
+  const statusContainer = root.querySelector('[data-role="status"]');
+  const updatedAt = root.querySelector('[data-role="updated-at"]');
+  const summaryCards = root.querySelector('[data-role="summary-cards"]');
+  const warningsContainer = root.querySelector('[data-role="warnings"]');
+  const activityBody = root.querySelector('[data-role="activity-body"]');
+  const extraPanels = root.querySelector('[data-role="extra-panels"]');
+
+  const [summaryResult, ordersResult, inquiriesResult, requestsResult] = await Promise.allSettled([
     fetchAdminSummary(),
     fetchOrders({ page: 1, pageSize: 10 }),
     fetchInquiries({ page: 1, pageSize: 10 }),
     fetchProductRequests({ page: 1, pageSize: 10 })
   ]);
 
-  if (summaryResp.status === 200 && summaryResp.data) {
-    renderLiveSummary(summaryResp.data);
+  const summaryResp = summaryResult.status === 'fulfilled' ? summaryResult.value : null;
+  const ordersResp = ordersResult.status === 'fulfilled' ? ordersResult.value : null;
+  const inquiriesResp = inquiriesResult.status === 'fulfilled' ? inquiriesResult.value : null;
+  const requestsResp = requestsResult.status === 'fulfilled' ? requestsResult.value : null;
+
+  if (summaryResp?.status === 200 && summaryResp.data) {
+    renderSummaryCards(summaryCards, summaryResp.data);
+    renderWarnings(warningsContainer, summaryResp.data);
+    if (updatedAt) {
+      updatedAt.textContent = `updated: ${formatDateTime(summaryResp.data.generatedAt)}`;
+    }
+  } else {
+    statusContainer.innerHTML = buildErrorState('Failed to load /bff/admin/summary');
+    if (summaryCards) {
+      summaryCards.innerHTML = buildEmptyState('Summary unavailable', 'Summary endpoint failed.');
+    }
   }
 
-  const orders = ordersResp.status === 200 && Array.isArray(ordersResp.data?.items) ? ordersResp.data.items : [];
-  const inquiries = inquiriesResp.status === 200 && Array.isArray(inquiriesResp.data?.items) ? inquiriesResp.data.items : [];
-  const requests = requestsResp.status === 200 && Array.isArray(requestsResp.data?.items) ? requestsResp.data.items : [];
+  const orders = ordersResp?.status === 200 && Array.isArray(ordersResp.data?.items) ? ordersResp.data.items : [];
+  const inquiries = inquiriesResp?.status === 200 && Array.isArray(inquiriesResp.data?.items) ? inquiriesResp.data.items : [];
+  const requests = requestsResp?.status === 200 && Array.isArray(requestsResp.data?.items) ? requestsResp.data.items : [];
 
-  renderAuditRows(buildRows(orders, inquiries, requests));
+  renderActivityRows(activityBody, buildRows(orders, inquiries, requests));
+  renderExtraPanels(extraPanels);
 };
 
 void initDashboard();

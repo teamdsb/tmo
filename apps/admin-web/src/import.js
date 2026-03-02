@@ -7,7 +7,13 @@ import {
   patchFeatureFlags
 } from './lib/api';
 import { ensureProtectedPage } from './lib/guard';
-import { escape, formatDateTime, safeText, toStatusBadge } from './lib/render';
+import {
+  buildEmptyState,
+  buildErrorState,
+  escape,
+  formatDateTime,
+  safeText
+} from './lib/render';
 
 const pickFile = () => {
   return new Promise((resolve) => {
@@ -24,7 +30,7 @@ const pickFile = () => {
 const renderResult = (container, title, payload) => {
   container.innerHTML = `
     <h4 class="text-sm font-semibold text-slate-800">${escape(title)}</h4>
-    <pre class="mt-2 max-h-48 overflow-auto rounded-lg bg-slate-900 p-3 text-xs text-slate-100">${escape(JSON.stringify(payload, null, 2))}</pre>
+    <pre class="mt-2 max-h-72 overflow-auto rounded-lg bg-slate-900 p-3 text-xs text-slate-100">${escape(JSON.stringify(payload, null, 2))}</pre>
   `;
 };
 
@@ -33,6 +39,47 @@ const renderFeatureFlags = (container, flags) => {
     <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-flag="paymentEnabled" ${flags.paymentEnabled ? 'checked' : ''} /> paymentEnabled</label>
     <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-flag="wechatPayEnabled" ${flags.wechatPayEnabled ? 'checked' : ''} /> wechatPayEnabled</label>
     <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-flag="alipayPayEnabled" ${flags.alipayPayEnabled ? 'checked' : ''} /> alipayPayEnabled</label>
+  `;
+};
+
+const mountDevLayout = (main) => {
+  main.innerHTML = `
+    <div class="mx-auto w-full max-w-5xl space-y-6">
+      <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h1 class="text-2xl font-bold text-slate-900">Import Jobs (Live)</h1>
+        <p class="mt-1 text-sm text-slate-500">Dev mode only keeps real backend import/export and feature-flag operations.</p>
+      </section>
+
+      <section class="rounded-xl border border-blue-200 bg-blue-50 p-5" data-role="tools-panel">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 class="text-sm font-semibold text-blue-700">Import / Export Actions</h3>
+            <p class="text-xs text-slate-600">Create jobs and query real backend job status.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button data-action="product-import" class="rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">Product Import</button>
+            <button data-action="shipment-import" class="rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">Shipment Import</button>
+            <button data-action="request-export" class="rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">Request Export</button>
+          </div>
+        </div>
+
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          <input data-field="job-id" class="rounded border border-slate-300 px-2 py-1 text-xs" placeholder="Import job UUID" />
+          <button data-action="query-job" class="rounded bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900">Query Job</button>
+        </div>
+
+        <div class="mt-4 rounded-lg border border-slate-200 bg-white p-3">
+          <h4 class="text-sm font-semibold text-slate-800">Feature Flags</h4>
+          <div data-role="flags" class="mt-2 flex flex-wrap gap-4"></div>
+          <button data-action="save-flags" class="mt-2 rounded bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900">Save Flags</button>
+          <p class="mt-1 text-xs text-slate-500" data-role="flags-updated"></p>
+        </div>
+
+        <div data-role="result" class="mt-4"></div>
+      </section>
+
+      <section data-role="placeholder"></section>
+    </div>
   `;
 };
 
@@ -47,38 +94,24 @@ const initImportTools = async () => {
     return;
   }
 
-  const panel = document.createElement('section');
-  panel.className = 'mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4';
-  panel.innerHTML = `
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h3 class="text-sm font-semibold text-blue-700">Live Import Jobs (Dev Mode)</h3>
-        <p class="text-xs text-slate-600">Create and query real backend import/export jobs</p>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <button data-action="product-import" class="rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">Product Import</button>
-        <button data-action="shipment-import" class="rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">Shipment Import</button>
-        <button data-action="request-export" class="rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">Request Export</button>
-      </div>
-    </div>
-    <div class="mt-3 flex flex-wrap items-center gap-2">
-      <input data-field="job-id" class="rounded border border-slate-300 px-2 py-1 text-xs" placeholder="Import job UUID" />
-      <button data-action="query-job" class="rounded bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900">Query Job</button>
-    </div>
-    <div class="mt-3 rounded-lg border border-slate-200 bg-white p-3">
-      <h4 class="text-sm font-semibold text-slate-800">Feature Flags</h4>
-      <div data-role="flags" class="mt-2 flex flex-wrap gap-4"></div>
-      <button data-action="save-flags" class="mt-2 rounded bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900">Save Flags</button>
-      <p class="mt-1 text-xs text-slate-500" data-role="flags-updated"></p>
-    </div>
-    <div data-role="result" class="mt-3"></div>
-  `;
+  mountDevLayout(main);
 
-  main.prepend(panel);
+  const panel = main.querySelector('[data-role="tools-panel"]');
+  const resultContainer = main.querySelector('[data-role="result"]');
+  const flagsContainer = main.querySelector('[data-role="flags"]');
+  const flagsUpdated = main.querySelector('[data-role="flags-updated"]');
+  const placeholder = main.querySelector('[data-role="placeholder"]');
 
-  const resultContainer = panel.querySelector('[data-role="result"]');
-  const flagsContainer = panel.querySelector('[data-role="flags"]');
-  const flagsUpdated = panel.querySelector('[data-role="flags-updated"]');
+  if (!panel || !resultContainer || !flagsContainer || !flagsUpdated) {
+    return;
+  }
+
+  if (placeholder) {
+    placeholder.innerHTML = buildEmptyState(
+      'Legacy Parsing Preview Removed',
+      'Static parsing progress and fake candidate rows are hidden in dev mode. Use job APIs above for real progress.'
+    );
+  }
 
   let currentFlags = {
     paymentEnabled: false,
@@ -92,6 +125,8 @@ const initImportTools = async () => {
       ...currentFlags,
       ...flagsResponse.data
     };
+  } else {
+    resultContainer.innerHTML = buildErrorState('Failed to load /admin/config/feature-flags');
   }
   renderFeatureFlags(flagsContainer, currentFlags);
 

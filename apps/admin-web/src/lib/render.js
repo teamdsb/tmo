@@ -7,6 +7,9 @@ const escapeHtml = (value) => {
     .replace(/'/g, '&#39;');
 };
 
+const defaultEmptyDescription = 'No live data available.';
+const defaultErrorDescription = 'Request failed. Please retry later.';
+
 export const formatDateTime = (value) => {
   if (!value) {
     return '--';
@@ -43,6 +46,39 @@ export const safeText = (value, fallback = '--') => {
   }
   const normalized = String(value).trim();
   return normalized || fallback;
+};
+
+export const buildEmptyState = (title, description = defaultEmptyDescription) => {
+  return `
+    <div class="rounded-xl border border-slate-200 bg-white p-5 text-slate-700">
+      <h3 class="text-sm font-semibold text-slate-900">${escapeHtml(safeText(title, 'No data'))}</h3>
+      <p class="mt-2 text-sm text-slate-500">${escapeHtml(safeText(description, defaultEmptyDescription))}</p>
+    </div>
+  `;
+};
+
+export const buildErrorState = (message, description = defaultErrorDescription) => {
+  return `
+    <div class="rounded-xl border border-red-200 bg-red-50 p-5 text-red-700">
+      <h3 class="text-sm font-semibold text-red-800">Request Error</h3>
+      <p class="mt-2 text-sm">${escapeHtml(safeText(message, 'Unknown error'))}</p>
+      <p class="mt-1 text-xs text-red-600">${escapeHtml(safeText(description, defaultErrorDescription))}</p>
+    </div>
+  `;
+};
+
+export const renderEmptyState = (container, title, description) => {
+  if (!container) {
+    return;
+  }
+  container.innerHTML = buildEmptyState(title, description);
+};
+
+export const renderErrorState = (container, message, description) => {
+  if (!container) {
+    return;
+  }
+  container.innerHTML = buildErrorState(message, description);
 };
 
 export const toStatusBadge = (status) => {

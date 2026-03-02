@@ -24,9 +24,17 @@ request() {
 
   local resp
   if [[ -n "$data" ]]; then
-    resp="$(curl -sS -X "$method" "${headers[@]}" -d "$data" -w "\n%{http_code}" "$url")"
+    if ((${#headers[@]})); then
+      resp="$(curl -sS -X "$method" "${headers[@]}" -d "$data" -w "\n%{http_code}" "$url")"
+    else
+      resp="$(curl -sS -X "$method" -d "$data" -w "\n%{http_code}" "$url")"
+    fi
   else
-    resp="$(curl -sS -X "$method" "${headers[@]}" -w "\n%{http_code}" "$url")"
+    if ((${#headers[@]})); then
+      resp="$(curl -sS -X "$method" "${headers[@]}" -w "\n%{http_code}" "$url")"
+    else
+      resp="$(curl -sS -X "$method" -w "\n%{http_code}" "$url")"
+    fi
   fi
 
   http_body="$(echo "$resp" | sed '$d')"
