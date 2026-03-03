@@ -1,47 +1,34 @@
+import { AdminTopbar } from '../../layout/AdminTopbar';
+
 export const SuppliersPage = () => {
   return (
     <>
       <div className="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden">
         <div className="flex h-full grow flex-col">
-          <header className="sticky top-0 z-50 flex items-center justify-between border-b border-slate-200 bg-white px-8 py-3 shadow-sm">
-            <div className="flex items-center gap-8">
-              <div className="flex items-center gap-3 text-slate-900">
-                <div className="size-8 rounded bg-primary/10 text-primary flex items-center justify-center">
-                  <span className="material-symbols-outlined">inventory_2</span>
-                </div>
-                <h2 className="text-lg font-bold leading-tight tracking-tight">管理控制台</h2>
-              </div>
-              <label className="flex flex-col min-w-40 !h-10 w-96">
-                <div className="flex w-full flex-1 items-stretch rounded-lg h-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
-                  <div className="text-slate-400 flex items-center justify-center pl-3">
-                    <span className="material-symbols-outlined text-[20px]">search</span>
+          <AdminTopbar
+            searchPlaceholder="搜索供应商、订单或商品编号..."
+            leftSlot={
+              <>
+                <div className="flex items-center gap-3 text-slate-900 dark:text-white">
+                  <div className="size-8 rounded bg-primary/10 text-primary flex items-center justify-center">
+                    <span className="material-symbols-outlined">inventory_2</span>
                   </div>
-                  <input className="flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg bg-transparent text-slate-900 focus:outline-0 border-none h-full placeholder:text-slate-400 px-3 text-sm font-normal leading-normal" placeholder="搜索供应商、订单或商品编号..." defaultValue />
+                  <h2 className="text-lg font-bold leading-tight tracking-tight">管理控制台</h2>
                 </div>
-              </label>
-            </div>
-            <div className="flex items-center gap-6">
-              <nav className="hidden lg:flex items-center gap-6">
-                <a className="text-slate-500 hover:text-primary text-sm font-medium transition-colors" href="/dashboard.html">仪表盘</a>
-                <a className="text-primary text-sm font-medium bg-primary/5 px-3 py-1.5 rounded-full transition-colors" href="/suppliers.html">供应商</a>
-                <a className="text-slate-500 hover:text-primary text-sm font-medium transition-colors" href="/orders.html">订单</a>
-                <a className="text-slate-500 hover:text-primary text-sm font-medium transition-colors" href="/products.html">库存</a>
-                <a className="text-slate-500 hover:text-primary text-sm font-medium transition-colors" href="/inquiries.html">分析</a>
-              </nav>
-              <div className="flex items-center gap-3 border-l border-slate-200 pl-6">
-                <button className="relative text-slate-400 hover:text-slate-600">
-                  <span className="material-symbols-outlined">notifications</span>
-                  <span className="absolute top-0 right-0 size-2 bg-red-500 rounded-full border border-white" />
-                </button>
-                <div className="bg-center bg-no-repeat bg-cover rounded-full size-9 ring-2 ring-white shadow-sm" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuCwIa9GO_n2U6de-9xouNE57Q8EuhfR2TZFr4FEnYAWTXIIVXDgdwG2F7P6jKyAyZRIM7i3YAt6BhDFmeyRTjlctgzKtotS3RqnpOGrP7AxfPBqjYpiYwPSR0LWIc65koNpZPTR9M_AQdwXnyQvyf4aGFgL_GAFjg75PPcr5FyCv-0AfCEy_SvgVLXmYz3jl7b2cy0N5AE1u5pFSmoZ3oHZpOJYhrbpGCly9GMOuio267feUqtI1yPZkp8kZfZHC4dFCNxR4Wl2Gck")'}} />
-              </div>
-            </div>
-          </header>
+                <nav className="hidden lg:flex items-center gap-6">
+                  <a className="text-slate-500 hover:text-primary text-sm font-medium transition-colors" href="/dashboard.html">仪表盘</a>
+                  <a className="text-primary text-sm font-medium bg-primary/5 px-3 py-1.5 rounded-full transition-colors" href="/suppliers.html">供应商</a>
+                  <a className="text-slate-500 hover:text-primary text-sm font-medium transition-colors" href="/orders.html">订单</a>
+                  <a className="text-slate-500 hover:text-primary text-sm font-medium transition-colors" href="/products.html">库存</a>
+                  <a className="text-slate-500 hover:text-primary text-sm font-medium transition-colors" href="/inquiries.html">分析</a>
+                </nav>
+              </>
+            }
+          />
           <main className="px-8 py-8 w-full max-w-[1600px] mx-auto flex flex-col gap-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
               <div className="flex flex-col gap-2">
                 <h1 className="text-slate-900 text-3xl font-bold tracking-tight">供应商管理</h1>
-                <p className="text-slate-500 text-base max-w-2xl">监控供应商关系，追踪绩效指标，并管理采购合同。</p>
               </div>
               <div className="flex gap-3">
                 <button className="flex items-center justify-center gap-2 rounded-lg h-10 px-4 bg-white border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 shadow-sm transition-colors">

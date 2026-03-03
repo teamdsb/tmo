@@ -1,31 +1,15 @@
+import { AdminTopbar } from '../../layout/AdminTopbar';
+
 export const DashboardPage = () => {
   return (
     <>
       <div>
-        <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 dark:bg-slate-900 dark:border-slate-800">
-          <div className="text-sm font-semibold text-slate-900">Dashboard</div>
-          <div className="flex items-center gap-4">
-            <div className="relative hidden sm:block">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                <span className="material-symbols-outlined text-[20px]">search</span>
-              </span>
-              <input className="h-9 w-64 rounded-lg border-none bg-slate-100 pl-10 pr-4 text-sm text-slate-900 placeholder-slate-500 focus:ring-2 focus:ring-primary dark:bg-slate-800 dark:text-white dark:placeholder-slate-400" placeholder="Search orders, products..." type="text" />
-            </div>
-            <button className="relative rounded-full bg-slate-100 p-2 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700">
-              <span className="material-symbols-outlined text-[20px]">notifications</span>
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-900" />
-            </button>
-            <button className="md:hidden rounded-lg bg-slate-100 p-2 text-slate-500 dark:bg-slate-800">
-              <span className="material-symbols-outlined">menu</span>
-            </button>
-          </div>
-        </header>
+        <AdminTopbar searchPlaceholder="搜索订单、商品..." leftSlot={<div className="text-sm font-semibold text-slate-900 dark:text-white">Dashboard</div>} />
         <main className="flex-1 min-h-0 overflow-y-auto bg-background-light p-6 dark:bg-background-dark">
           <div className="mx-auto max-w-7xl">
             <div className="mb-8 flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white">System Overview</h2>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Welcome back, here's what's happening today.</p>
               </div>
               <div className="flex gap-3">
                 <button className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">

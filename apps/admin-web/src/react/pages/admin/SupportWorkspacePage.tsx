@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
-  Bell,
   CheckCircle,
   ChevronUp,
   Clock,
@@ -12,7 +11,6 @@ import {
   MoreHorizontal,
   MoreVertical,
   Paperclip,
-  Search,
   Send,
   ShoppingCart,
   Smile,
@@ -20,6 +18,7 @@ import {
   Truck,
   Wand2
 } from 'lucide-react';
+import { AdminTopbar } from '../../layout/AdminTopbar';
 
 type OrderStatusColor = 'blue' | 'green' | 'amber';
 type ChatStatus = '咨询中' | '售后' | '新会话';
@@ -322,52 +321,33 @@ export const SupportWorkspacePage = () => {
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans">
-      <header className="flex h-16 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 shrink-0 z-10">
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-2 text-indigo-600">
-            <div className="bg-indigo-600 p-1.5 rounded-lg text-white">
-              <Activity size={20} />
+      <AdminTopbar
+        searchPlaceholder="搜索订单、工单..."
+        leftSlot={
+          <>
+            <div className="flex items-center gap-2 text-indigo-600">
+              <div className="bg-indigo-600 p-1.5 rounded-lg text-white">
+                <Activity size={20} />
+              </div>
+              <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">客服中枢</h1>
             </div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">客服中枢</h1>
-          </div>
-          <nav className="hidden lg:flex items-center gap-8 text-sm font-semibold">
-            <a className="text-indigo-600 border-b-2 border-indigo-600 py-5 transition-all" href="#">
-              工作台
-            </a>
-            <a className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100" href="#">
-              客户
-            </a>
-            <a className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100" href="#">
-              订单
-            </a>
-            <a className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100" href="#">
-              分析
-            </a>
-          </nav>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="relative hidden md:block">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input
-              className="h-9 w-64 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 pl-10 pr-4 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
-              placeholder="搜索订单、工单..."
-              type="text"
-            />
-          </div>
-          <button type="button" className="relative p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300">
-            <Bell size={20} />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 border-2 border-white dark:border-slate-900 rounded-full"></span>
-          </button>
-          <div className="flex items-center gap-3 pl-2 border-l border-slate-200 dark:border-slate-800">
-            <div className="text-right hidden sm:block">
-              <p className="text-xs font-bold text-slate-900 dark:text-white leading-none">Jordan S.</p>
-              <p className="text-[10px] text-slate-500 font-medium">高级客服</p>
-            </div>
-            <div className="h-9 w-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xs border border-indigo-200">JS</div>
-          </div>
-        </div>
-      </header>
+            <nav className="hidden lg:flex items-center gap-8 text-sm font-semibold">
+              <a className="text-indigo-600 border-b-2 border-indigo-600 py-5 transition-all" href="#">
+                工作台
+              </a>
+              <a className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100" href="#">
+                客户
+              </a>
+              <a className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100" href="#">
+                订单
+              </a>
+              <a className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100" href="#">
+                分析
+              </a>
+            </nav>
+          </>
+        }
+      />
 
       <main className="flex flex-1 min-h-0 overflow-hidden">
         <aside className="hidden lg:flex w-80 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex-col shrink-0">

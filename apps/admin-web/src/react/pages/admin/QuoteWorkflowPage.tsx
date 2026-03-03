@@ -1,3 +1,5 @@
+import { AdminTopbar } from '../../layout/AdminTopbar';
+
 type HeaderNavItem = {
   label: string;
   href: string;
@@ -209,9 +211,11 @@ const NegotiationMessage = ({ message }: { message: ChatMessage }) => {
 export const QuoteWorkflowPage = () => {
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-border-light bg-surface-light px-6 py-3 shadow-sm">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between">
-          <div className="flex items-center gap-8">
+      <AdminTopbar
+        innerClassName="mx-auto max-w-[1400px]"
+        searchPlaceholder="搜索询价单..."
+        leftSlot={
+          <>
             <div className="flex items-center gap-3 text-primary">
               <div className="size-8 flex items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <span className="material-symbols-outlined text-xl">admin_panel_settings</span>
@@ -229,32 +233,9 @@ export const QuoteWorkflowPage = () => {
                 </a>
               ))}
             </nav>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="relative hidden w-64 sm:flex">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-sub">
-                <span className="material-symbols-outlined text-[20px]">search</span>
-              </span>
-              <input
-                className="w-full rounded-lg border-none bg-background-light py-2 pl-10 pr-4 text-sm placeholder:text-text-sub/50 focus:ring-2 focus:ring-primary/20"
-                placeholder="搜索询价单..."
-                type="text"
-              />
-            </div>
-            <button className="relative p-2 text-text-sub transition-colors hover:text-primary">
-              <span className="material-symbols-outlined">notifications</span>
-              <span className="absolute right-1.5 top-1.5 size-2 rounded-full border border-surface-light bg-red-500"></span>
-            </button>
-            <div
-              className="size-9 rounded-full bg-cover bg-center ring-2 ring-primary/10"
-              style={{
-                backgroundImage:
-                  "url('https://lh3.googleusercontent.com/aida-public/AB6AXuD8GClRHtjyM1jxyzUvwXqMOtVFuAk2gsEzEi-kNNeJLSR2a7FMEKFieNQFQ0u96UofIp6NHBe2X06rHdy_4LIkdqI9hWuS0L3TaUZcFjL8vNFrGOPj-ZJBQ7Cmt1Brl7qLUKdFyYDEEPDDXr0VGM2VPxAjTKLbU60KzaFUGPkTCqDBXEhTjMmRYNttugv8MneA97xzdQ8h0otd9ANQldskkerE-GSf07Gt8sQRRuvNMGWK-LZDjNiTkA0ThKnQB-SBC6ppUb9fSEQ')"
-              }}
-            ></div>
-          </div>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <main className="mx-auto grid w-full max-w-[1400px] flex-1 grid-cols-12 gap-8 p-6 md:p-8">
         <div className="col-span-12 flex flex-col gap-8 lg:col-span-8">
@@ -267,7 +248,6 @@ export const QuoteWorkflowPage = () => {
                 <span className="text-sm text-text-sub">创建于 2023年10月12日</span>
               </div>
               <h1 className="mb-2 text-3xl font-bold tracking-tight text-text-main">询价单 #2023-894</h1>
-              <p className="text-lg text-text-sub">办公空间定制家具需求</p>
             </div>
             <div className="flex gap-3">
               <button className="btn-secondary flex items-center gap-2 rounded-lg border border-border-light bg-white px-4 py-2 text-sm font-medium text-text-main transition-colors hover:bg-background-light">

@@ -10,14 +10,11 @@ import {
 const bindLogoutActions = () => {
   const selectors = ['#logout-btn', '#logout-link'];
   selectors.forEach((selector) => {
-    const element = document.querySelector(selector);
-    if (!element) {
-      return;
-    }
-    element.addEventListener('click', (event) => {
+    const elements = document.querySelectorAll(selector);
+    elements.forEach((element) => element.addEventListener('click', (event) => {
       event.preventDefault();
       logout();
-    });
+    }));
   });
 };
 
@@ -26,15 +23,15 @@ const applyProfile = (profile) => {
     return;
   }
 
-  const nameElement = document.querySelector('#user-name');
-  if (nameElement) {
+  const nameElements = document.querySelectorAll('#user-name');
+  nameElements.forEach((nameElement) => {
     nameElement.textContent = profile.name;
-  }
+  });
 
-  const roleElement = document.querySelector('#user-role');
-  if (roleElement) {
+  const roleElements = document.querySelectorAll('#user-role');
+  roleElements.forEach((roleElement) => {
     roleElement.textContent = profile.role;
-  }
+  });
 };
 
 export const ensureProtectedPage = async () => {

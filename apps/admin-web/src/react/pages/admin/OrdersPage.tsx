@@ -1,3 +1,5 @@
+import { AdminTopbar } from '../../layout/AdminTopbar';
+
 type OrderTab = {
   tab: string;
   label: string;
@@ -235,56 +237,22 @@ const TabLink = ({ tab }: TabLinkProps) => {
 export const OrdersPage = () => {
   return (
     <>
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border-light bg-surface-light/80 px-6 py-4 backdrop-blur-md dark:border-border-dark dark:bg-surface-dark/80">
-        <div className="flex items-center gap-8">
+      <AdminTopbar
+        searchPlaceholder="搜索订单..."
+        leftSlot={
           <div className="flex items-center gap-3">
             <div className="size-8 flex items-center justify-center rounded-lg bg-primary text-primary-content">
               <span className="material-symbols-outlined text-xl">local_shipping</span>
             </div>
-            <h2 className="text-xl font-bold tracking-tight text-text-main dark:text-text-main-dark">管理控制台</h2>
+            <h2 className="text-xl font-bold tracking-tight text-text-main dark:text-text-main-dark">订单管理</h2>
           </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="hidden h-10 w-64 items-center rounded-lg border border-border-light bg-background-light px-3 transition-all focus-within:ring-2 focus-within:ring-primary/20 dark:border-border-dark dark:bg-background-dark sm:flex">
-            <span className="material-symbols-outlined text-[20px] text-text-sub dark:text-text-sub-dark">search</span>
-            <input
-              className="w-full border-none bg-transparent text-sm text-text-main placeholder:text-text-sub focus:ring-0 dark:text-text-main-dark dark:placeholder:text-text-sub-dark"
-              placeholder="搜索订单..."
-            />
-          </div>
-          <div className="group relative">
-            <div
-              className="size-10 cursor-pointer rounded-full border border-border-light bg-cover bg-center shadow-sm dark:border-border-dark"
-              data-alt="User profile avatar of a man smiling"
-              style={{
-                backgroundImage:
-                  'url("https://lh3.googleusercontent.com/aida-public/AB6AXuA-cgHCBUtae-Yeq4htivL0q-zghx8kkGV8lTLp1eHRlAxWjiaIFAYFPIhx0QLEoc0XZtVxRR0l7xp4Y4dMZrbafdPBMeVuMEfLeZf8WqH6g65hdBksOAHYEOfMRtION01akpgMv3e2e145ccEHKliMknQEpfbQSU1hfEX43mCkPIEdDbF0yT82K6c2zOcL-ljXW66qgxtI2MqGXZOG-oBuyoCF7HV6Nzo2jQIDX7vLx7eHcVNqjKm6M8kcRXUU7fdLIYk9Zkhj8Dc")'
-              }}
-            ></div>
-            <div className="absolute right-0 top-12 hidden w-48 rounded-lg bg-surface-light p-2 shadow-lg ring-1 ring-black/5 group-hover:block dark:bg-surface-dark">
-              <a
-                className="block rounded px-4 py-2 text-sm text-text-sub hover:bg-background-light hover:text-primary dark:text-text-sub-dark dark:hover:bg-background-dark"
-                href="#"
-              >
-                个人资料
-              </a>
-              <a
-                className="block rounded px-4 py-2 text-sm text-text-sub hover:bg-background-light hover:text-primary dark:text-text-sub-dark dark:hover:bg-background-dark"
-                href="#"
-                id="logout-link"
-              >
-                退出登录
-              </a>
-            </div>
-          </div>
-        </div>
-      </header>
+        }
+      />
 
       <main className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-8 px-6 py-8">
         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <div className="space-y-2">
             <h1 className="text-3xl font-black tracking-tight text-text-main dark:text-text-main-dark md:text-4xl">订单履约</h1>
-            <p className="max-w-2xl text-base text-text-sub dark:text-text-sub-dark">管理发货任务，跟踪实时物流，高效处理订单异常。</p>
           </div>
           <a
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content shadow-sm transition-colors hover:bg-primary-dark active:scale-95"

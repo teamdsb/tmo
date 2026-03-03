@@ -1,50 +1,35 @@
+import { AdminTopbar } from '../../layout/AdminTopbar';
+
 export const ExportsPage = () => {
   return (
     <>
       <div>
-        <header className="flex items-center justify-between whitespace-nowrap border-b border-slate-200 dark:border-slate-800 bg-surface-light dark:bg-surface-dark px-10 py-3 sticky top-0 z-50">
-          <div className="flex items-center gap-8">
-            <div className="flex items-center gap-4">
-              <div className="size-8 text-primary">
-                <svg className="w-full h-full" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M24 45.8096C19.6865 45.8096 15.4698 44.5305 11.8832 42.134C8.29667 39.7376 5.50128 36.3314 3.85056 32.3462C2.19985 28.361 1.76794 23.9758 2.60947 19.7452C3.451 15.5145 5.52816 11.6284 8.57829 8.5783C11.6284 5.52817 15.5145 3.45101 19.7452 2.60948C23.9758 1.76795 28.361 2.19986 32.3462 3.85057C36.3314 5.50129 39.7376 8.29668 42.134 11.8833C44.5305 15.4698 45.8096 19.6865 45.8096 24L24 24L24 45.8096Z" fill="currentColor" />
-                </svg>
-              </div>
-              <h2 className="text-lg font-bold leading-tight tracking-[-0.015em]">Marketplace Admin</h2>
-            </div>
-            <label className="flex flex-col min-w-40 !h-10 max-w-64 hidden md:flex">
-              <div className="flex w-full flex-1 items-stretch rounded-lg h-full ring-1 ring-slate-200 dark:ring-slate-700 bg-background-light dark:bg-slate-800">
-                <div className="text-text-muted dark:text-text-mutedDark flex items-center justify-center pl-4">
-                  <span className="material-symbols-outlined text-[20px]">search</span>
+        <AdminTopbar
+          searchPlaceholder="搜索订单、商品..."
+          leftSlot={
+            <>
+              <div className="flex items-center gap-4">
+                <div className="size-8 text-primary">
+                  <svg className="w-full h-full" fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M24 45.8096C19.6865 45.8096 15.4698 44.5305 11.8832 42.134C8.29667 39.7376 5.50128 36.3314 3.85056 32.3462C2.19985 28.361 1.76794 23.9758 2.60947 19.7452C3.451 15.5145 5.52816 11.6284 8.57829 8.5783C11.6284 5.52817 15.5145 3.45101 19.7452 2.60948C23.9758 1.76795 28.361 2.19986 32.3462 3.85057C36.3314 5.50129 39.7376 8.29668 42.134 11.8833C44.5305 15.4698 45.8096 19.6865 45.8096 24L24 24L24 45.8096Z" fill="currentColor" />
+                  </svg>
                 </div>
-                <input className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg bg-transparent focus:outline-0 focus:ring-0 border-none h-full placeholder:text-text-muted dark:placeholder:text-text-mutedDark px-4 text-sm font-normal leading-normal" placeholder="Search orders, products..." defaultValue />
+                <h2 className="text-lg font-bold leading-tight tracking-[-0.015em] text-slate-900 dark:text-white">Marketplace Admin</h2>
               </div>
-            </label>
-          </div>
-          <div className="flex flex-1 justify-end gap-8 items-center">
-            <div className="hidden lg:flex items-center gap-9">
-              <a className="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/dashboard.html">Dashboard</a>
-              <a className="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/orders.html">Orders</a>
-              <a className="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/products.html">Products</a>
-              <a className="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/transfer.html">Customers</a>
-              <a className="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/exports.html">Reports</a>
-            </div>
-            <div className="flex gap-2">
-              <button className="flex items-center justify-center rounded-lg size-10 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-text-main dark:text-text-dark">
-                <span className="material-symbols-outlined">notifications</span>
-              </button>
-              <button className="flex items-center justify-center rounded-lg size-10 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-text-main dark:text-text-dark">
-                <span className="material-symbols-outlined">settings</span>
-              </button>
-              <div className="bg-center bg-no-repeat bg-cover rounded-full size-10 ml-2 border border-slate-200 dark:border-slate-700" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuAXwGzHDGFpzB0oM5mCSj9jXGYf2_Wnad0DQjwrwtj-OOQVMQM2FOWXNV0n78UJ87h8JP-5eFDj3x0eWASlGPjELRucxzcIUKH9OwtLfvRbkbQRajSwvWLoO2sCjG2G0vE7sv8eSt6QYMKTjOmKM0gclyPcL5-Qjk9iKxB5z2-3ZYt-Wtym3sKCC171q5QrQlqspljMzvcjPwDXXNrKzmfyhHjM9fdXdgMFyDWYbRUhi1quUTaaKYqGwDWumOvy_a5peNIkISJQJw4")'}} />
-            </div>
-          </div>
-        </header>
+              <div className="hidden lg:flex items-center gap-9">
+                <a className="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/dashboard.html">Dashboard</a>
+                <a className="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/orders.html">Orders</a>
+                <a className="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/products.html">Products</a>
+                <a className="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/transfer.html">Customers</a>
+                <a className="text-sm font-medium leading-normal hover:text-primary transition-colors" href="/exports.html">Reports</a>
+              </div>
+            </>
+          }
+        />
         <main className="flex-1 flex flex-col p-6 lg:p-10 gap-8 min-w-0 w-full max-w-[1440px] mx-auto">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div className="flex flex-col gap-1">
               <h1 className="text-3xl font-black tracking-tight text-text-main dark:text-text-dark">Export &amp; Batch Task Center</h1>
-              <p className="text-text-muted dark:text-text-mutedDark text-base">Monitor your background exports and bulk shipment operations.</p>
             </div>
             <div className="flex gap-3">
               <button className="flex items-center gap-2 h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-surface-light dark:bg-surface-dark text-text-main dark:text-text-dark text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">

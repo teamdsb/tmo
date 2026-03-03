@@ -61,9 +61,6 @@ export const SettingsPage = () => {
         <div className="mx-auto flex w-full max-w-5xl items-end justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-text-main dark:text-white">System Configuration</h1>
-            <p className="mt-1 text-sm text-text-muted">
-              Manage global settings, security protocols, and operational preferences.
-            </p>
           </div>
           <div className="flex gap-3">
             <button className="px-4 py-2 text-sm font-medium text-text-muted transition-colors hover:text-text-main">

@@ -1,3 +1,5 @@
+import { AdminTopbar } from '../../layout/AdminTopbar';
+
 const transferMetrics = [
   { label: '已选中', value: '12' },
   { label: '客户终身价值总额', value: '$145,200' },
@@ -20,49 +22,19 @@ const activityItems = [
 export const TransferPage = () => {
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-border-light bg-surface-light px-10 py-3 dark:border-border-dark dark:bg-surface-dark">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <div className="flex items-center gap-3 text-primary dark:text-blue-400">
-              <span className="material-symbols-outlined text-3xl">admin_panel_settings</span>
-              <h2 className="text-lg font-bold leading-tight tracking-tight text-text-primary-light dark:text-text-primary-dark">
-                管理仪表盘
-              </h2>
-            </div>
-            <div className="hidden w-full max-w-md items-center rounded-lg border border-transparent bg-background-light px-3 py-2 transition-all focus-within:border-primary focus-within:ring-1 focus-within:ring-primary dark:bg-background-dark md:flex">
-              <span className="material-symbols-outlined text-text-secondary-light dark:text-text-secondary-dark">search</span>
-              <input
-                className="ml-2 w-full border-none bg-transparent text-sm text-text-primary-light placeholder:text-text-secondary-light focus:ring-0 dark:text-text-primary-dark dark:placeholder:text-text-secondary-dark"
-                placeholder="搜索客户、订单、销售代表..."
-                type="text"
-              />
-            </div>
+      <AdminTopbar
+        searchPlaceholder="搜索客户、订单、销售代表..."
+        leftSlot={
+          <div className="flex items-center gap-3 text-primary dark:text-blue-400">
+            <span className="material-symbols-outlined text-3xl">admin_panel_settings</span>
+            <h2 className="text-lg font-bold leading-tight tracking-tight text-text-primary-light dark:text-text-primary-dark">管理</h2>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3 border-l border-border-light pl-6 dark:border-border-dark">
-              <button className="relative rounded-full p-1 text-text-secondary-light transition-colors hover:bg-background-light dark:text-text-secondary-dark dark:hover:bg-background-dark">
-                <span className="material-symbols-outlined">notifications</span>
-                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500"></span>
-              </button>
-              <div
-                className="h-9 w-9 cursor-pointer rounded-full border border-border-light bg-cover bg-center dark:border-border-dark"
-                data-alt="用户头像占位图"
-                style={{
-                  backgroundImage:
-                    "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDwgpkBafUGrM1cmNB1WCaTPOY65qidCAlyRVOuC4oehj_rSB1XhHCOz1fqLIRmIXS68qDBo5j8gUZgLnXZYfUgMwCdDW5GvanitXI8DHSqAWepgQvf8Wex7MA87s1MEwhcxxR89TwzQ5otgX4l0t0twtWq_Uj97tpqRIzue-JW4r1PJ9a4tEh3c7XzoiE-apOMuAoItF7BrsyPMw4qIxsNcVkvrWGI-ffmvxgev_ZviNE_ils8A7ieab9nzI6AkoVyHkmL_bKk7-c')"
-                }}
-              ></div>
-            </div>
-          </div>
-        </div>
-      </header>
+        }
+      />
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-8 md:px-10 lg:px-20">
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight text-text-primary-light dark:text-text-primary-dark">转移客户归属</h1>
-          <p className="mt-2 max-w-2xl text-text-secondary-light dark:text-text-secondary-dark">
-            将选中的客户账户重新分配给新的销售代表，确保服务连续性与客户关系稳定。
-          </p>
         </div>
 
         <div className="mb-10 rounded-xl border border-border-light bg-surface-light p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark">

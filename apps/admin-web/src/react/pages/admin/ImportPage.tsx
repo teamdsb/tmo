@@ -1,42 +1,23 @@
+import { AdminTopbar } from '../../layout/AdminTopbar';
+
 export const ImportPage = () => {
   return (
     <>
       <div>
-        <header className="sticky top-0 z-50 bg-white dark:bg-[#1a202e] border-b border-slate-200 dark:border-slate-800">
-          <div className="px-6 sm:px-10 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-8">
-              <div className="flex items-center gap-3 text-slate-900 dark:text-white">
-                <div className="w-8 h-8 text-primary bg-primary/10 rounded-lg flex items-center justify-center">
-                  <span className="material-symbols-outlined text-xl">dataset</span>
-                </div>
-                <h2 className="text-lg font-bold leading-tight tracking-tight">管理控制台</h2>
+        <AdminTopbar
+          searchPlaceholder="搜索订单、商品..."
+          leftSlot={
+            <div className="flex items-center gap-3 text-slate-900 dark:text-white">
+              <div className="w-8 h-8 text-primary bg-primary/10 rounded-lg flex items-center justify-center">
+                <span className="material-symbols-outlined text-xl">dataset</span>
               </div>
-              <div className="hidden md:flex flex-col min-w-[240px]">
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-primary transition-colors">
-                    <span className="material-symbols-outlined text-[20px]">search</span>
-                  </div>
-                  <input className="block w-full rounded-lg border-0 bg-slate-100 dark:bg-slate-800 py-2 pl-10 pr-4 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-primary focus:bg-white dark:focus:bg-slate-900 sm:text-sm sm:leading-6 transition-all shadow-sm" placeholder="搜索订单、商品..." type="text" />
-                </div>
-              </div>
+              <h2 className="text-lg font-bold leading-tight tracking-tight">管理控制台</h2>
             </div>
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-4 border-l border-slate-200 dark:border-slate-700 pl-6">
-                <button className="text-slate-500 hover:text-primary transition-colors relative">
-                  <span className="material-symbols-outlined">notifications</span>
-                  <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-[#1a202e]" />
-                </button>
-                <div id="logout-btn" title="退出登录" className="h-9 w-9 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden ring-2 ring-offset-2 ring-primary/20 dark:ring-offset-[#1a202e] cursor-pointer">
-                  <img alt="User Avatar" className="h-full w-full object-cover" data-alt="User profile avatar placeholder" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_UeRv3_KS83ZytIjlLDVisIH3fE3QEJNlS4QN62uwmr1UIey5B-MK8TOWj1LJZnOXs5WZ0U0gE-c7_2V0Ax7ZeWg621lR1hJg9MNtC0FahV7uWpoN50h4jFrm5A5tdtMcYjUozzHW0FxJH5RLs6VzL12YYiiXMumABt3V0hEMeN_rHM0RxgtC2MAjYWB_zasbXJPUd37xejBYadLTZHTwFcEGTObHC8BwTGMriDkLCvXgP1UwQle5rwyya1IHbpYG-7vL1xtvYAc" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
+          }
+        />
         <main className="flex-1 w-full max-w-7xl mx-auto px-6 py-8">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">从 Excel 导入订单</h1>
-            <p className="text-slate-500 dark:text-slate-400 max-w-2xl">上传批量订单表，自动匹配商品、校验 SKU，并加入购物车进行处理。</p>
           </div>
           <div className="mb-10">
             <div className="relative flex justify-between w-full max-w-3xl mx-auto">

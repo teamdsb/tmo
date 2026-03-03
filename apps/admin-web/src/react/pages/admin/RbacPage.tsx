@@ -133,7 +133,6 @@ export const RbacPage = () => {
       <header className="flex shrink-0 items-center justify-between border-b border-border-light bg-surface-light px-8 py-5 dark:border-border-dark dark:bg-surface-dark">
         <div>
           <h1 className="text-2xl font-bold text-text-main dark:text-white">Roles & Permissions</h1>
-          <p className="mt-1 text-sm text-text-secondary">Manage role templates, scopes, and module-level permissions.</p>
         </div>
         <div className="flex gap-3">
           <button className="rounded-lg border border-border-light bg-white px-4 py-2 text-sm font-medium text-text-main shadow-sm transition-colors hover:bg-gray-50 dark:border-border-dark dark:bg-surface-dark dark:text-white dark:hover:bg-gray-800">

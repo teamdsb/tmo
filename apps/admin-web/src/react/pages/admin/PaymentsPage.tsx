@@ -1,13 +1,18 @@
+import { AdminTopbar } from '../../layout/AdminTopbar';
+
 export const PaymentsPage = () => {
   return (
     <>
       <div>
+        <AdminTopbar
+          searchPlaceholder="搜索交易号、用户或订单号..."
+          leftSlot={<h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">支付与审计</h2>}
+        />
         <header className="bg-white border-b border-slate-200 px-8 py-6 shrink-0 z-10 shadow-sm">
           <div className="max-w-[1400px] mx-auto w-full">
             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">System Activity &amp; Financials</h1>
-                <p className="mt-1 text-slate-500">Monitor real-time transaction flows and detailed system audit trails.</p>
               </div>
               <div className="flex gap-3">
                 <button className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-sm font-medium transition-colors shadow-sm">

@@ -60,6 +60,11 @@ const CATEGORY_BADGE_CLASS = {
   未分类: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
 };
 
+const DEFAULT_MODEL_NAME = '默认型号';
+const DEFAULT_MODEL_CODE = 'STD';
+const MIN_TIER_QTY = 2;
+const MAX_TIER_DISCOUNT_RATE = 90;
+
 const MOCK_IMAGE_POOL = [
   'https://lh3.googleusercontent.com/aida-public/AB6AXuCQoEH4gfPeWzK1H0fbTKGpdPsPEiVMSPpMe3jLG-QgVaadYTF5qCKXGMjK_UTCXUpALUF4RYSCB-uwdUYyEqrynzyRupEFmfWY0O4Y55MSNjHpEcnbyyoMgg9bnSiWa-xAQg9jjGABk35lkIoQYRcnYbRoheyqYHOwhN_dwLyq9p73TGuxxF4apYmpLHY9xpto3PvnH_aZ0I9bo4tHrTLkleRHk2Dxhp9kINeVt8_ELlHoEiskagOOP2omXZCUmUVbFac5vdDDsIY',
   'https://lh3.googleusercontent.com/aida-public/AB6AXuBEIgPW6ZBOTgr9Q108MfixPSYHRAYslI2QJq5jutI_I44OsmzXgS1DKgmv5bhUsoq8uj3sJsOGNsSVWTxV-MqVI5WZyd9Na0avk4Xb8Otkz0-SiSM9aoveA6AAYyaUAwwF7giqaUqikM6MKXWA62Lwkru6jttI92nQEEjAV7JrQewS4-8dgwyn_ivXI_iTPPk25_065zBjkvwThYjMA4WwJVvz0y9d0fZGYtJE111hzA0c9BL7tlLKI6GITyug2_lvbIU_qwqC5zs',
@@ -69,16 +74,66 @@ const MOCK_IMAGE_POOL = [
 ];
 
 const MOCK_PRODUCT_TEMPLATES = [
-  { name: '经典纯棉 T 恤', categoryId: 'apparel', tier: '标准档', inventory: 1240, status: 'ACTIVE' },
-  { name: '无线耳机 Pro', categoryId: 'electronics', tier: '设置分层价格', inventory: 45, status: 'INACTIVE' },
-  { name: '真皮轻薄钱包', categoryId: 'accessories', tier: '二档启用', inventory: 320, status: 'ACTIVE' },
-  { name: '极简陶瓷花瓶', categoryId: 'home-decor', tier: '标准', inventory: 15, status: 'DRAFT' },
-  { name: '性能跑鞋', categoryId: 'footwear', tier: '设置分层价格', inventory: 850, status: 'ACTIVE' },
-  { name: '商务双肩包', categoryId: 'accessories', tier: '标准档', inventory: 268, status: 'ACTIVE' },
-  { name: '智能手表 S', categoryId: 'electronics', tier: '二档启用', inventory: 172, status: 'ACTIVE' },
-  { name: '亚麻衬衫', categoryId: 'apparel', tier: '标准档', inventory: 412, status: 'ACTIVE' },
-  { name: '电竞键盘 K87', categoryId: 'electronics', tier: '设置分层价格', inventory: 69, status: 'INACTIVE' },
-  { name: '跑步水壶', categoryId: 'accessories', tier: '标准', inventory: 506, status: 'ACTIVE' }
+  {
+    name: '经典纯棉 T 恤',
+    categoryId: 'apparel',
+    tier: '标准档',
+    inventory: 1240,
+    status: 'ACTIVE',
+    basePrice: 79,
+    models: [
+      { name: '蓝色 M', code: 'TSH-BLU-M', basePrice: 79 },
+      { name: '蓝色 L', code: 'TSH-BLU-L', basePrice: 79 }
+    ]
+  },
+  {
+    name: '无线耳机 Pro',
+    categoryId: 'electronics',
+    tier: '设置分层价格',
+    inventory: 45,
+    status: 'INACTIVE',
+    basePrice: 399,
+    models: [
+      { name: '黑色', code: 'EAR-PRO-BLK', basePrice: 399 },
+      { name: '银色', code: 'EAR-PRO-SLV', basePrice: 419 }
+    ],
+    tierPricing: [
+      { minQty: 3, discountRate: 5 },
+      { minQty: 10, discountRate: 12 }
+    ]
+  },
+  {
+    name: '真皮轻薄钱包',
+    categoryId: 'accessories',
+    tier: '二档启用',
+    inventory: 320,
+    status: 'ACTIVE',
+    basePrice: 169,
+    models: [{ name: '棕色标准款', code: 'WAL-BRN-STD', basePrice: 169 }],
+    tierPricing: [{ minQty: 5, discountRate: 8 }]
+  },
+  { name: '极简陶瓷花瓶', categoryId: 'home-decor', tier: '标准', inventory: 15, status: 'DRAFT', basePrice: 259 },
+  {
+    name: '性能跑鞋',
+    categoryId: 'footwear',
+    tier: '设置分层价格',
+    inventory: 850,
+    status: 'ACTIVE',
+    basePrice: 529,
+    models: [
+      { name: '灰色 42', code: 'RUN-GRY-42', basePrice: 529 },
+      { name: '灰色 43', code: 'RUN-GRY-43', basePrice: 529 }
+    ],
+    tierPricing: [
+      { minQty: 2, discountRate: 3 },
+      { minQty: 6, discountRate: 10 }
+    ]
+  },
+  { name: '商务双肩包', categoryId: 'accessories', tier: '标准档', inventory: 268, status: 'ACTIVE', basePrice: 219 },
+  { name: '智能手表 S', categoryId: 'electronics', tier: '二档启用', inventory: 172, status: 'ACTIVE', basePrice: 899 },
+  { name: '亚麻衬衫', categoryId: 'apparel', tier: '标准档', inventory: 412, status: 'ACTIVE', basePrice: 129 },
+  { name: '电竞键盘 K87', categoryId: 'electronics', tier: '设置分层价格', inventory: 69, status: 'INACTIVE', basePrice: 329 },
+  { name: '跑步水壶', categoryId: 'accessories', tier: '标准', inventory: 506, status: 'ACTIVE', basePrice: 49 }
 ];
 
 const normalizeProductText = (value, fallback = '') => {
@@ -104,8 +159,8 @@ const normalizeProductText = (value, fallback = '') => {
     Standard: '标准',
     'Set Tiered Price': '设置分层价格',
     'Tier 2 Active': '二档启用',
-    ACTIVE: '已上架',
-    INACTIVE: '已下架',
+    ACTIVE: '启用',
+    INACTIVE: '停用',
     DRAFT: '草稿'
   };
   return map[key] || key || fallback;
@@ -117,6 +172,153 @@ const toNumber = (value, fallback = 0) => {
     return fallback;
   }
   return parsed;
+};
+
+const toMoney = (value, fallback = 0) => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) {
+    return fallback;
+  }
+  return Math.max(0, Math.round(amount * 100) / 100);
+};
+
+const toPositiveInt = (value, fallback = 0) => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) {
+    return fallback;
+  }
+  return Math.max(0, Math.floor(amount));
+};
+
+const formatCurrency = (value) => {
+  return `¥${toMoney(value, 0).toFixed(2)}`;
+};
+
+const formatDiscountFold = (discountRate) => {
+  const rate = toMoney(discountRate, 0);
+  const fold = Math.round((10 - rate / 10) * 10) / 10;
+  return `${Number.isInteger(fold) ? String(fold) : fold.toFixed(1)}折`;
+};
+
+const resolveLegacyTierLabel = (item) => {
+  if (Array.isArray(item.tags) && item.tags.length > 1) {
+    return normalizeProductText(item.tags[1], '标准档');
+  }
+  return '标准档';
+};
+
+const resolveBasePriceCandidate = (item, fallback = 0) => {
+  const candidate = [
+    item?.basePrice,
+    item?.price,
+    item?.unitPrice,
+    item?.salePrice,
+    item?.amount
+  ].find((value) => Number.isFinite(Number(value)));
+  if (candidate === undefined) {
+    return toMoney(fallback, 0);
+  }
+  return toMoney(candidate, 0);
+};
+
+const normalizeModelCode = (value, fallback = DEFAULT_MODEL_CODE) => {
+  const code = safeText(value, '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^A-Z0-9\-_]/g, '');
+  return code || fallback;
+};
+
+const normalizeModelSettings = (item) => {
+  const fallbackBasePrice = resolveBasePriceCandidate(item, 0);
+  const source = Array.isArray(item?.models) ? item.models : Array.isArray(item?.variants) ? item.variants : [];
+  const normalized = source
+    .map((model, index) => {
+      const name = safeText(model?.name ?? model?.modelName ?? model?.title, '').trim();
+      const code = normalizeModelCode(model?.code ?? model?.modelCode ?? model?.sku ?? model?.id, `${DEFAULT_MODEL_CODE}-${index + 1}`);
+      const basePrice = resolveBasePriceCandidate(model, fallbackBasePrice);
+      if (!name && !code) {
+        return null;
+      }
+      return {
+        name: name || `${DEFAULT_MODEL_NAME} ${index + 1}`,
+        code,
+        basePrice
+      };
+    })
+    .filter(Boolean);
+
+  if (normalized.length > 0) {
+    return normalized;
+  }
+
+  const fallbackCode = normalizeModelCode(item?.sku ?? item?.id, DEFAULT_MODEL_CODE);
+  return [
+    {
+      name: DEFAULT_MODEL_NAME,
+      code: fallbackCode,
+      basePrice: fallbackBasePrice
+    }
+  ];
+};
+
+const inferTierPricingFromLegacyLabel = (label) => {
+  const text = safeText(label, '');
+  if (text.includes('二档')) {
+    return [{ minQty: 5, discountRate: 8 }];
+  }
+  return [];
+};
+
+const normalizeTierPricing = (item) => {
+  const source = Array.isArray(item?.tierPricing)
+    ? item.tierPricing
+    : Array.isArray(item?.priceTiers)
+      ? item.priceTiers
+      : Array.isArray(item?.pricingTiers)
+        ? item.pricingTiers
+        : [];
+  const rows = source
+    .map((tier) => {
+      const minQty = toPositiveInt(tier?.minQty ?? tier?.quantity ?? tier?.minQuantity, 0);
+      const discountRate = toMoney(
+        tier?.discountRate ?? tier?.discountPercent ?? tier?.discount ?? tier?.offPercent,
+        -1
+      );
+      if (minQty < MIN_TIER_QTY || discountRate <= 0 || discountRate >= MAX_TIER_DISCOUNT_RATE) {
+        return null;
+      }
+      return {
+        minQty,
+        discountRate
+      };
+    })
+    .filter(Boolean)
+    .sort((left, right) => left.minQty - right.minQty);
+
+  if (rows.length === 0) {
+    return inferTierPricingFromLegacyLabel(resolveLegacyTierLabel(item));
+  }
+
+  const unique = [];
+  const qtySet = new Set();
+  rows.forEach((row) => {
+    if (qtySet.has(row.minQty)) {
+      return;
+    }
+    qtySet.add(row.minQty);
+    unique.push(row);
+  });
+  return unique;
+};
+
+const resolveTierSummaryLabel = (tierPricing, fallback = '标准档') => {
+  if (!Array.isArray(tierPricing) || tierPricing.length === 0) {
+    return normalizeProductText(fallback, '标准档');
+  }
+  const maxDiscount = tierPricing.reduce((max, item) => Math.max(max, toMoney(item.discountRate, 0)), 0);
+  return `${tierPricing.length + 1}档阶梯价 · 最高${formatDiscountFold(maxDiscount)}`;
 };
 
 const normalizeCategoryItem = (item, index = 0) => {
@@ -270,8 +472,10 @@ const syncCategorySelectOptions = () => {
 const normalizeStatusValue = (value) => {
   const normalized = String(value || '').trim().toUpperCase();
   const map = {
+    启用: 'ACTIVE',
     已上架: 'ACTIVE',
     上架: 'ACTIVE',
+    停用: 'INACTIVE',
     已下架: 'INACTIVE',
     下架: 'INACTIVE',
     草稿: 'DRAFT',
@@ -379,10 +583,13 @@ const resolveCategoryTag = (item) => {
 };
 
 const resolveTierLabel = (item) => {
-  if (Array.isArray(item.tags) && item.tags.length > 1) {
-    return normalizeProductText(item.tags[1], '标准档');
-  }
-  return '标准档';
+  const tierPricing = normalizeTierPricing(item);
+  return resolveTierSummaryLabel(tierPricing, resolveLegacyTierLabel(item));
+};
+
+const resolveModelClass = (item) => {
+  const models = Array.isArray(item?.models) && item.models.length > 0 ? item.models : normalizeModelSettings(item);
+  return models.length > 1 ? '多型号' : '单型号';
 };
 
 const resolveInventory = (item) => {
@@ -403,12 +610,17 @@ const normalizeProductItem = (item, index = 0) => {
   const nextCategoryId = getCategoryById(rawCategoryId) ? rawCategoryId : fallbackCategoryId;
   const categoryId = getCategoryById(nextCategoryId) ? nextCategoryId : '';
   const tag = resolveCategoryLabelById(categoryId);
+  const models = normalizeModelSettings(item);
+  const tierPricing = normalizeTierPricing(item);
+  const tierLabel = resolveTierSummaryLabel(tierPricing, resolveLegacyTierLabel(item));
   return {
     ...item,
     id: safeText(item.id, `MOCK-${String(index + 1).padStart(4, '0')}`),
     name: safeText(item.name, `模拟商品 ${index + 1}`),
     categoryId,
-    tags: [tag, resolveTierLabel(item)],
+    tags: [tag, tierLabel],
+    models,
+    tierPricing,
     inventory: resolveInventory(item),
     status: normalizeStatusValue(item.status),
     coverImageUrl: safeText(item.coverImageUrl, '')
@@ -426,32 +638,32 @@ const toProductStatusBadge = (status) => {
   const normalized = String(status || '').toUpperCase();
   const map = {
     ACTIVE: {
-      label: '已上架',
+      label: '启用',
       className: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800',
       dot: 'bg-emerald-500'
     },
     ON_SHELF: {
-      label: '已上架',
+      label: '启用',
       className: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800',
       dot: 'bg-emerald-500'
     },
     ENABLED: {
-      label: '已上架',
+      label: '启用',
       className: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800',
       dot: 'bg-emerald-500'
     },
     INACTIVE: {
-      label: '已下架',
+      label: '停用',
       className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700',
       dot: 'bg-slate-400'
     },
     OFF_SHELF: {
-      label: '已下架',
+      label: '停用',
       className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700',
       dot: 'bg-slate-400'
     },
     DISABLED: {
-      label: '已下架',
+      label: '停用',
       className: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700',
       dot: 'bg-slate-400'
     },
@@ -469,9 +681,18 @@ const toProductStatusBadge = (status) => {
   return `<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${resolved.className}"><span class="size-1.5 rounded-full ${resolved.dot}"></span>${resolved.label}</span>`;
 };
 
+const toModelClassBadge = (modelClass) => {
+  const className =
+    modelClass === '多型号'
+      ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
+      : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
+  return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${className}">${escape(modelClass)}</span>`;
+};
+
 const renderProductRow = (item) => {
   const image = safeText(item.coverImageUrl, '');
   const tag = resolveCategoryTag(item);
+  const modelClass = resolveModelClass(item);
   const tier = resolveTierLabel(item);
   const inventory = resolveInventory(item);
   const status = safeText(item.status, 'DRAFT');
@@ -490,6 +711,7 @@ const renderProductRow = (item) => {
         </div>
       </td>
       <td class="px-6 py-4"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${categoryClass}">${escape(tag)}</span></td>
+      <td class="px-6 py-4">${toModelClassBadge(modelClass)}</td>
       <td class="px-6 py-4"><span class="text-sm text-slate-600 dark:text-slate-300">${escape(safeText(tier))}</span></td>
       <td class="px-6 py-4 text-right"><span class="font-medium text-slate-900 dark:text-white">${escape(inventory)}</span></td>
       <td class="px-6 py-4 text-center">${toProductStatusBadge(status)}</td>
@@ -581,7 +803,7 @@ const renderCurrentPage = () => {
   if (pageItems.length === 0) {
     const hasAnyProducts = state.allProducts.length > 0;
     const emptyMessage = hasAnyProducts ? '暂无符合筛选条件的商品。' : '后端暂无商品数据。';
-    tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-5 text-sm text-slate-500">${emptyMessage}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-5 text-sm text-slate-500">${emptyMessage}</td></tr>`;
     updateSummary(0, 0, useRemotePageWindow ? state.total : localTotal);
     renderPagination(useRemotePageWindow ? state.total : localTotal);
     return;
@@ -617,6 +839,16 @@ const createMockProducts = (count = 30) => {
   return Array.from({ length: count }, (_, index) => {
     const template = MOCK_PRODUCT_TEMPLATES[index % MOCK_PRODUCT_TEMPLATES.length];
     const suffix = index < MOCK_PRODUCT_TEMPLATES.length ? '' : ` ${index + 1}`;
+    const modelSource = Array.isArray(template.models) ? template.models : [];
+    const models = (modelSource.length > 0
+      ? modelSource
+      : [{ name: DEFAULT_MODEL_NAME, code: `${DEFAULT_MODEL_CODE}-${index + 1}`, basePrice: toMoney(template.basePrice, 0) }]
+    ).map((model, modelIndex) => ({
+      name: safeText(model.name, `${DEFAULT_MODEL_NAME} ${modelIndex + 1}`),
+      code: normalizeModelCode(model.code, `${DEFAULT_MODEL_CODE}-${modelIndex + 1}`),
+      basePrice: toMoney(model.basePrice, toMoney(template.basePrice, 0))
+    }));
+
     return {
       id: `MOCK-${String(index + 1).padStart(4, '0')}`,
       name: `${template.name}${suffix}`,
@@ -625,7 +857,14 @@ const createMockProducts = (count = 30) => {
       inventory: Math.max(0, template.inventory + (index % 7) * 13),
       status: template.status,
       coverImageUrl: MOCK_IMAGE_POOL[index % MOCK_IMAGE_POOL.length],
-      description: `模拟商品数据 #${index + 1}`
+      description: `模拟商品数据 #${index + 1}`,
+      models,
+      tierPricing: Array.isArray(template.tierPricing)
+        ? template.tierPricing.map((tier) => ({
+            minQty: toPositiveInt(tier.minQty, MIN_TIER_QTY),
+            discountRate: toMoney(tier.discountRate, 0)
+          }))
+        : []
     };
   });
 };
@@ -827,6 +1066,7 @@ const createLocalProduct = (formData) => {
   const requestedCategoryId = safeText(formData.categoryKey, '').trim();
   const categoryId = getCategoryById(requestedCategoryId) ? requestedCategoryId : '';
   const categoryLabel = resolveCategoryLabelById(categoryId);
+  const basePrice = 0;
   return {
     id: `LOCAL-${Date.now()}`,
     name: formData.name,
@@ -834,7 +1074,15 @@ const createLocalProduct = (formData) => {
     categoryId,
     tags: [categoryLabel, '标准档'],
     inventory: formData.inventory,
-    status: formData.status
+    status: formData.status,
+    models: [
+      {
+        name: DEFAULT_MODEL_NAME,
+        code: normalizeModelCode(formData.name, DEFAULT_MODEL_CODE),
+        basePrice
+      }
+    ],
+    tierPricing: []
   };
 };
 
@@ -856,24 +1104,33 @@ const getProductFromRow = (row) => {
   const name = safeText(row.querySelector('td:nth-child(2) .font-bold')?.textContent, '未命名商品');
   const categoryLabel = normalizeProductText(row.querySelector('td:nth-child(3) span')?.textContent, CATEGORY_EMPTY_LABEL);
   const categoryId = safeText(state.categoryIdByLabel[categoryLabel], '').trim();
-  const tier = safeText(row.querySelector('td:nth-child(4) span')?.textContent, '标准档');
-  const inventoryText = safeText(row.querySelector('td:nth-child(5) .font-medium')?.textContent, '0');
+  const tier = safeText(row.querySelector('td:nth-child(5) span')?.textContent, '标准档');
+  const inventoryText = safeText(row.querySelector('td:nth-child(6) .font-medium')?.textContent, '0');
   const inventory = Math.max(0, Number(inventoryText.replace(/[^\d.-]/g, '')) || 0);
-  const statusText = safeText(row.querySelector('td:nth-child(6) span')?.textContent, '草稿').replace(/\s+/g, '');
+  const statusText = safeText(row.querySelector('td:nth-child(7) span')?.textContent, '草稿').replace(/\s+/g, '');
   const status = normalizeStatusValue(statusText);
   const thumb = row.querySelector('td:nth-child(2) .size-12');
   const coverImageUrl = readBackgroundImageUrl(thumb?.style?.backgroundImage);
   const cached = state.productsById[rowId] || {};
+  const models = normalizeModelSettings({
+    ...cached,
+    name,
+    sku: codeText
+  });
+  const tierPricing = normalizeTierPricing(cached);
+  const tierLabel = resolveTierSummaryLabel(tierPricing, tier);
 
   return {
     id: rowId,
     name,
     categoryId: getCategoryById(categoryId) ? categoryId : '',
-    tags: [resolveCategoryLabelById(categoryId), tier],
+    tags: [resolveCategoryLabelById(categoryId), tierLabel],
     inventory,
     status,
     coverImageUrl,
-    description: safeText(cached.description, '')
+    description: safeText(cached.description, ''),
+    models,
+    tierPricing
   };
 };
 
@@ -896,18 +1153,28 @@ const updateRowFromProduct = (row, product) => {
     categoryBadge.textContent = categoryLabel;
   }
 
+  const modelClass = resolveModelClass(product);
+  const modelClassBadge = row.querySelector('td:nth-child(4) span');
+  if (modelClassBadge) {
+    modelClassBadge.className =
+      modelClass === '多型号'
+        ? 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
+        : 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300';
+    modelClassBadge.textContent = modelClass;
+  }
+
   const tierLabel = resolveTierLabel(product);
-  const tierElement = row.querySelector('td:nth-child(4) span');
+  const tierElement = row.querySelector('td:nth-child(5) span');
   if (tierElement) {
     tierElement.textContent = tierLabel;
   }
 
-  const inventoryElement = row.querySelector('td:nth-child(5) .font-medium');
+  const inventoryElement = row.querySelector('td:nth-child(6) .font-medium');
   if (inventoryElement) {
     inventoryElement.textContent = String(resolveInventory(product));
   }
 
-  const statusCell = row.querySelector('td:nth-child(6)');
+  const statusCell = row.querySelector('td:nth-child(7)');
   if (statusCell) {
     statusCell.innerHTML = toProductStatusBadge(product.status);
   }
@@ -1015,6 +1282,236 @@ const openImagePreview = (imageUrl) => {
   document.body.classList.add('overflow-hidden');
 };
 
+const buildModelRowHtml = (model, index = 0) => {
+  const fallbackName = index === 0 ? DEFAULT_MODEL_NAME : `${DEFAULT_MODEL_NAME} ${index + 1}`;
+  return `
+    <div data-role="model-row" class="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-[1.2fr_1fr_1fr_auto]">
+      <label class="space-y-1 text-xs text-slate-600">
+        <span>型号名称</span>
+        <input data-field="model-name" type="text" class="w-full rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary" value="${escape(safeText(model?.name, fallbackName))}" />
+      </label>
+      <label class="space-y-1 text-xs text-slate-600">
+        <span>型号编码</span>
+        <input data-field="model-code" type="text" class="w-full rounded-lg border-slate-300 text-sm uppercase focus:border-primary focus:ring-primary" value="${escape(normalizeModelCode(model?.code, `${DEFAULT_MODEL_CODE}-${index + 1}`))}" />
+      </label>
+      <label class="space-y-1 text-xs text-slate-600">
+        <span>基础售价</span>
+        <input data-field="model-base-price" type="number" min="0" step="0.01" class="w-full rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary" value="${escape(toMoney(model?.basePrice, 0))}" />
+      </label>
+      <button type="button" data-role="remove-model-row" class="mt-5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50">删除</button>
+    </div>
+  `;
+};
+
+const buildTierRowHtml = (tier = {}) => {
+  return `
+    <div data-role="tier-row" class="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-[1fr_1fr_auto]">
+      <label class="space-y-1 text-xs text-slate-600">
+        <span>起购数量</span>
+        <input data-field="tier-min-qty" type="number" min="${MIN_TIER_QTY}" step="1" class="w-full rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary" value="${escape(toPositiveInt(tier.minQty, 0) || '')}" placeholder="例如 5" />
+      </label>
+      <label class="space-y-1 text-xs text-slate-600">
+        <span>优惠比例（%）</span>
+        <input data-field="tier-discount-rate" type="number" min="0.1" max="${MAX_TIER_DISCOUNT_RATE}" step="0.1" class="w-full rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary" value="${escape(tier.discountRate ? toMoney(tier.discountRate, 0) : '')}" placeholder="例如 8" />
+        <p data-role="tier-price-preview" class="text-[11px] text-slate-400">填写后自动预估折后单价</p>
+      </label>
+      <button type="button" data-role="remove-tier-row" class="mt-5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50">删除</button>
+    </div>
+  `;
+};
+
+const getDrawerModelRows = (drawer) => {
+  return Array.from(drawer.querySelectorAll('[data-role="model-row"]'));
+};
+
+const getDrawerTierRows = (drawer) => {
+  return Array.from(drawer.querySelectorAll('[data-role="tier-row"]'));
+};
+
+const syncModelRowActions = (drawer) => {
+  const rows = getDrawerModelRows(drawer);
+  rows.forEach((row) => {
+    const removeButton = row.querySelector('[data-role="remove-model-row"]');
+    if (!(removeButton instanceof HTMLButtonElement)) {
+      return;
+    }
+    const shouldDisable = rows.length <= 1;
+    removeButton.disabled = shouldDisable;
+    removeButton.classList.toggle('opacity-50', shouldDisable);
+    removeButton.classList.toggle('cursor-not-allowed', shouldDisable);
+  });
+};
+
+const getPrimaryModelBasePrice = (drawer) => {
+  const firstRow = getDrawerModelRows(drawer)[0];
+  if (!(firstRow instanceof HTMLElement)) {
+    return 0;
+  }
+  const input = firstRow.querySelector('[data-field="model-base-price"]');
+  if (!(input instanceof HTMLInputElement)) {
+    return 0;
+  }
+  return toMoney(input.value, 0);
+};
+
+const updateTierPricePreviews = (drawer) => {
+  const basePrice = getPrimaryModelBasePrice(drawer);
+  getDrawerTierRows(drawer).forEach((row) => {
+    const discountInput = row.querySelector('[data-field="tier-discount-rate"]');
+    const preview = row.querySelector('[data-role="tier-price-preview"]');
+    if (!(discountInput instanceof HTMLInputElement) || !(preview instanceof HTMLElement)) {
+      return;
+    }
+    const discountRate = toMoney(discountInput.value, -1);
+    if (discountRate <= 0 || discountRate >= MAX_TIER_DISCOUNT_RATE) {
+      preview.textContent = `请输入 0.1 - ${MAX_TIER_DISCOUNT_RATE} 之间的优惠比例`;
+      return;
+    }
+    if (basePrice <= 0) {
+      preview.textContent = '先填写首个型号的基础售价后可预估折后价';
+      return;
+    }
+    const tierPrice = toMoney(basePrice * (1 - discountRate / 100), 0);
+    preview.textContent = `预估单价 ${formatCurrency(tierPrice)}（按首型号基准价）`;
+  });
+};
+
+const renderDrawerModels = (drawer, models) => {
+  const list = drawer.querySelector('[data-role="model-list"]');
+  if (!(list instanceof HTMLElement)) {
+    return;
+  }
+  const source = Array.isArray(models) && models.length > 0 ? models : normalizeModelSettings({});
+  list.innerHTML = source.map((model, index) => buildModelRowHtml(model, index)).join('');
+  syncModelRowActions(drawer);
+  updateTierPricePreviews(drawer);
+};
+
+const renderDrawerTiers = (drawer, tiers) => {
+  const list = drawer.querySelector('[data-role="tier-list"]');
+  if (!(list instanceof HTMLElement)) {
+    return;
+  }
+  if (!Array.isArray(tiers) || tiers.length === 0) {
+    list.innerHTML = '';
+    return;
+  }
+  list.innerHTML = tiers.map((tier) => buildTierRowHtml(tier)).join('');
+  updateTierPricePreviews(drawer);
+};
+
+const appendDrawerModelRow = (drawer) => {
+  const list = drawer.querySelector('[data-role="model-list"]');
+  if (!(list instanceof HTMLElement)) {
+    return;
+  }
+  const currentCount = getDrawerModelRows(drawer).length;
+  const nextBasePrice = getPrimaryModelBasePrice(drawer);
+  list.insertAdjacentHTML(
+    'beforeend',
+    buildModelRowHtml(
+      {
+        name: `${DEFAULT_MODEL_NAME} ${currentCount + 1}`,
+        code: `${DEFAULT_MODEL_CODE}-${currentCount + 1}`,
+        basePrice: nextBasePrice
+      },
+      currentCount
+    )
+  );
+  syncModelRowActions(drawer);
+  updateTierPricePreviews(drawer);
+};
+
+const appendDrawerTierRow = (drawer) => {
+  const list = drawer.querySelector('[data-role="tier-list"]');
+  if (!(list instanceof HTMLElement)) {
+    return;
+  }
+  const tierRows = getDrawerTierRows(drawer);
+  const lastQtyInput = tierRows[tierRows.length - 1]?.querySelector('[data-field="tier-min-qty"]');
+  const nextQty = Math.max(
+    MIN_TIER_QTY,
+    toPositiveInt(lastQtyInput instanceof HTMLInputElement ? lastQtyInput.value : MIN_TIER_QTY, MIN_TIER_QTY) + 3
+  );
+  list.insertAdjacentHTML(
+    'beforeend',
+    buildTierRowHtml({
+      minQty: nextQty,
+      discountRate: ''
+    })
+  );
+  updateTierPricePreviews(drawer);
+};
+
+const collectDrawerModels = (drawer) => {
+  const rows = getDrawerModelRows(drawer);
+  if (rows.length === 0) {
+    throw new Error('至少需要一个型号。');
+  }
+
+  const codeSet = new Set();
+  return rows.map((row, index) => {
+    const nameInput = row.querySelector('[data-field="model-name"]');
+    const codeInput = row.querySelector('[data-field="model-code"]');
+    const basePriceInput = row.querySelector('[data-field="model-base-price"]');
+    const name = safeText(nameInput instanceof HTMLInputElement ? nameInput.value : '', '').trim();
+    if (!name) {
+      throw new Error(`第 ${index + 1} 个型号未填写名称。`);
+    }
+    const code = normalizeModelCode(codeInput instanceof HTMLInputElement ? codeInput.value : '', `${DEFAULT_MODEL_CODE}-${index + 1}`);
+    if (codeSet.has(code)) {
+      throw new Error(`型号编码重复：${code}`);
+    }
+    codeSet.add(code);
+    const basePrice = toMoney(basePriceInput instanceof HTMLInputElement ? basePriceInput.value : 0, 0);
+    return {
+      name,
+      code,
+      basePrice
+    };
+  });
+};
+
+const collectDrawerTierPricing = (drawer) => {
+  const rows = getDrawerTierRows(drawer);
+  const tiers = [];
+
+  rows.forEach((row, index) => {
+    const minQtyInput = row.querySelector('[data-field="tier-min-qty"]');
+    const discountInput = row.querySelector('[data-field="tier-discount-rate"]');
+    const minQtyRaw = safeText(minQtyInput instanceof HTMLInputElement ? minQtyInput.value : '', '').trim();
+    const discountRaw = safeText(discountInput instanceof HTMLInputElement ? discountInput.value : '', '').trim();
+    if (!minQtyRaw && !discountRaw) {
+      return;
+    }
+    if (!minQtyRaw || !discountRaw) {
+      throw new Error(`第 ${index + 1} 条阶梯规则不完整。`);
+    }
+    const minQty = toPositiveInt(minQtyRaw, 0);
+    if (minQty < MIN_TIER_QTY) {
+      throw new Error(`第 ${index + 1} 条阶梯的起购数量需不小于 ${MIN_TIER_QTY}。`);
+    }
+    const discountRate = toMoney(discountRaw, -1);
+    if (discountRate <= 0 || discountRate >= MAX_TIER_DISCOUNT_RATE) {
+      throw new Error(`第 ${index + 1} 条阶梯的优惠比例需在 0.1 - ${MAX_TIER_DISCOUNT_RATE} 之间。`);
+    }
+    tiers.push({
+      minQty,
+      discountRate
+    });
+  });
+
+  tiers.sort((left, right) => left.minQty - right.minQty);
+  const seenQty = new Set();
+  tiers.forEach((tier) => {
+    if (seenQty.has(tier.minQty)) {
+      throw new Error(`阶梯起购数量不能重复：${tier.minQty}`);
+    }
+    seenQty.add(tier.minQty);
+  });
+  return tiers;
+};
+
 const ensureEditDrawer = () => {
   const existed = document.querySelector('#product-edit-drawer');
   if (existed) {
@@ -1057,10 +1554,27 @@ const ensureEditDrawer = () => {
         <select name="categoryKey" class="w-full rounded-lg border-slate-300 focus:border-primary focus:ring-primary">${buildCategorySelectOptionsHtml()}</select>
         <span class="text-xs text-slate-500">商品高于类目，未设置类目将显示“无”。</span>
       </label>
-      <label class="block space-y-1 text-sm text-slate-700">
-        <span>分层定价说明</span>
-        <input name="tierLabel" type="text" class="w-full rounded-lg border-slate-300 focus:border-primary focus:ring-primary" />
-      </label>
+      <div class="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-semibold text-slate-800">型号设置</p>
+            <p class="text-xs text-slate-500">可维护多个型号编码与基础售价。</p>
+          </div>
+          <button type="button" data-role="add-model-row" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100">新增型号</button>
+        </div>
+        <div data-role="model-list" class="space-y-2"></div>
+      </div>
+      <div class="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-semibold text-slate-800">阶梯定价策略</p>
+            <p class="text-xs text-slate-500">买得越多越便宜，按起购数量自动匹配优惠。</p>
+          </div>
+          <button type="button" data-role="add-tier-row" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100">新增阶梯</button>
+        </div>
+        <div data-role="tier-list" class="space-y-2"></div>
+        <p class="text-[11px] text-slate-500">示例：起购 10 件，优惠 8%，系统将按首型号基础售价预估折后价。</p>
+      </div>
       <div class="grid grid-cols-2 gap-3">
         <label class="block space-y-1 text-sm text-slate-700">
           <span>库存</span>
@@ -1069,8 +1583,8 @@ const ensureEditDrawer = () => {
         <label class="block space-y-1 text-sm text-slate-700">
           <span>状态</span>
           <select name="status" class="w-full rounded-lg border-slate-300 focus:border-primary focus:ring-primary">
-            <option value="ACTIVE">已上架</option>
-            <option value="INACTIVE">已下架</option>
+            <option value="ACTIVE">启用</option>
+            <option value="INACTIVE">停用</option>
             <option value="DRAFT">草稿</option>
           </select>
         </label>
@@ -1112,6 +1626,49 @@ const ensureEditDrawer = () => {
       });
     }
 
+    drawer.querySelector('[data-role="add-model-row"]')?.addEventListener('click', () => {
+      appendDrawerModelRow(drawer);
+    });
+    drawer.querySelector('[data-role="add-tier-row"]')?.addEventListener('click', () => {
+      appendDrawerTierRow(drawer);
+    });
+    drawer.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      const removeModelButton = target.closest('[data-role="remove-model-row"]');
+      if (removeModelButton) {
+        const rows = getDrawerModelRows(drawer);
+        if (rows.length <= 1) {
+          showToast('至少保留一个型号。', 'error');
+          return;
+        }
+        removeModelButton.closest('[data-role="model-row"]')?.remove();
+        syncModelRowActions(drawer);
+        updateTierPricePreviews(drawer);
+        return;
+      }
+      const removeTierButton = target.closest('[data-role="remove-tier-row"]');
+      if (removeTierButton) {
+        removeTierButton.closest('[data-role="tier-row"]')?.remove();
+        updateTierPricePreviews(drawer);
+      }
+    });
+    drawer.addEventListener('input', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      if (
+        target.matches('[data-field="model-base-price"]') ||
+        target.matches('[data-field="tier-discount-rate"]') ||
+        target.matches('[data-field="tier-min-qty"]')
+      ) {
+        updateTierPricePreviews(drawer);
+      }
+    });
+
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       const currentForm = event.currentTarget;
@@ -1141,7 +1698,9 @@ const ensureEditDrawer = () => {
       try {
         const categoryIdValue = safeText(formData.get('categoryKey'), '').trim();
         const categoryId = getCategoryById(categoryIdValue) ? categoryIdValue : '';
-        const tierLabel = safeText(formData.get('tierLabel'), '标准档');
+        const models = collectDrawerModels(drawer);
+        const tierPricing = collectDrawerTierPricing(drawer);
+        const tierLabel = resolveTierSummaryLabel(tierPricing, '标准档');
         const status = normalizeStatusValue(formData.get('status'));
         const inventory = Math.max(0, Number(formData.get('inventory') || 0));
         const coverImageUrl = safeText(formData.get('coverImageUrl'), '');
@@ -1157,7 +1716,9 @@ const ensureEditDrawer = () => {
           inventory,
           status,
           coverImageUrl,
-          description
+          description,
+          models,
+          tierPricing
         };
 
         replaceProductInCollection(nextProduct);
@@ -1232,11 +1793,17 @@ const openEditDrawer = (row) => {
   const inventory = resolveInventory(product);
   setFormValue('name', safeText(product.name));
   setFormValue('categoryKey', categoryId);
-  setFormValue('tierLabel', resolveTierLabel(product));
   setFormValue('inventory', String(inventory === '--' ? 0 : inventory));
   setFormValue('status', normalizeStatusValue(product.status));
   setFormValue('coverImageUrl', safeText(product.coverImageUrl));
   setFormValue('description', safeText(product.description, ''));
+  renderDrawerModels(drawer, normalizeModelSettings(product));
+  renderDrawerTiers(drawer, normalizeTierPricing(product));
+  const errorElement = form.querySelector('[data-role="drawer-error"]');
+  if (errorElement instanceof HTMLElement) {
+    errorElement.classList.add('hidden');
+    errorElement.textContent = '';
+  }
 
   updateDrawerPreview(drawer, safeText(product.coverImageUrl));
   overlay.classList.remove('hidden');
@@ -1335,9 +1902,9 @@ const ensureCreateModal = () => {
           <label class="space-y-1 text-sm text-slate-700">
             <span>状态</span>
             <select name="status" class="w-full rounded-lg border-slate-300 focus:border-primary focus:ring-primary">
-              <option value="ACTIVE">已上架</option>
+              <option value="ACTIVE">启用</option>
               <option value="DRAFT">草稿</option>
-              <option value="INACTIVE">已下架</option>
+              <option value="INACTIVE">停用</option>
             </select>
           </label>
         </div>

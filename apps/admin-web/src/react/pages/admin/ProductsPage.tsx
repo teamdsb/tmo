@@ -1,10 +1,14 @@
+import { AdminTopbar } from '../../layout/AdminTopbar';
+
 type ProductStatusTone = 'active' | 'inactive' | 'draft';
+type ProductModelClass = '单型号' | '多型号';
 
 type ProductRow = {
   imageAlt: string;
   imageUrl: string;
   name: string;
   sku: string;
+  modelClass: ProductModelClass;
   category: string;
   categoryClass: string;
   tierLabel: string;
@@ -24,12 +28,13 @@ const productRows: readonly ProductRow[] = [
       'https://lh3.googleusercontent.com/aida-public/AB6AXuCQoEH4gfPeWzK1H0fbTKGpdPsPEiVMSPpMe3jLG-QgVaadYTF5qCKXGMjK_UTCXUpALUF4RYSCB-uwdUYyEqrynzyRupEFmfWY0O4Y55MSNjHpEcnbyyoMgg9bnSiWa-xAQg9jjGABk35lkIoQYRcnYbRoheyqYHOwhN_dwLyq9p73TGuxxF4apYmpLHY9xpto3PvnH_aZ0I9bo4tHrTLkleRHk2Dxhp9kINeVt8_ELlHoEiskagOOP2omXZCUmUVbFac5vdDDsIY',
     name: '经典纯棉 T 恤',
     sku: 'SKU-102-BLU-M',
+    modelClass: '多型号',
     category: '服饰',
     categoryClass: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
     tierLabel: '标准档',
     tierClass: 'text-sm text-slate-600 dark:text-slate-300',
     inventory: '1,240',
-    statusLabel: '已上架',
+    statusLabel: '启用',
     statusTone: 'active'
   },
   {
@@ -38,6 +43,7 @@ const productRows: readonly ProductRow[] = [
       'https://lh3.googleusercontent.com/aida-public/AB6AXuBEIgPW6ZBOTgr9Q108MfixPSYHRAYslI2QJq5jutI_I44OsmzXgS1DKgmv5bhUsoq8uj3sJsOGNsSVWTxV-MqVI5WZyd9Na0avk4Xb8Otkz0-SiSM9aoveA6AAYyaUAwwF7giqaUqikM6MKXWA62Lwkru6jttI92nQEEjAV7JrQewS4-8dgwyn_ivXI_iTPPk25_065zBjkvwThYjMA4WwJVvz0y9d0fZGYtJE111hzA0c9BL7tlLKI6GITyug2_lvbIU_qwqC5zs',
     name: '无线耳机 Pro',
     sku: 'SKU-505-BLK',
+    modelClass: '多型号',
     category: '电子产品',
     categoryClass: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
     tierLabel: '设置分层价格',
@@ -46,7 +52,7 @@ const productRows: readonly ProductRow[] = [
     inventoryClass: 'text-red-600 dark:text-red-400',
     inventoryHint: '库存不足',
     inventoryHintClass: 'text-slate-400',
-    statusLabel: '已下架',
+    statusLabel: '停用',
     statusTone: 'inactive'
   },
   {
@@ -55,12 +61,13 @@ const productRows: readonly ProductRow[] = [
       'https://lh3.googleusercontent.com/aida-public/AB6AXuAjfY9aErprDgMbNW85Bo1S8v946mPEkkDWaZzNHNBAYFo0m9XuCqFAv_SQv6LrE3AWOXealNtJiOQyGWyme10Dbf7sCna3NN2mr5lmmr9LG1DfWfVdbieVgjgFL9GHTkXi1tQJJdOYdR3YNQ8BM9KTCk0tuqJy0mtF_ha6Zar8OLDXFX51Fn6j7VCOSOmzIYgcuePgboazKpD8MCDDowKOK0VVUXHGHw50ztZCmTk1rfOmEFE_shi0E59oj3ZN72S3-T1R8lMP3TA',
     name: '真皮轻薄钱包',
     sku: 'SKU-303-BRN',
+    modelClass: '单型号',
     category: '配件',
     categoryClass: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
     tierLabel: '二档启用',
     tierClass: 'text-sm font-medium text-primary',
     inventory: '320',
-    statusLabel: '已上架',
+    statusLabel: '启用',
     statusTone: 'active'
   },
   {
@@ -69,6 +76,7 @@ const productRows: readonly ProductRow[] = [
       'https://lh3.googleusercontent.com/aida-public/AB6AXuATkU8VA_t7SGJYwPViJASvA_fn8uMFTdL9xTEl4WMsqfhxAvbR0nh2-_l1eL9GnV59mItV7WjLwXeKx6QdfbOXt-t02wb9ZDuQy7Ct-lJmuBaM2-N-eeAFCqQ_D-3lGfNZIyw5cdug2IE8WXiSN4Li-asDIj6cWCwM1GyC0Nq5xdNe1uaZ9zPdG0O57cR0GdpfWmpSfIaD3W3zsEa98n0M1GF0hB5VJGZMW3fESRS-sXsDmwHPEzklvk_cawQVRfgqmbWWeJSiV_s',
     name: '极简陶瓷花瓶',
     sku: 'SKU-889-WHT',
+    modelClass: '单型号',
     category: '家居装饰',
     categoryClass: 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
     tierLabel: '标准',
@@ -85,12 +93,13 @@ const productRows: readonly ProductRow[] = [
       'https://lh3.googleusercontent.com/aida-public/AB6AXuA0dVU3CbsDZyVFNGcLshF6YPBJMXxeAkydfB9oG-gpqraaY3swuQGA6DlAzox0skc9W3gMDHpbOY7Ui6Dyfi72SLBagGUh5ASqADVL1jdp6k9txxiAxXeotx6YaP8KAeq_-eMws7k2lB-ugkiyFet-VpTh98336NktWjqnterKtgihC0oJOobwVBu322iP86hzYMstZBx7ItnBXjsjex5nGodo7N27yiGtEIvurLh64yG0d_g9NrQMb0bw9L9p4EHj3e2KWUbeq1c',
     name: '性能跑鞋',
     sku: 'SKU-774-GRY',
+    modelClass: '多型号',
     category: '鞋履',
     categoryClass: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
     tierLabel: '设置分层价格',
     tierClass: 'text-sm font-medium text-amber-600 dark:text-amber-400',
     inventory: '850',
-    statusLabel: '已上架',
+    statusLabel: '启用',
     statusTone: 'active'
   }
 ];
@@ -108,6 +117,11 @@ const statusClassMap: Record<ProductStatusTone, { wrapper: string; dot: string }
     wrapper: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-100 dark:border-amber-800',
     dot: 'bg-amber-500'
   }
+};
+
+const modelClassMap: Record<ProductModelClass, string> = {
+  单型号: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+  多型号: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
 };
 
 type ProductStatusBadgeProps = {
@@ -157,6 +171,11 @@ const ProductTableRow = ({ row }: ProductTableRowProps) => {
         </span>
       </td>
       <td className="px-6 py-4">
+        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${modelClassMap[row.modelClass]}`}>
+          {row.modelClass}
+        </span>
+      </td>
+      <td className="px-6 py-4">
         <div className="group/edit flex cursor-pointer items-center gap-2">
           <span className={row.tierClass}>{row.tierLabel}</span>
           <button
@@ -193,54 +212,22 @@ const ProductTableRow = ({ row }: ProductTableRowProps) => {
 export const ProductsPage = () => {
   return (
     <>
-      <header className="sticky top-0 z-50 flex items-center justify-between border-b border-slate-200 bg-surface-light px-6 py-4 transition-colors dark:border-slate-800 dark:bg-surface-dark">
-        <div className="flex items-center gap-4">
-          <div className="size-8 flex items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <span className="material-symbols-outlined text-2xl">grid_view</span>
-          </div>
-          <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">商品中心</h2>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex gap-2">
-            <button className="relative flex size-10 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">
-              <span className="material-symbols-outlined">notifications</span>
-              <span className="absolute top-2 right-2 size-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-surface-dark"></span>
-            </button>
-            <button className="flex size-10 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800">
-              <span className="material-symbols-outlined">chat</span>
-            </button>
-          </div>
-          <div className="mx-2 h-6 w-px bg-slate-200 dark:bg-slate-700"></div>
-          <button
-            className="flex items-center gap-3 rounded-lg py-1 pl-1 pr-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"
-            id="logout-btn"
-          >
-            <div
-              className="size-8 rounded-full bg-gradient-to-br from-primary to-blue-400 bg-cover bg-center ring-2 ring-white dark:ring-slate-700"
-              data-alt="User profile avatar placeholder"
-              style={{
-                backgroundImage:
-                  'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDpakJNH19xjsIFuArjABq9rauCwKTUSA9U41J1jHOMTfxF__17YHPQD9IjVoKlin7__oO98Sd9lpx9aSyo29yweXXNwoB3CuoDNNsKZFjuG93T2KmHlh_V9Fp-j6RF4luMKB89lpN3DN7c-2INXwM9vUVUsH-L0jo_9153PYyRM6CP2dbQsTdy9z6TbuOlWM9nwffqQ2Ru_ugaXI5c7iMo7HfwFpoqgn5dHAc0z6iiulTuwYJzjlbSyIdYXtv-dJiccblxPIJpTOc")'
-              }}
-            ></div>
-            <div className="flex flex-col items-start">
-              <span className="mb-1 text-sm leading-none font-semibold text-slate-900 dark:text-white" id="user-name">
-                管理员用户
-              </span>
-              <span className="text-xs leading-none text-slate-500 dark:text-slate-400" id="user-role">
-                管理员
-              </span>
+      <AdminTopbar
+        searchPlaceholder="搜索订单、商品..."
+        leftSlot={
+          <div className="flex items-center gap-4">
+            <div className="size-8 flex items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <span className="material-symbols-outlined text-2xl">grid_view</span>
             </div>
-            <span className="material-symbols-outlined text-lg text-slate-400">expand_more</span>
-          </button>
-        </div>
-      </header>
+            <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">商品中心</h2>
+          </div>
+        }
+      />
 
       <main className="mx-auto flex-1 w-full max-w-[1400px] px-6 py-8 md:px-10 lg:px-12">
         <div className="mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <div className="flex flex-col gap-2">
             <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white md:text-4xl">商品与 SKU 管理</h1>
-            <p className="max-w-2xl text-lg text-slate-500 dark:text-slate-400">集中管理库存，定义分层价格，并监控各渠道库存水位。</p>
           </div>
           <div className="flex gap-3">
             <button
@@ -320,6 +307,7 @@ export const ProductsPage = () => {
                     商品信息（SPU/SKU）
                   </th>
                   <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">类目</th>
+                  <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">型号分类</th>
                   <th className="px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
                     分层定价
                   </th>

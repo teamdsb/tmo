@@ -1,28 +1,18 @@
+import { AdminTopbar } from '../../layout/AdminTopbar';
+
 export const InquiriesPage = () => {
   return (
     <>
       <div>
-        <header className="h-16 border-b border-border-color bg-surface-light dark:bg-surface-dark flex items-center justify-between px-6 z-20 shadow-sm relative">
-          <div className="flex items-center gap-6">
+        <AdminTopbar
+          searchPlaceholder="按订单号、客户或商品搜索..."
+          leftSlot={
             <div className="flex items-center gap-3 text-primary dark:text-blue-400">
               <span className="material-symbols-outlined text-3xl">inventory_2</span>
               <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">需求订单后台</h1>
             </div>
-            <div className="hidden md:flex items-center bg-background-light dark:bg-slate-800 rounded-lg px-3 py-2 w-80">
-              <span className="material-symbols-outlined text-text-sub">search</span>
-              <input className="bg-transparent border-none focus:ring-0 text-sm w-full text-slate-700 dark:text-slate-200 placeholder-slate-400" placeholder="按订单号、客户或商品搜索..." type="text" />
-            </div>
-          </div>
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3 pl-6 border-l border-border-color">
-              <div className="flex flex-col items-end">
-                <span className="text-sm font-semibold text-slate-800 dark:text-white">简·库珀</span>
-                <span className="text-xs text-text-sub">高级采购</span>
-              </div>
-              <div className="h-9 w-9 rounded-full bg-slate-200 bg-cover bg-center" data-alt="女性用户头像" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBihr9tv5nb-lVGPAFphl0zErn-K7osZjzTSZ5qOhYmAMBDABx3gIwGPS2E7nJo5I59nm-nPAI-BOrdEg13a4By7Z6GP98kZmH625CFEFwq5ygjJCGQWwDvJt31jk_XaICAtCOO-Vus8yyoPf7VJxZxLMPjgO1bscyhwpUY_jI0pUNAUODoBxCj8qyHzAb0V_TD7JVPA2RFa-ge77hCwnaSKkdppzCSihrELAEXd6QbC7_OWjli-bhJ-emajgSAlx-k4e_RI7U5qn4")'}} />
-            </div>
-          </div>
-        </header>
+          }
+        />
         <div className="flex flex-1 overflow-hidden">
           <main className="flex-1 overflow-hidden flex flex-col md:flex-row bg-background-light dark:bg-background-dark">
             <div className="w-full md:w-80 lg:w-96 border-r border-border-color bg-surface-light dark:bg-surface-dark flex flex-col h-full">
@@ -34,13 +24,31 @@ export const InquiriesPage = () => {
                   </button>
                 </div>
                 <div className="flex gap-2">
-                  <button className="bg-primary text-white text-xs px-3 py-1.5 rounded-full font-medium shadow-sm hover:shadow-md transition-all">进行中</button>
-                  <button className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs px-3 py-1.5 rounded-full font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">待处理</button>
-                  <button className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs px-3 py-1.5 rounded-full font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">已关闭</button>
+                  <button
+                    className="bg-primary text-white text-xs px-3 py-1.5 rounded-full font-medium shadow-sm hover:shadow-md transition-all"
+                    data-role="inquiry-status-filter"
+                    data-status="IN_PROGRESS"
+                  >
+                    进行中
+                  </button>
+                  <button
+                    className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs px-3 py-1.5 rounded-full font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                    data-role="inquiry-status-filter"
+                    data-status="PENDING"
+                  >
+                    待处理
+                  </button>
+                  <button
+                    className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs px-3 py-1.5 rounded-full font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                    data-role="inquiry-status-filter"
+                    data-status="CLOSED"
+                  >
+                    已关闭
+                  </button>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto">
-                <div className="p-4 border-b border-border-color bg-primary/5 border-l-4 border-l-primary cursor-pointer">
+              <div className="flex-1 overflow-y-auto" data-role="inquiry-list">
+                <div className="p-4 border-b border-border-color bg-primary/5 border-l-4 border-l-primary cursor-pointer" data-role="inquiry-list-item" data-inquiry-status="IN_PROGRESS">
                   <div className="flex justify-between items-start mb-1">
                     <span className="text-xs font-bold text-primary">#2024-8932</span>
                     <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold border border-red-200">高优先级</span>
@@ -55,7 +63,7 @@ export const InquiriesPage = () => {
                     <span className="text-[10px] text-slate-400">2小时前</span>
                   </div>
                 </div>
-                <div className="p-4 border-b border-border-color hover:bg-background-light dark:hover:bg-slate-800 cursor-pointer transition-colors border-l-4 border-l-transparent">
+                <div className="p-4 border-b border-border-color hover:bg-background-light dark:hover:bg-slate-800 cursor-pointer transition-colors border-l-4 border-l-transparent" data-role="inquiry-list-item" data-inquiry-status="PENDING">
                   <div className="flex justify-between items-start mb-1">
                     <span className="text-xs font-medium text-slate-500">#2024-8930</span>
                     <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold border border-amber-200">中优先级</span>
@@ -70,7 +78,7 @@ export const InquiriesPage = () => {
                     <span className="text-[10px] text-slate-400">5小时前</span>
                   </div>
                 </div>
-                <div className="p-4 border-b border-border-color hover:bg-background-light dark:hover:bg-slate-800 cursor-pointer transition-colors border-l-4 border-l-transparent">
+                <div className="p-4 border-b border-border-color hover:bg-background-light dark:hover:bg-slate-800 cursor-pointer transition-colors border-l-4 border-l-transparent" data-role="inquiry-list-item" data-inquiry-status="CLOSED">
                   <div className="flex justify-between items-start mb-1">
                     <span className="text-xs font-medium text-slate-500">#2024-8928</span>
                     <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold border border-slate-200">低优先级</span>
@@ -85,7 +93,7 @@ export const InquiriesPage = () => {
                     <span className="text-[10px] text-slate-400">1天前</span>
                   </div>
                 </div>
-                <div className="p-4 border-b border-border-color hover:bg-background-light dark:hover:bg-slate-800 cursor-pointer transition-colors border-l-4 border-l-transparent">
+                <div className="p-4 border-b border-border-color hover:bg-background-light dark:hover:bg-slate-800 cursor-pointer transition-colors border-l-4 border-l-transparent" data-role="inquiry-list-item" data-inquiry-status="PENDING">
                   <div className="flex justify-between items-start mb-1">
                     <span className="text-xs font-medium text-slate-500">#2024-8925</span>
                     <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold border border-amber-200">中优先级</span>
@@ -110,7 +118,6 @@ export const InquiriesPage = () => {
                       <h1 className="text-2xl font-bold text-slate-900 dark:text-white">需求单 #2024-8932</h1>
                       <span className="bg-blue-100 text-blue-700 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-blue-200">进行中</span>
                     </div>
-                    <p className="text-sm text-text-sub">创建于 2023年10月24日 • 电子品类 • 来源企业采购门户</p>
                   </div>
                   <div className="flex gap-3">
                     <button className="px-4 py-2 border border-border-color rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">驳回</button>

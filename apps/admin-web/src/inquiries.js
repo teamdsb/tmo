@@ -13,6 +13,84 @@ const countOpenInquiries = (items) => {
   return items.filter((item) => String(item?.status || '').toUpperCase() === 'OPEN').length;
 };
 
+const MOCK_FILTER_BUTTON_ACTIVE_CLASS =
+  'bg-primary text-white text-xs px-3 py-1.5 rounded-full font-medium shadow-sm hover:shadow-md transition-all';
+const MOCK_FILTER_BUTTON_INACTIVE_CLASS =
+  'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs px-3 py-1.5 rounded-full font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-all';
+
+const normalizeInquiryStatus = (value) => {
+  return String(value || '').trim().toUpperCase();
+};
+
+const setMockFilterButtonState = (button, active) => {
+  if (!(button instanceof HTMLElement)) {
+    return;
+  }
+  button.className = active ? MOCK_FILTER_BUTTON_ACTIVE_CLASS : MOCK_FILTER_BUTTON_INACTIVE_CLASS;
+  button.setAttribute('aria-pressed', active ? 'true' : 'false');
+};
+
+const ensureMockFilterEmptyState = (listElement) => {
+  if (!(listElement instanceof HTMLElement)) {
+    return null;
+  }
+  const existed = listElement.querySelector('[data-role="inquiry-filter-empty"]');
+  if (existed instanceof HTMLElement) {
+    return existed;
+  }
+
+  const emptyElement = document.createElement('div');
+  emptyElement.dataset.role = 'inquiry-filter-empty';
+  emptyElement.className = 'hidden px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400';
+  emptyElement.textContent = '当前状态下暂无需求订单。';
+  listElement.appendChild(emptyElement);
+  return emptyElement;
+};
+
+const initMockStatusFilter = () => {
+  const filterButtons = Array.from(document.querySelectorAll('[data-role="inquiry-status-filter"]')).filter((item) => item instanceof HTMLElement);
+  const listElement = document.querySelector('[data-role="inquiry-list"]');
+  const listItems = Array.from(document.querySelectorAll('[data-role="inquiry-list-item"]')).filter((item) => item instanceof HTMLElement);
+
+  if (filterButtons.length === 0 || !(listElement instanceof HTMLElement) || listItems.length === 0) {
+    return;
+  }
+
+  const emptyElement = ensureMockFilterEmptyState(listElement);
+
+  const applyStatusFilter = (rawStatus) => {
+    const targetStatus = normalizeInquiryStatus(rawStatus);
+    let visibleCount = 0;
+
+    listItems.forEach((item) => {
+      const matches = normalizeInquiryStatus(item.dataset.inquiryStatus) === targetStatus;
+      item.classList.toggle('hidden', !matches);
+      if (matches) {
+        visibleCount += 1;
+      }
+    });
+
+    filterButtons.forEach((button) => {
+      const active = normalizeInquiryStatus(button.dataset.status) === targetStatus;
+      setMockFilterButtonState(button, active);
+    });
+
+    if (emptyElement) {
+      emptyElement.classList.toggle('hidden', visibleCount > 0);
+    }
+  };
+
+  filterButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      applyStatusFilter(button.dataset.status);
+    });
+  });
+
+  const initialActiveButton = filterButtons.find((button) => button.classList.contains('bg-primary'));
+  const initialStatus = initialActiveButton?.dataset.status || filterButtons[0]?.dataset.status;
+  applyStatusFilter(initialStatus);
+};
+
 const mountDevLayout = (main) => {
   main.innerHTML = `
     <div class="mx-auto w-full max-w-7xl space-y-6">
@@ -93,7 +171,12 @@ const renderInquiryRows = (tbody, payload) => {
 
 const initInquiries = async () => {
   const context = await ensureProtectedPage();
-  if (!context || context.mode !== 'dev') {
+  if (!context) {
+    return;
+  }
+
+  if (context.mode !== 'dev') {
+    initMockStatusFilter();
     return;
   }
 
