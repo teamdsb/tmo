@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -448,6 +449,134 @@ func TestGetCustomersSalesScopeOwned(t *testing.T) {
 	unownedResp := doJSON(t, router, http.MethodGet, "/customers/"+unownedCustomerID.String(), nil, salesAuth.AccessToken)
 	if unownedResp.Code != http.StatusForbidden {
 		t.Fatalf("expected unowned customer detail 403, got %d: %s", unownedResp.Code, unownedResp.Body.String())
+	}
+}
+
+func TestAdminCustomerFinanceProfile(t *testing.T) {
+	type financeProfileResponse struct {
+		CustomerID        uuid.UUID `json:"customerId"`
+		PaymentTermRemark *string   `json:"paymentTermRemark"`
+		UpdatedAt         string    `json:"updatedAt"`
+	}
+
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedAdmin(ctx, pool); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+	if err := seedSales(ctx, pool); err != nil {
+		t.Fatalf("seed sales: %v", err)
+	}
+
+	customerID := uuid.New()
+	if err := seedCustomer(ctx, pool, customerID, "账期客户", &salesID); err != nil {
+		t.Fatalf("seed customer: %v", err)
+	}
+
+	adminLogin := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": adminUsername,
+		"password": adminPassword,
+	}, "")
+	if adminLogin.Code != http.StatusOK {
+		t.Fatalf("expected admin login 200, got %d: %s", adminLogin.Code, adminLogin.Body.String())
+	}
+	var adminAuth oapi.AuthResponse
+	if err := json.NewDecoder(adminLogin.Body).Decode(&adminAuth); err != nil {
+		t.Fatalf("decode admin auth: %v", err)
+	}
+
+	salesLogin := doJSON(t, router, http.MethodPost, "/auth/mini/login", map[string]interface{}{
+		"platform": "weapp",
+		"code":     "mock_sales_001",
+		"role":     "SALES",
+	}, "")
+	if salesLogin.Code != http.StatusOK {
+		t.Fatalf("expected sales login 200, got %d: %s", salesLogin.Code, salesLogin.Body.String())
+	}
+	var salesAuth oapi.AuthResponse
+	if err := json.NewDecoder(salesLogin.Body).Decode(&salesAuth); err != nil {
+		t.Fatalf("decode sales auth: %v", err)
+	}
+
+	path := "/admin/customers/" + customerID.String() + "/finance-profile"
+	getResp := doJSON(t, router, http.MethodGet, path, nil, adminAuth.AccessToken)
+	if getResp.Code != http.StatusOK {
+		t.Fatalf("expected finance profile get 200, got %d: %s", getResp.Code, getResp.Body.String())
+	}
+
+	var profile financeProfileResponse
+	if err := json.NewDecoder(getResp.Body).Decode(&profile); err != nil {
+		t.Fatalf("decode profile: %v", err)
+	}
+	if profile.CustomerID != customerID {
+		t.Fatalf("expected customer id %s, got %s", customerID, profile.CustomerID)
+	}
+	if profile.PaymentTermRemark != nil {
+		t.Fatalf("expected nil remark, got %q", *profile.PaymentTermRemark)
+	}
+	if profile.UpdatedAt == "" {
+		t.Fatalf("expected updatedAt to be set")
+	}
+
+	patchResp := doJSON(t, router, http.MethodPatch, path, map[string]interface{}{
+		"paymentTermRemark": "  月结 30 天，对公转账  ",
+	}, adminAuth.AccessToken)
+	if patchResp.Code != http.StatusOK {
+		t.Fatalf("expected finance profile patch 200, got %d: %s", patchResp.Code, patchResp.Body.String())
+	}
+
+	if err := json.NewDecoder(patchResp.Body).Decode(&profile); err != nil {
+		t.Fatalf("decode patched profile: %v", err)
+	}
+	if profile.PaymentTermRemark == nil || *profile.PaymentTermRemark != "月结 30 天，对公转账" {
+		t.Fatalf("expected trimmed remark, got %#v", profile.PaymentTermRemark)
+	}
+
+	getUpdatedResp := doJSON(t, router, http.MethodGet, path, nil, adminAuth.AccessToken)
+	if getUpdatedResp.Code != http.StatusOK {
+		t.Fatalf("expected finance profile get 200 after patch, got %d: %s", getUpdatedResp.Code, getUpdatedResp.Body.String())
+	}
+	if err := json.NewDecoder(getUpdatedResp.Body).Decode(&profile); err != nil {
+		t.Fatalf("decode updated profile: %v", err)
+	}
+	if profile.PaymentTermRemark == nil || *profile.PaymentTermRemark != "月结 30 天，对公转账" {
+		t.Fatalf("expected persisted remark, got %#v", profile.PaymentTermRemark)
+	}
+
+	clearResp := doJSON(t, router, http.MethodPatch, path, map[string]interface{}{
+		"paymentTermRemark": "   ",
+	}, adminAuth.AccessToken)
+	if clearResp.Code != http.StatusOK {
+		t.Fatalf("expected clear remark 200, got %d: %s", clearResp.Code, clearResp.Body.String())
+	}
+	if err := json.NewDecoder(clearResp.Body).Decode(&profile); err != nil {
+		t.Fatalf("decode cleared profile: %v", err)
+	}
+	if profile.PaymentTermRemark != nil {
+		t.Fatalf("expected cleared nil remark, got %#v", profile.PaymentTermRemark)
+	}
+
+	forbiddenResp := doJSON(t, router, http.MethodPatch, path, map[string]interface{}{
+		"paymentTermRemark": "现款",
+	}, salesAuth.AccessToken)
+	if forbiddenResp.Code != http.StatusForbidden {
+		t.Fatalf("expected non-admin patch 403, got %d: %s", forbiddenResp.Code, forbiddenResp.Body.String())
+	}
+
+	notFoundResp := doJSON(t, router, http.MethodGet, "/admin/customers/"+uuid.NewString()+"/finance-profile", nil, adminAuth.AccessToken)
+	if notFoundResp.Code != http.StatusNotFound {
+		t.Fatalf("expected unknown customer 404, got %d: %s", notFoundResp.Code, notFoundResp.Body.String())
+	}
+
+	tooLongResp := doJSON(t, router, http.MethodPatch, path, map[string]interface{}{
+		"paymentTermRemark": strings.Repeat("x", 501),
+	}, adminAuth.AccessToken)
+	if tooLongResp.Code != http.StatusBadRequest {
+		t.Fatalf("expected too long remark 400, got %d: %s", tooLongResp.Code, tooLongResp.Body.String())
 	}
 }
 

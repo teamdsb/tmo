@@ -50,7 +50,7 @@ const bindOwnerSalesUser = `-- name: BindOwnerSalesUser :one
 UPDATE users
 SET owner_sales_user_id = $2, updated_at = now()
 WHERE id = $1 AND owner_sales_user_id IS NULL
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark
 `
 
 type BindOwnerSalesUserParams struct {
@@ -72,6 +72,7 @@ func (q *Queries) BindOwnerSalesUser(ctx context.Context, arg BindOwnerSalesUser
 		&i.DisabledAt,
 		&i.DisabledReason,
 		&i.Phone,
+		&i.PaymentTermRemark,
 	)
 	return i, err
 }
@@ -82,7 +83,7 @@ SET phone = $2,
     updated_at = now()
 WHERE id = $1
   AND (phone IS NULL OR phone = $2)
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark
 `
 
 type BindUserPhoneParams struct {
@@ -104,6 +105,7 @@ func (q *Queries) BindUserPhone(ctx context.Context, arg BindUserPhoneParams) (U
 		&i.DisabledAt,
 		&i.DisabledReason,
 		&i.Phone,
+		&i.PaymentTermRemark,
 	)
 	return i, err
 }
@@ -274,7 +276,7 @@ func (q *Queries) CreateStaffBindingToken(ctx context.Context, arg CreateStaffBi
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (id, display_name, phone, user_type, owner_sales_user_id)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark
 `
 
 type CreateUserParams struct {
@@ -305,6 +307,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.DisabledAt,
 		&i.DisabledReason,
 		&i.Phone,
+		&i.PaymentTermRemark,
 	)
 	return i, err
 }
@@ -363,7 +366,7 @@ func (q *Queries) DeleteUserRoles(ctx context.Context, userID uuid.UUID) error {
 }
 
 const getCustomerByID = `-- name: GetCustomerByID :one
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone FROM users
+SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark FROM users
 WHERE id = $1 AND user_type = 'customer'
 `
 
@@ -381,7 +384,27 @@ func (q *Queries) GetCustomerByID(ctx context.Context, id uuid.UUID) (User, erro
 		&i.DisabledAt,
 		&i.DisabledReason,
 		&i.Phone,
+		&i.PaymentTermRemark,
 	)
+	return i, err
+}
+
+const getCustomerFinanceProfile = `-- name: GetCustomerFinanceProfile :one
+SELECT id, payment_term_remark, updated_at
+FROM users
+WHERE id = $1 AND user_type = 'customer'
+`
+
+type GetCustomerFinanceProfileRow struct {
+	ID                uuid.UUID          `db:"id" json:"id"`
+	PaymentTermRemark *string            `db:"payment_term_remark" json:"payment_term_remark"`
+	UpdatedAt         pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+func (q *Queries) GetCustomerFinanceProfile(ctx context.Context, id uuid.UUID) (GetCustomerFinanceProfileRow, error) {
+	row := q.db.QueryRow(ctx, getCustomerFinanceProfile, id)
+	var i GetCustomerFinanceProfileRow
+	err := row.Scan(&i.ID, &i.PaymentTermRemark, &i.UpdatedAt)
 	return i, err
 }
 
@@ -499,7 +522,7 @@ func (q *Queries) GetStaffBindingToken(ctx context.Context, token string) (Staff
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone FROM users WHERE id = $1
+SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -516,12 +539,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.DisabledAt,
 		&i.DisabledReason,
 		&i.Phone,
+		&i.PaymentTermRemark,
 	)
 	return i, err
 }
 
 const getUserByIdentity = `-- name: GetUserByIdentity :one
-SELECT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone FROM users u
+SELECT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone, u.payment_term_remark FROM users u
 JOIN user_identities i ON i.user_id = u.id
 WHERE i.provider = $1 AND i.provider_user_id = $2
 LIMIT 1
@@ -546,12 +570,13 @@ func (q *Queries) GetUserByIdentity(ctx context.Context, arg GetUserByIdentityPa
 		&i.DisabledAt,
 		&i.DisabledReason,
 		&i.Phone,
+		&i.PaymentTermRemark,
 	)
 	return i, err
 }
 
 const getUserByPhone = `-- name: GetUserByPhone :one
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone FROM users
+SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark FROM users
 WHERE phone = $1
 LIMIT 1
 `
@@ -570,6 +595,7 @@ func (q *Queries) GetUserByPhone(ctx context.Context, phone *string) (User, erro
 		&i.DisabledAt,
 		&i.DisabledReason,
 		&i.Phone,
+		&i.PaymentTermRemark,
 	)
 	return i, err
 }
@@ -671,7 +697,7 @@ func (q *Queries) ListAuditLogs(ctx context.Context, arg ListAuditLogsParams) ([
 }
 
 const listCustomers = `-- name: ListCustomers :many
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone FROM users
+SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark FROM users
 WHERE user_type = 'customer'
   AND (
     $1::text IS NULL
@@ -718,6 +744,7 @@ func (q *Queries) ListCustomers(ctx context.Context, arg ListCustomersParams) ([
 			&i.DisabledAt,
 			&i.DisabledReason,
 			&i.Phone,
+			&i.PaymentTermRemark,
 		); err != nil {
 			return nil, err
 		}
@@ -859,7 +886,7 @@ func (q *Queries) ListRoles(ctx context.Context) ([]Role, error) {
 }
 
 const listStaffUsers = `-- name: ListStaffUsers :many
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone FROM users
+SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark FROM users
 WHERE user_type = 'staff'
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $1
@@ -890,6 +917,7 @@ func (q *Queries) ListStaffUsers(ctx context.Context, arg ListStaffUsersParams) 
 			&i.DisabledAt,
 			&i.DisabledReason,
 			&i.Phone,
+			&i.PaymentTermRemark,
 		); err != nil {
 			return nil, err
 		}
@@ -941,7 +969,7 @@ UPDATE users
 SET owner_sales_user_id = $2,
     updated_at = now()
 WHERE id = $1 AND user_type = 'customer'
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark
 `
 
 type TransferCustomerOwnershipParams struct {
@@ -963,7 +991,34 @@ func (q *Queries) TransferCustomerOwnership(ctx context.Context, arg TransferCus
 		&i.DisabledAt,
 		&i.DisabledReason,
 		&i.Phone,
+		&i.PaymentTermRemark,
 	)
+	return i, err
+}
+
+const updateCustomerPaymentTermRemark = `-- name: UpdateCustomerPaymentTermRemark :one
+UPDATE users
+SET payment_term_remark = $2,
+    updated_at = now()
+WHERE id = $1 AND user_type = 'customer'
+RETURNING id, payment_term_remark, updated_at
+`
+
+type UpdateCustomerPaymentTermRemarkParams struct {
+	ID                uuid.UUID `db:"id" json:"id"`
+	PaymentTermRemark *string   `db:"payment_term_remark" json:"payment_term_remark"`
+}
+
+type UpdateCustomerPaymentTermRemarkRow struct {
+	ID                uuid.UUID          `db:"id" json:"id"`
+	PaymentTermRemark *string            `db:"payment_term_remark" json:"payment_term_remark"`
+	UpdatedAt         pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+func (q *Queries) UpdateCustomerPaymentTermRemark(ctx context.Context, arg UpdateCustomerPaymentTermRemarkParams) (UpdateCustomerPaymentTermRemarkRow, error) {
+	row := q.db.QueryRow(ctx, updateCustomerPaymentTermRemark, arg.ID, arg.PaymentTermRemark)
+	var i UpdateCustomerPaymentTermRemarkRow
+	err := row.Scan(&i.ID, &i.PaymentTermRemark, &i.UpdatedAt)
 	return i, err
 }
 
@@ -1020,7 +1075,7 @@ UPDATE users
 SET display_name = COALESCE($2, display_name),
     updated_at = now()
 WHERE id = $1
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark
 `
 
 type UpdateUserProfileParams struct {
@@ -1042,6 +1097,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.DisabledAt,
 		&i.DisabledReason,
 		&i.Phone,
+		&i.PaymentTermRemark,
 	)
 	return i, err
 }
@@ -1053,7 +1109,7 @@ SET status = $2,
     disabled_reason = $4,
     updated_at = now()
 WHERE id = $1
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark
 `
 
 type UpdateUserStatusParams struct {
@@ -1082,6 +1138,7 @@ func (q *Queries) UpdateUserStatus(ctx context.Context, arg UpdateUserStatusPara
 		&i.DisabledAt,
 		&i.DisabledReason,
 		&i.Phone,
+		&i.PaymentTermRemark,
 	)
 	return i, err
 }

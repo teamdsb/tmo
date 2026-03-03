@@ -25,6 +25,8 @@ func NewRouter(handler *handler.Handler, logger *slog.Logger, readyCheck func(co
 	router.GET("/admin/config/feature-flags", handler.GetAdminConfigFeatureFlags)
 	router.PATCH("/admin/config/feature-flags", handler.PatchAdminConfigFeatureFlags)
 	router.POST("/admin/customers/:customerId/transfer", handler.PostAdminCustomersCustomerIdTransfer)
+	router.GET("/admin/customers/:customerId/finance-profile", handler.GetAdminCustomersCustomerIdFinanceProfile)
+	router.PATCH("/admin/customers/:customerId/finance-profile", handler.PatchAdminCustomersCustomerIdFinanceProfile)
 
 	return router
 }

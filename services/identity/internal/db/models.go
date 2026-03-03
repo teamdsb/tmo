@@ -80,16 +80,17 @@ type StaffPhoneWhitelist struct {
 }
 
 type User struct {
-	ID               uuid.UUID          `db:"id" json:"id"`
-	DisplayName      *string            `db:"display_name" json:"display_name"`
-	UserType         string             `db:"user_type" json:"user_type"`
-	OwnerSalesUserID pgtype.UUID        `db:"owner_sales_user_id" json:"owner_sales_user_id"`
-	CreatedAt        pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt        pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
-	Status           string             `db:"status" json:"status"`
-	DisabledAt       pgtype.Timestamptz `db:"disabled_at" json:"disabled_at"`
-	DisabledReason   *string            `db:"disabled_reason" json:"disabled_reason"`
-	Phone            *string            `db:"phone" json:"phone"`
+	ID                uuid.UUID          `db:"id" json:"id"`
+	DisplayName       *string            `db:"display_name" json:"display_name"`
+	UserType          string             `db:"user_type" json:"user_type"`
+	OwnerSalesUserID  pgtype.UUID        `db:"owner_sales_user_id" json:"owner_sales_user_id"`
+	CreatedAt         pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	Status            string             `db:"status" json:"status"`
+	DisabledAt        pgtype.Timestamptz `db:"disabled_at" json:"disabled_at"`
+	DisabledReason    *string            `db:"disabled_reason" json:"disabled_reason"`
+	Phone             *string            `db:"phone" json:"phone"`
+	PaymentTermRemark *string            `db:"payment_term_remark" json:"payment_term_remark"`
 }
 
 type UserIdentity struct {

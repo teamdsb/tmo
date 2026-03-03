@@ -4,13 +4,21 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/teamdsb/tmo/services/identity/internal/db"
+)
+
+const (
+	maxPaymentTermRemarkLength = 500
+	maxAuditRemarkLength       = 120
 )
 
 type featureFlagsResponse struct {
@@ -28,6 +36,16 @@ type featureFlagsPatch struct {
 type transferCustomerRequest struct {
 	ToSalesUserID string  `json:"toSalesUserId"`
 	Reason        *string `json:"reason,omitempty"`
+}
+
+type customerFinanceProfileResponse struct {
+	CustomerID        openapi_types.UUID `json:"customerId"`
+	PaymentTermRemark *string            `json:"paymentTermRemark"`
+	UpdatedAt         string             `json:"updatedAt"`
+}
+
+type customerFinanceProfilePatch struct {
+	PaymentTermRemark string `json:"paymentTermRemark"`
 }
 
 func (h *Handler) GetAdminConfigFeatureFlags(c *gin.Context) {
@@ -162,4 +180,101 @@ func (h *Handler) PostAdminCustomersCustomerIdTransfer(c *gin.Context) {
 	h.recordAudit(c, &claims.UserID, "customer.transfer", "customer", &updated.ID, metadata)
 
 	c.Status(http.StatusNoContent)
+}
+
+func (h *Handler) GetAdminCustomersCustomerIdFinanceProfile(c *gin.Context) {
+	if _, ok := h.requireAdmin(c); !ok {
+		return
+	}
+
+	customerID, err := uuid.Parse(strings.TrimSpace(c.Param("customerId")))
+	if err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid customer id")
+		return
+	}
+
+	profile, err := h.Store.GetCustomerFinanceProfile(c.Request.Context(), customerID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			h.writeError(c, http.StatusNotFound, "not_found", "customer not found")
+			return
+		}
+		h.logError("get customer finance profile failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to fetch customer finance profile")
+		return
+	}
+
+	c.JSON(http.StatusOK, customerFinanceProfileResponse{
+		CustomerID:        openapi_types.UUID(profile.ID),
+		PaymentTermRemark: profile.PaymentTermRemark,
+		UpdatedAt:         profile.UpdatedAt.Time.Format(time.RFC3339),
+	})
+}
+
+func (h *Handler) PatchAdminCustomersCustomerIdFinanceProfile(c *gin.Context) {
+	claims, ok := h.requireAdmin(c)
+	if !ok {
+		return
+	}
+
+	customerID, err := uuid.Parse(strings.TrimSpace(c.Param("customerId")))
+	if err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid customer id")
+		return
+	}
+
+	var request customerFinanceProfilePatch
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
+		return
+	}
+
+	trimmedRemark := strings.TrimSpace(request.PaymentTermRemark)
+	if utf8.RuneCountInString(trimmedRemark) > maxPaymentTermRemarkLength {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "paymentTermRemark must be <= 500 characters")
+		return
+	}
+
+	var remark *string
+	if trimmedRemark != "" {
+		remark = &trimmedRemark
+	}
+
+	profile, err := h.Store.UpdateCustomerPaymentTermRemark(c.Request.Context(), db.UpdateCustomerPaymentTermRemarkParams{
+		ID:                customerID,
+		PaymentTermRemark: remark,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			h.writeError(c, http.StatusNotFound, "not_found", "customer not found")
+			return
+		}
+		h.logError("update customer finance profile failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update customer finance profile")
+		return
+	}
+
+	h.recordAudit(c, &claims.UserID, "customer.finance_profile.update", "customer", &profile.ID, map[string]interface{}{
+		"customerId":        profile.ID.String(),
+		"paymentTermRemark": truncateRemarkForAudit(trimmedRemark),
+	})
+
+	c.JSON(http.StatusOK, customerFinanceProfileResponse{
+		CustomerID:        openapi_types.UUID(profile.ID),
+		PaymentTermRemark: profile.PaymentTermRemark,
+		UpdatedAt:         profile.UpdatedAt.Time.Format(time.RFC3339),
+	})
+}
+
+func truncateRemarkForAudit(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+
+	runes := []rune(value)
+	if len(runes) <= maxAuditRemarkLength {
+		return value
+	}
+	return string(runes[:maxAuditRemarkLength]) + "..."
 }

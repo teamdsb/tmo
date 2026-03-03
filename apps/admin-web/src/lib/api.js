@@ -12,7 +12,7 @@ import {
   setApiClientConfig
 } from '@tmo/api-client';
 import { getBffBootstrap, setGatewayApiClientConfig } from '@tmo/gateway-api-client';
-import { postAuthPasswordLogin, setIdentityApiClientConfig } from '@tmo/identity-api-client';
+import { getCustomers, postAuthPasswordLogin, setIdentityApiClientConfig } from '@tmo/identity-api-client';
 
 import { apiBaseUrl, isDevMode } from './env';
 import { getAccessToken } from './state';
@@ -212,4 +212,21 @@ export const patchFeatureFlags = async (payload) => {
 
 export const fetchAdminSummary = async () => {
   return requestRaw('/bff/admin/summary');
+};
+
+export const fetchCustomers = async (params = {}) => {
+  return getCustomers(params);
+};
+
+export const getAdminCustomerFinanceProfile = async (customerId) => {
+  return requestRaw(`/admin/customers/${customerId}/finance-profile`);
+};
+
+export const patchAdminCustomerFinanceProfile = async (customerId, paymentTermRemark) => {
+  return requestRaw(`/admin/customers/${customerId}/finance-profile`, {
+    method: 'PATCH',
+    body: {
+      paymentTermRemark
+    }
+  });
 };

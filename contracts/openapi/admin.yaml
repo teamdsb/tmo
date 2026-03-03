@@ -46,6 +46,55 @@ paths:
       responses:
         '204':
           description: No Content
+  "/admin/customers/{customerId}/finance-profile":
+    get:
+      tags:
+      - Admin
+      summary: Get customer finance profile
+      parameters:
+      - in: path
+        name: customerId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminCustomerFinanceProfile"
+    patch:
+      tags:
+      - Admin
+      summary: Update customer finance profile
+      parameters:
+      - in: path
+        name: customerId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                paymentTermRemark:
+                  type: string
+              required:
+              - paymentTermRemark
+              additionalProperties: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminCustomerFinanceProfile"
   "/admin/products/import-jobs":
     post:
       tags:
@@ -263,6 +312,21 @@ components:
       - page
       - pageSize
       - total
+    AdminCustomerFinanceProfile:
+      type: object
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        paymentTermRemark:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - customerId
+      - updatedAt
     SalesQrCode:
       "$ref": "./common.yaml#/components/schemas/SalesQrCode"
     Category:

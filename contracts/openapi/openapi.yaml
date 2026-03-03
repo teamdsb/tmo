@@ -132,6 +132,8 @@ paths:
     $ref: "./commerce.yaml#/paths/~1shipments~1import-jobs"
   /admin/customers/{customerId}/transfer:
     $ref: "./admin.yaml#/paths/~1admin~1customers~1{customerId}~1transfer"
+  /admin/customers/{customerId}/finance-profile:
+    $ref: "./admin.yaml#/paths/~1admin~1customers~1{customerId}~1finance-profile"
   /admin/products/import-jobs:
     $ref: "./admin.yaml#/paths/~1admin~1products~1import-jobs"
   /admin/shipments/import-jobs:
