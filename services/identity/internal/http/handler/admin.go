@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -18,9 +20,23 @@ import (
 
 const (
 	maxPaymentTermRemarkLength = 500
+<<<<<<< ours
 	maxAuditRemarkLength       = 120
 )
 
+=======
+	maxCustomTermLabelLength   = 50
+	maxMonthlySettlementDays   = 120
+	maxAuditRemarkLength       = 120
+)
+
+const (
+	paymentTermTypeCash    = "CASH"
+	paymentTermTypeMonthly = "MONTHLY"
+	paymentTermTypeCustom  = "CUSTOM"
+)
+
+>>>>>>> theirs
 type featureFlagsResponse struct {
 	PaymentEnabled   bool `json:"paymentEnabled"`
 	WechatPayEnabled bool `json:"wechatPayEnabled"`
@@ -38,14 +54,31 @@ type transferCustomerRequest struct {
 	Reason        *string `json:"reason,omitempty"`
 }
 
+<<<<<<< ours
 type customerFinanceProfileResponse struct {
 	CustomerID        openapi_types.UUID `json:"customerId"`
+=======
+type paymentTermConfig struct {
+	Type                  string  `json:"type"`
+	MonthlySettlementDays *int32  `json:"monthlySettlementDays"`
+	CustomTermLabel       *string `json:"customTermLabel"`
+}
+
+type customerFinanceProfileResponse struct {
+	CustomerID        openapi_types.UUID `json:"customerId"`
+	PaymentTerm       *paymentTermConfig `json:"paymentTerm"`
+>>>>>>> theirs
 	PaymentTermRemark *string            `json:"paymentTermRemark"`
 	UpdatedAt         string             `json:"updatedAt"`
 }
 
 type customerFinanceProfilePatch struct {
+<<<<<<< ours
 	PaymentTermRemark string `json:"paymentTermRemark"`
+=======
+	PaymentTerm       json.RawMessage `json:"paymentTerm,omitempty"`
+	PaymentTermRemark string          `json:"paymentTermRemark"`
+>>>>>>> theirs
 }
 
 func (h *Handler) GetAdminConfigFeatureFlags(c *gin.Context) {
@@ -183,7 +216,11 @@ func (h *Handler) PostAdminCustomersCustomerIdTransfer(c *gin.Context) {
 }
 
 func (h *Handler) GetAdminCustomersCustomerIdFinanceProfile(c *gin.Context) {
+<<<<<<< ours
 	if _, ok := h.requireBoss(c); !ok {
+=======
+	if _, ok := h.requireAdmin(c); !ok {
+>>>>>>> theirs
 		return
 	}
 
@@ -206,13 +243,21 @@ func (h *Handler) GetAdminCustomersCustomerIdFinanceProfile(c *gin.Context) {
 
 	c.JSON(http.StatusOK, customerFinanceProfileResponse{
 		CustomerID:        openapi_types.UUID(profile.ID),
+<<<<<<< ours
+=======
+		PaymentTerm:       buildPaymentTermConfig(profile.PaymentTermType, profile.PaymentTermDays, profile.PaymentTermCustomLabel),
+>>>>>>> theirs
 		PaymentTermRemark: profile.PaymentTermRemark,
 		UpdatedAt:         profile.UpdatedAt.Time.Format(time.RFC3339),
 	})
 }
 
 func (h *Handler) PatchAdminCustomersCustomerIdFinanceProfile(c *gin.Context) {
+<<<<<<< ours
 	claims, ok := h.requireBoss(c)
+=======
+	claims, ok := h.requireAdmin(c)
+>>>>>>> theirs
 	if !ok {
 		return
 	}
@@ -240,9 +285,106 @@ func (h *Handler) PatchAdminCustomersCustomerIdFinanceProfile(c *gin.Context) {
 		remark = &trimmedRemark
 	}
 
+<<<<<<< ours
 	profile, err := h.Store.UpdateCustomerPaymentTermRemark(c.Request.Context(), db.UpdateCustomerPaymentTermRemarkParams{
 		ID:                customerID,
 		PaymentTermRemark: remark,
+=======
+	currentProfile, err := h.Store.GetCustomerFinanceProfile(c.Request.Context(), customerID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			h.writeError(c, http.StatusNotFound, "not_found", "customer not found")
+			return
+		}
+		h.logError("get customer finance profile failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update customer finance profile")
+		return
+	}
+
+	nextPaymentTermType := currentProfile.PaymentTermType
+	nextPaymentTermDays := currentProfile.PaymentTermDays
+	nextCustomTermLabel := currentProfile.PaymentTermCustomLabel
+
+	if request.PaymentTerm != nil {
+		trimmedPaymentTermRaw := bytes.TrimSpace(request.PaymentTerm)
+		switch {
+		case bytes.Equal(trimmedPaymentTermRaw, []byte("null")):
+			nextPaymentTermType = nil
+			nextPaymentTermDays = nil
+			nextCustomTermLabel = nil
+		default:
+			var requestedPaymentTerm paymentTermConfig
+			if err := json.Unmarshal(trimmedPaymentTermRaw, &requestedPaymentTerm); err != nil {
+				h.writeError(c, http.StatusBadRequest, "invalid_request", "paymentTerm must be null or object")
+				return
+			}
+
+			normalizedPaymentTermType := strings.ToUpper(strings.TrimSpace(requestedPaymentTerm.Type))
+			trimmedCustomTermLabel := ""
+			if requestedPaymentTerm.CustomTermLabel != nil {
+				trimmedCustomTermLabel = strings.TrimSpace(*requestedPaymentTerm.CustomTermLabel)
+			}
+
+			if utf8.RuneCountInString(trimmedCustomTermLabel) > maxCustomTermLabelLength {
+				h.writeError(c, http.StatusBadRequest, "invalid_request", "customTermLabel must be <= 50 characters")
+				return
+			}
+
+			switch normalizedPaymentTermType {
+			case paymentTermTypeCash:
+				if requestedPaymentTerm.MonthlySettlementDays != nil {
+					h.writeError(c, http.StatusBadRequest, "invalid_request", "monthlySettlementDays must be empty when type is CASH")
+					return
+				}
+				if trimmedCustomTermLabel != "" {
+					h.writeError(c, http.StatusBadRequest, "invalid_request", "customTermLabel must be empty when type is CASH")
+					return
+				}
+				nextPaymentTermType = &normalizedPaymentTermType
+				nextPaymentTermDays = nil
+				nextCustomTermLabel = nil
+			case paymentTermTypeMonthly:
+				if requestedPaymentTerm.MonthlySettlementDays == nil {
+					h.writeError(c, http.StatusBadRequest, "invalid_request", "monthlySettlementDays is required when type is MONTHLY")
+					return
+				}
+				if *requestedPaymentTerm.MonthlySettlementDays < 1 || *requestedPaymentTerm.MonthlySettlementDays > maxMonthlySettlementDays {
+					h.writeError(c, http.StatusBadRequest, "invalid_request", "monthlySettlementDays must be between 1 and 120")
+					return
+				}
+				if trimmedCustomTermLabel != "" {
+					h.writeError(c, http.StatusBadRequest, "invalid_request", "customTermLabel must be empty when type is MONTHLY")
+					return
+				}
+				nextPaymentTermType = &normalizedPaymentTermType
+				nextPaymentTermDays = requestedPaymentTerm.MonthlySettlementDays
+				nextCustomTermLabel = nil
+			case paymentTermTypeCustom:
+				if requestedPaymentTerm.MonthlySettlementDays != nil {
+					h.writeError(c, http.StatusBadRequest, "invalid_request", "monthlySettlementDays must be empty when type is CUSTOM")
+					return
+				}
+				if trimmedCustomTermLabel == "" {
+					h.writeError(c, http.StatusBadRequest, "invalid_request", "customTermLabel is required when type is CUSTOM")
+					return
+				}
+				nextPaymentTermType = &normalizedPaymentTermType
+				nextPaymentTermDays = nil
+				nextCustomTermLabel = &trimmedCustomTermLabel
+			default:
+				h.writeError(c, http.StatusBadRequest, "invalid_request", "paymentTerm.type must be one of CASH, MONTHLY, CUSTOM")
+				return
+			}
+		}
+	}
+
+	profile, err := h.Store.UpdateCustomerFinanceProfile(c.Request.Context(), db.UpdateCustomerFinanceProfileParams{
+		ID:                    customerID,
+		PaymentTermType:       nextPaymentTermType,
+		PaymentTermDays:       nextPaymentTermDays,
+		PaymentTermCustomLabel: nextCustomTermLabel,
+		PaymentTermRemark:     remark,
+>>>>>>> theirs
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -255,17 +397,54 @@ func (h *Handler) PatchAdminCustomersCustomerIdFinanceProfile(c *gin.Context) {
 	}
 
 	h.recordAudit(c, &claims.UserID, "customer.finance_profile.update", "customer", &profile.ID, map[string]interface{}{
+<<<<<<< ours
 		"customerId":        profile.ID.String(),
 		"paymentTermRemark": truncateRemarkForAudit(trimmedRemark),
+=======
+		"customerId":         profile.ID.String(),
+		"paymentTermType":    profile.PaymentTermType,
+		"paymentTermDays":    profile.PaymentTermDays,
+		"customTermLabel":    truncateRemarkForAudit(pointerStringValue(profile.PaymentTermCustomLabel)),
+		"paymentTermRemark":  truncateRemarkForAudit(trimmedRemark),
+>>>>>>> theirs
 	})
 
 	c.JSON(http.StatusOK, customerFinanceProfileResponse{
 		CustomerID:        openapi_types.UUID(profile.ID),
+<<<<<<< ours
+=======
+		PaymentTerm:       buildPaymentTermConfig(profile.PaymentTermType, profile.PaymentTermDays, profile.PaymentTermCustomLabel),
+>>>>>>> theirs
 		PaymentTermRemark: profile.PaymentTermRemark,
 		UpdatedAt:         profile.UpdatedAt.Time.Format(time.RFC3339),
 	})
 }
 
+<<<<<<< ours
+=======
+func buildPaymentTermConfig(paymentTermType *string, paymentTermDays *int32, customTermLabel *string) *paymentTermConfig {
+	if paymentTermType == nil {
+		return nil
+	}
+
+	normalizedType := strings.ToUpper(strings.TrimSpace(*paymentTermType))
+	if normalizedType == "" {
+		return nil
+	}
+
+	config := &paymentTermConfig{
+		Type: normalizedType,
+	}
+	switch normalizedType {
+	case paymentTermTypeMonthly:
+		config.MonthlySettlementDays = paymentTermDays
+	case paymentTermTypeCustom:
+		config.CustomTermLabel = customTermLabel
+	}
+	return config
+}
+
+>>>>>>> theirs
 func truncateRemarkForAudit(value string) string {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -278,3 +457,13 @@ func truncateRemarkForAudit(value string) string {
 	}
 	return string(runes[:maxAuditRemarkLength]) + "..."
 }
+<<<<<<< ours
+=======
+
+func pointerStringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+>>>>>>> theirs
