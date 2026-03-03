@@ -19,6 +19,8 @@ const (
 	bossPassword    = "boss123"
 	managerUsername = "manager"
 	managerPassword = "manager123"
+	salesUsername   = "sales"
+	salesPassword   = "sales123"
 	adminUsername   = "admin"
 	adminPassword   = "admin123"
 )
@@ -204,12 +206,21 @@ RESTART IDENTITY CASCADE
 	if err := ensurePassword(ctx, pool, managerID, managerUsername, string(managerPasswordHash)); err != nil {
 		return err
 	}
+	salesPasswordHash, err := bcrypt.GenerateFromPassword([]byte(salesPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash sales password: %w", err)
+	}
+	if err := ensurePassword(ctx, pool, salesID, salesUsername, string(salesPasswordHash)); err != nil {
+		return err
+	}
 
 	fmt.Println("seed data applied")
 	fmt.Printf("boss username: %s\n", bossUsername)
 	fmt.Printf("boss password: %s\n", bossPassword)
 	fmt.Printf("manager username: %s\n", managerUsername)
 	fmt.Printf("manager password: %s\n", managerPassword)
+	fmt.Printf("sales username: %s\n", salesUsername)
+	fmt.Printf("sales password: %s\n", salesPassword)
 	fmt.Printf("admin username: %s\n", adminUsername)
 	fmt.Printf("admin password: %s\n", adminPassword)
 	fmt.Println("seeded phones: +15550000001(admin), +15550000002(sales), +15550000003(customer), +15550000004(multi-role), +15550000005(boss), +15550000006(manager)")

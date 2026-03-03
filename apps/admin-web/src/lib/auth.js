@@ -14,9 +14,12 @@ const roleLabels = {
   admin: '管理员',
   boss: '老板',
   manager: '管理员',
-  sales: '销售经理',
+  sales: '业务员',
   support: '客服专员',
-  logistics: '物流协调员'
+  logistics: '物流协调员',
+  procurement: '采购',
+  cs: '客服',
+  customer: '客户'
 };
 
 const toDisplayName = (user) => {
@@ -56,23 +59,45 @@ export const loginMock = (username, role) => {
   });
 };
 
-export const loginDev = async (username, password) => {
-  const response = await passwordLogin(username, password);
+const inferCurrentRole = (user, explicitRole) => {
+  if (explicitRole) {
+    return String(explicitRole).toUpperCase();
+  }
+  const roles = Array.isArray(user?.roles) ? user.roles.map((role) => String(role).toUpperCase()) : [];
+  if (roles.length === 1) {
+    return roles[0];
+  }
+  const priority = ['BOSS', 'MANAGER', 'ADMIN', 'SALES', 'PROCUREMENT', 'CS', 'CUSTOMER'];
+  for (const role of priority) {
+    if (roles.includes(role)) {
+      return role;
+    }
+  }
+  return roles[0] || 'ADMIN';
+};
+
+export const loginDev = async (username, password, role) => {
+  const response = await passwordLogin(username, password, role);
+  if (response.status === 409) {
+    return response;
+  }
   if (response.status !== 200) {
     const message = response?.data?.message || 'Login failed';
     throw new Error(message);
   }
 
+  const currentRole = inferCurrentRole(response.data.user, role);
   saveAuthState({
     mode: 'dev',
     accessToken: response.data.accessToken,
     user: response.data.user,
+    currentRole,
     permissions: null,
     featureFlags: null,
     loginAt: new Date().toISOString()
   });
 
-  return response.data;
+  return response;
 };
 
 export const refreshBootstrap = async () => {
@@ -143,7 +168,7 @@ export const getDisplayProfile = () => {
   }
 
   const roles = Array.isArray(state?.user?.roles) ? state.user.roles : [];
-  const primaryRole = roles[0] || 'ADMIN';
+  const primaryRole = state?.currentRole || roles[0] || 'ADMIN';
 
   return {
     name: toDisplayName(state.user),

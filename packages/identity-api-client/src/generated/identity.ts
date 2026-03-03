@@ -82,20 +82,23 @@ export interface PhoneProof {
 }
 
 /**
- * Optional; must be ADMIN when provided.
+ * Optional current role for password login; if omitted and user has multiple web roles, server may return 409 with availableRoles.
  */
 export type PasswordLoginRequestRole = typeof PasswordLoginRequestRole[keyof typeof PasswordLoginRequestRole];
 
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const PasswordLoginRequestRole = {
+  BOSS: 'BOSS',
+  MANAGER: 'MANAGER',
   ADMIN: 'ADMIN',
+  SALES: 'SALES',
 } as const;
 
 export interface PasswordLoginRequest {
   username: string;
   password: string;
-  /** Optional; must be ADMIN when provided. */
+  /** Optional current role for password login; if omitted and user has multiple web roles, server may return 409 with availableRoles. */
   role?: PasswordLoginRequestRole;
 }
 
@@ -977,11 +980,16 @@ export type postAuthPasswordLoginResponse401 = {
   data: UnauthorizedResponse
   status: 401
 }
+
+export type postAuthPasswordLoginResponse409 = {
+  data: ConflictResponse
+  status: 409
+}
     
 export type postAuthPasswordLoginResponseSuccess = (postAuthPasswordLoginResponse200) & {
   headers: Headers;
 };
-export type postAuthPasswordLoginResponseError = (postAuthPasswordLoginResponse400 | postAuthPasswordLoginResponse401) & {
+export type postAuthPasswordLoginResponseError = (postAuthPasswordLoginResponse400 | postAuthPasswordLoginResponse401 | postAuthPasswordLoginResponse409) & {
   headers: Headers;
 };
 

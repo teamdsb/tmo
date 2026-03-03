@@ -56,6 +56,9 @@ pnpm run smoke:admin-web
 
 默认测试账号：
 
+- username: `boss` / password: `boss123`
+- username: `manager` / password: `manager123`
+- username: `sales` / password: `sales123`
 - username: `admin`
 - password: `admin123`
 

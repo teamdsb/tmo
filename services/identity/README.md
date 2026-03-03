@@ -17,7 +17,10 @@ Identity service for authentication, JWT issuing, and sales binding.
 - Customer: `POST /auth/mini/login` with `{"platform":"weapp","code":"mock_customer_001"}`
 - Sales: `POST /auth/mini/login` with `{"platform":"weapp","code":"mock_sales_001","role":"SALES"}`
 - Multi-role: `mock_multi_001` returns 409 with `details.availableRoles`, retry with `role`.
-- Admin password: `POST /auth/password/login` with `{"username":"admin","password":"admin123"}`
+- Boss password: `POST /auth/password/login` with `{"username":"boss","password":"boss123"}`
+- Manager password: `POST /auth/password/login` with `{"username":"manager","password":"manager123"}`
+- Sales password: `POST /auth/password/login` with `{"username":"sales","password":"sales123"}`
+- Admin password (兼容): `POST /auth/password/login` with `{"username":"admin","password":"admin123"}`
 - Staff binding: create staff + binding token (admin), then `POST /auth/mini/login` with `{"platform":"weapp","code":"mock_staff_001","bindingToken":"<token>","role":"SALES"}`
 
 默认 seed 还会写入以下手机号（`users.phone`）：

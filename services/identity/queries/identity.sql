@@ -91,18 +91,6 @@ SELECT * FROM users
 WHERE id = $1 AND user_type = 'customer';
 
 -- name: GetCustomerFinanceProfile :one
-<<<<<<< ours
-SELECT id, payment_term_remark, updated_at
-FROM users
-WHERE id = $1 AND user_type = 'customer';
-
--- name: UpdateCustomerPaymentTermRemark :one
-UPDATE users
-SET payment_term_remark = $2,
-    updated_at = now()
-WHERE id = $1 AND user_type = 'customer'
-RETURNING id, payment_term_remark, updated_at;
-=======
 SELECT id, payment_term_type, payment_term_days, payment_term_custom_label, payment_term_remark, updated_at
 FROM users
 WHERE id = $1 AND user_type = 'customer';
@@ -116,7 +104,6 @@ SET payment_term_type = $2,
     updated_at = now()
 WHERE id = $1 AND user_type = 'customer'
 RETURNING id, payment_term_type, payment_term_days, payment_term_custom_label, payment_term_remark, updated_at;
->>>>>>> theirs
 
 -- name: ListUserRoles :many
 SELECT role FROM user_roles WHERE user_id = $1 ORDER BY role;

@@ -86,8 +86,11 @@ components:
         role:
           type: string
           enum:
+          - BOSS
+          - MANAGER
           - ADMIN
-          description: Optional; must be ADMIN when provided.
+          - SALES
+          description: Optional current role for password login; if omitted and user has multiple web roles, server may return 409 with availableRoles.
       required:
       - username
       - password

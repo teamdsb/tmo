@@ -55,24 +55,6 @@ export const LoginPage = () => {
 
             <form id="login-form" action="#" className="flex flex-col gap-5">
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-semibold text-slate-900 dark:text-slate-200">Select Role</label>
-                <div className="relative">
-                  <select
-                    id="role"
-                    className="block w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 p-3.5 pr-10 text-sm text-slate-900 outline-none transition-shadow focus:border-primary focus:ring-primary dark:border-slate-600 dark:bg-slate-900 dark:text-white"
-                  >
-                    <option value="admin">Administrator</option>
-                    <option value="sales">Sales Manager</option>
-                    <option value="support">Customer Service</option>
-                    <option value="logistics">Logistics Coordinator</option>
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
-                    <span className="material-symbols-outlined text-xl">expand_more</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-semibold text-slate-900 dark:text-slate-200">Username or Email</label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
@@ -127,7 +109,34 @@ export const LoginPage = () => {
                   arrow_forward
                 </span>
               </button>
+
+              <p id="login-error" className="hidden rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700"></p>
             </form>
+
+            <div
+              id="role-select-modal"
+              className="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/50 px-4"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="role-select-title"
+            >
+              <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-2xl">
+                <h3 id="role-select-title" className="text-base font-semibold text-slate-900">
+                  选择本次登录身份
+                </h3>
+                <p className="mt-1 text-sm text-slate-500">该账号有多个可用身份，请选择后继续登录。</p>
+                <div className="mt-4 space-y-2" id="role-select-options"></div>
+                <div className="mt-4 flex justify-end">
+                  <button
+                    id="role-select-cancel"
+                    type="button"
+                    className="rounded border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            </div>
 
             <div className="mt-8 text-center">
               <p className="text-xs text-slate-400">

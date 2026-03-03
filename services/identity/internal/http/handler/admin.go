@@ -20,11 +20,6 @@ import (
 
 const (
 	maxPaymentTermRemarkLength = 500
-<<<<<<< ours
-	maxAuditRemarkLength       = 120
-)
-
-=======
 	maxCustomTermLabelLength   = 50
 	maxMonthlySettlementDays   = 120
 	maxAuditRemarkLength       = 120
@@ -36,7 +31,6 @@ const (
 	paymentTermTypeCustom  = "CUSTOM"
 )
 
->>>>>>> theirs
 type featureFlagsResponse struct {
 	PaymentEnabled   bool `json:"paymentEnabled"`
 	WechatPayEnabled bool `json:"wechatPayEnabled"`
@@ -54,10 +48,6 @@ type transferCustomerRequest struct {
 	Reason        *string `json:"reason,omitempty"`
 }
 
-<<<<<<< ours
-type customerFinanceProfileResponse struct {
-	CustomerID        openapi_types.UUID `json:"customerId"`
-=======
 type paymentTermConfig struct {
 	Type                  string  `json:"type"`
 	MonthlySettlementDays *int32  `json:"monthlySettlementDays"`
@@ -67,18 +57,13 @@ type paymentTermConfig struct {
 type customerFinanceProfileResponse struct {
 	CustomerID        openapi_types.UUID `json:"customerId"`
 	PaymentTerm       *paymentTermConfig `json:"paymentTerm"`
->>>>>>> theirs
 	PaymentTermRemark *string            `json:"paymentTermRemark"`
 	UpdatedAt         string             `json:"updatedAt"`
 }
 
 type customerFinanceProfilePatch struct {
-<<<<<<< ours
-	PaymentTermRemark string `json:"paymentTermRemark"`
-=======
 	PaymentTerm       json.RawMessage `json:"paymentTerm,omitempty"`
 	PaymentTermRemark string          `json:"paymentTermRemark"`
->>>>>>> theirs
 }
 
 func (h *Handler) GetAdminConfigFeatureFlags(c *gin.Context) {
@@ -243,10 +228,7 @@ func (h *Handler) GetAdminCustomersCustomerIdFinanceProfile(c *gin.Context) {
 
 	c.JSON(http.StatusOK, customerFinanceProfileResponse{
 		CustomerID:        openapi_types.UUID(profile.ID),
-<<<<<<< ours
-=======
 		PaymentTerm:       buildPaymentTermConfig(profile.PaymentTermType, profile.PaymentTermDays, profile.PaymentTermCustomLabel),
->>>>>>> theirs
 		PaymentTermRemark: profile.PaymentTermRemark,
 		UpdatedAt:         profile.UpdatedAt.Time.Format(time.RFC3339),
 	})
@@ -285,11 +267,6 @@ func (h *Handler) PatchAdminCustomersCustomerIdFinanceProfile(c *gin.Context) {
 		remark = &trimmedRemark
 	}
 
-<<<<<<< ours
-	profile, err := h.Store.UpdateCustomerPaymentTermRemark(c.Request.Context(), db.UpdateCustomerPaymentTermRemarkParams{
-		ID:                customerID,
-		PaymentTermRemark: remark,
-=======
 	currentProfile, err := h.Store.GetCustomerFinanceProfile(c.Request.Context(), customerID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -379,6 +356,13 @@ func (h *Handler) PatchAdminCustomersCustomerIdFinanceProfile(c *gin.Context) {
 	}
 
 	profile, err := h.Store.UpdateCustomerFinanceProfile(c.Request.Context(), db.UpdateCustomerFinanceProfileParams{
+<<<<<<< ours
+		ID:                     customerID,
+		PaymentTermType:        nextPaymentTermType,
+		PaymentTermDays:        nextPaymentTermDays,
+		PaymentTermCustomLabel: nextCustomTermLabel,
+		PaymentTermRemark:      remark,
+=======
 		ID:                    customerID,
 		PaymentTermType:       nextPaymentTermType,
 		PaymentTermDays:       nextPaymentTermDays,
@@ -399,6 +383,9 @@ func (h *Handler) PatchAdminCustomersCustomerIdFinanceProfile(c *gin.Context) {
 	h.recordAudit(c, &claims.UserID, "customer.finance_profile.update", "customer", &profile.ID, map[string]interface{}{
 <<<<<<< ours
 		"customerId":        profile.ID.String(),
+		"paymentTermType":   profile.PaymentTermType,
+		"paymentTermDays":   profile.PaymentTermDays,
+		"customTermLabel":   truncateRemarkForAudit(pointerStringValue(profile.PaymentTermCustomLabel)),
 		"paymentTermRemark": truncateRemarkForAudit(trimmedRemark),
 =======
 		"customerId":         profile.ID.String(),
@@ -411,17 +398,12 @@ func (h *Handler) PatchAdminCustomersCustomerIdFinanceProfile(c *gin.Context) {
 
 	c.JSON(http.StatusOK, customerFinanceProfileResponse{
 		CustomerID:        openapi_types.UUID(profile.ID),
-<<<<<<< ours
-=======
 		PaymentTerm:       buildPaymentTermConfig(profile.PaymentTermType, profile.PaymentTermDays, profile.PaymentTermCustomLabel),
->>>>>>> theirs
 		PaymentTermRemark: profile.PaymentTermRemark,
 		UpdatedAt:         profile.UpdatedAt.Time.Format(time.RFC3339),
 	})
 }
 
-<<<<<<< ours
-=======
 func buildPaymentTermConfig(paymentTermType *string, paymentTermDays *int32, customTermLabel *string) *paymentTermConfig {
 	if paymentTermType == nil {
 		return nil
@@ -444,7 +426,6 @@ func buildPaymentTermConfig(paymentTermType *string, paymentTermDays *int32, cus
 	return config
 }
 
->>>>>>> theirs
 func truncateRemarkForAudit(value string) string {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -457,8 +438,6 @@ func truncateRemarkForAudit(value string) string {
 	}
 	return string(runes[:maxAuditRemarkLength]) + "..."
 }
-<<<<<<< ours
-=======
 
 func pointerStringValue(value *string) string {
 	if value == nil {
@@ -466,4 +445,3 @@ func pointerStringValue(value *string) string {
 	}
 	return *value
 }
->>>>>>> theirs

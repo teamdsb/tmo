@@ -123,8 +123,12 @@ export const requestRaw = async (path, options = {}) => {
   };
 };
 
-export const passwordLogin = async (username, password) => {
-  const response = await postAuthPasswordLogin({ username, password });
+export const passwordLogin = async (username, password, role) => {
+  const payload = { username, password };
+  if (role) {
+    payload.role = role;
+  }
+  const response = await postAuthPasswordLogin(payload);
   return response;
 };
 

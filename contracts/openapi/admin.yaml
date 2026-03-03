@@ -83,12 +83,9 @@ paths:
             schema:
               type: object
               properties:
-<<<<<<< ours
-=======
                 paymentTerm:
                   "$ref": "#/components/schemas/PaymentTermConfig"
                   nullable: true
->>>>>>> theirs
                 paymentTermRemark:
                   type: string
               required:
@@ -324,12 +321,9 @@ components:
         customerId:
           type: string
           format: uuid
-<<<<<<< ours
-=======
         paymentTerm:
           "$ref": "#/components/schemas/PaymentTermConfig"
           nullable: true
->>>>>>> theirs
         paymentTermRemark:
           type: string
           nullable: true
@@ -339,8 +333,6 @@ components:
       required:
       - customerId
       - updatedAt
-<<<<<<< ours
-=======
     PaymentTermType:
       type: string
       enum:
@@ -364,7 +356,6 @@ components:
       required:
       - type
       additionalProperties: false
->>>>>>> theirs
     SalesQrCode:
       "$ref": "./common.yaml#/components/schemas/SalesQrCode"
     Category:

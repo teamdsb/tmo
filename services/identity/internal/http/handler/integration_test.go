@@ -31,6 +31,8 @@ import (
 const (
 	adminUsername = "admin"
 	adminPassword = "admin123"
+	salesUsername = "sales"
+	salesPassword = "sales123"
 )
 
 var (
@@ -116,6 +118,71 @@ func TestPasswordLoginAdmin(t *testing.T) {
 	resp := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
 		"username": adminUsername,
 		"password": adminPassword,
+	}, "")
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
+	}
+}
+
+func TestPasswordLoginRoleConflictAndRetry(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedAdmin(ctx, pool); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+	if err := seedRole(ctx, pool, adminID, "BOSS"); err != nil {
+		t.Fatalf("seed boss role: %v", err)
+	}
+
+	resp := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": adminUsername,
+		"password": adminPassword,
+	}, "")
+	if resp.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	var errResp map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
+		t.Fatalf("decode error response: %v", err)
+	}
+	details, _ := errResp["details"].(map[string]interface{})
+	available, _ := details["availableRoles"].([]interface{})
+	if len(available) < 2 {
+		t.Fatalf("expected availableRoles to include multiple entries, got %#v", details["availableRoles"])
+	}
+
+	retry := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": adminUsername,
+		"password": adminPassword,
+		"role":     "BOSS",
+	}, "")
+	if retry.Code != http.StatusOK {
+		t.Fatalf("expected retry 200, got %d: %s", retry.Code, retry.Body.String())
+	}
+}
+
+func TestPasswordLoginSales(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedSales(ctx, pool); err != nil {
+		t.Fatalf("seed sales: %v", err)
+	}
+	if err := seedPassword(ctx, pool, salesID, salesUsername, salesPassword); err != nil {
+		t.Fatalf("seed sales password: %v", err)
+	}
+
+	resp := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": salesUsername,
+		"password": salesPassword,
 	}, "")
 	if resp.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
@@ -669,14 +736,18 @@ TRUNCATE TABLE audit_logs, staff_binding_tokens, sales_qr_codes, user_passwords,
 }
 
 func seedAdmin(ctx context.Context, pool *pgxpool.Pool) error {
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
-	if err != nil {
-		return err
-	}
 	if err := seedUser(ctx, pool, adminID, "Admin", "admin"); err != nil {
 		return err
 	}
 	if err := seedRole(ctx, pool, adminID, "ADMIN"); err != nil {
+		return err
+	}
+	return seedPassword(ctx, pool, adminID, adminUsername, adminPassword)
+}
+
+func seedPassword(ctx context.Context, pool *pgxpool.Pool, userID uuid.UUID, username, password string) error {
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
 		return err
 	}
 	if _, err := pool.Exec(ctx, `
@@ -686,7 +757,7 @@ ON CONFLICT (user_id) DO UPDATE
 SET username = EXCLUDED.username,
     password_hash = EXCLUDED.password_hash,
     updated_at = now()
-`, adminID, adminUsername, string(passwordHash)); err != nil {
+`, userID, username, string(passwordHash)); err != nil {
 		return err
 	}
 	return nil

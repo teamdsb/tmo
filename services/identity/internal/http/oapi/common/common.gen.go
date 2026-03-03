@@ -17,15 +17,18 @@ const (
 
 // Defines values for MiniLoginRequestRole.
 const (
-	CS          MiniLoginRequestRole = "CS"
-	CUSTOMER    MiniLoginRequestRole = "CUSTOMER"
-	PROCUREMENT MiniLoginRequestRole = "PROCUREMENT"
-	SALES       MiniLoginRequestRole = "SALES"
+	MiniLoginRequestRoleCS          MiniLoginRequestRole = "CS"
+	MiniLoginRequestRoleCUSTOMER    MiniLoginRequestRole = "CUSTOMER"
+	MiniLoginRequestRolePROCUREMENT MiniLoginRequestRole = "PROCUREMENT"
+	MiniLoginRequestRoleSALES       MiniLoginRequestRole = "SALES"
 )
 
 // Defines values for PasswordLoginRequestRole.
 const (
-	ADMIN PasswordLoginRequestRole = "ADMIN"
+	PasswordLoginRequestRoleADMIN   PasswordLoginRequestRole = "ADMIN"
+	PasswordLoginRequestRoleBOSS    PasswordLoginRequestRole = "BOSS"
+	PasswordLoginRequestRoleMANAGER PasswordLoginRequestRole = "MANAGER"
+	PasswordLoginRequestRoleSALES   PasswordLoginRequestRole = "SALES"
 )
 
 // Defines values for SalesQrCodePlatform.
@@ -91,12 +94,12 @@ type MiniLoginRequestRole string
 type PasswordLoginRequest struct {
 	Password string `json:"password"`
 
-	// Role Optional; must be ADMIN when provided.
+	// Role Optional current role for password login; if omitted and user has multiple web roles, server may return 409 with availableRoles.
 	Role     *PasswordLoginRequestRole `json:"role,omitempty"`
 	Username string                    `json:"username"`
 }
 
-// PasswordLoginRequestRole Optional; must be ADMIN when provided.
+// PasswordLoginRequestRole Optional current role for password login; if omitted and user has multiple web roles, server may return 409 with availableRoles.
 type PasswordLoginRequestRole string
 
 // PhoneProof Phone authorization proof from mini program platform APIs.

@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -531,15 +532,27 @@ func (h *Handler) PostAuthPasswordLogin(c *gin.Context) {
 		return
 	}
 	roles = normalizeRoles(roles)
+	available := filterPasswordLoginRoles(roles)
+	if len(available) == 0 {
+		h.writeError(c, http.StatusUnauthorized, "unauthorized", "invalid credentials")
+		return
+	}
+
 	var requestedRole *string
 	if request.Role != nil {
 		roleValue := strings.ToUpper(strings.TrimSpace(string(*request.Role)))
 		requestedRole = &roleValue
 	}
 
-	selectedRole, ok := selectPasswordLoginRole(roles, requestedRole)
+	selectedRole, ok := selectPasswordLoginRole(available, requestedRole)
 	if !ok {
-		h.writeError(c, http.StatusUnauthorized, "unauthorized", "invalid credentials")
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "role not assigned")
+		return
+	}
+	if requestedRole == nil && len(available) > 1 {
+		h.writeErrorWithDetails(c, http.StatusConflict, "conflict", "role selection required", map[string]interface{}{
+			"availableRoles": available,
+		})
 		return
 	}
 
@@ -563,23 +576,30 @@ func (h *Handler) PostAuthPasswordLogin(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-func selectPasswordLoginRole(roles []string, requested *string) (string, bool) {
-	if requested != nil {
-		role := strings.ToUpper(strings.TrimSpace(*requested))
-		switch role {
-		case "ADMIN", "BOSS", "MANAGER":
-			if containsRole(roles, role) {
-				return role, true
-			}
-			return "", false
-		default:
-			return "", false
+func filterPasswordLoginRoles(roles []string) []string {
+	available := make([]string, 0, len(roles))
+	for _, role := range roles {
+		switch strings.ToUpper(strings.TrimSpace(role)) {
+		case "BOSS", "MANAGER", "ADMIN", "SALES":
+			available = append(available, strings.ToUpper(strings.TrimSpace(role)))
 		}
 	}
+	sort.Strings(available)
+	return available
+}
 
-	priority := []string{"BOSS", "MANAGER", "ADMIN"}
+func selectPasswordLoginRole(availableRoles []string, requested *string) (string, bool) {
+	if requested != nil {
+		role := strings.ToUpper(strings.TrimSpace(*requested))
+		if !containsRole(availableRoles, role) {
+			return "", false
+		}
+		return role, true
+	}
+
+	priority := []string{"BOSS", "MANAGER", "ADMIN", "SALES"}
 	for _, role := range priority {
-		if containsRole(roles, role) {
+		if containsRole(availableRoles, role) {
 			return role, true
 		}
 	}
