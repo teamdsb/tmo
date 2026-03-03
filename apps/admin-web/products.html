@@ -273,15 +273,11 @@
         </div>
 
         <div class="border-t border-slate-200 dark:border-slate-800 p-4 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50">
-          <div class="text-sm text-slate-500 dark:text-slate-400">显示第 <span class="font-semibold text-slate-900 dark:text-white">1</span> 到 <span class="font-semibold text-slate-900 dark:text-white">5</span> 条，共 <span class="font-semibold text-slate-900 dark:text-white">128</span> 条结果</div>
+          <div data-role="products-summary" class="text-sm text-slate-500 dark:text-slate-400">显示第 <span class="font-semibold text-slate-900 dark:text-white">1</span> 到 <span class="font-semibold text-slate-900 dark:text-white">5</span> 条，共 <span class="font-semibold text-slate-900 dark:text-white">128</span> 条结果</div>
           <div class="flex items-center gap-2">
-            <button class="p-2 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 disabled:opacity-50 transition-colors"><span class="material-symbols-outlined text-lg">chevron_left</span></button>
-            <button class="size-8 rounded bg-primary text-white text-sm font-medium flex items-center justify-center">1</button>
-            <button class="size-8 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 text-sm font-medium flex items-center justify-center transition-colors">2</button>
-            <button class="size-8 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 text-sm font-medium flex items-center justify-center transition-colors">3</button>
-            <span class="text-slate-400">...</span>
-            <button class="size-8 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 text-sm font-medium flex items-center justify-center transition-colors">12</button>
-            <button class="p-2 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 transition-colors"><span class="material-symbols-outlined text-lg">chevron_right</span></button>
+            <button data-role="page-prev" class="p-2 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 disabled:opacity-50 transition-colors"><span class="material-symbols-outlined text-lg">chevron_left</span></button>
+            <div data-role="page-numbers" class="flex items-center gap-2"></div>
+            <button data-role="page-next" class="p-2 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 transition-colors"><span class="material-symbols-outlined text-lg">chevron_right</span></button>
           </div>
         </div>
       </div>

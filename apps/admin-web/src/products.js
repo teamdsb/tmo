@@ -7,8 +7,14 @@ const DEFAULT_PAGE_SIZE = 10;
 const state = {
   context: null,
   total: 0,
+  allProducts: [],
   categoryIdByLabel: {},
   productsById: {},
+  pagination: {
+    currentPage: 1,
+    pageSize: DEFAULT_PAGE_SIZE,
+    remote: false
+  },
   drawer: {
     row: null,
     productId: ''
@@ -36,6 +42,27 @@ const CATEGORY_BADGE_CLASS = {
   鞋履: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
   未分类: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
 };
+
+const MOCK_IMAGE_POOL = [
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuCQoEH4gfPeWzK1H0fbTKGpdPsPEiVMSPpMe3jLG-QgVaadYTF5qCKXGMjK_UTCXUpALUF4RYSCB-uwdUYyEqrynzyRupEFmfWY0O4Y55MSNjHpEcnbyyoMgg9bnSiWa-xAQg9jjGABk35lkIoQYRcnYbRoheyqYHOwhN_dwLyq9p73TGuxxF4apYmpLHY9xpto3PvnH_aZ0I9bo4tHrTLkleRHk2Dxhp9kINeVt8_ELlHoEiskagOOP2omXZCUmUVbFac5vdDDsIY',
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuBEIgPW6ZBOTgr9Q108MfixPSYHRAYslI2QJq5jutI_I44OsmzXgS1DKgmv5bhUsoq8uj3sJsOGNsSVWTxV-MqVI5WZyd9Na0avk4Xb8Otkz0-SiSM9aoveA6AAYyaUAwwF7giqaUqikM6MKXWA62Lwkru6jttI92nQEEjAV7JrQewS4-8dgwyn_ivXI_iTPPk25_065zBjkvwThYjMA4WwJVvz0y9d0fZGYtJE111hzA0c9BL7tlLKI6GITyug2_lvbIU_qwqC5zs',
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuAjfY9aErprDgMbNW85Bo1S8v946mPEkkDWaZzNHNBAYFo0m9XuCqFAv_SQv6LrE3AWOXealNtJiOQyGWyme10Dbf7sCna3NN2mr5lmmr9LG1DfWfVdbieVgjgFL9GHTkXi1tQJJdOYdR3YNQ8BM9KTCk0tuqJy0mtF_ha6Zar8OLDXFX51Fn6j7VCOSOmzIYgcuePgboazKpD8MCDDowKOK0VVUXHGHw50ztZCmTk1rfOmEFE_shi0E59oj3ZN72S3-T1R8lMP3TA',
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuATkU8VA_t7SGJYwPViJASvA_fn8uMFTdL9xTEl4WMsqfhxAvbR0nh2-_l1eL9GnV59mItV7WjLwXeKx6QdfbOXt-t02wb9ZDuQy7Ct-lJmuBaM2-N-eeAFCqQ_D-3lGfNZIyw5cdug2IE8WXiSN4Li-asDIj6cWCwM1GyC0Nq5xdNe1uaZ9zPdG0O57cR0GdpfWmpSfIaD3W3zsEa98n0M1GF0hB5VJGZMW3fESRS-sXsDmwHPEzklvk_cawQVRfgqmbWWeJSiV_s',
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuA0dVU3CbsDZyVFNGcLshF6YPBJMXxeAkydfB9oG-gpqraaY3swuQGA6DlAzox0skc9W3gMDHpbOY7Ui6Dyfi72SLBagGUh5ASqADVL1jdp6k9txxiAxXeotx6YaP8KAeq_-eMws7k2lB-ugkiyFet-VpTh98336NktWjqnterKtgihC0oJOobwVBu322iP86hzYMstZBx7ItnBXjsjex5nGodo7N27yiGtEIvurLh64yG0d_g9NrQMb0bw9L9p4EHj3e2KWUbeq1c'
+];
+
+const MOCK_PRODUCT_TEMPLATES = [
+  { name: '经典纯棉 T 恤', categoryKey: 'apparel', tier: '标准档', inventory: 1240, status: 'ACTIVE' },
+  { name: '无线耳机 Pro', categoryKey: 'electronics', tier: '设置分层价格', inventory: 45, status: 'INACTIVE' },
+  { name: '真皮轻薄钱包', categoryKey: 'accessories', tier: '二档启用', inventory: 320, status: 'ACTIVE' },
+  { name: '极简陶瓷花瓶', categoryKey: 'homeDecor', tier: '标准', inventory: 15, status: 'DRAFT' },
+  { name: '性能跑鞋', categoryKey: 'footwear', tier: '设置分层价格', inventory: 850, status: 'ACTIVE' },
+  { name: '商务双肩包', categoryKey: 'accessories', tier: '标准档', inventory: 268, status: 'ACTIVE' },
+  { name: '智能手表 S', categoryKey: 'electronics', tier: '二档启用', inventory: 172, status: 'ACTIVE' },
+  { name: '亚麻衬衫', categoryKey: 'apparel', tier: '标准档', inventory: 412, status: 'ACTIVE' },
+  { name: '电竞键盘 K87', categoryKey: 'electronics', tier: '设置分层价格', inventory: 69, status: 'INACTIVE' },
+  { name: '跑步水壶', categoryKey: 'accessories', tier: '标准', inventory: 506, status: 'ACTIVE' }
+];
 
 const normalizeProductText = (value, fallback = '') => {
   const key = String(value || '').trim();
@@ -100,28 +127,32 @@ const upsertProductInState = (product) => {
 };
 
 const getSummaryElement = () => {
-  return document.querySelector('.border-t.border-slate-200.dark\\:border-slate-800 .text-sm.text-slate-500');
+  return document.querySelector('[data-role="products-summary"]');
 };
 
-const getCurrentTotalFromSummary = () => {
-  const summary = getSummaryElement();
-  if (!summary) {
-    return state.total;
-  }
-  const matches = summary.textContent?.match(/共\s*([\d,]+)/);
-  if (!matches?.[1]) {
-    return state.total;
-  }
-  const parsed = Number(matches[1].replace(/,/g, ''));
-  return Number.isFinite(parsed) ? parsed : state.total;
+const getPaginationContainer = () => {
+  return document.querySelector('[data-role="page-numbers"]');
 };
 
-const updateSummary = (visible, total) => {
+const getPrevPageButton = () => {
+  return document.querySelector('[data-role="page-prev"]');
+};
+
+const getNextPageButton = () => {
+  return document.querySelector('[data-role="page-next"]');
+};
+
+const getTotalPages = () => {
+  const pages = Math.ceil(state.total / state.pagination.pageSize);
+  return Math.max(1, Number.isFinite(pages) ? pages : 1);
+};
+
+const updateSummary = (start, end, total) => {
   const summary = getSummaryElement();
   if (!summary) {
     return;
   }
-  summary.innerHTML = `显示第 <span class="font-semibold text-slate-900 dark:text-white">1</span> 到 <span class="font-semibold text-slate-900 dark:text-white">${visible}</span> 条，共 <span class="font-semibold text-slate-900 dark:text-white">${total}</span> 条结果`;
+  summary.innerHTML = `显示第 <span class="font-semibold text-slate-900 dark:text-white">${start}</span> 到 <span class="font-semibold text-slate-900 dark:text-white">${end}</span> 条，共 <span class="font-semibold text-slate-900 dark:text-white">${total}</span> 条结果`;
 };
 
 const resolveCategoryTag = (item) => {
@@ -147,6 +178,35 @@ const resolveInventory = (item) => {
     item.availableQty
   ].find((value) => Number.isFinite(Number(value)));
   return rawInventory === undefined ? '--' : Number(rawInventory);
+};
+
+const normalizeProductItem = (item, index = 0) => {
+  const tag = resolveCategoryTag(item);
+  const categoryKey = CATEGORY_KEY_BY_LABEL[tag] || 'apparel';
+  const categoryMeta = CATEGORY_META[categoryKey] || CATEGORY_META.apparel;
+  return {
+    ...item,
+    id: safeText(item.id, `MOCK-${String(index + 1).padStart(4, '0')}`),
+    name: safeText(item.name, `模拟商品 ${index + 1}`),
+    categoryId: safeText(item.categoryId, categoryMeta.categoryId),
+    tags: Array.isArray(item.tags) && item.tags.length > 0 ? item.tags : [tag, resolveTierLabel(item)],
+    inventory: resolveInventory(item),
+    status: normalizeStatusValue(item.status),
+    coverImageUrl: safeText(item.coverImageUrl, '')
+  };
+};
+
+const rebuildProductIndexes = () => {
+  state.categoryIdByLabel = {};
+  state.productsById = {};
+  state.allProducts.forEach((item) => {
+    const tag = resolveCategoryTag(item);
+    const categoryId = safeText(item.categoryId, '');
+    if (tag && categoryId) {
+      state.categoryIdByLabel[tag] = categoryId;
+    }
+    upsertProductInState(item);
+  });
 };
 
 const toProductStatusBadge = (status) => {
@@ -230,40 +290,172 @@ const renderProductRow = (item) => {
   `;
 };
 
-const renderProducts = (payload) => {
+const buildPageTokens = (totalPages, currentPage) => {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const tokens = [1];
+  const left = Math.max(2, currentPage - 1);
+  const right = Math.min(totalPages - 1, currentPage + 1);
+  if (left > 2) {
+    tokens.push('ellipsis-left');
+  }
+  for (let page = left; page <= right; page += 1) {
+    tokens.push(page);
+  }
+  if (right < totalPages - 1) {
+    tokens.push('ellipsis-right');
+  }
+  tokens.push(totalPages);
+  return tokens;
+};
+
+const renderPagination = () => {
+  const container = getPaginationContainer();
+  const prevButton = getPrevPageButton();
+  const nextButton = getNextPageButton();
+  if (!container || !prevButton || !nextButton) {
+    return;
+  }
+
+  const totalPages = getTotalPages();
+  const currentPage = state.pagination.currentPage;
+  const tokens = buildPageTokens(totalPages, currentPage);
+
+  container.innerHTML = tokens
+    .map((token) => {
+      if (typeof token !== 'number') {
+        return '<span class="text-slate-400">...</span>';
+      }
+      const isActive = token === currentPage;
+      const className = isActive
+        ? 'size-8 rounded bg-primary text-white text-sm font-medium flex items-center justify-center'
+        : 'size-8 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 text-sm font-medium flex items-center justify-center transition-colors';
+      return `<button data-role="page-number" data-page="${token}" class="${className}">${token}</button>`;
+    })
+    .join('');
+
+  prevButton.disabled = currentPage <= 1;
+  nextButton.disabled = currentPage >= totalPages;
+};
+
+const renderCurrentPage = () => {
   const tbody = document.querySelector('table tbody');
   if (!tbody) {
     return;
   }
 
-  const items = Array.isArray(payload?.items) ? payload.items : [];
-  if (items.length === 0) {
+  const totalPages = getTotalPages();
+  if (state.pagination.currentPage > totalPages) {
+    state.pagination.currentPage = totalPages;
+  }
+  if (state.pagination.currentPage < 1) {
+    state.pagination.currentPage = 1;
+  }
+
+  const offset = (state.pagination.currentPage - 1) * state.pagination.pageSize;
+  const pageItems = state.pagination.remote
+    ? state.allProducts
+    : state.allProducts.slice(offset, offset + state.pagination.pageSize);
+
+  if (pageItems.length === 0) {
     tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-5 text-sm text-slate-500">后端暂无商品数据。</td></tr>';
-    state.total = 0;
-    updateSummary(0, 0);
+    updateSummary(0, 0, state.total);
+    renderPagination();
     return;
   }
 
-  state.categoryIdByLabel = {};
-  state.productsById = {};
-  items.forEach((item) => {
-    const tag = resolveCategoryTag(item);
-    const categoryId = safeText(item.categoryId, '');
-    if (tag && categoryId) {
-      state.categoryIdByLabel[tag] = categoryId;
-    }
-    upsertProductInState({
-      ...item,
-      id: safeText(item.id),
-      status: normalizeStatusValue(item.status),
-      inventory: resolveInventory(item),
-      tags: Array.isArray(item.tags) && item.tags.length > 0 ? item.tags : [tag, resolveTierLabel(item)]
-    });
-  });
+  tbody.innerHTML = pageItems.map((item) => renderProductRow(item)).join('');
+  const start = state.total === 0 ? 0 : offset + 1;
+  const end = Math.min(offset + pageItems.length, state.total);
+  updateSummary(start, end, state.total);
+  renderPagination();
+};
 
-  tbody.innerHTML = items.map((item) => renderProductRow(item)).join('');
-  state.total = Number(payload.total || items.length);
-  updateSummary(items.length, state.total);
+const applyProducts = (items, total = items.length, currentPage = 1, remote = false) => {
+  state.allProducts = items.map((item, index) => normalizeProductItem(item, index));
+  state.total = Number.isFinite(Number(total)) ? Number(total) : state.allProducts.length;
+  state.pagination.currentPage = currentPage;
+  state.pagination.remote = remote;
+  rebuildProductIndexes();
+  renderCurrentPage();
+};
+
+const renderProducts = (payload, currentPage = 1) => {
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+  const total = Number(payload?.total || items.length);
+  applyProducts(items, total, currentPage, state.context?.mode === 'dev');
+};
+
+const createMockProducts = (count = 30) => {
+  return Array.from({ length: count }, (_, index) => {
+    const template = MOCK_PRODUCT_TEMPLATES[index % MOCK_PRODUCT_TEMPLATES.length];
+    const categoryMeta = CATEGORY_META[template.categoryKey] || CATEGORY_META.apparel;
+    const suffix = index < MOCK_PRODUCT_TEMPLATES.length ? '' : ` ${index + 1}`;
+    return {
+      id: `MOCK-${String(index + 1).padStart(4, '0')}`,
+      name: `${template.name}${suffix}`,
+      categoryId: categoryMeta.categoryId,
+      tags: [categoryMeta.label, template.tier],
+      inventory: Math.max(0, template.inventory + (index % 7) * 13),
+      status: template.status,
+      coverImageUrl: MOCK_IMAGE_POOL[index % MOCK_IMAGE_POOL.length],
+      description: `模拟商品数据 #${index + 1}`
+    };
+  });
+};
+
+const goToPage = async (page) => {
+  const totalPages = getTotalPages();
+  const nextPage = Math.min(Math.max(page, 1), totalPages);
+  if (nextPage === state.pagination.currentPage) {
+    return;
+  }
+
+  if (state.context?.mode === 'dev') {
+    const response = await fetchProducts({ page: nextPage, pageSize: DEFAULT_PAGE_SIZE });
+    if (response.status !== 200 || !response.data) {
+      showToast('分页加载失败，请稍后重试。', 'error');
+      return;
+    }
+    renderProducts(response.data, nextPage);
+    return;
+  }
+
+  state.pagination.currentPage = nextPage;
+  renderCurrentPage();
+};
+
+const bindPaginationActions = () => {
+  const prevButton = getPrevPageButton();
+  const nextButton = getNextPageButton();
+  const numberContainer = getPaginationContainer();
+  if (!prevButton || !nextButton || !numberContainer) {
+    return;
+  }
+
+  prevButton.addEventListener('click', () => {
+    void goToPage(state.pagination.currentPage - 1);
+  });
+  nextButton.addEventListener('click', () => {
+    void goToPage(state.pagination.currentPage + 1);
+  });
+  numberContainer.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+    const button = target.closest('[data-role="page-number"]');
+    if (!(button instanceof HTMLButtonElement)) {
+      return;
+    }
+    const page = Number(button.dataset.page || 1);
+    if (!Number.isFinite(page)) {
+      return;
+    }
+    void goToPage(page);
+  });
 };
 
 const showToast = (message, type = 'success') => {
@@ -271,18 +463,41 @@ const showToast = (message, type = 'success') => {
   if (!container) {
     container = document.createElement('div');
     container.id = 'product-toast-container';
-    container.className = 'fixed top-20 right-6 z-[100] flex flex-col gap-2';
+    container.className = 'fixed inset-0 z-[120] flex items-center justify-center px-4 pointer-events-none';
     document.body.appendChild(container);
   }
 
   const toast = document.createElement('div');
-  const colorClass = type === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700';
-  toast.className = `rounded-lg border px-4 py-2 text-sm shadow-sm ${colorClass}`;
-  toast.textContent = message;
+  const isError = type === 'error';
+  const colorClass = isError
+    ? 'border-red-200 bg-red-50 text-red-700'
+    : 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  const icon = isError ? 'close' : 'check';
+  toast.className = `rounded-xl border px-5 py-3 text-sm shadow-lg ${colorClass} flex items-center gap-2`;
+  toast.innerHTML = `
+    <span class="material-symbols-outlined text-base">${icon}</span>
+    <span>${escape(message)}</span>
+  `;
   container.appendChild(toast);
   window.setTimeout(() => {
     toast.remove();
   }, 2600);
+};
+
+const toMinimalErrorReason = (error, fallback = '请稍后重试') => {
+  if (!error) {
+    return fallback;
+  }
+  const message = error instanceof Error ? error.message : safeText(error, '');
+  const text = safeText(message, '').trim();
+  if (!text) {
+    return fallback;
+  }
+  const normalized = text.replace(/\s+/g, ' ');
+  if (normalized.length <= 48) {
+    return normalized;
+  }
+  return `${normalized.slice(0, 45)}...`;
 };
 
 const closeCreateModal = () => {
@@ -308,22 +523,12 @@ const openCreateModal = () => {
 };
 
 const appendProductRow = (product) => {
-  const tbody = document.querySelector('table tbody');
-  if (!tbody) {
-    return;
-  }
-  const emptyCell = tbody.querySelector('td[colspan="7"]');
-  if (emptyCell) {
-    tbody.innerHTML = '';
-  }
-
-  tbody.insertAdjacentHTML('afterbegin', renderProductRow(product));
-  upsertProductInState(product);
-
-  const rows = tbody.querySelectorAll('tr').length;
-  const nextTotal = Math.max(getCurrentTotalFromSummary() + 1, state.total + 1, rows);
-  state.total = nextTotal;
-  updateSummary(Math.min(rows, DEFAULT_PAGE_SIZE), nextTotal);
+  const normalized = normalizeProductItem(product, 0);
+  state.allProducts = [normalized, ...state.allProducts];
+  state.total = Math.max(state.total + 1, state.allProducts.length);
+  state.pagination.currentPage = 1;
+  rebuildProductIndexes();
+  renderCurrentPage();
 };
 
 const createLocalProduct = (formData) => {
@@ -419,6 +624,22 @@ const updateRowFromProduct = (row, product) => {
   if (thumb instanceof HTMLElement) {
     thumb.style.backgroundImage = product.coverImageUrl ? `url("${product.coverImageUrl}")` : '';
   }
+};
+
+const replaceProductInCollection = (product) => {
+  const productId = safeText(product.id, '');
+  if (!productId) {
+    return;
+  }
+  const index = state.allProducts.findIndex((item) => safeText(item.id) === productId);
+  if (index >= 0) {
+    state.allProducts[index] = normalizeProductItem(product, index);
+  } else {
+    state.allProducts.unshift(normalizeProductItem(product, 0));
+  }
+  state.total = Math.max(state.total, state.allProducts.length);
+  rebuildProductIndexes();
+  renderCurrentPage();
 };
 
 const closeEditDrawer = () => {
@@ -611,6 +832,7 @@ const ensureEditDrawer = () => {
         return;
       }
       const errorElement = currentForm.querySelector('[data-role="drawer-error"]');
+      const submitButton = currentForm.querySelector('button[type="submit"]');
       const formData = new FormData(currentForm);
       const name = safeText(formData.get('name'), '').trim();
       if (!name) {
@@ -618,37 +840,55 @@ const ensureEditDrawer = () => {
           errorElement.textContent = '商品名称不能为空。';
           errorElement.classList.remove('hidden');
         }
+        showToast('保存失败：商品名称不能为空。', 'error');
         return;
       }
       if (errorElement) {
         errorElement.classList.add('hidden');
       }
+      if (submitButton instanceof HTMLButtonElement) {
+        submitButton.disabled = true;
+        submitButton.textContent = '保存中...';
+      }
 
-      const categoryKey = safeText(formData.get('categoryKey'), 'apparel');
-      const category = CATEGORY_META[categoryKey] || CATEGORY_META.apparel;
-      const tierLabel = safeText(formData.get('tierLabel'), '标准档');
-      const status = normalizeStatusValue(formData.get('status'));
-      const inventory = Math.max(0, Number(formData.get('inventory') || 0));
-      const coverImageUrl = safeText(formData.get('coverImageUrl'), '');
-      const description = safeText(formData.get('description'), '');
+      try {
+        const categoryKey = safeText(formData.get('categoryKey'), 'apparel');
+        const category = CATEGORY_META[categoryKey] || CATEGORY_META.apparel;
+        const tierLabel = safeText(formData.get('tierLabel'), '标准档');
+        const status = normalizeStatusValue(formData.get('status'));
+        const inventory = Math.max(0, Number(formData.get('inventory') || 0));
+        const coverImageUrl = safeText(formData.get('coverImageUrl'), '');
+        const description = safeText(formData.get('description'), '');
 
-      const existing = state.productsById[state.drawer.productId] || getProductFromRow(state.drawer.row);
-      const nextProduct = {
-        ...existing,
-        id: state.drawer.productId,
-        name,
-        categoryId: state.categoryIdByLabel[category.label] || category.categoryId,
-        tags: [category.label, tierLabel],
-        inventory,
-        status,
-        coverImageUrl,
-        description
-      };
+        const existing = state.productsById[state.drawer.productId] || getProductFromRow(state.drawer.row);
+        const nextProduct = {
+          ...existing,
+          id: state.drawer.productId,
+          name,
+          categoryId: state.categoryIdByLabel[category.label] || category.categoryId,
+          tags: [category.label, tierLabel],
+          inventory,
+          status,
+          coverImageUrl,
+          description
+        };
 
-      upsertProductInState(nextProduct);
-      updateRowFromProduct(state.drawer.row, nextProduct);
-      closeEditDrawer();
-      showToast('商品信息已更新（Mock）。');
+        replaceProductInCollection(nextProduct);
+        closeEditDrawer();
+        showToast('保存成功。');
+      } catch (error) {
+        const reason = toMinimalErrorReason(error);
+        if (errorElement) {
+          errorElement.textContent = `保存失败：${reason}`;
+          errorElement.classList.remove('hidden');
+        }
+        showToast(`保存失败：${reason}`, 'error');
+      } finally {
+        if (submitButton instanceof HTMLButtonElement) {
+          submitButton.disabled = false;
+          submitButton.textContent = '保存（Mock）';
+        }
+      }
     });
   }
 
@@ -719,6 +959,7 @@ const openEditDrawer = (row) => {
 
 const hydrateStaticRows = () => {
   const rows = document.querySelectorAll('table tbody tr');
+  const hydrated = [];
   rows.forEach((row) => {
     if (!(row instanceof HTMLTableRowElement)) {
       return;
@@ -738,7 +979,14 @@ const hydrateStaticRows = () => {
     const product = getProductFromRow(row);
     row.dataset.productId = safeText(product.id);
     upsertProductInState(product);
+    hydrated.push(normalizeProductItem(product, hydrated.length));
   });
+  if (hydrated.length > 0 && state.allProducts.length === 0) {
+    state.allProducts = hydrated;
+    state.total = hydrated.length;
+    rebuildProductIndexes();
+    renderCurrentPage();
+  }
 };
 
 const bindProductRowActions = () => {
@@ -942,13 +1190,16 @@ const initProducts = async () => {
     return;
   }
   state.context = context;
-  state.total = getCurrentTotalFromSummary();
+  state.total = 0;
   hydrateStaticRows();
   bindProductRowActions();
+  bindPaginationActions();
   ensureEditDrawer();
   bindCreateProductAction();
 
   if (context.mode !== 'dev') {
+    const mockItems = createMockProducts(30);
+    applyProducts(mockItems, mockItems.length, 1);
     return;
   }
 
@@ -957,7 +1208,7 @@ const initProducts = async () => {
     return;
   }
 
-  renderProducts(response.data);
+  renderProducts(response.data, 1);
 };
 
 void initProducts();

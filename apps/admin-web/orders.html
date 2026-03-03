@@ -107,26 +107,26 @@
       </div>
 
       <div class="border-b border-border-light dark:border-border-dark">
-        <nav aria-label="Tabs" class="flex gap-8 overflow-x-auto">
-          <a class="group border-b-2 border-transparent py-4 px-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:border-text-sub hover:text-text-sub-dark dark:hover:text-text-main-dark" href="#">
+        <nav aria-label="Tabs" class="flex gap-8 overflow-x-auto" data-role="order-tabs">
+          <a data-role="order-tab" data-tab="submitted" class="group border-b-2 border-transparent py-4 px-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:border-text-sub hover:text-text-sub-dark dark:hover:text-text-main-dark" href="#">
             已提交
-            <span class="ml-2 rounded-full bg-background-light dark:bg-background-dark py-0.5 px-2.5 text-xs font-medium text-text-sub dark:text-text-sub-dark group-hover:bg-gray-200 dark:group-hover:bg-gray-700">12</span>
+            <span data-role="order-tab-count" class="ml-2 rounded-full bg-background-light dark:bg-background-dark py-0.5 px-2.5 text-xs font-medium text-text-sub dark:text-text-sub-dark group-hover:bg-gray-200 dark:group-hover:bg-gray-700">12</span>
           </a>
-          <a class="group border-b-2 border-transparent py-4 px-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:border-text-sub hover:text-text-sub-dark dark:hover:text-text-main-dark" href="#">
+          <a data-role="order-tab" data-tab="confirmed" class="group border-b-2 border-transparent py-4 px-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:border-text-sub hover:text-text-sub-dark dark:hover:text-text-main-dark" href="#">
             已确认
-            <span class="ml-2 rounded-full bg-background-light dark:bg-background-dark py-0.5 px-2.5 text-xs font-medium text-text-sub dark:text-text-sub-dark group-hover:bg-gray-200 dark:group-hover:bg-gray-700">4</span>
+            <span data-role="order-tab-count" class="ml-2 rounded-full bg-background-light dark:bg-background-dark py-0.5 px-2.5 text-xs font-medium text-text-sub dark:text-text-sub-dark group-hover:bg-gray-200 dark:group-hover:bg-gray-700">4</span>
           </a>
-          <a aria-current="page" class="border-b-2 border-primary py-4 px-1 text-sm font-bold text-primary" href="#">
+          <a data-role="order-tab" data-tab="shipped" aria-current="page" class="border-b-2 border-primary py-4 px-1 text-sm font-bold text-primary" href="#">
             已发货
-            <span class="ml-2 rounded-full bg-primary/10 py-0.5 px-2.5 text-xs font-medium text-primary">86</span>
+            <span data-role="order-tab-count" class="ml-2 rounded-full bg-primary/10 py-0.5 px-2.5 text-xs font-medium text-primary">86</span>
           </a>
-          <a class="group border-b-2 border-transparent py-4 px-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:border-text-sub hover:text-text-sub-dark dark:hover:text-text-main-dark" href="#">
+          <a data-role="order-tab" data-tab="delivered" class="group border-b-2 border-transparent py-4 px-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:border-text-sub hover:text-text-sub-dark dark:hover:text-text-main-dark" href="#">
             已送达
-            <span class="ml-2 rounded-full bg-background-light dark:bg-background-dark py-0.5 px-2.5 text-xs font-medium text-text-sub dark:text-text-sub-dark group-hover:bg-gray-200 dark:group-hover:bg-gray-700">324</span>
+            <span data-role="order-tab-count" class="ml-2 rounded-full bg-background-light dark:bg-background-dark py-0.5 px-2.5 text-xs font-medium text-text-sub dark:text-text-sub-dark group-hover:bg-gray-200 dark:group-hover:bg-gray-700">324</span>
           </a>
-          <a class="group border-b-2 border-transparent py-4 px-1 text-sm font-medium text-red-500 hover:border-red-500 hover:text-red-600" href="#">
+          <a data-role="order-tab" data-tab="returns" class="group border-b-2 border-transparent py-4 px-1 text-sm font-medium text-red-500 hover:border-red-500 hover:text-red-600" href="#">
             退货
-            <span class="ml-2 rounded-full bg-red-50 py-0.5 px-2.5 text-xs font-medium text-red-600 dark:bg-red-900/20 dark:text-red-400">2</span>
+            <span data-role="order-tab-count" class="ml-2 rounded-full bg-red-50 py-0.5 px-2.5 text-xs font-medium text-red-600 dark:bg-red-900/20 dark:text-red-400">2</span>
           </a>
         </nav>
       </div>
@@ -146,7 +146,7 @@
                     <th class="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark text-right" scope="col">操作</th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-border-light dark:divide-border-dark">
+                <tbody data-role="orders-body" class="divide-y divide-border-light dark:divide-border-dark">
                   <tr class="group hover:bg-background-light dark:hover:bg-background-dark/50 transition-colors cursor-pointer bg-primary-light/30 dark:bg-primary/5">
                     <td class="px-6 py-4 font-medium text-primary">#ORD-2023-001</td>
                     <td class="px-6 py-4">
@@ -224,10 +224,10 @@
             </div>
 
             <div class="flex items-center justify-between border-t border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-6 py-4">
-              <p class="text-sm text-text-sub dark:text-text-sub-dark">显示第 <span class="font-medium text-text-main dark:text-text-main-dark">1</span> 到 <span class="font-medium text-text-main dark:text-text-main-dark">5</span> 条，共 <span class="font-medium text-text-main dark:text-text-main-dark">86</span> 条结果</p>
+              <p data-role="orders-summary" class="text-sm text-text-sub dark:text-text-sub-dark">显示第 <span class="font-medium text-text-main dark:text-text-main-dark">1</span> 到 <span class="font-medium text-text-main dark:text-text-main-dark">5</span> 条，共 <span class="font-medium text-text-main dark:text-text-main-dark">86</span> 条结果</p>
               <div class="flex gap-2">
-                <button class="rounded-lg border border-border-light dark:border-border-dark px-3 py-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:bg-background-light dark:hover:bg-background-dark disabled:opacity-50">上一页</button>
-                <button class="rounded-lg border border-border-light dark:border-border-dark px-3 py-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:bg-background-light dark:hover:bg-background-dark">下一页</button>
+                <button data-role="orders-prev-page" class="rounded-lg border border-border-light dark:border-border-dark px-3 py-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:bg-background-light dark:hover:bg-background-dark disabled:opacity-50">上一页</button>
+                <button data-role="orders-next-page" class="rounded-lg border border-border-light dark:border-border-dark px-3 py-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:bg-background-light dark:hover:bg-background-dark">下一页</button>
               </div>
             </div>
           </div>
@@ -246,7 +246,7 @@
               <div>
                 <p class="text-sm font-medium text-text-sub dark:text-text-sub-dark">物流单号</p>
                 <div class="flex items-center gap-2">
-                  <p class="text-base font-bold text-text-main dark:text-text-main-dark">789012349981</p>
+                  <p data-role="tracking-number" class="text-base font-bold text-text-main dark:text-text-main-dark">789012349981</p>
                   <button class="text-text-sub dark:text-text-sub-dark hover:text-primary"><span class="material-symbols-outlined text-[16px]">content_copy</span></button>
                 </div>
               </div>
@@ -257,12 +257,12 @@
               <div class="absolute inset-0 flex items-center justify-center bg-black/5">
                 <div class="flex items-center gap-1 rounded-md bg-surface-light dark:bg-surface-dark p-2 shadow-lg">
                   <span class="material-symbols-outlined text-primary text-xl">local_shipping</span>
-                  <span class="text-xs font-bold text-text-main dark:text-text-main-dark">运输途中</span>
+                  <span data-role="shipping-badge-label" class="text-xs font-bold text-text-main dark:text-text-main-dark">运输途中</span>
                 </div>
               </div>
             </div>
 
-            <div class="relative pl-4 border-l-2 border-border-light dark:border-border-dark space-y-8">
+            <div data-role="sorting-timeline" class="relative pl-4 border-l-2 border-border-light dark:border-border-dark space-y-8">
               <div class="relative">
                 <span class="absolute -left-[21px] top-1 flex size-3.5 items-center justify-center rounded-full border-2 border-primary bg-surface-light dark:bg-surface-dark"><span class="size-1.5 rounded-full bg-primary"></span></span>
                 <div class="flex flex-col gap-1">
@@ -304,18 +304,18 @@
             <div class="flex items-start gap-4">
               <div class="size-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-300 font-bold">AS</div>
               <div>
-                <p class="font-bold text-text-main dark:text-text-main-dark">艾丽丝·史密斯</p>
-                <p class="text-sm text-text-sub dark:text-text-sub-dark">alice.smith@example.com</p>
-                <p class="text-sm text-text-sub dark:text-text-sub-dark mt-1">+1 (555) 123-4567</p>
+                <p data-role="customer-name" class="font-bold text-text-main dark:text-text-main-dark">艾丽丝·史密斯</p>
+                <p data-role="customer-email" class="text-sm text-text-sub dark:text-text-sub-dark">alice.smith@example.com</p>
+                <p data-role="customer-phone" class="text-sm text-text-sub dark:text-text-sub-dark mt-1">+1 (555) 123-4567</p>
                 <div class="mt-3 flex gap-2">
-                  <span class="rounded bg-background-light dark:bg-background-dark px-2 py-1 text-xs font-medium text-text-sub dark:text-text-sub-dark">54 个订单</span>
-                  <span class="rounded bg-background-light dark:bg-background-dark px-2 py-1 text-xs font-medium text-text-sub dark:text-text-sub-dark">客户生命周期价值 $4.2k</span>
+                  <span data-role="customer-order-count" class="rounded bg-background-light dark:bg-background-dark px-2 py-1 text-xs font-medium text-text-sub dark:text-text-sub-dark">54 个订单</span>
+                  <span data-role="customer-ltv" class="rounded bg-background-light dark:bg-background-dark px-2 py-1 text-xs font-medium text-text-sub dark:text-text-sub-dark">客户累计下单金额 $4.2k</span>
                 </div>
               </div>
             </div>
             <div class="mt-4 border-t border-border-light dark:border-border-dark pt-4">
               <p class="text-xs font-medium text-text-sub dark:text-text-sub-dark uppercase mb-2">配送备注</p>
-              <p class="text-sm text-text-main dark:text-text-main-dark italic">“若家中无人，请将包裹放在后门门廊。门禁码 1234。”</p>
+              <p data-role="delivery-note" class="text-sm text-text-main dark:text-text-main-dark italic">“若家中无人，请将包裹放在后门门廊。门禁码 1234。”</p>
             </div>
           </div>
         </div>

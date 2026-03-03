@@ -36,9 +36,9 @@ const renderResult = (container, title, payload) => {
 
 const renderFeatureFlags = (container, flags) => {
   container.innerHTML = `
-    <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-flag="paymentEnabled" ${flags.paymentEnabled ? 'checked' : ''} /> paymentEnabled</label>
-    <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-flag="wechatPayEnabled" ${flags.wechatPayEnabled ? 'checked' : ''} /> wechatPayEnabled</label>
-    <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-flag="alipayPayEnabled" ${flags.alipayPayEnabled ? 'checked' : ''} /> alipayPayEnabled</label>
+    <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-flag="paymentEnabled" ${flags.paymentEnabled ? 'checked' : ''} /> 支付开关（paymentEnabled）</label>
+    <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-flag="wechatPayEnabled" ${flags.wechatPayEnabled ? 'checked' : ''} /> 微信支付（wechatPayEnabled）</label>
+    <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-flag="alipayPayEnabled" ${flags.alipayPayEnabled ? 'checked' : ''} /> 支付宝支付（alipayPayEnabled）</label>
   `;
 };
 
@@ -46,32 +46,32 @@ const mountDevLayout = (main) => {
   main.innerHTML = `
     <div class="mx-auto w-full max-w-5xl space-y-6">
       <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h1 class="text-2xl font-bold text-slate-900">Import Jobs (Live)</h1>
-        <p class="mt-1 text-sm text-slate-500">Dev mode only keeps real backend import/export and feature-flag operations.</p>
+        <h1 class="text-2xl font-bold text-slate-900">导入任务（实时）</h1>
+        <p class="mt-1 text-sm text-slate-500">Dev 模式下仅保留后端真实导入/导出与功能开关操作。</p>
       </section>
 
       <section class="rounded-xl border border-blue-200 bg-blue-50 p-5" data-role="tools-panel">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 class="text-sm font-semibold text-blue-700">Import / Export Actions</h3>
-            <p class="text-xs text-slate-600">Create jobs and query real backend job status.</p>
+            <h3 class="text-sm font-semibold text-blue-700">导入 / 导出操作</h3>
+            <p class="text-xs text-slate-600">创建任务并查询后端真实任务状态。</p>
           </div>
           <div class="flex flex-wrap gap-2">
-            <button data-action="product-import" class="rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">Product Import</button>
-            <button data-action="shipment-import" class="rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">Shipment Import</button>
-            <button data-action="request-export" class="rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">Request Export</button>
+            <button data-action="product-import" class="rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">商品导入</button>
+            <button data-action="shipment-import" class="rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">物流导入</button>
+            <button data-action="request-export" class="rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">需求导出</button>
           </div>
         </div>
 
         <div class="mt-3 flex flex-wrap items-center gap-2">
-          <input data-field="job-id" class="rounded border border-slate-300 px-2 py-1 text-xs" placeholder="Import job UUID" />
-          <button data-action="query-job" class="rounded bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900">Query Job</button>
+          <input data-field="job-id" class="rounded border border-slate-300 px-2 py-1 text-xs" placeholder="导入任务 UUID" />
+          <button data-action="query-job" class="rounded bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900">查询任务</button>
         </div>
 
         <div class="mt-4 rounded-lg border border-slate-200 bg-white p-3">
-          <h4 class="text-sm font-semibold text-slate-800">Feature Flags</h4>
+          <h4 class="text-sm font-semibold text-slate-800">功能开关</h4>
           <div data-role="flags" class="mt-2 flex flex-wrap gap-4"></div>
-          <button data-action="save-flags" class="mt-2 rounded bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900">Save Flags</button>
+          <button data-action="save-flags" class="mt-2 rounded bg-slate-800 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900">保存开关</button>
           <p class="mt-1 text-xs text-slate-500" data-role="flags-updated"></p>
         </div>
 
@@ -108,8 +108,8 @@ const initImportTools = async () => {
 
   if (placeholder) {
     placeholder.innerHTML = buildEmptyState(
-      'Legacy Parsing Preview Removed',
-      'Static parsing progress and fake candidate rows are hidden in dev mode. Use job APIs above for real progress.'
+      '旧版解析预览已隐藏',
+      'Dev 模式已隐藏静态解析进度与模拟候选行，请使用上方任务接口查看真实进度。'
     );
   }
 
@@ -126,7 +126,7 @@ const initImportTools = async () => {
       ...flagsResponse.data
     };
   } else {
-    resultContainer.innerHTML = buildErrorState('Failed to load /admin/config/feature-flags');
+    resultContainer.innerHTML = buildErrorState('加载 /admin/config/feature-flags 失败');
   }
   renderFeatureFlags(flagsContainer, currentFlags);
 
@@ -150,7 +150,7 @@ const initImportTools = async () => {
           return;
         }
         const response = await createAdminProductImportJob(excelFile);
-        renderResult(resultContainer, 'Product Import Response', response);
+        renderResult(resultContainer, '商品导入响应', response);
         return;
       }
 
@@ -160,13 +160,13 @@ const initImportTools = async () => {
           return;
         }
         const response = await createShipmentImportJob(excelFile);
-        renderResult(resultContainer, 'Shipment Import Response', response);
+        renderResult(resultContainer, '物流导入响应', response);
         return;
       }
 
       if (action === 'request-export') {
         const response = await createAdminProductRequestExportJob({});
-        renderResult(resultContainer, 'Product Request Export Response', response);
+        renderResult(resultContainer, '需求导出响应', response);
         return;
       }
 
@@ -174,11 +174,11 @@ const initImportTools = async () => {
         const input = panel.querySelector('[data-field="job-id"]');
         const jobId = safeText(input?.value, '');
         if (!jobId || jobId === '--') {
-          window.alert('Please input a job id.');
+          window.alert('请输入任务 ID。');
           return;
         }
         const response = await getAdminImportJob(jobId);
-        renderResult(resultContainer, 'Import Job Query', response);
+        renderResult(resultContainer, '导入任务查询', response);
         return;
       }
 
@@ -189,15 +189,15 @@ const initImportTools = async () => {
           alipayPayEnabled: Boolean(panel.querySelector('input[data-flag="alipayPayEnabled"]')?.checked)
         };
         const response = await patchFeatureFlags(payload);
-        renderResult(resultContainer, 'Feature Flags Update', response);
+        renderResult(resultContainer, '功能开关更新', response);
         if (response.status === 200) {
-          flagsUpdated.textContent = `Updated at ${formatDateTime(new Date().toISOString())}`;
+          flagsUpdated.textContent = `更新时间：${formatDateTime(new Date().toISOString())}`;
           renderFeatureFlags(flagsContainer, response.data || payload);
         }
         return;
       }
     } catch (error) {
-      renderResult(resultContainer, 'Request Error', {
+      renderResult(resultContainer, '请求错误', {
         message: error instanceof Error ? error.message : String(error)
       });
     } finally {
