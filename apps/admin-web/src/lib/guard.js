@@ -7,15 +7,29 @@ import {
   refreshBootstrap
 } from './auth';
 
+let isLogoutDelegated = false;
+
 const bindLogoutActions = () => {
-  const selectors = ['#logout-btn', '#logout-link'];
-  selectors.forEach((selector) => {
-    const elements = document.querySelectorAll(selector);
-    elements.forEach((element) => element.addEventListener('click', (event) => {
-      event.preventDefault();
-      logout();
-    }));
+  if (isLogoutDelegated) {
+    return;
+  }
+
+  document.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    const logoutTrigger = target.closest('#logout-btn, #logout-link');
+    if (!logoutTrigger) {
+      return;
+    }
+
+    event.preventDefault();
+    logout();
   });
+
+  isLogoutDelegated = true;
 };
 
 const applyProfile = (profile) => {

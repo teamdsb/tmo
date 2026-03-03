@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } from 'react';
+import { logout } from '../../lib/auth';
 
 type AdminTopbarProps = {
   leftSlot: ReactNode;
@@ -65,6 +66,12 @@ export const AdminTopbar = ({
     setIsMenuOpen(false);
   };
 
+  const handleLogout = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    setIsMenuOpen(false);
+    logout();
+  };
+
   return (
     <header
       className={joinClasses(
@@ -124,15 +131,15 @@ export const AdminTopbar = ({
                 >
                   个人资料
                 </a>
-                <a
+                <button
                   className="block rounded px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-50 hover:text-primary dark:text-slate-300 dark:hover:bg-slate-800"
-                  href="#"
                   id="logout-link"
-                  onClick={closeMenu}
+                  onClick={handleLogout}
                   role="menuitem"
+                  type="button"
                 >
                   退出登录
-                </a>
+                </button>
               </div>
             ) : null}
           </div>
