@@ -1,0 +1,149 @@
+export const LoginPage = () => {
+  return (
+    <div className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden">
+      <div
+        className="absolute inset-0 z-0 bg-cover bg-center"
+        data-alt="Subtle abstract blue and white gradient background"
+        style={{ backgroundImage: 'linear-gradient(135deg, rgba(20, 75, 184, 0.05) 0%, rgba(246, 246, 248, 1) 100%)' }}
+      >
+        <div className="absolute -top-24 -left-24 h-96 w-96 rounded-full bg-primary/5 blur-3xl"></div>
+        <div className="absolute top-1/2 right-0 h-[500px] w-[500px] translate-x-1/3 transform rounded-full bg-primary/5 blur-3xl"></div>
+      </div>
+
+      <div className="relative z-10 flex w-full max-w-6xl flex-col items-center justify-center gap-8 px-4 py-8 md:flex-row">
+        <div className="hidden max-w-lg flex-1 flex-col space-y-12 pr-8 md:flex">
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-white">
+                <span className="material-symbols-outlined">inventory_2</span>
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Nexus Commerce</h1>
+            </div>
+            <p className="text-4xl font-black leading-tight tracking-[-0.033em] text-slate-900 dark:text-white">
+              Simplicity is the ultimate sophistication.
+            </p>
+            <p className="text-lg leading-relaxed text-slate-500 dark:text-slate-400">
+              Streamline your marketplace operations with our secure, unified management platform.
+            </p>
+          </div>
+          <div className="group relative flex h-48 w-full items-center justify-center overflow-hidden rounded-xl border border-white/60 bg-white/50 shadow-sm backdrop-blur-sm">
+            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#144bb8_1px,transparent_1px)] [background-size:16px_16px]"></div>
+            <div className="relative z-10 flex flex-col items-center gap-4 text-primary/80">
+              <span className="material-symbols-outlined text-6xl opacity-50">hub</span>
+              <p className="text-sm font-medium uppercase tracking-widest opacity-70">Unified Ecosystem</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative w-full max-w-[440px] overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-800">
+          <div className="group absolute top-0 right-0 z-20 cursor-pointer p-4" title="Login with Mini-program">
+            <div className="relative">
+              <div className="pointer-events-none absolute top-1/2 right-full mr-3 -translate-y-1/2 whitespace-nowrap rounded bg-slate-900 px-3 py-1.5 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
+                Scan QR Code
+              </div>
+              <div className="flex h-12 w-12 items-start justify-end text-primary/80 transition-colors hover:text-primary">
+                <span className="material-symbols-outlined text-4xl">qr_code_scanner</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-8 md:p-10">
+            <div className="mb-8 flex flex-col gap-2">
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Welcome Back</h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Please sign in to access your dashboard</p>
+            </div>
+
+            <form id="login-form" action="#" className="flex flex-col gap-5">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold text-slate-900 dark:text-slate-200">Select Role</label>
+                <div className="relative">
+                  <select
+                    id="role"
+                    className="block w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 p-3.5 pr-10 text-sm text-slate-900 outline-none transition-shadow focus:border-primary focus:ring-primary dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                  >
+                    <option value="admin">Administrator</option>
+                    <option value="sales">Sales Manager</option>
+                    <option value="support">Customer Service</option>
+                    <option value="logistics">Logistics Coordinator</option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                    <span className="material-symbols-outlined text-xl">expand_more</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold text-slate-900 dark:text-slate-200">Username or Email</label>
+                <div className="relative">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                    <span className="material-symbols-outlined text-[20px]">person</span>
+                  </div>
+                  <input
+                    id="username"
+                    className="block w-full rounded-lg border border-slate-200 bg-slate-50 p-3.5 pl-11 text-sm text-slate-900 outline-none transition-shadow placeholder:text-slate-400 focus:border-primary focus:ring-primary dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                    placeholder="name@company.com"
+                    required
+                    type="text"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-slate-900 dark:text-slate-200">Password</label>
+                  <a className="text-xs font-medium text-primary hover:text-primary/80 hover:underline" href="#">
+                    Forgot password?
+                  </a>
+                </div>
+                <div className="relative">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                    <span className="material-symbols-outlined text-[20px]">lock</span>
+                  </div>
+                  <input
+                    id="password"
+                    className="block w-full rounded-lg border border-slate-200 bg-slate-50 p-3.5 pr-11 pl-11 text-sm text-slate-900 outline-none transition-shadow placeholder:text-slate-400 focus:border-primary focus:ring-primary dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+                    placeholder="••••••••"
+                    required
+                    type="password"
+                  />
+                  <button
+                    id="toggle-password"
+                    className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-200"
+                    type="button"
+                  >
+                    <span id="toggle-password-icon" className="material-symbols-outlined text-[20px]">
+                      visibility_off
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <button
+                className="group/btn mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 py-3.5 text-center text-sm font-medium text-white shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 focus:ring-4 focus:ring-primary/30"
+                type="submit"
+              >
+                Sign In
+                <span className="material-symbols-outlined text-lg transition-transform group-hover/btn:translate-x-1">
+                  arrow_forward
+                </span>
+              </button>
+            </form>
+
+            <div className="mt-8 text-center">
+              <p className="text-xs text-slate-400">
+                Need help?{' '}
+                <a className="text-primary hover:underline" href="#">
+                  Contact Support
+                </a>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="pointer-events-none absolute bottom-4 left-0 w-full text-center">
+        <p className="text-xs text-slate-400/50 dark:text-slate-600">© 2026 Nexus Commerce Inc. All rights reserved.</p>
+      </div>
+    </div>
+  );
+};

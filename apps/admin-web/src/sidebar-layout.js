@@ -108,7 +108,10 @@ if (!supportedPaths.has(currentPath)) {
   const pageNodes = Array.from(body.children).filter((node) => node.tagName !== 'SCRIPT');
   pageNodes.forEach((node) => mainColumn.appendChild(node));
 
-  const topLevelMain = Array.from(mainColumn.children).find((node) => node.tagName === 'MAIN');
+  let topLevelMain = Array.from(mainColumn.children).find((node) => node.tagName === 'MAIN');
+  if (!topLevelMain) {
+    topLevelMain = mainColumn.querySelector('main');
+  }
   if (topLevelMain) {
     const existingClassName = topLevelMain.getAttribute('class') ?? '';
     const hasOverflowClass = /\boverflow(?:-[xy])?-(?:auto|hidden|scroll)\b/.test(existingClassName);

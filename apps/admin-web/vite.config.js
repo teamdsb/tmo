@@ -1,10 +1,12 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
+import react from '@vitejs/plugin-react';
 
 const proxyTarget = process.env.ADMIN_WEB_PROXY_TARGET || 'http://localhost:8080';
 const workspaceRoot = resolve(__dirname, '../..');
 
 export default defineConfig({
+  plugins: [react()],
   resolve: {
     alias: {
       '@tmo/api-client': resolve(__dirname, '../../packages/api-client/src/index.ts'),

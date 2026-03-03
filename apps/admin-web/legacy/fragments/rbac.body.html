@@ -1,0 +1,225 @@
+<main class="flex-1 flex flex-col h-screen overflow-hidden">
+      <header class="bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark px-8 py-5 flex items-center justify-between shrink-0">
+        <div>
+          <h1 class="text-2xl font-bold text-text-main dark:text-white">Roles & Permissions</h1>
+          <p class="mt-1 text-sm text-text-secondary">Manage role templates, scopes, and module-level permissions.</p>
+        </div>
+        <div class="flex gap-3">
+          <button class="px-4 py-2 bg-white dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg text-sm font-medium text-text-main dark:text-white shadow-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Cancel</button>
+          <button class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium shadow-sm hover:bg-blue-700 transition-colors flex items-center gap-2">
+            <span class="material-symbols-outlined text-lg">save</span>
+            Save Changes
+          </button>
+        </div>
+      </header>
+
+      <div class="flex-1 overflow-hidden flex flex-row">
+        <div class="w-80 bg-background-light dark:bg-background-dark border-r border-border-light dark:border-border-dark flex flex-col overflow-y-auto">
+          <div class="p-4 border-b border-border-light dark:border-border-dark bg-surface-light/50 backdrop-blur-sm sticky top-0 z-10">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-sm font-semibold text-text-secondary uppercase tracking-wider">Roles</h2>
+              <button class="text-primary hover:text-blue-700 p-1 rounded hover:bg-primary-light transition-colors">
+                <span class="material-symbols-outlined text-xl">add_circle</span>
+              </button>
+            </div>
+            <div class="relative">
+              <span class="material-symbols-outlined absolute left-2.5 top-2.5 text-text-secondary text-lg">search</span>
+              <input class="w-full pl-9 pr-3 py-2 bg-white dark:bg-surface-dark border border-border-light dark:border-border-dark rounded-lg text-sm focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all" placeholder="Search roles..." type="text" />
+            </div>
+          </div>
+
+          <div class="flex flex-col p-3 gap-2">
+            <button class="text-left p-3 rounded-lg bg-white dark:bg-surface-dark border border-primary shadow-sm ring-1 ring-primary/20 relative group">
+              <div class="flex justify-between items-start mb-1">
+                <h3 class="font-semibold text-text-main dark:text-white text-sm">Administrator</h3>
+                <span class="h-2 w-2 rounded-full bg-green-500 mt-1.5"></span>
+              </div>
+              <p class="text-xs text-text-secondary leading-relaxed">Full access to all settings, financial data, and user management.</p>
+              <div class="absolute right-2 bottom-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <span class="material-symbols-outlined text-text-secondary hover:text-primary text-lg">more_horiz</span>
+              </div>
+            </button>
+
+            <button class="text-left p-3 rounded-lg border border-transparent hover:bg-white dark:hover:bg-surface-dark hover:border-border-light dark:hover:border-border-dark transition-all group">
+              <div class="flex justify-between items-start mb-1">
+                <h3 class="font-semibold text-text-main dark:text-white text-sm">Sales Manager</h3>
+                <span class="h-2 w-2 rounded-full bg-gray-300 dark:bg-gray-600 mt-1.5"></span>
+              </div>
+              <p class="text-xs text-text-secondary leading-relaxed">Can manage orders, view customer data, and process refunds.</p>
+            </button>
+
+            <button class="text-left p-3 rounded-lg border border-transparent hover:bg-white dark:hover:bg-surface-dark hover:border-border-light dark:hover:border-border-dark transition-all group">
+              <div class="flex justify-between items-start mb-1">
+                <h3 class="font-semibold text-text-main dark:text-white text-sm">Operations Staff</h3>
+                <span class="h-2 w-2 rounded-full bg-gray-300 dark:bg-gray-600 mt-1.5"></span>
+              </div>
+              <p class="text-xs text-text-secondary leading-relaxed">Limited access to inventory management and shipping labels.</p>
+            </button>
+
+            <button class="text-left p-3 rounded-lg border border-transparent hover:bg-white dark:hover:bg-surface-dark hover:border-border-light dark:hover:border-border-dark transition-all group">
+              <div class="flex justify-between items-start mb-1">
+                <h3 class="font-semibold text-text-main dark:text-white text-sm">Support Agent</h3>
+                <span class="h-2 w-2 rounded-full bg-gray-300 dark:bg-gray-600 mt-1.5"></span>
+              </div>
+              <p class="text-xs text-text-secondary leading-relaxed">Read-only access to orders and customer profiles.</p>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex-1 bg-surface-light dark:bg-surface-dark overflow-y-auto p-8">
+          <div class="max-w-4xl mx-auto space-y-8">
+            <div class="flex flex-col gap-6 border-b border-border-light dark:border-border-dark pb-8">
+              <div class="flex justify-between items-start">
+                <div>
+                  <h2 class="text-xl font-bold text-text-main dark:text-white mb-2">Administrator Configuration</h2>
+                  <p class="text-text-secondary text-sm">Define what this role can see and do within the dashboard.</p>
+                </div>
+                <div class="flex items-center gap-3">
+                  <span class="text-sm font-medium text-text-secondary">Apply Template:</span>
+                  <select class="form-select text-sm border-border-light dark:border-border-dark rounded-lg py-2 pl-3 pr-8 bg-background-light dark:bg-background-dark focus:ring-primary focus:border-primary">
+                    <option>Custom Configuration</option>
+                    <option selected>Super Admin</option>
+                    <option>Store Manager</option>
+                    <option>Support Lead</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-6">
+              <div class="bg-white dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden">
+                <div class="bg-background-light dark:bg-[#1e2532] px-6 py-4 border-b border-border-light dark:border-border-dark flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="p-2 bg-white dark:bg-surface-dark rounded-lg border border-border-light dark:border-border-dark shadow-sm">
+                      <span class="material-symbols-outlined text-primary text-xl">shopping_bag</span>
+                    </div>
+                    <div>
+                      <h3 class="font-semibold text-text-main dark:text-white">Orders & Transactions</h3>
+                      <p class="text-xs text-text-secondary">Manage sales, refunds, and fulfillments.</p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <label class="text-xs font-medium text-text-secondary uppercase tracking-wide mr-2">Data Scope</label>
+                    <select class="form-select text-xs border-border-light dark:border-border-dark rounded-md py-1.5 pl-2 pr-7 bg-white dark:bg-surface-dark focus:ring-primary focus:border-primary">
+                      <option>All Orders</option>
+                      <option>Assigned Only</option>
+                      <option>Department Only</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <label class="flex items-start gap-3 cursor-pointer group">
+                    <input checked class="mt-1 h-4 w-4 rounded border-border-light text-primary focus:ring-primary" type="checkbox" />
+                    <div>
+                      <span class="block text-sm font-medium text-text-main dark:text-white group-hover:text-primary transition-colors">View Orders</span>
+                      <span class="block text-xs text-text-secondary mt-0.5">Allow access to the order list and details.</span>
+                    </div>
+                  </label>
+                  <label class="flex items-start gap-3 cursor-pointer group">
+                    <input checked class="mt-1 h-4 w-4 rounded border-border-light text-primary focus:ring-primary" type="checkbox" />
+                    <div>
+                      <span class="block text-sm font-medium text-text-main dark:text-white group-hover:text-primary transition-colors">Create Orders</span>
+                      <span class="block text-xs text-text-secondary mt-0.5">Manually create draft orders.</span>
+                    </div>
+                  </label>
+                  <label class="flex items-start gap-3 cursor-pointer group">
+                    <input checked class="mt-1 h-4 w-4 rounded border-border-light text-primary focus:ring-primary" type="checkbox" />
+                    <div>
+                      <span class="block text-sm font-medium text-text-main dark:text-white group-hover:text-primary transition-colors">Edit Orders</span>
+                      <span class="block text-xs text-text-secondary mt-0.5">Modify items, shipping, or customer details.</span>
+                    </div>
+                  </label>
+                  <label class="flex items-start gap-3 cursor-pointer group">
+                    <input class="mt-1 h-4 w-4 rounded border-border-light text-primary focus:ring-primary" type="checkbox" />
+                    <div>
+                      <span class="block text-sm font-medium text-text-main dark:text-white group-hover:text-primary transition-colors">Delete Orders</span>
+                      <span class="block text-xs text-text-secondary mt-0.5">Permanently remove order records.</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div class="bg-white dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden">
+                <div class="bg-background-light dark:bg-[#1e2532] px-6 py-4 border-b border-border-light dark:border-border-dark flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="p-2 bg-white dark:bg-surface-dark rounded-lg border border-border-light dark:border-border-dark shadow-sm">
+                      <span class="material-symbols-outlined text-primary text-xl">sell</span>
+                    </div>
+                    <div>
+                      <h3 class="font-semibold text-text-main dark:text-white">Products & Inventory</h3>
+                      <p class="text-xs text-text-secondary">Catalog management and stock control.</p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <label class="text-xs font-medium text-text-secondary uppercase tracking-wide mr-2">Data Scope</label>
+                    <select class="form-select text-xs border-border-light dark:border-border-dark rounded-md py-1.5 pl-2 pr-7 bg-white dark:bg-surface-dark focus:ring-primary focus:border-primary">
+                      <option>All Products</option>
+                      <option>Vendor Only</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <label class="flex items-start gap-3 cursor-pointer group">
+                    <input checked class="mt-1 h-4 w-4 rounded border-border-light text-primary focus:ring-primary" type="checkbox" />
+                    <div>
+                      <span class="block text-sm font-medium text-text-main dark:text-white group-hover:text-primary transition-colors">View Products</span>
+                      <span class="block text-xs text-text-secondary mt-0.5">Browse product catalog.</span>
+                    </div>
+                  </label>
+                  <label class="flex items-start gap-3 cursor-pointer group">
+                    <input checked class="mt-1 h-4 w-4 rounded border-border-light text-primary focus:ring-primary" type="checkbox" />
+                    <div>
+                      <span class="block text-sm font-medium text-text-main dark:text-white group-hover:text-primary transition-colors">Manage Inventory</span>
+                      <span class="block text-xs text-text-secondary mt-0.5">Update stock levels and variants.</span>
+                    </div>
+                  </label>
+                  <label class="flex items-start gap-3 cursor-pointer group">
+                    <input checked class="mt-1 h-4 w-4 rounded border-border-light text-primary focus:ring-primary" type="checkbox" />
+                    <div>
+                      <span class="block text-sm font-medium text-text-main dark:text-white group-hover:text-primary transition-colors">Edit Pricing</span>
+                      <span class="block text-xs text-text-secondary mt-0.5">Modify base price and discounts.</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div class="bg-white dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden opacity-80">
+                <div class="bg-background-light dark:bg-[#1e2532] px-6 py-4 border-b border-border-light dark:border-border-dark flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="p-2 bg-white dark:bg-surface-dark rounded-lg border border-border-light dark:border-border-dark shadow-sm">
+                      <span class="material-symbols-outlined text-text-secondary text-xl">group</span>
+                    </div>
+                    <div>
+                      <h3 class="font-semibold text-text-main dark:text-white">Customer Data</h3>
+                      <p class="text-xs text-text-secondary">PII and customer relationship management.</p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <label class="text-xs font-medium text-text-secondary uppercase tracking-wide mr-2">Data Scope</label>
+                    <select class="form-select text-xs border-border-light dark:border-border-dark rounded-md py-1.5 pl-2 pr-7 bg-white dark:bg-surface-dark focus:ring-primary focus:border-primary">
+                      <option>Global</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <label class="flex items-start gap-3 cursor-pointer group">
+                    <input class="mt-1 h-4 w-4 rounded border-border-light text-primary focus:ring-primary" type="checkbox" />
+                    <div>
+                      <span class="block text-sm font-medium text-text-main dark:text-white group-hover:text-primary transition-colors">View PII</span>
+                      <span class="block text-xs text-text-secondary mt-0.5">See emails, phone numbers, and addresses.</span>
+                    </div>
+                  </label>
+                  <label class="flex items-start gap-3 cursor-pointer group">
+                    <input class="mt-1 h-4 w-4 rounded border-border-light text-primary focus:ring-primary" type="checkbox" />
+                    <div>
+                      <span class="block text-sm font-medium text-text-main dark:text-white group-hover:text-primary transition-colors">Export Data</span>
+                      <span class="block text-xs text-text-secondary mt-0.5">Download customer lists.</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>

@@ -32,6 +32,12 @@ pnpm run dev:admin-web:stack
 
 `http://localhost:5174`
 
+## React 迁移说明
+
+- 页面入口已切换为 React + TypeScript 多入口（仍保持 `*.html` URL 不变）。
+- 原生版本完整快照保留在 `legacy/pages/`，页面 DOM 片段保留在 `legacy/fragments/`。
+- 迁移阶段 React 入口会渲染 legacy 片段并加载原页面脚本，以保证行为一致与可回滚。
+
 ## 模式说明
 
 - `mock`：保持现有纯前端原型行为，不请求后端。
@@ -53,9 +59,18 @@ pnpm run smoke:admin-web
 - username: `admin`
 - password: `admin123`
 
+## 视觉回归
+
+```bash
+pnpm -C apps/admin-web test:visual
+```
+
+- 对比对象：`/legacy/pages/*.html` vs `/*.html`
+- 视口：桌面与移动端
+- 默认阈值：单页像素差异率 `<= 1%`
+
 ## 统一布局规则
 
-- 除登录页外，所有后台页面必须使用与 `dashboard` 一致的左侧边栏导航（统一菜单、统一样式、统一高亮逻辑）。
-- 统一侧边栏由 `apps/admin-web/src/sidebar-layout.js` 注入，页面需在末尾引入：
-  - `<script type="module" src="/src/sidebar-layout.js"></script>`
-- 页面可保留各自的顶部内容区与业务主体区，但不得删除或替换统一侧边栏。
+- 除登录页与仪表盘页外，后台页面统一由 React 渲染侧边栏导航（统一菜单、统一样式、统一高亮逻辑）。
+- 统一侧边栏由 `apps/admin-web/src/react/runtime/mountAdminPage.tsx` + `apps/admin-web/src/react/layout/AdminSidebar.tsx` 提供。
+- `apps/admin-web/src/sidebar-layout.js` 仅用于 legacy 快照页面对照，不再作为主入口布局依赖。
