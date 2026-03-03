@@ -510,6 +510,57 @@ const getSummaryElement = () => {
   return document.querySelector('[data-role="products-summary"]');
 };
 
+const getProductsTable = () => {
+  return document.querySelector('[data-role="products-table"]');
+};
+
+const getSelectAllProductsCheckbox = () => {
+  const table = getProductsTable();
+  if (!(table instanceof HTMLTableElement)) {
+    return null;
+  }
+  const checkbox = table.querySelector('[data-role="select-all-products"]');
+  return checkbox instanceof HTMLInputElement ? checkbox : null;
+};
+
+const getProductRowCheckboxes = () => {
+  const table = getProductsTable();
+  if (!(table instanceof HTMLTableElement)) {
+    return [];
+  }
+  return Array.from(table.querySelectorAll('tbody input[data-role="select-product-row"]')).filter(
+    (input) => input instanceof HTMLInputElement
+  );
+};
+
+const syncSelectAllProductsState = () => {
+  const selectAllCheckbox = getSelectAllProductsCheckbox();
+  if (!(selectAllCheckbox instanceof HTMLInputElement)) {
+    return;
+  }
+
+  const rowCheckboxes = getProductRowCheckboxes();
+  if (rowCheckboxes.length === 0) {
+    selectAllCheckbox.checked = false;
+    selectAllCheckbox.indeterminate = false;
+    selectAllCheckbox.disabled = true;
+    return;
+  }
+
+  const checkedCount = rowCheckboxes.filter((checkbox) => checkbox.checked).length;
+  selectAllCheckbox.disabled = false;
+  selectAllCheckbox.checked = checkedCount > 0 && checkedCount === rowCheckboxes.length;
+  selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < rowCheckboxes.length;
+};
+
+const setCurrentPageRowsSelected = (checked) => {
+  const rowCheckboxes = getProductRowCheckboxes();
+  rowCheckboxes.forEach((checkbox) => {
+    checkbox.checked = checked;
+  });
+  syncSelectAllProductsState();
+};
+
 const getPaginationContainer = () => {
   return document.querySelector('[data-role="page-numbers"]');
 };
@@ -700,7 +751,7 @@ const renderProductRow = (item) => {
 
   return `
     <tr class="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors" data-product-id="${escape(safeText(item.id))}">
-      <td class="px-6 py-4"><input class="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary bg-transparent" type="checkbox" /></td>
+      <td class="px-6 py-4"><input class="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary bg-transparent" data-role="select-product-row" type="checkbox" /></td>
       <td class="px-6 py-4">
         <div class="flex items-center gap-4">
           <div class="size-12 rounded bg-slate-200 dark:bg-slate-700 flex-shrink-0 bg-cover bg-center" style="${image ? `background-image:url('${escape(image)}')` : ''}"></div>
@@ -806,6 +857,7 @@ const renderCurrentPage = () => {
     tbody.innerHTML = `<tr><td colspan="8" class="px-6 py-5 text-sm text-slate-500">${emptyMessage}</td></tr>`;
     updateSummary(0, 0, useRemotePageWindow ? state.total : localTotal);
     renderPagination(useRemotePageWindow ? state.total : localTotal);
+    syncSelectAllProductsState();
     return;
   }
 
@@ -818,6 +870,7 @@ const renderCurrentPage = () => {
   const end = useRemotePageWindow ? start + pageItems.length - 1 : Math.min(offset + pageItems.length, localTotal);
   updateSummary(start, end, useRemotePageWindow ? state.total : localTotal);
   renderPagination(useRemotePageWindow ? state.total : localTotal);
+  syncSelectAllProductsState();
 };
 
 const applyProducts = (items, total = items.length, currentPage = 1, remote = false) => {
@@ -1830,6 +1883,10 @@ const hydrateStaticRows = () => {
         'inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-xs font-medium text-slate-500 hover:border-slate-200 hover:bg-slate-50 hover:text-primary transition-colors';
       actionButton.innerHTML = '<span class="material-symbols-outlined text-base">edit</span><span class="hidden sm:inline">编辑</span>';
     }
+    const rowCheckbox = row.querySelector('td:first-child input[type="checkbox"]');
+    if (rowCheckbox instanceof HTMLInputElement) {
+      rowCheckbox.setAttribute('data-role', 'select-product-row');
+    }
     const product = getProductFromRow(row);
     row.dataset.productId = safeText(product.id);
     upsertProductInState(product);
@@ -1841,6 +1898,29 @@ const hydrateStaticRows = () => {
     rebuildProductIndexes();
     renderCurrentPage();
   }
+};
+
+const bindSelectionActions = () => {
+  const table = getProductsTable();
+  if (!(table instanceof HTMLTableElement)) {
+    return;
+  }
+
+  table.addEventListener('change', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) {
+      return;
+    }
+
+    if (target.matches('[data-role="select-all-products"]')) {
+      setCurrentPageRowsSelected(target.checked);
+      return;
+    }
+
+    if (target.matches('tbody input[data-role="select-product-row"]')) {
+      syncSelectAllProductsState();
+    }
+  });
 };
 
 const bindProductRowActions = () => {
@@ -2388,11 +2468,13 @@ const initProducts = async () => {
   state.total = 0;
   hydrateStaticRows();
   bindProductRowActions();
+  bindSelectionActions();
   bindPaginationActions();
   ensureEditDrawer();
   bindCreateProductAction();
   bindCategoryManageAction();
   syncCategorySelectOptions();
+  syncSelectAllProductsState();
   bindFilterActions();
 
   if (context.mode !== 'dev') {

@@ -61,7 +61,7 @@ const AdminPage = ({ content, currentPath }: AdminPageProps) => {
   return (
     <div className="flex h-screen w-full flex-row overflow-hidden">
       <AdminSidebar currentKey={resolveCurrentKey(currentPath)} currentSettingKey={resolveCurrentSettingKey(currentPath)} />
-      <div id="react-admin-main-column" className="flex min-w-0 flex-1 h-screen flex-col overflow-hidden">
+      <div id="react-admin-main-column" className="flex min-w-0 flex-1 h-screen flex-col overflow-y-auto overflow-x-hidden">
         {content}
       </div>
     </div>

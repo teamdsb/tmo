@@ -149,6 +149,7 @@ const ProductTableRow = ({ row }: ProductTableRowProps) => {
       <td className="px-6 py-4">
         <input
           className="rounded border-slate-300 bg-transparent text-primary focus:ring-primary dark:border-slate-600"
+          data-role="select-product-row"
           type="checkbox"
         />
       </td>
@@ -294,12 +295,13 @@ export const ProductsPage = () => {
 
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-surface-light shadow-sm dark:border-slate-800 dark:bg-surface-dark">
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left">
+            <table className="w-full border-collapse text-left" data-role="products-table">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-800/50">
                   <th className="w-[60px] px-6 py-4 text-xs font-bold tracking-wider text-slate-500 uppercase dark:text-slate-400">
                     <input
                       className="rounded border-slate-300 bg-transparent text-primary focus:ring-primary dark:border-slate-600"
+                      data-role="select-all-products"
                       type="checkbox"
                     />
                   </th>
