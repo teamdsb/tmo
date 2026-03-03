@@ -41,24 +41,24 @@ const mountDevLayout = (main) => {
   main.innerHTML = `
     <div class="mx-auto w-full max-w-7xl space-y-6">
       <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h1 class="text-2xl font-bold text-slate-900">Orders (Live)</h1>
-        <p class="mt-1 text-sm text-slate-500">Dev mode renders only backend order data.</p>
+        <h1 class="text-2xl font-bold text-slate-900">订单（实时）</h1>
+        <p class="mt-1 text-sm text-slate-500">Dev 模式仅展示后端真实订单数据。</p>
         <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3" data-role="metrics"></div>
       </section>
 
       <section class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="border-b border-slate-200 px-6 py-4">
-          <h2 class="text-base font-semibold text-slate-900">Order List</h2>
+          <h2 class="text-base font-semibold text-slate-900">订单列表</h2>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm text-slate-600">
             <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
               <tr>
-                <th class="px-6 py-3">Order ID</th>
-                <th class="px-6 py-3">Customer</th>
-                <th class="px-6 py-3">Date</th>
-                <th class="px-6 py-3">Amount</th>
-                <th class="px-6 py-3">Status</th>
+                <th class="px-6 py-3">订单号</th>
+                <th class="px-6 py-3">客户</th>
+                <th class="px-6 py-3">日期</th>
+                <th class="px-6 py-3">金额</th>
+                <th class="px-6 py-3">状态</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100" data-role="orders-body"></tbody>
@@ -83,9 +83,9 @@ const renderMetrics = (container, payload) => {
   const delivered = countByStatuses(items, ['DELIVERED']);
 
   container.innerHTML = `
-    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs text-slate-500">Total Orders</p><p class="mt-1 text-xl font-bold text-slate-900">${escape(total)}</p></div>
-    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs text-slate-500">Pending (Current Page)</p><p class="mt-1 text-xl font-bold text-slate-900">${escape(pending)}</p></div>
-    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs text-slate-500">Delivered (Current Page)</p><p class="mt-1 text-xl font-bold text-slate-900">${escape(delivered)}</p></div>
+    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs text-slate-500">订单总数</p><p class="mt-1 text-xl font-bold text-slate-900">${escape(total)}</p></div>
+    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs text-slate-500">待处理（当前页）</p><p class="mt-1 text-xl font-bold text-slate-900">${escape(pending)}</p></div>
+    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs text-slate-500">已送达（当前页）</p><p class="mt-1 text-xl font-bold text-slate-900">${escape(delivered)}</p></div>
   `;
 };
 
@@ -98,14 +98,14 @@ const renderOrdersTable = (tbody, payload) => {
   if (items.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="5" class="px-6 py-5">No orders found in backend.</td>
+        <td colspan="5" class="px-6 py-5">后端未返回订单数据。</td>
       </tr>
     `;
     return;
   }
 
   tbody.innerHTML = items.map((order) => {
-    const customerName = safeText(order?.address?.receiverName, 'Customer');
+    const customerName = safeText(order?.address?.receiverName, '客户');
     const amount = formatCurrencyFen(calcAmountFen(order));
 
     return `
@@ -131,7 +131,7 @@ const renderSummaryText = (container, payload) => {
   }
   const items = Array.isArray(payload?.items) ? payload.items : [];
   const total = Number(payload?.total || items.length);
-  container.textContent = `Showing ${items.length} orders from current page, total ${total}.`;
+  container.textContent = `当前页显示 ${items.length} 笔订单，总计 ${total} 笔。`;
 };
 
 const initOrders = async () => {
@@ -149,7 +149,7 @@ const initOrders = async () => {
 
   const response = await fetchOrders({ page: 1, pageSize: 20 });
   if (response.status !== 200 || !response.data) {
-    renderErrorState(main, 'Failed to load /orders');
+    renderErrorState(main, '加载 /orders 失败');
     return;
   }
 
@@ -164,8 +164,8 @@ const initOrders = async () => {
 
   if (logisticsPlaceholder) {
     logisticsPlaceholder.innerHTML = buildEmptyState(
-      'Logistics Detail Panel',
-      'No dedicated live logistics detail panel is wired for this page in dev mode.'
+      '物流详情面板',
+      'Dev 模式下该页面尚未接入专用实时物流详情面板。'
     );
   }
 };

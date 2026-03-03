@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>Supplier Directory & Performance Center</title>
+    <title>供应商名录与绩效中心</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link
@@ -39,24 +39,24 @@
               <div class="size-8 rounded bg-primary/10 text-primary flex items-center justify-center">
                 <span class="material-symbols-outlined">inventory_2</span>
               </div>
-              <h2 class="text-lg font-bold leading-tight tracking-tight">Marketplace Backend</h2>
+              <h2 class="text-lg font-bold leading-tight tracking-tight">管理控制台</h2>
             </div>
             <label class="flex flex-col min-w-40 !h-10 w-96">
               <div class="flex w-full flex-1 items-stretch rounded-lg h-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
                 <div class="text-slate-400 flex items-center justify-center pl-3">
                   <span class="material-symbols-outlined text-[20px]">search</span>
                 </div>
-                <input class="flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg bg-transparent text-slate-900 focus:outline-0 border-none h-full placeholder:text-slate-400 px-3 text-sm font-normal leading-normal" placeholder="Search suppliers, orders, or SKUs..." value="" />
+                <input class="flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg bg-transparent text-slate-900 focus:outline-0 border-none h-full placeholder:text-slate-400 px-3 text-sm font-normal leading-normal" placeholder="搜索供应商、订单或商品编号..." value="" />
               </div>
             </label>
           </div>
           <div class="flex items-center gap-6">
             <nav class="hidden lg:flex items-center gap-6">
-              <a class="text-slate-500 hover:text-primary text-sm font-medium transition-colors" href="/dashboard.html">Dashboard</a>
-              <a class="text-primary text-sm font-medium bg-primary/5 px-3 py-1.5 rounded-full transition-colors" href="/suppliers.html">Suppliers</a>
-              <a class="text-slate-500 hover:text-primary text-sm font-medium transition-colors" href="/orders.html">Orders</a>
-              <a class="text-slate-500 hover:text-primary text-sm font-medium transition-colors" href="/products.html">Inventory</a>
-              <a class="text-slate-500 hover:text-primary text-sm font-medium transition-colors" href="/inquiries.html">Analytics</a>
+              <a class="text-slate-500 hover:text-primary text-sm font-medium transition-colors" href="/dashboard.html">仪表盘</a>
+              <a class="text-primary text-sm font-medium bg-primary/5 px-3 py-1.5 rounded-full transition-colors" href="/suppliers.html">供应商</a>
+              <a class="text-slate-500 hover:text-primary text-sm font-medium transition-colors" href="/orders.html">订单</a>
+              <a class="text-slate-500 hover:text-primary text-sm font-medium transition-colors" href="/products.html">库存</a>
+              <a class="text-slate-500 hover:text-primary text-sm font-medium transition-colors" href="/inquiries.html">分析</a>
             </nav>
             <div class="flex items-center gap-3 border-l border-slate-200 pl-6">
               <button class="relative text-slate-400 hover:text-slate-600">
@@ -71,17 +71,17 @@
         <main class="px-8 py-8 w-full max-w-[1600px] mx-auto flex flex-col gap-8">
           <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
             <div class="flex flex-col gap-2">
-              <h1 class="text-slate-900 text-3xl font-bold tracking-tight">Supplier Management</h1>
-              <p class="text-slate-500 text-base max-w-2xl">Monitor supplier relationships, track performance metrics, and manage procurement contracts.</p>
+              <h1 class="text-slate-900 text-3xl font-bold tracking-tight">供应商管理</h1>
+              <p class="text-slate-500 text-base max-w-2xl">监控供应商关系，追踪绩效指标，并管理采购合同。</p>
             </div>
             <div class="flex gap-3">
               <button class="flex items-center justify-center gap-2 rounded-lg h-10 px-4 bg-white border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 shadow-sm transition-colors">
                 <span class="material-symbols-outlined text-[20px]">file_download</span>
-                <span>Export Report</span>
+                <span>导出报表</span>
               </button>
               <button class="flex items-center justify-center gap-2 rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold shadow-md hover:bg-blue-700 hover:shadow-lg transition-all">
                 <span class="material-symbols-outlined text-[20px]">add</span>
-                <span>Add New Supplier</span>
+                <span>新增供应商</span>
               </button>
             </div>
           </div>
@@ -91,45 +91,45 @@
               <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                 <span class="material-symbols-outlined text-6xl text-primary">groups</span>
               </div>
-              <p class="text-slate-500 text-sm font-medium">Total Suppliers</p>
+              <p class="text-slate-500 text-sm font-medium">供应商总数</p>
               <div class="flex items-baseline gap-2 mt-1">
                 <p class="text-slate-900 text-3xl font-bold">142</p>
                 <span class="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded text-xs font-bold flex items-center"><span class="material-symbols-outlined text-[14px]">arrow_upward</span> 5%</span>
               </div>
-              <p class="text-slate-400 text-xs mt-2">Vs last month</p>
+              <p class="text-slate-400 text-xs mt-2">较上月</p>
             </div>
             <div class="flex flex-col gap-1 rounded-xl p-5 bg-white border border-slate-200 shadow-sm relative overflow-hidden group">
               <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                 <span class="material-symbols-outlined text-6xl text-primary">verified</span>
               </div>
-              <p class="text-slate-500 text-sm font-medium">Active Partnerships</p>
+              <p class="text-slate-500 text-sm font-medium">活跃合作数</p>
               <div class="flex items-baseline gap-2 mt-1">
                 <p class="text-slate-900 text-3xl font-bold">118</p>
                 <span class="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded text-xs font-bold flex items-center"><span class="material-symbols-outlined text-[14px]">arrow_upward</span> 2%</span>
               </div>
-              <p class="text-slate-400 text-xs mt-2">83% Utilization Rate</p>
+              <p class="text-slate-400 text-xs mt-2">83% 利用率</p>
             </div>
             <div class="flex flex-col gap-1 rounded-xl p-5 bg-white border border-slate-200 shadow-sm relative overflow-hidden group">
               <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                 <span class="material-symbols-outlined text-6xl text-primary">local_shipping</span>
               </div>
-              <p class="text-slate-500 text-sm font-medium">Avg. Delivery Score</p>
+              <p class="text-slate-500 text-sm font-medium">平均交付评分</p>
               <div class="flex items-baseline gap-2 mt-1">
                 <p class="text-slate-900 text-3xl font-bold">94%</p>
                 <span class="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded text-xs font-bold flex items-center"><span class="material-symbols-outlined text-[14px]">arrow_upward</span> 1.5%</span>
               </div>
-              <p class="text-slate-400 text-xs mt-2">On-Time In Full (OTIF)</p>
+              <p class="text-slate-400 text-xs mt-2">准时足量交付率</p>
             </div>
             <div class="flex flex-col gap-1 rounded-xl p-5 bg-white border border-slate-200 shadow-sm relative overflow-hidden group">
               <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                 <span class="material-symbols-outlined text-6xl text-primary">request_quote</span>
               </div>
-              <p class="text-slate-500 text-sm font-medium">Pending Quotations</p>
+              <p class="text-slate-500 text-sm font-medium">待处理报价</p>
               <div class="flex items-baseline gap-2 mt-1">
                 <p class="text-slate-900 text-3xl font-bold">23</p>
                 <span class="text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded text-xs font-bold flex items-center"><span class="material-symbols-outlined text-[14px]">remove</span> 0%</span>
               </div>
-              <p class="text-slate-400 text-xs mt-2">Needs attention</p>
+              <p class="text-slate-400 text-xs mt-2">需关注</p>
             </div>
           </div>
 
@@ -137,61 +137,61 @@
             <div class="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
               <div class="flex items-center justify-between mb-6">
                 <div>
-                  <h3 class="text-slate-900 text-lg font-bold">Delivery Performance Trend</h3>
-                  <p class="text-slate-500 text-sm">Aggregated supplier OTIF scores over last 6 months</p>
+                  <h3 class="text-slate-900 text-lg font-bold">交付绩效趋势</h3>
+                  <p class="text-slate-500 text-sm">近 6 个月供应商准时足量交付率汇总</p>
                 </div>
                 <select class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-primary focus:border-primary block p-2">
-                  <option>Last 6 Months</option>
-                  <option>Last Year</option>
+                  <option>近6个月</option>
+                  <option>近1年</option>
                 </select>
               </div>
               <div class="relative h-64 w-full flex items-end justify-between gap-2 px-2">
                 <div class="absolute inset-0 flex flex-col justify-between pointer-events-none z-0">
                   <div class="w-full h-px bg-slate-100"></div><div class="w-full h-px bg-slate-100"></div><div class="w-full h-px bg-slate-100"></div><div class="w-full h-px bg-slate-100"></div><div class="w-full h-px bg-slate-100"></div>
                 </div>
-                <div class="relative z-10 flex-1 flex flex-col items-center group cursor-pointer"><div class="w-full max-w-[40px] bg-primary/20 h-[60%] rounded-t-sm group-hover:bg-primary/30 transition-all relative"><div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded transition-opacity whitespace-nowrap">82%</div></div><span class="text-xs text-slate-500 mt-2">Jan</span></div>
-                <div class="relative z-10 flex-1 flex flex-col items-center group cursor-pointer"><div class="w-full max-w-[40px] bg-primary/30 h-[75%] rounded-t-sm group-hover:bg-primary/40 transition-all relative"><div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded transition-opacity whitespace-nowrap">88%</div></div><span class="text-xs text-slate-500 mt-2">Feb</span></div>
-                <div class="relative z-10 flex-1 flex flex-col items-center group cursor-pointer"><div class="w-full max-w-[40px] bg-primary/40 h-[65%] rounded-t-sm group-hover:bg-primary/50 transition-all relative"><div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded transition-opacity whitespace-nowrap">85%</div></div><span class="text-xs text-slate-500 mt-2">Mar</span></div>
-                <div class="relative z-10 flex-1 flex flex-col items-center group cursor-pointer"><div class="w-full max-w-[40px] bg-primary/60 h-[85%] rounded-t-sm group-hover:bg-primary/70 transition-all relative"><div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded transition-opacity whitespace-nowrap">91%</div></div><span class="text-xs text-slate-500 mt-2">Apr</span></div>
-                <div class="relative z-10 flex-1 flex flex-col items-center group cursor-pointer"><div class="w-full max-w-[40px] bg-primary/80 h-[90%] rounded-t-sm group-hover:bg-primary/90 transition-all relative"><div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded transition-opacity whitespace-nowrap">93%</div></div><span class="text-xs text-slate-500 mt-2">May</span></div>
-                <div class="relative z-10 flex-1 flex flex-col items-center group cursor-pointer"><div class="w-full max-w-[40px] bg-primary h-[94%] rounded-t-sm group-hover:bg-blue-700 transition-all relative shadow-lg shadow-primary/20"><div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded transition-opacity whitespace-nowrap">94%</div></div><span class="text-xs text-slate-500 mt-2 font-bold text-primary">Jun</span></div>
+                <div class="relative z-10 flex-1 flex flex-col items-center group cursor-pointer"><div class="w-full max-w-[40px] bg-primary/20 h-[60%] rounded-t-sm group-hover:bg-primary/30 transition-all relative"><div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded transition-opacity whitespace-nowrap">82%</div></div><span class="text-xs text-slate-500 mt-2">1月</span></div>
+                <div class="relative z-10 flex-1 flex flex-col items-center group cursor-pointer"><div class="w-full max-w-[40px] bg-primary/30 h-[75%] rounded-t-sm group-hover:bg-primary/40 transition-all relative"><div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded transition-opacity whitespace-nowrap">88%</div></div><span class="text-xs text-slate-500 mt-2">2月</span></div>
+                <div class="relative z-10 flex-1 flex flex-col items-center group cursor-pointer"><div class="w-full max-w-[40px] bg-primary/40 h-[65%] rounded-t-sm group-hover:bg-primary/50 transition-all relative"><div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded transition-opacity whitespace-nowrap">85%</div></div><span class="text-xs text-slate-500 mt-2">3月</span></div>
+                <div class="relative z-10 flex-1 flex flex-col items-center group cursor-pointer"><div class="w-full max-w-[40px] bg-primary/60 h-[85%] rounded-t-sm group-hover:bg-primary/70 transition-all relative"><div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded transition-opacity whitespace-nowrap">91%</div></div><span class="text-xs text-slate-500 mt-2">4月</span></div>
+                <div class="relative z-10 flex-1 flex flex-col items-center group cursor-pointer"><div class="w-full max-w-[40px] bg-primary/80 h-[90%] rounded-t-sm group-hover:bg-primary/90 transition-all relative"><div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded transition-opacity whitespace-nowrap">93%</div></div><span class="text-xs text-slate-500 mt-2">5月</span></div>
+                <div class="relative z-10 flex-1 flex flex-col items-center group cursor-pointer"><div class="w-full max-w-[40px] bg-primary h-[94%] rounded-t-sm group-hover:bg-blue-700 transition-all relative shadow-lg shadow-primary/20"><div class="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded transition-opacity whitespace-nowrap">94%</div></div><span class="text-xs text-slate-500 mt-2 font-bold text-primary">6月</span></div>
               </div>
             </div>
 
             <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm flex flex-col gap-6">
               <div>
-                <h3 class="text-slate-900 text-lg font-bold">Pricing Variance</h3>
-                <p class="text-slate-500 text-sm mb-4">Vs Market Average</p>
+                <h3 class="text-slate-900 text-lg font-bold">价格偏差</h3>
+                <p class="text-slate-500 text-sm mb-4">对比市场均值</p>
                 <div class="flex items-center gap-4">
                   <div class="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden"><div class="bg-emerald-500 h-full w-[65%]"></div></div>
                   <span class="text-sm font-bold text-slate-900">-2.3%</span>
                 </div>
-                <p class="text-xs text-slate-400 mt-2">Your suppliers are cheaper than market avg.</p>
+                <p class="text-xs text-slate-400 mt-2">当前供应商价格低于市场平均水平。</p>
               </div>
               <div class="h-px bg-slate-100"></div>
               <div>
-                <h3 class="text-slate-900 text-lg font-bold">Risk Assessment</h3>
-                <p class="text-slate-500 text-sm mb-4">Supplier Stability Index</p>
+                <h3 class="text-slate-900 text-lg font-bold">风险评估</h3>
+                <p class="text-slate-500 text-sm mb-4">供应商稳定性指数</p>
                 <div class="flex gap-2">
-                  <div class="flex-1 flex flex-col gap-1 items-center p-3 rounded-lg bg-emerald-50 border border-emerald-100"><span class="text-emerald-700 font-bold text-xl">112</span><span class="text-emerald-600 text-xs">Low Risk</span></div>
-                  <div class="flex-1 flex flex-col gap-1 items-center p-3 rounded-lg bg-amber-50 border border-amber-100"><span class="text-amber-700 font-bold text-xl">24</span><span class="text-amber-600 text-xs">Med Risk</span></div>
-                  <div class="flex-1 flex flex-col gap-1 items-center p-3 rounded-lg bg-red-50 border border-red-100"><span class="text-red-700 font-bold text-xl">6</span><span class="text-red-600 text-xs">High Risk</span></div>
+                  <div class="flex-1 flex flex-col gap-1 items-center p-3 rounded-lg bg-emerald-50 border border-emerald-100"><span class="text-emerald-700 font-bold text-xl">112</span><span class="text-emerald-600 text-xs">低风险</span></div>
+                  <div class="flex-1 flex flex-col gap-1 items-center p-3 rounded-lg bg-amber-50 border border-amber-100"><span class="text-amber-700 font-bold text-xl">24</span><span class="text-amber-600 text-xs">中风险</span></div>
+                  <div class="flex-1 flex flex-col gap-1 items-center p-3 rounded-lg bg-red-50 border border-red-100"><span class="text-red-700 font-bold text-xl">6</span><span class="text-red-600 text-xs">高风险</span></div>
                 </div>
               </div>
-              <div class="mt-auto"><button class="w-full text-primary text-sm font-semibold hover:bg-primary/5 py-2 rounded-lg transition-colors">View Risk Details</button></div>
+              <div class="mt-auto"><button class="w-full text-primary text-sm font-semibold hover:bg-primary/5 py-2 rounded-lg transition-colors">查看风险明细</button></div>
             </div>
           </div>
 
           <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div class="p-5 border-b border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
               <div class="flex items-center gap-2">
-                <h3 class="text-slate-900 text-lg font-bold">Supplier Directory</h3>
+                <h3 class="text-slate-900 text-lg font-bold">供应商名录</h3>
                 <span class="bg-slate-100 text-slate-600 text-xs font-bold px-2 py-0.5 rounded-full">142</span>
               </div>
               <div class="flex items-center gap-3 w-full md:w-auto">
-                <button class="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50"><span class="material-symbols-outlined text-[18px]">filter_list</span><span>Filter</span></button>
-                <button class="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50"><span class="material-symbols-outlined text-[18px]">sort</span><span>Sort</span></button>
-                <div class="relative flex-1 md:w-64"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 material-symbols-outlined text-[18px]">search</span><input class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:bg-white transition-all" placeholder="Search supplier name..." type="text" /></div>
+                <button class="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50"><span class="material-symbols-outlined text-[18px]">filter_list</span><span>筛选</span></button>
+                <button class="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50"><span class="material-symbols-outlined text-[18px]">sort</span><span>排序</span></button>
+                <div class="relative flex-1 md:w-64"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 material-symbols-outlined text-[18px]">search</span><input class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:bg-white transition-all" placeholder="搜索供应商名称..." type="text" /></div>
               </div>
             </div>
 
@@ -199,86 +199,86 @@
               <table class="w-full text-left border-collapse">
                 <thead>
                   <tr class="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold tracking-wider">
-                    <th class="px-6 py-4">Supplier Profile</th>
-                    <th class="px-6 py-4">Category</th>
-                    <th class="px-6 py-4 text-center">Status</th>
-                    <th class="px-6 py-4 text-center">Score</th>
-                    <th class="px-6 py-4">Last Quote</th>
-                    <th class="px-6 py-4 text-right">Actions</th>
+                    <th class="px-6 py-4">供应商档案</th>
+                    <th class="px-6 py-4">品类</th>
+                    <th class="px-6 py-4 text-center">状态</th>
+                    <th class="px-6 py-4 text-center">评分</th>
+                    <th class="px-6 py-4">最近报价</th>
+                    <th class="px-6 py-4 text-right">操作</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-200">
                   <tr class="hover:bg-slate-50/50 transition-colors group">
-                    <td class="px-6 py-4"><div class="flex items-center gap-3"><div class="size-10 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm shrink-0">GT</div><div><p class="text-sm font-bold text-slate-900">Global Tech Solutions</p><p class="text-xs text-slate-500">San Jose, CA • ID: #88392</p></div></div></td>
-                    <td class="px-6 py-4"><div class="flex flex-wrap gap-1"><span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">Electronics</span><span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">Chips</span></div></td>
-                    <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold"><span class="size-1.5 rounded-full bg-emerald-600"></span> Active</span></td>
+                    <td class="px-6 py-4"><div class="flex items-center gap-3"><div class="size-10 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm shrink-0">环</div><div><p class="text-sm font-bold text-slate-900">环球科技方案</p><p class="text-xs text-slate-500">美国圣何塞 • 编号 #88392</p></div></div></td>
+                    <td class="px-6 py-4"><div class="flex flex-wrap gap-1"><span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">电子</span><span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">芯片</span></div></td>
+                    <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold"><span class="size-1.5 rounded-full bg-emerald-600"></span> 合作中</span></td>
                     <td class="px-6 py-4 text-center"><div class="flex flex-col items-center"><span class="text-sm font-bold text-slate-900">98%</span><div class="w-16 h-1 bg-slate-200 rounded-full mt-1"><div class="h-full w-[98%] bg-emerald-500 rounded-full"></div></div></div></td>
-                    <td class="px-6 py-4"><div class="text-sm text-slate-900">$12,450.00</div><div class="text-xs text-slate-500">2 days ago</div></td>
+                    <td class="px-6 py-4"><div class="text-sm text-slate-900">$12,450.00</div><div class="text-xs text-slate-500">2天前</div></td>
                     <td class="px-6 py-4 text-right"><button class="text-slate-400 hover:text-primary transition-colors p-1"><span class="material-symbols-outlined text-[20px]">more_vert</span></button></td>
                   </tr>
                   <tr class="hover:bg-slate-50/50 transition-colors group">
-                    <td class="px-6 py-4"><div class="flex items-center gap-3"><div class="size-10 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-sm shrink-0">AP</div><div><p class="text-sm font-bold text-slate-900">Apex Polymers Inc.</p><p class="text-xs text-slate-500">Houston, TX • ID: #44210</p></div></div></td>
-                    <td class="px-6 py-4"><div class="flex flex-wrap gap-1"><span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">Raw Materials</span><span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">Plastic</span></div></td>
-                    <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-bold"><span class="size-1.5 rounded-full bg-amber-600"></span> Paused</span></td>
+                    <td class="px-6 py-4"><div class="flex items-center gap-3"><div class="size-10 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-sm shrink-0">顶</div><div><p class="text-sm font-bold text-slate-900">顶点高分子材料</p><p class="text-xs text-slate-500">美国休斯敦 • 编号 #44210</p></div></div></td>
+                    <td class="px-6 py-4"><div class="flex flex-wrap gap-1"><span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">原材料</span><span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">塑料</span></div></td>
+                    <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-bold"><span class="size-1.5 rounded-full bg-amber-600"></span> 暂停合作</span></td>
                     <td class="px-6 py-4 text-center"><div class="flex flex-col items-center"><span class="text-sm font-bold text-slate-900">74%</span><div class="w-16 h-1 bg-slate-200 rounded-full mt-1"><div class="h-full w-[74%] bg-amber-500 rounded-full"></div></div></div></td>
-                    <td class="px-6 py-4"><div class="text-sm text-slate-900">$4,200.00</div><div class="text-xs text-slate-500">3 weeks ago</div></td>
+                    <td class="px-6 py-4"><div class="text-sm text-slate-900">$4,200.00</div><div class="text-xs text-slate-500">3周前</div></td>
                     <td class="px-6 py-4 text-right"><button class="text-slate-400 hover:text-primary transition-colors p-1"><span class="material-symbols-outlined text-[20px]">more_vert</span></button></td>
                   </tr>
                   <tr class="hover:bg-slate-50/50 transition-colors group bg-primary/5">
-                    <td class="px-6 py-4 border-l-4 border-l-primary"><div class="flex items-center gap-3"><img alt="Company Logo" class="size-10 rounded-lg object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDH8iwNEofFPtUefGaZOQKqUfQvLciZ26AUCbcvycvG67sEpBKIMJBHaaHQ7MhRyiGIH6NvlrhAACBkv9ZGsbiL3zGEeU_m6BobTmpAmT4hGqMwnJOqNP5_r-W1yBr4Th5GP4nXY2IdGHeaRQ6p69yXGxU4PvlDWDxkDSMA3rDUpEFKSyiy55YbJZ8sP3A5Flf-Q5-7-DWmjxDPUCs6mLlcB2rwsGzWs2dlgo5lZtFqWM1JFJAqP225-jwDQM_1bhKU_NqyE6zOjS4" /><div><p class="text-sm font-bold text-slate-900">Meridian Logistics</p><p class="text-xs text-slate-500">Hamburg, DE • ID: #99102</p></div></div></td>
-                    <td class="px-6 py-4"><div class="flex flex-wrap gap-1"><span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">Shipping</span><span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">Freight</span></div></td>
-                    <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold"><span class="size-1.5 rounded-full bg-emerald-600"></span> Active</span></td>
+                    <td class="px-6 py-4 border-l-4 border-l-primary"><div class="flex items-center gap-3"><img alt="公司标识" class="size-10 rounded-lg object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDH8iwNEofFPtUefGaZOQKqUfQvLciZ26AUCbcvycvG67sEpBKIMJBHaaHQ7MhRyiGIH6NvlrhAACBkv9ZGsbiL3zGEeU_m6BobTmpAmT4hGqMwnJOqNP5_r-W1yBr4Th5GP4nXY2IdGHeaRQ6p69yXGxU4PvlDWDxkDSMA3rDUpEFKSyiy55YbJZ8sP3A5Flf-Q5-7-DWmjxDPUCs6mLlcB2rwsGzWs2dlgo5lZtFqWM1JFJAqP225-jwDQM_1bhKU_NqyE6zOjS4" /><div><p class="text-sm font-bold text-slate-900">子午线物流</p><p class="text-xs text-slate-500">德国汉堡 • 编号 #99102</p></div></div></td>
+                    <td class="px-6 py-4"><div class="flex flex-wrap gap-1"><span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">运输</span><span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">货运</span></div></td>
+                    <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold"><span class="size-1.5 rounded-full bg-emerald-600"></span> 合作中</span></td>
                     <td class="px-6 py-4 text-center"><div class="flex flex-col items-center"><span class="text-sm font-bold text-slate-900">92%</span><div class="w-16 h-1 bg-slate-200 rounded-full mt-1"><div class="h-full w-[92%] bg-emerald-500 rounded-full"></div></div></div></td>
-                    <td class="px-6 py-4"><div class="text-sm text-slate-900">$85,000.00</div><div class="text-xs text-slate-500">Yesterday</div></td>
+                    <td class="px-6 py-4"><div class="text-sm text-slate-900">$85,000.00</div><div class="text-xs text-slate-500">昨天</div></td>
                     <td class="px-6 py-4 text-right"><button class="text-slate-400 hover:text-primary transition-colors p-1"><span class="material-symbols-outlined text-[20px]">more_vert</span></button></td>
                   </tr>
                   <tr class="bg-slate-50/50">
                     <td class="px-6 py-6" colspan="6">
                       <div class="flex flex-col lg:flex-row gap-6 bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
                         <div class="lg:w-1/3 flex flex-col gap-4 border-b lg:border-b-0 lg:border-r border-slate-100 pb-4 lg:pb-0 lg:pr-6">
-                          <h4 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Contact Details</h4>
+                          <h4 class="text-sm font-bold text-slate-900 uppercase tracking-wide">联系信息</h4>
                           <div class="flex flex-col gap-3">
-                            <div class="flex items-start gap-3"><span class="material-symbols-outlined text-slate-400 text-[20px] mt-0.5">person</span><div><p class="text-sm font-medium text-slate-900">Hans Weber</p><p class="text-xs text-slate-500">Senior Account Manager</p></div></div>
-                            <div class="flex items-center gap-3"><span class="material-symbols-outlined text-slate-400 text-[20px]">mail</span><p class="text-sm text-slate-600">h.weber@meridian-logistics.de</p></div>
+                            <div class="flex items-start gap-3"><span class="material-symbols-outlined text-slate-400 text-[20px] mt-0.5">person</span><div><p class="text-sm font-medium text-slate-900">汉斯·韦伯</p><p class="text-xs text-slate-500">高级客户经理</p></div></div>
+                            <div class="flex items-center gap-3"><span class="material-symbols-outlined text-slate-400 text-[20px]">mail</span><p class="text-sm text-slate-600">联系邮箱（已隐藏）</p></div>
                             <div class="flex items-center gap-3"><span class="material-symbols-outlined text-slate-400 text-[20px]">call</span><p class="text-sm text-slate-600">+49 40 3389 1200</p></div>
-                            <div class="flex items-start gap-3"><span class="material-symbols-outlined text-slate-400 text-[20px] mt-0.5">location_on</span><p class="text-sm text-slate-600">HafenCity, Hamburg, Germany</p></div>
+                            <div class="flex items-start gap-3"><span class="material-symbols-outlined text-slate-400 text-[20px] mt-0.5">location_on</span><p class="text-sm text-slate-600">德国汉堡港区</p></div>
                           </div>
-                          <div class="mt-auto pt-4"><button class="w-full py-2 px-3 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 text-sm font-medium rounded-lg transition-colors shadow-sm">View Full Profile</button></div>
+                          <div class="mt-auto pt-4"><button class="w-full py-2 px-3 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 text-sm font-medium rounded-lg transition-colors shadow-sm">查看完整档案</button></div>
                         </div>
                         <div class="lg:w-1/3 flex flex-col gap-4 border-b lg:border-b-0 lg:border-r border-slate-100 pb-4 lg:pb-0 lg:pr-6">
-                          <div class="flex justify-between items-center"><h4 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Quotation History</h4><a class="text-xs text-primary font-medium hover:underline" href="#">View All</a></div>
+                          <div class="flex justify-between items-center"><h4 class="text-sm font-bold text-slate-900 uppercase tracking-wide">报价历史</h4><a class="text-xs text-primary font-medium hover:underline" href="#">查看全部</a></div>
                           <div class="flex flex-col gap-3">
-                            <div class="flex justify-between items-center p-2 rounded bg-slate-50 border border-slate-100"><div class="flex flex-col"><span class="text-xs font-bold text-slate-900">QT-2023-889</span><span class="text-[10px] text-slate-500">Oct 24, 2023</span></div><div class="text-right"><span class="text-xs font-medium text-slate-900">$85,000.00</span><span class="block text-[10px] text-emerald-600">Approved</span></div></div>
-                            <div class="flex justify-between items-center p-2 rounded bg-slate-50 border border-slate-100"><div class="flex flex-col"><span class="text-xs font-bold text-slate-900">QT-2023-742</span><span class="text-[10px] text-slate-500">Sep 12, 2023</span></div><div class="text-right"><span class="text-xs font-medium text-slate-900">$12,400.00</span><span class="block text-[10px] text-emerald-600">Fulfilled</span></div></div>
-                            <div class="flex justify-between items-center p-2 rounded bg-slate-50 border border-slate-100"><div class="flex flex-col"><span class="text-xs font-bold text-slate-900">QT-2023-550</span><span class="text-[10px] text-slate-500">Aug 05, 2023</span></div><div class="text-right"><span class="text-xs font-medium text-slate-900">$3,200.00</span><span class="block text-[10px] text-slate-500">Expired</span></div></div>
+                            <div class="flex justify-between items-center p-2 rounded bg-slate-50 border border-slate-100"><div class="flex flex-col"><span class="text-xs font-bold text-slate-900">报价单-2023-889</span><span class="text-[10px] text-slate-500">2023年10月24日</span></div><div class="text-right"><span class="text-xs font-medium text-slate-900">$85,000.00</span><span class="block text-[10px] text-emerald-600">已批准</span></div></div>
+                            <div class="flex justify-between items-center p-2 rounded bg-slate-50 border border-slate-100"><div class="flex flex-col"><span class="text-xs font-bold text-slate-900">报价单-2023-742</span><span class="text-[10px] text-slate-500">2023年9月12日</span></div><div class="text-right"><span class="text-xs font-medium text-slate-900">$12,400.00</span><span class="block text-[10px] text-emerald-600">已履约</span></div></div>
+                            <div class="flex justify-between items-center p-2 rounded bg-slate-50 border border-slate-100"><div class="flex flex-col"><span class="text-xs font-bold text-slate-900">报价单-2023-550</span><span class="text-[10px] text-slate-500">2023年8月5日</span></div><div class="text-right"><span class="text-xs font-medium text-slate-900">$3,200.00</span><span class="block text-[10px] text-slate-500">已过期</span></div></div>
                           </div>
                         </div>
                         <div class="lg:w-1/3 flex flex-col gap-4">
-                          <h4 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Performance Metrics</h4>
+                          <h4 class="text-sm font-bold text-slate-900 uppercase tracking-wide">绩效指标</h4>
                           <div class="space-y-4">
-                            <div><div class="flex justify-between text-xs mb-1"><span class="text-slate-500">Quality Control</span><span class="text-slate-900 font-bold">98/100</span></div><div class="w-full bg-slate-100 rounded-full h-1.5"><div class="bg-primary h-1.5 rounded-full" style="width: 98%"></div></div></div>
-                            <div><div class="flex justify-between text-xs mb-1"><span class="text-slate-500">Communication</span><span class="text-slate-900 font-bold">4.5/5</span></div><div class="flex text-amber-400 text-[14px]"><span class="material-symbols-outlined filled text-[16px]">star</span><span class="material-symbols-outlined filled text-[16px]">star</span><span class="material-symbols-outlined filled text-[16px]">star</span><span class="material-symbols-outlined filled text-[16px]">star</span><span class="material-symbols-outlined filled text-[16px]">star_half</span></div></div>
-                            <div><div class="flex justify-between text-xs mb-1"><span class="text-slate-500">Pricing Competitiveness</span><span class="text-slate-900 font-bold">High</span></div><div class="w-full bg-slate-100 rounded-full h-1.5"><div class="bg-emerald-500 h-1.5 rounded-full" style="width: 85%"></div></div></div>
+                            <div><div class="flex justify-between text-xs mb-1"><span class="text-slate-500">质量控制</span><span class="text-slate-900 font-bold">98/100</span></div><div class="w-full bg-slate-100 rounded-full h-1.5"><div class="bg-primary h-1.5 rounded-full" style="width: 98%"></div></div></div>
+                            <div><div class="flex justify-between text-xs mb-1"><span class="text-slate-500">沟通协作</span><span class="text-slate-900 font-bold">4.5/5</span></div><div class="flex text-amber-400 text-[14px]"><span class="material-symbols-outlined filled text-[16px]">star</span><span class="material-symbols-outlined filled text-[16px]">star</span><span class="material-symbols-outlined filled text-[16px]">star</span><span class="material-symbols-outlined filled text-[16px]">star</span><span class="material-symbols-outlined filled text-[16px]">star_half</span></div></div>
+                            <div><div class="flex justify-between text-xs mb-1"><span class="text-slate-500">价格竞争力</span><span class="text-slate-900 font-bold">高</span></div><div class="w-full bg-slate-100 rounded-full h-1.5"><div class="bg-emerald-500 h-1.5 rounded-full" style="width: 85%"></div></div></div>
                           </div>
-                          <div class="mt-auto flex gap-2"><button class="flex-1 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors">Request Quote</button><button class="px-3 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"><span class="material-symbols-outlined text-[18px]">chat</span></button></div>
+                          <div class="mt-auto flex gap-2"><button class="flex-1 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition-colors">发起询价</button><button class="px-3 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"><span class="material-symbols-outlined text-[18px]">chat</span></button></div>
                         </div>
                       </div>
                     </td>
                   </tr>
                   <tr class="hover:bg-slate-50/50 transition-colors group">
-                    <td class="px-6 py-4"><div class="flex items-center gap-3"><div class="size-10 rounded-lg bg-teal-100 flex items-center justify-center text-teal-600 font-bold text-sm shrink-0">NS</div><div><p class="text-sm font-bold text-slate-900">North Star Fab</p><p class="text-xs text-slate-500">Toronto, ON • ID: #33219</p></div></div></td>
-                    <td class="px-6 py-4"><div class="flex flex-wrap gap-1"><span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">Textiles</span></div></td>
-                    <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold"><span class="size-1.5 rounded-full bg-red-600"></span> Terminated</span></td>
+                    <td class="px-6 py-4"><div class="flex items-center gap-3"><div class="size-10 rounded-lg bg-teal-100 flex items-center justify-center text-teal-600 font-bold text-sm shrink-0">北</div><div><p class="text-sm font-bold text-slate-900">北辰制造</p><p class="text-xs text-slate-500">加拿大多伦多 • 编号 #33219</p></div></div></td>
+                    <td class="px-6 py-4"><div class="flex flex-wrap gap-1"><span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">纺织</span></div></td>
+                    <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold"><span class="size-1.5 rounded-full bg-red-600"></span> 已终止</span></td>
                     <td class="px-6 py-4 text-center"><div class="flex flex-col items-center"><span class="text-sm font-bold text-slate-900">42%</span><div class="w-16 h-1 bg-slate-200 rounded-full mt-1"><div class="h-full w-[42%] bg-red-500 rounded-full"></div></div></div></td>
-                    <td class="px-6 py-4"><div class="text-sm text-slate-900">$1,100.00</div><div class="text-xs text-slate-500">6 months ago</div></td>
+                    <td class="px-6 py-4"><div class="text-sm text-slate-900">$1,100.00</div><div class="text-xs text-slate-500">6个月前</div></td>
                     <td class="px-6 py-4 text-right"><button class="text-slate-400 hover:text-primary transition-colors p-1"><span class="material-symbols-outlined text-[20px]">more_vert</span></button></td>
                   </tr>
                   <tr class="hover:bg-slate-50/50 transition-colors group">
-                    <td class="px-6 py-4"><div class="flex items-center gap-3"><div class="size-10 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600 font-bold text-sm shrink-0">QP</div><div><p class="text-sm font-bold text-slate-900">Quantum Parts</p><p class="text-xs text-slate-500">Shenzhen, CN • ID: #99321</p></div></div></td>
-                    <td class="px-6 py-4"><div class="flex flex-wrap gap-1"><span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">Electronics</span><span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">PCB</span></div></td>
-                    <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold"><span class="size-1.5 rounded-full bg-emerald-600"></span> Active</span></td>
+                    <td class="px-6 py-4"><div class="flex items-center gap-3"><div class="size-10 rounded-lg bg-purple-100 flex items-center justify-center text-purple-600 font-bold text-sm shrink-0">量</div><div><p class="text-sm font-bold text-slate-900">量子零件</p><p class="text-xs text-slate-500">中国深圳 • 编号 #99321</p></div></div></td>
+                    <td class="px-6 py-4"><div class="flex flex-wrap gap-1"><span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">电子</span><span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-600 text-xs font-medium">电路板</span></div></td>
+                    <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold"><span class="size-1.5 rounded-full bg-emerald-600"></span> 合作中</span></td>
                     <td class="px-6 py-4 text-center"><div class="flex flex-col items-center"><span class="text-sm font-bold text-slate-900">88%</span><div class="w-16 h-1 bg-slate-200 rounded-full mt-1"><div class="h-full w-[88%] bg-emerald-500 rounded-full"></div></div></div></td>
-                    <td class="px-6 py-4"><div class="text-sm text-slate-900">$34,220.00</div><div class="text-xs text-slate-500">1 week ago</div></td>
+                    <td class="px-6 py-4"><div class="text-sm text-slate-900">$34,220.00</div><div class="text-xs text-slate-500">1周前</div></td>
                     <td class="px-6 py-4 text-right"><button class="text-slate-400 hover:text-primary transition-colors p-1"><span class="material-symbols-outlined text-[20px]">more_vert</span></button></td>
                   </tr>
                 </tbody>
@@ -286,15 +286,15 @@
             </div>
 
             <div class="border-t border-slate-200 px-6 py-4 flex items-center justify-between bg-slate-50">
-              <p class="text-xs text-slate-500">Showing <span class="font-bold">1-5</span> of <span class="font-bold">142</span> suppliers</p>
+              <p class="text-xs text-slate-500">显示 <span class="font-bold">1-5</span> / 共 <span class="font-bold">142</span> 个供应商</p>
               <div class="flex gap-2">
-                <button class="px-3 py-1 text-xs font-medium text-slate-500 bg-white border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50">Previous</button>
+                <button class="px-3 py-1 text-xs font-medium text-slate-500 bg-white border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50">上一页</button>
                 <button class="px-3 py-1 text-xs font-medium text-white bg-primary border border-primary rounded hover:bg-blue-700">1</button>
                 <button class="px-3 py-1 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded hover:bg-slate-50">2</button>
                 <button class="px-3 py-1 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded hover:bg-slate-50">3</button>
                 <span class="px-2 py-1 text-xs text-slate-400">...</span>
                 <button class="px-3 py-1 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded hover:bg-slate-50">12</button>
-                <button class="px-3 py-1 text-xs font-medium text-slate-500 bg-white border border-slate-200 rounded hover:bg-slate-50">Next</button>
+                <button class="px-3 py-1 text-xs font-medium text-slate-500 bg-white border border-slate-200 rounded hover:bg-slate-50">下一页</button>
               </div>
             </div>
           </div>

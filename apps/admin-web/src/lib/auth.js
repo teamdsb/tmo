@@ -11,25 +11,25 @@ import {
 } from './state';
 
 const roleLabels = {
-  admin: 'Administrator',
-  sales: 'Sales Manager',
-  support: 'Customer Service',
-  logistics: 'Logistics Coordinator'
+  admin: '管理员',
+  sales: '销售经理',
+  support: '客服专员',
+  logistics: '物流协调员'
 };
 
 const toDisplayName = (user) => {
   if (!user || typeof user !== 'object') {
-    return 'Admin User';
+    return '管理员用户';
   }
   if (typeof user.displayName === 'string' && user.displayName.trim()) {
     return user.displayName.trim();
   }
-  return 'Admin User';
+  return '管理员用户';
 };
 
 export const getRoleLabel = (role) => {
   const normalized = String(role || '').toLowerCase();
-  return roleLabels[normalized] || role || 'Admin';
+  return roleLabels[normalized] || role || '管理员';
 };
 
 export const goToLogin = () => {
@@ -130,7 +130,7 @@ export const getDisplayProfile = () => {
       return null;
     }
     return {
-      name: typeof session.username === 'string' && session.username.trim() ? session.username.trim() : 'Admin User',
+      name: typeof session.username === 'string' && session.username.trim() ? session.username.trim() : '管理员用户',
       role: getRoleLabel(session.role || 'admin')
     };
   }

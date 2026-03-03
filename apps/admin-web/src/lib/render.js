@@ -7,8 +7,8 @@ const escapeHtml = (value) => {
     .replace(/'/g, '&#39;');
 };
 
-const defaultEmptyDescription = 'No live data available.';
-const defaultErrorDescription = 'Request failed. Please retry later.';
+const defaultEmptyDescription = '暂无实时数据。';
+const defaultErrorDescription = '请求失败，请稍后重试。';
 
 export const formatDateTime = (value) => {
   if (!value) {
@@ -18,7 +18,7 @@ export const formatDateTime = (value) => {
   if (Number.isNaN(date.getTime())) {
     return '--';
   }
-  return date.toLocaleString();
+  return date.toLocaleString('zh-CN');
 };
 
 export const formatDate = (value) => {
@@ -29,7 +29,7 @@ export const formatDate = (value) => {
   if (Number.isNaN(date.getTime())) {
     return '--';
   }
-  return date.toLocaleDateString();
+  return date.toLocaleDateString('zh-CN');
 };
 
 export const formatCurrencyFen = (value) => {
@@ -51,7 +51,7 @@ export const safeText = (value, fallback = '--') => {
 export const buildEmptyState = (title, description = defaultEmptyDescription) => {
   return `
     <div class="rounded-xl border border-slate-200 bg-white p-5 text-slate-700">
-      <h3 class="text-sm font-semibold text-slate-900">${escapeHtml(safeText(title, 'No data'))}</h3>
+      <h3 class="text-sm font-semibold text-slate-900">${escapeHtml(safeText(title, '暂无数据'))}</h3>
       <p class="mt-2 text-sm text-slate-500">${escapeHtml(safeText(description, defaultEmptyDescription))}</p>
     </div>
   `;
@@ -60,8 +60,8 @@ export const buildEmptyState = (title, description = defaultEmptyDescription) =>
 export const buildErrorState = (message, description = defaultErrorDescription) => {
   return `
     <div class="rounded-xl border border-red-200 bg-red-50 p-5 text-red-700">
-      <h3 class="text-sm font-semibold text-red-800">Request Error</h3>
-      <p class="mt-2 text-sm">${escapeHtml(safeText(message, 'Unknown error'))}</p>
+      <h3 class="text-sm font-semibold text-red-800">请求错误</h3>
+      <p class="mt-2 text-sm">${escapeHtml(safeText(message, '未知错误'))}</p>
       <p class="mt-1 text-xs text-red-600">${escapeHtml(safeText(description, defaultErrorDescription))}</p>
     </div>
   `;
@@ -84,7 +84,7 @@ export const renderErrorState = (container, message, description) => {
 export const toStatusBadge = (status) => {
   const normalized = String(status || '').toUpperCase();
   if (!normalized) {
-    return '<span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-slate-100 text-slate-600">Unknown</span>';
+    return '<span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-slate-100 text-slate-600">未知</span>';
   }
 
   const map = {
@@ -105,7 +105,24 @@ export const toStatusBadge = (status) => {
   };
 
   const classes = map[normalized] || 'bg-slate-100 text-slate-700';
-  return `<span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${classes}">${escapeHtml(normalized)}</span>`;
+  const labels = {
+    OPEN: '开放',
+    RESPONDED: '已回复',
+    CLOSED: '已关闭',
+    SUBMITTED: '已提交',
+    CONFIRMED: '已确认',
+    PAY_PENDING: '待支付',
+    PAID: '已支付',
+    SHIPPED: '已发货',
+    DELIVERED: '已送达',
+    CANCELLED: '已取消',
+    FAILED: '失败',
+    PENDING: '待处理',
+    RUNNING: '运行中',
+    SUCCEEDED: '成功',
+    UNKNOWN: '未知'
+  };
+  return `<span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${classes}">${escapeHtml(labels[normalized] || normalized)}</span>`;
 };
 
 export const escape = escapeHtml;

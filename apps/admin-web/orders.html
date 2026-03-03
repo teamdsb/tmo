@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>Order Fulfillment & Logistics Center</title>
+    <title>订单履约与物流中心</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet" />
     <link
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
@@ -76,19 +76,19 @@
           <div class="size-8 flex items-center justify-center rounded-lg bg-primary text-primary-content">
             <span class="material-symbols-outlined text-xl">local_shipping</span>
           </div>
-          <h2 class="text-xl font-bold tracking-tight text-text-main dark:text-text-main-dark">Admin Console</h2>
+          <h2 class="text-xl font-bold tracking-tight text-text-main dark:text-text-main-dark">管理控制台</h2>
         </div>
       </div>
       <div class="flex items-center gap-4">
         <div class="hidden sm:flex items-center rounded-lg bg-background-light dark:bg-background-dark border border-border-light dark:border-border-dark px-3 h-10 w-64 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
           <span class="material-symbols-outlined text-text-sub dark:text-text-sub-dark text-[20px]">search</span>
-          <input class="w-full bg-transparent border-none text-sm text-text-main dark:text-text-main-dark placeholder:text-text-sub dark:placeholder:text-text-sub-dark focus:ring-0" placeholder="Search orders..." />
+          <input class="w-full bg-transparent border-none text-sm text-text-main dark:text-text-main-dark placeholder:text-text-sub dark:placeholder:text-text-sub-dark focus:ring-0" placeholder="搜索订单..." />
         </div>
         <div class="relative group">
           <div class="size-10 rounded-full bg-cover bg-center border border-border-light dark:border-border-dark cursor-pointer shadow-sm" data-alt="User profile avatar of a man smiling" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuA-cgHCBUtae-Yeq4htivL0q-zghx8kkGV8lTLp1eHRlAxWjiaIFAYFPIhx0QLEoc0XZtVxRR0l7xp4Y4dMZrbafdPBMeVuMEfLeZf8WqH6g65hdBksOAHYEOfMRtION01akpgMv3e2e145ccEHKliMknQEpfbQSU1hfEX43mCkPIEdDbF0yT82K6c2zOcL-ljXW66qgxtI2MqGXZOG-oBuyoCF7HV6Nzo2jQIDX7vLx7eHcVNqjKm6M8kcRXUU7fdLIYk9Zkhj8Dc");'></div>
           <div class="absolute right-0 top-12 hidden w-48 rounded-lg bg-surface-light dark:bg-surface-dark p-2 shadow-lg ring-1 ring-black/5 group-hover:block">
-            <a class="block rounded px-4 py-2 text-sm text-text-sub dark:text-text-sub-dark hover:bg-background-light dark:hover:bg-background-dark hover:text-primary" href="#">Profile</a>
-            <a id="logout-link" class="block rounded px-4 py-2 text-sm text-text-sub dark:text-text-sub-dark hover:bg-background-light dark:hover:bg-background-dark hover:text-primary" href="#">Log out</a>
+            <a class="block rounded px-4 py-2 text-sm text-text-sub dark:text-text-sub-dark hover:bg-background-light dark:hover:bg-background-dark hover:text-primary" href="#">个人资料</a>
+            <a id="logout-link" class="block rounded px-4 py-2 text-sm text-text-sub dark:text-text-sub-dark hover:bg-background-light dark:hover:bg-background-dark hover:text-primary" href="#">退出登录</a>
           </div>
         </div>
       </div>
@@ -97,35 +97,35 @@
     <main class="flex-1 flex flex-col px-6 py-8 max-w-[1400px] mx-auto w-full gap-8">
       <div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div class="space-y-2">
-          <h1 class="text-3xl md:text-4xl font-black tracking-tight text-text-main dark:text-text-main-dark">Order Fulfillment</h1>
-          <p class="text-text-sub dark:text-text-sub-dark text-base max-w-2xl">Manage shipments, track real-time logistics, and handle order exceptions efficiently.</p>
+          <h1 class="text-3xl md:text-4xl font-black tracking-tight text-text-main dark:text-text-main-dark">订单履约</h1>
+          <p class="text-text-sub dark:text-text-sub-dark text-base max-w-2xl">管理发货任务，跟踪实时物流，高效处理订单异常。</p>
         </div>
         <a href="/import.html" class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary hover:bg-primary-dark transition-colors px-5 py-2.5 text-sm font-semibold text-primary-content shadow-sm active:scale-95">
           <span class="material-symbols-outlined text-[20px]">upload_file</span>
-          Batch Import Logistics (Excel)
+          批量导入物流（Excel）
         </a>
       </div>
 
       <div class="border-b border-border-light dark:border-border-dark">
         <nav aria-label="Tabs" class="flex gap-8 overflow-x-auto">
           <a class="group border-b-2 border-transparent py-4 px-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:border-text-sub hover:text-text-sub-dark dark:hover:text-text-main-dark" href="#">
-            Submitted
+            已提交
             <span class="ml-2 rounded-full bg-background-light dark:bg-background-dark py-0.5 px-2.5 text-xs font-medium text-text-sub dark:text-text-sub-dark group-hover:bg-gray-200 dark:group-hover:bg-gray-700">12</span>
           </a>
           <a class="group border-b-2 border-transparent py-4 px-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:border-text-sub hover:text-text-sub-dark dark:hover:text-text-main-dark" href="#">
-            Confirmed
+            已确认
             <span class="ml-2 rounded-full bg-background-light dark:bg-background-dark py-0.5 px-2.5 text-xs font-medium text-text-sub dark:text-text-sub-dark group-hover:bg-gray-200 dark:group-hover:bg-gray-700">4</span>
           </a>
           <a aria-current="page" class="border-b-2 border-primary py-4 px-1 text-sm font-bold text-primary" href="#">
-            Shipped
+            已发货
             <span class="ml-2 rounded-full bg-primary/10 py-0.5 px-2.5 text-xs font-medium text-primary">86</span>
           </a>
           <a class="group border-b-2 border-transparent py-4 px-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:border-text-sub hover:text-text-sub-dark dark:hover:text-text-main-dark" href="#">
-            Delivered
+            已送达
             <span class="ml-2 rounded-full bg-background-light dark:bg-background-dark py-0.5 px-2.5 text-xs font-medium text-text-sub dark:text-text-sub-dark group-hover:bg-gray-200 dark:group-hover:bg-gray-700">324</span>
           </a>
           <a class="group border-b-2 border-transparent py-4 px-1 text-sm font-medium text-red-500 hover:border-red-500 hover:text-red-600" href="#">
-            Returns
+            退货
             <span class="ml-2 rounded-full bg-red-50 py-0.5 px-2.5 text-xs font-medium text-red-600 dark:bg-red-900/20 dark:text-red-400">2</span>
           </a>
         </nav>
@@ -138,12 +138,12 @@
               <table class="w-full text-left text-sm whitespace-nowrap">
                 <thead class="bg-background-light dark:bg-background-dark border-b border-border-light dark:border-border-dark">
                   <tr>
-                    <th class="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark" scope="col">Order ID</th>
-                    <th class="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark" scope="col">Customer</th>
-                    <th class="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark" scope="col">Date</th>
-                    <th class="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark" scope="col">Amount</th>
-                    <th class="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark" scope="col">Status</th>
-                    <th class="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark text-right" scope="col">Actions</th>
+                    <th class="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark" scope="col">订单号</th>
+                    <th class="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark" scope="col">客户</th>
+                    <th class="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark" scope="col">日期</th>
+                    <th class="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark" scope="col">金额</th>
+                    <th class="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark" scope="col">状态</th>
+                    <th class="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark text-right" scope="col">操作</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-border-light dark:divide-border-dark">
@@ -153,15 +153,15 @@
                       <div class="flex items-center gap-3">
                         <div class="size-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-300 font-bold text-xs">AS</div>
                         <div>
-                          <p class="text-text-main dark:text-text-main-dark font-medium">Alice Smith</p>
-                          <p class="text-xs text-text-sub dark:text-text-sub-dark">Premium Member</p>
+                          <p class="text-text-main dark:text-text-main-dark font-medium">艾丽丝·史密斯</p>
+                          <p class="text-xs text-text-sub dark:text-text-sub-dark">高级会员</p>
                         </div>
                       </div>
                     </td>
-                    <td class="px-6 py-4 text-text-sub dark:text-text-sub-dark">Oct 24, 2023</td>
+                    <td class="px-6 py-4 text-text-sub dark:text-text-sub-dark">2023-10-24</td>
                     <td class="px-6 py-4 font-medium text-text-main dark:text-text-main-dark">$120.50</td>
-                    <td class="px-6 py-4"><span class="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800"><span class="size-1.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>In Transit</span></td>
-                    <td class="px-6 py-4 text-right"><button class="text-primary hover:text-primary-dark font-medium text-sm">View</button></td>
+                    <td class="px-6 py-4"><span class="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800"><span class="size-1.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>运输中</span></td>
+                    <td class="px-6 py-4 text-right"><button class="text-primary hover:text-primary-dark font-medium text-sm">查看</button></td>
                   </tr>
 
                   <tr class="group hover:bg-background-light dark:hover:bg-background-dark/50 transition-colors">
@@ -169,13 +169,13 @@
                     <td class="px-6 py-4">
                       <div class="flex items-center gap-3">
                         <div class="size-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center text-purple-700 dark:text-purple-300 font-bold text-xs">BJ</div>
-                        <p class="text-text-main dark:text-text-main-dark font-medium">Bob Jones</p>
+                        <p class="text-text-main dark:text-text-main-dark font-medium">鲍勃·琼斯</p>
                       </div>
                     </td>
-                    <td class="px-6 py-4 text-text-sub dark:text-text-sub-dark">Oct 23, 2023</td>
+                    <td class="px-6 py-4 text-text-sub dark:text-text-sub-dark">2023-10-23</td>
                     <td class="px-6 py-4 font-medium text-text-main dark:text-text-main-dark">$45.00</td>
-                    <td class="px-6 py-4"><span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800"><span class="size-1.5 rounded-full bg-amber-600 dark:bg-amber-400"></span>Dispatched</span></td>
-                    <td class="px-6 py-4 text-right"><button class="text-text-sub dark:text-text-sub-dark hover:text-primary font-medium text-sm">View</button></td>
+                    <td class="px-6 py-4"><span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800"><span class="size-1.5 rounded-full bg-amber-600 dark:bg-amber-400"></span>已发出</span></td>
+                    <td class="px-6 py-4 text-right"><button class="text-text-sub dark:text-text-sub-dark hover:text-primary font-medium text-sm">查看</button></td>
                   </tr>
 
                   <tr class="group hover:bg-background-light dark:hover:bg-background-dark/50 transition-colors">
@@ -183,13 +183,13 @@
                     <td class="px-6 py-4">
                       <div class="flex items-center gap-3">
                         <div class="size-8 rounded-full bg-emerald-100 dark:bg-emerald-900 flex items-center justify-center text-emerald-700 dark:text-emerald-300 font-bold text-xs">CB</div>
-                        <p class="text-text-main dark:text-text-main-dark font-medium">Charlie Brown</p>
+                        <p class="text-text-main dark:text-text-main-dark font-medium">查理·布朗</p>
                       </div>
                     </td>
-                    <td class="px-6 py-4 text-text-sub dark:text-text-sub-dark">Oct 23, 2023</td>
+                    <td class="px-6 py-4 text-text-sub dark:text-text-sub-dark">2023-10-23</td>
                     <td class="px-6 py-4 font-medium text-text-main dark:text-text-main-dark">$89.99</td>
-                    <td class="px-6 py-4"><span class="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800"><span class="size-1.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>In Transit</span></td>
-                    <td class="px-6 py-4 text-right"><button class="text-text-sub dark:text-text-sub-dark hover:text-primary font-medium text-sm">View</button></td>
+                    <td class="px-6 py-4"><span class="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800"><span class="size-1.5 rounded-full bg-blue-600 dark:bg-blue-400"></span>运输中</span></td>
+                    <td class="px-6 py-4 text-right"><button class="text-text-sub dark:text-text-sub-dark hover:text-primary font-medium text-sm">查看</button></td>
                   </tr>
 
                   <tr class="group hover:bg-background-light dark:hover:bg-background-dark/50 transition-colors">
@@ -197,13 +197,13 @@
                     <td class="px-6 py-4">
                       <div class="flex items-center gap-3">
                         <div class="size-8 rounded-full bg-pink-100 dark:bg-pink-900 flex items-center justify-center text-pink-700 dark:text-pink-300 font-bold text-xs">DP</div>
-                        <p class="text-text-main dark:text-text-main-dark font-medium">Diana Prince</p>
+                        <p class="text-text-main dark:text-text-main-dark font-medium">戴安娜·普林斯</p>
                       </div>
                     </td>
-                    <td class="px-6 py-4 text-text-sub dark:text-text-sub-dark">Oct 22, 2023</td>
+                    <td class="px-6 py-4 text-text-sub dark:text-text-sub-dark">2023-10-22</td>
                     <td class="px-6 py-4 font-medium text-text-main dark:text-text-main-dark">$210.00</td>
-                    <td class="px-6 py-4"><span class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300 border border-green-200 dark:border-green-800"><span class="size-1.5 rounded-full bg-green-600 dark:bg-green-400"></span>Delivered</span></td>
-                    <td class="px-6 py-4 text-right"><button class="text-text-sub dark:text-text-sub-dark hover:text-primary font-medium text-sm">View</button></td>
+                    <td class="px-6 py-4"><span class="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 dark:bg-green-900/30 dark:text-green-300 border border-green-200 dark:border-green-800"><span class="size-1.5 rounded-full bg-green-600 dark:bg-green-400"></span>已送达</span></td>
+                    <td class="px-6 py-4 text-right"><button class="text-text-sub dark:text-text-sub-dark hover:text-primary font-medium text-sm">查看</button></td>
                   </tr>
 
                   <tr class="group hover:bg-background-light dark:hover:bg-background-dark/50 transition-colors">
@@ -211,23 +211,23 @@
                     <td class="px-6 py-4">
                       <div class="flex items-center gap-3">
                         <div class="size-8 rounded-full bg-orange-100 dark:bg-orange-900 flex items-center justify-center text-orange-700 dark:text-orange-300 font-bold text-xs">EW</div>
-                        <p class="text-text-main dark:text-text-main-dark font-medium">Evan Wright</p>
+                        <p class="text-text-main dark:text-text-main-dark font-medium">埃文·赖特</p>
                       </div>
                     </td>
-                    <td class="px-6 py-4 text-text-sub dark:text-text-sub-dark">Oct 22, 2023</td>
+                    <td class="px-6 py-4 text-text-sub dark:text-text-sub-dark">2023-10-22</td>
                     <td class="px-6 py-4 font-medium text-text-main dark:text-text-main-dark">$35.50</td>
-                    <td class="px-6 py-4"><span class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700"><span class="size-1.5 rounded-full bg-gray-500"></span>Pending</span></td>
-                    <td class="px-6 py-4 text-right"><button class="text-text-sub dark:text-text-sub-dark hover:text-primary font-medium text-sm">View</button></td>
+                    <td class="px-6 py-4"><span class="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700"><span class="size-1.5 rounded-full bg-gray-500"></span>待处理</span></td>
+                    <td class="px-6 py-4 text-right"><button class="text-text-sub dark:text-text-sub-dark hover:text-primary font-medium text-sm">查看</button></td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
             <div class="flex items-center justify-between border-t border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark px-6 py-4">
-              <p class="text-sm text-text-sub dark:text-text-sub-dark">Showing <span class="font-medium text-text-main dark:text-text-main-dark">1</span> to <span class="font-medium text-text-main dark:text-text-main-dark">5</span> of <span class="font-medium text-text-main dark:text-text-main-dark">86</span> results</p>
+              <p class="text-sm text-text-sub dark:text-text-sub-dark">显示第 <span class="font-medium text-text-main dark:text-text-main-dark">1</span> 到 <span class="font-medium text-text-main dark:text-text-main-dark">5</span> 条，共 <span class="font-medium text-text-main dark:text-text-main-dark">86</span> 条结果</p>
               <div class="flex gap-2">
-                <button class="rounded-lg border border-border-light dark:border-border-dark px-3 py-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:bg-background-light dark:hover:bg-background-dark disabled:opacity-50">Previous</button>
-                <button class="rounded-lg border border-border-light dark:border-border-dark px-3 py-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:bg-background-light dark:hover:bg-background-dark">Next</button>
+                <button class="rounded-lg border border-border-light dark:border-border-dark px-3 py-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:bg-background-light dark:hover:bg-background-dark disabled:opacity-50">上一页</button>
+                <button class="rounded-lg border border-border-light dark:border-border-dark px-3 py-1 text-sm font-medium text-text-sub dark:text-text-sub-dark hover:bg-background-light dark:hover:bg-background-dark">下一页</button>
               </div>
             </div>
           </div>
@@ -236,15 +236,15 @@
         <div class="lg:col-span-1 flex flex-col gap-6">
           <div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark p-6 shadow-sm">
             <div class="flex items-center justify-between mb-6">
-              <h3 class="text-lg font-bold text-text-main dark:text-text-main-dark">Logistics Details</h3>
-              <span class="inline-flex items-center justify-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">Live</span>
+              <h3 class="text-lg font-bold text-text-main dark:text-text-main-dark">物流详情</h3>
+              <span class="inline-flex items-center justify-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">实时</span>
             </div>
             <div class="flex items-center gap-4 mb-8">
               <div class="h-12 w-12 rounded-lg bg-gray-50 dark:bg-gray-800 flex items-center justify-center border border-border-light dark:border-border-dark p-2">
                 <img alt="FedEx Logo" class="w-full h-auto object-contain" data-alt="FedEx logo graphic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDJAG-x9WX_0_Z7X9ZJIoRnrx8OCtAHphBg7dyWoAi2f5vvoTcQYyc2HYRPuQKUcQgQZRJb5I7HDzq4ZJc7hH5pr5Muy7DRhztsmIoQHo4gfhW03kXtyljFSuJQWXyefxivezCIIMOtGNvHV6nZloIX2HcltENrwV-By06WDRc1SRiFXxHJDoTXhl1P4szpp-QW2nkBcySlspS8uBPL2BcND91NL0_BTWFqSiXv25O6oAN8qF_wTrp9ckshd52XCTmFb89Jo5ReIfE" />
               </div>
               <div>
-                <p class="text-sm font-medium text-text-sub dark:text-text-sub-dark">Tracking Number</p>
+                <p class="text-sm font-medium text-text-sub dark:text-text-sub-dark">物流单号</p>
                 <div class="flex items-center gap-2">
                   <p class="text-base font-bold text-text-main dark:text-text-main-dark">789012349981</p>
                   <button class="text-text-sub dark:text-text-sub-dark hover:text-primary"><span class="material-symbols-outlined text-[16px]">content_copy</span></button>
@@ -257,7 +257,7 @@
               <div class="absolute inset-0 flex items-center justify-center bg-black/5">
                 <div class="flex items-center gap-1 rounded-md bg-surface-light dark:bg-surface-dark p-2 shadow-lg">
                   <span class="material-symbols-outlined text-primary text-xl">local_shipping</span>
-                  <span class="text-xs font-bold text-text-main dark:text-text-main-dark">On The Way</span>
+                  <span class="text-xs font-bold text-text-main dark:text-text-main-dark">运输途中</span>
                 </div>
               </div>
             </div>
@@ -266,56 +266,56 @@
               <div class="relative">
                 <span class="absolute -left-[21px] top-1 flex size-3.5 items-center justify-center rounded-full border-2 border-primary bg-surface-light dark:bg-surface-dark"><span class="size-1.5 rounded-full bg-primary"></span></span>
                 <div class="flex flex-col gap-1">
-                  <p class="text-sm font-bold text-text-main dark:text-text-main-dark">Arrived at Distribution Center</p>
-                  <p class="text-xs text-text-sub dark:text-text-sub-dark">San Francisco, CA • Today, 10:24 AM</p>
+                  <p class="text-sm font-bold text-text-main dark:text-text-main-dark">已到达分拨中心</p>
+                  <p class="text-xs text-text-sub dark:text-text-sub-dark">旧金山，加州 • 今天 10:24</p>
                 </div>
               </div>
               <div class="relative">
                 <span class="absolute -left-[21px] top-1 flex size-3.5 items-center justify-center rounded-full border-2 border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark"></span>
                 <div class="flex flex-col gap-1">
-                  <p class="text-sm font-medium text-text-sub dark:text-text-sub-dark">Departed from Facility</p>
-                  <p class="text-xs text-text-sub dark:text-text-sub-dark">Oakland, CA • Yesterday, 08:00 PM</p>
+                  <p class="text-sm font-medium text-text-sub dark:text-text-sub-dark">已离开发货网点</p>
+                  <p class="text-xs text-text-sub dark:text-text-sub-dark">奥克兰，加州 • 昨天 20:00</p>
                 </div>
               </div>
               <div class="relative">
                 <span class="absolute -left-[21px] top-1 flex size-3.5 items-center justify-center rounded-full border-2 border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark"></span>
                 <div class="flex flex-col gap-1">
-                  <p class="text-sm font-medium text-text-sub dark:text-text-sub-dark">Picked up by Courier</p>
-                  <p class="text-xs text-text-sub dark:text-text-sub-dark">Sacramento, CA • Oct 24, 02:30 PM</p>
+                  <p class="text-sm font-medium text-text-sub dark:text-text-sub-dark">快递员已揽收</p>
+                  <p class="text-xs text-text-sub dark:text-text-sub-dark">萨克拉门托，加州 • 2023-10-24 14:30</p>
                 </div>
               </div>
               <div class="relative">
                 <span class="absolute -left-[21px] top-1 flex size-3.5 items-center justify-center rounded-full border-2 border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark"></span>
                 <div class="flex flex-col gap-1">
-                  <p class="text-sm font-medium text-text-sub dark:text-text-sub-dark">Order Processed</p>
-                  <p class="text-xs text-text-sub dark:text-text-sub-dark">Sacramento, CA • Oct 24, 09:15 AM</p>
+                  <p class="text-sm font-medium text-text-sub dark:text-text-sub-dark">订单已处理</p>
+                  <p class="text-xs text-text-sub dark:text-text-sub-dark">萨克拉门托，加州 • 2023-10-24 09:15</p>
                 </div>
               </div>
             </div>
 
             <div class="mt-8 pt-6 border-t border-border-light dark:border-border-dark flex gap-3">
-              <button class="flex-1 rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark py-2 text-sm font-medium text-text-main dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark transition-colors">Contact Carrier</button>
-              <button class="flex-1 rounded-lg bg-primary py-2 text-sm font-medium text-primary-content hover:bg-primary-dark transition-colors">Download Receipt</button>
+              <button class="flex-1 rounded-lg border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark py-2 text-sm font-medium text-text-main dark:text-text-main-dark hover:bg-background-light dark:hover:bg-background-dark transition-colors">联系承运商</button>
+              <button class="flex-1 rounded-lg bg-primary py-2 text-sm font-medium text-primary-content hover:bg-primary-dark transition-colors">下载回执</button>
             </div>
           </div>
 
           <div class="rounded-xl border border-border-light dark:border-border-dark bg-surface-light dark:bg-surface-dark p-6 shadow-sm">
-            <h3 class="text-sm font-bold text-text-sub dark:text-text-sub-dark uppercase tracking-wider mb-4">Customer Details</h3>
+            <h3 class="text-sm font-bold text-text-sub dark:text-text-sub-dark uppercase tracking-wider mb-4">客户信息</h3>
             <div class="flex items-start gap-4">
               <div class="size-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-700 dark:text-blue-300 font-bold">AS</div>
               <div>
-                <p class="font-bold text-text-main dark:text-text-main-dark">Alice Smith</p>
+                <p class="font-bold text-text-main dark:text-text-main-dark">艾丽丝·史密斯</p>
                 <p class="text-sm text-text-sub dark:text-text-sub-dark">alice.smith@example.com</p>
                 <p class="text-sm text-text-sub dark:text-text-sub-dark mt-1">+1 (555) 123-4567</p>
                 <div class="mt-3 flex gap-2">
-                  <span class="rounded bg-background-light dark:bg-background-dark px-2 py-1 text-xs font-medium text-text-sub dark:text-text-sub-dark">54 Orders</span>
-                  <span class="rounded bg-background-light dark:bg-background-dark px-2 py-1 text-xs font-medium text-text-sub dark:text-text-sub-dark">LTV $4.2k</span>
+                  <span class="rounded bg-background-light dark:bg-background-dark px-2 py-1 text-xs font-medium text-text-sub dark:text-text-sub-dark">54 个订单</span>
+                  <span class="rounded bg-background-light dark:bg-background-dark px-2 py-1 text-xs font-medium text-text-sub dark:text-text-sub-dark">客户生命周期价值 $4.2k</span>
                 </div>
               </div>
             </div>
             <div class="mt-4 border-t border-border-light dark:border-border-dark pt-4">
-              <p class="text-xs font-medium text-text-sub dark:text-text-sub-dark uppercase mb-2">Delivery Note</p>
-              <p class="text-sm text-text-main dark:text-text-main-dark italic">"Please leave the package at the back porch if no one is home. Gate code is 1234."</p>
+              <p class="text-xs font-medium text-text-sub dark:text-text-sub-dark uppercase mb-2">配送备注</p>
+              <p class="text-sm text-text-main dark:text-text-main-dark italic">“若家中无人，请将包裹放在后门门廊。门禁码 1234。”</p>
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { isDevMode } from './lib/env';
+import { installZhLocalization } from './lib/i18n-zh';
 
 const normalizePath = (value) => {
   if (!value || value === '/') return '/dashboard.html';
@@ -12,12 +13,12 @@ if (!supportedPaths.has(currentPath)) {
   // Dashboard already has native sidebar; login page should not have sidebar.
 } else if (!document.querySelector('[data-admin-unified-sidebar="true"]')) {
   const navItems = [
-    { key: 'dashboard', href: '/dashboard.html', icon: 'dashboard', label: 'Dashboard' },
-    { key: 'products', href: '/products.html', icon: 'inventory_2', label: 'Products' },
-    { key: 'orders', href: '/orders.html', icon: 'shopping_cart', label: 'Orders', badge: isDevMode ? '' : '12' },
-    { key: 'logistics', href: '/import.html', icon: 'local_shipping', label: 'Logistics' },
-    { key: 'sourcing', href: '/inquiries.html', icon: 'language', label: 'Sourcing' },
-    { key: 'users', href: '/transfer.html', icon: 'group', label: 'Users' }
+    { key: 'dashboard', href: '/dashboard.html', icon: 'dashboard', label: '仪表盘' },
+    { key: 'products', href: '/products.html', icon: 'inventory_2', label: '商品' },
+    { key: 'orders', href: '/orders.html', icon: 'shopping_cart', label: '订单', badge: isDevMode ? '' : '12' },
+    { key: 'logistics', href: '/import.html', icon: 'local_shipping', label: '物流' },
+    { key: 'sourcing', href: '/inquiries.html', icon: 'language', label: '寻源' },
+    { key: 'users', href: '/transfer.html', icon: 'group', label: '用户' }
   ];
 
   const currentKey = (() => {
@@ -72,20 +73,20 @@ if (!supportedPaths.has(currentPath)) {
       <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-white">
         <span class="material-symbols-outlined text-xl">dataset</span>
       </div>
-      <h1 class="text-base font-bold text-slate-900 dark:text-white">AdminPanel</h1>
+      <h1 class="text-base font-bold text-slate-900 dark:text-white">管理后台</h1>
     </div>
     <nav class="flex-1 overflow-hidden px-2 py-2 space-y-0.5">
       ${menuHtml}
       <div class="my-2 border-t border-slate-200 dark:border-slate-800"></div>
       <div class="px-3 py-1.5">
-        <p class="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Settings</p>
+        <p class="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">设置</p>
         <a class="${settingClass('general')}" href="/settings.html">
           <span class="material-symbols-outlined">settings</span>
-          <span class="font-medium">General</span>
+          <span class="font-medium">通用</span>
         </a>
         <a class="${settingClass('security')}" href="/rbac.html">
           <span class="material-symbols-outlined">security</span>
-          <span class="font-medium">Security</span>
+          <span class="font-medium">安全</span>
         </a>
       </div>
     </nav>
@@ -93,8 +94,8 @@ if (!supportedPaths.has(currentPath)) {
       <div class="flex items-center gap-3">
         <div class="h-10 w-10 overflow-hidden rounded-full bg-slate-200 bg-cover bg-center"></div>
         <div class="flex flex-col">
-          <span id="user-name" class="text-sm font-semibold text-slate-900 dark:text-white">Admin User</span>
-          <span id="user-role" class="text-xs text-slate-500 dark:text-slate-400">Administrator</span>
+          <span id="user-name" class="text-sm font-semibold text-slate-900 dark:text-white">管理员用户</span>
+          <span id="user-role" class="text-xs text-slate-500 dark:text-slate-400">管理员</span>
         </div>
       </div>
     </div>
@@ -125,3 +126,5 @@ if (!supportedPaths.has(currentPath)) {
   const firstScript = body.querySelector('script');
   body.insertBefore(wrapper, firstScript);
 }
+
+installZhLocalization();

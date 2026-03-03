@@ -1,5 +1,6 @@
 import { fetchAdminSummary, fetchInquiries, fetchOrders, fetchProductRequests } from './lib/api';
 import { ensureProtectedPage } from './lib/guard';
+import { installZhLocalization } from './lib/i18n-zh';
 import {
   buildEmptyState,
   buildErrorState,
@@ -210,3 +211,4 @@ const initDashboard = async () => {
 };
 
 void initDashboard();
+installZhLocalization();

@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>Product & SKU Management Center</title>
+    <title>商品与 SKU 管理中心</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
     <link
@@ -43,7 +43,7 @@
         <div class="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
           <span class="material-symbols-outlined text-2xl">grid_view</span>
         </div>
-        <h2 class="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Product Center</h2>
+        <h2 class="text-xl font-bold tracking-tight text-slate-900 dark:text-white">商品中心</h2>
       </div>
       <div class="flex items-center gap-4">
         <div class="flex gap-2">
@@ -63,8 +63,8 @@
             style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDpakJNH19xjsIFuArjABq9rauCwKTUSA9U41J1jHOMTfxF__17YHPQD9IjVoKlin7__oO98Sd9lpx9aSyo29yweXXNwoB3CuoDNNsKZFjuG93T2KmHlh_V9Fp-j6RF4luMKB89lpN3DN7c-2INXwM9vUVUsH-L0jo_9153PYyRM6CP2dbQsTdy9z6TbuOlWM9nwffqQ2Ru_ugaXI5c7iMo7HfwFpoqgn5dHAc0z6iiulTuwYJzjlbSyIdYXtv-dJiccblxPIJpTOc");'
           ></div>
           <div class="flex flex-col items-start">
-            <span id="user-name" class="text-sm font-semibold text-slate-900 dark:text-white leading-none mb-1">Jane Doe</span>
-            <span id="user-role" class="text-xs text-slate-500 dark:text-slate-400 leading-none">Admin</span>
+            <span id="user-name" class="text-sm font-semibold text-slate-900 dark:text-white leading-none mb-1">管理员用户</span>
+            <span id="user-role" class="text-xs text-slate-500 dark:text-slate-400 leading-none">管理员</span>
           </div>
           <span class="material-symbols-outlined text-slate-400 text-lg">expand_more</span>
         </button>
@@ -74,17 +74,17 @@
     <main class="flex-1 px-6 py-8 md:px-10 lg:px-12 max-w-[1400px] mx-auto w-full">
       <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
         <div class="flex flex-col gap-2">
-          <h1 class="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">Product & SKU Management</h1>
-          <p class="text-slate-500 dark:text-slate-400 text-lg max-w-2xl">Centralize your inventory control, define pricing tiers, and monitor stock levels across all channels.</p>
+          <h1 class="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">商品与 SKU 管理</h1>
+          <p class="text-slate-500 dark:text-slate-400 text-lg max-w-2xl">集中管理库存，定义分层价格，并监控各渠道库存水位。</p>
         </div>
         <div class="flex gap-3">
-          <button class="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-surface-light dark:bg-surface-dark text-slate-700 dark:text-slate-200 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm">
+          <button id="export-products-btn" class="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-surface-light dark:bg-surface-dark text-slate-700 dark:text-slate-200 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm">
             <span class="material-symbols-outlined text-xl">file_upload</span>
-            <span>Export</span>
+            <span>导出</span>
           </button>
-          <button class="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary hover:bg-primary-dark text-white font-bold transition-all shadow-md shadow-primary/20">
-            <span class="material-symbols-outlined text-xl">playlist_add_check</span>
-            <span>Bulk On-shelf</span>
+          <button id="create-product-btn" class="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary hover:bg-primary-dark text-white font-bold transition-all shadow-md shadow-primary/20">
+            <span class="material-symbols-outlined text-xl">add_circle</span>
+            <span>新建商品</span>
           </button>
         </div>
       </div>
@@ -93,23 +93,23 @@
         <div class="flex flex-wrap gap-4 items-center">
           <div class="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-medium text-sm uppercase tracking-wider mr-2">
             <span class="material-symbols-outlined text-lg">filter_list</span>
-            Filters
+            筛选
           </div>
           <div class="relative group">
             <button class="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium transition-colors">
-              <span>Category: All</span>
+              <span>类目：全部</span>
               <span class="material-symbols-outlined text-lg">expand_more</span>
             </button>
           </div>
           <div class="relative group">
             <button class="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium transition-colors">
-              <span>Status: Active</span>
+              <span>状态：启用</span>
               <span class="material-symbols-outlined text-lg">expand_more</span>
             </button>
           </div>
           <div class="relative flex-1 min-w-[200px]">
             <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 material-symbols-outlined">search</span>
-            <input class="w-full pl-10 pr-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border-transparent focus:bg-white dark:focus:bg-slate-900 focus:border-primary focus:ring-0 text-slate-900 dark:text-white text-sm transition-all placeholder-slate-400" placeholder="Search by SPU Name or SKU ID..." type="text" />
+            <input class="w-full pl-10 pr-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border-transparent focus:bg-white dark:focus:bg-slate-900 focus:border-primary focus:ring-0 text-slate-900 dark:text-white text-sm transition-all placeholder-slate-400" placeholder="按 SPU 名称或 SKU 编号搜索..." type="text" />
           </div>
         </div>
       </div>
@@ -120,12 +120,12 @@
             <thead>
               <tr class="border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
                 <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-[60px]"><input class="rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary bg-transparent" type="checkbox" /></th>
-                <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Product Info (SPU/SKU)</th>
-                <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Category</th>
-                <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tiered Pricing</th>
-                <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Inventory</th>
-                <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center">Status</th>
-                <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Actions</th>
+                <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">商品信息（SPU/SKU）</th>
+                <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">类目</th>
+                <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">分层定价</th>
+                <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">库存</th>
+                <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center">状态</th>
+                <th class="px-6 py-4 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">操作</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -135,21 +135,26 @@
                   <div class="flex items-center gap-4">
                     <div class="size-12 rounded bg-slate-200 dark:bg-slate-700 flex-shrink-0 bg-cover bg-center" data-alt="Abstract product image" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCQoEH4gfPeWzK1H0fbTKGpdPsPEiVMSPpMe3jLG-QgVaadYTF5qCKXGMjK_UTCXUpALUF4RYSCB-uwdUYyEqrynzyRupEFmfWY0O4Y55MSNjHpEcnbyyoMgg9bnSiWa-xAQg9jjGABk35lkIoQYRcnYbRoheyqYHOwhN_dwLyq9p73TGuxxF4apYmpLHY9xpto3PvnH_aZ0I9bo4tHrTLkleRHk2Dxhp9kINeVt8_ELlHoEiskagOOP2omXZCUmUVbFac5vdDDsIY");'></div>
                     <div>
-                      <div class="font-bold text-slate-900 dark:text-white">Classic Cotton Tee</div>
+                      <div class="font-bold text-slate-900 dark:text-white">经典纯棉 T 恤</div>
                       <div class="text-xs text-slate-500 font-mono mt-0.5">SKU-102-BLU-M</div>
                     </div>
                   </div>
                 </td>
-                <td class="px-6 py-4"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">Apparel</span></td>
+                <td class="px-6 py-4"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">服饰</span></td>
                 <td class="px-6 py-4">
                   <div class="flex items-center gap-2 group/edit cursor-pointer">
-                    <span class="text-sm text-slate-600 dark:text-slate-300">Standard Tier</span>
-                    <button class="opacity-0 group-hover/edit:opacity-100 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-all text-primary" title="Edit Pricing"><span class="material-symbols-outlined text-base">edit</span></button>
+                    <span class="text-sm text-slate-600 dark:text-slate-300">标准档</span>
+                    <button class="opacity-0 group-hover/edit:opacity-100 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-all text-primary" title="编辑价格"><span class="material-symbols-outlined text-base">edit</span></button>
                   </div>
                 </td>
                 <td class="px-6 py-4 text-right"><span class="font-medium text-slate-900 dark:text-white">1,240</span></td>
-                <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800"><span class="size-1.5 rounded-full bg-emerald-500"></span>On Shelf</span></td>
-                <td class="px-6 py-4 text-right"><button class="text-slate-400 hover:text-primary transition-colors p-1"><span class="material-symbols-outlined">more_vert</span></button></td>
+                <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800"><span class="size-1.5 rounded-full bg-emerald-500"></span>已上架</span></td>
+                <td class="px-6 py-4 text-right">
+                  <button data-role="open-product-drawer" title="编辑商品" class="inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-xs font-medium text-slate-500 hover:border-slate-200 hover:bg-slate-50 hover:text-primary transition-colors">
+                    <span class="material-symbols-outlined text-base">edit</span>
+                    <span class="hidden sm:inline">编辑</span>
+                  </button>
+                </td>
               </tr>
 
               <tr class="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
@@ -158,21 +163,26 @@
                   <div class="flex items-center gap-4">
                     <div class="size-12 rounded bg-slate-200 dark:bg-slate-700 flex-shrink-0 bg-cover bg-center" data-alt="Abstract electronic product image" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBEIgPW6ZBOTgr9Q108MfixPSYHRAYslI2QJq5jutI_I44OsmzXgS1DKgmv5bhUsoq8uj3sJsOGNsSVWTxV-MqVI5WZyd9Na0avk4Xb8Otkz0-SiSM9aoveA6AAYyaUAwwF7giqaUqikM6MKXWA62Lwkru6jttI92nQEEjAV7JrQewS4-8dgwyn_ivXI_iTPPk25_065zBjkvwThYjMA4WwJVvz0y9d0fZGYtJE111hzA0c9BL7tlLKI6GITyug2_lvbIU_qwqC5zs");'></div>
                     <div>
-                      <div class="font-bold text-slate-900 dark:text-white">Wireless Headphones Pro</div>
+                      <div class="font-bold text-slate-900 dark:text-white">无线耳机 Pro</div>
                       <div class="text-xs text-slate-500 font-mono mt-0.5">SKU-505-BLK</div>
                     </div>
                   </div>
                 </td>
-                <td class="px-6 py-4"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">Electronics</span></td>
+                <td class="px-6 py-4"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">电子产品</span></td>
                 <td class="px-6 py-4">
                   <div class="flex items-center gap-2 group/edit cursor-pointer">
-                    <span class="text-sm font-medium text-amber-600 dark:text-amber-400">Set Tiered Price</span>
-                    <button class="opacity-0 group-hover/edit:opacity-100 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-all text-primary" title="Edit Pricing"><span class="material-symbols-outlined text-base">edit</span></button>
+                    <span class="text-sm font-medium text-amber-600 dark:text-amber-400">设置分层价格</span>
+                    <button class="opacity-0 group-hover/edit:opacity-100 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-all text-primary" title="编辑价格"><span class="material-symbols-outlined text-base">edit</span></button>
                   </div>
                 </td>
-                <td class="px-6 py-4 text-right"><span class="font-medium text-red-600 dark:text-red-400">45</span><span class="text-[10px] block text-slate-400">Low Stock</span></td>
-                <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700"><span class="size-1.5 rounded-full bg-slate-400"></span>Off Shelf</span></td>
-                <td class="px-6 py-4 text-right"><button class="text-slate-400 hover:text-primary transition-colors p-1"><span class="material-symbols-outlined">more_vert</span></button></td>
+                <td class="px-6 py-4 text-right"><span class="font-medium text-red-600 dark:text-red-400">45</span><span class="text-[10px] block text-slate-400">库存不足</span></td>
+                <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700"><span class="size-1.5 rounded-full bg-slate-400"></span>已下架</span></td>
+                <td class="px-6 py-4 text-right">
+                  <button data-role="open-product-drawer" title="编辑商品" class="inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-xs font-medium text-slate-500 hover:border-slate-200 hover:bg-slate-50 hover:text-primary transition-colors">
+                    <span class="material-symbols-outlined text-base">edit</span>
+                    <span class="hidden sm:inline">编辑</span>
+                  </button>
+                </td>
               </tr>
 
               <tr class="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
@@ -181,21 +191,26 @@
                   <div class="flex items-center gap-4">
                     <div class="size-12 rounded bg-slate-200 dark:bg-slate-700 flex-shrink-0 bg-cover bg-center" data-alt="Abstract leather product image" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAjfY9aErprDgMbNW85Bo1S8v946mPEkkDWaZzNHNBAYFo0m9XuCqFAv_SQv6LrE3AWOXealNtJiOQyGWyme10Dbf7sCna3NN2mr5lmmr9LG1DfWfVdbieVgjgFL9GHTkXi1tQJJdOYdR3YNQ8BM9KTCk0tuqJy0mtF_ha6Zar8OLDXFX51Fn6j7VCOSOmzIYgcuePgboazKpD8MCDDowKOK0VVUXHGHw50ztZCmTk1rfOmEFE_shi0E59oj3ZN72S3-T1R8lMP3TA");'></div>
                     <div>
-                      <div class="font-bold text-slate-900 dark:text-white">Leather Slim Wallet</div>
+                      <div class="font-bold text-slate-900 dark:text-white">真皮轻薄钱包</div>
                       <div class="text-xs text-slate-500 font-mono mt-0.5">SKU-303-BRN</div>
                     </div>
                   </div>
                 </td>
-                <td class="px-6 py-4"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">Accessories</span></td>
+                <td class="px-6 py-4"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">配件</span></td>
                 <td class="px-6 py-4">
                   <div class="flex items-center gap-2 group/edit cursor-pointer">
-                    <span class="text-sm text-primary font-medium">Tier 2 Active</span>
-                    <button class="opacity-0 group-hover/edit:opacity-100 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-all text-primary" title="Edit Pricing"><span class="material-symbols-outlined text-base">edit</span></button>
+                    <span class="text-sm text-primary font-medium">二档启用</span>
+                    <button class="opacity-0 group-hover/edit:opacity-100 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-all text-primary" title="编辑价格"><span class="material-symbols-outlined text-base">edit</span></button>
                   </div>
                 </td>
                 <td class="px-6 py-4 text-right"><span class="font-medium text-slate-900 dark:text-white">320</span></td>
-                <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800"><span class="size-1.5 rounded-full bg-emerald-500"></span>On Shelf</span></td>
-                <td class="px-6 py-4 text-right"><button class="text-slate-400 hover:text-primary transition-colors p-1"><span class="material-symbols-outlined">more_vert</span></button></td>
+                <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800"><span class="size-1.5 rounded-full bg-emerald-500"></span>已上架</span></td>
+                <td class="px-6 py-4 text-right">
+                  <button data-role="open-product-drawer" title="编辑商品" class="inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-xs font-medium text-slate-500 hover:border-slate-200 hover:bg-slate-50 hover:text-primary transition-colors">
+                    <span class="material-symbols-outlined text-base">edit</span>
+                    <span class="hidden sm:inline">编辑</span>
+                  </button>
+                </td>
               </tr>
 
               <tr class="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
@@ -204,21 +219,26 @@
                   <div class="flex items-center gap-4">
                     <div class="size-12 rounded bg-slate-200 dark:bg-slate-700 flex-shrink-0 bg-cover bg-center" data-alt="Abstract ceramic product image" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuATkU8VA_t7SGJYwPViJASvA_fn8uMFTdL9xTEl4WMsqfhxAvbR0nh2-_l1eL9GnV59mItV7WjLwXeKx6QdfbOXt-t02wb9ZDuQy7Ct-lJmuBaM2-N-eeAFCqQ_D-3lGfNZIyw5cdug2IE8WXiSN4Li-asDIj6cWCwM1GyC0Nq5xdNe1uaZ9zPdG0O57cR0GdpfWmpSfIaD3W3zsEa98n0M1GF0hB5VJGZMW3fESRS-sXsDmwHPEzklvk_cawQVRfgqmbWWeJSiV_s");'></div>
                     <div>
-                      <div class="font-bold text-slate-900 dark:text-white">Minimalist Ceramic Vase</div>
+                      <div class="font-bold text-slate-900 dark:text-white">极简陶瓷花瓶</div>
                       <div class="text-xs text-slate-500 font-mono mt-0.5">SKU-889-WHT</div>
                     </div>
                   </div>
                 </td>
-                <td class="px-6 py-4"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300">Home Decor</span></td>
+                <td class="px-6 py-4"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300">家居装饰</span></td>
                 <td class="px-6 py-4">
                   <div class="flex items-center gap-2 group/edit cursor-pointer">
-                    <span class="text-sm text-slate-600 dark:text-slate-300">Standard</span>
-                    <button class="opacity-0 group-hover/edit:opacity-100 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-all text-primary" title="Edit Pricing"><span class="material-symbols-outlined text-base">edit</span></button>
+                    <span class="text-sm text-slate-600 dark:text-slate-300">标准</span>
+                    <button class="opacity-0 group-hover/edit:opacity-100 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-all text-primary" title="编辑价格"><span class="material-symbols-outlined text-base">edit</span></button>
                   </div>
                 </td>
-                <td class="px-6 py-4 text-right"><span class="font-medium text-slate-900 dark:text-white">15</span><span class="text-[10px] block text-red-500 font-bold">Critical</span></td>
-                <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-100 dark:border-amber-800"><span class="size-1.5 rounded-full bg-amber-500"></span>Draft</span></td>
-                <td class="px-6 py-4 text-right"><button class="text-slate-400 hover:text-primary transition-colors p-1"><span class="material-symbols-outlined">more_vert</span></button></td>
+                <td class="px-6 py-4 text-right"><span class="font-medium text-slate-900 dark:text-white">15</span><span class="text-[10px] block text-red-500 font-bold">紧急</span></td>
+                <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-100 dark:border-amber-800"><span class="size-1.5 rounded-full bg-amber-500"></span>草稿</span></td>
+                <td class="px-6 py-4 text-right">
+                  <button data-role="open-product-drawer" title="编辑商品" class="inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-xs font-medium text-slate-500 hover:border-slate-200 hover:bg-slate-50 hover:text-primary transition-colors">
+                    <span class="material-symbols-outlined text-base">edit</span>
+                    <span class="hidden sm:inline">编辑</span>
+                  </button>
+                </td>
               </tr>
 
               <tr class="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
@@ -227,28 +247,33 @@
                   <div class="flex items-center gap-4">
                     <div class="size-12 rounded bg-slate-200 dark:bg-slate-700 flex-shrink-0 bg-cover bg-center" data-alt="Abstract shoe product image" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuA0dVU3CbsDZyVFNGcLshF6YPBJMXxeAkydfB9oG-gpqraaY3swuQGA6DlAzox0skc9W3gMDHpbOY7Ui6Dyfi72SLBagGUh5ASqADVL1jdp6k9txxiAxXeotx6YaP8KAeq_-eMws7k2lB-ugkiyFet-VpTh98336NktWjqnterKtgihC0oJOobwVBu322iP86hzYMstZBx7ItnBXjsjex5nGodo7N27yiGtEIvurLh64yG0d_g9NrQMb0bw9L9p4EHj3e2KWUbeq1c");'></div>
                     <div>
-                      <div class="font-bold text-slate-900 dark:text-white">Performance Run Shoe</div>
+                      <div class="font-bold text-slate-900 dark:text-white">性能跑鞋</div>
                       <div class="text-xs text-slate-500 font-mono mt-0.5">SKU-774-GRY</div>
                     </div>
                   </div>
                 </td>
-                <td class="px-6 py-4"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">Footwear</span></td>
+                <td class="px-6 py-4"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">鞋履</span></td>
                 <td class="px-6 py-4">
                   <div class="flex items-center gap-2 group/edit cursor-pointer">
-                    <span class="text-sm font-medium text-amber-600 dark:text-amber-400">Set Tiered Price</span>
-                    <button class="opacity-0 group-hover/edit:opacity-100 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-all text-primary" title="Edit Pricing"><span class="material-symbols-outlined text-base">edit</span></button>
+                    <span class="text-sm font-medium text-amber-600 dark:text-amber-400">设置分层价格</span>
+                    <button class="opacity-0 group-hover/edit:opacity-100 p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-all text-primary" title="编辑价格"><span class="material-symbols-outlined text-base">edit</span></button>
                   </div>
                 </td>
                 <td class="px-6 py-4 text-right"><span class="font-medium text-slate-900 dark:text-white">850</span></td>
-                <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800"><span class="size-1.5 rounded-full bg-emerald-500"></span>On Shelf</span></td>
-                <td class="px-6 py-4 text-right"><button class="text-slate-400 hover:text-primary transition-colors p-1"><span class="material-symbols-outlined">more_vert</span></button></td>
+                <td class="px-6 py-4 text-center"><span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800"><span class="size-1.5 rounded-full bg-emerald-500"></span>已上架</span></td>
+                <td class="px-6 py-4 text-right">
+                  <button data-role="open-product-drawer" title="编辑商品" class="inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-xs font-medium text-slate-500 hover:border-slate-200 hover:bg-slate-50 hover:text-primary transition-colors">
+                    <span class="material-symbols-outlined text-base">edit</span>
+                    <span class="hidden sm:inline">编辑</span>
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
 
         <div class="border-t border-slate-200 dark:border-slate-800 p-4 flex items-center justify-between bg-slate-50 dark:bg-slate-900/50">
-          <div class="text-sm text-slate-500 dark:text-slate-400">Showing <span class="font-semibold text-slate-900 dark:text-white">1</span> to <span class="font-semibold text-slate-900 dark:text-white">5</span> of <span class="font-semibold text-slate-900 dark:text-white">128</span> results</div>
+          <div class="text-sm text-slate-500 dark:text-slate-400">显示第 <span class="font-semibold text-slate-900 dark:text-white">1</span> 到 <span class="font-semibold text-slate-900 dark:text-white">5</span> 条，共 <span class="font-semibold text-slate-900 dark:text-white">128</span> 条结果</div>
           <div class="flex items-center gap-2">
             <button class="p-2 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 disabled:opacity-50 transition-colors"><span class="material-symbols-outlined text-lg">chevron_left</span></button>
             <button class="size-8 rounded bg-primary text-white text-sm font-medium flex items-center justify-center">1</button>

@@ -1,5 +1,6 @@
 import { goToDashboard, isLoggedIn, loginDev, loginMock, refreshBootstrap } from './lib/auth';
 import { isDevMode, isMockMode } from './lib/env';
+import { installZhLocalization } from './lib/i18n-zh';
 
 const form = document.querySelector('#login-form');
 const usernameInput = document.querySelector('#username');
@@ -18,7 +19,7 @@ const setFormPending = (pending) => {
     control.disabled = pending;
   });
   if (submitButton) {
-    submitButton.textContent = pending ? 'Signing In...' : 'Sign In';
+    submitButton.textContent = pending ? '登录中...' : '登录';
   }
 };
 
@@ -60,7 +61,7 @@ if (form && usernameInput && passwordInput && roleSelect) {
     const role = String(roleSelect.value || '').trim();
 
     if (!username || !password) {
-      window.alert('Please enter username and password.');
+      window.alert('请输入用户名和密码。');
       return;
     }
 
@@ -74,7 +75,7 @@ if (form && usernameInput && passwordInput && roleSelect) {
       }
 
       if (role && role.toLowerCase() !== 'admin') {
-        window.alert('Dev mode currently supports Administrator login only.');
+        window.alert('Dev 模式当前仅支持管理员登录。');
         return;
       }
 
@@ -91,3 +92,4 @@ if (form && usernameInput && passwordInput && roleSelect) {
 }
 
 void initSessionRedirect();
+installZhLocalization();

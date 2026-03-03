@@ -3,6 +3,7 @@ import {
   getInquiriesPrice,
   getOrders,
   getProductRequests,
+  postCatalogProducts,
   postShipmentsImportJobs,
   setApiClientConfig
 } from '@tmo/api-client';
@@ -133,6 +134,10 @@ export const bootstrap = async () => {
 
 export const fetchProducts = async (params = {}) => {
   return getCatalogProducts(params);
+};
+
+export const createCatalogProduct = async (payload) => {
+  return postCatalogProducts(payload);
 };
 
 export const fetchOrders = async (params = {}) => {
