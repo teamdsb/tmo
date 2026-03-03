@@ -6,7 +6,7 @@ const normalizePath = (value) => {
 };
 
 const currentPath = normalizePath(window.location.pathname);
-const supportedPaths = new Set(['/products.html', '/orders.html', '/import.html', '/inquiries.html']);
+const supportedPaths = new Set(['/products.html', '/orders.html', '/import.html', '/inquiries.html', '/suppliers.html', '/quote-workflow.html', '/payments.html', '/exports.html', '/rbac.html', '/settings.html', '/transfer.html']);
 
 if (!supportedPaths.has(currentPath)) {
   // Dashboard already has native sidebar; login page should not have sidebar.
@@ -17,19 +17,37 @@ if (!supportedPaths.has(currentPath)) {
     { key: 'orders', href: '/orders.html', icon: 'shopping_cart', label: 'Orders', badge: isDevMode ? '' : '12' },
     { key: 'logistics', href: '/import.html', icon: 'local_shipping', label: 'Logistics' },
     { key: 'sourcing', href: '/inquiries.html', icon: 'language', label: 'Sourcing' },
-    { key: 'users', href: '#', icon: 'group', label: 'Users' }
+    { key: 'users', href: '/transfer.html', icon: 'group', label: 'Users' }
   ];
 
   const currentKey = (() => {
     if (currentPath === '/products.html') return 'products';
     if (currentPath === '/orders.html') return 'orders';
+    if (currentPath === '/payments.html') return 'orders';
     if (currentPath === '/import.html') return 'logistics';
+    if (currentPath === '/exports.html') return 'logistics';
     if (currentPath === '/inquiries.html') return 'sourcing';
-    return 'dashboard';
+    if (currentPath === '/suppliers.html') return 'sourcing';
+    if (currentPath === '/quote-workflow.html') return 'sourcing';
+    if (currentPath === '/transfer.html') return 'users';
+    return null;
+  })();
+
+  const currentSettingKey = (() => {
+    if (currentPath === '/settings.html') return 'general';
+    if (currentPath === '/rbac.html') return 'security';
+    return null;
   })();
 
   const itemClass = (key) => {
-    if (key === currentKey) {
+    if (currentKey && key === currentKey) {
+      return 'flex items-center gap-2.5 rounded-lg bg-primary/10 px-3 py-1.5 text-primary transition-colors';
+    }
+    return 'flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 transition-colors';
+  };
+
+  const settingClass = (key) => {
+    if (currentSettingKey && key === currentSettingKey) {
       return 'flex items-center gap-2.5 rounded-lg bg-primary/10 px-3 py-1.5 text-primary transition-colors';
     }
     return 'flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 transition-colors';
@@ -61,11 +79,11 @@ if (!supportedPaths.has(currentPath)) {
       <div class="my-2 border-t border-slate-200 dark:border-slate-800"></div>
       <div class="px-3 py-1.5">
         <p class="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Settings</p>
-        <a class="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 transition-colors" href="#">
+        <a class="${settingClass('general')}" href="/settings.html">
           <span class="material-symbols-outlined">settings</span>
           <span class="font-medium">General</span>
         </a>
-        <a class="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100 transition-colors" href="#">
+        <a class="${settingClass('security')}" href="/rbac.html">
           <span class="material-symbols-outlined">security</span>
           <span class="font-medium">Security</span>
         </a>
