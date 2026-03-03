@@ -88,9 +88,9 @@ func userTypeFromRole(role string) (oapi.UserUserType, bool) {
 	switch strings.ToUpper(role) {
 	case "CUSTOMER":
 		return oapi.UserUserTypeCustomer, true
-	case "SALES", "PROCUREMENT", "CS":
+	case "SALES", "PROCUREMENT", "CS", "MANAGER":
 		return oapi.UserUserTypeStaff, true
-	case "ADMIN":
+	case "ADMIN", "BOSS":
 		return oapi.UserUserTypeAdmin, true
 	default:
 		return "", false

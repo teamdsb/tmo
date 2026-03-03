@@ -12,6 +12,8 @@ import {
 
 const roleLabels = {
   admin: '管理员',
+  boss: '老板',
+  manager: '管理员',
   sales: '销售经理',
   support: '客服专员',
   logistics: '物流协调员'

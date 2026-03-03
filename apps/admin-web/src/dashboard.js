@@ -1,6 +1,7 @@
 import { fetchAdminSummary, fetchInquiries, fetchOrders, fetchProductRequests } from './lib/api';
 import { ensureProtectedPage } from './lib/guard';
 import { installZhLocalization } from './lib/i18n-zh';
+import { normalizePermissionMap, resolveAccessTier } from './lib/permissions';
 import {
   buildEmptyState,
   buildErrorState,
@@ -84,21 +85,36 @@ const mountDevLayout = (root) => {
   `;
 };
 
-const renderSummaryCards = (container, summary) => {
+const renderSummaryCards = (container, summary, tier) => {
   if (!container || !summary) {
     return;
   }
 
   const metrics = summary.metrics || {};
   const flags = summary.featureFlags || {};
-  container.innerHTML = `
-    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs text-slate-500">Products</p><p class="mt-1 text-lg font-bold text-slate-900">${escape(metrics.productsTotal ?? 0)}</p></div>
-    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs text-slate-500">Orders</p><p class="mt-1 text-lg font-bold text-slate-900">${escape(metrics.ordersTotal ?? 0)}</p></div>
-    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs text-slate-500">Pending Orders</p><p class="mt-1 text-lg font-bold text-slate-900">${escape(metrics.ordersPending ?? 0)}</p></div>
-    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs text-slate-500">Inquiries Total</p><p class="mt-1 text-lg font-bold text-slate-900">${escape(metrics.inquiriesTotal ?? 0)}</p></div>
-    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs text-slate-500">Inquiries Open</p><p class="mt-1 text-lg font-bold text-slate-900">${escape(metrics.inquiriesOpen ?? 0)}</p></div>
-    <div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs text-slate-500">Feature Flags</p><p class="mt-1 text-xs font-semibold text-slate-800">pay:${flags.paymentEnabled ? 'on' : 'off'} wx:${flags.wechatPayEnabled ? 'on' : 'off'} ali:${flags.alipayPayEnabled ? 'on' : 'off'}</p></div>
-  `;
+  const cards = [
+    { key: 'products', label: 'Products', value: metrics.productsTotal ?? 0, tiers: ['boss'] },
+    { key: 'orders', label: 'Orders', value: metrics.ordersTotal ?? 0, tiers: ['boss', 'manager', 'sales'] },
+    { key: 'pendingOrders', label: 'Pending Orders', value: metrics.ordersPending ?? 0, tiers: ['boss', 'manager', 'sales'] },
+    { key: 'inquiriesTotal', label: 'Inquiries Total', value: metrics.inquiriesTotal ?? 0, tiers: ['boss', 'manager'] },
+    { key: 'inquiriesOpen', label: 'Inquiries Open', value: metrics.inquiriesOpen ?? 0, tiers: ['boss', 'manager', 'sales'] }
+  ];
+
+  const filtered = cards.filter((item) => item.tiers.includes(tier));
+  if (tier === 'boss') {
+    filtered.push({
+      key: 'featureFlags',
+      label: 'Feature Flags',
+      value: `pay:${flags.paymentEnabled ? 'on' : 'off'} wx:${flags.wechatPayEnabled ? 'on' : 'off'} ali:${flags.alipayPayEnabled ? 'on' : 'off'}`
+    });
+  }
+
+  container.innerHTML = filtered.map((item) => {
+    const valueHtml = item.key === 'featureFlags'
+      ? `<p class="mt-1 text-xs font-semibold text-slate-800">${escape(item.value)}</p>`
+      : `<p class="mt-1 text-lg font-bold text-slate-900">${escape(item.value)}</p>`;
+    return `<div class="rounded-lg border border-slate-200 bg-slate-50 p-3"><p class="text-xs text-slate-500">${escape(item.label)}</p>${valueHtml}</div>`;
+  }).join('');
 };
 
 const renderWarnings = (container, summary) => {
@@ -177,11 +193,17 @@ const initDashboard = async () => {
   const activityBody = root.querySelector('[data-role="activity-body"]');
   const extraPanels = root.querySelector('[data-role="extra-panels"]');
 
+  const permissionMap = normalizePermissionMap(context.session?.permissions);
+  const tier = resolveAccessTier(context.session);
+  const canReadOrders = permissionMap.get('order:read');
+  const canReadInquiries = permissionMap.get('inquiry:read') || permissionMap.get('inquiry:manage');
+  const canReadRequests = permissionMap.get('product_request:read');
+
   const [summaryResult, ordersResult, inquiriesResult, requestsResult] = await Promise.allSettled([
     fetchAdminSummary(),
-    fetchOrders({ page: 1, pageSize: 10 }),
-    fetchInquiries({ page: 1, pageSize: 10 }),
-    fetchProductRequests({ page: 1, pageSize: 10 })
+    canReadOrders ? fetchOrders({ page: 1, pageSize: 10 }) : Promise.resolve({ status: 200, data: { items: [] } }),
+    canReadInquiries ? fetchInquiries({ page: 1, pageSize: 10 }) : Promise.resolve({ status: 200, data: { items: [] } }),
+    canReadRequests ? fetchProductRequests({ page: 1, pageSize: 10 }) : Promise.resolve({ status: 200, data: { items: [] } })
   ]);
 
   const summaryResp = summaryResult.status === 'fulfilled' ? summaryResult.value : null;
@@ -190,7 +212,7 @@ const initDashboard = async () => {
   const requestsResp = requestsResult.status === 'fulfilled' ? requestsResult.value : null;
 
   if (summaryResp?.status === 200 && summaryResp.data) {
-    renderSummaryCards(summaryCards, summaryResp.data);
+    renderSummaryCards(summaryCards, summaryResp.data, tier);
     renderWarnings(warningsContainer, summaryResp.data);
     if (updatedAt) {
       updatedAt.textContent = `updated: ${formatDateTime(summaryResp.data.generatedAt)}`;

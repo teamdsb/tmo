@@ -13,6 +13,7 @@ import (
 	"github.com/oapi-codegen/runtime/types"
 
 	shareddb "github.com/teamdsb/tmo/packages/go-shared/db"
+	"github.com/teamdsb/tmo/services/identity/internal/auth"
 	"github.com/teamdsb/tmo/services/identity/internal/db"
 	"github.com/teamdsb/tmo/services/identity/internal/http/oapi"
 )
@@ -20,7 +21,7 @@ import (
 const defaultStaffBindingTTL = 30 * time.Minute
 
 func (h *Handler) PostStaff(c *gin.Context) {
-	claims, ok := h.requireAdmin(c)
+	claims, ok := h.requireBoss(c)
 	if !ok {
 		return
 	}
@@ -81,7 +82,7 @@ func (h *Handler) PostStaff(c *gin.Context) {
 }
 
 func (h *Handler) GetStaff(c *gin.Context, params oapi.GetStaffParams) {
-	if _, ok := h.requireAdmin(c); !ok {
+	if _, _, ok := h.requirePermission(c, "staff:read", "ALL"); !ok {
 		return
 	}
 
@@ -135,7 +136,7 @@ func (h *Handler) GetStaff(c *gin.Context, params oapi.GetStaffParams) {
 }
 
 func (h *Handler) GetStaffStaffId(c *gin.Context, staffId types.UUID) {
-	if _, ok := h.requireAdmin(c); !ok {
+	if _, _, ok := h.requirePermission(c, "staff:read", "ALL"); !ok {
 		return
 	}
 
@@ -165,15 +166,29 @@ func (h *Handler) GetStaffStaffId(c *gin.Context, staffId types.UUID) {
 }
 
 func (h *Handler) PatchStaffStaffId(c *gin.Context, staffId types.UUID) {
-	claims, ok := h.requireAdmin(c)
-	if !ok {
-		return
-	}
-
 	var request oapi.UpdateStaffRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
 		return
+	}
+	if request.DisplayName == nil && request.Roles == nil && request.Status == nil && request.DisabledReason == nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "at least one field is required")
+		return
+	}
+
+	var claims auth.Claims
+	if request.DisplayName != nil || request.Roles != nil {
+		authClaims, _, ok := h.requirePermission(c, "rbac:manage", "ALL")
+		if !ok {
+			return
+		}
+		claims = authClaims
+	} else {
+		authClaims, _, ok := h.requirePermission(c, "staff:status_manage", "ALL")
+		if !ok {
+			return
+		}
+		claims = authClaims
 	}
 
 	user, err := h.Store.GetUserByID(c.Request.Context(), uuid.UUID(staffId))
@@ -287,7 +302,7 @@ func (h *Handler) PatchStaffStaffId(c *gin.Context, staffId types.UUID) {
 }
 
 func (h *Handler) PostStaffStaffIdBindings(c *gin.Context, staffId types.UUID) {
-	claims, ok := h.requireAdmin(c)
+	claims, ok := h.requireBoss(c)
 	if !ok {
 		return
 	}
@@ -383,7 +398,7 @@ func staffFromModel(user db.User, roles []string) oapi.StaffUser {
 
 func isStaffRole(role string) bool {
 	switch strings.ToUpper(role) {
-	case "SALES", "PROCUREMENT", "CS":
+	case "SALES", "PROCUREMENT", "CS", "MANAGER":
 		return true
 	default:
 		return false

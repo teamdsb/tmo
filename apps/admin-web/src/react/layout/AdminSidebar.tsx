@@ -1,4 +1,6 @@
 import { isDevMode } from '../../lib/env';
+import { canAccessPath, normalizePermissionMap } from '../../lib/permissions';
+import { readAuthState } from '../../lib/state';
 
 export type AdminRouteKey =
   | 'dashboard'
@@ -40,6 +42,12 @@ type AdminSidebarProps = {
 };
 
 export const AdminSidebar = ({ currentKey, currentSettingKey }: AdminSidebarProps) => {
+  const authState = readAuthState();
+  const permissionMap = normalizePermissionMap(authState?.permissions);
+  const visibleNavItems = isDevMode ? navItems.filter((item) => canAccessPath(item.href, permissionMap)) : navItems;
+  const showGeneralSetting = isDevMode ? canAccessPath('/settings.html', permissionMap) : true;
+  const showSecuritySetting = isDevMode ? canAccessPath('/rbac.html', permissionMap) : true;
+
   return (
     <aside
       data-admin-unified-sidebar="true"
@@ -52,7 +60,7 @@ export const AdminSidebar = ({ currentKey, currentSettingKey }: AdminSidebarProp
         <h1 className="text-base font-bold text-slate-900 dark:text-white">管理后台</h1>
       </div>
       <nav className="flex-1 overflow-hidden px-2 py-2 space-y-0.5">
-        {navItems.map((item) => (
+        {visibleNavItems.map((item) => (
           <a key={item.key} className={itemClass(currentKey === item.key)} href={item.href}>
             <span className="material-symbols-outlined">{item.icon}</span>
             <span className="font-medium">{item.label}</span>
@@ -64,17 +72,23 @@ export const AdminSidebar = ({ currentKey, currentSettingKey }: AdminSidebarProp
           </a>
         ))}
         <div className="my-2 border-t border-slate-200 dark:border-slate-800"></div>
-        <div className="px-3 py-1.5">
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">设置</p>
-          <a className={itemClass(currentSettingKey === 'general')} href="/settings.html">
-            <span className="material-symbols-outlined">settings</span>
-            <span className="font-medium">通用</span>
-          </a>
-          <a className={itemClass(currentSettingKey === 'security')} href="/rbac.html">
-            <span className="material-symbols-outlined">security</span>
-            <span className="font-medium">安全</span>
-          </a>
-        </div>
+        {(showGeneralSetting || showSecuritySetting) ? (
+          <div className="px-3 py-1.5">
+            <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">设置</p>
+            {showGeneralSetting ? (
+              <a className={itemClass(currentSettingKey === 'general')} href="/settings.html">
+                <span className="material-symbols-outlined">settings</span>
+                <span className="font-medium">通用</span>
+              </a>
+            ) : null}
+            {showSecuritySetting ? (
+              <a className={itemClass(currentSettingKey === 'security')} href="/rbac.html">
+                <span className="material-symbols-outlined">security</span>
+                <span className="font-medium">安全</span>
+              </a>
+            ) : null}
+          </div>
+        ) : null}
       </nav>
       <div className="border-t border-slate-200 p-3 dark:border-slate-800">
         <div className="flex items-center gap-3">

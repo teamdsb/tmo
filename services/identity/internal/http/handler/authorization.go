@@ -10,15 +10,45 @@ import (
 )
 
 func (h *Handler) requireAdmin(c *gin.Context) (auth.Claims, bool) {
+	return h.requireBoss(c)
+}
+
+func (h *Handler) requireBoss(c *gin.Context) (auth.Claims, bool) {
 	claims, ok := h.requireClaims(c)
 	if !ok {
 		return auth.Claims{}, false
 	}
-	if strings.ToUpper(claims.Role) != "ADMIN" {
+	switch strings.ToUpper(claims.Role) {
+	case "BOSS", "ADMIN":
+		return claims, true
+	default:
 		h.writeError(c, http.StatusForbidden, "forbidden", "permission denied")
 		return auth.Claims{}, false
 	}
-	return claims, true
+}
+
+func (h *Handler) requirePermission(c *gin.Context, permissionCode string, requiredScope string) (auth.Claims, string, bool) {
+	claims, ok := h.requireClaims(c)
+	if !ok {
+		return auth.Claims{}, "", false
+	}
+
+	scope, allowed, err := h.permissionScope(c, claims.UserID, permissionCode)
+	if err != nil {
+		h.logError("list effective permissions failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to authorize")
+		return auth.Claims{}, "", false
+	}
+	if !allowed {
+		h.writeError(c, http.StatusForbidden, "forbidden", "permission denied")
+		return auth.Claims{}, "", false
+	}
+	if requiredScope != "" && !scopeAllows(scope, requiredScope) {
+		h.writeError(c, http.StatusForbidden, "forbidden", "permission denied")
+		return auth.Claims{}, "", false
+	}
+
+	return claims, scope, true
 }
 
 func scopeRank(scope string) int {

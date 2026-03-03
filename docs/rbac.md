@@ -17,6 +17,8 @@
 - PROCUREMENT
 - CS (customer service)
 - ADMIN
+- BOSS
+- MANAGER
 
 ## Scope Rules
 - SELF: only the authenticated user's own resources (e.g., my orders)
@@ -95,6 +97,21 @@ Admin / Ops:
 
 ### ADMIN
 - ALL permissions with ALL scope
+
+### BOSS
+- ALL permissions with ALL scope
+
+### MANAGER
+- catalog:read (ALL)
+- order:read (ALL)
+- tracking:read (ALL)
+- inquiry:manage (ALL)
+- product_request:read (ALL)
+- after_sales:manage (ALL)
+- customer:read (ALL)
+- customer:transfer (ALL)
+- staff:read (ALL)
+- staff:status_manage (ALL)
 
 ## Ownership Fields (recommended)
 - customers.ownerSalesUserId: sales ownership (set on first QR bind; only admin transfer can change)

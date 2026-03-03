@@ -64,7 +64,7 @@ func (h *Handler) GetAdminConfigFeatureFlags(c *gin.Context) {
 }
 
 func (h *Handler) PatchAdminConfigFeatureFlags(c *gin.Context) {
-	claims, ok := h.requireAdmin(c)
+	claims, _, ok := h.requirePermission(c, "config:feature_flags", "ALL")
 	if !ok {
 		return
 	}
@@ -120,7 +120,7 @@ func (h *Handler) PatchAdminConfigFeatureFlags(c *gin.Context) {
 }
 
 func (h *Handler) PostAdminCustomersCustomerIdTransfer(c *gin.Context) {
-	claims, ok := h.requireAdmin(c)
+	claims, _, ok := h.requirePermission(c, "customer:transfer", "ALL")
 	if !ok {
 		return
 	}
@@ -183,7 +183,7 @@ func (h *Handler) PostAdminCustomersCustomerIdTransfer(c *gin.Context) {
 }
 
 func (h *Handler) GetAdminCustomersCustomerIdFinanceProfile(c *gin.Context) {
-	if _, ok := h.requireAdmin(c); !ok {
+	if _, ok := h.requireBoss(c); !ok {
 		return
 	}
 
@@ -212,7 +212,7 @@ func (h *Handler) GetAdminCustomersCustomerIdFinanceProfile(c *gin.Context) {
 }
 
 func (h *Handler) PatchAdminCustomersCustomerIdFinanceProfile(c *gin.Context) {
-	claims, ok := h.requireAdmin(c)
+	claims, ok := h.requireBoss(c)
 	if !ok {
 		return
 	}

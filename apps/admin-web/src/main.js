@@ -74,11 +74,6 @@ if (form && usernameInput && passwordInput && roleSelect) {
         return;
       }
 
-      if (role && role.toLowerCase() !== 'admin') {
-        window.alert('Dev 模式当前仅支持管理员登录。');
-        return;
-      }
-
       await loginDev(username, password);
       await refreshBootstrap();
       goToDashboard();

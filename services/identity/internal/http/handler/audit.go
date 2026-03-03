@@ -13,7 +13,7 @@ import (
 )
 
 func (h *Handler) GetAuditLogs(c *gin.Context, params oapi.GetAuditLogsParams) {
-	if _, ok := h.requireAdmin(c); !ok {
+	if _, ok := h.requireBoss(c); !ok {
 		return
 	}
 

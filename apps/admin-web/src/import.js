@@ -7,6 +7,7 @@ import {
   patchFeatureFlags
 } from './lib/api';
 import { ensureProtectedPage } from './lib/guard';
+import { hasPermission, normalizePermissionMap } from './lib/permissions';
 import {
   buildEmptyState,
   buildErrorState,
@@ -106,6 +107,12 @@ const initImportTools = async () => {
     return;
   }
 
+  const permissionMap = normalizePermissionMap(context.session?.permissions);
+  const canProductImport = hasPermission(permissionMap, 'import:product', 'SELF');
+  const canShipmentImport = hasPermission(permissionMap, 'import:shipment', 'SELF');
+  const canRequestExport = hasPermission(permissionMap, 'product_request:export', 'SELF');
+  const canManageFlags = hasPermission(permissionMap, 'config:feature_flags', 'ALL');
+
   if (placeholder) {
     placeholder.innerHTML = buildEmptyState(
       '旧版解析预览已隐藏',
@@ -119,16 +126,37 @@ const initImportTools = async () => {
     alipayPayEnabled: false
   };
 
-  const flagsResponse = await getFeatureFlags();
-  if (flagsResponse.status === 200 && flagsResponse.data) {
-    currentFlags = {
-      ...currentFlags,
-      ...flagsResponse.data
-    };
+  if (canManageFlags) {
+    const flagsResponse = await getFeatureFlags();
+    if (flagsResponse.status === 200 && flagsResponse.data) {
+      currentFlags = {
+        ...currentFlags,
+        ...flagsResponse.data
+      };
+    } else {
+      resultContainer.innerHTML = buildErrorState('加载 /admin/config/feature-flags 失败');
+    }
+    renderFeatureFlags(flagsContainer, currentFlags);
   } else {
-    resultContainer.innerHTML = buildErrorState('加载 /admin/config/feature-flags 失败');
+    flagsContainer.innerHTML = buildEmptyState('无权限', '当前角色无权限修改支付开关。');
+    const saveFlagsBtn = panel.querySelector('button[data-action="save-flags"]');
+    if (saveFlagsBtn) {
+      saveFlagsBtn.setAttribute('disabled', 'disabled');
+      saveFlagsBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    }
   }
-  renderFeatureFlags(flagsContainer, currentFlags);
+
+  const disabledActions = [];
+  if (!canProductImport) disabledActions.push('product-import');
+  if (!canShipmentImport) disabledActions.push('shipment-import');
+  if (!canRequestExport) disabledActions.push('request-export');
+  for (const action of disabledActions) {
+    const button = panel.querySelector(`button[data-action="${action}"]`);
+    if (button) {
+      button.setAttribute('disabled', 'disabled');
+      button.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+  }
 
   panel.addEventListener('click', async (event) => {
     const target = event.target.closest('button[data-action]');
@@ -145,6 +173,7 @@ const initImportTools = async () => {
       target.disabled = true;
 
       if (action === 'product-import') {
+        if (!canProductImport) return;
         const excelFile = await pickFile();
         if (!excelFile) {
           return;
@@ -155,6 +184,7 @@ const initImportTools = async () => {
       }
 
       if (action === 'shipment-import') {
+        if (!canShipmentImport) return;
         const excelFile = await pickFile();
         if (!excelFile) {
           return;
@@ -165,6 +195,7 @@ const initImportTools = async () => {
       }
 
       if (action === 'request-export') {
+        if (!canRequestExport) return;
         const response = await createAdminProductRequestExportJob({});
         renderResult(resultContainer, '需求导出响应', response);
         return;
@@ -183,6 +214,7 @@ const initImportTools = async () => {
       }
 
       if (action === 'save-flags') {
+        if (!canManageFlags) return;
         const payload = {
           paymentEnabled: Boolean(panel.querySelector('input[data-flag="paymentEnabled"]')?.checked),
           wechatPayEnabled: Boolean(panel.querySelector('input[data-flag="wechatPayEnabled"]')?.checked),

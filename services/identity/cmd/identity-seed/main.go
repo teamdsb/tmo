@@ -15,8 +15,12 @@ import (
 const defaultDSN = "postgres://commerce:commerce@localhost:5432/identity?sslmode=disable"
 
 const (
-	adminUsername = "admin"
-	adminPassword = "admin123"
+	bossUsername    = "boss"
+	bossPassword    = "boss123"
+	managerUsername = "manager"
+	managerPassword = "manager123"
+	adminUsername   = "admin"
+	adminPassword   = "admin123"
 )
 
 func main() {
@@ -63,6 +67,8 @@ RESTART IDENTITY CASCADE
 	}
 
 	adminID := uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+	bossID := uuid.MustParse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
+	managerID := uuid.MustParse("ffffffff-ffff-ffff-ffff-ffffffffffff")
 	salesID := uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
 	multiID := uuid.MustParse("cccccccc-cccc-cccc-cccc-cccccccccccc")
 	customerID := uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
@@ -72,6 +78,22 @@ RESTART IDENTITY CASCADE
 		DisplayName: "Admin",
 		UserType:    "admin",
 		Phone:       strPtr("+15550000001"),
+	}); err != nil {
+		return err
+	}
+	if err := ensureUser(ctx, pool, seedUser{
+		ID:          bossID,
+		DisplayName: "Boss",
+		UserType:    "admin",
+		Phone:       strPtr("+15550000005"),
+	}); err != nil {
+		return err
+	}
+	if err := ensureUser(ctx, pool, seedUser{
+		ID:          managerID,
+		DisplayName: "Manager",
+		UserType:    "staff",
+		Phone:       strPtr("+15550000006"),
 	}); err != nil {
 		return err
 	}
@@ -103,6 +125,12 @@ RESTART IDENTITY CASCADE
 	}
 
 	if err := ensureRole(ctx, pool, adminID, "ADMIN"); err != nil {
+		return err
+	}
+	if err := ensureRole(ctx, pool, bossID, "BOSS"); err != nil {
+		return err
+	}
+	if err := ensureRole(ctx, pool, managerID, "MANAGER"); err != nil {
 		return err
 	}
 	if err := ensureRole(ctx, pool, salesID, "SALES"); err != nil {
@@ -155,18 +183,36 @@ RESTART IDENTITY CASCADE
 		return err
 	}
 
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
+	adminPasswordHash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return fmt.Errorf("hash admin password: %w", err)
 	}
-	if err := ensurePassword(ctx, pool, adminID, adminUsername, string(passwordHash)); err != nil {
+	if err := ensurePassword(ctx, pool, adminID, adminUsername, string(adminPasswordHash)); err != nil {
+		return err
+	}
+	bossPasswordHash, err := bcrypt.GenerateFromPassword([]byte(bossPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash boss password: %w", err)
+	}
+	if err := ensurePassword(ctx, pool, bossID, bossUsername, string(bossPasswordHash)); err != nil {
+		return err
+	}
+	managerPasswordHash, err := bcrypt.GenerateFromPassword([]byte(managerPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash manager password: %w", err)
+	}
+	if err := ensurePassword(ctx, pool, managerID, managerUsername, string(managerPasswordHash)); err != nil {
 		return err
 	}
 
 	fmt.Println("seed data applied")
+	fmt.Printf("boss username: %s\n", bossUsername)
+	fmt.Printf("boss password: %s\n", bossPassword)
+	fmt.Printf("manager username: %s\n", managerUsername)
+	fmt.Printf("manager password: %s\n", managerPassword)
 	fmt.Printf("admin username: %s\n", adminUsername)
 	fmt.Printf("admin password: %s\n", adminPassword)
-	fmt.Println("seeded phones: +15550000001(admin), +15550000002(sales), +15550000003(customer), +15550000004(multi-role)")
+	fmt.Println("seeded phones: +15550000001(admin), +15550000002(sales), +15550000003(customer), +15550000004(multi-role), +15550000005(boss), +15550000006(manager)")
 	return nil
 }
 

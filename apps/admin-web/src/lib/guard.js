@@ -6,6 +6,7 @@ import {
   logout,
   refreshBootstrap
 } from './auth';
+import { canAccessPath, normalizePermissionMap } from './permissions';
 
 let isLogoutDelegated = false;
 
@@ -73,9 +74,16 @@ export const ensureProtectedPage = async () => {
   bindLogoutActions();
   applyProfile(getDisplayProfile());
 
+  const latestSession = getCurrentSession() || session;
+  const permissionMap = normalizePermissionMap(latestSession?.permissions);
+  if (isDevMode && !canAccessPath(window.location.pathname, permissionMap)) {
+    window.location.href = '/dashboard.html';
+    return null;
+  }
+
   return {
     mode: isDevMode ? 'dev' : 'mock',
-    session,
+    session: latestSession,
     bootstrap: bootstrapPayload
   };
 };

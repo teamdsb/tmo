@@ -493,11 +493,6 @@ func (h *Handler) PostAuthPasswordLogin(c *gin.Context) {
 		return
 	}
 
-	if request.Role != nil && strings.ToUpper(string(*request.Role)) != "ADMIN" {
-		h.writeError(c, http.StatusBadRequest, "invalid_request", "role not allowed")
-		return
-	}
-
 	authRow, err := h.Store.GetUserPasswordByUsername(c.Request.Context(), request.Username)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -536,13 +531,24 @@ func (h *Handler) PostAuthPasswordLogin(c *gin.Context) {
 		return
 	}
 	roles = normalizeRoles(roles)
-	if !containsRole(roles, "ADMIN") {
+	var requestedRole *string
+	if request.Role != nil {
+		roleValue := strings.ToUpper(strings.TrimSpace(string(*request.Role)))
+		requestedRole = &roleValue
+	}
+
+	selectedRole, ok := selectPasswordLoginRole(roles, requestedRole)
+	if !ok {
 		h.writeError(c, http.StatusUnauthorized, "unauthorized", "invalid credentials")
 		return
 	}
 
-	userType := oapi.UserUserTypeAdmin
-	token, expiresAt, err := h.Auth.Issue(user.ID, "ADMIN", roles, string(userType), nil)
+	userType, ok := userTypeFromRole(selectedRole)
+	if !ok {
+		h.writeError(c, http.StatusUnauthorized, "unauthorized", "invalid credentials")
+		return
+	}
+	token, expiresAt, err := h.Auth.Issue(user.ID, selectedRole, roles, string(userType), nil)
 	if err != nil {
 		h.logError("issue token failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "login failed")
@@ -555,6 +561,29 @@ func (h *Handler) PostAuthPasswordLogin(c *gin.Context) {
 		User:        userFromModel(user, roles, userType),
 	}
 	c.JSON(http.StatusOK, response)
+}
+
+func selectPasswordLoginRole(roles []string, requested *string) (string, bool) {
+	if requested != nil {
+		role := strings.ToUpper(strings.TrimSpace(*requested))
+		switch role {
+		case "ADMIN", "BOSS", "MANAGER":
+			if containsRole(roles, role) {
+				return role, true
+			}
+			return "", false
+		default:
+			return "", false
+		}
+	}
+
+	priority := []string{"BOSS", "MANAGER", "ADMIN"}
+	for _, role := range priority {
+		if containsRole(roles, role) {
+			return role, true
+		}
+	}
+	return "", false
 }
 
 func (h *Handler) selectMiniLoginRole(c *gin.Context, roles []string, requested *oapi.MiniLoginRequestRole) (string, bool) {
