@@ -1,4 +1,11 @@
-import { createCatalogProduct, fetchProducts } from './lib/api';
+import {
+  createCatalogCategory,
+  createCatalogProduct,
+  deleteCatalogCategory,
+  fetchCatalogCategories,
+  fetchProducts,
+  updateCatalogCategory
+} from './lib/api';
 import { ensureProtectedPage } from './lib/guard';
 import { escape, safeText } from './lib/render';
 
@@ -8,8 +15,13 @@ const state = {
   context: null,
   total: 0,
   allProducts: [],
+  categories: [],
   categoryIdByLabel: {},
   productsById: {},
+  filters: {
+    categoryId: '',
+    status: ''
+  },
   pagination: {
     currentPage: 1,
     pageSize: DEFAULT_PAGE_SIZE,
@@ -21,18 +33,22 @@ const state = {
   }
 };
 
-const CATEGORY_META = {
-  apparel: { label: '服饰', categoryId: 'apparel' },
-  electronics: { label: '电子产品', categoryId: 'electronics' },
-  accessories: { label: '配件', categoryId: 'accessories' },
-  homeDecor: { label: '家居装饰', categoryId: 'home-decor' },
-  footwear: { label: '鞋履', categoryId: 'footwear' }
-};
-
-const CATEGORY_KEY_BY_LABEL = Object.entries(CATEGORY_META).reduce((accumulator, [key, value]) => {
-  accumulator[value.label] = key;
-  return accumulator;
-}, {});
+const CATEGORY_EMPTY_LABEL = '无';
+const NO_CATEGORY_FILTER = '__NO_CATEGORY__';
+const CATEGORY_STORAGE_KEY = 'admin-web-products-categories';
+const STATUS_FILTER_ITEMS = [
+  { value: '', label: '状态：全部' },
+  { value: 'ACTIVE', label: '状态：启用' },
+  { value: 'INACTIVE', label: '状态：停用' },
+  { value: 'DRAFT', label: '状态：草稿' }
+];
+const DEFAULT_CATEGORIES = [
+  { id: 'apparel', name: '服饰', sort: 10, parentId: null },
+  { id: 'electronics', name: '电子产品', sort: 20, parentId: null },
+  { id: 'accessories', name: '配件', sort: 30, parentId: null },
+  { id: 'home-decor', name: '家居装饰', sort: 40, parentId: null },
+  { id: 'footwear', name: '鞋履', sort: 50, parentId: null }
+];
 
 const CATEGORY_BADGE_CLASS = {
   服饰: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
@@ -40,6 +56,7 @@ const CATEGORY_BADGE_CLASS = {
   配件: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
   家居装饰: 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
   鞋履: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+  无: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
   未分类: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
 };
 
@@ -52,16 +69,16 @@ const MOCK_IMAGE_POOL = [
 ];
 
 const MOCK_PRODUCT_TEMPLATES = [
-  { name: '经典纯棉 T 恤', categoryKey: 'apparel', tier: '标准档', inventory: 1240, status: 'ACTIVE' },
-  { name: '无线耳机 Pro', categoryKey: 'electronics', tier: '设置分层价格', inventory: 45, status: 'INACTIVE' },
-  { name: '真皮轻薄钱包', categoryKey: 'accessories', tier: '二档启用', inventory: 320, status: 'ACTIVE' },
-  { name: '极简陶瓷花瓶', categoryKey: 'homeDecor', tier: '标准', inventory: 15, status: 'DRAFT' },
-  { name: '性能跑鞋', categoryKey: 'footwear', tier: '设置分层价格', inventory: 850, status: 'ACTIVE' },
-  { name: '商务双肩包', categoryKey: 'accessories', tier: '标准档', inventory: 268, status: 'ACTIVE' },
-  { name: '智能手表 S', categoryKey: 'electronics', tier: '二档启用', inventory: 172, status: 'ACTIVE' },
-  { name: '亚麻衬衫', categoryKey: 'apparel', tier: '标准档', inventory: 412, status: 'ACTIVE' },
-  { name: '电竞键盘 K87', categoryKey: 'electronics', tier: '设置分层价格', inventory: 69, status: 'INACTIVE' },
-  { name: '跑步水壶', categoryKey: 'accessories', tier: '标准', inventory: 506, status: 'ACTIVE' }
+  { name: '经典纯棉 T 恤', categoryId: 'apparel', tier: '标准档', inventory: 1240, status: 'ACTIVE' },
+  { name: '无线耳机 Pro', categoryId: 'electronics', tier: '设置分层价格', inventory: 45, status: 'INACTIVE' },
+  { name: '真皮轻薄钱包', categoryId: 'accessories', tier: '二档启用', inventory: 320, status: 'ACTIVE' },
+  { name: '极简陶瓷花瓶', categoryId: 'home-decor', tier: '标准', inventory: 15, status: 'DRAFT' },
+  { name: '性能跑鞋', categoryId: 'footwear', tier: '设置分层价格', inventory: 850, status: 'ACTIVE' },
+  { name: '商务双肩包', categoryId: 'accessories', tier: '标准档', inventory: 268, status: 'ACTIVE' },
+  { name: '智能手表 S', categoryId: 'electronics', tier: '二档启用', inventory: 172, status: 'ACTIVE' },
+  { name: '亚麻衬衫', categoryId: 'apparel', tier: '标准档', inventory: 412, status: 'ACTIVE' },
+  { name: '电竞键盘 K87', categoryId: 'electronics', tier: '设置分层价格', inventory: 69, status: 'INACTIVE' },
+  { name: '跑步水壶', categoryId: 'accessories', tier: '标准', inventory: 506, status: 'ACTIVE' }
 ];
 
 const normalizeProductText = (value, fallback = '') => {
@@ -79,7 +96,10 @@ const normalizeProductText = (value, fallback = '') => {
     homedecor: '家居装饰',
     Footwear: '鞋履',
     footwear: '鞋履',
-    Uncategorized: '未分类',
+    Uncategorized: CATEGORY_EMPTY_LABEL,
+    未分类: CATEGORY_EMPTY_LABEL,
+    无: CATEGORY_EMPTY_LABEL,
+    none: CATEGORY_EMPTY_LABEL,
     'Standard Tier': '标准档',
     Standard: '标准',
     'Set Tiered Price': '设置分层价格',
@@ -89,6 +109,162 @@ const normalizeProductText = (value, fallback = '') => {
     DRAFT: '草稿'
   };
   return map[key] || key || fallback;
+};
+
+const toNumber = (value, fallback = 0) => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return parsed;
+};
+
+const normalizeCategoryItem = (item, index = 0) => {
+  const id = safeText(item?.id, '').trim();
+  if (!id) {
+    return null;
+  }
+  const name = safeText(item?.name, '').trim();
+  const parentId = safeText(item?.parentId, '').trim();
+  return {
+    id,
+    name: name || `类目 ${index + 1}`,
+    parentId: parentId || null,
+    sort: toNumber(item?.sort, (index + 1) * 10)
+  };
+};
+
+const sortCategories = (items) => {
+  return [...items].sort((left, right) => {
+    const sortDiff = left.sort - right.sort;
+    if (sortDiff !== 0) {
+      return sortDiff;
+    }
+    return left.name.localeCompare(right.name, 'zh-CN');
+  });
+};
+
+const getCategoryById = (categoryId) => {
+  const id = safeText(categoryId, '').trim();
+  if (!id) {
+    return null;
+  }
+  return state.categories.find((item) => item.id === id) || null;
+};
+
+const resolveCategoryLabelById = (categoryId) => {
+  const category = getCategoryById(categoryId);
+  if (!category) {
+    return CATEGORY_EMPTY_LABEL;
+  }
+  return safeText(category.name, CATEGORY_EMPTY_LABEL);
+};
+
+const rebuildCategoryLookup = () => {
+  state.categoryIdByLabel = {};
+  state.categories.forEach((item) => {
+    const label = safeText(item.name, '').trim();
+    const id = safeText(item.id, '').trim();
+    if (!label || !id) {
+      return;
+    }
+    state.categoryIdByLabel[label] = id;
+  });
+};
+
+const saveCategoriesToStorage = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  window.localStorage.setItem(CATEGORY_STORAGE_KEY, JSON.stringify(state.categories));
+};
+
+const readCategoriesFromStorage = () => {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+  const raw = window.localStorage.getItem(CATEGORY_STORAGE_KEY);
+  if (!raw) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.map((item, index) => normalizeCategoryItem(item, index)).filter(Boolean);
+  } catch {
+    return [];
+  }
+};
+
+const setCategories = (items, options = {}) => {
+  const normalized = items.map((item, index) => normalizeCategoryItem(item, index)).filter(Boolean);
+  state.categories = sortCategories(normalized);
+  rebuildCategoryLookup();
+  if (options.persist !== false) {
+    saveCategoriesToStorage();
+  }
+};
+
+const buildCategorySelectOptionsHtml = (includeRequired = false) => {
+  const noneLabel = includeRequired ? '无（商品可独立）' : CATEGORY_EMPTY_LABEL;
+  const rows = [`<option value="">${escape(noneLabel)}</option>`];
+  state.categories.forEach((category) => {
+    rows.push(`<option value="${escape(category.id)}">${escape(category.name)}</option>`);
+  });
+  return rows.join('');
+};
+
+const buildCategoryFilterOptionsHtml = () => {
+  const rows = [
+    '<option value="">类目：全部</option>',
+    `<option value="${NO_CATEGORY_FILTER}">类目：${CATEGORY_EMPTY_LABEL}</option>`
+  ];
+  state.categories.forEach((category) => {
+    rows.push(`<option value="${escape(category.id)}">类目：${escape(category.name)}</option>`);
+  });
+  return rows.join('');
+};
+
+const buildStatusFilterOptionsHtml = () => {
+  return STATUS_FILTER_ITEMS.map((item) => `<option value="${escape(item.value)}">${escape(item.label)}</option>`).join('');
+};
+
+const syncCategorySelectOptions = () => {
+  const selectors = [
+    '#create-product-modal select[name="categoryKey"]',
+    '#product-edit-drawer select[name="categoryKey"]',
+    '#products-category-filter'
+  ];
+  selectors.forEach((selector) => {
+    const select = document.querySelector(selector);
+    if (!(select instanceof HTMLSelectElement)) {
+      return;
+    }
+    const currentValue = safeText(select.value, '');
+    if (selector === '#products-category-filter') {
+      select.innerHTML = buildCategoryFilterOptionsHtml();
+      const nextValue =
+        currentValue === NO_CATEGORY_FILTER || getCategoryById(currentValue) ? currentValue : safeText(state.filters.categoryId, '');
+      select.value = nextValue === NO_CATEGORY_FILTER || getCategoryById(nextValue) ? nextValue : '';
+      state.filters.categoryId = safeText(select.value, '');
+      return;
+    }
+
+    select.innerHTML = buildCategorySelectOptionsHtml(selector.includes('create-product-modal'));
+    const nextValue = getCategoryById(currentValue) ? currentValue : '';
+    select.value = nextValue;
+  });
+
+  const statusFilterSelect = document.querySelector('#products-status-filter');
+  if (statusFilterSelect instanceof HTMLSelectElement) {
+    statusFilterSelect.innerHTML = buildStatusFilterOptionsHtml();
+    const statusValue = safeText(state.filters.status, '').toUpperCase();
+    const exists = STATUS_FILTER_ITEMS.some((item) => item.value === statusValue);
+    statusFilterSelect.value = exists ? statusValue : '';
+    state.filters.status = safeText(statusFilterSelect.value, '').toUpperCase();
+  }
 };
 
 const normalizeStatusValue = (value) => {
@@ -142,9 +318,41 @@ const getNextPageButton = () => {
   return document.querySelector('[data-role="page-next"]');
 };
 
-const getTotalPages = () => {
-  const pages = Math.ceil(state.total / state.pagination.pageSize);
+const getTotalPages = (total = state.total) => {
+  const pages = Math.ceil(total / state.pagination.pageSize);
   return Math.max(1, Number.isFinite(pages) ? pages : 1);
+};
+
+const isCategoryMatched = (item) => {
+  const filterValue = safeText(state.filters.categoryId, '');
+  if (!filterValue) {
+    return true;
+  }
+  const categoryId = safeText(item.categoryId, '');
+  if (filterValue === NO_CATEGORY_FILTER) {
+    return !categoryId;
+  }
+  return categoryId === filterValue;
+};
+
+const isStatusMatched = (item) => {
+  const filterValue = safeText(state.filters.status, '').toUpperCase();
+  if (!filterValue) {
+    return true;
+  }
+  return normalizeStatusValue(item.status) === filterValue;
+};
+
+const getFilteredProducts = () => {
+  return state.allProducts.filter((item) => {
+    if (!isCategoryMatched(item)) {
+      return false;
+    }
+    if (!isStatusMatched(item)) {
+      return false;
+    }
+    return true;
+  });
 };
 
 const updateSummary = (start, end, total) => {
@@ -156,10 +364,18 @@ const updateSummary = (start, end, total) => {
 };
 
 const resolveCategoryTag = (item) => {
-  if (Array.isArray(item.tags) && item.tags.length > 0) {
-    return normalizeProductText(item.tags[0], '未分类');
+  const categoryId = safeText(item?.categoryId, '').trim();
+  if (categoryId) {
+    return resolveCategoryLabelById(categoryId);
   }
-  return normalizeProductText(item.categoryId, '未分类');
+  if (Array.isArray(item.tags) && item.tags.length > 0) {
+    const normalizedTag = normalizeProductText(item.tags[0], '');
+    const categoryIdByTag = state.categoryIdByLabel[normalizedTag];
+    if (categoryIdByTag) {
+      return resolveCategoryLabelById(categoryIdByTag);
+    }
+  }
+  return CATEGORY_EMPTY_LABEL;
 };
 
 const resolveTierLabel = (item) => {
@@ -181,15 +397,18 @@ const resolveInventory = (item) => {
 };
 
 const normalizeProductItem = (item, index = 0) => {
-  const tag = resolveCategoryTag(item);
-  const categoryKey = CATEGORY_KEY_BY_LABEL[tag] || 'apparel';
-  const categoryMeta = CATEGORY_META[categoryKey] || CATEGORY_META.apparel;
+  const fallbackTag = Array.isArray(item.tags) && item.tags.length > 0 ? normalizeProductText(item.tags[0], '') : '';
+  const fallbackCategoryId = fallbackTag ? safeText(state.categoryIdByLabel[fallbackTag], '').trim() : '';
+  const rawCategoryId = safeText(item.categoryId, '').trim();
+  const nextCategoryId = getCategoryById(rawCategoryId) ? rawCategoryId : fallbackCategoryId;
+  const categoryId = getCategoryById(nextCategoryId) ? nextCategoryId : '';
+  const tag = resolveCategoryLabelById(categoryId);
   return {
     ...item,
     id: safeText(item.id, `MOCK-${String(index + 1).padStart(4, '0')}`),
     name: safeText(item.name, `模拟商品 ${index + 1}`),
-    categoryId: safeText(item.categoryId, categoryMeta.categoryId),
-    tags: Array.isArray(item.tags) && item.tags.length > 0 ? item.tags : [tag, resolveTierLabel(item)],
+    categoryId,
+    tags: [tag, resolveTierLabel(item)],
     inventory: resolveInventory(item),
     status: normalizeStatusValue(item.status),
     coverImageUrl: safeText(item.coverImageUrl, '')
@@ -197,14 +416,8 @@ const normalizeProductItem = (item, index = 0) => {
 };
 
 const rebuildProductIndexes = () => {
-  state.categoryIdByLabel = {};
   state.productsById = {};
   state.allProducts.forEach((item) => {
-    const tag = resolveCategoryTag(item);
-    const categoryId = safeText(item.categoryId, '');
-    if (tag && categoryId) {
-      state.categoryIdByLabel[tag] = categoryId;
-    }
     upsertProductInState(item);
   });
 };
@@ -262,7 +475,7 @@ const renderProductRow = (item) => {
   const tier = resolveTierLabel(item);
   const inventory = resolveInventory(item);
   const status = safeText(item.status, 'DRAFT');
-  const categoryClass = CATEGORY_BADGE_CLASS[tag] || CATEGORY_BADGE_CLASS.未分类;
+  const categoryClass = CATEGORY_BADGE_CLASS[tag] || CATEGORY_BADGE_CLASS[CATEGORY_EMPTY_LABEL];
 
   return `
     <tr class="group hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors" data-product-id="${escape(safeText(item.id))}">
@@ -311,7 +524,7 @@ const buildPageTokens = (totalPages, currentPage) => {
   return tokens;
 };
 
-const renderPagination = () => {
+const renderPagination = (totalCount = state.total) => {
   const container = getPaginationContainer();
   const prevButton = getPrevPageButton();
   const nextButton = getNextPageButton();
@@ -319,9 +532,9 @@ const renderPagination = () => {
     return;
   }
 
-  const totalPages = getTotalPages();
+  const resolvedTotalPages = getTotalPages(totalCount);
   const currentPage = state.pagination.currentPage;
-  const tokens = buildPageTokens(totalPages, currentPage);
+  const tokens = buildPageTokens(resolvedTotalPages, currentPage);
 
   container.innerHTML = tokens
     .map((token) => {
@@ -337,7 +550,7 @@ const renderPagination = () => {
     .join('');
 
   prevButton.disabled = currentPage <= 1;
-  nextButton.disabled = currentPage >= totalPages;
+  nextButton.disabled = currentPage >= resolvedTotalPages;
 };
 
 const renderCurrentPage = () => {
@@ -346,7 +559,13 @@ const renderCurrentPage = () => {
     return;
   }
 
-  const totalPages = getTotalPages();
+  const filteredProducts = getFilteredProducts();
+  const hasClientOnlyFilter = Boolean(state.filters.status) || state.filters.categoryId === NO_CATEGORY_FILTER;
+  const useRemotePageWindow = state.pagination.remote && !hasClientOnlyFilter;
+  const localTotal = filteredProducts.length;
+  const summaryTotal = useRemotePageWindow ? state.total : localTotal;
+  const totalPages = getTotalPages(summaryTotal);
+
   if (state.pagination.currentPage > totalPages) {
     state.pagination.currentPage = totalPages;
   }
@@ -355,22 +574,28 @@ const renderCurrentPage = () => {
   }
 
   const offset = (state.pagination.currentPage - 1) * state.pagination.pageSize;
-  const pageItems = state.pagination.remote
-    ? state.allProducts
-    : state.allProducts.slice(offset, offset + state.pagination.pageSize);
+  const pageItems = useRemotePageWindow
+    ? filteredProducts
+    : filteredProducts.slice(offset, offset + state.pagination.pageSize);
 
   if (pageItems.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-5 text-sm text-slate-500">后端暂无商品数据。</td></tr>';
-    updateSummary(0, 0, state.total);
-    renderPagination();
+    const hasAnyProducts = state.allProducts.length > 0;
+    const emptyMessage = hasAnyProducts ? '暂无符合筛选条件的商品。' : '后端暂无商品数据。';
+    tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-5 text-sm text-slate-500">${emptyMessage}</td></tr>`;
+    updateSummary(0, 0, useRemotePageWindow ? state.total : localTotal);
+    renderPagination(useRemotePageWindow ? state.total : localTotal);
     return;
   }
 
   tbody.innerHTML = pageItems.map((item) => renderProductRow(item)).join('');
-  const start = state.total === 0 ? 0 : offset + 1;
-  const end = Math.min(offset + pageItems.length, state.total);
-  updateSummary(start, end, state.total);
-  renderPagination();
+  const start = useRemotePageWindow
+    ? (state.pagination.currentPage - 1) * state.pagination.pageSize + 1
+    : localTotal === 0
+      ? 0
+      : offset + 1;
+  const end = useRemotePageWindow ? start + pageItems.length - 1 : Math.min(offset + pageItems.length, localTotal);
+  updateSummary(start, end, useRemotePageWindow ? state.total : localTotal);
+  renderPagination(useRemotePageWindow ? state.total : localTotal);
 };
 
 const applyProducts = (items, total = items.length, currentPage = 1, remote = false) => {
@@ -382,22 +607,21 @@ const applyProducts = (items, total = items.length, currentPage = 1, remote = fa
   renderCurrentPage();
 };
 
-const renderProducts = (payload, currentPage = 1) => {
+const renderProducts = (payload, currentPage = 1, remote = state.context?.mode === 'dev') => {
   const items = Array.isArray(payload?.items) ? payload.items : [];
   const total = Number(payload?.total || items.length);
-  applyProducts(items, total, currentPage, state.context?.mode === 'dev');
+  applyProducts(items, total, currentPage, remote);
 };
 
 const createMockProducts = (count = 30) => {
   return Array.from({ length: count }, (_, index) => {
     const template = MOCK_PRODUCT_TEMPLATES[index % MOCK_PRODUCT_TEMPLATES.length];
-    const categoryMeta = CATEGORY_META[template.categoryKey] || CATEGORY_META.apparel;
     const suffix = index < MOCK_PRODUCT_TEMPLATES.length ? '' : ` ${index + 1}`;
     return {
       id: `MOCK-${String(index + 1).padStart(4, '0')}`,
       name: `${template.name}${suffix}`,
-      categoryId: categoryMeta.categoryId,
-      tags: [categoryMeta.label, template.tier],
+      categoryId: safeText(template.categoryId, ''),
+      tags: [resolveCategoryLabelById(template.categoryId), template.tier],
       inventory: Math.max(0, template.inventory + (index % 7) * 13),
       status: template.status,
       coverImageUrl: MOCK_IMAGE_POOL[index % MOCK_IMAGE_POOL.length],
@@ -406,20 +630,57 @@ const createMockProducts = (count = 30) => {
   });
 };
 
+const buildProductsQueryParams = (page = 1) => {
+  const params = {
+    page,
+    pageSize: DEFAULT_PAGE_SIZE
+  };
+  const categoryId = safeText(state.filters.categoryId, '');
+  if (categoryId && categoryId !== NO_CATEGORY_FILTER) {
+    params.categoryId = categoryId;
+  }
+  return params;
+};
+
+const applyProductFilters = async () => {
+  state.pagination.currentPage = 1;
+  if (state.context?.mode !== 'dev') {
+    renderCurrentPage();
+    return;
+  }
+
+  const response = await fetchProducts(buildProductsQueryParams(1));
+  if (response.status !== 200 || !response.data) {
+    showToast('筛选加载失败，请稍后重试。', 'error');
+    return;
+  }
+
+  const hasClientOnlyFilter = Boolean(state.filters.status) || state.filters.categoryId === NO_CATEGORY_FILTER;
+  if (hasClientOnlyFilter) {
+    const items = Array.isArray(response.data.items) ? response.data.items : [];
+    applyProducts(items, items.length, 1, false);
+    return;
+  }
+
+  renderProducts(response.data, 1, true);
+};
+
 const goToPage = async (page) => {
-  const totalPages = getTotalPages();
+  const hasClientOnlyFilter = Boolean(state.filters.status) || state.filters.categoryId === NO_CATEGORY_FILTER;
+  const useRemotePageWindow = state.pagination.remote && !hasClientOnlyFilter;
+  const totalPages = getTotalPages(useRemotePageWindow ? state.total : getFilteredProducts().length);
   const nextPage = Math.min(Math.max(page, 1), totalPages);
   if (nextPage === state.pagination.currentPage) {
     return;
   }
 
-  if (state.context?.mode === 'dev') {
-    const response = await fetchProducts({ page: nextPage, pageSize: DEFAULT_PAGE_SIZE });
+  if (state.context?.mode === 'dev' && useRemotePageWindow) {
+    const response = await fetchProducts(buildProductsQueryParams(nextPage));
     if (response.status !== 200 || !response.data) {
       showToast('分页加载失败，请稍后重试。', 'error');
       return;
     }
-    renderProducts(response.data, nextPage);
+    renderProducts(response.data, nextPage, true);
     return;
   }
 
@@ -456,6 +717,32 @@ const bindPaginationActions = () => {
     }
     void goToPage(page);
   });
+};
+
+const bindFilterActions = () => {
+  const categoryFilter = document.querySelector('#products-category-filter');
+  if (categoryFilter instanceof HTMLSelectElement) {
+    categoryFilter.addEventListener('change', async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLSelectElement)) {
+        return;
+      }
+      state.filters.categoryId = safeText(target.value, '');
+      await applyProductFilters();
+    });
+  }
+
+  const statusFilter = document.querySelector('#products-status-filter');
+  if (statusFilter instanceof HTMLSelectElement) {
+    statusFilter.addEventListener('change', async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLSelectElement)) {
+        return;
+      }
+      state.filters.status = safeText(target.value, '').toUpperCase();
+      await applyProductFilters();
+    });
+  }
 };
 
 const showToast = (message, type = 'success') => {
@@ -517,6 +804,11 @@ const openCreateModal = () => {
   const form = modal.querySelector('form');
   if (form) {
     form.reset();
+    syncCategorySelectOptions();
+    const categorySelect = form.elements.namedItem('categoryKey');
+    if (categorySelect instanceof HTMLSelectElement) {
+      categorySelect.value = '';
+    }
   }
   modal.classList.remove('hidden');
   document.body.classList.add('overflow-hidden');
@@ -532,14 +824,15 @@ const appendProductRow = (product) => {
 };
 
 const createLocalProduct = (formData) => {
-  const category = CATEGORY_META[formData.categoryKey] || CATEGORY_META.apparel;
-  const categoryId = state.categoryIdByLabel[category.label] || category.categoryId;
+  const requestedCategoryId = safeText(formData.categoryKey, '').trim();
+  const categoryId = getCategoryById(requestedCategoryId) ? requestedCategoryId : '';
+  const categoryLabel = resolveCategoryLabelById(categoryId);
   return {
     id: `LOCAL-${Date.now()}`,
     name: formData.name,
     coverImageUrl: formData.coverImageUrl,
     categoryId,
-    tags: [category.label, '标准档'],
+    tags: [categoryLabel, '标准档'],
     inventory: formData.inventory,
     status: formData.status
   };
@@ -549,7 +842,7 @@ const collectFormData = (form) => {
   const formData = new FormData(form);
   return {
     name: safeText(formData.get('name'), '').trim(),
-    categoryKey: safeText(formData.get('categoryKey'), 'apparel'),
+    categoryKey: safeText(formData.get('categoryKey'), ''),
     inventory: Math.max(0, Number(formData.get('inventory') || 0)),
     status: safeText(formData.get('status'), 'ACTIVE'),
     coverImageUrl: safeText(formData.get('coverImageUrl'), ''),
@@ -561,9 +854,8 @@ const getProductFromRow = (row) => {
   const codeText = safeText(row.querySelector('td:nth-child(2) .text-xs')?.textContent, '').replace(/^SPU\s*/i, '').trim();
   const rowId = safeText(row.dataset.productId, codeText || `LOCAL-${Date.now()}`);
   const name = safeText(row.querySelector('td:nth-child(2) .font-bold')?.textContent, '未命名商品');
-  const categoryLabel = normalizeProductText(row.querySelector('td:nth-child(3) span')?.textContent, '未分类');
-  const categoryMeta = CATEGORY_META[CATEGORY_KEY_BY_LABEL[categoryLabel]] || CATEGORY_META.apparel;
-  const categoryId = state.categoryIdByLabel[categoryLabel] || categoryMeta.categoryId;
+  const categoryLabel = normalizeProductText(row.querySelector('td:nth-child(3) span')?.textContent, CATEGORY_EMPTY_LABEL);
+  const categoryId = safeText(state.categoryIdByLabel[categoryLabel], '').trim();
   const tier = safeText(row.querySelector('td:nth-child(4) span')?.textContent, '标准档');
   const inventoryText = safeText(row.querySelector('td:nth-child(5) .font-medium')?.textContent, '0');
   const inventory = Math.max(0, Number(inventoryText.replace(/[^\d.-]/g, '')) || 0);
@@ -576,8 +868,8 @@ const getProductFromRow = (row) => {
   return {
     id: rowId,
     name,
-    categoryId,
-    tags: [categoryLabel, tier],
+    categoryId: getCategoryById(categoryId) ? categoryId : '',
+    tags: [resolveCategoryLabelById(categoryId), tier],
     inventory,
     status,
     coverImageUrl,
@@ -597,7 +889,7 @@ const updateRowFromProduct = (row, product) => {
   }
 
   const categoryLabel = resolveCategoryTag(product);
-  const categoryClass = CATEGORY_BADGE_CLASS[categoryLabel] || CATEGORY_BADGE_CLASS.未分类;
+  const categoryClass = CATEGORY_BADGE_CLASS[categoryLabel] || CATEGORY_BADGE_CLASS[CATEGORY_EMPTY_LABEL];
   const categoryBadge = row.querySelector('td:nth-child(3) span');
   if (categoryBadge) {
     categoryBadge.className = `inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${categoryClass}`;
@@ -762,13 +1054,8 @@ const ensureEditDrawer = () => {
       </label>
       <label class="block space-y-1 text-sm text-slate-700">
         <span>类目</span>
-        <select name="categoryKey" class="w-full rounded-lg border-slate-300 focus:border-primary focus:ring-primary">
-          <option value="apparel">服饰</option>
-          <option value="electronics">电子产品</option>
-          <option value="accessories">配件</option>
-          <option value="homeDecor">家居装饰</option>
-          <option value="footwear">鞋履</option>
-        </select>
+        <select name="categoryKey" class="w-full rounded-lg border-slate-300 focus:border-primary focus:ring-primary">${buildCategorySelectOptionsHtml()}</select>
+        <span class="text-xs text-slate-500">商品高于类目，未设置类目将显示“无”。</span>
       </label>
       <label class="block space-y-1 text-sm text-slate-700">
         <span>分层定价说明</span>
@@ -852,8 +1139,8 @@ const ensureEditDrawer = () => {
       }
 
       try {
-        const categoryKey = safeText(formData.get('categoryKey'), 'apparel');
-        const category = CATEGORY_META[categoryKey] || CATEGORY_META.apparel;
+        const categoryIdValue = safeText(formData.get('categoryKey'), '').trim();
+        const categoryId = getCategoryById(categoryIdValue) ? categoryIdValue : '';
         const tierLabel = safeText(formData.get('tierLabel'), '标准档');
         const status = normalizeStatusValue(formData.get('status'));
         const inventory = Math.max(0, Number(formData.get('inventory') || 0));
@@ -865,8 +1152,8 @@ const ensureEditDrawer = () => {
           ...existing,
           id: state.drawer.productId,
           name,
-          categoryId: state.categoryIdByLabel[category.label] || category.categoryId,
-          tags: [category.label, tierLabel],
+          categoryId,
+          tags: [resolveCategoryLabelById(categoryId), tierLabel],
           inventory,
           status,
           coverImageUrl,
@@ -940,11 +1227,11 @@ const openEditDrawer = (row) => {
     }
   };
 
-  const categoryLabel = resolveCategoryTag(product);
-  const categoryKey = CATEGORY_KEY_BY_LABEL[categoryLabel] || 'apparel';
+  syncCategorySelectOptions();
+  const categoryId = getCategoryById(product.categoryId) ? safeText(product.categoryId, '') : '';
   const inventory = resolveInventory(product);
   setFormValue('name', safeText(product.name));
-  setFormValue('categoryKey', categoryKey);
+  setFormValue('categoryKey', categoryId);
   setFormValue('tierLabel', resolveTierLabel(product));
   setFormValue('inventory', String(inventory === '--' ? 0 : inventory));
   setFormValue('status', normalizeStatusValue(product.status));
@@ -1035,14 +1322,9 @@ const ensureCreateModal = () => {
             <input name="name" type="text" required class="w-full rounded-lg border-slate-300 focus:border-primary focus:ring-primary" placeholder="请输入商品名称" />
           </label>
           <label class="space-y-1 text-sm text-slate-700">
-            <span>类目 *</span>
-            <select name="categoryKey" class="w-full rounded-lg border-slate-300 focus:border-primary focus:ring-primary">
-              <option value="apparel">服饰</option>
-              <option value="electronics">电子产品</option>
-              <option value="accessories">配件</option>
-              <option value="homeDecor">家居装饰</option>
-              <option value="footwear">鞋履</option>
-            </select>
+            <span>类目（可选）</span>
+            <select name="categoryKey" class="w-full rounded-lg border-slate-300 focus:border-primary focus:ring-primary">${buildCategorySelectOptionsHtml(true)}</select>
+            <span class="text-xs text-slate-500">商品本身高于类目，未选择时展示“无”。</span>
           </label>
         </div>
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -1122,16 +1404,20 @@ const ensureCreateModal = () => {
     submitButton.textContent = '创建中...';
 
     try {
-      if (state.context?.mode === 'dev') {
-        const category = CATEGORY_META[values.categoryKey] || CATEGORY_META.apparel;
-        const detectedCategoryId = state.categoryIdByLabel[category.label] || category.categoryId;
+      const selectedCategoryId = getCategoryById(values.categoryKey) ? values.categoryKey : '';
+      const categoryLabel = resolveCategoryLabelById(selectedCategoryId);
+      const nextValues = {
+        ...values,
+        categoryKey: selectedCategoryId
+      };
+      if (state.context?.mode === 'dev' && selectedCategoryId) {
         const payload = {
           name: values.name,
-          categoryId: detectedCategoryId,
+          categoryId: selectedCategoryId,
           description: values.description || undefined,
           coverImageUrl: values.coverImageUrl || undefined,
           images: values.coverImageUrl ? [values.coverImageUrl] : undefined,
-          tags: [category.label, '标准档']
+          tags: [categoryLabel, '标准档']
         };
         const response = await createCatalogProduct(payload);
         if (response.status !== 201 || !response.data?.product) {
@@ -1141,13 +1427,13 @@ const ensureCreateModal = () => {
           id: safeText(response.data.product.id, `SPU-${Date.now()}`),
           name: safeText(response.data.product.name, values.name),
           coverImageUrl: safeText(response.data.product.images?.[0], values.coverImageUrl),
-          categoryId: safeText(response.data.product.categoryId, detectedCategoryId),
-          tags: [category.label, '标准档'],
+          categoryId: safeText(response.data.product.categoryId, selectedCategoryId),
+          tags: [categoryLabel, '标准档'],
           inventory: values.inventory,
           status: values.status
         });
       } else {
-        appendProductRow(createLocalProduct(values));
+        appendProductRow(createLocalProduct(nextValues));
       }
       closeCreateModal();
       showToast('新建商品成功。');
@@ -1184,18 +1470,363 @@ const bindCreateProductAction = () => {
   });
 };
 
+const rebuildProductsAfterCategoryChange = () => {
+  state.allProducts = state.allProducts.map((item, index) => normalizeProductItem(item, index));
+  rebuildProductIndexes();
+  syncCategorySelectOptions();
+  renderCurrentPage();
+};
+
+const toCategoryPayload = (name, sort, parentId) => {
+  return {
+    name,
+    sort,
+    parentId: parentId || null
+  };
+};
+
+const shouldUseLocalCategoryStore = () => {
+  return state.context?.mode !== 'dev';
+};
+
+const closeCategoryManagerModal = () => {
+  const modal = document.querySelector('#category-manager-modal');
+  if (!(modal instanceof HTMLElement)) {
+    return;
+  }
+  modal.classList.add('hidden');
+  document.body.classList.remove('overflow-hidden');
+};
+
+const buildCategoryParentOptions = (selectedParentId = '', currentCategoryId = '') => {
+  const options = ['<option value="">无上级</option>'];
+  state.categories.forEach((category) => {
+    if (category.id === currentCategoryId) {
+      return;
+    }
+    options.push(`<option value="${escape(category.id)}"${category.id === selectedParentId ? ' selected' : ''}>${escape(category.name)}</option>`);
+  });
+  return options.join('');
+};
+
+const renderCategoryManagerBody = (modal) => {
+  const body = modal.querySelector('[data-role="category-list-body"]');
+  const parentSelect = modal.querySelector('[data-role="create-category-parent"]');
+  if (!(body instanceof HTMLElement)) {
+    return;
+  }
+  if (parentSelect instanceof HTMLSelectElement) {
+    parentSelect.innerHTML = buildCategoryParentOptions();
+    parentSelect.value = '';
+  }
+
+  if (state.categories.length === 0) {
+    body.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-sm text-slate-500">当前没有类目，商品的类目将显示“无”。</td></tr>`;
+    return;
+  }
+
+  body.innerHTML = state.categories
+    .map((category) => {
+      return `
+        <tr class="border-b border-slate-100 last:border-0" data-category-id="${escape(category.id)}">
+          <td class="px-4 py-3">
+            <input data-role="category-name" type="text" class="w-full rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary" value="${escape(category.name)}" />
+          </td>
+          <td class="px-4 py-3">
+            <input data-role="category-sort" type="number" class="w-24 rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary" value="${escape(category.sort)}" />
+          </td>
+          <td class="px-4 py-3">
+            <select data-role="category-parent" class="w-full rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary">
+              ${buildCategoryParentOptions(safeText(category.parentId, ''), category.id)}
+            </select>
+          </td>
+          <td class="px-4 py-3">
+            <div class="flex justify-end gap-2">
+              <button type="button" data-role="save-category" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">保存</button>
+              <button type="button" data-role="delete-category" class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">删除</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    })
+    .join('');
+};
+
+const ensureCategoryManagerModal = () => {
+  const existed = document.querySelector('#category-manager-modal');
+  if (existed instanceof HTMLElement) {
+    return existed;
+  }
+
+  const modal = document.createElement('div');
+  modal.id = 'category-manager-modal';
+  modal.className = 'fixed inset-0 z-[92] hidden flex items-center justify-center bg-slate-900/50 p-4';
+  modal.innerHTML = `
+    <div class="w-full max-w-4xl rounded-xl bg-white shadow-xl">
+      <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+        <div>
+          <h3 class="text-lg font-bold text-slate-900">类目管理</h3>
+          <p class="text-xs text-slate-500">商品高于类目；没有类目时，商品展示“无”。</p>
+        </div>
+        <button type="button" data-role="close-category-manager" class="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="space-y-5 px-6 py-5">
+        <form class="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-[2fr_120px_1fr_auto]" data-role="create-category-form">
+          <input name="name" type="text" required class="rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary" placeholder="新增类目名称" />
+          <input name="sort" type="number" class="rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary" placeholder="排序" value="100" />
+          <select name="parentId" data-role="create-category-parent" class="rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary"></select>
+          <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark">新增类目</button>
+        </form>
+        <div class="overflow-hidden rounded-xl border border-slate-200">
+          <table class="w-full border-collapse text-left">
+            <thead class="bg-slate-50">
+              <tr class="text-xs font-bold tracking-wider text-slate-500 uppercase">
+                <th class="px-4 py-3">类目名称</th>
+                <th class="px-4 py-3">排序</th>
+                <th class="px-4 py-3">上级类目</th>
+                <th class="px-4 py-3 text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody data-role="category-list-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  modal.querySelector('[data-role="close-category-manager"]')?.addEventListener('click', () => closeCategoryManagerModal());
+  modal.addEventListener('click', (event) => {
+    if (event.target === modal) {
+      closeCategoryManagerModal();
+    }
+  });
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
+      closeCategoryManagerModal();
+    }
+  });
+
+  const createForm = modal.querySelector('[data-role="create-category-form"]');
+  if (createForm instanceof HTMLFormElement) {
+    createForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const formData = new FormData(createForm);
+      const name = safeText(formData.get('name'), '').trim();
+      if (!name) {
+        showToast('类目名称不能为空。', 'error');
+        return;
+      }
+      const sort = toNumber(formData.get('sort'), 100);
+      const parentIdValue = safeText(formData.get('parentId'), '').trim();
+      const parentId = getCategoryById(parentIdValue) ? parentIdValue : '';
+
+      try {
+        let nextCategory;
+        if (state.context?.mode === 'dev') {
+          const response = await createCatalogCategory(toCategoryPayload(name, sort, parentId));
+          if (response.status !== 201 || !response.data?.id) {
+            throw new Error('后端新增类目失败，请稍后重试。');
+          }
+          nextCategory = response.data;
+        } else {
+          nextCategory = {
+            id: `LOCAL-CAT-${Date.now()}`,
+            name,
+            sort,
+            parentId: parentId || null
+          };
+        }
+
+        setCategories([...state.categories, nextCategory], {
+          persist: shouldUseLocalCategoryStore()
+        });
+        rebuildProductsAfterCategoryChange();
+        renderCategoryManagerBody(modal);
+        createForm.reset();
+        const parentSelect = createForm.elements.namedItem('parentId');
+        if (parentSelect instanceof HTMLSelectElement) {
+          parentSelect.value = '';
+        }
+        showToast('类目已新增。');
+      } catch (error) {
+        const reason = toMinimalErrorReason(error);
+        showToast(`新增类目失败：${reason}`, 'error');
+      }
+    });
+  }
+
+  const listBody = modal.querySelector('[data-role="category-list-body"]');
+  listBody?.addEventListener('click', async (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+    const actionButton = target.closest('[data-role="save-category"], [data-role="delete-category"]');
+    if (!(actionButton instanceof HTMLButtonElement)) {
+      return;
+    }
+    const row = actionButton.closest('tr');
+    if (!(row instanceof HTMLTableRowElement)) {
+      return;
+    }
+    const categoryId = safeText(row.dataset.categoryId, '');
+    if (!categoryId) {
+      return;
+    }
+
+    if (actionButton.dataset.role === 'delete-category') {
+      const current = getCategoryById(categoryId);
+      const categoryName = safeText(current?.name, '当前类目');
+      if (!window.confirm(`确定删除类目“${categoryName}”吗？`)) {
+        return;
+      }
+
+      try {
+        if (state.context?.mode === 'dev') {
+          const response = await deleteCatalogCategory(categoryId);
+          if (response.status !== 204) {
+            throw new Error('后端删除类目失败，请稍后重试。');
+          }
+        }
+        const remaining = state.categories
+          .filter((item) => item.id !== categoryId)
+          .map((item) => {
+            if (item.parentId === categoryId) {
+              return {
+                ...item,
+                parentId: null
+              };
+            }
+            return item;
+          });
+        setCategories(remaining, {
+          persist: shouldUseLocalCategoryStore()
+        });
+        rebuildProductsAfterCategoryChange();
+        renderCategoryManagerBody(modal);
+        showToast('类目已删除。');
+      } catch (error) {
+        const reason = toMinimalErrorReason(error);
+        showToast(`删除类目失败：${reason}`, 'error');
+      }
+      return;
+    }
+
+    const nameInput = row.querySelector('[data-role="category-name"]');
+    const sortInput = row.querySelector('[data-role="category-sort"]');
+    const parentSelect = row.querySelector('[data-role="category-parent"]');
+    const name = safeText(nameInput?.value, '').trim();
+    if (!name) {
+      showToast('类目名称不能为空。', 'error');
+      return;
+    }
+    const sort = toNumber(sortInput?.value, 100);
+    const parentIdValue = safeText(parentSelect?.value, '').trim();
+    if (parentIdValue && parentIdValue === categoryId) {
+      showToast('类目不能设置自己为上级。', 'error');
+      return;
+    }
+    const parentId = getCategoryById(parentIdValue) ? parentIdValue : '';
+
+    try {
+      let updated;
+      if (state.context?.mode === 'dev') {
+        const response = await updateCatalogCategory(categoryId, toCategoryPayload(name, sort, parentId));
+        if (response.status !== 200 || !response.data?.id) {
+          throw new Error('后端更新类目失败，请稍后重试。');
+        }
+        updated = response.data;
+      } else {
+        updated = {
+          id: categoryId,
+          name,
+          sort,
+          parentId: parentId || null
+        };
+      }
+      const nextCategories = state.categories.map((item) => {
+        if (item.id !== categoryId) {
+          return item;
+        }
+        return normalizeCategoryItem(updated) || item;
+      });
+      setCategories(nextCategories, {
+        persist: shouldUseLocalCategoryStore()
+      });
+      rebuildProductsAfterCategoryChange();
+      renderCategoryManagerBody(modal);
+      showToast('类目已更新。');
+    } catch (error) {
+      const reason = toMinimalErrorReason(error);
+      showToast(`更新类目失败：${reason}`, 'error');
+    }
+  });
+
+  renderCategoryManagerBody(modal);
+  return modal;
+};
+
+const openCategoryManagerModal = () => {
+  const modal = ensureCategoryManagerModal();
+  renderCategoryManagerBody(modal);
+  modal.classList.remove('hidden');
+  document.body.classList.add('overflow-hidden');
+};
+
+const bindCategoryManageAction = () => {
+  const manageButton = document.querySelector('#manage-category-btn');
+  if (!(manageButton instanceof HTMLButtonElement)) {
+    return;
+  }
+  ensureCategoryManagerModal();
+  manageButton.addEventListener('click', () => {
+    openCategoryManagerModal();
+  });
+};
+
+const loadCategories = async () => {
+  if (state.context?.mode === 'dev') {
+    try {
+      const response = await fetchCatalogCategories();
+      const categoryItems = Array.isArray(response.data?.items) ? response.data.items : [];
+      if (response.status === 200) {
+        setCategories(categoryItems, { persist: false });
+        return;
+      }
+    } catch {
+      // ignore
+    }
+    setCategories([], { persist: false });
+    return;
+  }
+
+  const stored = readCategoriesFromStorage();
+  if (stored.length > 0) {
+    setCategories(stored, { persist: false });
+    return;
+  }
+  setCategories(DEFAULT_CATEGORIES, { persist: true });
+};
+
 const initProducts = async () => {
   const context = await ensureProtectedPage();
   if (!context) {
     return;
   }
   state.context = context;
+  await loadCategories();
   state.total = 0;
   hydrateStaticRows();
   bindProductRowActions();
   bindPaginationActions();
   ensureEditDrawer();
   bindCreateProductAction();
+  bindCategoryManageAction();
+  syncCategorySelectOptions();
+  bindFilterActions();
 
   if (context.mode !== 'dev') {
     const mockItems = createMockProducts(30);
@@ -1203,7 +1834,7 @@ const initProducts = async () => {
     return;
   }
 
-  const response = await fetchProducts({ page: 1, pageSize: DEFAULT_PAGE_SIZE });
+  const response = await fetchProducts(buildProductsQueryParams(1));
   if (response.status !== 200 || !response.data) {
     return;
   }

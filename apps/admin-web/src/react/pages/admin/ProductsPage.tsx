@@ -251,6 +251,13 @@ export const ProductsPage = () => {
               <span>导出</span>
             </button>
             <button
+              className="flex items-center gap-2 rounded-lg border border-slate-200 bg-surface-light px-5 py-2.5 font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 dark:border-slate-700 dark:bg-surface-dark dark:text-slate-200 dark:hover:bg-slate-800"
+              id="manage-category-btn"
+            >
+              <span className="material-symbols-outlined text-xl">category</span>
+              <span>类目管理</span>
+            </button>
+            <button
               className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 font-bold text-white shadow-md shadow-primary/20 transition-all hover:bg-primary-dark"
               id="create-product-btn"
             >
@@ -267,16 +274,25 @@ export const ProductsPage = () => {
               筛选
             </div>
             <div className="group relative">
-              <button className="flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
-                <span>类目：全部</span>
-                <span className="material-symbols-outlined text-lg">expand_more</span>
-              </button>
+              <select
+                id="products-category-filter"
+                defaultValue=""
+                className="h-10 w-[160px] rounded-lg border border-slate-200 bg-slate-100 px-4 pr-9 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:border-primary focus:bg-white focus:ring-0 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:focus:bg-slate-900"
+              >
+                <option value="">类目：全部</option>
+              </select>
             </div>
             <div className="group relative">
-              <button className="flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
-                <span>状态：启用</span>
-                <span className="material-symbols-outlined text-lg">expand_more</span>
-              </button>
+              <select
+                id="products-status-filter"
+                defaultValue=""
+                className="h-10 w-[160px] rounded-lg border border-slate-200 bg-slate-100 px-4 pr-9 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-200 focus:border-primary focus:bg-white focus:ring-0 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 dark:focus:bg-slate-900"
+              >
+                <option value="">状态：全部</option>
+                <option value="ACTIVE">状态：启用</option>
+                <option value="INACTIVE">状态：停用</option>
+                <option value="DRAFT">状态：草稿</option>
+              </select>
             </div>
             <div className="relative min-w-[200px] flex-1">
               <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>

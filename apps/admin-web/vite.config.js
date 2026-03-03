@@ -43,7 +43,8 @@ export default defineConfig({
         exports: resolve(__dirname, 'exports.html'),
         rbac: resolve(__dirname, 'rbac.html'),
         settings: resolve(__dirname, 'settings.html'),
-        transfer: resolve(__dirname, 'transfer.html')
+        transfer: resolve(__dirname, 'transfer.html'),
+        support: resolve(__dirname, 'support.html')
       }
     }
   }

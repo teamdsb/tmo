@@ -6,7 +6,7 @@ export const InquiriesPage = () => {
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3 text-primary dark:text-blue-400">
               <span className="material-symbols-outlined text-3xl">inventory_2</span>
-              <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">寻源后台</h1>
+              <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">需求订单后台</h1>
             </div>
             <div className="hidden md:flex items-center bg-background-light dark:bg-slate-800 rounded-lg px-3 py-2 w-80">
               <span className="material-symbols-outlined text-text-sub">search</span>
@@ -132,7 +132,7 @@ export const InquiriesPage = () => {
                     <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center shadow-sm ring-4 ring-blue-50 dark:ring-blue-900/30">
                       <span className="material-symbols-outlined text-sm">cached</span>
                     </div>
-                    <span className="text-xs font-semibold text-primary">寻源中</span>
+                    <span className="text-xs font-semibold text-primary">需求订单中</span>
                   </div>
                   <div className="relative z-10 flex flex-col items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-400 flex items-center justify-center border-2 border-white dark:border-slate-800">

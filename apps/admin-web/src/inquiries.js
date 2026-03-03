@@ -17,7 +17,7 @@ const mountDevLayout = (main) => {
   main.innerHTML = `
     <div class="mx-auto w-full max-w-7xl space-y-6">
       <section class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h1 class="text-2xl font-bold text-slate-900">寻源询价（实时）</h1>
+        <h1 class="text-2xl font-bold text-slate-900">需求订单询价（实时）</h1>
         <p class="mt-1 text-sm text-slate-500">开发模式仅展示后端询价记录。</p>
         <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3" data-role="metrics"></div>
       </section>

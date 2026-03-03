@@ -1,8 +1,12 @@
 import {
+  deleteCatalogCategoriesCategoryId,
+  getCatalogCategories,
   getCatalogProducts,
   getInquiriesPrice,
   getOrders,
   getProductRequests,
+  patchCatalogCategoriesCategoryId,
+  postCatalogCategories,
   postCatalogProducts,
   postShipmentsImportJobs,
   setApiClientConfig
@@ -138,6 +142,22 @@ export const fetchProducts = async (params = {}) => {
 
 export const createCatalogProduct = async (payload) => {
   return postCatalogProducts(payload);
+};
+
+export const fetchCatalogCategories = async () => {
+  return getCatalogCategories();
+};
+
+export const createCatalogCategory = async (payload) => {
+  return postCatalogCategories(payload);
+};
+
+export const updateCatalogCategory = async (categoryId, payload) => {
+  return patchCatalogCategoriesCategoryId(categoryId, payload);
+};
+
+export const deleteCatalogCategory = async (categoryId) => {
+  return deleteCatalogCategoriesCategoryId(categoryId);
 };
 
 export const fetchOrders = async (params = {}) => {
