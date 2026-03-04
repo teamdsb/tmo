@@ -4,7 +4,8 @@ import {
   createIsolatedMockAccessToken,
   createIsolatedTokenStore,
   getMockPermissions,
-  getMockUser
+  getMockUserForRuntimeRoles,
+  setIsolatedMockRoles
 } from './runtime'
 
 const createUnauthorizedError = (): Error & { statusCode: number; code: string } => {
@@ -12,13 +13,13 @@ const createUnauthorizedError = (): Error & { statusCode: number; code: string }
   return Object.assign(error, { statusCode: 401, code: 'unauthorized' })
 }
 
-const buildAuthResponse = (
+const buildAuthResponse = async (
   token: string
-): Awaited<ReturnType<IdentityServices['auth']['miniLogin']>> => {
+): Promise<Awaited<ReturnType<IdentityServices['auth']['miniLogin']>>> => {
   return {
     accessToken: token,
     expiresIn: 24 * 60 * 60,
-    user: getMockUser()
+    user: await getMockUserForRuntimeRoles()
   }
 }
 
@@ -34,7 +35,10 @@ export const createMockIdentityServices = (): IdentityServices => {
 
   return {
     auth: {
-      miniLogin: async () => {
+      miniLogin: async (input) => {
+        if (input?.role) {
+          await setIsolatedMockRoles([input.role])
+        }
         const token = createIsolatedMockAccessToken()
         await tokens.setToken(token)
         return buildAuthResponse(token)
@@ -48,7 +52,7 @@ export const createMockIdentityServices = (): IdentityServices => {
     me: {
       get: async () => {
         await ensureAuthorized()
-        return getMockUser()
+        return getMockUserForRuntimeRoles()
       },
       getPermissions: async () => {
         await ensureAuthorized()

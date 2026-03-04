@@ -56,7 +56,10 @@ export const canAccessPath = (path, permissionMap) => {
       hasPermission(permissionMap, 'rbac:manage', 'ALL')
     );
   }
-  if (currentPath === '/transfer.html' || currentPath === '/support.html') {
+  if (currentPath === '/transfer.html') {
+    return hasPermission(permissionMap, 'customer:read', 'ALL') || hasPermission(permissionMap, 'customer:transfer', 'ALL');
+  }
+  if (currentPath === '/support.html') {
     return hasPermission(permissionMap, 'customer:read', 'SELF');
   }
   if (currentPath === '/orders.html') return hasPermission(permissionMap, 'order:read', 'SELF');

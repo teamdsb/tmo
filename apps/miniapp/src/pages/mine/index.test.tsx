@@ -21,7 +21,7 @@ describe('PersonalCenter', () => {
     asMock(gatewayServices.bootstrap.get).mockImplementation(async () => ({
       me: {
         displayName: '张三',
-        roles: ['客户经理']
+        roles: ['CUSTOMER']
       }
     }))
     asMock(gatewayServices.bootstrap.get).mockClear()
@@ -83,5 +83,31 @@ describe('PersonalCenter', () => {
     expect(screen.getByText('我的需求')).toBeInTheDocument()
     expect(screen.getByText('收藏')).toBeInTheDocument()
     expect(screen.getByText('系统设置')).toBeInTheDocument()
+  })
+
+  it('shows sales entry when role includes SALES', async () => {
+    asMock(gatewayServices.bootstrap.get).mockImplementation(async () => ({
+      me: {
+        displayName: '张三',
+        roles: ['CUSTOMER', 'SALES']
+      }
+    }))
+
+    await renderPersonalCenter()
+
+    expect(screen.getByText('业务员工作台')).toBeInTheDocument()
+  })
+
+  it('hides sales entry when role is not SALES', async () => {
+    asMock(gatewayServices.bootstrap.get).mockImplementation(async () => ({
+      me: {
+        displayName: '张三',
+        roles: ['CUSTOMER']
+      }
+    }))
+
+    await renderPersonalCenter()
+
+    expect(screen.queryByText('业务员工作台')).not.toBeInTheDocument()
   })
 })

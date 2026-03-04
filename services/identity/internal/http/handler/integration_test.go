@@ -647,6 +647,226 @@ func TestAdminCustomerFinanceProfile(t *testing.T) {
 	}
 }
 
+func TestAdminCustomerTransferAndBatch(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedAdmin(ctx, pool); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+	if err := seedSales(ctx, pool); err != nil {
+		t.Fatalf("seed sales: %v", err)
+	}
+
+	targetSalesID := uuid.New()
+	if err := seedUser(ctx, pool, targetSalesID, "Target Sales", "staff"); err != nil {
+		t.Fatalf("seed target sales: %v", err)
+	}
+	if err := seedRole(ctx, pool, targetSalesID, "SALES"); err != nil {
+		t.Fatalf("seed target sales role: %v", err)
+	}
+
+	customer1 := uuid.New()
+	customer2 := uuid.New()
+	customer3 := uuid.New()
+	if err := seedCustomer(ctx, pool, customer1, "客户1", &salesID); err != nil {
+		t.Fatalf("seed customer1: %v", err)
+	}
+	if err := seedCustomer(ctx, pool, customer2, "客户2", &salesID); err != nil {
+		t.Fatalf("seed customer2: %v", err)
+	}
+	if err := seedCustomer(ctx, pool, customer3, "客户3", nil); err != nil {
+		t.Fatalf("seed customer3: %v", err)
+	}
+
+	adminLogin := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": adminUsername,
+		"password": adminPassword,
+	}, "")
+	if adminLogin.Code != http.StatusOK {
+		t.Fatalf("expected admin login 200, got %d: %s", adminLogin.Code, adminLogin.Body.String())
+	}
+	var adminAuth oapi.AuthResponse
+	if err := json.NewDecoder(adminLogin.Body).Decode(&adminAuth); err != nil {
+		t.Fatalf("decode admin auth: %v", err)
+	}
+
+	singleTransfer := doJSON(t, router, http.MethodPost, "/admin/customers/"+customer1.String()+"/transfer", map[string]interface{}{
+		"toSalesUserId": targetSalesID.String(),
+		"reason":        "区域调整",
+	}, adminAuth.AccessToken)
+	if singleTransfer.Code != http.StatusNoContent {
+		t.Fatalf("expected single transfer 204, got %d: %s", singleTransfer.Code, singleTransfer.Body.String())
+	}
+
+	detail1 := doJSON(t, router, http.MethodGet, "/customers/"+customer1.String(), nil, adminAuth.AccessToken)
+	if detail1.Code != http.StatusOK {
+		t.Fatalf("expected customer detail 200, got %d: %s", detail1.Code, detail1.Body.String())
+	}
+	var customerDetail oapi.Customer
+	if err := json.NewDecoder(detail1.Body).Decode(&customerDetail); err != nil {
+		t.Fatalf("decode customer detail: %v", err)
+	}
+	if customerDetail.OwnerSalesUserId == nil || uuid.UUID(*customerDetail.OwnerSalesUserId) != targetSalesID {
+		t.Fatalf("expected ownerSalesUserId %s, got %#v", targetSalesID, customerDetail.OwnerSalesUserId)
+	}
+
+	batchTransfer := doJSON(t, router, http.MethodPost, "/admin/customers/transfer", map[string]interface{}{
+		"customerIds":   []string{customer2.String(), customer3.String()},
+		"toSalesUserId": targetSalesID.String(),
+		"reason":        "批量重分配",
+	}, adminAuth.AccessToken)
+	if batchTransfer.Code != http.StatusOK {
+		t.Fatalf("expected batch transfer 200, got %d: %s", batchTransfer.Code, batchTransfer.Body.String())
+	}
+	var transferResp struct {
+		RequestedCount int `json:"requestedCount"`
+		Transferred    int `json:"transferredCount"`
+		Unchanged      int `json:"unchangedCount"`
+	}
+	if err := json.NewDecoder(batchTransfer.Body).Decode(&transferResp); err != nil {
+		t.Fatalf("decode batch transfer response: %v", err)
+	}
+	if transferResp.RequestedCount != 2 || transferResp.Transferred != 2 || transferResp.Unchanged != 0 {
+		t.Fatalf("unexpected batch transfer result: %#v", transferResp)
+	}
+
+	for _, customerID := range []uuid.UUID{customer2, customer3} {
+		detailResp := doJSON(t, router, http.MethodGet, "/customers/"+customerID.String(), nil, adminAuth.AccessToken)
+		if detailResp.Code != http.StatusOK {
+			t.Fatalf("expected customer detail 200 for %s, got %d: %s", customerID, detailResp.Code, detailResp.Body.String())
+		}
+		var detail oapi.Customer
+		if err := json.NewDecoder(detailResp.Body).Decode(&detail); err != nil {
+			t.Fatalf("decode customer detail for %s: %v", customerID, err)
+		}
+		if detail.OwnerSalesUserId == nil || uuid.UUID(*detail.OwnerSalesUserId) != targetSalesID {
+			t.Fatalf("expected ownerSalesUserId %s for %s, got %#v", targetSalesID, customerID, detail.OwnerSalesUserId)
+		}
+	}
+
+	invalidTarget := doJSON(t, router, http.MethodPost, "/admin/customers/"+customer1.String()+"/transfer", map[string]interface{}{
+		"toSalesUserId": customer2.String(),
+	}, adminAuth.AccessToken)
+	if invalidTarget.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid transfer target 400, got %d: %s", invalidTarget.Code, invalidTarget.Body.String())
+	}
+}
+
+func TestAdminCustomerTagsAndBatchUpdate(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedAdmin(ctx, pool); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+	if err := seedSales(ctx, pool); err != nil {
+		t.Fatalf("seed sales: %v", err)
+	}
+
+	customerA := uuid.New()
+	customerB := uuid.New()
+	if err := seedCustomer(ctx, pool, customerA, "打标客户A", &salesID); err != nil {
+		t.Fatalf("seed customer A: %v", err)
+	}
+	if err := seedCustomer(ctx, pool, customerB, "打标客户B", nil); err != nil {
+		t.Fatalf("seed customer B: %v", err)
+	}
+
+	adminLogin := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": adminUsername,
+		"password": adminPassword,
+	}, "")
+	if adminLogin.Code != http.StatusOK {
+		t.Fatalf("expected admin login 200, got %d: %s", adminLogin.Code, adminLogin.Body.String())
+	}
+	var adminAuth oapi.AuthResponse
+	if err := json.NewDecoder(adminLogin.Body).Decode(&adminAuth); err != nil {
+		t.Fatalf("decode admin auth: %v", err)
+	}
+
+	createTag := doJSON(t, router, http.MethodPost, "/admin/customer-tags", map[string]interface{}{
+		"name":  "重点客户",
+		"color": "#FF8800",
+	}, adminAuth.AccessToken)
+	if createTag.Code != http.StatusCreated {
+		t.Fatalf("expected create tag 201, got %d: %s", createTag.Code, createTag.Body.String())
+	}
+	var createdTag struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(createTag.Body).Decode(&createdTag); err != nil {
+		t.Fatalf("decode created tag: %v", err)
+	}
+	if createdTag.ID == "" {
+		t.Fatalf("expected created tag id")
+	}
+
+	applyTags := doJSON(t, router, http.MethodPost, "/admin/customers/tags:batch-update", map[string]interface{}{
+		"customerIds": []string{customerA.String(), customerB.String()},
+		"addTagIds":   []string{createdTag.ID},
+	}, adminAuth.AccessToken)
+	if applyTags.Code != http.StatusOK {
+		t.Fatalf("expected batch add tags 200, got %d: %s", applyTags.Code, applyTags.Body.String())
+	}
+
+	filtered := doJSON(
+		t,
+		router,
+		http.MethodGet,
+		"/admin/customers?page=1&pageSize=10&tagIds="+createdTag.ID,
+		nil,
+		adminAuth.AccessToken,
+	)
+	if filtered.Code != http.StatusOK {
+		t.Fatalf("expected filtered customers 200, got %d: %s", filtered.Code, filtered.Body.String())
+	}
+	var customerList struct {
+		Items []struct {
+			ID   string `json:"id"`
+			Tags []struct {
+				ID string `json:"id"`
+			} `json:"tags"`
+		} `json:"items"`
+		Total int `json:"total"`
+	}
+	if err := json.NewDecoder(filtered.Body).Decode(&customerList); err != nil {
+		t.Fatalf("decode filtered customers: %v", err)
+	}
+	if customerList.Total != 2 || len(customerList.Items) != 2 {
+		t.Fatalf("expected 2 tagged customers, got total=%d items=%d", customerList.Total, len(customerList.Items))
+	}
+
+	removeTag := doJSON(t, router, http.MethodPost, "/admin/customers/tags:batch-update", map[string]interface{}{
+		"customerIds":  []string{customerB.String()},
+		"removeTagIds": []string{createdTag.ID},
+	}, adminAuth.AccessToken)
+	if removeTag.Code != http.StatusOK {
+		t.Fatalf("expected batch remove tag 200, got %d: %s", removeTag.Code, removeTag.Body.String())
+	}
+
+	disableTag := doJSON(t, router, http.MethodPatch, "/admin/customer-tags/"+createdTag.ID, map[string]interface{}{
+		"active": false,
+	}, adminAuth.AccessToken)
+	if disableTag.Code != http.StatusOK {
+		t.Fatalf("expected disable tag 200, got %d: %s", disableTag.Code, disableTag.Body.String())
+	}
+
+	addInactive := doJSON(t, router, http.MethodPost, "/admin/customers/tags:batch-update", map[string]interface{}{
+		"customerIds": []string{customerB.String()},
+		"addTagIds":   []string{createdTag.ID},
+	}, adminAuth.AccessToken)
+	if addInactive.Code != http.StatusBadRequest {
+		t.Fatalf("expected add inactive tag 400, got %d: %s", addInactive.Code, addInactive.Body.String())
+	}
+}
+
 func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool) {
 	return setupTestRouterWithMode(t, platform.LoginModeMock)
 }
@@ -730,7 +950,7 @@ func doJSON(t *testing.T, router http.Handler, method, path string, body interfa
 
 func resetIdentityTables(ctx context.Context, pool *pgxpool.Pool) error {
 	_, err := pool.Exec(ctx, `
-TRUNCATE TABLE audit_logs, staff_binding_tokens, sales_qr_codes, user_passwords, user_identities, user_roles, users RESTART IDENTITY CASCADE
+TRUNCATE TABLE audit_logs, staff_binding_tokens, sales_qr_codes, user_passwords, user_identities, user_roles, customer_tag_bindings, customer_tags, users RESTART IDENTITY CASCADE
 `)
 	return err
 }

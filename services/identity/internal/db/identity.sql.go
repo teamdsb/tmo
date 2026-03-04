@@ -12,6 +12,23 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addCustomerTagBindings = `-- name: AddCustomerTagBindings :exec
+INSERT INTO customer_tag_bindings (customer_id, tag_id, created_by)
+SELECT unnest($1::uuid[]), $2::uuid, $3::uuid
+ON CONFLICT (customer_id, tag_id) DO NOTHING
+`
+
+type AddCustomerTagBindingsParams struct {
+	CustomerIds []uuid.UUID `db:"customer_ids" json:"customer_ids"`
+	TagID       uuid.UUID   `db:"tag_id" json:"tag_id"`
+	CreatedBy   uuid.UUID   `db:"created_by" json:"created_by"`
+}
+
+func (q *Queries) AddCustomerTagBindings(ctx context.Context, arg AddCustomerTagBindingsParams) error {
+	_, err := q.db.Exec(ctx, addCustomerTagBindings, arg.CustomerIds, arg.TagID, arg.CreatedBy)
+	return err
+}
+
 const addRolePermission = `-- name: AddRolePermission :exec
 INSERT INTO role_permissions (role_code, permission_code, scope)
 VALUES ($1, $2, $3)
@@ -50,11 +67,7 @@ const bindOwnerSalesUser = `-- name: BindOwnerSalesUser :one
 UPDATE users
 SET owner_sales_user_id = $2, updated_at = now()
 WHERE id = $1 AND owner_sales_user_id IS NULL
-<<<<<<< ours
 RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label
-=======
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark
->>>>>>> theirs
 `
 
 type BindOwnerSalesUserParams struct {
@@ -77,12 +90,9 @@ func (q *Queries) BindOwnerSalesUser(ctx context.Context, arg BindOwnerSalesUser
 		&i.DisabledReason,
 		&i.Phone,
 		&i.PaymentTermRemark,
-<<<<<<< ours
 		&i.PaymentTermType,
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
-=======
->>>>>>> theirs
 	)
 	return i, err
 }
@@ -93,11 +103,7 @@ SET phone = $2,
     updated_at = now()
 WHERE id = $1
   AND (phone IS NULL OR phone = $2)
-<<<<<<< ours
 RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label
-=======
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark
->>>>>>> theirs
 `
 
 type BindUserPhoneParams struct {
@@ -120,14 +126,76 @@ func (q *Queries) BindUserPhone(ctx context.Context, arg BindUserPhoneParams) (U
 		&i.DisabledReason,
 		&i.Phone,
 		&i.PaymentTermRemark,
-<<<<<<< ours
 		&i.PaymentTermType,
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
-=======
->>>>>>> theirs
 	)
 	return i, err
+}
+
+const countActiveSalesUsers = `-- name: CountActiveSalesUsers :one
+SELECT count(*)
+FROM (
+  SELECT u.id
+  FROM users u
+  JOIN user_roles ur ON ur.user_id = u.id
+  WHERE u.user_type = 'staff'
+    AND u.status = 'active'
+    AND ur.role = 'SALES'
+    AND (
+      $1::text IS NULL
+      OR COALESCE(u.display_name, '') ILIKE '%' || $1 || '%'
+      OR COALESCE(u.phone, '') ILIKE '%' || $1 || '%'
+    )
+  GROUP BY u.id
+) AS filtered_sales
+`
+
+func (q *Queries) CountActiveSalesUsers(ctx context.Context, q_ *string) (int64, error) {
+	row := q.db.QueryRow(ctx, countActiveSalesUsers, q_)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countAdminCustomers = `-- name: CountAdminCustomers :one
+SELECT count(*)
+FROM users u
+WHERE u.user_type = 'customer'
+  AND (
+    $1::text IS NULL
+    OR COALESCE(u.display_name, '') ILIKE '%' || $1 || '%'
+    OR COALESCE(u.phone, '') ILIKE '%' || $1 || '%'
+  )
+  AND ($2::uuid IS NULL OR u.owner_sales_user_id = $2)
+  AND (
+    NOT $3::boolean
+    OR EXISTS (
+      SELECT 1
+      FROM customer_tag_bindings ctb
+      WHERE ctb.customer_id = u.id
+        AND ctb.tag_id = ANY($4::uuid[])
+    )
+  )
+`
+
+type CountAdminCustomersParams struct {
+	Q                *string     `db:"q" json:"q"`
+	OwnerSalesUserID pgtype.UUID `db:"owner_sales_user_id" json:"owner_sales_user_id"`
+	FilterByTags     bool        `db:"filter_by_tags" json:"filter_by_tags"`
+	TagIds           []uuid.UUID `db:"tag_ids" json:"tag_ids"`
+}
+
+func (q *Queries) CountAdminCustomers(ctx context.Context, arg CountAdminCustomersParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countAdminCustomers,
+		arg.Q,
+		arg.OwnerSalesUserID,
+		arg.FilterByTags,
+		arg.TagIds,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const countAuditLogs = `-- name: CountAuditLogs :one
@@ -172,6 +240,40 @@ type CountCustomersParams struct {
 
 func (q *Queries) CountCustomers(ctx context.Context, arg CountCustomersParams) (int64, error) {
 	row := q.db.QueryRow(ctx, countCustomers, arg.Q, arg.OwnerSalesUserID, arg.CustomerID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countCustomersByIDs = `-- name: CountCustomersByIDs :one
+SELECT count(*)
+FROM users
+WHERE user_type = 'customer'
+  AND id = ANY($1::uuid[])
+`
+
+func (q *Queries) CountCustomersByIDs(ctx context.Context, customerIds []uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countCustomersByIDs, customerIds)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countCustomersOwnedBySalesInIDs = `-- name: CountCustomersOwnedBySalesInIDs :one
+SELECT count(*)
+FROM users
+WHERE user_type = 'customer'
+  AND id = ANY($1::uuid[])
+  AND owner_sales_user_id = $2::uuid
+`
+
+type CountCustomersOwnedBySalesInIDsParams struct {
+	CustomerIds      []uuid.UUID `db:"customer_ids" json:"customer_ids"`
+	OwnerSalesUserID uuid.UUID   `db:"owner_sales_user_id" json:"owner_sales_user_id"`
+}
+
+func (q *Queries) CountCustomersOwnedBySalesInIDs(ctx context.Context, arg CountCustomersOwnedBySalesInIDsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countCustomersOwnedBySalesInIDs, arg.CustomerIds, arg.OwnerSalesUserID)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -230,6 +332,41 @@ func (q *Queries) CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) 
 		&i.Ip,
 		&i.UserAgent,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const createCustomerTag = `-- name: CreateCustomerTag :one
+INSERT INTO customer_tags (id, name, color, sort, active)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, name, color, sort, active, created_at, updated_at
+`
+
+type CreateCustomerTagParams struct {
+	ID     uuid.UUID `db:"id" json:"id"`
+	Name   string    `db:"name" json:"name"`
+	Color  string    `db:"color" json:"color"`
+	Sort   int32     `db:"sort" json:"sort"`
+	Active bool      `db:"active" json:"active"`
+}
+
+func (q *Queries) CreateCustomerTag(ctx context.Context, arg CreateCustomerTagParams) (CustomerTag, error) {
+	row := q.db.QueryRow(ctx, createCustomerTag,
+		arg.ID,
+		arg.Name,
+		arg.Color,
+		arg.Sort,
+		arg.Active,
+	)
+	var i CustomerTag
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Color,
+		&i.Sort,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -296,11 +433,7 @@ func (q *Queries) CreateStaffBindingToken(ctx context.Context, arg CreateStaffBi
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (id, display_name, phone, user_type, owner_sales_user_id)
 VALUES ($1, $2, $3, $4, $5)
-<<<<<<< ours
 RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label
-=======
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark
->>>>>>> theirs
 `
 
 type CreateUserParams struct {
@@ -332,12 +465,9 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.DisabledReason,
 		&i.Phone,
 		&i.PaymentTermRemark,
-<<<<<<< ours
 		&i.PaymentTermType,
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
-=======
->>>>>>> theirs
 	)
 	return i, err
 }
@@ -395,12 +525,41 @@ func (q *Queries) DeleteUserRoles(ctx context.Context, userID uuid.UUID) error {
 	return err
 }
 
+const getActiveSalesUserByID = `-- name: GetActiveSalesUserByID :one
+SELECT DISTINCT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone, u.payment_term_remark, u.payment_term_type, u.payment_term_days, u.payment_term_custom_label
+FROM users u
+JOIN user_roles ur ON ur.user_id = u.id
+WHERE u.id = $1
+  AND u.user_type = 'staff'
+  AND u.status = 'active'
+  AND ur.role = 'SALES'
+LIMIT 1
+`
+
+func (q *Queries) GetActiveSalesUserByID(ctx context.Context, id uuid.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, getActiveSalesUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.DisplayName,
+		&i.UserType,
+		&i.OwnerSalesUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Status,
+		&i.DisabledAt,
+		&i.DisabledReason,
+		&i.Phone,
+		&i.PaymentTermRemark,
+		&i.PaymentTermType,
+		&i.PaymentTermDays,
+		&i.PaymentTermCustomLabel,
+	)
+	return i, err
+}
+
 const getCustomerByID = `-- name: GetCustomerByID :one
-<<<<<<< ours
 SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label FROM users
-=======
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark FROM users
->>>>>>> theirs
 WHERE id = $1 AND user_type = 'customer'
 `
 
@@ -419,7 +578,6 @@ func (q *Queries) GetCustomerByID(ctx context.Context, id uuid.UUID) (User, erro
 		&i.DisabledReason,
 		&i.Phone,
 		&i.PaymentTermRemark,
-<<<<<<< ours
 		&i.PaymentTermType,
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
@@ -452,28 +610,29 @@ func (q *Queries) GetCustomerFinanceProfile(ctx context.Context, id uuid.UUID) (
 		&i.PaymentTermCustomLabel,
 		&i.PaymentTermRemark,
 		&i.UpdatedAt,
-=======
->>>>>>> theirs
 	)
 	return i, err
 }
 
-const getCustomerFinanceProfile = `-- name: GetCustomerFinanceProfile :one
-SELECT id, payment_term_remark, updated_at
-FROM users
-WHERE id = $1 AND user_type = 'customer'
+const getCustomerTagByID = `-- name: GetCustomerTagByID :one
+SELECT id, name, color, sort, active, created_at, updated_at
+FROM customer_tags
+WHERE id = $1
+LIMIT 1
 `
 
-type GetCustomerFinanceProfileRow struct {
-	ID                uuid.UUID          `db:"id" json:"id"`
-	PaymentTermRemark *string            `db:"payment_term_remark" json:"payment_term_remark"`
-	UpdatedAt         pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
-}
-
-func (q *Queries) GetCustomerFinanceProfile(ctx context.Context, id uuid.UUID) (GetCustomerFinanceProfileRow, error) {
-	row := q.db.QueryRow(ctx, getCustomerFinanceProfile, id)
-	var i GetCustomerFinanceProfileRow
-	err := row.Scan(&i.ID, &i.PaymentTermRemark, &i.UpdatedAt)
+func (q *Queries) GetCustomerTagByID(ctx context.Context, id uuid.UUID) (CustomerTag, error) {
+	row := q.db.QueryRow(ctx, getCustomerTagByID, id)
+	var i CustomerTag
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Color,
+		&i.Sort,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
 
@@ -591,11 +750,7 @@ func (q *Queries) GetStaffBindingToken(ctx context.Context, token string) (Staff
 }
 
 const getUserByID = `-- name: GetUserByID :one
-<<<<<<< ours
 SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label FROM users WHERE id = $1
-=======
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark FROM users WHERE id = $1
->>>>>>> theirs
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -613,22 +768,15 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.DisabledReason,
 		&i.Phone,
 		&i.PaymentTermRemark,
-<<<<<<< ours
 		&i.PaymentTermType,
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
-=======
->>>>>>> theirs
 	)
 	return i, err
 }
 
 const getUserByIdentity = `-- name: GetUserByIdentity :one
-<<<<<<< ours
 SELECT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone, u.payment_term_remark, u.payment_term_type, u.payment_term_days, u.payment_term_custom_label FROM users u
-=======
-SELECT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone, u.payment_term_remark FROM users u
->>>>>>> theirs
 JOIN user_identities i ON i.user_id = u.id
 WHERE i.provider = $1 AND i.provider_user_id = $2
 LIMIT 1
@@ -654,22 +802,15 @@ func (q *Queries) GetUserByIdentity(ctx context.Context, arg GetUserByIdentityPa
 		&i.DisabledReason,
 		&i.Phone,
 		&i.PaymentTermRemark,
-<<<<<<< ours
 		&i.PaymentTermType,
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
-=======
->>>>>>> theirs
 	)
 	return i, err
 }
 
 const getUserByPhone = `-- name: GetUserByPhone :one
-<<<<<<< ours
 SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label FROM users
-=======
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark FROM users
->>>>>>> theirs
 WHERE phone = $1
 LIMIT 1
 `
@@ -689,12 +830,9 @@ func (q *Queries) GetUserByPhone(ctx context.Context, phone *string) (User, erro
 		&i.DisabledReason,
 		&i.Phone,
 		&i.PaymentTermRemark,
-<<<<<<< ours
 		&i.PaymentTermType,
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
-=======
->>>>>>> theirs
 	)
 	return i, err
 }
@@ -739,6 +877,137 @@ func (q *Queries) GetUserPasswordByUsername(ctx context.Context, username string
 	var i GetUserPasswordByUsernameRow
 	err := row.Scan(&i.UserID, &i.PasswordHash)
 	return i, err
+}
+
+const listActiveSalesUsers = `-- name: ListActiveSalesUsers :many
+SELECT DISTINCT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone, u.payment_term_remark, u.payment_term_type, u.payment_term_days, u.payment_term_custom_label
+FROM users u
+JOIN user_roles ur ON ur.user_id = u.id
+WHERE u.user_type = 'staff'
+  AND u.status = 'active'
+  AND ur.role = 'SALES'
+  AND (
+    $1::text IS NULL
+    OR COALESCE(u.display_name, '') ILIKE '%' || $1 || '%'
+    OR COALESCE(u.phone, '') ILIKE '%' || $1 || '%'
+  )
+ORDER BY u.created_at DESC
+LIMIT $3 OFFSET $2
+`
+
+type ListActiveSalesUsersParams struct {
+	Q      *string `db:"q" json:"q"`
+	Offset int32   `db:"offset" json:"offset"`
+	Limit  int32   `db:"limit" json:"limit"`
+}
+
+func (q *Queries) ListActiveSalesUsers(ctx context.Context, arg ListActiveSalesUsersParams) ([]User, error) {
+	rows, err := q.db.Query(ctx, listActiveSalesUsers, arg.Q, arg.Offset, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.DisplayName,
+			&i.UserType,
+			&i.OwnerSalesUserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Status,
+			&i.DisabledAt,
+			&i.DisabledReason,
+			&i.Phone,
+			&i.PaymentTermRemark,
+			&i.PaymentTermType,
+			&i.PaymentTermDays,
+			&i.PaymentTermCustomLabel,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAdminCustomers = `-- name: ListAdminCustomers :many
+SELECT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone, u.payment_term_remark, u.payment_term_type, u.payment_term_days, u.payment_term_custom_label
+FROM users u
+WHERE u.user_type = 'customer'
+  AND (
+    $1::text IS NULL
+    OR COALESCE(u.display_name, '') ILIKE '%' || $1 || '%'
+    OR COALESCE(u.phone, '') ILIKE '%' || $1 || '%'
+  )
+  AND ($2::uuid IS NULL OR u.owner_sales_user_id = $2)
+  AND (
+    NOT $3::boolean
+    OR EXISTS (
+      SELECT 1
+      FROM customer_tag_bindings ctb
+      WHERE ctb.customer_id = u.id
+        AND ctb.tag_id = ANY($4::uuid[])
+    )
+  )
+ORDER BY u.created_at DESC
+LIMIT $6 OFFSET $5
+`
+
+type ListAdminCustomersParams struct {
+	Q                *string     `db:"q" json:"q"`
+	OwnerSalesUserID pgtype.UUID `db:"owner_sales_user_id" json:"owner_sales_user_id"`
+	FilterByTags     bool        `db:"filter_by_tags" json:"filter_by_tags"`
+	TagIds           []uuid.UUID `db:"tag_ids" json:"tag_ids"`
+	Offset           int32       `db:"offset" json:"offset"`
+	Limit            int32       `db:"limit" json:"limit"`
+}
+
+func (q *Queries) ListAdminCustomers(ctx context.Context, arg ListAdminCustomersParams) ([]User, error) {
+	rows, err := q.db.Query(ctx, listAdminCustomers,
+		arg.Q,
+		arg.OwnerSalesUserID,
+		arg.FilterByTags,
+		arg.TagIds,
+		arg.Offset,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.DisplayName,
+			&i.UserType,
+			&i.OwnerSalesUserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Status,
+			&i.DisabledAt,
+			&i.DisabledReason,
+			&i.Phone,
+			&i.PaymentTermRemark,
+			&i.PaymentTermType,
+			&i.PaymentTermDays,
+			&i.PaymentTermCustomLabel,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listAuditLogs = `-- name: ListAuditLogs :many
@@ -795,12 +1064,127 @@ func (q *Queries) ListAuditLogs(ctx context.Context, arg ListAuditLogsParams) ([
 	return items, nil
 }
 
+const listCustomerTags = `-- name: ListCustomerTags :many
+SELECT id, name, color, sort, active, created_at, updated_at
+FROM customer_tags
+WHERE $1::boolean OR active = true
+ORDER BY sort ASC, created_at ASC
+`
+
+func (q *Queries) ListCustomerTags(ctx context.Context, includeInactive bool) ([]CustomerTag, error) {
+	rows, err := q.db.Query(ctx, listCustomerTags, includeInactive)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CustomerTag
+	for rows.Next() {
+		var i CustomerTag
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Color,
+			&i.Sort,
+			&i.Active,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCustomerTagsByCustomerIDs = `-- name: ListCustomerTagsByCustomerIDs :many
+SELECT
+  ctb.customer_id,
+  t.id AS tag_id,
+  t.name AS tag_name,
+  t.color AS tag_color,
+  t.sort AS tag_sort,
+  t.active AS tag_active
+FROM customer_tag_bindings ctb
+JOIN customer_tags t ON t.id = ctb.tag_id
+WHERE ctb.customer_id = ANY($1::uuid[])
+ORDER BY t.sort ASC, t.created_at ASC
+`
+
+type ListCustomerTagsByCustomerIDsRow struct {
+	CustomerID uuid.UUID `db:"customer_id" json:"customer_id"`
+	TagID      uuid.UUID `db:"tag_id" json:"tag_id"`
+	TagName    string    `db:"tag_name" json:"tag_name"`
+	TagColor   string    `db:"tag_color" json:"tag_color"`
+	TagSort    int32     `db:"tag_sort" json:"tag_sort"`
+	TagActive  bool      `db:"tag_active" json:"tag_active"`
+}
+
+func (q *Queries) ListCustomerTagsByCustomerIDs(ctx context.Context, customerIds []uuid.UUID) ([]ListCustomerTagsByCustomerIDsRow, error) {
+	rows, err := q.db.Query(ctx, listCustomerTagsByCustomerIDs, customerIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListCustomerTagsByCustomerIDsRow
+	for rows.Next() {
+		var i ListCustomerTagsByCustomerIDsRow
+		if err := rows.Scan(
+			&i.CustomerID,
+			&i.TagID,
+			&i.TagName,
+			&i.TagColor,
+			&i.TagSort,
+			&i.TagActive,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCustomerTagsByIDs = `-- name: ListCustomerTagsByIDs :many
+SELECT id, name, color, sort, active, created_at, updated_at
+FROM customer_tags
+WHERE id = ANY($1::uuid[])
+`
+
+func (q *Queries) ListCustomerTagsByIDs(ctx context.Context, tagIds []uuid.UUID) ([]CustomerTag, error) {
+	rows, err := q.db.Query(ctx, listCustomerTagsByIDs, tagIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CustomerTag
+	for rows.Next() {
+		var i CustomerTag
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Color,
+			&i.Sort,
+			&i.Active,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCustomers = `-- name: ListCustomers :many
-<<<<<<< ours
 SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label FROM users
-=======
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark FROM users
->>>>>>> theirs
 WHERE user_type = 'customer'
   AND (
     $1::text IS NULL
@@ -848,12 +1232,9 @@ func (q *Queries) ListCustomers(ctx context.Context, arg ListCustomersParams) ([
 			&i.DisabledReason,
 			&i.Phone,
 			&i.PaymentTermRemark,
-<<<<<<< ours
 			&i.PaymentTermType,
 			&i.PaymentTermDays,
 			&i.PaymentTermCustomLabel,
-=======
->>>>>>> theirs
 		); err != nil {
 			return nil, err
 		}
@@ -995,11 +1376,7 @@ func (q *Queries) ListRoles(ctx context.Context) ([]Role, error) {
 }
 
 const listStaffUsers = `-- name: ListStaffUsers :many
-<<<<<<< ours
 SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label FROM users
-=======
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark FROM users
->>>>>>> theirs
 WHERE user_type = 'staff'
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $1
@@ -1031,12 +1408,9 @@ func (q *Queries) ListStaffUsers(ctx context.Context, arg ListStaffUsersParams) 
 			&i.DisabledReason,
 			&i.Phone,
 			&i.PaymentTermRemark,
-<<<<<<< ours
 			&i.PaymentTermType,
 			&i.PaymentTermDays,
 			&i.PaymentTermCustomLabel,
-=======
->>>>>>> theirs
 		); err != nil {
 			return nil, err
 		}
@@ -1072,6 +1446,47 @@ func (q *Queries) ListUserRoles(ctx context.Context, userID uuid.UUID) ([]string
 	return items, nil
 }
 
+const listUsersByIDs = `-- name: ListUsersByIDs :many
+SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label
+FROM users
+WHERE id = ANY($1::uuid[])
+`
+
+func (q *Queries) ListUsersByIDs(ctx context.Context, ids []uuid.UUID) ([]User, error) {
+	rows, err := q.db.Query(ctx, listUsersByIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.DisplayName,
+			&i.UserType,
+			&i.OwnerSalesUserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Status,
+			&i.DisabledAt,
+			&i.DisabledReason,
+			&i.Phone,
+			&i.PaymentTermRemark,
+			&i.PaymentTermType,
+			&i.PaymentTermDays,
+			&i.PaymentTermCustomLabel,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markStaffBindingTokenUsed = `-- name: MarkStaffBindingTokenUsed :exec
 UPDATE staff_binding_tokens
 SET used_at = now()
@@ -1083,16 +1498,28 @@ func (q *Queries) MarkStaffBindingTokenUsed(ctx context.Context, token string) e
 	return err
 }
 
+const removeCustomerTagBindings = `-- name: RemoveCustomerTagBindings :exec
+DELETE FROM customer_tag_bindings
+WHERE tag_id = $1::uuid
+  AND customer_id = ANY($2::uuid[])
+`
+
+type RemoveCustomerTagBindingsParams struct {
+	TagID       uuid.UUID   `db:"tag_id" json:"tag_id"`
+	CustomerIds []uuid.UUID `db:"customer_ids" json:"customer_ids"`
+}
+
+func (q *Queries) RemoveCustomerTagBindings(ctx context.Context, arg RemoveCustomerTagBindingsParams) error {
+	_, err := q.db.Exec(ctx, removeCustomerTagBindings, arg.TagID, arg.CustomerIds)
+	return err
+}
+
 const transferCustomerOwnership = `-- name: TransferCustomerOwnership :one
 UPDATE users
 SET owner_sales_user_id = $2,
     updated_at = now()
 WHERE id = $1 AND user_type = 'customer'
-<<<<<<< ours
 RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label
-=======
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark
->>>>>>> theirs
 `
 
 type TransferCustomerOwnershipParams struct {
@@ -1115,12 +1542,60 @@ func (q *Queries) TransferCustomerOwnership(ctx context.Context, arg TransferCus
 		&i.DisabledReason,
 		&i.Phone,
 		&i.PaymentTermRemark,
-<<<<<<< ours
 		&i.PaymentTermType,
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
 	)
 	return i, err
+}
+
+const transferCustomersOwnership = `-- name: TransferCustomersOwnership :many
+UPDATE users
+SET owner_sales_user_id = $1::uuid,
+    updated_at = now()
+WHERE user_type = 'customer'
+  AND id = ANY($2::uuid[])
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label
+`
+
+type TransferCustomersOwnershipParams struct {
+	OwnerSalesUserID uuid.UUID   `db:"owner_sales_user_id" json:"owner_sales_user_id"`
+	CustomerIds      []uuid.UUID `db:"customer_ids" json:"customer_ids"`
+}
+
+func (q *Queries) TransferCustomersOwnership(ctx context.Context, arg TransferCustomersOwnershipParams) ([]User, error) {
+	rows, err := q.db.Query(ctx, transferCustomersOwnership, arg.OwnerSalesUserID, arg.CustomerIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.DisplayName,
+			&i.UserType,
+			&i.OwnerSalesUserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Status,
+			&i.DisabledAt,
+			&i.DisabledReason,
+			&i.Phone,
+			&i.PaymentTermRemark,
+			&i.PaymentTermType,
+			&i.PaymentTermDays,
+			&i.PaymentTermCustomLabel,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateCustomerFinanceProfile = `-- name: UpdateCustomerFinanceProfile :one
@@ -1167,35 +1642,47 @@ func (q *Queries) UpdateCustomerFinanceProfile(ctx context.Context, arg UpdateCu
 		&i.PaymentTermCustomLabel,
 		&i.PaymentTermRemark,
 		&i.UpdatedAt,
-=======
->>>>>>> theirs
 	)
 	return i, err
 }
 
-const updateCustomerPaymentTermRemark = `-- name: UpdateCustomerPaymentTermRemark :one
-UPDATE users
-SET payment_term_remark = $2,
+const updateCustomerTag = `-- name: UpdateCustomerTag :one
+UPDATE customer_tags
+SET name = COALESCE($2, name),
+    color = COALESCE($3, color),
+    sort = COALESCE($4, sort),
+    active = COALESCE($5, active),
     updated_at = now()
-WHERE id = $1 AND user_type = 'customer'
-RETURNING id, payment_term_remark, updated_at
+WHERE id = $1
+RETURNING id, name, color, sort, active, created_at, updated_at
 `
 
-type UpdateCustomerPaymentTermRemarkParams struct {
-	ID                uuid.UUID `db:"id" json:"id"`
-	PaymentTermRemark *string   `db:"payment_term_remark" json:"payment_term_remark"`
+type UpdateCustomerTagParams struct {
+	ID     uuid.UUID `db:"id" json:"id"`
+	Name   *string   `db:"name" json:"name"`
+	Color  *string   `db:"color" json:"color"`
+	Sort   *int32    `db:"sort" json:"sort"`
+	Active *bool     `db:"active" json:"active"`
 }
 
-type UpdateCustomerPaymentTermRemarkRow struct {
-	ID                uuid.UUID          `db:"id" json:"id"`
-	PaymentTermRemark *string            `db:"payment_term_remark" json:"payment_term_remark"`
-	UpdatedAt         pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
-}
-
-func (q *Queries) UpdateCustomerPaymentTermRemark(ctx context.Context, arg UpdateCustomerPaymentTermRemarkParams) (UpdateCustomerPaymentTermRemarkRow, error) {
-	row := q.db.QueryRow(ctx, updateCustomerPaymentTermRemark, arg.ID, arg.PaymentTermRemark)
-	var i UpdateCustomerPaymentTermRemarkRow
-	err := row.Scan(&i.ID, &i.PaymentTermRemark, &i.UpdatedAt)
+func (q *Queries) UpdateCustomerTag(ctx context.Context, arg UpdateCustomerTagParams) (CustomerTag, error) {
+	row := q.db.QueryRow(ctx, updateCustomerTag,
+		arg.ID,
+		arg.Name,
+		arg.Color,
+		arg.Sort,
+		arg.Active,
+	)
+	var i CustomerTag
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Color,
+		&i.Sort,
+		&i.Active,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
 	return i, err
 }
 
@@ -1252,11 +1739,7 @@ UPDATE users
 SET display_name = COALESCE($2, display_name),
     updated_at = now()
 WHERE id = $1
-<<<<<<< ours
 RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label
-=======
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark
->>>>>>> theirs
 `
 
 type UpdateUserProfileParams struct {
@@ -1279,12 +1762,9 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.DisabledReason,
 		&i.Phone,
 		&i.PaymentTermRemark,
-<<<<<<< ours
 		&i.PaymentTermType,
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
-=======
->>>>>>> theirs
 	)
 	return i, err
 }
@@ -1296,11 +1776,7 @@ SET status = $2,
     disabled_reason = $4,
     updated_at = now()
 WHERE id = $1
-<<<<<<< ours
 RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label
-=======
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark
->>>>>>> theirs
 `
 
 type UpdateUserStatusParams struct {
@@ -1330,12 +1806,9 @@ func (q *Queries) UpdateUserStatus(ctx context.Context, arg UpdateUserStatusPara
 		&i.DisabledReason,
 		&i.Phone,
 		&i.PaymentTermRemark,
-<<<<<<< ours
 		&i.PaymentTermType,
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
-=======
->>>>>>> theirs
 	)
 	return i, err
 }

@@ -1,180 +1,456 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { fetchCustomers, getAdminCustomerFinanceProfile, patchAdminCustomerFinanceProfile } from '../../../lib/api';
+import {
+  batchTransferCustomers,
+  batchUpdateCustomerTags,
+  createAdminCustomerTag,
+  fetchAdminCustomers,
+  fetchAdminCustomerTags,
+  fetchAdminSalesUsers,
+  getAdminCustomerFinanceProfile,
+  patchAdminCustomerFinanceProfile,
+  patchAdminCustomerTag
+} from '../../../lib/api';
 import { isMockMode } from '../../../lib/env';
 import { AdminTopbar } from '../../layout/AdminTopbar';
 
-type CustomerOption = {
+type SalesUser = {
+  id: string;
+  displayName: string;
+  phone: string;
+  status: string;
+  roles: string[];
+};
+
+type CustomerTag = {
+  id: string;
+  name: string;
+  color: string;
+  sort: number;
+  active: boolean;
+};
+
+type CustomerOwner = {
+  id: string;
+  displayName: string;
+  phone: string;
+};
+
+type AdminCustomer = {
   id: string;
   displayName: string;
   phone: string;
   ownerSalesUserId: string;
+  ownerSales: CustomerOwner | null;
+  tags: CustomerTag[];
+  createdAt: string;
 };
 
 const MAX_PAYMENT_TERM_REMARK_LENGTH = 500;
+const DEFAULT_TAG_COLOR = '#64748B';
 
-const mockCustomers: CustomerOption[] = [
+const mockSalesSeed: SalesUser[] = [
+  {
+    id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    displayName: '张销售',
+    phone: '13800138000',
+    status: 'active',
+    roles: ['SALES']
+  },
+  {
+    id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+    displayName: '李销售',
+    phone: '13900139000',
+    status: 'active',
+    roles: ['SALES']
+  },
+  {
+    id: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+    displayName: '王销售',
+    phone: '13700137000',
+    status: 'active',
+    roles: ['SALES']
+  }
+];
+
+const mockTagSeed: CustomerTag[] = [
+  {
+    id: '8ed6e30f-e4f4-49f9-a8f3-a9c4530f4f42',
+    name: '重点客户',
+    color: '#F97316',
+    sort: 10,
+    active: true
+  },
+  {
+    id: 'c2215f84-089d-4329-b7b7-5ad3da4cb0a0',
+    name: '待回访',
+    color: '#2563EB',
+    sort: 20,
+    active: true
+  }
+];
+
+const mockCustomerSeed: AdminCustomer[] = [
   {
     id: 'ab90d8ef-5de1-4f24-b4af-b3dde9e64610',
     displayName: '上海宏业贸易',
     phone: '13800138000',
-    ownerSalesUserId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+    ownerSalesUserId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+    ownerSales: {
+      id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      displayName: '张销售',
+      phone: '13800138000'
+    },
+    tags: [mockTagSeed[0]],
+    createdAt: '2026-02-22T09:10:11Z'
   },
   {
     id: '7ce1f6d1-4e6d-45bc-8c25-a27be9c98480',
     displayName: '苏州精工制造',
     phone: '13900139000',
-    ownerSalesUserId: 'cccccccc-cccc-cccc-cccc-cccccccccccc'
+    ownerSalesUserId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+    ownerSales: {
+      id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+      displayName: '李销售',
+      phone: '13900139000'
+    },
+    tags: [mockTagSeed[1]],
+    createdAt: '2026-02-24T09:10:11Z'
   },
   {
     id: '515eb8de-6457-48f0-9e91-227b55f667e9',
     displayName: '宁波远航供应链',
     phone: '13700137000',
-    ownerSalesUserId: ''
+    ownerSalesUserId: '',
+    ownerSales: null,
+    tags: [],
+    createdAt: '2026-02-26T09:10:11Z'
   }
 ];
 
-const transferMetrics = [
-  { label: '已选中', value: '12' },
-  { label: '客户终身价值总额', value: '$145,200' },
-  { label: '待处理订单', value: '3' },
-  { label: '平均忠诚度', value: '8.5' }
-] as const;
-
-const transferRows = [
-  { initial: '张', initialClass: 'bg-purple-100 text-purple-600', name: '约翰·多伊', from: '莎拉·詹金斯', to: '迈克尔·罗斯', value: '$12,450' },
-  { initial: '艾', initialClass: 'bg-orange-100 text-orange-600', name: '艾丽丝·史密斯', from: '莎拉·詹金斯', to: '迈克尔·罗斯', value: '$8,320' },
-  { initial: '罗', initialClass: 'bg-teal-100 text-teal-600', name: '罗伯特·布朗', from: '莎拉·詹金斯', to: '迈克尔·罗斯', value: '$45,100' }
-] as const;
-
-const activityItems = [
-  { title: '已发起转移', subtitle: '今天 10:23（管理员）', active: true },
-  { title: '客户已选中', subtitle: '今天 10:15', active: false },
-  { title: '已应用批量筛选', subtitle: '今天 10:10', active: false }
-] as const;
-
-const shortId = (value: string) => {
-  if (!value) {
-    return '未分配';
+const safeText = (value: unknown, fallback = '') => {
+  if (typeof value !== 'string') {
+    return fallback;
   }
-  return `${value.slice(0, 8)}...`;
+  const trimmed = value.trim();
+  return trimmed || fallback;
 };
 
-const normalizeCustomerOptions = (items: unknown[]): CustomerOption[] => {
+const normalizeSalesUsers = (data: unknown): SalesUser[] => {
+  const items = (data as { items?: unknown[] })?.items;
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
   return items
     .map((item) => {
-      const customer = item as {
+      const record = item as {
         id?: string;
         displayName?: string;
         phone?: string | null;
-        ownerSalesUserId?: string | null;
+        status?: string;
+        roles?: unknown[];
       };
-
-      if (!customer?.id) {
+      if (!record.id) {
         return null;
       }
-
+      const roles = Array.isArray(record.roles) ? record.roles.filter((role): role is string => typeof role === 'string') : [];
       return {
-        id: customer.id,
-        displayName: customer.displayName?.trim() || '未命名客户',
-        phone: customer.phone?.trim() || '-',
-        ownerSalesUserId: customer.ownerSalesUserId?.trim() || ''
+        id: record.id,
+        displayName: safeText(record.displayName, '未命名业务员'),
+        phone: safeText(record.phone, '-'),
+        status: safeText(record.status, 'active').toLowerCase(),
+        roles
       };
     })
-    .filter(Boolean) as CustomerOption[];
+    .filter(Boolean) as SalesUser[];
+};
+
+const normalizeTags = (data: unknown): CustomerTag[] => {
+  const items = Array.isArray((data as { items?: unknown[] })?.items)
+    ? ((data as { items?: unknown[] }).items as unknown[])
+    : [];
+
+  return items
+    .map((item) => {
+      const record = item as {
+        id?: string;
+        name?: string;
+        color?: string;
+        sort?: number;
+        active?: boolean;
+      };
+      if (!record.id) {
+        return null;
+      }
+      return {
+        id: record.id,
+        name: safeText(record.name, '未命名标签'),
+        color: safeText(record.color, DEFAULT_TAG_COLOR),
+        sort: Number.isFinite(record.sort) ? Number(record.sort) : 0,
+        active: Boolean(record.active)
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.sort - b.sort) as CustomerTag[];
+};
+
+const normalizeCustomers = (data: unknown): { items: AdminCustomer[]; total: number } => {
+  const payload = data as { items?: unknown[]; total?: number };
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+
+  return {
+    items: items
+      .map((item) => {
+        const record = item as {
+          id?: string;
+          displayName?: string;
+          phone?: string | null;
+          ownerSalesUserId?: string | null;
+          ownerSales?: { id?: string; displayName?: string; phone?: string | null } | null;
+          tags?: unknown[];
+          createdAt?: string;
+        };
+        if (!record.id) {
+          return null;
+        }
+        const owner = record.ownerSales;
+        const normalizedTags = Array.isArray(record.tags)
+          ? normalizeTags({ items: record.tags })
+          : [];
+
+        return {
+          id: record.id,
+          displayName: safeText(record.displayName, '未命名客户'),
+          phone: safeText(record.phone, '-'),
+          ownerSalesUserId: safeText(record.ownerSalesUserId, ''),
+          ownerSales: owner?.id
+            ? {
+                id: owner.id,
+                displayName: safeText(owner.displayName, '未命名业务员'),
+                phone: safeText(owner.phone, '-')
+              }
+            : null,
+          tags: normalizedTags,
+          createdAt: safeText(record.createdAt, '')
+        } as AdminCustomer;
+      })
+      .filter(Boolean) as AdminCustomer[],
+    total: Number.isFinite(payload?.total) ? Number(payload.total) : 0
+  };
+};
+
+const createMockId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `mock-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+};
+
+const formatDateTime = (raw: string) => {
+  if (!raw) {
+    return '-';
+  }
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) {
+    return raw;
+  }
+  return date.toLocaleString('zh-CN', {
+    hour12: false
+  });
 };
 
 export const TransferPage = () => {
-  const [customerQuery, setCustomerQuery] = useState('');
-  const [customers, setCustomers] = useState<CustomerOption[]>([]);
-  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [queryInput, setQueryInput] = useState('');
+  const [appliedQuery, setAppliedQuery] = useState('');
+  const [ownerSalesFilter, setOwnerSalesFilter] = useState('');
+  const [tagFilters, setTagFilters] = useState<string[]>([]);
+
+  const [salesUsers, setSalesUsers] = useState<SalesUser[]>([]);
+  const [tags, setTags] = useState<CustomerTag[]>([]);
+  const [customers, setCustomers] = useState<AdminCustomer[]>([]);
+  const [total, setTotal] = useState(0);
+
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
+  const [focusedCustomerId, setFocusedCustomerId] = useState('');
+
+  const [targetSalesUserId, setTargetSalesUserId] = useState('');
+  const [transferReason, setTransferReason] = useState('');
+
+  const [addTagIds, setAddTagIds] = useState<string[]>([]);
+  const [removeTagIds, setRemoveTagIds] = useState<string[]>([]);
+
+  const [newTagName, setNewTagName] = useState('');
+  const [newTagColor, setNewTagColor] = useState(DEFAULT_TAG_COLOR);
+
   const [remarkInput, setRemarkInput] = useState('');
   const [mockRemarks, setMockRemarks] = useState<Record<string, string>>({
     'ab90d8ef-5de1-4f24-b4af-b3dde9e64610': '默认账期：月结30天，票到后5个工作日付款。'
   });
 
-  const [listLoading, setListLoading] = useState(false);
+  const [mockSalesUsers] = useState<SalesUser[]>(mockSalesSeed);
+  const [mockTags, setMockTags] = useState<CustomerTag[]>(mockTagSeed);
+  const [mockCustomers, setMockCustomers] = useState<AdminCustomer[]>(mockCustomerSeed);
+
+  const [salesLoading, setSalesLoading] = useState(false);
+  const [tagsLoading, setTagsLoading] = useState(false);
+  const [customersLoading, setCustomersLoading] = useState(false);
   const [profileLoading, setProfileLoading] = useState(false);
-  const [saveLoading, setSaveLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-
-  const selectedCustomer = useMemo(() => {
-    return customers.find((customer) => customer.id === selectedCustomerId) || null;
-  }, [customers, selectedCustomerId]);
 
   const clearFeedback = () => {
     setErrorMessage('');
     setSuccessMessage('');
   };
 
-  const loadCustomers = async (queryValue: string) => {
-    setListLoading(true);
+  const activeTags = useMemo(() => tags.filter((tag) => tag.active), [tags]);
+
+  const selectedCount = selectedCustomerIds.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const focusedCustomer = useMemo(() => {
+    return customers.find((customer) => customer.id === focusedCustomerId) || null;
+  }, [customers, focusedCustomerId]);
+
+  const selectedSalesUser = useMemo(() => {
+    return salesUsers.find((sales) => sales.id === targetSalesUserId) || null;
+  }, [salesUsers, targetSalesUserId]);
+
+  const remarkLength = remarkInput.trim().length;
+
+  const refreshSalesUsers = async () => {
+    setSalesLoading(true);
+    try {
+      if (isMockMode) {
+        setSalesUsers(mockSalesUsers.filter((item) => item.status === 'active' && item.roles.includes('SALES')));
+        return;
+      }
+
+      const response = await fetchAdminSalesUsers({
+        page: 1,
+        pageSize: 200
+      });
+      if (response.status !== 200) {
+        setErrorMessage('加载业务员列表失败，请稍后重试。');
+        setSalesUsers([]);
+        return;
+      }
+      setSalesUsers(normalizeSalesUsers(response.data));
+    } catch {
+      setErrorMessage('加载业务员列表失败，请稍后重试。');
+      setSalesUsers([]);
+    } finally {
+      setSalesLoading(false);
+    }
+  };
+
+  const refreshTags = async () => {
+    setTagsLoading(true);
+    try {
+      if (isMockMode) {
+        setTags([...mockTags].sort((a, b) => a.sort - b.sort));
+        return;
+      }
+
+      const response = await fetchAdminCustomerTags({ includeInactive: true });
+      if (response.status !== 200) {
+        setErrorMessage('加载标签失败，请稍后重试。');
+        setTags([]);
+        return;
+      }
+      setTags(normalizeTags(response.data));
+    } catch {
+      setErrorMessage('加载标签失败，请稍后重试。');
+      setTags([]);
+    } finally {
+      setTagsLoading(false);
+    }
+  };
+
+  const refreshCustomers = async () => {
+    setCustomersLoading(true);
     clearFeedback();
 
     try {
       if (isMockMode) {
-        const normalizedQuery = queryValue.trim().toLowerCase();
-        const nextCustomers = mockCustomers.filter((customer) => {
-          if (!normalizedQuery) {
-            return true;
-          }
-          return (
-            customer.displayName.toLowerCase().includes(normalizedQuery)
-            || customer.phone.includes(normalizedQuery)
-            || customer.id.toLowerCase().includes(normalizedQuery)
-          );
-        });
+        let nextItems = [...mockCustomers];
 
-        setCustomers(nextCustomers);
-        setSelectedCustomerId((current) => {
-          if (nextCustomers.some((customer) => customer.id === current)) {
-            return current;
-          }
-          return nextCustomers[0]?.id || '';
-        });
+        if (appliedQuery) {
+          const keyword = appliedQuery.toLowerCase();
+          nextItems = nextItems.filter((customer) => {
+            return (
+              customer.displayName.toLowerCase().includes(keyword)
+              || customer.phone.includes(keyword)
+              || customer.id.toLowerCase().includes(keyword)
+            );
+          });
+        }
+
+        if (ownerSalesFilter) {
+          nextItems = nextItems.filter((customer) => customer.ownerSalesUserId === ownerSalesFilter);
+        }
+
+        if (tagFilters.length > 0) {
+          nextItems = nextItems.filter((customer) => customer.tags.some((tag) => tagFilters.includes(tag.id)));
+        }
+
+        const start = (page - 1) * pageSize;
+        const end = start + pageSize;
+        const pagedItems = nextItems.slice(start, end);
+
+        setCustomers(pagedItems);
+        setTotal(nextItems.length);
+        setSelectedCustomerIds((current) => current.filter((id) => pagedItems.some((item) => item.id === id)));
+        if (!pagedItems.some((item) => item.id === focusedCustomerId)) {
+          setFocusedCustomerId(pagedItems[0]?.id || '');
+        }
         return;
       }
 
-      const response = await fetchCustomers({
-        page: 1,
-        pageSize: 20,
-        q: queryValue.trim() || undefined
+      const response = await fetchAdminCustomers({
+        page,
+        pageSize,
+        q: appliedQuery || undefined,
+        ownerSalesUserId: ownerSalesFilter || undefined,
+        tagIds: tagFilters.length > 0 ? tagFilters : undefined
       });
 
-      if (response.status !== 200 || !Array.isArray(response.data?.items)) {
+      if (response.status !== 200) {
         setErrorMessage('加载客户列表失败，请稍后重试。');
         setCustomers([]);
-        setSelectedCustomerId('');
+        setTotal(0);
         return;
       }
 
-      const nextCustomers = normalizeCustomerOptions(response.data.items);
-      setCustomers(nextCustomers);
-      setSelectedCustomerId((current) => {
-        if (nextCustomers.some((customer) => customer.id === current)) {
-          return current;
-        }
-        return nextCustomers[0]?.id || '';
-      });
+      const normalized = normalizeCustomers(response.data);
+      setCustomers(normalized.items);
+      setTotal(normalized.total);
+      setSelectedCustomerIds((current) => current.filter((id) => normalized.items.some((item) => item.id === id)));
+      if (!normalized.items.some((item) => item.id === focusedCustomerId)) {
+        setFocusedCustomerId(normalized.items[0]?.id || '');
+      }
     } catch {
       setErrorMessage('加载客户列表失败，请稍后重试。');
       setCustomers([]);
-      setSelectedCustomerId('');
+      setTotal(0);
     } finally {
-      setListLoading(false);
+      setCustomersLoading(false);
     }
   };
 
-  const loadFinanceProfile = async (customerId: string) => {
+  const refreshFinanceRemark = async (customerId: string) => {
     if (!customerId) {
       setRemarkInput('');
       return;
     }
 
     setProfileLoading(true);
-    clearFeedback();
-
     try {
       if (isMockMode) {
         setRemarkInput(mockRemarks[customerId] || '');
@@ -199,20 +475,267 @@ export const TransferPage = () => {
   };
 
   useEffect(() => {
-    void loadCustomers('');
-  }, []);
+    void refreshSalesUsers();
+  }, [mockSalesUsers]);
 
   useEffect(() => {
-    void loadFinanceProfile(selectedCustomerId);
-  }, [selectedCustomerId]);
+    void refreshTags();
+  }, [mockTags]);
 
-  const handleSearch = async (event: React.FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    void refreshCustomers();
+  }, [appliedQuery, ownerSalesFilter, tagFilters, page, pageSize, mockCustomers]);
+
+  useEffect(() => {
+    void refreshFinanceRemark(focusedCustomerId);
+  }, [focusedCustomerId]);
+
+  const handleApplySearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    await loadCustomers(customerQuery);
+    setPage(1);
+    setAppliedQuery(queryInput.trim());
+  };
+
+  const handleToggleSelectCustomer = (customerId: string) => {
+    setSelectedCustomerIds((current) => {
+      if (current.includes(customerId)) {
+        return current.filter((id) => id !== customerId);
+      }
+      return [...current, customerId];
+    });
+  };
+
+  const handleToggleSelectAllCurrentPage = () => {
+    const currentPageIds = customers.map((customer) => customer.id);
+    const isAllSelected = currentPageIds.every((id) => selectedCustomerIds.includes(id));
+
+    setSelectedCustomerIds((current) => {
+      if (isAllSelected) {
+        return current.filter((id) => !currentPageIds.includes(id));
+      }
+      const next = new Set(current);
+      currentPageIds.forEach((id) => next.add(id));
+      return Array.from(next);
+    });
+  };
+
+  const transferCustomerIds = (singleCustomerId?: string) => {
+    if (singleCustomerId) {
+      return [singleCustomerId];
+    }
+    if (selectedCustomerIds.length > 0) {
+      return selectedCustomerIds;
+    }
+    return focusedCustomerId ? [focusedCustomerId] : [];
+  };
+
+  const handleTransferCustomers = async (singleCustomerId?: string) => {
+    const customerIds = transferCustomerIds(singleCustomerId);
+    if (customerIds.length === 0) {
+      setErrorMessage('请先选择客户。');
+      return;
+    }
+    if (!targetSalesUserId) {
+      setErrorMessage('请选择目标业务员。');
+      return;
+    }
+
+    clearFeedback();
+    setSubmitting(true);
+
+    try {
+      if (isMockMode) {
+        const targetSales = mockSalesUsers.find((sales) => sales.id === targetSalesUserId) || null;
+        setMockCustomers((current) => {
+          return current.map((customer) => {
+            if (!customerIds.includes(customer.id)) {
+              return customer;
+            }
+            return {
+              ...customer,
+              ownerSalesUserId: targetSalesUserId,
+              ownerSales: targetSales
+                ? {
+                    id: targetSales.id,
+                    displayName: targetSales.displayName,
+                    phone: targetSales.phone
+                  }
+                : null
+            };
+          });
+        });
+        setSuccessMessage(`已转移 ${customerIds.length} 位客户（mock）。`);
+        setSelectedCustomerIds([]);
+        await refreshCustomers();
+        return;
+      }
+
+      const response = await batchTransferCustomers({
+        customerIds,
+        toSalesUserId: targetSalesUserId,
+        reason: transferReason.trim() || undefined
+      });
+
+      if (response.status !== 200) {
+        setErrorMessage('客户转移失败，请稍后重试。');
+        return;
+      }
+
+      setSuccessMessage(`已转移 ${customerIds.length} 位客户。`);
+      setSelectedCustomerIds([]);
+      await refreshCustomers();
+    } catch {
+      setErrorMessage('客户转移失败，请稍后重试。');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleBatchTagUpdate = async () => {
+    const customerIds = selectedCustomerIds.length > 0 ? selectedCustomerIds : (focusedCustomerId ? [focusedCustomerId] : []);
+    if (customerIds.length === 0) {
+      setErrorMessage('请先选择客户。');
+      return;
+    }
+    if (addTagIds.length === 0 && removeTagIds.length === 0) {
+      setErrorMessage('请选择要新增或移除的标签。');
+      return;
+    }
+
+    clearFeedback();
+    setSubmitting(true);
+
+    try {
+      if (isMockMode) {
+        const addTags = mockTags.filter((tag) => addTagIds.includes(tag.id) && tag.active);
+        const removeTagSet = new Set(removeTagIds);
+
+        setMockCustomers((current) => {
+          return current.map((customer) => {
+            if (!customerIds.includes(customer.id)) {
+              return customer;
+            }
+
+            const nextTags = customer.tags.filter((tag) => !removeTagSet.has(tag.id));
+            addTags.forEach((tag) => {
+              if (!nextTags.some((existing) => existing.id === tag.id)) {
+                nextTags.push(tag);
+              }
+            });
+            nextTags.sort((a, b) => a.sort - b.sort);
+
+            return {
+              ...customer,
+              tags: nextTags
+            };
+          });
+        });
+
+        setSuccessMessage(`已更新 ${customerIds.length} 位客户标签（mock）。`);
+        await refreshCustomers();
+        return;
+      }
+
+      const response = await batchUpdateCustomerTags({
+        customerIds,
+        addTagIds: addTagIds.length > 0 ? addTagIds : undefined,
+        removeTagIds: removeTagIds.length > 0 ? removeTagIds : undefined
+      });
+
+      if (response.status !== 200) {
+        setErrorMessage('更新客户标签失败，请稍后重试。');
+        return;
+      }
+
+      setSuccessMessage(`已更新 ${customerIds.length} 位客户标签。`);
+      await refreshCustomers();
+    } catch {
+      setErrorMessage('更新客户标签失败，请稍后重试。');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCreateTag = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const name = newTagName.trim();
+    if (!name) {
+      setErrorMessage('标签名称不能为空。');
+      return;
+    }
+
+    clearFeedback();
+    setSubmitting(true);
+
+    try {
+      if (isMockMode) {
+        const nextTag: CustomerTag = {
+          id: createMockId(),
+          name,
+          color: newTagColor.trim() || DEFAULT_TAG_COLOR,
+          sort: mockTags.length * 10 + 10,
+          active: true
+        };
+        setMockTags((current) => [...current, nextTag]);
+        setSuccessMessage('标签已创建（mock）。');
+        setNewTagName('');
+        return;
+      }
+
+      const response = await createAdminCustomerTag({
+        name,
+        color: newTagColor.trim() || DEFAULT_TAG_COLOR
+      });
+
+      if (response.status !== 201) {
+        setErrorMessage('创建标签失败，请稍后重试。');
+        return;
+      }
+
+      setSuccessMessage('标签已创建。');
+      setNewTagName('');
+      await refreshTags();
+    } catch {
+      setErrorMessage('创建标签失败，请稍后重试。');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleToggleTagStatus = async (tag: CustomerTag) => {
+    clearFeedback();
+    setSubmitting(true);
+
+    try {
+      const nextActive = !tag.active;
+      if (isMockMode) {
+        setMockTags((current) => current.map((item) => (item.id === tag.id ? { ...item, active: nextActive } : item)));
+        setSuccessMessage(`标签已${nextActive ? '启用' : '停用'}（mock）。`);
+        return;
+      }
+
+      const response = await patchAdminCustomerTag(tag.id, {
+        active: nextActive
+      });
+
+      if (response.status !== 200) {
+        setErrorMessage('更新标签状态失败，请稍后重试。');
+        return;
+      }
+
+      setSuccessMessage(`标签已${nextActive ? '启用' : '停用'}。`);
+      await refreshTags();
+      await refreshCustomers();
+    } catch {
+      setErrorMessage('更新标签状态失败，请稍后重试。');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleSaveRemark = async () => {
-    if (!selectedCustomerId) {
+    if (!focusedCustomerId) {
       setErrorMessage('请先选择客户。');
       return;
     }
@@ -223,42 +746,39 @@ export const TransferPage = () => {
       return;
     }
 
-    setSaveLoading(true);
     clearFeedback();
+    setSubmitting(true);
 
     try {
       if (isMockMode) {
         setMockRemarks((current) => {
           const next = { ...current };
           if (trimmedRemark) {
-            next[selectedCustomerId] = trimmedRemark;
+            next[focusedCustomerId] = trimmedRemark;
           } else {
-            delete next[selectedCustomerId];
+            delete next[focusedCustomerId];
           }
           return next;
         });
-        setRemarkInput(trimmedRemark);
         setSuccessMessage('账期备注已保存（mock）。');
         return;
       }
 
-      const response = await patchAdminCustomerFinanceProfile(selectedCustomerId, trimmedRemark);
-      if (response.status !== 200 || !response.data) {
-        setErrorMessage('保存失败，请稍后重试。');
+      const response = await patchAdminCustomerFinanceProfile(focusedCustomerId, trimmedRemark);
+      if (response.status !== 200) {
+        setErrorMessage('保存账期备注失败，请稍后重试。');
         return;
       }
 
-      const nextRemark = typeof response.data.paymentTermRemark === 'string' ? response.data.paymentTermRemark : '';
+      const nextRemark = typeof response.data?.paymentTermRemark === 'string' ? response.data.paymentTermRemark : '';
       setRemarkInput(nextRemark);
       setSuccessMessage('账期备注已保存。');
     } catch {
-      setErrorMessage('保存失败，请稍后重试。');
+      setErrorMessage('保存账期备注失败，请稍后重试。');
     } finally {
-      setSaveLoading(false);
+      setSubmitting(false);
     }
   };
-
-  const remarkLength = remarkInput.trim().length;
 
   return (
     <>
@@ -273,278 +793,369 @@ export const TransferPage = () => {
       />
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-8 md:px-10 lg:px-20">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight text-text-primary-light dark:text-text-primary-dark">转移客户归属</h1>
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold tracking-tight text-text-primary-light dark:text-text-primary-dark">用户管理与客户转移</h1>
+          <p className="mt-2 text-sm text-text-secondary-light dark:text-text-secondary-dark">
+            支持按业务员管理客户、批量转移归属、以及客户标签管理。
+          </p>
         </div>
 
-        <section className="mb-10 grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="rounded-xl border border-border-light bg-surface-light p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-text-primary-light dark:text-text-primary-dark">客户检索（账期备注）</h3>
+        <section className="mb-6 rounded-xl border border-border-light bg-surface-light p-5 shadow-sm dark:border-border-dark dark:bg-surface-dark">
+          <form className="grid grid-cols-1 gap-3 md:grid-cols-4" onSubmit={handleApplySearch}>
+            <input
+              className="rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+              onChange={(event) => setQueryInput(event.currentTarget.value)}
+              placeholder="客户名 / 手机 / 客户ID"
+              value={queryInput}
+            />
+            <select
+              className="rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+              onChange={(event) => {
+                setOwnerSalesFilter(event.currentTarget.value);
+                setPage(1);
+              }}
+              value={ownerSalesFilter}
+            >
+              <option value="">全部业务员</option>
+              {salesUsers.map((sales) => (
+                <option key={sales.id} value={sales.id}>{sales.displayName}</option>
+              ))}
+            </select>
+            <select
+              className="rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+              multiple
+              onChange={(event) => {
+                const values = Array.from(event.currentTarget.selectedOptions).map((option) => option.value);
+                setTagFilters(values);
+                setPage(1);
+              }}
+              value={tagFilters}
+            >
+              {activeTags.map((tag) => (
+                <option key={tag.id} value={tag.id}>{tag.name}</option>
+              ))}
+            </select>
+            <button
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+              disabled={customersLoading}
+              type="submit"
+            >
+              {customersLoading ? '查询中...' : '查询'}
+            </button>
+          </form>
+        </section>
+
+        {errorMessage ? <p className="mb-4 text-sm text-red-600">{errorMessage}</p> : null}
+        {successMessage ? <p className="mb-4 text-sm text-green-600">{successMessage}</p> : null}
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.6fr_1fr]">
+          <section className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
+            <div className="flex items-center justify-between border-b border-border-light px-4 py-3 dark:border-border-dark">
+              <div>
+                <p className="text-sm font-semibold text-text-primary-light dark:text-text-primary-dark">客户列表</p>
+                <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">共 {total} 位客户，当前选中 {selectedCount} 位</p>
+              </div>
               <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-primary dark:bg-blue-900/40 dark:text-blue-300">
                 {isMockMode ? 'mock' : 'dev'}
               </span>
             </div>
 
-            <form className="mb-4 flex gap-2" onSubmit={handleSearch}>
-              <input
-                className="flex-1 rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
-                onChange={(event) => setCustomerQuery(event.currentTarget.value)}
-                placeholder="按客户名/手机号搜索"
-                value={customerQuery}
-              />
-              <button
-                className="rounded-lg border border-border-light bg-surface-light px-4 text-sm font-medium text-text-primary-light transition-colors hover:bg-gray-50 dark:border-border-dark dark:bg-surface-dark dark:text-text-primary-dark dark:hover:bg-gray-800"
-                disabled={listLoading}
-                type="submit"
-              >
-                {listLoading ? '查询中...' : '查询'}
-              </button>
-            </form>
-
-            <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
-              {customers.map((customer) => {
-                const isActive = customer.id === selectedCustomerId;
-                return (
-                  <button
-                    className={`w-full rounded-lg border px-4 py-3 text-left transition-colors ${
-                      isActive
-                        ? 'border-primary bg-primary-light/40 dark:bg-primary/10'
-                        : 'border-border-light hover:bg-gray-50 dark:border-border-dark dark:hover:bg-gray-800/40'
-                    }`}
-                    key={customer.id}
-                    onClick={() => setSelectedCustomerId(customer.id)}
-                    type="button"
-                  >
-                    <p className="text-sm font-semibold text-text-primary-light dark:text-text-primary-dark">{customer.displayName}</p>
-                    <p className="mt-1 text-xs text-text-secondary-light dark:text-text-secondary-dark">手机号：{customer.phone || '-'}</p>
-                    <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">负责人：{shortId(customer.ownerSalesUserId)}</p>
-                  </button>
-                );
-              })}
-
-              {!listLoading && customers.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-border-light px-4 py-6 text-center text-sm text-text-secondary-light dark:border-border-dark dark:text-text-secondary-dark">
-                  暂无客户数据
-                </p>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-border-light bg-surface-light p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark">
-            <h3 className="mb-2 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark">客户账期备注</h3>
-            <p className="mb-4 text-sm text-text-secondary-light dark:text-text-secondary-dark">支持客户级账期说明，空内容保存将清空备注。</p>
-
-            <div className="mb-4 rounded-lg border border-border-light bg-background-light px-4 py-3 text-sm dark:border-border-dark dark:bg-background-dark">
-              <p className="font-medium text-text-primary-light dark:text-text-primary-dark">{selectedCustomer?.displayName || '未选择客户'}</p>
-              <p className="mt-1 text-xs text-text-secondary-light dark:text-text-secondary-dark">客户ID：{selectedCustomer?.id || '-'}</p>
-            </div>
-
-            <label className="mb-1.5 block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark" htmlFor="payment-term-remark">
-              账期备注
-            </label>
-            <textarea
-              className="w-full rounded-lg border-border-light bg-background-light text-sm text-text-primary-light placeholder:text-text-secondary-light/50 focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
-              disabled={!selectedCustomerId || profileLoading || saveLoading}
-              id="payment-term-remark"
-              onChange={(event) => setRemarkInput(event.currentTarget.value)}
-              placeholder="例如：月结30天，票到后付款；逾期需提前沟通。"
-              rows={6}
-              value={remarkInput}
-            />
-            <div className="mt-2 flex items-center justify-between text-xs">
-              <span className="text-text-secondary-light dark:text-text-secondary-dark">
-                {profileLoading ? '正在加载账期备注...' : '备注会同步保存到后端 customer finance profile'}
-              </span>
-              <span className={remarkLength > MAX_PAYMENT_TERM_REMARK_LENGTH ? 'font-semibold text-red-600' : 'text-text-secondary-light dark:text-text-secondary-dark'}>
-                {remarkLength}/{MAX_PAYMENT_TERM_REMARK_LENGTH}
-              </span>
-            </div>
-
-            {errorMessage ? <p className="mt-3 text-sm text-red-600">{errorMessage}</p> : null}
-            {successMessage ? <p className="mt-3 text-sm text-green-600">{successMessage}</p> : null}
-
-            <div className="mt-4 flex justify-end">
-              <button
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-                disabled={!selectedCustomerId || profileLoading || saveLoading}
-                onClick={handleSaveRemark}
-                type="button"
-              >
-                {saveLoading ? '保存中...' : '保存账期备注'}
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <div className="mb-10 rounded-xl border border-border-light bg-surface-light p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark">
-          <div className="relative mx-auto flex w-full max-w-4xl items-center justify-between">
-            <div className="absolute top-1/2 left-0 -z-0 h-0.5 w-full bg-border-light dark:bg-border-dark"></div>
-            <div className="group relative z-10 flex cursor-pointer flex-col items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500 text-sm font-bold text-white shadow-md">
-                <span className="material-symbols-outlined text-lg">check</span>
-              </div>
-              <span className="text-xs font-semibold text-green-600 dark:text-green-400">选择客户</span>
-            </div>
-            <div className="relative z-10 flex flex-col items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-white shadow-md ring-4 ring-blue-100 dark:ring-blue-900/30">
-                2
-              </div>
-              <span className="text-xs font-bold text-primary dark:text-blue-400">核验与原因</span>
-            </div>
-            <div className="relative z-10 flex flex-col items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-border-light bg-surface-light text-sm font-bold text-text-secondary-light dark:border-border-dark dark:bg-surface-dark dark:text-text-secondary-dark">
-                3
-              </div>
-              <span className="text-xs font-medium text-text-secondary-light dark:text-text-secondary-dark">确认转移</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          <div className="space-y-8 lg:col-span-2">
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              {transferMetrics.map((metric) => (
-                <div
-                  key={metric.label}
-                  className="rounded-xl border border-border-light bg-surface-light p-4 shadow-sm dark:border-border-dark dark:bg-surface-dark"
-                >
-                  <p className="mb-1 text-xs font-medium tracking-wider text-text-secondary-light uppercase dark:text-text-secondary-dark">
-                    {metric.label}
-                  </p>
-                  <p className="text-2xl font-bold text-text-primary-light dark:text-text-primary-dark">{metric.value}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
-              <div className="flex items-center justify-between border-b border-border-light bg-gray-50/50 px-6 py-4 dark:border-border-dark dark:bg-gray-900/50">
-                <h3 className="font-semibold text-text-primary-light dark:text-text-primary-dark">转移校验</h3>
-                <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-primary dark:bg-blue-900/40 dark:text-blue-300">
-                  批量操作
-                </span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="border-b border-border-light bg-gray-50 font-medium text-text-secondary-light dark:border-border-dark dark:bg-gray-800/50 dark:text-text-secondary-dark">
-                    <tr>
-                      <th className="px-6 py-3">客户名称</th>
-                      <th className="px-6 py-3">当前负责人</th>
-                      <th className="px-6 py-3 text-center">
-                        <span className="material-symbols-outlined align-middle text-base">arrow_forward</span>
-                      </th>
-                      <th className="px-6 py-3">目标负责人</th>
-                      <th className="px-6 py-3 text-right">客户终身价值</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border-light dark:divide-border-dark">
-                    {transferRows.map((row) => (
-                      <tr key={row.name} className="group transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30">
-                        <td className="flex items-center gap-3 px-6 py-4 font-medium text-text-primary-light dark:text-text-primary-dark">
-                          <div className={`h-8 w-8 rounded-full ${row.initialClass} flex items-center justify-center text-xs font-bold`}>
-                            {row.initial}
-                          </div>
-                          {row.name}
-                        </td>
-                        <td className="px-6 py-4 text-text-secondary-light dark:text-text-secondary-dark">{row.from}</td>
-                        <td className="px-6 py-4 text-center text-text-secondary-light/50">
-                          <span className="material-symbols-outlined text-sm">arrow_right_alt</span>
-                        </td>
-                        <td className="px-6 py-4 font-medium text-primary">{row.to}</td>
-                        <td className="px-6 py-4 text-right text-text-primary-light dark:text-text-primary-dark">{row.value}</td>
-                      </tr>
-                    ))}
-                    <tr>
-                      <td
-                        className="bg-gray-50/50 px-6 py-3 text-center text-xs font-medium text-text-secondary-light dark:bg-gray-800/20 dark:text-text-secondary-dark"
-                        colSpan={5}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-left text-sm">
+                <thead className="border-b border-border-light bg-gray-50 text-xs font-semibold text-text-secondary-light dark:border-border-dark dark:bg-gray-800/60 dark:text-text-secondary-dark">
+                  <tr>
+                    <th className="px-4 py-3">
+                      <input
+                        checked={customers.length > 0 && customers.every((customer) => selectedCustomerIds.includes(customer.id))}
+                        onChange={handleToggleSelectAllCurrentPage}
+                        type="checkbox"
+                      />
+                    </th>
+                    <th className="px-4 py-3">客户</th>
+                    <th className="px-4 py-3">当前业务员</th>
+                    <th className="px-4 py-3">标签</th>
+                    <th className="px-4 py-3">创建时间</th>
+                    <th className="px-4 py-3 text-right">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-light dark:divide-border-dark">
+                  {customers.map((customer) => {
+                    const checked = selectedCustomerIds.includes(customer.id);
+                    const focused = customer.id === focusedCustomerId;
+                    return (
+                      <tr
+                        key={customer.id}
+                        className={`cursor-pointer transition-colors ${focused ? 'bg-primary-light/40 dark:bg-primary/10' : 'hover:bg-gray-50 dark:hover:bg-gray-800/30'}`}
+                        onClick={() => setFocusedCustomerId(customer.id)}
                       >
-                        + 9 位更多客户
+                        <td className="px-4 py-3" onClick={(event) => event.stopPropagation()}>
+                          <input checked={checked} onChange={() => handleToggleSelectCustomer(customer.id)} type="checkbox" />
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-text-primary-light dark:text-text-primary-dark">{customer.displayName}</p>
+                          <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{customer.phone || '-'}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="text-text-primary-light dark:text-text-primary-dark">{customer.ownerSales?.displayName || '未分配'}</p>
+                          <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{customer.ownerSales?.phone || '-'}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-1">
+                            {customer.tags.length > 0 ? (
+                              customer.tags.map((tag) => (
+                                <span
+                                  key={`${customer.id}-${tag.id}`}
+                                  className="rounded px-2 py-0.5 text-xs font-medium text-white"
+                                  style={{ backgroundColor: tag.color || DEFAULT_TAG_COLOR }}
+                                >
+                                  {tag.name}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs text-text-secondary-light dark:text-text-secondary-dark">无标签</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{formatDateTime(customer.createdAt)}</td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            className="rounded border border-border-light px-2 py-1 text-xs text-text-primary-light hover:bg-gray-100 dark:border-border-dark dark:text-text-primary-dark dark:hover:bg-gray-800"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void handleTransferCustomers(customer.id);
+                            }}
+                            type="button"
+                          >
+                            转移该客户
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {!customersLoading && customers.length === 0 ? (
+                    <tr>
+                      <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={6}>
+                        暂无客户数据
                       </td>
                     </tr>
-                  </tbody>
-                </table>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-border-light px-4 py-3 text-xs text-text-secondary-light dark:border-border-dark dark:text-text-secondary-dark">
+              <span>
+                第 {page} / {totalPages} 页
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  className="rounded border border-border-light px-2 py-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-border-dark dark:hover:bg-gray-800"
+                  disabled={page <= 1}
+                  onClick={() => setPage((current) => Math.max(1, current - 1))}
+                  type="button"
+                >
+                  上一页
+                </button>
+                <button
+                  className="rounded border border-border-light px-2 py-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-border-dark dark:hover:bg-gray-800"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                  type="button"
+                >
+                  下一页
+                </button>
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="space-y-6">
-            <div className="rounded-xl border border-border-light bg-surface-light p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark">
-              <h3 className="mb-4 flex items-center gap-2 font-semibold text-text-primary-light dark:text-text-primary-dark">
-                <span className="material-symbols-outlined text-primary">edit_note</span>
-                转移详情
-              </h3>
-              <div className="space-y-4">
+          <section className="space-y-6">
+            <div className="rounded-xl border border-border-light bg-surface-light p-5 shadow-sm dark:border-border-dark dark:bg-surface-dark">
+              <h3 className="mb-3 text-base font-semibold text-text-primary-light dark:text-text-primary-dark">客户归属转移</h3>
+              <div className="space-y-3">
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
-                    转移原因
-                  </label>
-                  <select className="w-full rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark">
-                    <option>员工离职</option>
-                    <option>区域重分配</option>
-                    <option>负载均衡</option>
-                    <option>绩效问题</option>
-                    <option>其他</option>
+                  <label className="mb-1 block text-xs font-medium text-text-secondary-light dark:text-text-secondary-dark">目标业务员</label>
+                  <select
+                    className="w-full rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+                    disabled={salesLoading || submitting}
+                    onChange={(event) => setTargetSalesUserId(event.currentTarget.value)}
+                    value={targetSalesUserId}
+                  >
+                    <option value="">请选择业务员</option>
+                    {salesUsers.map((sales) => (
+                      <option key={sales.id} value={sales.id}>{sales.displayName}</option>
+                    ))}
                   </select>
+                  {selectedSalesUser ? (
+                    <p className="mt-1 text-xs text-text-secondary-light dark:text-text-secondary-dark">
+                      手机号：{selectedSalesUser.phone || '-'}
+                    </p>
+                  ) : null}
                 </div>
+
                 <div>
-                  <label className="mb-1.5 block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">
-                    补充说明
-                  </label>
+                  <label className="mb-1 block text-xs font-medium text-text-secondary-light dark:text-text-secondary-dark">转移原因（可选）</label>
                   <textarea
                     className="w-full rounded-lg border-border-light bg-background-light text-sm text-text-primary-light placeholder:text-text-secondary-light/50 focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
-                    placeholder="请补充新负责人所需的具体背景信息..."
-                    rows={4}
+                    onChange={(event) => setTransferReason(event.currentTarget.value)}
+                    placeholder="如：区域调整、人员离职..."
+                    rows={3}
+                    value={transferReason}
                   ></textarea>
                 </div>
-                <div className="flex items-center gap-2 pt-2">
-                  <input
-                    className="rounded border-border-light bg-background-light text-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark"
-                    id="notify"
-                    type="checkbox"
-                  />
-                  <label className="text-sm text-text-primary-light dark:text-text-primary-dark" htmlFor="notify">
-                    通过邮件通知客户
-                  </label>
+
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <button
+                    className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                    disabled={submitting || selectedCount === 0 || !targetSalesUserId}
+                    onClick={() => void handleTransferCustomers()}
+                    type="button"
+                  >
+                    转移选中客户
+                  </button>
+                  <button
+                    className="rounded-lg border border-border-light px-3 py-2 text-sm font-medium text-text-primary-light hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-border-dark dark:text-text-primary-dark dark:hover:bg-gray-800"
+                    disabled={submitting || !focusedCustomerId || !targetSalesUserId}
+                    onClick={() => void handleTransferCustomers(focusedCustomerId)}
+                    type="button"
+                  >
+                    转移当前客户
+                  </button>
                 </div>
               </div>
             </div>
 
-            <div className="rounded-xl border border-border-light bg-surface-light p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark">
-              <h3 className="mb-4 text-sm font-semibold tracking-wide text-text-primary-light uppercase dark:text-text-primary-dark">
-                最近活动
-              </h3>
-              <div className="relative space-y-6 border-l-2 border-border-light pl-4 dark:border-border-dark">
-                {activityItems.map((item) => (
-                  <div key={item.title} className="relative">
-                    <div
-                      className={`absolute -left-[21px] top-1 h-3 w-3 rounded-full border-2 border-surface-light dark:border-surface-dark ${
-                        item.active ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
-                      }`}
-                    ></div>
-                    <p
-                      className={`text-sm font-medium ${
-                        item.active ? 'text-text-primary-light dark:text-text-primary-dark' : 'text-text-secondary-light dark:text-text-secondary-dark'
-                      }`}
+            <div className="rounded-xl border border-border-light bg-surface-light p-5 shadow-sm dark:border-border-dark dark:bg-surface-dark">
+              <h3 className="mb-3 text-base font-semibold text-text-primary-light dark:text-text-primary-dark">客户标签操作</h3>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-secondary-light dark:text-text-secondary-dark">新增标签（可多选）</label>
+                  <select
+                    className="w-full rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+                    multiple
+                    onChange={(event) => {
+                      const values = Array.from(event.currentTarget.selectedOptions).map((option) => option.value);
+                      setAddTagIds(values);
+                    }}
+                    value={addTagIds}
+                  >
+                    {activeTags.map((tag) => (
+                      <option key={tag.id} value={tag.id}>{tag.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-text-secondary-light dark:text-text-secondary-dark">移除标签（可多选）</label>
+                  <select
+                    className="w-full rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+                    multiple
+                    onChange={(event) => {
+                      const values = Array.from(event.currentTarget.selectedOptions).map((option) => option.value);
+                      setRemoveTagIds(values);
+                    }}
+                    value={removeTagIds}
+                  >
+                    {tags.map((tag) => (
+                      <option key={tag.id} value={tag.id}>{tag.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  className="w-full rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                  disabled={submitting}
+                  onClick={() => void handleBatchTagUpdate()}
+                  type="button"
+                >
+                  应用到选中/当前客户
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border-light bg-surface-light p-5 shadow-sm dark:border-border-dark dark:bg-surface-dark">
+              <h3 className="mb-3 text-base font-semibold text-text-primary-light dark:text-text-primary-dark">标签字典管理</h3>
+
+              <div className="mb-4 max-h-44 space-y-2 overflow-y-auto pr-1">
+                {tagsLoading ? (
+                  <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">加载标签中...</p>
+                ) : null}
+                {tags.map((tag) => (
+                  <div key={tag.id} className="flex items-center justify-between rounded border border-border-light px-3 py-2 dark:border-border-dark">
+                    <div className="flex items-center gap-2">
+                      <span className="h-3 w-3 rounded-full" style={{ backgroundColor: tag.color || DEFAULT_TAG_COLOR }}></span>
+                      <span className="text-sm text-text-primary-light dark:text-text-primary-dark">{tag.name}</span>
+                      {!tag.active ? <span className="text-xs text-text-secondary-light dark:text-text-secondary-dark">（已停用）</span> : null}
+                    </div>
+                    <button
+                      className="rounded border border-border-light px-2 py-1 text-xs hover:bg-gray-100 dark:border-border-dark dark:hover:bg-gray-800"
+                      onClick={() => void handleToggleTagStatus(tag)}
+                      type="button"
                     >
-                      {item.title}
-                    </p>
-                    <p className="mt-0.5 text-xs text-text-secondary-light dark:text-text-secondary-dark">{item.subtitle}</p>
+                      {tag.active ? '停用' : '启用'}
+                    </button>
                   </div>
                 ))}
               </div>
+
+              <form className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto]" onSubmit={handleCreateTag}>
+                <input
+                  className="rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+                  onChange={(event) => setNewTagName(event.currentTarget.value)}
+                  placeholder="新标签名称"
+                  value={newTagName}
+                />
+                <input
+                  className="h-10 rounded-lg border-border-light bg-background-light dark:border-border-dark dark:bg-background-dark"
+                  onChange={(event) => setNewTagColor(event.currentTarget.value)}
+                  type="color"
+                  value={newTagColor}
+                />
+                <button
+                  className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                  disabled={submitting}
+                  type="submit"
+                >
+                  新建
+                </button>
+              </form>
             </div>
 
-            <div className="flex flex-col gap-3 pt-2">
-              <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-medium text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-blue-700">
-                <span>复核并确认</span>
-                <span className="material-symbols-outlined text-sm">arrow_forward</span>
-              </button>
-              <button className="w-full rounded-lg border border-transparent bg-transparent px-4 py-3 font-medium text-text-secondary-light transition-all hover:border-border-light hover:bg-gray-100 dark:text-text-secondary-dark dark:hover:border-border-dark dark:hover:bg-gray-800">
-                取消
+            <div className="rounded-xl border border-border-light bg-surface-light p-5 shadow-sm dark:border-border-dark dark:bg-surface-dark">
+              <h3 className="mb-2 text-base font-semibold text-text-primary-light dark:text-text-primary-dark">客户账期备注</h3>
+              <p className="mb-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">
+                当前客户：{focusedCustomer?.displayName || '未选择客户'}
+              </p>
+
+              <textarea
+                className="w-full rounded-lg border-border-light bg-background-light text-sm text-text-primary-light placeholder:text-text-secondary-light/50 focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+                disabled={!focusedCustomerId || profileLoading || submitting}
+                onChange={(event) => setRemarkInput(event.currentTarget.value)}
+                placeholder="例如：月结30天，票到后付款。"
+                rows={5}
+                value={remarkInput}
+              ></textarea>
+
+              <div className="mt-2 flex items-center justify-between text-xs">
+                <span className="text-text-secondary-light dark:text-text-secondary-dark">
+                  {profileLoading ? '正在加载备注...' : '保存后同步到后端 finance profile'}
+                </span>
+                <span className={remarkLength > MAX_PAYMENT_TERM_REMARK_LENGTH ? 'font-semibold text-red-600' : 'text-text-secondary-light dark:text-text-secondary-dark'}>
+                  {remarkLength}/{MAX_PAYMENT_TERM_REMARK_LENGTH}
+                </span>
+              </div>
+
+              <button
+                className="mt-3 w-full rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                disabled={!focusedCustomerId || profileLoading || submitting}
+                onClick={() => void handleSaveRemark()}
+                type="button"
+              >
+                保存账期备注
               </button>
             </div>
-          </div>
+          </section>
         </div>
       </main>
     </>

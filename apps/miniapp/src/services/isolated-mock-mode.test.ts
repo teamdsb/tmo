@@ -111,4 +111,16 @@ describe('isolated mock mode', () => {
     const cart = await commerceServices.cart.getCart()
     expect(cart.items[0]?.sku.priceTiers?.[0]?.unitPriceFen).toBe(999)
   })
+
+  it('updates bootstrap roles when mock roles are changed', async () => {
+    const { identityServices } = require('./identity') as typeof import('./identity')
+    const { gatewayServices } = require('./gateway') as typeof import('./gateway')
+    const { setIsolatedMockRoles } = require('./mock/runtime') as typeof import('./mock/runtime')
+
+    await setIsolatedMockRoles(['SALES'])
+    await identityServices.auth.miniLogin({})
+
+    const bootstrap = await gatewayServices.bootstrap.get()
+    expect(bootstrap.me?.roles).toContain('SALES')
+  })
 })

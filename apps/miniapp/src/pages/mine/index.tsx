@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View, Text, Image, Button as NativeButton } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
@@ -9,7 +9,6 @@ import {
   ChatOutlined,
   Description,
   Exchange,
-  HomeOutlined,
   LocationOutlined,
   Logistics,
   OrdersOutlined,
@@ -23,7 +22,8 @@ import {
 import type { BootstrapResponse } from '@tmo/gateway-api-client'
 import { ROUTES } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
-import { navigateTo, switchTabLike } from '../../utils/navigation'
+import { navigateTo } from '../../utils/navigation'
+import { isSalesUser } from '../../utils/authz'
 import { gatewayServices } from '../../services/gateway'
 import { commerceServices } from '../../services/commerce'
 import { identityServices } from '../../services/identity'
@@ -57,6 +57,13 @@ const MENU_ITEMS: MenuItem[] = [
   { key: 'tracking', label: '批量物流', icon: BarChartOutlined, route: ROUTES.trackingBatch },
   { key: 'settings', label: '系统设置', icon: SettingOutlined, route: ROUTES.settings }
 ]
+
+const SALES_MENU_ITEM: MenuItem = {
+  key: 'sales-workbench',
+  label: '业务员工作台',
+  icon: ServiceOutlined,
+  route: ROUTES.support
+}
 
 const ORDER_ITEMS: OrderItem[] = [
   { key: 'pending', label: '待处理', icon: OrdersOutlined, badge: '2', route: ROUTES.orders },
@@ -150,8 +157,13 @@ export default function PersonalCenter() {
   })
 
   const isLoggedIn = Boolean(bootstrap?.me)
+  const isSales = isSalesUser(bootstrap)
   const displayName = bootstrap?.me?.displayName ?? '访客'
   const themeClassName = isDark ? 'mine-theme mine-theme--dark' : 'mine-theme'
+  const visibleMenuItems = useMemo(
+    () => (isSales ? [SALES_MENU_ITEM, ...MENU_ITEMS] : MENU_ITEMS),
+    [isSales]
+  )
 
   const handleLogout = async () => {
     if (loggingOut) {
@@ -184,18 +196,7 @@ export default function PersonalCenter() {
     <View className={`page font-sans mine-page ${themeClassName}`} style={isH5 ? navbarStyle : undefined}>
       {isH5 ? <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'></Navbar> : null}
 
-      <View className='px-5 pt-4 pb-2 flex items-center justify-between'>
-        <View
-          className='w-8 h-8 rounded-full mine-card border flex items-center justify-center'
-          onClick={() => switchTabLike(ROUTES.home)}
-        >
-          <HomeOutlined className='text-base mine-icon' />
-        </View>
-        <Text className='text-base font-medium'>我的</Text>
-        <View className='w-8 h-8' />
-      </View>
-
-      <View className='px-5 pt-2 pb-6'>
+      <View className='px-5 pt-4 pb-6'>
         <View className='flex items-center gap-4'>
           {isLoggedIn ? (
             <>
@@ -273,13 +274,13 @@ export default function PersonalCenter() {
 
       <View className='px-5 mb-6'>
         <View className='mine-card mine-shadow border rounded-2xl overflow-hidden'>
-          {MENU_ITEMS.map((item, index) => (
+          {visibleMenuItems.map((item, index) => (
             <MenuLink
               key={item.key}
               icon={item.icon}
               label={item.label}
               onClick={() => navigateTo(item.route)}
-              showDivider={index < MENU_ITEMS.length - 1}
+              showDivider={index < visibleMenuItems.length - 1}
             />
           ))}
         </View>

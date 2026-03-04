@@ -17,6 +17,98 @@ tags:
 security:
 - bearerAuth: []
 paths:
+  "/admin/sales-users":
+    get:
+      tags:
+      - Admin
+      summary: List active sales users
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PagedSalesUserList"
+  "/admin/customers":
+    get:
+      tags:
+      - Admin
+      summary: List customers for admin transfer and tagging
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: ownerSalesUserId
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: tagIds
+        style: form
+        explode: true
+        schema:
+          type: array
+          items:
+            type: string
+            format: uuid
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PagedAdminCustomerList"
+  "/admin/customers/transfer":
+    post:
+      tags:
+      - Admin
+      summary: Batch transfer customer ownership to another sales
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/TransferCustomersRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BatchTransferResult"
   "/admin/customers/{customerId}/transfer":
     post:
       tags:
@@ -34,18 +126,88 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                toSalesUserId:
-                  type: string
-                  format: uuid
-                reason:
-                  type: string
-              required:
-              - toSalesUserId
+              "$ref": "#/components/schemas/TransferCustomerRequest"
       responses:
         '204':
           description: No Content
+  "/admin/customer-tags":
+    get:
+      tags:
+      - Admin
+      summary: List customer tags
+      parameters:
+      - in: query
+        name: includeInactive
+        schema:
+          type: boolean
+          default: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CustomerTagListResponse"
+    post:
+      tags:
+      - Admin
+      summary: Create customer tag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CreateCustomerTagRequest"
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CustomerTag"
+  "/admin/customer-tags/{tagId}":
+    patch:
+      tags:
+      - Admin
+      summary: Update customer tag
+      parameters:
+      - in: path
+        name: tagId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UpdateCustomerTagRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/CustomerTag"
+  "/admin/customers/tags:batch-update":
+    post:
+      tags:
+      - Admin
+      summary: Batch add or remove customer tags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/BatchUpdateCustomerTagsRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/BatchTagUpdateResult"
   "/admin/customers/{customerId}/finance-profile":
     get:
       tags:
@@ -315,6 +477,243 @@ components:
       - page
       - pageSize
       - total
+    SalesUserSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        status:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+      required:
+      - id
+      - displayName
+      - status
+      - roles
+    PagedSalesUserList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/SalesUserSummary"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required:
+      - items
+      - page
+      - pageSize
+      - total
+    CustomerTag:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        color:
+          type: string
+        sort:
+          type: integer
+        active:
+          type: boolean
+      required:
+      - id
+      - name
+      - color
+      - sort
+      - active
+    CustomerTagListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/CustomerTag"
+      required:
+      - items
+    AdminCustomerOwner:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        phone:
+          type: string
+          nullable: true
+      required:
+      - id
+      - displayName
+    AdminCustomer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        ownerSalesUserId:
+          type: string
+          format: uuid
+          nullable: true
+        ownerSales:
+          "$ref": "#/components/schemas/AdminCustomerOwner"
+          nullable: true
+        tags:
+          type: array
+          items:
+            "$ref": "#/components/schemas/CustomerTag"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - displayName
+      - tags
+      - createdAt
+    PagedAdminCustomerList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/AdminCustomer"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required:
+      - items
+      - page
+      - pageSize
+      - total
+    TransferCustomerRequest:
+      type: object
+      properties:
+        toSalesUserId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          maxLength: 200
+      required:
+      - toSalesUserId
+      additionalProperties: false
+    TransferCustomersRequest:
+      type: object
+      properties:
+        customerIds:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+        toSalesUserId:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          maxLength: 200
+      required:
+      - customerIds
+      - toSalesUserId
+      additionalProperties: false
+    BatchTransferResult:
+      type: object
+      properties:
+        requestedCount:
+          type: integer
+        transferredCount:
+          type: integer
+        unchangedCount:
+          type: integer
+      required:
+      - requestedCount
+      - transferredCount
+      - unchangedCount
+    CreateCustomerTagRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 30
+        color:
+          type: string
+          description: Hex color, e.g. #FF8800
+        sort:
+          type: integer
+        active:
+          type: boolean
+      required:
+      - name
+      - color
+      additionalProperties: false
+    UpdateCustomerTagRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 30
+        color:
+          type: string
+        sort:
+          type: integer
+        active:
+          type: boolean
+      additionalProperties: false
+    BatchUpdateCustomerTagsRequest:
+      type: object
+      properties:
+        customerIds:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+        addTagIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        removeTagIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required:
+      - customerIds
+      additionalProperties: false
+    BatchTagUpdateResult:
+      type: object
+      properties:
+        requestedCount:
+          type: integer
+        updatedCount:
+          type: integer
+      required:
+      - requestedCount
+      - updatedCount
     AdminCustomerFinanceProfile:
       type: object
       properties:

@@ -259,3 +259,168 @@ SET owner_sales_user_id = $2,
     updated_at = now()
 WHERE id = $1 AND user_type = 'customer'
 RETURNING *;
+
+-- name: CountCustomersByIDs :one
+SELECT count(*)
+FROM users
+WHERE user_type = 'customer'
+  AND id = ANY(sqlc.arg('customer_ids')::uuid[]);
+
+-- name: CountCustomersOwnedBySalesInIDs :one
+SELECT count(*)
+FROM users
+WHERE user_type = 'customer'
+  AND id = ANY(sqlc.arg('customer_ids')::uuid[])
+  AND owner_sales_user_id = sqlc.arg('owner_sales_user_id')::uuid;
+
+-- name: TransferCustomersOwnership :many
+UPDATE users
+SET owner_sales_user_id = sqlc.arg('owner_sales_user_id')::uuid,
+    updated_at = now()
+WHERE user_type = 'customer'
+  AND id = ANY(sqlc.arg('customer_ids')::uuid[])
+RETURNING *;
+
+-- name: GetActiveSalesUserByID :one
+SELECT DISTINCT u.*
+FROM users u
+JOIN user_roles ur ON ur.user_id = u.id
+WHERE u.id = $1
+  AND u.user_type = 'staff'
+  AND u.status = 'active'
+  AND ur.role = 'SALES'
+LIMIT 1;
+
+-- name: ListActiveSalesUsers :many
+SELECT DISTINCT u.*
+FROM users u
+JOIN user_roles ur ON ur.user_id = u.id
+WHERE u.user_type = 'staff'
+  AND u.status = 'active'
+  AND ur.role = 'SALES'
+  AND (
+    sqlc.narg('q')::text IS NULL
+    OR COALESCE(u.display_name, '') ILIKE '%' || sqlc.narg('q') || '%'
+    OR COALESCE(u.phone, '') ILIKE '%' || sqlc.narg('q') || '%'
+  )
+ORDER BY u.created_at DESC
+LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
+
+-- name: CountActiveSalesUsers :one
+SELECT count(*)
+FROM (
+  SELECT u.id
+  FROM users u
+  JOIN user_roles ur ON ur.user_id = u.id
+  WHERE u.user_type = 'staff'
+    AND u.status = 'active'
+    AND ur.role = 'SALES'
+    AND (
+      sqlc.narg('q')::text IS NULL
+      OR COALESCE(u.display_name, '') ILIKE '%' || sqlc.narg('q') || '%'
+      OR COALESCE(u.phone, '') ILIKE '%' || sqlc.narg('q') || '%'
+    )
+  GROUP BY u.id
+) AS filtered_sales;
+
+-- name: ListAdminCustomers :many
+SELECT u.*
+FROM users u
+WHERE u.user_type = 'customer'
+  AND (
+    sqlc.narg('q')::text IS NULL
+    OR COALESCE(u.display_name, '') ILIKE '%' || sqlc.narg('q') || '%'
+    OR COALESCE(u.phone, '') ILIKE '%' || sqlc.narg('q') || '%'
+  )
+  AND (sqlc.narg('owner_sales_user_id')::uuid IS NULL OR u.owner_sales_user_id = sqlc.narg('owner_sales_user_id'))
+  AND (
+    NOT sqlc.arg('filter_by_tags')::boolean
+    OR EXISTS (
+      SELECT 1
+      FROM customer_tag_bindings ctb
+      WHERE ctb.customer_id = u.id
+        AND ctb.tag_id = ANY(sqlc.arg('tag_ids')::uuid[])
+    )
+  )
+ORDER BY u.created_at DESC
+LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
+
+-- name: CountAdminCustomers :one
+SELECT count(*)
+FROM users u
+WHERE u.user_type = 'customer'
+  AND (
+    sqlc.narg('q')::text IS NULL
+    OR COALESCE(u.display_name, '') ILIKE '%' || sqlc.narg('q') || '%'
+    OR COALESCE(u.phone, '') ILIKE '%' || sqlc.narg('q') || '%'
+  )
+  AND (sqlc.narg('owner_sales_user_id')::uuid IS NULL OR u.owner_sales_user_id = sqlc.narg('owner_sales_user_id'))
+  AND (
+    NOT sqlc.arg('filter_by_tags')::boolean
+    OR EXISTS (
+      SELECT 1
+      FROM customer_tag_bindings ctb
+      WHERE ctb.customer_id = u.id
+        AND ctb.tag_id = ANY(sqlc.arg('tag_ids')::uuid[])
+    )
+  );
+
+-- name: ListUsersByIDs :many
+SELECT *
+FROM users
+WHERE id = ANY(sqlc.arg('ids')::uuid[]);
+
+-- name: ListCustomerTagsByCustomerIDs :many
+SELECT
+  ctb.customer_id,
+  t.id AS tag_id,
+  t.name AS tag_name,
+  t.color AS tag_color,
+  t.sort AS tag_sort,
+  t.active AS tag_active
+FROM customer_tag_bindings ctb
+JOIN customer_tags t ON t.id = ctb.tag_id
+WHERE ctb.customer_id = ANY(sqlc.arg('customer_ids')::uuid[])
+ORDER BY t.sort ASC, t.created_at ASC;
+
+-- name: CreateCustomerTag :one
+INSERT INTO customer_tags (id, name, color, sort, active)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING *;
+
+-- name: ListCustomerTags :many
+SELECT *
+FROM customer_tags
+WHERE sqlc.arg('include_inactive')::boolean OR active = true
+ORDER BY sort ASC, created_at ASC;
+
+-- name: GetCustomerTagByID :one
+SELECT *
+FROM customer_tags
+WHERE id = $1
+LIMIT 1;
+
+-- name: ListCustomerTagsByIDs :many
+SELECT *
+FROM customer_tags
+WHERE id = ANY(sqlc.arg('tag_ids')::uuid[]);
+
+-- name: UpdateCustomerTag :one
+UPDATE customer_tags
+SET name = COALESCE(sqlc.narg('name'), name),
+    color = COALESCE(sqlc.narg('color'), color),
+    sort = COALESCE(sqlc.narg('sort'), sort),
+    active = COALESCE(sqlc.narg('active'), active),
+    updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: AddCustomerTagBindings :exec
+INSERT INTO customer_tag_bindings (customer_id, tag_id, created_by)
+SELECT unnest(sqlc.arg('customer_ids')::uuid[]), sqlc.arg('tag_id')::uuid, sqlc.arg('created_by')::uuid
+ON CONFLICT (customer_id, tag_id) DO NOTHING;
+
+-- name: RemoveCustomerTagBindings :exec
+DELETE FROM customer_tag_bindings
+WHERE tag_id = sqlc.arg('tag_id')::uuid
+  AND customer_id = ANY(sqlc.arg('customer_ids')::uuid[]);

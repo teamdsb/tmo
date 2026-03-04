@@ -47,6 +47,7 @@ Requests / After-sales / Negotiation:
 
 Admin / Ops:
 - customer:transfer
+- customer:tag
 - customer:read
 - product:manage
 - import:product
@@ -110,6 +111,7 @@ Admin / Ops:
 - after_sales:manage (ALL)
 - customer:read (ALL)
 - customer:transfer (ALL)
+- customer:tag (ALL)
 - staff:read (ALL)
 - staff:status_manage (ALL)
 

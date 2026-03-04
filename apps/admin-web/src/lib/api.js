@@ -218,6 +218,66 @@ export const fetchCustomers = async (params = {}) => {
   return getCustomers(params);
 };
 
+const buildQueryString = (params = {}) => {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') {
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        if (item !== undefined && item !== null && item !== '') {
+          search.append(key, String(item));
+        }
+      });
+      return;
+    }
+    search.append(key, String(value));
+  });
+  const query = search.toString();
+  return query ? `?${query}` : '';
+};
+
+export const fetchAdminSalesUsers = async (params = {}) => {
+  return requestRaw(`/admin/sales-users${buildQueryString(params)}`);
+};
+
+export const fetchAdminCustomers = async (params = {}) => {
+  return requestRaw(`/admin/customers${buildQueryString(params)}`);
+};
+
+export const batchTransferCustomers = async (payload) => {
+  return requestRaw('/admin/customers/transfer', {
+    method: 'POST',
+    body: payload
+  });
+};
+
+export const fetchAdminCustomerTags = async (params = {}) => {
+  return requestRaw(`/admin/customer-tags${buildQueryString(params)}`);
+};
+
+export const createAdminCustomerTag = async (payload) => {
+  return requestRaw('/admin/customer-tags', {
+    method: 'POST',
+    body: payload
+  });
+};
+
+export const patchAdminCustomerTag = async (tagId, payload) => {
+  return requestRaw(`/admin/customer-tags/${tagId}`, {
+    method: 'PATCH',
+    body: payload
+  });
+};
+
+export const batchUpdateCustomerTags = async (payload) => {
+  return requestRaw('/admin/customers/tags:batch-update', {
+    method: 'POST',
+    body: payload
+  });
+};
+
 export const getAdminCustomerFinanceProfile = async (customerId) => {
   return requestRaw(`/admin/customers/${customerId}/finance-profile`);
 };

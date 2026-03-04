@@ -22,11 +22,13 @@ const mockUser: User = Object.freeze({
   status: 'active',
   displayName: '测试账号',
   phone: null,
-  roles: ['TEST'],
+  roles: [],
   disabledAt: null,
   disabledReason: null,
   createdAt: '2026-01-01T00:00:00Z'
 })
+
+const defaultMockRoles = Object.freeze(['CUSTOMER'])
 
 const mockPermissions: PermissionList = Object.freeze({
   items: []
@@ -38,6 +40,7 @@ export type MockCartEntry = {
 }
 
 export type IsolatedMockState = {
+  mockRoles: string[]
   wishlistSkuIds: string[]
   cartEntries: MockCartEntry[]
   skuPriceTiersBySkuId: Record<string, PriceTier[]>
@@ -101,6 +104,14 @@ const normalizeStringArray = (value: unknown): string[] => {
     return []
   }
   return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+}
+
+const normalizeRoleCodes = (value: unknown): string[] => {
+  const roles = normalizeStringArray(value).map((role) => role.trim().toUpperCase())
+  if (roles.length === 0) {
+    return [...defaultMockRoles]
+  }
+  return [...new Set(roles)]
 }
 
 const normalizeCartEntries = (value: unknown): MockCartEntry[] => {
@@ -167,6 +178,7 @@ const normalizeSkuPriceTiersBySkuId = (value: unknown): Record<string, PriceTier
 }
 
 const createDefaultState = (): IsolatedMockState => ({
+  mockRoles: [...defaultMockRoles],
   wishlistSkuIds: [],
   cartEntries: [],
   skuPriceTiersBySkuId: {},
@@ -188,6 +200,7 @@ const normalizeState = (value: unknown): IsolatedMockState => {
   const state = value as Partial<IsolatedMockState>
   const fallback = createDefaultState()
   return {
+    mockRoles: normalizeRoleCodes(state.mockRoles),
     wishlistSkuIds: normalizeStringArray(state.wishlistSkuIds),
     cartEntries: normalizeCartEntries(state.cartEntries),
     skuPriceTiersBySkuId: normalizeSkuPriceTiersBySkuId(state.skuPriceTiersBySkuId),
@@ -228,9 +241,9 @@ const readTokenFromStorage = async (storageKey: string): Promise<string | null> 
 
 export const nowIso = (): string => new Date().toISOString()
 
-export const getMockUser = (): User => ({
+export const getMockUser = (roles: string[] = [...defaultMockRoles]): User => ({
   ...mockUser,
-  roles: [...mockUser.roles]
+  roles: normalizeRoleCodes(roles)
 })
 
 export const getMockPermissions = (): PermissionList => ({
@@ -285,6 +298,40 @@ export const createIsolatedTokenStore = (devToken?: string) => {
 export const buildIsolatedMockBootstrap = (token: string | null): BootstrapResponse => {
   return {
     me: token ? getMockUser() : undefined,
+    permissions: getMockPermissions(),
+    featureFlags: {
+      paymentEnabled: false,
+      wechatPayEnabled: false,
+      alipayPayEnabled: false
+    }
+  }
+}
+
+export const getIsolatedMockRoles = async (): Promise<string[]> => {
+  const state = await loadIsolatedMockState()
+  return normalizeRoleCodes(state.mockRoles)
+}
+
+export const setIsolatedMockRoles = async (roles: string[]): Promise<string[]> => {
+  const normalized = normalizeRoleCodes(roles)
+  await updateIsolatedMockState((state) => ({
+    ...state,
+    mockRoles: normalized
+  }))
+  return normalized
+}
+
+export const getMockUserForRuntimeRoles = async (): Promise<User> => {
+  const roles = await getIsolatedMockRoles()
+  return getMockUser(roles)
+}
+
+export const buildIsolatedMockBootstrapForRuntimeRoles = async (
+  token: string | null
+): Promise<BootstrapResponse> => {
+  const roles = await getIsolatedMockRoles()
+  return {
+    me: token ? getMockUser(roles) : undefined,
     permissions: getMockPermissions(),
     featureFlags: {
       paymentEnabled: false,
