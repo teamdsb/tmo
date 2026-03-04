@@ -46,6 +46,10 @@ pnpm -C apps/miniapp build:weapp
 pnpm -C apps/miniapp build:alipay
 pnpm -C apps/miniapp dev:weapp
 pnpm -C apps/miniapp dev:alipay
+pnpm run dev:admin-web:mock
+pnpm run dev:admin-web:real
+pnpm run dev:admin-web:stack
+pnpm run smoke:admin-web
 pnpm run test:backend
 make db-up
 make db-down

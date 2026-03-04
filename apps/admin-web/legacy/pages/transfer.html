@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>客户归属转移管理</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+      rel="stylesheet"
+    />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#144bb8',
+              'background-light': '#f6f6f8',
+              'background-dark': '#111621',
+              'surface-light': '#ffffff',
+              'surface-dark': '#1e2433',
+              'text-primary-light': '#111318',
+              'text-primary-dark': '#f0f2f4',
+              'text-secondary-light': '#636f88',
+              'text-secondary-dark': '#94a3b8',
+              'border-light': '#e2e8f0',
+              'border-dark': '#2d3748'
+            },
+            fontFamily: {
+              display: ['Inter', 'sans-serif']
+            },
+            borderRadius: { DEFAULT: '0.25rem', lg: '0.5rem', xl: '0.75rem', full: '9999px' }
+          }
+        }
+      };
+    </script>
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+    </style>
+  </head>
+  <body class="bg-background-light dark:bg-background-dark text-text-primary-light dark:text-text-primary-dark font-display antialiased min-h-screen flex flex-col overflow-hidden">
+    <header class="bg-surface-light dark:bg-surface-dark border-b border-border-light dark:border-border-dark px-10 py-3 sticky top-0 z-50">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-8">
+          <div class="flex items-center gap-3 text-primary dark:text-blue-400">
+            <span class="material-symbols-outlined text-3xl">admin_panel_settings</span>
+            <h2 class="text-text-primary-light dark:text-text-primary-dark text-lg font-bold leading-tight tracking-tight">管理仪表盘</h2>
+          </div>
+          <div class="hidden md:flex items-center w-full max-w-md bg-background-light dark:bg-background-dark rounded-lg px-3 py-2 border border-transparent focus-within:border-primary focus-within:ring-1 focus-within:ring-primary transition-all">
+            <span class="material-symbols-outlined text-text-secondary-light dark:text-text-secondary-dark">search</span>
+            <input class="bg-transparent border-none text-sm w-full focus:ring-0 placeholder:text-text-secondary-light dark:placeholder:text-text-secondary-dark text-text-primary-light dark:text-text-primary-dark ml-2" placeholder="搜索客户、订单、销售代表..." type="text" />
+          </div>
+        </div>
+        <div class="flex items-center gap-6">
+          <div class="flex items-center gap-3 pl-6 border-l border-border-light dark:border-border-dark">
+            <button class="relative p-1 rounded-full hover:bg-background-light dark:hover:bg-background-dark text-text-secondary-light dark:text-text-secondary-dark transition-colors">
+              <span class="material-symbols-outlined">notifications</span>
+              <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+            </button>
+            <div class="h-9 w-9 rounded-full bg-cover bg-center border border-border-light dark:border-border-dark cursor-pointer" data-alt="用户头像占位图" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDwgpkBafUGrM1cmNB1WCaTPOY65qidCAlyRVOuC4oehj_rSB1XhHCOz1fqLIRmIXS68qDBo5j8gUZgLnXZYfUgMwCdDW5GvanitXI8DHSqAWepgQvf8Wex7MA87s1MEwhcxxR89TwzQ5otgX4l0t0twtWq_Uj97tpqRIzue-JW4r1PJ9a4tEh3c7XzoiE-apOMuAoItF7BrsyPMw4qIxsNcVkvrWGI-ffmvxgev_ZviNE_ils8A7ieab9nzI6AkoVyHkmL_bKk7-c');"></div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="flex-1 px-6 py-8 md:px-10 lg:px-20 max-w-7xl mx-auto w-full">
+      <div class="mb-8">
+        <h1 class="text-3xl font-bold text-text-primary-light dark:text-text-primary-dark tracking-tight">转移客户归属</h1>
+        <p class="text-text-secondary-light dark:text-text-secondary-dark mt-2 max-w-2xl">将选中的客户账户重新分配给新的销售代表，确保服务连续性与客户关系稳定。</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-2 space-y-8">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-surface-light dark:bg-surface-dark p-4 rounded-xl border border-border-light dark:border-border-dark shadow-sm">
+              <p class="text-xs font-medium text-text-secondary-light dark:text-text-secondary-dark uppercase tracking-wider mb-1">已选中</p>
+              <p class="text-2xl font-bold text-text-primary-light dark:text-text-primary-dark">12</p>
+            </div>
+            <div class="bg-surface-light dark:bg-surface-dark p-4 rounded-xl border border-border-light dark:border-border-dark shadow-sm">
+              <p class="text-xs font-medium text-text-secondary-light dark:text-text-secondary-dark uppercase tracking-wider mb-1">客户终身价值总额</p>
+              <p class="text-2xl font-bold text-text-primary-light dark:text-text-primary-dark">$145,200</p>
+            </div>
+            <div class="bg-surface-light dark:bg-surface-dark p-4 rounded-xl border border-border-light dark:border-border-dark shadow-sm">
+              <p class="text-xs font-medium text-text-secondary-light dark:text-text-secondary-dark uppercase tracking-wider mb-1">待处理订单</p>
+              <p class="text-2xl font-bold text-text-primary-light dark:text-text-primary-dark">3</p>
+            </div>
+            <div class="bg-surface-light dark:bg-surface-dark p-4 rounded-xl border border-border-light dark:border-border-dark shadow-sm">
+              <p class="text-xs font-medium text-text-secondary-light dark:text-text-secondary-dark uppercase tracking-wider mb-1">平均忠诚度</p>
+              <p class="text-2xl font-bold text-text-primary-light dark:text-text-primary-dark">8.5</p>
+            </div>
+          </div>
+
+          <div class="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-border-light dark:border-border-dark flex justify-between items-center bg-gray-50/50 dark:bg-gray-900/50">
+              <h3 class="font-semibold text-text-primary-light dark:text-text-primary-dark">转移校验</h3>
+              <span class="text-xs bg-blue-100 dark:bg-blue-900/40 text-primary dark:text-blue-300 px-2 py-1 rounded font-medium">批量操作</span>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm">
+                <thead class="bg-gray-50 dark:bg-gray-800/50 text-text-secondary-light dark:text-text-secondary-dark font-medium border-b border-border-light dark:border-border-dark">
+                  <tr>
+                    <th class="px-6 py-3">客户名称</th>
+                    <th class="px-6 py-3">当前负责人</th>
+                    <th class="px-6 py-3 text-center"><span class="material-symbols-outlined text-base align-middle">arrow_forward</span></th>
+                    <th class="px-6 py-3">目标负责人</th>
+                    <th class="px-6 py-3 text-right">客户终身价值</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-border-light dark:divide-border-dark">
+                  <tr class="group hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                    <td class="px-6 py-4 font-medium text-text-primary-light dark:text-text-primary-dark flex items-center gap-3">
+                      <div class="h-8 w-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-xs">张</div>
+                      约翰·多伊
+                    </td>
+                    <td class="px-6 py-4 text-text-secondary-light dark:text-text-secondary-dark">莎拉·詹金斯</td>
+                    <td class="px-6 py-4 text-center text-text-secondary-light/50"><span class="material-symbols-outlined text-sm">arrow_right_alt</span></td>
+                    <td class="px-6 py-4 text-primary font-medium">迈克尔·罗斯</td>
+                    <td class="px-6 py-4 text-right text-text-primary-light dark:text-text-primary-dark">$12,450</td>
+                  </tr>
+                  <tr class="group hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                    <td class="px-6 py-4 font-medium text-text-primary-light dark:text-text-primary-dark flex items-center gap-3">
+                      <div class="h-8 w-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-xs">艾</div>
+                      艾丽丝·史密斯
+                    </td>
+                    <td class="px-6 py-4 text-text-secondary-light dark:text-text-secondary-dark">莎拉·詹金斯</td>
+                    <td class="px-6 py-4 text-center text-text-secondary-light/50"><span class="material-symbols-outlined text-sm">arrow_right_alt</span></td>
+                    <td class="px-6 py-4 text-primary font-medium">迈克尔·罗斯</td>
+                    <td class="px-6 py-4 text-right text-text-primary-light dark:text-text-primary-dark">$8,320</td>
+                  </tr>
+                  <tr class="group hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+                    <td class="px-6 py-4 font-medium text-text-primary-light dark:text-text-primary-dark flex items-center gap-3">
+                      <div class="h-8 w-8 rounded-full bg-teal-100 text-teal-600 flex items-center justify-center font-bold text-xs">罗</div>
+                      罗伯特·布朗
+                    </td>
+                    <td class="px-6 py-4 text-text-secondary-light dark:text-text-secondary-dark">莎拉·詹金斯</td>
+                    <td class="px-6 py-4 text-center text-text-secondary-light/50"><span class="material-symbols-outlined text-sm">arrow_right_alt</span></td>
+                    <td class="px-6 py-4 text-primary font-medium">迈克尔·罗斯</td>
+                    <td class="px-6 py-4 text-right text-text-primary-light dark:text-text-primary-dark">$45,100</td>
+                  </tr>
+                  <tr>
+                    <td class="px-6 py-3 text-center bg-gray-50/50 dark:bg-gray-800/20 text-xs text-text-secondary-light dark:text-text-secondary-dark font-medium" colspan="5">+ 9 位更多客户</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-6">
+          <div class="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm p-6">
+            <h3 class="font-semibold text-text-primary-light dark:text-text-primary-dark mb-4 flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary">edit_note</span>
+              转移详情
+            </h3>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark mb-1.5">转移原因</label>
+                <select class="w-full rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark text-text-primary-light dark:text-text-primary-dark text-sm focus:ring-primary focus:border-primary">
+                  <option>员工离职</option>
+                  <option>区域重分配</option>
+                  <option>负载均衡</option>
+                  <option>绩效问题</option>
+                  <option>其他</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark mb-1.5">补充说明</label>
+                <textarea class="w-full rounded-lg border-border-light dark:border-border-dark bg-background-light dark:bg-background-dark text-text-primary-light dark:text-text-primary-dark text-sm focus:ring-primary focus:border-primary placeholder:text-text-secondary-light/50" placeholder="请补充新负责人所需的具体背景信息..." rows="4"></textarea>
+              </div>
+              <div class="flex items-center gap-2 pt-2">
+                <input class="rounded border-border-light text-primary focus:ring-primary bg-background-light dark:bg-background-dark dark:border-border-dark" id="notify" type="checkbox" />
+                <label class="text-sm text-text-primary-light dark:text-text-primary-dark" for="notify">通过邮件通知客户</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-surface-light dark:bg-surface-dark rounded-xl border border-border-light dark:border-border-dark shadow-sm p-6">
+            <h3 class="font-semibold text-text-primary-light dark:text-text-primary-dark mb-4 text-sm uppercase tracking-wide">最近活动</h3>
+            <div class="relative pl-4 border-l-2 border-border-light dark:border-border-dark space-y-6">
+              <div class="relative">
+                <div class="absolute -left-[21px] top-1 h-3 w-3 rounded-full bg-primary border-2 border-surface-light dark:border-surface-dark"></div>
+                <p class="text-sm font-medium text-text-primary-light dark:text-text-primary-dark">已发起转移</p>
+                <p class="text-xs text-text-secondary-light dark:text-text-secondary-dark mt-0.5">今天 10:23（管理员）</p>
+              </div>
+              <div class="relative">
+                <div class="absolute -left-[21px] top-1 h-3 w-3 rounded-full bg-gray-300 dark:bg-gray-600 border-2 border-surface-light dark:border-surface-dark"></div>
+                <p class="text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">客户已选中</p>
+                <p class="text-xs text-text-secondary-light dark:text-text-secondary-dark mt-0.5">今天 10:15</p>
+              </div>
+              <div class="relative">
+                <div class="absolute -left-[21px] top-1 h-3 w-3 rounded-full bg-gray-300 dark:bg-gray-600 border-2 border-surface-light dark:border-surface-dark"></div>
+                <p class="text-sm font-medium text-text-secondary-light dark:text-text-secondary-dark">已应用批量筛选</p>
+                <p class="text-xs text-text-secondary-light dark:text-text-secondary-dark mt-0.5">今天 10:10</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-3 pt-2">
+            <button class="w-full bg-primary hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2">
+              <span>复核并确认</span>
+              <span class="material-symbols-outlined text-sm">arrow_forward</span>
+            </button>
+            <button class="w-full bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 text-text-secondary-light dark:text-text-secondary-dark font-medium py-3 px-4 rounded-lg border border-transparent hover:border-border-light dark:hover:border-border-dark transition-all">取消</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="/src/sidebar-layout.js"></script>
+    <script type="module" src="/src/transfer.js"></script>
+  </body>
+</html>

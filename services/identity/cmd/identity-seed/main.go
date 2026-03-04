@@ -15,8 +15,16 @@ import (
 const defaultDSN = "postgres://commerce:commerce@localhost:5432/identity?sslmode=disable"
 
 const (
-	adminUsername = "admin"
-	adminPassword = "admin123"
+	bossUsername    = "boss"
+	bossPassword    = "boss123"
+	managerUsername = "manager"
+	managerPassword = "manager123"
+	csUsername      = "cs"
+	csPassword      = "cs123"
+	salesUsername   = "sales"
+	salesPassword   = "sales123"
+	adminUsername   = "admin"
+	adminPassword   = "admin123"
 )
 
 func main() {
@@ -63,6 +71,9 @@ RESTART IDENTITY CASCADE
 	}
 
 	adminID := uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+	bossID := uuid.MustParse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
+	managerID := uuid.MustParse("ffffffff-ffff-ffff-ffff-ffffffffffff")
+	csID := uuid.MustParse("99999999-9999-9999-9999-999999999999")
 	salesID := uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
 	multiID := uuid.MustParse("cccccccc-cccc-cccc-cccc-cccccccccccc")
 	customerID := uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
@@ -72,6 +83,30 @@ RESTART IDENTITY CASCADE
 		DisplayName: "Admin",
 		UserType:    "admin",
 		Phone:       strPtr("+15550000001"),
+	}); err != nil {
+		return err
+	}
+	if err := ensureUser(ctx, pool, seedUser{
+		ID:          bossID,
+		DisplayName: "Boss",
+		UserType:    "admin",
+		Phone:       strPtr("+15550000005"),
+	}); err != nil {
+		return err
+	}
+	if err := ensureUser(ctx, pool, seedUser{
+		ID:          managerID,
+		DisplayName: "Manager",
+		UserType:    "staff",
+		Phone:       strPtr("+15550000006"),
+	}); err != nil {
+		return err
+	}
+	if err := ensureUser(ctx, pool, seedUser{
+		ID:          csID,
+		DisplayName: "CS Dev",
+		UserType:    "staff",
+		Phone:       strPtr("+15550000007"),
 	}); err != nil {
 		return err
 	}
@@ -102,20 +137,19 @@ RESTART IDENTITY CASCADE
 		return err
 	}
 
-	if err := ensureRole(ctx, pool, adminID, "ADMIN"); err != nil {
-		return err
+	roleTargets := []seedRoleAssignment{
+		{UserID: adminID, Roles: []string{"ADMIN"}},
+		{UserID: bossID, Roles: []string{"BOSS"}},
+		{UserID: managerID, Roles: []string{"MANAGER"}},
+		{UserID: csID, Roles: []string{"CS"}},
+		{UserID: salesID, Roles: []string{"SALES"}},
+		{UserID: customerID, Roles: []string{"CUSTOMER"}},
+		{UserID: multiID, Roles: []string{"CUSTOMER", "SALES"}},
 	}
-	if err := ensureRole(ctx, pool, salesID, "SALES"); err != nil {
-		return err
-	}
-	if err := ensureRole(ctx, pool, customerID, "CUSTOMER"); err != nil {
-		return err
-	}
-	if err := ensureRole(ctx, pool, multiID, "CUSTOMER"); err != nil {
-		return err
-	}
-	if err := ensureRole(ctx, pool, multiID, "SALES"); err != nil {
-		return err
+	for _, roleTarget := range roleTargets {
+		if err := ensureExactRoles(ctx, pool, roleTarget.UserID, roleTarget.Roles); err != nil {
+			return err
+		}
 	}
 
 	if err := ensureIdentity(ctx, pool, seedIdentity{
@@ -149,24 +183,57 @@ RESTART IDENTITY CASCADE
 	}
 	if err := ensureStaffPhoneWhitelist(ctx, pool, seedStaffPhoneWhitelist{
 		Phone: "+15550000004",
-		Roles: []string{"SALES", "PROCUREMENT"},
+		Roles: []string{"SALES", "CS"},
 		Note:  "multi-role fixture",
 	}); err != nil {
 		return err
 	}
 
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
+	adminPasswordHash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return fmt.Errorf("hash admin password: %w", err)
 	}
-	if err := ensurePassword(ctx, pool, adminID, adminUsername, string(passwordHash)); err != nil {
+	if err := ensurePassword(ctx, pool, adminID, adminUsername, string(adminPasswordHash)); err != nil {
+		return err
+	}
+	bossPasswordHash, err := bcrypt.GenerateFromPassword([]byte(bossPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash boss password: %w", err)
+	}
+	if err := ensurePassword(ctx, pool, bossID, bossUsername, string(bossPasswordHash)); err != nil {
+		return err
+	}
+	managerPasswordHash, err := bcrypt.GenerateFromPassword([]byte(managerPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash manager password: %w", err)
+	}
+	if err := ensurePassword(ctx, pool, managerID, managerUsername, string(managerPasswordHash)); err != nil {
+		return err
+	}
+	csPasswordHash, err := bcrypt.GenerateFromPassword([]byte(csPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash cs password: %w", err)
+	}
+	if err := ensurePassword(ctx, pool, csID, csUsername, string(csPasswordHash)); err != nil {
+		return err
+	}
+	salesPasswordHash, err := bcrypt.GenerateFromPassword([]byte(salesPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash sales password: %w", err)
+	}
+	if err := ensurePassword(ctx, pool, salesID, salesUsername, string(salesPasswordHash)); err != nil {
 		return err
 	}
 
-	fmt.Println("seed data applied")
-	fmt.Printf("admin username: %s\n", adminUsername)
-	fmt.Printf("admin password: %s\n", adminPassword)
-	fmt.Println("seeded phones: +15550000001(admin), +15550000002(sales), +15550000003(customer), +15550000004(multi-role)")
+	fmt.Println("seed data applied (identity)")
+	fmt.Println("web login accounts:")
+	fmt.Printf("- %s / %s (role: ADMIN)\n", adminUsername, adminPassword)
+	fmt.Printf("- %s / %s (role: BOSS)\n", bossUsername, bossPassword)
+	fmt.Printf("- %s / %s (role: MANAGER)\n", managerUsername, managerPassword)
+	fmt.Printf("- %s / %s (role: CS)\n", csUsername, csPassword)
+	fmt.Println("miniapp account:")
+	fmt.Printf("- %s / %s (role: SALES, password login disabled)\n", salesUsername, salesPassword)
+	fmt.Println("seeded phones: +15550000001(admin), +15550000002(sales), +15550000003(customer), +15550000004(multi-role), +15550000005(boss), +15550000006(manager), +15550000007(cs)")
 	return nil
 }
 
@@ -194,13 +261,32 @@ SET display_name = EXCLUDED.display_name,
 	return nil
 }
 
-func ensureRole(ctx context.Context, pool *pgxpool.Pool, userID uuid.UUID, role string) error {
+type seedRoleAssignment struct {
+	UserID uuid.UUID
+	Roles  []string
+}
+
+func ensureExactRoles(ctx context.Context, pool *pgxpool.Pool, userID uuid.UUID, roles []string) error {
+	if len(roles) == 0 {
+		return fmt.Errorf("seed roles for user %s: roles is required", userID)
+	}
+
 	if _, err := pool.Exec(ctx, `
+DELETE FROM user_roles
+WHERE user_id = $1
+  AND NOT (role = ANY($2::text[]))
+`, userID, roles); err != nil {
+		return fmt.Errorf("cleanup stale roles for user %s: %w", userID, err)
+	}
+
+	for _, role := range roles {
+		if _, err := pool.Exec(ctx, `
 INSERT INTO user_roles (user_id, role)
 VALUES ($1, $2)
 ON CONFLICT (user_id, role) DO NOTHING
 `, userID, role); err != nil {
-		return fmt.Errorf("seed role %s: %w", role, err)
+			return fmt.Errorf("seed role %s for user %s: %w", role, userID, err)
+		}
 	}
 	return nil
 }
@@ -227,12 +313,15 @@ SET user_id = EXCLUDED.user_id,
 
 func ensurePassword(ctx context.Context, pool *pgxpool.Pool, userID uuid.UUID, username, passwordHash string) error {
 	if _, err := pool.Exec(ctx, `
+DELETE FROM user_passwords
+WHERE user_id = $1 OR username = $2
+`, userID, username); err != nil {
+		return fmt.Errorf("cleanup password for %s: %w", username, err)
+	}
+
+	if _, err := pool.Exec(ctx, `
 INSERT INTO user_passwords (user_id, username, password_hash)
 VALUES ($1, $2, $3)
-ON CONFLICT (user_id) DO UPDATE
-SET username = EXCLUDED.username,
-    password_hash = EXCLUDED.password_hash,
-    updated_at = now()
 `, userID, username, passwordHash); err != nil {
 		return fmt.Errorf("seed password for %s: %w", username, err)
 	}

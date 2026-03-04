@@ -51,6 +51,8 @@ paths:
     $ref: "./identity.yaml#/paths/~1me~1permissions"
   /bff/bootstrap:
     $ref: "./gateway.yaml#/paths/~1bff~1bootstrap"
+  /bff/admin/summary:
+    $ref: "./gateway.yaml#/paths/~1bff~1admin~1summary"
   /assets/img:
     $ref: "./gateway.yaml#/paths/~1assets~1img"
   /rbac/permissions:
@@ -135,8 +137,22 @@ paths:
     $ref: "./payment.yaml#/paths/~1payments~1wechat~1notify"
   /shipments/import-jobs:
     $ref: "./commerce.yaml#/paths/~1shipments~1import-jobs"
+  /admin/sales-users:
+    $ref: "./admin.yaml#/paths/~1admin~1sales-users"
+  /admin/customers:
+    $ref: "./admin.yaml#/paths/~1admin~1customers"
+  /admin/customers/transfer:
+    $ref: "./admin.yaml#/paths/~1admin~1customers~1transfer"
+  /admin/customer-tags:
+    $ref: "./admin.yaml#/paths/~1admin~1customer-tags"
+  /admin/customer-tags/{tagId}:
+    $ref: "./admin.yaml#/paths/~1admin~1customer-tags~1{tagId}"
+  /admin/customers/tags:batch-update:
+    $ref: "./admin.yaml#/paths/~1admin~1customers~1tags:batch-update"
   /admin/customers/{customerId}/transfer:
     $ref: "./admin.yaml#/paths/~1admin~1customers~1{customerId}~1transfer"
+  /admin/customers/{customerId}/finance-profile:
+    $ref: "./admin.yaml#/paths/~1admin~1customers~1{customerId}~1finance-profile"
   /admin/products/import-jobs:
     $ref: "./admin.yaml#/paths/~1admin~1products~1import-jobs"
   /admin/shipments/import-jobs:

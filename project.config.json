@@ -1,11 +1,16 @@
 {
+  "miniprogramRoot": "apps/miniapp/dist/weapp",
   "setting": {
-    "es6": true,
-    "postcss": true,
-    "minified": true,
-    "uglifyFileName": false,
-    "enhance": true,
+    "bundle": false,
+    "urlCheck": false,
+    "es6": false,
+    "postcss": false,
+    "minified": false,
+    "enhance": false,
+    "compileHotReLoad": false,
+    "packNpmManually": true,
     "packNpmRelationList": [],
+    "ignoreUploadUnusedFiles": true,
     "babelSetting": {
       "ignore": [],
       "disablePlugins": [],

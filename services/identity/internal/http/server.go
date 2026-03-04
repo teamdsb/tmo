@@ -24,7 +24,16 @@ func NewRouter(handler *handler.Handler, logger *slog.Logger, readyCheck func(co
 	oapi.RegisterHandlers(router, handler)
 	router.GET("/admin/config/feature-flags", handler.GetAdminConfigFeatureFlags)
 	router.PATCH("/admin/config/feature-flags", handler.PatchAdminConfigFeatureFlags)
+	router.GET("/admin/sales-users", handler.GetAdminSalesUsers)
+	router.GET("/admin/customers", handler.GetAdminCustomers)
+	router.POST("/admin/customers/transfer", handler.PostAdminCustomersTransfer)
 	router.POST("/admin/customers/:customerId/transfer", handler.PostAdminCustomersCustomerIdTransfer)
+	router.GET("/admin/customers/:customerId/finance-profile", handler.GetAdminCustomersCustomerIdFinanceProfile)
+	router.PATCH("/admin/customers/:customerId/finance-profile", handler.PatchAdminCustomersCustomerIdFinanceProfile)
+	router.GET("/admin/customer-tags", handler.GetAdminCustomerTags)
+	router.POST("/admin/customer-tags", handler.PostAdminCustomerTags)
+	router.PATCH("/admin/customer-tags/:tagId", handler.PatchAdminCustomerTagsTagId)
+	router.POST("/admin/customers/tags:batch-update", handler.PostAdminCustomersTagsBatchUpdate)
 
 	return router
 }

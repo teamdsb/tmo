@@ -2,13 +2,13 @@
   "libVersion": "3.14.0",
   "projectname": "tmo",
   "setting": {
-    "urlCheck": true,
+    "urlCheck": false,
     "coverView": true,
     "lazyloadPlaceholderEnable": false,
     "skylineRenderEnable": false,
     "preloadBackgroundData": false,
     "autoAudits": false,
     "showShadowRootInWxmlPanel": true,
-    "compileHotReLoad": true
+    "compileHotReLoad": false
   }
 }

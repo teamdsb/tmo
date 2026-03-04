@@ -42,9 +42,7 @@ components:
           enum:
           - CUSTOMER
           - SALES
-          - PROCUREMENT
-          - CS
-          description: Optional current role; required when multiple roles. ADMIN is not allowed.
+          description: Optional current role; required when multiple roles. Only CUSTOMER or SALES is allowed.
         phoneProof:
           "$ref": "#/components/schemas/PhoneProof"
       required:
@@ -86,8 +84,11 @@ components:
         role:
           type: string
           enum:
+          - BOSS
+          - MANAGER
           - ADMIN
-          description: Optional; must be ADMIN when provided.
+          - CS
+          description: Optional current role for password login; if omitted and user has multiple web roles, server may return 409 with availableRoles.
       required:
       - username
       - password

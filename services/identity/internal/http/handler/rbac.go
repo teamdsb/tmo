@@ -38,7 +38,7 @@ func (h *Handler) GetMePermissions(c *gin.Context) {
 }
 
 func (h *Handler) GetRbacRoles(c *gin.Context) {
-	if _, ok := h.requireAdmin(c); !ok {
+	if _, _, ok := h.requirePermission(c, "rbac:manage", "ALL"); !ok {
 		return
 	}
 
@@ -76,7 +76,7 @@ func (h *Handler) GetRbacRoles(c *gin.Context) {
 }
 
 func (h *Handler) GetRbacPermissions(c *gin.Context) {
-	if _, ok := h.requireAdmin(c); !ok {
+	if _, _, ok := h.requirePermission(c, "rbac:manage", "ALL"); !ok {
 		return
 	}
 
@@ -98,7 +98,7 @@ func (h *Handler) GetRbacPermissions(c *gin.Context) {
 }
 
 func (h *Handler) PostRbacPermissions(c *gin.Context) {
-	claims, ok := h.requireAdmin(c)
+	claims, _, ok := h.requirePermission(c, "rbac:manage", "ALL")
 	if !ok {
 		return
 	}
@@ -135,7 +135,7 @@ func (h *Handler) PostRbacPermissions(c *gin.Context) {
 }
 
 func (h *Handler) PutRbacRolesRolePermissions(c *gin.Context, role string) {
-	claims, ok := h.requireAdmin(c)
+	claims, _, ok := h.requirePermission(c, "rbac:manage", "ALL")
 	if !ok {
 		return
 	}

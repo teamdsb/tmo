@@ -18,10 +18,8 @@ import (
 )
 
 var miniLoginRoles = map[string]struct{}{
-	"CUSTOMER":    {},
-	"SALES":       {},
-	"PROCUREMENT": {},
-	"CS":          {},
+	"CUSTOMER": {},
+	"SALES":    {},
 }
 
 func (h *Handler) writeError(c *gin.Context, status int, code, message string) {
@@ -88,9 +86,9 @@ func userTypeFromRole(role string) (oapi.UserUserType, bool) {
 	switch strings.ToUpper(role) {
 	case "CUSTOMER":
 		return oapi.UserUserTypeCustomer, true
-	case "SALES", "PROCUREMENT", "CS":
+	case "SALES", "CS", "MANAGER":
 		return oapi.UserUserTypeStaff, true
-	case "ADMIN":
+	case "ADMIN", "BOSS":
 		return oapi.UserUserTypeAdmin, true
 	default:
 		return "", false

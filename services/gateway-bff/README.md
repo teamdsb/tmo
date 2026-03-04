@@ -20,6 +20,7 @@ Minimal API gateway that routes identity + commerce behind a single base URL.
 - All other paths are proxied to commerce.
 - `/health` returns `OK`.
 - `/ready` returns 200 only when identity, commerce, and payment are ready.
+- `/bff/admin/summary` returns lightweight admin dashboard metrics (products, orders, inquiries, feature flags).
 - `/assets/img?url=<encoded>` proxies allowlisted remote images (for miniapp product images).
 - `/assets/media/*` serves locally migrated media files when `GATEWAY_MEDIA_LOCAL_DIR` is configured.
 - `GET /catalog/products` and `GET /catalog/products/{spuId}` rewrite third-party image URLs to gateway image URLs (`/assets/img`) before returning to clients; URLs already under gateway origin (for example `/assets/media`) are preserved.

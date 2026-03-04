@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>询价与报价流程管理</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#144bb8',
+              'primary-content': '#ffffff',
+              'primary-light': '#eef2fb',
+              'background-light': '#f8f9fc',
+              'background-dark': '#111621',
+              'surface-light': '#ffffff',
+              'surface-dark': '#1a202c',
+              'text-main': '#1e293b',
+              'text-sub': '#64748b',
+              'border-light': '#e2e8f0',
+              'border-dark': '#2d3748'
+            },
+            fontFamily: {
+              display: ['Inter', 'sans-serif'],
+              sans: ['Inter', 'sans-serif']
+            },
+            borderRadius: {
+              DEFAULT: '0.25rem',
+              lg: '0.5rem',
+              xl: '0.75rem',
+              full: '9999px'
+            }
+          }
+        }
+      };
+    </script>
+  </head>
+  <body class="bg-background-light text-text-main font-display antialiased min-h-screen flex flex-col">
+    <header class="sticky top-0 z-50 bg-surface-light border-b border-border-light px-6 py-3 shadow-sm">
+      <div class="mx-auto max-w-[1400px] flex items-center justify-between">
+        <div class="flex items-center gap-8">
+          <div class="flex items-center gap-3 text-primary">
+            <div class="size-8 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
+              <span class="material-symbols-outlined text-xl">admin_panel_settings</span>
+            </div>
+            <h2 class="text-text-main text-lg font-bold leading-tight tracking-tight">管理控制台</h2>
+          </div>
+          <nav class="hidden md:flex items-center gap-6">
+            <a class="text-text-sub hover:text-primary text-sm font-medium transition-colors" href="/dashboard.html">仪表盘</a>
+            <a class="text-primary text-sm font-medium transition-colors" href="/quote-workflow.html">询价</a>
+            <a class="text-text-sub hover:text-primary text-sm font-medium transition-colors" href="/orders.html">订单</a>
+            <a class="text-text-sub hover:text-primary text-sm font-medium transition-colors" href="/products.html">库存</a>
+            <a class="text-text-sub hover:text-primary text-sm font-medium transition-colors" href="/settings.html">设置</a>
+          </nav>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="hidden sm:flex relative w-64">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-text-sub">
+              <span class="material-symbols-outlined text-[20px]">search</span>
+            </span>
+            <input class="w-full pl-10 pr-4 py-2 bg-background-light border-none rounded-lg text-sm focus:ring-2 focus:ring-primary/20 placeholder:text-text-sub/50" placeholder="搜索询价单..." type="text" />
+          </div>
+          <button class="relative p-2 text-text-sub hover:text-primary transition-colors">
+            <span class="material-symbols-outlined">notifications</span>
+            <span class="absolute top-1.5 right-1.5 size-2 bg-red-500 rounded-full border border-surface-light"></span>
+          </button>
+          <div class="size-9 bg-center bg-no-repeat bg-cover rounded-full ring-2 ring-primary/10" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD8GClRHtjyM1jxyzUvwXqMOtVFuAk2gsEzEi-kNNeJLSR2a7FMEKFieNQFQ0u96UofIp6NHBe2X06rHdy_4LIkdqI9hWuS0L3TaUZcFjL8vNFrGOPj-ZJBQ7Cmt1Brl7qLUKdFyYDEEPDDXr0VGM2VPxAjTKLbU60KzaFUGPkTCqDBXEhTjMmRYNttugv8MneA97xzdQ8h0otd9ANQldskkerE-GSf07Gt8sQRRuvNMGWK-LZDjNiTkA0ThKnQB-SBC6ppUb9fSEQ');"></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="flex-1 w-full max-w-[1400px] mx-auto p-6 md:p-8 grid grid-cols-12 gap-8">
+      <div class="col-span-12 lg:col-span-8 flex flex-col gap-8">
+        <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-3 mb-1">
+              <span class="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-semibold tracking-wide uppercase">高优先级</span>
+              <span class="text-text-sub text-sm">创建于 2023年10月12日</span>
+            </div>
+            <h1 class="text-3xl font-bold text-text-main tracking-tight mb-2">询价单 #2023-894</h1>
+            <p class="text-text-sub text-lg">办公空间定制家具需求</p>
+          </div>
+          <div class="flex gap-3">
+            <button class="btn-secondary flex items-center gap-2 px-4 py-2 bg-white border border-border-light rounded-lg text-sm font-medium text-text-main hover:bg-background-light transition-colors">
+              <span class="material-symbols-outlined text-[18px]">download</span>
+              <span>导出文档</span>
+            </button>
+            <button class="btn-primary flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm shadow-primary/30">
+              <span class="material-symbols-outlined text-[18px]">edit</span>
+              <span>编辑需求</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-surface-light rounded-xl border border-border-light p-6 shadow-sm">
+          <div class="flex items-center justify-between relative mb-2">
+            <div class="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-background-light -z-0"></div>
+            <div class="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary transition-all duration-500 -z-0" style="width: 66%"></div>
+            <div class="relative z-10 flex flex-col items-center gap-2"><div class="size-8 rounded-full bg-primary text-white flex items-center justify-center border-4 border-surface-light shadow-sm"><span class="material-symbols-outlined text-sm">check</span></div><span class="text-xs font-semibold text-primary">需求</span></div>
+            <div class="relative z-10 flex flex-col items-center gap-2"><div class="size-8 rounded-full bg-primary text-white flex items-center justify-center border-4 border-surface-light shadow-sm"><span class="material-symbols-outlined text-sm">check</span></div><span class="text-xs font-semibold text-primary">询价</span></div>
+            <div class="relative z-10 flex flex-col items-center gap-2"><div class="size-8 rounded-full bg-primary text-white flex items-center justify-center border-4 border-surface-light shadow-sm ring-4 ring-primary/20"><span class="material-symbols-outlined text-sm">more_horiz</span></div><span class="text-xs font-bold text-primary">已报价</span></div>
+            <div class="relative z-10 flex flex-col items-center gap-2"><div class="size-8 rounded-full bg-border-light text-text-sub flex items-center justify-center border-4 border-surface-light"><span class="text-xs font-medium">4</span></div><span class="text-xs font-medium text-text-sub">已确认</span></div>
+          </div>
+          <div class="mt-6 flex justify-between items-center text-sm">
+            <div class="flex gap-2 items-center text-text-sub"><span class="material-symbols-outlined text-[18px]">schedule</span><span>2小时前更新</span></div>
+            <div class="text-primary font-medium">当前状态：待审批</div>
+          </div>
+        </div>
+
+        <div class="bg-surface-light rounded-xl border border-border-light shadow-sm overflow-hidden">
+          <div class="px-6 py-4 border-b border-border-light flex justify-between items-center bg-background-light/50">
+            <h3 class="font-bold text-lg text-text-main">报价版本</h3>
+            <span class="text-xs font-medium bg-white border border-border-light px-2 py-1 rounded text-text-sub">显示 3 个版本</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-background-light/50 text-text-sub text-xs uppercase tracking-wider border-b border-border-light">
+                  <th class="px-6 py-3 font-semibold">版本</th>
+                  <th class="px-6 py-3 font-semibold">发送日期</th>
+                  <th class="px-6 py-3 font-semibold">总金额</th>
+                  <th class="px-6 py-3 font-semibold">有效期至</th>
+                  <th class="px-6 py-3 font-semibold text-center">状态</th>
+                  <th class="px-6 py-3 font-semibold text-right">操作</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-border-light">
+                <tr class="bg-primary/5 hover:bg-primary/10 transition-colors group">
+                  <td class="px-6 py-4"><div class="flex items-center gap-2"><span class="font-semibold text-primary">版本3（当前）</span><span class="size-2 rounded-full bg-primary animate-pulse"></span></div></td>
+                  <td class="px-6 py-4 text-text-sub text-sm">2023年10月24日</td>
+                  <td class="px-6 py-4 text-text-main font-bold">$12,500.00</td>
+                  <td class="px-6 py-4 text-text-sub text-sm">2023年11月24日</td>
+                  <td class="px-6 py-4 text-center"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">生效中</span></td>
+                  <td class="px-6 py-4 text-right"><button class="text-primary hover:text-primary-dark font-medium text-sm">查看详情</button></td>
+                </tr>
+                <tr class="hover:bg-background-light transition-colors">
+                  <td class="px-6 py-4 text-text-sub font-medium">版本2</td>
+                  <td class="px-6 py-4 text-text-sub text-sm">2023年10月20日</td>
+                  <td class="px-6 py-4 text-text-sub text-sm line-through">$13,200.00</td>
+                  <td class="px-6 py-4 text-text-sub text-sm">2023年11月20日</td>
+                  <td class="px-6 py-4 text-center"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">已过期</span></td>
+                  <td class="px-6 py-4 text-right"><button class="text-text-sub hover:text-primary font-medium text-sm">查看详情</button></td>
+                </tr>
+                <tr class="hover:bg-background-light transition-colors opacity-75">
+                  <td class="px-6 py-4 text-text-sub font-medium">版本1</td>
+                  <td class="px-6 py-4 text-text-sub text-sm">2023年10月15日</td>
+                  <td class="px-6 py-4 text-text-sub text-sm line-through">$14,000.00</td>
+                  <td class="px-6 py-4 text-text-sub text-sm">2023年11月15日</td>
+                  <td class="px-6 py-4 text-center"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">已驳回</span></td>
+                  <td class="px-6 py-4 text-right"><button class="text-text-sub hover:text-primary font-medium text-sm">查看详情</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-surface-light p-6 rounded-xl border border-border-light shadow-sm">
+            <h3 class="font-bold text-lg mb-4 text-text-main flex items-center gap-2"><span class="material-symbols-outlined text-text-sub">inventory_2</span>明细汇总</h3>
+            <ul class="space-y-3">
+              <li class="flex justify-between items-center text-sm"><span class="text-text-sub">人体工学办公椅（20件）</span><span class="font-medium text-text-main">$5,000.00</span></li>
+              <li class="flex justify-between items-center text-sm"><span class="text-text-sub">可升降办公桌（20件）</span><span class="font-medium text-text-main">$6,000.00</span></li>
+              <li class="flex justify-between items-center text-sm"><span class="text-text-sub">理线配件套装（20件）</span><span class="font-medium text-text-main">$500.00</span></li>
+              <li class="border-t border-border-light pt-3 mt-2 flex justify-between items-center text-sm"><span class="text-text-sub">运输与服务</span><span class="font-medium text-text-main">$1,000.00</span></li>
+              <li class="flex justify-between items-center text-base font-bold text-primary pt-1"><span>合计</span><span>$12,500.00</span></li>
+            </ul>
+          </div>
+          <div class="bg-surface-light p-6 rounded-xl border border-border-light shadow-sm">
+            <h3 class="font-bold text-lg mb-4 text-text-main flex items-center gap-2"><span class="material-symbols-outlined text-text-sub">domain</span>客户信息</h3>
+            <div class="flex items-center gap-4 mb-4">
+              <div class="size-12 rounded-lg bg-gray-200 bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB45YwEH2_s9fKKBRW7agEnOM29AszoywiQOj32aai41L1H0hd9oMPwk54DRvxc-caeRqvpEdHNNPYgG0GULBAyXw7JvdxqHyOvFmuhdY2n7LV5LOekxUh_L78oKMiBqpF6S85FeRMIK3R9ys3UoiQ3bIq2366O_Vx-_sB0JUM8acp-xzcpvndlyoAMH4-DRnkbLAPW5xLePkN5t13VMgGIPOpiRsZXhmtrca1x64zM3f21LEcV5j8_ShXOOz9oHg-kmvxPXU44HPM');"></div>
+              <div><p class="font-bold text-text-main">科技空间方案</p><p class="text-sm text-text-sub">美国旧金山</p></div>
+            </div>
+            <div class="space-y-2 text-sm">
+              <div class="flex gap-2"><span class="material-symbols-outlined text-text-sub text-[18px]">person</span><span class="text-text-main">莎拉·詹金斯（采购经理）</span></div>
+              <div class="flex gap-2"><span class="material-symbols-outlined text-text-sub text-[18px]">mail</span><a class="text-primary hover:underline" href="#">客户邮箱（已隐藏）</a></div>
+              <div class="flex gap-2"><span class="material-symbols-outlined text-text-sub text-[18px]">call</span><span class="text-text-main">+1 (555) 123-4567</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-span-12 lg:col-span-4 flex flex-col gap-6">
+        <div class="bg-surface-light p-6 rounded-xl border border-border-light shadow-sm sticky top-24">
+          <h3 class="font-bold text-lg mb-4 text-text-main">操作</h3>
+          <p class="text-sm text-text-sub mb-6">请审核当前报价（版本3）并进入下一步。</p>
+          <div class="flex flex-col gap-3">
+            <button class="w-full py-3 px-4 bg-primary text-white rounded-lg font-semibold hover:bg-primary/90 transition-all shadow-md shadow-primary/20 flex justify-center items-center gap-2"><span class="material-symbols-outlined">check_circle</span>批准报价</button>
+            <button class="w-full py-3 px-4 bg-white border border-border-light text-text-main rounded-lg font-medium hover:bg-background-light transition-all flex justify-center items-center gap-2"><span class="material-symbols-outlined">edit_note</span>请求修改</button>
+            <button class="w-full py-3 px-4 bg-white border border-border-light text-red-600 rounded-lg font-medium hover:bg-red-50 hover:border-red-100 transition-all flex justify-center items-center gap-2"><span class="material-symbols-outlined">cancel</span>驳回</button>
+          </div>
+        </div>
+
+        <div class="bg-surface-light flex flex-col rounded-xl border border-border-light shadow-sm flex-1 max-h-[600px]">
+          <div class="p-4 border-b border-border-light flex justify-between items-center bg-background-light/30">
+            <h3 class="font-bold text-text-main flex items-center gap-2"><span class="material-symbols-outlined text-text-sub">forum</span>协商记录</h3>
+            <div class="flex bg-background-light rounded-lg p-0.5">
+              <button class="px-3 py-1 text-xs font-medium rounded-md bg-white shadow-sm text-primary">外部</button>
+              <button class="px-3 py-1 text-xs font-medium rounded-md text-text-sub hover:text-text-main">内部</button>
+            </div>
+          </div>
+          <div class="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50">
+            <div class="flex gap-3">
+              <div class="size-8 rounded-full bg-cover bg-center shrink-0" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAZhox9hvuC6sm5nQhaS3PkdHeECohin0OeUv-a5Nwikog2NRYFaCXFd34eKq7geRmN1JNSEGNH5lgybm5oDob-nOKmBPaMmqIWXi0XZ6jsAsypkHP9m095mIvTMnrS55jwWqEOlHmaj3kikdXxP3ELjrCwhgAmE66bBHadw3Aj3Y4ZgStTmRBnOAWOmZ-mUr7P774Chsfxs8Nj4PpgP-ym7TUnk3KnixL6ijq_WEvYKiQH26RM5uS7GNtw3SeTYcIxGA0OCaKr_FY');"></div>
+              <div>
+                <div class="flex items-center gap-2 mb-1"><span class="font-semibold text-sm text-text-main">莎拉·詹金斯</span><span class="text-xs text-text-sub">10月21日 10:30</span></div>
+                <div class="bg-white p-3 rounded-lg rounded-tl-none border border-border-light shadow-sm text-sm text-text-main">可以再看一下运费吗？相比上次订单略高。另外，20件以上是否可以给到批量折扣？</div>
+              </div>
+            </div>
+            <div class="flex gap-3 flex-row-reverse">
+              <div class="size-8 rounded-full bg-cover bg-center shrink-0" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD1be3i3WLXLuKPeHT0q2znKgj8pY30CuJJm8DIE4TkNsCqzNVJhV4BN7e_4cgHJle73Y6Dz-U3uqeWniuwr_FJ5Lja26DhK8Ihz03aBC73PjcO1bvvU1vlLaCsI_ul-TrU2pUrZkG630xPsluQ7TcR9PGNIoe1GW86O4pf6ZBLP9DN3TmlFNwfufmV_hfT2XaAqvh3F4fdTXWwj-uJQHLVx8o7WLHOc7nMk7qqHzrxTm5eo4Ax6_0lm_-Kqhq1AFBIigh6p7utPzo');"></div>
+              <div class="flex flex-col items-end">
+                <div class="flex items-center gap-2 mb-1"><span class="text-xs text-text-sub">10月21日 11:15</span><span class="font-semibold text-sm text-text-main">你</span></div>
+                <div class="bg-primary/10 p-3 rounded-lg rounded-tr-none border border-primary/10 text-sm text-text-main">你好，莎拉，我已更新版本3报价，办公椅给予 5% 折扣。运费部分包含上门安装服务，请确认是否可行。</div>
+              </div>
+            </div>
+            <div class="flex gap-3">
+              <div class="size-8 rounded-full bg-cover bg-center shrink-0" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA1jebcSkiMTiveKOPZ-Mp0E49k0m_xyf7cdNdvVm8XG6GZPU0R-9PHIGfrnu2_IRX6f57NZYCCs3sVAyIwfsnQXtm-jScH1Z18VlDvUd2XRjBYV4UapuqaItsLKDfyg3qYMnTgMXpmb5Vkm1vQT8QNLRWjOSQc8MG3i-Oyuw1A7Yo2xJU83R3YLuDSeSJN4VUUQaOUfRgLSehC2O-L1pO2yi0MlFKub-j16D5dNR4drRIHoEzlISbn3yjlNkTVfGwq-wCvTU-W95g');"></div>
+              <div>
+                <div class="flex items-center gap-2 mb-1"><span class="font-semibold text-sm text-text-main">莎拉·詹金斯</span><span class="text-xs text-text-sub">10月21日 11:45</span></div>
+                <div class="bg-white p-3 rounded-lg rounded-tl-none border border-border-light shadow-sm text-sm text-text-main">感谢更新！5% 折扣很不错。我今天会和团队确认新的总价。</div>
+              </div>
+            </div>
+          </div>
+          <div class="p-4 bg-surface-light border-t border-border-light rounded-b-xl">
+            <div class="relative">
+              <textarea class="w-full resize-none rounded-lg border-border-light bg-background-light p-3 pr-12 text-sm focus:border-primary focus:ring-1 focus:ring-primary placeholder:text-text-sub/50" placeholder="输入消息..." rows="3"></textarea>
+              <button class="absolute bottom-3 right-3 text-primary hover:bg-primary/10 p-1 rounded-md transition-colors"><span class="material-symbols-outlined">send</span></button>
+            </div>
+            <div class="flex justify-between items-center mt-2">
+              <button class="text-text-sub hover:text-primary transition-colors"><span class="material-symbols-outlined text-[20px]">attach_file</span></button>
+              <span class="text-xs text-text-sub">按回车发送</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="/src/sidebar-layout.js"></script>
+    <script type="module" src="/src/quote-workflow.js"></script>
+  </body>
+</html>

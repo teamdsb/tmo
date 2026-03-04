@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>询价与报价流程管理</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#144bb8',
+              'primary-content': '#ffffff',
+              'primary-light': '#eef2fb',
+              'background-light': '#f8f9fc',
+              'background-dark': '#111621',
+              'surface-light': '#ffffff',
+              'surface-dark': '#1a202c',
+              'text-main': '#1e293b',
+              'text-sub': '#64748b',
+              'border-light': '#e2e8f0',
+              'border-dark': '#2d3748'
+            },
+            fontFamily: {
+              display: ['Inter', 'sans-serif'],
+              sans: ['Inter', 'sans-serif']
+            },
+            borderRadius: {
+              DEFAULT: '0.25rem',
+              lg: '0.5rem',
+              xl: '0.75rem',
+              full: '9999px'
+            }
+          }
+        }
+      };
+    </script>
+  </head>
+  <body class="bg-background-light text-text-main font-display antialiased min-h-screen flex flex-col">
+    <script type="module" src="/src/react/entries/quote-workflow.tsx"></script>
+  </body>
+</html>

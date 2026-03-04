@@ -1,0 +1,32 @@
+{
+  "name": "@tmo/admin-web",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm run dev:mock",
+    "dev:mock": "VITE_ADMIN_WEB_MODE=mock vite --host 0.0.0.0 --port 5174",
+    "dev:real": "VITE_ADMIN_WEB_MODE=dev VITE_ADMIN_WEB_API_BASE_URL=/api vite --host 0.0.0.0 --port 5174",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4174",
+    "test:visual": "playwright test -c playwright.visual.config.mjs"
+  },
+  "dependencies": {
+    "@tmo/api-client": "workspace:*",
+    "@tmo/gateway-api-client": "workspace:*",
+    "@tmo/identity-api-client": "workspace:*",
+    "lucide-react": "^0.469.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.2",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.7.0",
+    "pixelmatch": "^7.1.0",
+    "pngjs": "^7.0.0",
+    "typescript": "^5.9.2",
+    "vite": "4.5.14"
+  }
+}

@@ -4,6 +4,7 @@
   "description": "crossend minirepo ali&wechat",
   "appid": "wx8e8831fc456f019b",
   "setting": {
+    "bundle": false,
     "urlCheck": false,
     "es6": false,
     "enhance": false,

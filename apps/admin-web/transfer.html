@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>客户归属转移管理</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+      rel="stylesheet"
+    />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#144bb8',
+              'background-light': '#f6f6f8',
+              'background-dark': '#111621',
+              'surface-light': '#ffffff',
+              'surface-dark': '#1e2433',
+              'text-primary-light': '#111318',
+              'text-primary-dark': '#f0f2f4',
+              'text-secondary-light': '#636f88',
+              'text-secondary-dark': '#94a3b8',
+              'border-light': '#e2e8f0',
+              'border-dark': '#2d3748'
+            },
+            fontFamily: {
+              display: ['Inter', 'sans-serif']
+            },
+            borderRadius: { DEFAULT: '0.25rem', lg: '0.5rem', xl: '0.75rem', full: '9999px' }
+          }
+        }
+      };
+    </script>
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+    </style>
+  </head>
+  <body class="bg-background-light dark:bg-background-dark text-text-primary-light dark:text-text-primary-dark font-display antialiased min-h-screen flex flex-col overflow-hidden">
+    <script type="module" src="/src/react/entries/transfer.tsx"></script>
+  </body>
+</html>

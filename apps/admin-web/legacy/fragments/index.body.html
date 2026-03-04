@@ -1,0 +1,148 @@
+<div class="relative flex min-h-screen w-full flex-col justify-center items-center overflow-hidden">
+      <div
+        class="absolute inset-0 z-0 bg-cover bg-center"
+        data-alt="Subtle abstract blue and white gradient background"
+        style="
+          background-image: linear-gradient(135deg, rgba(20, 75, 184, 0.05) 0%, rgba(246, 246, 248, 1) 100%);
+        "
+      >
+        <div class="absolute -top-24 -left-24 w-96 h-96 bg-primary/5 rounded-full blur-3xl"></div>
+        <div
+          class="absolute top-1/2 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl transform translate-x-1/3"
+        ></div>
+      </div>
+
+      <div class="relative z-10 w-full max-w-6xl px-4 py-8 flex flex-col md:flex-row gap-8 items-center justify-center">
+        <div class="hidden md:flex flex-col flex-1 max-w-lg space-y-12 pr-8">
+          <div class="space-y-6">
+            <div class="flex items-center gap-3">
+              <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-primary text-white">
+                <span class="material-symbols-outlined">inventory_2</span>
+              </div>
+              <h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Nexus Commerce</h1>
+            </div>
+            <p class="text-4xl font-black leading-tight tracking-[-0.033em] text-slate-900 dark:text-white">
+              Simplicity is the ultimate sophistication.
+            </p>
+            <p class="text-slate-500 dark:text-slate-400 text-lg leading-relaxed">
+              Streamline your marketplace operations with our secure, unified management platform.
+            </p>
+          </div>
+          <div
+            class="relative w-full h-48 rounded-xl overflow-hidden bg-white/50 border border-white/60 shadow-sm backdrop-blur-sm group flex items-center justify-center"
+          >
+            <div
+              class="absolute inset-0 opacity-10 bg-[radial-gradient(#144bb8_1px,transparent_1px)] [background-size:16px_16px]"
+            ></div>
+            <div class="relative z-10 flex flex-col items-center gap-4 text-primary/80">
+              <span class="material-symbols-outlined text-6xl opacity-50">hub</span>
+              <p class="text-sm font-medium tracking-widest uppercase opacity-70">Unified Ecosystem</p>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="w-full max-w-[440px] bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 overflow-hidden relative"
+        >
+          <div class="absolute top-0 right-0 p-4 z-20 group cursor-pointer" title="Login with Mini-program">
+            <div class="relative">
+              <div
+                class="absolute right-full top-1/2 -translate-y-1/2 mr-3 px-3 py-1.5 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none"
+              >
+                Scan QR Code
+              </div>
+              <div class="w-12 h-12 flex items-start justify-end text-primary/80 hover:text-primary transition-colors">
+                <span class="material-symbols-outlined text-4xl">qr_code_scanner</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-8 md:p-10">
+            <div class="flex flex-col gap-2 mb-8">
+              <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Welcome Back</h2>
+              <p class="text-slate-500 dark:text-slate-400 text-sm">Please sign in to access your dashboard</p>
+            </div>
+
+            <form id="login-form" action="#" class="flex flex-col gap-5">
+              <div class="flex flex-col gap-1.5">
+                <label class="text-slate-900 dark:text-slate-200 text-sm font-semibold">Select Role</label>
+                <div class="relative">
+                  <select
+                    id="role"
+                    class="appearance-none w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg focus:ring-primary focus:border-primary block p-3.5 pr-10 outline-none transition-shadow"
+                  >
+                    <option value="admin">Administrator</option>
+                    <option value="sales">Sales Manager</option>
+                    <option value="support">Customer Service</option>
+                    <option value="logistics">Logistics Coordinator</option>
+                  </select>
+                  <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                    <span class="material-symbols-outlined text-xl">expand_more</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-1.5">
+                <label class="text-slate-900 dark:text-slate-200 text-sm font-semibold">Username or Email</label>
+                <div class="relative">
+                  <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <span class="material-symbols-outlined text-[20px]">person</span>
+                  </div>
+                  <input
+                    id="username"
+                    class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg focus:ring-primary focus:border-primary block p-3.5 pl-11 outline-none transition-shadow placeholder:text-slate-400"
+                    placeholder="name@company.com"
+                    required
+                    type="text"
+                  />
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-1.5">
+                <div class="flex justify-between items-center">
+                  <label class="text-slate-900 dark:text-slate-200 text-sm font-semibold">Password</label>
+                  <a class="text-primary text-xs font-medium hover:underline hover:text-primary/80" href="#">Forgot password?</a>
+                </div>
+                <div class="relative">
+                  <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <span class="material-symbols-outlined text-[20px]">lock</span>
+                  </div>
+                  <input
+                    id="password"
+                    class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg focus:ring-primary focus:border-primary block p-3.5 pl-11 pr-11 outline-none transition-shadow placeholder:text-slate-400"
+                    placeholder="••••••••"
+                    required
+                    type="password"
+                  />
+                  <button
+                    id="toggle-password"
+                    class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                    type="button"
+                  >
+                    <span id="toggle-password-icon" class="material-symbols-outlined text-[20px]">visibility_off</span>
+                  </button>
+                </div>
+              </div>
+
+              <button
+                class="w-full text-white bg-primary hover:bg-primary/90 focus:ring-4 focus:ring-primary/30 font-medium rounded-lg text-sm px-5 py-3.5 text-center transition-all mt-4 shadow-lg shadow-primary/20 flex items-center justify-center gap-2 group/btn"
+                type="submit"
+              >
+                Sign In
+                <span class="material-symbols-outlined text-lg transition-transform group-hover/btn:translate-x-1"
+                  >arrow_forward</span
+                >
+              </button>
+            </form>
+
+            <div class="mt-8 text-center">
+              <p class="text-xs text-slate-400">Need help? <a class="text-primary hover:underline" href="#">Contact Support</a></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="absolute bottom-4 left-0 w-full text-center pointer-events-none">
+        <p class="text-slate-400/50 dark:text-slate-600 text-xs">© 2026 Nexus Commerce Inc. All rights reserved.</p>
+      </div>
+    </div>

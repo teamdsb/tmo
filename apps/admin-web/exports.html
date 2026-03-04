@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Export &amp; Batch Task Center</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#144bb8',
+              'primary-dark': '#0e3482',
+              'background-light': '#f6f6f8',
+              'background-dark': '#111621',
+              surface: {
+                light: '#ffffff',
+                dark: '#1a2233'
+              },
+              text: {
+                main: '#111318',
+                muted: '#636f88',
+                dark: '#f0f2f4',
+                mutedDark: '#9ca3af'
+              }
+            },
+            fontFamily: {
+              display: ['Inter', 'sans-serif']
+            },
+            borderRadius: {
+              DEFAULT: '0.25rem',
+              lg: '0.5rem',
+              xl: '0.75rem',
+              full: '9999px'
+            }
+          }
+        }
+      };
+    </script>
+  </head>
+  <body class="bg-background-light dark:bg-background-dark font-display antialiased text-text-main dark:text-text-dark transition-colors duration-200">
+    <script type="module" src="/src/react/entries/exports.tsx"></script>
+  </body>
+</html>

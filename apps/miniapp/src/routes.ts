@@ -17,6 +17,7 @@ export const ROUTES = {
   import: '/pages/import/index',
   trackingBatch: '/pages/tracking/batch/index',
   settings: '/pages/settings/index',
+  sales: '/pages/sales/index',
   support: '/pages/support/index',
   supportCreate: '/pages/support/create/index',
   authRoleSelect: '/pages/auth/role-select/index',

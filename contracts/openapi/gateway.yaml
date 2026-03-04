@@ -30,6 +30,18 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/BootstrapResponse"
+  "/bff/admin/summary":
+    get:
+      tags:
+      - BFF
+      summary: Bootstrap admin dashboard summary metrics
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminSummaryResponse"
   "/assets/img":
     get:
       tags:
@@ -208,4 +220,50 @@ components:
           "$ref": "#/components/schemas/FeatureFlags"
       required:
       - permissions
+      - featureFlags
+    AdminSummaryMetrics:
+      type: object
+      properties:
+        productsTotal:
+          type: integer
+          minimum: 0
+        ordersTotal:
+          type: integer
+          minimum: 0
+        ordersPending:
+          type: integer
+          minimum: 0
+        inquiriesTotal:
+          type: integer
+          minimum: 0
+        inquiriesOpen:
+          type: integer
+          minimum: 0
+        productRequestsTotal:
+          type: integer
+          minimum: 0
+      required:
+      - productsTotal
+      - ordersTotal
+      - ordersPending
+      - inquiriesTotal
+      - inquiriesOpen
+      - productRequestsTotal
+    AdminSummaryResponse:
+      type: object
+      properties:
+        generatedAt:
+          type: string
+          format: date-time
+        metrics:
+          "$ref": "#/components/schemas/AdminSummaryMetrics"
+        featureFlags:
+          "$ref": "#/components/schemas/FeatureFlags"
+        warnings:
+          type: array
+          items:
+            type: string
+      required:
+      - generatedAt
+      - metrics
       - featureFlags
