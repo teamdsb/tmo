@@ -17,9 +17,7 @@ import { switchTabLike } from '../../../utils/navigation'
 
 const ROLE_LABELS: Record<string, string> = {
   CUSTOMER: '客户',
-  SALES: '销售',
-  PROCUREMENT: '采购',
-  CS: '客服'
+  SALES: '业务员'
 }
 
 export default function RoleSelectPage() {

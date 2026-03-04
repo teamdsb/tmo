@@ -17,18 +17,16 @@ const (
 
 // Defines values for MiniLoginRequestRole.
 const (
-	MiniLoginRequestRoleCS          MiniLoginRequestRole = "CS"
-	MiniLoginRequestRoleCUSTOMER    MiniLoginRequestRole = "CUSTOMER"
-	MiniLoginRequestRolePROCUREMENT MiniLoginRequestRole = "PROCUREMENT"
-	MiniLoginRequestRoleSALES       MiniLoginRequestRole = "SALES"
+	CUSTOMER MiniLoginRequestRole = "CUSTOMER"
+	SALES    MiniLoginRequestRole = "SALES"
 )
 
 // Defines values for PasswordLoginRequestRole.
 const (
-	PasswordLoginRequestRoleADMIN   PasswordLoginRequestRole = "ADMIN"
-	PasswordLoginRequestRoleBOSS    PasswordLoginRequestRole = "BOSS"
-	PasswordLoginRequestRoleMANAGER PasswordLoginRequestRole = "MANAGER"
-	PasswordLoginRequestRoleSALES   PasswordLoginRequestRole = "SALES"
+	ADMIN   PasswordLoginRequestRole = "ADMIN"
+	BOSS    PasswordLoginRequestRole = "BOSS"
+	CS      PasswordLoginRequestRole = "CS"
+	MANAGER PasswordLoginRequestRole = "MANAGER"
 )
 
 // Defines values for SalesQrCodePlatform.
@@ -77,7 +75,7 @@ type MiniLoginRequest struct {
 	PhoneProof *PhoneProof              `json:"phoneProof,omitempty"`
 	Platform   MiniLoginRequestPlatform `json:"platform"`
 
-	// Role Optional current role; required when multiple roles. ADMIN is not allowed.
+	// Role Optional current role; required when multiple roles. Only CUSTOMER or SALES is allowed.
 	Role *MiniLoginRequestRole `json:"role,omitempty"`
 
 	// Scene Optional: QR scene parameter for sales binding (only applied on first bind)
@@ -87,7 +85,7 @@ type MiniLoginRequest struct {
 // MiniLoginRequestPlatform defines model for MiniLoginRequest.Platform.
 type MiniLoginRequestPlatform string
 
-// MiniLoginRequestRole Optional current role; required when multiple roles. ADMIN is not allowed.
+// MiniLoginRequestRole Optional current role; required when multiple roles. Only CUSTOMER or SALES is allowed.
 type MiniLoginRequestRole string
 
 // PasswordLoginRequest defines model for PasswordLoginRequest.

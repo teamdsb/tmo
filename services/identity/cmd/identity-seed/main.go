@@ -19,6 +19,8 @@ const (
 	bossPassword    = "boss123"
 	managerUsername = "manager"
 	managerPassword = "manager123"
+	csUsername      = "cs"
+	csPassword      = "cs123"
 	salesUsername   = "sales"
 	salesPassword   = "sales123"
 	adminUsername   = "admin"
@@ -71,6 +73,7 @@ RESTART IDENTITY CASCADE
 	adminID := uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 	bossID := uuid.MustParse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
 	managerID := uuid.MustParse("ffffffff-ffff-ffff-ffff-ffffffffffff")
+	csID := uuid.MustParse("99999999-9999-9999-9999-999999999999")
 	salesID := uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
 	multiID := uuid.MustParse("cccccccc-cccc-cccc-cccc-cccccccccccc")
 	customerID := uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
@@ -96,6 +99,14 @@ RESTART IDENTITY CASCADE
 		DisplayName: "Manager",
 		UserType:    "staff",
 		Phone:       strPtr("+15550000006"),
+	}); err != nil {
+		return err
+	}
+	if err := ensureUser(ctx, pool, seedUser{
+		ID:          csID,
+		DisplayName: "CS Dev",
+		UserType:    "staff",
+		Phone:       strPtr("+15550000007"),
 	}); err != nil {
 		return err
 	}
@@ -130,6 +141,7 @@ RESTART IDENTITY CASCADE
 		{UserID: adminID, Roles: []string{"ADMIN"}},
 		{UserID: bossID, Roles: []string{"BOSS"}},
 		{UserID: managerID, Roles: []string{"MANAGER"}},
+		{UserID: csID, Roles: []string{"CS"}},
 		{UserID: salesID, Roles: []string{"SALES"}},
 		{UserID: customerID, Roles: []string{"CUSTOMER"}},
 		{UserID: multiID, Roles: []string{"CUSTOMER", "SALES"}},
@@ -171,7 +183,7 @@ RESTART IDENTITY CASCADE
 	}
 	if err := ensureStaffPhoneWhitelist(ctx, pool, seedStaffPhoneWhitelist{
 		Phone: "+15550000004",
-		Roles: []string{"SALES", "PROCUREMENT"},
+		Roles: []string{"SALES", "CS"},
 		Note:  "multi-role fixture",
 	}); err != nil {
 		return err
@@ -198,6 +210,13 @@ RESTART IDENTITY CASCADE
 	if err := ensurePassword(ctx, pool, managerID, managerUsername, string(managerPasswordHash)); err != nil {
 		return err
 	}
+	csPasswordHash, err := bcrypt.GenerateFromPassword([]byte(csPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash cs password: %w", err)
+	}
+	if err := ensurePassword(ctx, pool, csID, csUsername, string(csPasswordHash)); err != nil {
+		return err
+	}
 	salesPasswordHash, err := bcrypt.GenerateFromPassword([]byte(salesPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return fmt.Errorf("hash sales password: %w", err)
@@ -211,8 +230,10 @@ RESTART IDENTITY CASCADE
 	fmt.Printf("- %s / %s (role: ADMIN)\n", adminUsername, adminPassword)
 	fmt.Printf("- %s / %s (role: BOSS)\n", bossUsername, bossPassword)
 	fmt.Printf("- %s / %s (role: MANAGER)\n", managerUsername, managerPassword)
-	fmt.Printf("- %s / %s (role: SALES)\n", salesUsername, salesPassword)
-	fmt.Println("seeded phones: +15550000001(admin), +15550000002(sales), +15550000003(customer), +15550000004(multi-role), +15550000005(boss), +15550000006(manager)")
+	fmt.Printf("- %s / %s (role: CS)\n", csUsername, csPassword)
+	fmt.Println("miniapp account:")
+	fmt.Printf("- %s / %s (role: SALES, password login disabled)\n", salesUsername, salesPassword)
+	fmt.Println("seeded phones: +15550000001(admin), +15550000002(sales), +15550000003(customer), +15550000004(multi-role), +15550000005(boss), +15550000006(manager), +15550000007(cs)")
 	return nil
 }
 

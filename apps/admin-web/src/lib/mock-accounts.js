@@ -41,15 +41,15 @@ const managerPermissionItems = [
   { code: 'shipment:manage', scope: 'ALL' }
 ];
 
-const salesPermissionItems = [
-  { code: 'catalog:read', scope: 'OWNED' },
-  { code: 'order:read', scope: 'OWNED' },
-  { code: 'tracking:read', scope: 'OWNED' },
-  { code: 'inquiry:read', scope: 'OWNED' },
-  { code: 'inquiry:manage', scope: 'OWNED' },
-  { code: 'product_request:read', scope: 'OWNED' },
-  { code: 'after_sales:manage', scope: 'OWNED' },
-  { code: 'customer:read', scope: 'OWNED' }
+const csPermissionItems = [
+  { code: 'after_sales:manage', scope: 'ALL' },
+  { code: 'inquiry:read', scope: 'ALL' },
+  { code: 'inquiry:manage', scope: 'ALL' },
+  { code: 'order:read', scope: 'ALL' },
+  { code: 'tracking:read', scope: 'ALL' },
+  { code: 'product_request:read', scope: 'ALL' },
+  { code: 'import:shipment', scope: 'ALL' },
+  { code: 'shipment:manage', scope: 'ALL' }
 ];
 
 const makePermissions = (items) => {
@@ -92,13 +92,13 @@ const mockAccounts = [
     permissions: makePermissions(managerPermissionItems)
   },
   {
-    userId: 'mock-sales-0001',
-    username: 'sales',
-    password: 'sales123',
-    displayName: 'Sales',
-    role: 'SALES',
+    userId: 'mock-cs-0001',
+    username: 'cs',
+    password: 'cs123',
+    displayName: 'CS',
+    role: 'CS',
     userType: 'staff',
-    permissions: makePermissions(salesPermissionItems)
+    permissions: makePermissions(csPermissionItems)
   }
 ];
 

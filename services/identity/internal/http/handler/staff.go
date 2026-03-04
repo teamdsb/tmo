@@ -398,7 +398,7 @@ func staffFromModel(user db.User, roles []string) oapi.StaffUser {
 
 func isStaffRole(role string) bool {
 	switch strings.ToUpper(role) {
-	case "SALES", "PROCUREMENT", "CS", "MANAGER":
+	case "SALES", "CS", "MANAGER":
 		return true
 	default:
 		return false

@@ -295,10 +295,10 @@ type ServerInterface interface {
 	// List audit logs
 	// (GET /audit-logs)
 	GetAuditLogs(c *gin.Context, params GetAuditLogsParams)
-	// Mini program login (customer/staff, WeChat/Alipay)
+	// Mini program login (customer/sales, WeChat/Alipay)
 	// (POST /auth/mini/login)
 	PostAuthMiniLogin(c *gin.Context)
-	// Admin web password login
+	// Admin web password login (BOSS/MANAGER/ADMIN/CS)
 	// (POST /auth/password/login)
 	PostAuthPasswordLogin(c *gin.Context)
 	// List customers (scope by role)
