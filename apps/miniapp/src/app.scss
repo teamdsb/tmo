@@ -267,27 +267,27 @@
 }
 
 .text-xs {
-  font-size: calc(0.75rem + var(--font-size-step, 0px));
+  font-size: calc(12px + var(--font-size-step, 0px));
 }
 
 .text-sm {
-  font-size: calc(0.875rem + var(--font-size-step, 0px));
+  font-size: calc(14px + var(--font-size-step, 0px));
 }
 
 .text-base {
-  font-size: calc(1rem + var(--font-size-step, 0px));
+  font-size: calc(16px + var(--font-size-step, 0px));
 }
 
 .text-lg {
-  font-size: calc(1.125rem + var(--font-size-step, 0px));
+  font-size: calc(18px + var(--font-size-step, 0px));
 }
 
 .text-xl {
-  font-size: calc(1.25rem + var(--font-size-step, 0px));
+  font-size: calc(20px + var(--font-size-step, 0px));
 }
 
 .text-2xl {
-  font-size: calc(1.5rem + var(--font-size-step, 0px));
+  font-size: calc(24px + var(--font-size-step, 0px));
 }
 
 .page-grid {

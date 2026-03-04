@@ -233,10 +233,10 @@ export const ProductsPage = () => {
           <div className="flex gap-3">
             <button
               className="flex items-center gap-2 rounded-lg border border-slate-200 bg-surface-light px-5 py-2.5 font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 dark:border-slate-700 dark:bg-surface-dark dark:text-slate-200 dark:hover:bg-slate-800"
-              id="export-products-btn"
+              id="display-category-manage-btn"
             >
-              <span className="material-symbols-outlined text-xl">file_upload</span>
-              <span>导出</span>
+              <span className="material-symbols-outlined text-xl">view_cozy</span>
+              <span>展示类目管理</span>
             </button>
             <button
               className="flex items-center gap-2 rounded-lg border border-slate-200 bg-surface-light px-5 py-2.5 font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 dark:border-slate-700 dark:bg-surface-dark dark:text-slate-200 dark:hover:bg-slate-800"

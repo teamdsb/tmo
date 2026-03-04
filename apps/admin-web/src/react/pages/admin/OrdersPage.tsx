@@ -236,7 +236,7 @@ const TabLink = ({ tab }: TabLinkProps) => {
 
 export const OrdersPage = () => {
   return (
-    <>
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <AdminTopbar
         searchPlaceholder="搜索订单..."
         leftSlot={
@@ -249,7 +249,7 @@ export const OrdersPage = () => {
         }
       />
 
-      <main className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-8 px-6 py-8">
+      <main className="mx-auto flex h-full min-h-0 w-full max-w-[1400px] flex-1 flex-col gap-8 px-6 py-8">
         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <div className="space-y-2">
             <h1 className="text-3xl font-black tracking-tight text-text-main dark:text-text-main-dark md:text-4xl">订单履约</h1>
@@ -271,10 +271,10 @@ export const OrdersPage = () => {
           </nav>
         </div>
 
-        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-3">
-          <div className="flex flex-col gap-4 lg:col-span-2">
-            <div className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
-              <div className="overflow-x-auto">
+        <div className="grid min-h-0 flex-1 grid-cols-1 items-stretch gap-8 lg:grid-cols-3">
+          <div className="flex min-h-0 flex-col gap-4 lg:col-span-2">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
+              <div className="flex-1 overflow-x-auto">
                 <table className="w-full whitespace-nowrap text-left text-sm">
                   <thead className="border-b border-border-light bg-background-light dark:border-border-dark dark:bg-background-dark">
                     <tr>
@@ -330,7 +330,7 @@ export const OrdersPage = () => {
             </div>
           </div>
 
-          <div className="flex flex-col gap-6 lg:col-span-1">
+          <div className="flex min-h-0 flex-col gap-6 lg:col-span-1">
             <div className="rounded-xl border border-border-light bg-surface-light p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark">
               <div className="mb-6 flex items-center justify-between">
                 <h3 className="text-lg font-bold text-text-main dark:text-text-main-dark">物流详情</h3>
@@ -453,6 +453,6 @@ export const OrdersPage = () => {
           </div>
         </div>
       </main>
-    </>
+    </div>
   );
 };

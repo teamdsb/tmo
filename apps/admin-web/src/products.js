@@ -16,6 +16,7 @@ const state = {
   total: 0,
   allProducts: [],
   categories: [],
+  displayCategories: [],
   categoryIdByLabel: {},
   productsById: {},
   filters: {
@@ -36,6 +37,7 @@ const state = {
 const CATEGORY_EMPTY_LABEL = '无';
 const NO_CATEGORY_FILTER = '__NO_CATEGORY__';
 const CATEGORY_STORAGE_KEY = 'admin-web-products-categories';
+const DISPLAY_CATEGORY_STORAGE_KEY = 'admin-web-miniapp-display-categories';
 const STATUS_FILTER_ITEMS = [
   { value: '', label: '状态：全部' },
   { value: 'ACTIVE', label: '状态：启用' },
@@ -48,6 +50,22 @@ const DEFAULT_CATEGORIES = [
   { id: 'accessories', name: '配件', sort: 30, parentId: null },
   { id: 'home-decor', name: '家居装饰', sort: 40, parentId: null },
   { id: 'footwear', name: '鞋履', sort: 50, parentId: null }
+];
+
+const DISPLAY_CATEGORY_ICON_ITEMS = [
+  { value: 'setting', label: '紧固/工业', symbol: 'settings' },
+  { value: 'desktop', label: '电气/电子', symbol: 'desktop_windows' },
+  { value: 'shield', label: '安全防护', symbol: 'shield' },
+  { value: 'notes', label: '办公/文具', symbol: 'description' },
+  { value: 'brush', label: '清洁保洁', symbol: 'cleaning_services' },
+  { value: 'hot', label: '茶歇/休闲', symbol: 'local_fire_department' },
+  { value: 'apps', label: '通用图标', symbol: 'apps' }
+];
+
+const DEFAULT_DISPLAY_CATEGORIES = [
+  { id: 'cat-fasteners', name: '紧固件', iconKey: 'setting', sort: 1, enabled: true },
+  { id: 'cat-electrical', name: '电气', iconKey: 'desktop', sort: 2, enabled: true },
+  { id: 'cat-ppe', name: '安全防护', iconKey: 'shield', sort: 3, enabled: true }
 ];
 
 const CATEGORY_BADGE_CLASS = {
@@ -344,6 +362,117 @@ const sortCategories = (items) => {
     }
     return left.name.localeCompare(right.name, 'zh-CN');
   });
+};
+
+const getDisplayIconOption = (iconKey) => {
+  const key = safeText(iconKey, '').trim().toLowerCase();
+  return DISPLAY_CATEGORY_ICON_ITEMS.find((item) => item.value === key) || null;
+};
+
+const inferDisplayCategoryIconKey = (name, fallback = 'apps') => {
+  const text = safeText(name, '').toLowerCase();
+  if (!text) {
+    return fallback;
+  }
+  if (/紧固|五金|工业|工具|fasten|bolt|hardware/.test(text)) {
+    return 'setting';
+  }
+  if (/电|电子|electronics?|cable/.test(text)) {
+    return 'desktop';
+  }
+  if (/安防|防护|安全|ppe|safety/.test(text)) {
+    return 'shield';
+  }
+  if (/办公|文具|office/.test(text)) {
+    return 'notes';
+  }
+  if (/清洁|保洁|janitorial/.test(text)) {
+    return 'brush';
+  }
+  if (/茶|休闲|食品|餐|breakroom|food/.test(text)) {
+    return 'hot';
+  }
+  return fallback;
+};
+
+const normalizeDisplayCategoryItem = (item, index = 0) => {
+  const id = safeText(item?.id, '').trim();
+  const name = safeText(item?.name, '').trim();
+  if (!id || !name) {
+    return null;
+  }
+  const iconKeyCandidate = safeText(item?.iconKey, '').trim().toLowerCase();
+  const iconKey = getDisplayIconOption(iconKeyCandidate)?.value || inferDisplayCategoryIconKey(name, 'apps');
+  return {
+    id,
+    name,
+    iconKey,
+    sort: toNumber(item?.sort, index + 1),
+    enabled: item?.enabled !== false
+  };
+};
+
+const sortDisplayCategories = (items) => {
+  return [...items].sort((left, right) => {
+    const sortDiff = left.sort - right.sort;
+    if (sortDiff !== 0) {
+      return sortDiff;
+    }
+    return left.name.localeCompare(right.name, 'zh-CN');
+  });
+};
+
+const saveDisplayCategoriesToStorage = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  window.localStorage.setItem(DISPLAY_CATEGORY_STORAGE_KEY, JSON.stringify(state.displayCategories));
+};
+
+const readDisplayCategoriesFromStorage = () => {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+  const raw = window.localStorage.getItem(DISPLAY_CATEGORY_STORAGE_KEY);
+  if (!raw) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.map((item, index) => normalizeDisplayCategoryItem(item, index)).filter(Boolean);
+  } catch {
+    return [];
+  }
+};
+
+const setDisplayCategories = (items, options = {}) => {
+  const normalized = items.map((item, index) => normalizeDisplayCategoryItem(item, index)).filter(Boolean);
+  state.displayCategories = sortDisplayCategories(normalized);
+  if (options.persist !== false) {
+    saveDisplayCategoriesToStorage();
+  }
+};
+
+const resolveDisplayCategoryIconSymbol = (iconKey) => {
+  return getDisplayIconOption(iconKey)?.symbol || 'apps';
+};
+
+const buildDisplayCategoryIconOptions = (selectedIconKey = '') => {
+  const selectedKey = safeText(selectedIconKey, '').trim().toLowerCase();
+  return DISPLAY_CATEGORY_ICON_ITEMS.map((item) => {
+    return `<option value="${escape(item.value)}"${item.value === selectedKey ? ' selected' : ''}>${escape(item.label)}</option>`;
+  }).join('');
+};
+
+const getDisplayCategoryById = (displayCategoryId) => {
+  const id = safeText(displayCategoryId, '').trim();
+  if (!id) {
+    return null;
+  }
+  return state.displayCategories.find((item) => item.id === id) || null;
 };
 
 const getCategoryById = (categoryId) => {
@@ -2136,6 +2265,312 @@ const shouldUseLocalCategoryStore = () => {
   return state.context?.mode !== 'dev';
 };
 
+const loadDisplayCategories = () => {
+  const stored = readDisplayCategoriesFromStorage();
+  if (stored.length > 0) {
+    setDisplayCategories(stored, { persist: false });
+    return;
+  }
+  setDisplayCategories(DEFAULT_DISPLAY_CATEGORIES, { persist: true });
+};
+
+const closeDisplayCategoryManagerModal = () => {
+  const modal = document.querySelector('#display-category-manager-modal');
+  if (!(modal instanceof HTMLElement)) {
+    return;
+  }
+  modal.classList.add('hidden');
+  document.body.classList.remove('overflow-hidden');
+};
+
+const renderDisplayCategoryPreview = (modal) => {
+  const preview = modal.querySelector('[data-role="display-category-preview"]');
+  if (!(preview instanceof HTMLElement)) {
+    return;
+  }
+
+  const enabledItems = state.displayCategories.filter((item) => item.enabled);
+  if (enabledItems.length === 0) {
+    preview.innerHTML =
+      '<div class="col-span-full rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-6 text-center text-sm text-slate-500">暂无启用中的展示类目。</div>';
+    return;
+  }
+
+  preview.innerHTML = enabledItems
+    .map((item) => {
+      return `
+        <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+          <div class="mb-2 inline-flex size-9 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+            <span class="material-symbols-outlined text-base">${escape(resolveDisplayCategoryIconSymbol(item.iconKey))}</span>
+          </div>
+          <p class="line-clamp-1 text-sm font-semibold text-slate-900">${escape(item.name)}</p>
+          <p class="mt-1 text-xs text-slate-500">排序：${escape(item.sort)}</p>
+        </div>
+      `;
+    })
+    .join('');
+};
+
+const renderDisplayCategoryManagerBody = (modal) => {
+  const body = modal.querySelector('[data-role="display-category-list-body"]');
+  if (!(body instanceof HTMLElement)) {
+    return;
+  }
+
+  if (state.displayCategories.length === 0) {
+    body.innerHTML =
+      '<tr><td colspan="5" class="px-4 py-8 text-center text-sm text-slate-500">当前没有展示类目，请先新增。</td></tr>';
+    renderDisplayCategoryPreview(modal);
+    return;
+  }
+
+  body.innerHTML = state.displayCategories
+    .map((item) => {
+      return `
+        <tr class="border-b border-slate-100 last:border-0" data-display-category-id="${escape(item.id)}">
+          <td class="px-4 py-3">
+            <input data-role="display-category-name" type="text" class="w-full rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary" value="${escape(item.name)}" />
+          </td>
+          <td class="px-4 py-3">
+            <select data-role="display-category-icon" class="w-full rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary">
+              ${buildDisplayCategoryIconOptions(item.iconKey)}
+            </select>
+          </td>
+          <td class="px-4 py-3">
+            <input data-role="display-category-sort" type="number" class="w-24 rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary" value="${escape(item.sort)}" />
+          </td>
+          <td class="px-4 py-3">
+            <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+              <input data-role="display-category-enabled" type="checkbox" class="rounded border-slate-300 text-primary focus:ring-primary" ${
+                item.enabled ? 'checked' : ''
+              } />
+              <span>${item.enabled ? '启用中' : '已停用'}</span>
+            </label>
+          </td>
+          <td class="px-4 py-3">
+            <div class="flex justify-end gap-2">
+              <button type="button" data-role="save-display-category" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">保存</button>
+              <button type="button" data-role="delete-display-category" class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">删除</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  renderDisplayCategoryPreview(modal);
+};
+
+const ensureDisplayCategoryManagerModal = () => {
+  const existed = document.querySelector('#display-category-manager-modal');
+  if (existed instanceof HTMLElement) {
+    return existed;
+  }
+
+  const modal = document.createElement('div');
+  modal.id = 'display-category-manager-modal';
+  modal.className = 'fixed inset-0 z-[93] hidden flex items-center justify-center bg-slate-900/50 p-4';
+  modal.innerHTML = `
+    <div class="w-full max-w-5xl rounded-xl bg-white shadow-xl">
+      <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+        <div>
+          <h3 class="text-lg font-bold text-slate-900">展示类目管理</h3>
+          <p class="text-xs text-slate-500">管理小程序首页/分类页的展示类目（当前为本地 Mock 存储）。</p>
+        </div>
+        <button type="button" data-role="close-display-category-manager" class="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="space-y-5 px-6 py-5">
+        <form class="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-[2fr_1fr_110px_110px_auto]" data-role="create-display-category-form">
+          <input name="name" type="text" required class="rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary" placeholder="新增展示类目名称" />
+          <select name="iconKey" class="rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary">
+            ${buildDisplayCategoryIconOptions('apps')}
+          </select>
+          <input name="sort" type="number" class="rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary" placeholder="排序" value="100" />
+          <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+            <input name="enabled" type="checkbox" class="rounded border-slate-300 text-primary focus:ring-primary" checked />
+            <span>启用</span>
+          </label>
+          <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark">新增类目</button>
+        </form>
+        <div class="space-y-2">
+          <h4 class="text-sm font-semibold text-slate-700">小程序展示预览（仅展示启用项）</h4>
+          <div data-role="display-category-preview" class="grid grid-cols-2 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-4"></div>
+        </div>
+        <div class="overflow-hidden rounded-xl border border-slate-200">
+          <table class="w-full border-collapse text-left">
+            <thead class="bg-slate-50">
+              <tr class="text-xs font-bold tracking-wider text-slate-500 uppercase">
+                <th class="px-4 py-3">类目名称</th>
+                <th class="px-4 py-3">图标</th>
+                <th class="px-4 py-3">排序</th>
+                <th class="px-4 py-3">状态</th>
+                <th class="px-4 py-3 text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody data-role="display-category-list-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  modal.querySelector('[data-role="close-display-category-manager"]')?.addEventListener('click', () => closeDisplayCategoryManagerModal());
+  modal.addEventListener('click', (event) => {
+    if (event.target === modal) {
+      closeDisplayCategoryManagerModal();
+    }
+  });
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !modal.classList.contains('hidden')) {
+      closeDisplayCategoryManagerModal();
+    }
+  });
+
+  const createForm = modal.querySelector('[data-role="create-display-category-form"]');
+  if (createForm instanceof HTMLFormElement) {
+    createForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const formData = new FormData(createForm);
+      const name = safeText(formData.get('name'), '').trim();
+      if (!name) {
+        showToast('展示类目名称不能为空。', 'error');
+        return;
+      }
+      const sort = toNumber(formData.get('sort'), state.displayCategories.length + 1);
+      const enabled = formData.get('enabled') !== null;
+      const requestedIconKey = safeText(formData.get('iconKey'), '').trim().toLowerCase();
+      const iconKey = getDisplayIconOption(requestedIconKey)?.value || inferDisplayCategoryIconKey(name, 'apps');
+      const nextItem = normalizeDisplayCategoryItem(
+        {
+          id: `display-cat-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          name,
+          iconKey,
+          sort,
+          enabled
+        },
+        state.displayCategories.length
+      );
+      if (!nextItem) {
+        showToast('新增展示类目失败，请稍后重试。', 'error');
+        return;
+      }
+      setDisplayCategories([...state.displayCategories, nextItem], { persist: true });
+      renderDisplayCategoryManagerBody(modal);
+      createForm.reset();
+      const iconSelect = createForm.elements.namedItem('iconKey');
+      if (iconSelect instanceof HTMLSelectElement) {
+        iconSelect.value = 'apps';
+      }
+      const enabledInput = createForm.elements.namedItem('enabled');
+      if (enabledInput instanceof HTMLInputElement) {
+        enabledInput.checked = true;
+      }
+      showToast('展示类目已新增。');
+    });
+  }
+
+  const listBody = modal.querySelector('[data-role="display-category-list-body"]');
+  listBody?.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+    const actionButton = target.closest('[data-role="save-display-category"], [data-role="delete-display-category"]');
+    if (!(actionButton instanceof HTMLButtonElement)) {
+      return;
+    }
+    const row = actionButton.closest('tr');
+    if (!(row instanceof HTMLTableRowElement)) {
+      return;
+    }
+    const categoryId = safeText(row.dataset.displayCategoryId, '');
+    if (!categoryId) {
+      return;
+    }
+
+    if (actionButton.dataset.role === 'delete-display-category') {
+      const current = getDisplayCategoryById(categoryId);
+      const categoryName = safeText(current?.name, '当前展示类目');
+      if (!window.confirm(`确定删除展示类目“${categoryName}”吗？`)) {
+        return;
+      }
+      const nextItems = state.displayCategories.filter((item) => item.id !== categoryId);
+      setDisplayCategories(nextItems, { persist: true });
+      renderDisplayCategoryManagerBody(modal);
+      showToast('展示类目已删除。');
+      return;
+    }
+
+    const nameInput = row.querySelector('[data-role="display-category-name"]');
+    const iconSelect = row.querySelector('[data-role="display-category-icon"]');
+    const sortInput = row.querySelector('[data-role="display-category-sort"]');
+    const enabledInput = row.querySelector('[data-role="display-category-enabled"]');
+
+    const name = safeText(nameInput?.value, '').trim();
+    if (!name) {
+      showToast('展示类目名称不能为空。', 'error');
+      return;
+    }
+    const sort = toNumber(sortInput?.value, 100);
+    const iconCandidate = safeText(iconSelect?.value, '').trim().toLowerCase();
+    const iconKey = getDisplayIconOption(iconCandidate)?.value || inferDisplayCategoryIconKey(name, 'apps');
+    const enabled = enabledInput instanceof HTMLInputElement ? enabledInput.checked : true;
+    const current = getDisplayCategoryById(categoryId);
+    const currentIndex = state.displayCategories.findIndex((item) => item.id === categoryId);
+    const updated = normalizeDisplayCategoryItem(
+      {
+        id: categoryId,
+        name,
+        iconKey,
+        sort,
+        enabled
+      },
+      currentIndex < 0 ? 0 : currentIndex
+    );
+    if (!updated) {
+      showToast('保存展示类目失败，请稍后重试。', 'error');
+      return;
+    }
+    const nextItems = state.displayCategories.map((item) => {
+      if (item.id !== categoryId) {
+        return item;
+      }
+      return {
+        ...item,
+        ...updated,
+        id: safeText(current?.id, categoryId)
+      };
+    });
+    setDisplayCategories(nextItems, { persist: true });
+    renderDisplayCategoryManagerBody(modal);
+    showToast('展示类目已更新。');
+  });
+
+  renderDisplayCategoryManagerBody(modal);
+  return modal;
+};
+
+const openDisplayCategoryManagerModal = () => {
+  const modal = ensureDisplayCategoryManagerModal();
+  renderDisplayCategoryManagerBody(modal);
+  modal.classList.remove('hidden');
+  document.body.classList.add('overflow-hidden');
+};
+
+const bindDisplayCategoryManageAction = () => {
+  const manageButton = document.querySelector('#display-category-manage-btn') || document.querySelector('#export-products-btn');
+  if (!(manageButton instanceof HTMLButtonElement)) {
+    return;
+  }
+  ensureDisplayCategoryManagerModal();
+  manageButton.addEventListener('click', () => {
+    openDisplayCategoryManagerModal();
+  });
+};
+
 const closeCategoryManagerModal = () => {
   const modal = document.querySelector('#category-manager-modal');
   if (!(modal instanceof HTMLElement)) {
@@ -2465,6 +2900,7 @@ const initProducts = async () => {
   }
   state.context = context;
   await loadCategories();
+  loadDisplayCategories();
   state.total = 0;
   hydrateStaticRows();
   bindProductRowActions();
@@ -2472,6 +2908,7 @@ const initProducts = async () => {
   bindPaginationActions();
   ensureEditDrawer();
   bindCreateProductAction();
+  bindDisplayCategoryManageAction();
   bindCategoryManageAction();
   syncCategorySelectOptions();
   syncSelectAllProductsState();
