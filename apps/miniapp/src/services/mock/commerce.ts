@@ -14,7 +14,7 @@ import {
   type Category,
   type ImportJob,
   type Order,
-  type PriceTier,
+  type OrderStatsResponse,
   type PriceInquiry,
   type ProductDetail,
   type ProductRequest,
@@ -22,6 +22,7 @@ import {
   type ProductSummary,
   type Sku,
   type TrackingInfo,
+  type UserAddress,
   type WishlistItem
 } from '@tmo/api-client'
 import type { ChooseFile } from '@tmo/platform-adapter'
@@ -63,34 +64,11 @@ const inferSpuIdFromSkuId = (skuId: string): string => {
   return `spu-${skuId}`
 }
 
-const clonePriceTier = (tier: PriceTier): PriceTier => ({
-  minQty: tier.minQty,
-  maxQty: tier.maxQty ?? null,
-  unitPriceFen: tier.unitPriceFen
-})
-
-const applySkuPriceTierOverride = (
-  sku: Sku,
-  skuPriceTiersBySkuId?: Record<string, PriceTier[]>
-): Sku => {
-  const tiers = skuPriceTiersBySkuId?.[sku.id]
-  if (!tiers || tiers.length === 0) {
-    return sku
-  }
-  return {
-    ...sku,
-    priceTiers: tiers.map(clonePriceTier)
-  }
-}
-
-const getMockSkuById = (
-  skuId: string,
-  skuPriceTiersBySkuId?: Record<string, PriceTier[]>
-): Sku => {
+const getMockSkuById = (skuId: string): Sku => {
   for (const detail of Object.values(mockProductDetails)) {
     const found = detail.skus.find((sku) => sku.id === skuId)
     if (found) {
-      return applySkuPriceTierOverride(found, skuPriceTiersBySkuId)
+      return found
     }
   }
 
@@ -98,10 +76,10 @@ const getMockSkuById = (
   const guessedDetail = buildMockProductDetail(guessedSpuId)
   const guessedSku = guessedDetail?.skus.find((sku) => sku.id === skuId)
   if (guessedSku) {
-    return applySkuPriceTierOverride(guessedSku, skuPriceTiersBySkuId)
+    return guessedSku
   }
 
-  return applySkuPriceTierOverride({
+  return {
     id: skuId,
     spuId: guessedSpuId,
     name: `示例规格 ${skuId.slice(0, 8)}`,
@@ -110,7 +88,7 @@ const getMockSkuById = (
       { minQty: 1, maxQty: null, unitPriceFen: 9800 }
     ],
     isActive: true
-  }, skuPriceTiersBySkuId)
+  }
 }
 
 const toMockCartItemId = (skuId: string): string => `${mockCartItemIdPrefix}${skuId}`
@@ -124,7 +102,7 @@ const toSkuIdFromCartItemId = (itemId: string): string => {
 
 const toMockWishlist = (state: IsolatedMockState): WishlistItem[] => {
   return state.wishlistSkuIds.map((skuId) => ({
-    sku: getMockSkuById(skuId, state.skuPriceTiersBySkuId),
+    sku: getMockSkuById(skuId),
     createdAt: state.updatedAt
   }))
 }
@@ -133,65 +111,10 @@ const toMockCart = (state: IsolatedMockState): Cart => {
   return {
     items: state.cartEntries.map((entry) => ({
       id: toMockCartItemId(entry.skuId),
-      sku: getMockSkuById(entry.skuId, state.skuPriceTiersBySkuId),
+      sku: getMockSkuById(entry.skuId),
       qty: normalizeQty(entry.qty)
     })),
     updatedAt: state.updatedAt
-  }
-}
-
-const buildSkuPriceTiersBySkuId = (skus: Sku[]): Record<string, PriceTier[]> => {
-  const result: Record<string, PriceTier[]> = {}
-  skus.forEach((sku) => {
-    if (!sku.priceTiers || sku.priceTiers.length === 0) {
-      return
-    }
-    result[sku.id] = sku.priceTiers.map(clonePriceTier)
-  })
-  return result
-}
-
-const applyProductDetailPriceTierOverrides = (
-  detail: ProductDetail,
-  skuPriceTiersBySkuId: Record<string, PriceTier[]>
-): ProductDetail => {
-  if (!detail.skus.length) {
-    return detail
-  }
-  return {
-    ...detail,
-    skus: detail.skus.map((sku) => applySkuPriceTierOverride(sku, skuPriceTiersBySkuId))
-  }
-}
-
-const ensureStateIncludesSkuPriceTiers = (
-  state: IsolatedMockState,
-  detail: ProductDetail
-): IsolatedMockState => {
-  const incomingMap = buildSkuPriceTiersBySkuId(detail.skus)
-  const incomingEntries = Object.entries(incomingMap)
-  if (incomingEntries.length === 0) {
-    return state
-  }
-
-  const nextMap = { ...state.skuPriceTiersBySkuId }
-  let changed = false
-
-  incomingEntries.forEach(([skuId, tiers]) => {
-    if (nextMap[skuId]) {
-      return
-    }
-    nextMap[skuId] = tiers.map(clonePriceTier)
-    changed = true
-  })
-
-  if (!changed) {
-    return state
-  }
-
-  return {
-    ...state,
-    skuPriceTiersBySkuId: nextMap
   }
 }
 
@@ -278,6 +201,19 @@ const getFileNameFromPath = (filePath: string): string => {
   return segments[segments.length - 1]
 }
 
+const buildOrderStats = (orders: Order[]): OrderStatsResponse => {
+  const countByStatus = new Map<string, number>()
+  for (const order of orders) {
+    countByStatus.set(order.status, (countByStatus.get(order.status) ?? 0) + 1)
+  }
+  return {
+    items: Array.from(countByStatus.entries()).map(([status, count]) => ({
+      status: status as Order['status'],
+      count
+    }))
+  }
+}
+
 export const createMockCommerceServices = (): CommerceServices => {
   const tokens = createIsolatedTokenStore(runtimeEnv.commerceDevToken)
 
@@ -311,7 +247,7 @@ export const createMockCommerceServices = (): CommerceServices => {
     },
     createProduct: async (payload) => {
       const detail = buildFallbackProductDetail(`mock-product-${Date.now().toString(36)}`)
-      const updatedDetail = {
+      return {
         ...detail,
         product: {
           ...detail.product,
@@ -322,19 +258,10 @@ export const createMockCommerceServices = (): CommerceServices => {
           filterDimensions: payload.filterDimensions ?? detail.product.filterDimensions
         }
       }
-      const state = await loadIsolatedMockState()
-      const result = applyProductDetailPriceTierOverrides(updatedDetail, state.skuPriceTiersBySkuId)
-      const nextState = ensureStateIncludesSkuPriceTiers(state, result)
-      if (nextState !== state) {
-        await updateIsolatedMockState((current) => ensureStateIncludesSkuPriceTiers(current, result))
-      }
-      return result
     },
     updateProduct: async (spuId, payload) => {
-      const baseDetail = buildFallbackProductDetail(spuId)
-      const state = await loadIsolatedMockState()
-      const detail = applyProductDetailPriceTierOverrides(baseDetail, state.skuPriceTiersBySkuId)
-      const result = {
+      const detail = buildFallbackProductDetail(spuId)
+      return {
         ...detail,
         product: {
           ...detail.product,
@@ -345,25 +272,9 @@ export const createMockCommerceServices = (): CommerceServices => {
           filterDimensions: payload.filterDimensions ?? detail.product.filterDimensions
         }
       }
-      const nextState = ensureStateIncludesSkuPriceTiers(state, result)
-      if (nextState !== state) {
-        await updateIsolatedMockState((current) => ensureStateIncludesSkuPriceTiers(current, result))
-      }
-      return result
     },
     deleteProduct: async () => {},
-    getProductDetail: async (spuId) => {
-      const state = await loadIsolatedMockState()
-      const detail = applyProductDetailPriceTierOverrides(
-        buildFallbackProductDetail(spuId),
-        state.skuPriceTiersBySkuId
-      )
-      const nextState = ensureStateIncludesSkuPriceTiers(state, detail)
-      if (nextState !== state) {
-        await updateIsolatedMockState((current) => ensureStateIncludesSkuPriceTiers(current, detail))
-      }
-      return detail
-    }
+    getProductDetail: async (spuId) => buildFallbackProductDetail(spuId)
   }
 
   const wishlist: CommerceServices['wishlist'] = {
@@ -481,14 +392,13 @@ export const createMockCommerceServices = (): CommerceServices => {
 
   const orders: CommerceServices['orders'] = {
     submit: async (request) => {
-      const currentState = await loadIsolatedMockState()
       const createdAt = nowIso()
       const order: Order = {
         id: `mock-order-${Date.now().toString(36)}`,
         status: OrderStatus.SUBMITTED,
         address: request.address,
         items: request.items.map((item) => {
-          const sku = getMockSkuById(item.skuId, currentState.skuPriceTiersBySkuId)
+          const sku = getMockSkuById(item.skuId)
           return {
             sku,
             qty: normalizeQty(item.qty),
@@ -521,6 +431,10 @@ export const createMockCommerceServices = (): CommerceServices => {
         : state.orders
       return paginate(filtered, params?.page, params?.pageSize)
     },
+    stats: async () => {
+      const state = await loadIsolatedMockState()
+      return buildOrderStats(state.orders)
+    },
     get: async (orderId) => {
       const state = await loadIsolatedMockState()
       const order = state.orders.find((item) => item.id === orderId)
@@ -530,6 +444,102 @@ export const createMockCommerceServices = (): CommerceServices => {
       return order
     },
     resetIdempotency: () => {}
+  }
+
+  const addresses: CommerceServices['addresses'] = {
+    list: async () => {
+      const state = await loadIsolatedMockState()
+      return { items: state.addresses }
+    },
+    create: async (payload) => {
+      let created: UserAddress | null = null
+      await updateIsolatedMockState((state) => {
+        const timestamp = nowIso()
+        const shouldSetDefault = state.addresses.length === 0 || payload.isDefault === true
+        const existing = shouldSetDefault
+          ? state.addresses.map((item) => ({ ...item, isDefault: false, updatedAt: timestamp }))
+          : state.addresses
+
+        created = {
+          id: `mock-address-${Date.now().toString(36)}`,
+          receiverName: payload.receiverName,
+          receiverPhone: payload.receiverPhone,
+          detail: payload.detail,
+          isDefault: shouldSetDefault,
+          createdAt: timestamp,
+          updatedAt: timestamp
+        }
+
+        return {
+          ...state,
+          addresses: created ? [created, ...existing] : existing
+        }
+      })
+      if (!created) {
+        throw new Error('failed to create address')
+      }
+      return created
+    },
+    update: async (addressId, payload) => {
+      let updated: UserAddress | null = null
+      await updateIsolatedMockState((state) => {
+        const current = state.addresses.find((item) => item.id === addressId)
+        if (!current) {
+          return state
+        }
+        const timestamp = nowIso()
+        const shouldSetDefault = payload.isDefault === true
+        const nextAddresses = state.addresses.map((item) => {
+          if (item.id !== addressId) {
+            return shouldSetDefault ? { ...item, isDefault: false, updatedAt: timestamp } : item
+          }
+          updated = {
+            ...item,
+            receiverName: payload.receiverName ?? item.receiverName,
+            receiverPhone: payload.receiverPhone ?? item.receiverPhone,
+            detail: payload.detail ?? item.detail,
+            isDefault: shouldSetDefault ? true : item.isDefault,
+            updatedAt: timestamp
+          }
+          return updated
+        })
+        return {
+          ...state,
+          addresses: nextAddresses
+        }
+      })
+      if (!updated) {
+        throw new Error(`address not found: ${addressId}`)
+      }
+      return updated
+    },
+    remove: async (addressId) => {
+      let removed = false
+      await updateIsolatedMockState((state) => {
+        const target = state.addresses.find((item) => item.id === addressId)
+        if (!target) {
+          return state
+        }
+        removed = true
+        const nextAddresses = state.addresses.filter((item) => item.id !== addressId)
+        if (!target.isDefault || nextAddresses.length === 0) {
+          return {
+            ...state,
+            addresses: nextAddresses
+          }
+        }
+
+        const timestamp = nowIso()
+        const [first, ...rest] = nextAddresses
+        return {
+          ...state,
+          addresses: [{ ...first, isDefault: true, updatedAt: timestamp }, ...rest]
+        }
+      })
+      if (!removed) {
+        throw new Error(`address not found: ${addressId}`)
+      }
+    }
   }
 
   const tracking: CommerceServices['tracking'] = {
@@ -800,6 +810,7 @@ export const createMockCommerceServices = (): CommerceServices => {
     catalog,
     cart,
     orders,
+    addresses,
     tracking,
     wishlist,
     productRequests,

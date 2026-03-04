@@ -52,6 +52,12 @@ jobs:
       - name: Verify backend health
         run: bash tools/scripts/dev-stack-health.sh
 
+      - name: Miniapp preflight gate
+        run: pnpm -C apps/miniapp preflight:weapp
+
+      - name: Print preflight result
+        run: cat apps/miniapp/.logs/preflight/result.json
+
       - name: Verify gateway real-mode auth
         run: bash tools/scripts/gateway-verify-real.sh
 
@@ -78,3 +84,114 @@ jobs:
         with:
           name: backend-ci-logs
           path: infra/dev/backend-ci.log
+
+      - name: Upload miniapp quality artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: miniapp-quality-artifacts
+          path: |
+            apps/miniapp/.logs/preflight
+            apps/miniapp/.logs/weapp
+
+  preflight-fault-injection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+          check-latest: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start dev stack
+        run: bash tools/scripts/dev-stack-up.sh
+
+      - name: Inject DB fault and assert preflight fails
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p apps/miniapp/.logs/preflight
+          docker stop tmo-postgres >/dev/null
+
+          set +e
+          pnpm -C apps/miniapp preflight:weapp > apps/miniapp/.logs/preflight/fault-injection.log 2>&1
+          preflight_exit=$?
+          set -e
+
+          if [[ "$preflight_exit" -eq 0 ]]; then
+            echo "expected preflight to fail when postgres is stopped" >&2
+            cat apps/miniapp/.logs/preflight/fault-injection.log >&2
+            exit 1
+          fi
+
+          if ! grep -Eq 'failed to list categories|failed to list products|\[miniapp-http-smoke\].*failed:' apps/miniapp/.logs/preflight/fault-injection.log; then
+            echo "preflight failure log does not contain expected category/product failure signal" >&2
+            cat apps/miniapp/.logs/preflight/fault-injection.log >&2
+            exit 1
+          fi
+
+          if ! grep -q '\[dev-diagnose-db\] diagnosis:' apps/miniapp/.logs/preflight/fault-injection.log; then
+            echo "preflight failure log does not contain db diagnosis summary" >&2
+            cat apps/miniapp/.logs/preflight/fault-injection.log >&2
+            exit 1
+          fi
+
+          if [[ ! -f apps/miniapp/.logs/preflight/result.json ]]; then
+            echo "preflight did not write result.json" >&2
+            exit 1
+          fi
+
+          node -e '
+          const fs = require("node:fs")
+          const payload = JSON.parse(fs.readFileSync("apps/miniapp/.logs/preflight/result.json", "utf8"))
+          if (payload.status !== "fail") {
+            throw new Error(`unexpected preflight result status: ${payload.status}`)
+          }
+          if (!payload.diagnoseRan) {
+            throw new Error("diagnoseRan should be true in fault injection mode")
+          }
+          ' 
+
+      - name: Restore postgres and verify stack health
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker start tmo-postgres >/dev/null || true
+          bash tools/scripts/dev-stack-health.sh
+
+      - name: Dump backend logs on failure
+        if: failure()
+        run: |
+          docker compose --env-file infra/dev/backend.env.local \
+            -f infra/dev/docker-compose.yml \
+            -f infra/dev/docker-compose.backend.yml \
+            logs --no-color > infra/dev/backend-fault-injection.log
+
+      - name: Upload fault-injection artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: preflight-fault-injection-artifacts
+          path: |
+            apps/miniapp/.logs/preflight
+            infra/dev/backend-fault-injection.log

@@ -3,11 +3,11 @@ import type {
   AfterSalesTicket,
   InquiryMessage,
   Order,
-  PriceTier,
   PriceInquiry,
   ProductRequest,
   TrackingInfo,
-  User
+  User,
+  UserAddress
 } from '@tmo/api-client'
 import type { BootstrapResponse, PermissionList } from '@tmo/gateway-api-client'
 import { getStorage, removeStorage, setStorage } from '@tmo/platform-adapter'
@@ -22,13 +22,11 @@ const mockUser: User = Object.freeze({
   status: 'active',
   displayName: '测试账号',
   phone: null,
-  roles: [],
+  roles: ['TEST'],
   disabledAt: null,
   disabledReason: null,
   createdAt: '2026-01-01T00:00:00Z'
 })
-
-const defaultMockRoles = Object.freeze(['CUSTOMER'])
 
 const mockPermissions: PermissionList = Object.freeze({
   items: []
@@ -40,10 +38,9 @@ export type MockCartEntry = {
 }
 
 export type IsolatedMockState = {
-  mockRoles: string[]
   wishlistSkuIds: string[]
   cartEntries: MockCartEntry[]
-  skuPriceTiersBySkuId: Record<string, PriceTier[]>
+  addresses: UserAddress[]
   orders: Order[]
   trackingByOrderId: Record<string, TrackingInfo>
   productRequests: ProductRequest[]
@@ -106,14 +103,6 @@ const normalizeStringArray = (value: unknown): string[] => {
   return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
 }
 
-const normalizeRoleCodes = (value: unknown): string[] => {
-  const roles = normalizeStringArray(value).map((role) => role.trim().toUpperCase())
-  if (roles.length === 0) {
-    return [...defaultMockRoles]
-  }
-  return [...new Set(roles)]
-}
-
 const normalizeCartEntries = (value: unknown): MockCartEntry[] => {
   if (!Array.isArray(value)) {
     return []
@@ -128,60 +117,10 @@ const normalizeCartEntries = (value: unknown): MockCartEntry[] => {
     }))
 }
 
-const normalizePriceTier = (value: unknown): PriceTier | null => {
-  if (!isRecord(value)) {
-    return null
-  }
-  if (typeof value.minQty !== 'number' || !Number.isFinite(value.minQty)) {
-    return null
-  }
-  if (typeof value.unitPriceFen !== 'number' || !Number.isFinite(value.unitPriceFen)) {
-    return null
-  }
-  if (value.maxQty !== null && value.maxQty !== undefined && (typeof value.maxQty !== 'number' || !Number.isFinite(value.maxQty))) {
-    return null
-  }
-
-  const minQty = Math.max(1, Math.floor(value.minQty))
-  const unitPriceFen = Math.max(1, Math.floor(value.unitPriceFen))
-  const maxQty = value.maxQty === null || value.maxQty === undefined
-    ? null
-    : Math.max(minQty, Math.floor(value.maxQty))
-
-  return {
-    minQty,
-    maxQty,
-    unitPriceFen
-  }
-}
-
-const normalizeSkuPriceTiersBySkuId = (value: unknown): Record<string, PriceTier[]> => {
-  if (!isRecord(value)) {
-    return {}
-  }
-
-  const result: Record<string, PriceTier[]> = {}
-  Object.entries(value).forEach(([skuId, tiers]) => {
-    if (!skuId || !Array.isArray(tiers)) {
-      return
-    }
-    const normalizedTiers = tiers
-      .map((tier) => normalizePriceTier(tier))
-      .filter((tier): tier is PriceTier => tier !== null)
-
-    if (normalizedTiers.length > 0) {
-      result[skuId] = normalizedTiers
-    }
-  })
-
-  return result
-}
-
 const createDefaultState = (): IsolatedMockState => ({
-  mockRoles: [...defaultMockRoles],
   wishlistSkuIds: [],
   cartEntries: [],
-  skuPriceTiersBySkuId: {},
+  addresses: [],
   orders: [],
   trackingByOrderId: {},
   productRequests: [],
@@ -200,10 +139,9 @@ const normalizeState = (value: unknown): IsolatedMockState => {
   const state = value as Partial<IsolatedMockState>
   const fallback = createDefaultState()
   return {
-    mockRoles: normalizeRoleCodes(state.mockRoles),
     wishlistSkuIds: normalizeStringArray(state.wishlistSkuIds),
     cartEntries: normalizeCartEntries(state.cartEntries),
-    skuPriceTiersBySkuId: normalizeSkuPriceTiersBySkuId(state.skuPriceTiersBySkuId),
+    addresses: Array.isArray(state.addresses) ? state.addresses : [],
     orders: Array.isArray(state.orders) ? state.orders : [],
     trackingByOrderId: isRecord(state.trackingByOrderId)
       ? (state.trackingByOrderId as Record<string, TrackingInfo>)
@@ -241,9 +179,9 @@ const readTokenFromStorage = async (storageKey: string): Promise<string | null> 
 
 export const nowIso = (): string => new Date().toISOString()
 
-export const getMockUser = (roles: string[] = [...defaultMockRoles]): User => ({
+export const getMockUser = (): User => ({
   ...mockUser,
-  roles: normalizeRoleCodes(roles)
+  roles: [...mockUser.roles]
 })
 
 export const getMockPermissions = (): PermissionList => ({
@@ -298,40 +236,6 @@ export const createIsolatedTokenStore = (devToken?: string) => {
 export const buildIsolatedMockBootstrap = (token: string | null): BootstrapResponse => {
   return {
     me: token ? getMockUser() : undefined,
-    permissions: getMockPermissions(),
-    featureFlags: {
-      paymentEnabled: false,
-      wechatPayEnabled: false,
-      alipayPayEnabled: false
-    }
-  }
-}
-
-export const getIsolatedMockRoles = async (): Promise<string[]> => {
-  const state = await loadIsolatedMockState()
-  return normalizeRoleCodes(state.mockRoles)
-}
-
-export const setIsolatedMockRoles = async (roles: string[]): Promise<string[]> => {
-  const normalized = normalizeRoleCodes(roles)
-  await updateIsolatedMockState((state) => ({
-    ...state,
-    mockRoles: normalized
-  }))
-  return normalized
-}
-
-export const getMockUserForRuntimeRoles = async (): Promise<User> => {
-  const roles = await getIsolatedMockRoles()
-  return getMockUser(roles)
-}
-
-export const buildIsolatedMockBootstrapForRuntimeRoles = async (
-  token: string | null
-): Promise<BootstrapResponse> => {
-  const roles = await getIsolatedMockRoles()
-  return {
-    me: token ? getMockUser(roles) : undefined,
     permissions: getMockPermissions(),
     featureFlags: {
       paymentEnabled: false,

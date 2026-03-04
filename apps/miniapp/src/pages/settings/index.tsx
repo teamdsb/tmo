@@ -6,10 +6,9 @@ import Cell from '@taroify/core/cell'
 import Switch from '@taroify/core/switch'
 import { ROUTES } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
-import { navigateTo, switchTabLike } from '../../utils/navigation'
-import { clearBootstrap, saveBootstrap } from '../../services/bootstrap'
-import { gatewayServices } from '../../services/gateway'
-import { resetIsolatedMockState, getIsolatedMockRoles, setIsolatedMockRoles } from '../../services/mock/runtime'
+import { switchTabLike } from '../../utils/navigation'
+import { clearBootstrap } from '../../services/bootstrap'
+import { resetIsolatedMockState } from '../../services/mock/runtime'
 import { runtimeEnv } from '../../config/runtime-env'
 
 type SettingsState = {
@@ -29,24 +28,12 @@ export default function SettingsPage() {
   const navbarStyle = getNavbarStyle()
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS)
   const [resettingMock, setResettingMock] = useState(false)
-  const [mockSalesEnabled, setMockSalesEnabled] = useState(false)
-  const [updatingMockRole, setUpdatingMockRole] = useState(false)
 
   useEffect(() => {
     const stored = Taro.getStorageSync(STORAGE_KEY)
     if (stored && typeof stored === 'object') {
       setSettings({ ...DEFAULT_SETTINGS, ...stored })
     }
-  }, [])
-
-  useEffect(() => {
-    if (!runtimeEnv.isIsolatedMock) {
-      return
-    }
-    void (async () => {
-      const roles = await getIsolatedMockRoles()
-      setMockSalesEnabled(roles.includes('SALES'))
-    })()
   }, [])
 
   useEffect(() => {
@@ -80,41 +67,6 @@ export default function SettingsPage() {
     }
   }
 
-  const handleToggleSalesRole = async () => {
-    if (!runtimeEnv.isIsolatedMock || updatingMockRole) {
-      return
-    }
-    setUpdatingMockRole(true)
-    const nextEnabled = !mockSalesEnabled
-    try {
-      const currentRoles = await getIsolatedMockRoles()
-      const nextRoles = currentRoles.filter((role) => role !== 'SALES')
-      if (nextEnabled) {
-        nextRoles.push('SALES')
-      }
-      await setIsolatedMockRoles(nextRoles)
-      setMockSalesEnabled(nextEnabled)
-
-      const token = await gatewayServices.tokens.getToken()
-      if (token) {
-        const bootstrap = await gatewayServices.bootstrap.get()
-        await saveBootstrap(bootstrap)
-      }
-      await Taro.showToast({
-        title: nextEnabled ? '已启用业务员身份' : '已关闭业务员身份',
-        icon: 'none'
-      })
-    } catch (error) {
-      console.warn('toggle mock sales role failed', error)
-      await Taro.showToast({
-        title: '切换失败，请重试',
-        icon: 'none'
-      })
-    } finally {
-      setUpdatingMockRole(false)
-    }
-  }
-
   return (
     <View className='page'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
@@ -127,11 +79,6 @@ export default function SettingsPage() {
         </View>
 
         <Cell.Group inset>
-          <Cell
-            title='业务员页面（临时）'
-            brief='暂时开放入口，点击进入业务员页面'
-            onClick={() => navigateTo(ROUTES.sales)}
-          />
           <Cell
             title='订单通知'
             brief='获取状态更新和发货提醒'
@@ -173,18 +120,6 @@ export default function SettingsPage() {
             <Text className='text-sm text-slate-600 mt-2'>
               当前为离线 Mock 模式，可重置本地购物车、收藏与订单等数据。
             </Text>
-            <Cell
-              className='mt-3'
-              title='模拟业务员身份'
-              brief='开启后会在我的页展示业务员入口'
-              rightIcon={
-                <Switch
-                  size='24px'
-                  checked={mockSalesEnabled}
-                  onChange={handleToggleSalesRole}
-                />
-              }
-            />
             <NativeButton
               className='mt-3 rounded-xl border border-slate-200 py-2 text-sm text-slate-700'
               disabled={resettingMock}

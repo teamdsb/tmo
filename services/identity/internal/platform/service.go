@@ -70,7 +70,7 @@ func NewMiniLoginResolver(cfg Config) *MiniLoginResolver {
 	switch mode {
 	case LoginModeReal, LoginModeMock:
 	default:
-		mode = LoginModeMock
+		mode = LoginModeReal
 	}
 
 	client := cfg.HTTPClient

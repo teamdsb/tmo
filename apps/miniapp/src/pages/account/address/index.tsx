@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View, Text, Input, Textarea } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Plus from '@taroify/icons/Plus'
 import LocationOutlined from '@taroify/icons/LocationOutlined'
+import type { UserAddress } from '@tmo/api-client'
 import { getNavbarStyle } from '../../../utils/navbar'
+import { commerceServices } from '../../../services/commerce'
+import { listUserAddresses } from '../../../services/addresses'
 import './index.scss'
 
 export default function AddressList() {
@@ -13,24 +16,23 @@ export default function AddressList() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingAddress, setEditingAddress] = useState<AddressRecord | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const didHydrateRef = useRef(false)
 
-  useEffect(() => {
-    const stored = Taro.getStorageSync(STORAGE_KEY)
-    if (Array.isArray(stored)) {
-      setAddresses(stored)
+  const loadAddresses = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const items = await listUserAddresses()
+      setAddresses(items.map(toAddressRecord))
+    } catch (error) {
+      console.warn('load addresses failed', error)
+      await Taro.showToast({ title: '加载地址失败', icon: 'none' })
+    } finally {
+      setIsLoading(false)
     }
-    setIsLoading(false)
   }, [])
 
   useEffect(() => {
-    if (isLoading) return
-    if (!didHydrateRef.current) {
-      didHydrateRef.current = true
-      return
-    }
-    Taro.setStorageSync(STORAGE_KEY, addresses)
-  }, [addresses, isLoading])
+    void loadAddresses()
+  }, [loadAddresses])
 
   const sortedAddresses = useMemo(() => {
     const list = [...addresses]
@@ -41,28 +43,30 @@ export default function AddressList() {
     })
   }, [addresses])
 
-  const handleSaveAddress = (formData: AddressFormData) => {
-    setAddresses((prev) => {
-      const next = prev.map((addr) => ({
-        ...addr,
-        isDefault: formData.isDefault ? false : addr.isDefault
-      }))
-
+  const handleSaveAddress = async (formData: AddressFormData) => {
+    try {
       if (editingAddress) {
-        return next.map((addr) =>
-          addr.id === editingAddress.id ? { ...addr, ...formData } : addr
-        )
+        await commerceServices.addresses.update(editingAddress.id, {
+          receiverName: formData.name,
+          receiverPhone: formData.phone,
+          detail: formData.address,
+          isDefault: formData.isDefault
+        })
+      } else {
+        await commerceServices.addresses.create({
+          receiverName: formData.name,
+          receiverPhone: formData.phone,
+          detail: formData.address,
+          isDefault: formData.isDefault
+        })
       }
-
-      const newAddress: AddressRecord = {
-        id: createId(),
-        ...formData,
-        isDefault: prev.length === 0 ? true : formData.isDefault
-      }
-      return [newAddress, ...next]
-    })
-    setIsFormOpen(false)
-    setEditingAddress(null)
+      await loadAddresses()
+      setIsFormOpen(false)
+      setEditingAddress(null)
+    } catch (error) {
+      console.warn('save address failed', error)
+      await Taro.showToast({ title: '保存地址失败', icon: 'none' })
+    }
   }
 
   const handleDelete = async (id: string) => {
@@ -71,7 +75,13 @@ export default function AddressList() {
       content: '确定要删除该地址吗？'
     })
     if (!result.confirm) return
-    setAddresses((prev) => prev.filter((addr) => addr.id !== id))
+    try {
+      await commerceServices.addresses.remove(id)
+      await loadAddresses()
+    } catch (error) {
+      console.warn('delete address failed', error)
+      await Taro.showToast({ title: '删除地址失败', icon: 'none' })
+    }
   }
 
   const openEdit = (addr: AddressRecord) => {
@@ -197,13 +207,17 @@ type AddressRecord = {
 
 type AddressFormData = Omit<AddressRecord, 'id'>
 
-const STORAGE_KEY = 'tmo.addresses'
-
-const createId = () => `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`
+const toAddressRecord = (address: UserAddress): AddressRecord => ({
+  id: address.id,
+  name: address.receiverName,
+  phone: address.receiverPhone,
+  address: address.detail,
+  isDefault: address.isDefault
+})
 
 type AddressFormProps = {
   initialData: AddressRecord | null
-  onSubmit: (data: AddressFormData) => void
+  onSubmit: (data: AddressFormData) => Promise<void>
   onCancel: () => void
 }
 
@@ -229,7 +243,7 @@ function AddressForm({ initialData, onSubmit, onCancel }: AddressFormProps) {
       void Taro.showToast({ title: '请填写完整信息', icon: 'none' })
       return
     }
-    onSubmit(formData)
+    void onSubmit(formData)
   }
 
   return (

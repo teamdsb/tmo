@@ -6,8 +6,7 @@ describe('isolated mock mode', () => {
     jest.restoreAllMocks()
     process.env = {
       ...originalEnv,
-      TARO_APP_MOCK_MODE: 'isolated',
-      TARO_APP_COMMERCE_MOCK_FALLBACK: 'false'
+      TARO_APP_MOCK_MODE: 'isolated'
     }
   })
 
@@ -77,50 +76,5 @@ describe('isolated mock mode', () => {
 
     const bootstrap = await gatewayServices.bootstrap.get()
     expect(bootstrap.me).toBeUndefined()
-  })
-
-  it('persists mock sku price tiers and reuses them', async () => {
-    const { commerceServices } = require('./commerce') as typeof import('./commerce')
-    const { loadIsolatedMockState, updateIsolatedMockState } = require('./mock/runtime') as typeof import('./mock/runtime')
-
-    const detail = await commerceServices.catalog.getProductDetail('spu-bolt-a2')
-    const skuId = detail.skus[0]?.id
-    expect(skuId).toBeTruthy()
-    if (!skuId) {
-      throw new Error('expected mock sku id')
-    }
-
-    const stored = await loadIsolatedMockState()
-    expect(stored.skuPriceTiersBySkuId[skuId]?.length).toBeGreaterThan(0)
-
-    await updateIsolatedMockState((state) => ({
-      ...state,
-      skuPriceTiersBySkuId: {
-        ...state.skuPriceTiersBySkuId,
-        [skuId]: [
-          { minQty: 1, maxQty: 5, unitPriceFen: 999 }
-        ]
-      }
-    }))
-
-    const updatedDetail = await commerceServices.catalog.getProductDetail('spu-bolt-a2')
-    const updatedSku = updatedDetail.skus.find((sku) => sku.id === skuId)
-    expect(updatedSku?.priceTiers?.[0]?.unitPriceFen).toBe(999)
-
-    await commerceServices.cart.addItem(skuId, 1)
-    const cart = await commerceServices.cart.getCart()
-    expect(cart.items[0]?.sku.priceTiers?.[0]?.unitPriceFen).toBe(999)
-  })
-
-  it('updates bootstrap roles when mock roles are changed', async () => {
-    const { identityServices } = require('./identity') as typeof import('./identity')
-    const { gatewayServices } = require('./gateway') as typeof import('./gateway')
-    const { setIsolatedMockRoles } = require('./mock/runtime') as typeof import('./mock/runtime')
-
-    await setIsolatedMockRoles(['SALES'])
-    await identityServices.auth.miniLogin({})
-
-    const bootstrap = await gatewayServices.bootstrap.get()
-    expect(bootstrap.me?.roles).toContain('SALES')
   })
 })

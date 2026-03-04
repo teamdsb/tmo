@@ -39,10 +39,6 @@ function App({ children }: PropsWithChildren<any>) {
 export default App
 
 const bootstrapApp = async (): Promise<void> => {
-  const token = await identityServices.tokens.getToken()
-  if (!token && runtimeEnv.commerceMockFallback) {
-    return
-  }
   const bootstrap = await tryBootstrap()
   if (bootstrap?.me) {
     return

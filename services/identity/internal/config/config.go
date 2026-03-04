@@ -15,7 +15,7 @@ const (
 	defaultJWTSecret                   = "dev-secret"
 	defaultJWTIssuer                   = "tmo-identity"
 	defaultAccessTokenTTL              = 168 * time.Hour
-	defaultLoginMode                   = "mock"
+	defaultLoginMode                   = "real"
 	defaultWeappAppID                  = ""
 	defaultWeappSecret                 = ""
 	defaultWeappTokenURL               = "https://api.weixin.qq.com/cgi-bin/token"

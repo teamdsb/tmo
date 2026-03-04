@@ -66,11 +66,22 @@ const SALES_MENU_ITEM: MenuItem = {
 }
 
 const ORDER_ITEMS: OrderItem[] = [
-  { key: 'pending', label: '待处理', icon: OrdersOutlined, badge: '2', route: ROUTES.orders },
+  { key: 'pending', label: '待处理', icon: OrdersOutlined, route: ROUTES.orders },
   { key: 'shipped', label: '已发货', icon: Logistics, route: ROUTES.orders },
   { key: 'delivered', label: '已送达', icon: TodoList, route: ROUTES.orders },
   { key: 'returns', label: '退货', icon: Exchange, route: ROUTES.orders }
 ]
+
+const PENDING_ORDER_STATUSES = ['SUBMITTED', 'CONFIRMED', 'PAY_PENDING', 'PAID', 'PAY_FAILED']
+
+type OrderBadges = Partial<Record<OrderItem['key'], string>>
+
+const toOrderBadge = (count: number): string | undefined => {
+  if (!Number.isFinite(count) || count <= 0) {
+    return undefined
+  }
+  return String(Math.floor(count))
+}
 
 type MenuLinkProps = {
   icon: IconComponent
@@ -124,9 +135,34 @@ export default function PersonalCenter() {
   const navbarStyle = getNavbarStyle()
   const isH5 = process.env.TARO_ENV === 'h5'
   const [bootstrap, setBootstrap] = useState<BootstrapResponse | null>(null)
+  const [orderBadges, setOrderBadges] = useState<OrderBadges>({})
   const [isDark] = useState(() => getRuntimeTheme() === 'dark')
   const [loggingOut, setLoggingOut] = useState(false)
   const avatarFallback = placeholderProductImage
+
+  const refreshOrderBadges = useCallback(async () => {
+    try {
+      const stats = await commerceServices.orders.stats()
+      const countByStatus = new Map<string, number>()
+      for (const item of stats.items ?? []) {
+        const count = typeof item.count === 'number' ? item.count : 0
+        countByStatus.set(item.status, (countByStatus.get(item.status) ?? 0) + count)
+      }
+
+      const pending = PENDING_ORDER_STATUSES.reduce((sum, status) => {
+        return sum + (countByStatus.get(status) ?? 0)
+      }, 0)
+
+      setOrderBadges({
+        pending: toOrderBadge(pending),
+        shipped: toOrderBadge(countByStatus.get('SHIPPED') ?? 0),
+        delivered: toOrderBadge(countByStatus.get('DELIVERED') ?? 0)
+      })
+    } catch (error) {
+      console.warn('order stats refresh failed', error)
+      setOrderBadges({})
+    }
+  }, [])
 
   const refreshBootstrap = useCallback(async () => {
     const cached = await loadBootstrap()
@@ -156,9 +192,18 @@ export default function PersonalCenter() {
     })()
   })
 
+  useEffect(() => {
+    if (!bootstrap?.me?.id) {
+      setOrderBadges({})
+      return
+    }
+    void refreshOrderBadges()
+  }, [bootstrap?.me?.id, refreshOrderBadges])
+
   const isLoggedIn = Boolean(bootstrap?.me)
   const isSales = isSalesUser(bootstrap)
   const displayName = bootstrap?.me?.displayName ?? '访客'
+  const ownerSalesDisplayName = bootstrap?.me?.ownerSalesDisplayName?.trim() ?? ''
   const themeClassName = isDark ? 'mine-theme mine-theme--dark' : 'mine-theme'
   const visibleMenuItems = useMemo(
     () => (isSales ? [SALES_MENU_ITEM, ...MENU_ITEMS] : MENU_ITEMS),
@@ -229,7 +274,7 @@ export default function PersonalCenter() {
         </View>
       </View>
 
-      {isLoggedIn ? (
+      {isLoggedIn && ownerSalesDisplayName ? (
         <View className='px-5 mb-6'>
           <View
             className='mine-card mine-shadow border rounded-2xl p-4 mine-contact-card'
@@ -245,7 +290,7 @@ export default function PersonalCenter() {
                 <ChatOutlined className='text-base' />
               </View>
             </View>
-            <Text className='mine-contact-name'>王经理</Text>
+            <Text className='mine-contact-name'>{ownerSalesDisplayName}</Text>
           </View>
         </View>
       ) : null}
@@ -264,7 +309,7 @@ export default function PersonalCenter() {
                 key={item.key}
                 icon={item.icon}
                 label={item.label}
-                badge={item.badge}
+                badge={orderBadges[item.key]}
                 onClick={() => navigateTo(item.route)}
               />
             ))}

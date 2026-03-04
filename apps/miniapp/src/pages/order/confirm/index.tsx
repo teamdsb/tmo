@@ -4,27 +4,18 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Button from '@taroify/core/button'
 import Cell from '@taroify/core/cell'
-import type { Cart } from '@tmo/api-client'
+import type { Cart, UserAddress } from '@tmo/api-client'
 import { ROUTES, orderDetailRoute } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { ensureLoggedIn } from '../../../utils/auth'
 import { commerceServices } from '../../../services/commerce'
-
-type LocalAddress = {
-  id: string
-  name: string
-  phone: string
-  address: string
-  isDefault: boolean
-}
-
-const STORAGE_KEY = 'tmo.addresses'
+import { listUserAddresses } from '../../../services/addresses'
 
 export default function OrderConfirmPage() {
   const navbarStyle = getNavbarStyle()
   const [cart, setCart] = useState<Cart | null>(null)
-  const [addresses, setAddresses] = useState<LocalAddress[]>([])
+  const [addresses, setAddresses] = useState<UserAddress[]>([])
   const [remark, setRemark] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -32,10 +23,12 @@ export default function OrderConfirmPage() {
     try {
       const allowed = await ensureLoggedIn({ redirect: true })
       if (!allowed) return
-      const cartData = await commerceServices.cart.getCart()
+      const [cartData, addressData] = await Promise.all([
+        commerceServices.cart.getCart(),
+        listUserAddresses()
+      ])
       setCart(cartData)
-      const stored = Taro.getStorageSync(STORAGE_KEY)
-      setAddresses(Array.isArray(stored) ? stored : [])
+      setAddresses(addressData)
     } catch (error) {
       console.warn('load confirm data failed', error)
       await Taro.showToast({ title: '加载订单数据失败', icon: 'none' })
@@ -64,9 +57,9 @@ export default function OrderConfirmPage() {
     try {
       const order = await commerceServices.orders.submit({
         address: {
-          receiverName: defaultAddress.name,
-          receiverPhone: defaultAddress.phone,
-          detail: defaultAddress.address
+          receiverName: defaultAddress.receiverName,
+          receiverPhone: defaultAddress.receiverPhone,
+          detail: defaultAddress.detail
         },
         remark: remark.trim() || undefined,
         items: cartItems.map((item) => ({
@@ -105,9 +98,9 @@ export default function OrderConfirmPage() {
           {defaultAddress ? (
             <>
               <Text className='text-sm text-slate-900'>
-                {defaultAddress.name} · {defaultAddress.phone}
+                {defaultAddress.receiverName} · {defaultAddress.receiverPhone}
               </Text>
-              <Text className='text-xs text-slate-500 mt-1'>{defaultAddress.address}</Text>
+              <Text className='text-xs text-slate-500 mt-1'>{defaultAddress.detail}</Text>
             </>
           ) : (
             <View className='py-3'>

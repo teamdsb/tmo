@@ -1,10 +1,12 @@
 import {
   getOrders,
+  getOrdersStats,
   getOrdersOrderId,
   postOrders,
   type CreateOrderRequest,
   type GetOrdersParams,
   type Order,
+  type OrderStatsResponse,
   type PagedOrderList
 } from '@tmo/api-client'
 
@@ -13,6 +15,7 @@ import type { OrderIdempotency } from '../idempotency'
 export interface OrdersService {
   submit: (request: CreateOrderRequest, options?: { idempotencyKey?: string }) => Promise<Order>
   list: (params?: GetOrdersParams) => Promise<PagedOrderList>
+  stats: () => Promise<OrderStatsResponse>
   get: (orderId: string) => Promise<Order>
   resetIdempotency: () => void
 }
@@ -35,6 +38,7 @@ export const createOrdersService = (idempotency: OrderIdempotency): OrdersServic
       return response.data as Order
     },
     list: async (params) => (await getOrders(params)).data,
+    stats: async () => (await getOrdersStats()).data,
     get: async (orderId) => (await getOrdersOrderId(orderId)).data,
     resetIdempotency: () => idempotency.reset()
   }

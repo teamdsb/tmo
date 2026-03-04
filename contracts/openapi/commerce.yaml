@@ -17,6 +17,7 @@ tags:
 - name: Wishlist
 - name: Cart
 - name: Orders
+- name: Addresses
 - name: Tracking
 - name: ProductRequests
 - name: AfterSales
@@ -531,6 +532,90 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/PagedOrderList"
+  "/orders/stats":
+    get:
+      tags:
+      - Orders
+      summary: Get current user's order status counts
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OrderStatsResponse"
+  "/addresses":
+    get:
+      tags:
+      - Addresses
+      summary: List current user's addresses
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ListAddressesResponse"
+    post:
+      tags:
+      - Addresses
+      summary: Create current user's address
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CreateUserAddressRequest"
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/UserAddress"
+  "/addresses/{addressId}":
+    patch:
+      tags:
+      - Addresses
+      summary: Update current user's address
+      parameters:
+      - in: path
+        name: addressId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UpdateUserAddressRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/UserAddress"
+        '404':
+          "$ref": "#/components/responses/NotFound"
+    delete:
+      tags:
+      - Addresses
+      summary: Delete current user's address
+      parameters:
+      - in: path
+        name: addressId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: No Content
+        '404':
+          "$ref": "#/components/responses/NotFound"
   "/orders/{orderId}":
     get:
       tags:
@@ -1569,6 +1654,90 @@ components:
       - page
       - pageSize
       - total
+    OrderStatusStat:
+      type: object
+      properties:
+        status:
+          "$ref": "#/components/schemas/OrderStatus"
+        count:
+          type: integer
+          minimum: 0
+      required:
+      - status
+      - count
+    OrderStatsResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/OrderStatusStat"
+      required:
+      - items
+    UserAddress:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        receiverName:
+          type: string
+        receiverPhone:
+          type: string
+        detail:
+          type: string
+        isDefault:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - receiverName
+      - receiverPhone
+      - detail
+      - isDefault
+      - createdAt
+      - updatedAt
+    ListAddressesResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/UserAddress"
+      required:
+      - items
+    CreateUserAddressRequest:
+      type: object
+      properties:
+        receiverName:
+          type: string
+        receiverPhone:
+          type: string
+        detail:
+          type: string
+        isDefault:
+          type: boolean
+      required:
+      - receiverName
+      - receiverPhone
+      - detail
+    UpdateUserAddressRequest:
+      type: object
+      properties:
+        receiverName:
+          type: string
+        receiverPhone:
+          type: string
+        detail:
+          type: string
+        isDefault:
+          type: boolean
+      additionalProperties: false
     TrackingInfo:
       type: object
       properties:

@@ -21,7 +21,8 @@ describe('PersonalCenter', () => {
     asMock(gatewayServices.bootstrap.get).mockImplementation(async () => ({
       me: {
         displayName: '张三',
-        roles: ['CUSTOMER']
+        ownerSalesDisplayName: '李经理',
+        roles: ['客户经理']
       }
     }))
     asMock(gatewayServices.bootstrap.get).mockClear()
@@ -39,7 +40,7 @@ describe('PersonalCenter', () => {
 
     expect(await screen.findByText('张三')).toBeInTheDocument()
     expect(screen.getByText('客户经理')).toBeInTheDocument()
-    expect(screen.getByText('王经理')).toBeInTheDocument()
+    expect(screen.getByText('李经理')).toBeInTheDocument()
   })
 
   it('hides manager card when not logged in', async () => {
@@ -51,7 +52,7 @@ describe('PersonalCenter', () => {
 
     expect(await screen.findByText('未登录')).toBeInTheDocument()
     expect(screen.queryByText('客户经理')).not.toBeInTheDocument()
-    expect(screen.queryByText('王经理')).not.toBeInTheDocument()
+    expect(screen.queryByText('李经理')).not.toBeInTheDocument()
   })
 
   it('clears tokens and updates UI after logout', async () => {
@@ -83,31 +84,5 @@ describe('PersonalCenter', () => {
     expect(screen.getByText('我的需求')).toBeInTheDocument()
     expect(screen.getByText('收藏')).toBeInTheDocument()
     expect(screen.getByText('系统设置')).toBeInTheDocument()
-  })
-
-  it('shows sales entry when role includes SALES', async () => {
-    asMock(gatewayServices.bootstrap.get).mockImplementation(async () => ({
-      me: {
-        displayName: '张三',
-        roles: ['CUSTOMER', 'SALES']
-      }
-    }))
-
-    await renderPersonalCenter()
-
-    expect(screen.getByText('业务员工作台')).toBeInTheDocument()
-  })
-
-  it('hides sales entry when role is not SALES', async () => {
-    asMock(gatewayServices.bootstrap.get).mockImplementation(async () => ({
-      me: {
-        displayName: '张三',
-        roles: ['CUSTOMER']
-      }
-    }))
-
-    await renderPersonalCenter()
-
-    expect(screen.queryByText('业务员工作台')).not.toBeInTheDocument()
   })
 })

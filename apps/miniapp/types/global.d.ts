@@ -19,7 +19,6 @@ declare const __TMO_GATEWAY_DEV_TOKEN__: string;
 declare const __TMO_COMMERCE_DEV_TOKEN__: string;
 declare const __TMO_IDENTITY_DEV_TOKEN__: string;
 declare const __TMO_MOCK_MODE__: string;
-declare const __TMO_COMMERCE_MOCK_FALLBACK__: string;
 declare const __TMO_ENABLE_MOCK_LOGIN__: string;
 declare const __TMO_WEAPP_PHONE_PROOF_SIMULATION__: string;
 
@@ -41,7 +40,6 @@ declare namespace NodeJS {
     TARO_APP_COMMERCE_BASE_URL?: string
     TARO_APP_COMMERCE_DEV_TOKEN?: string
     TARO_APP_MOCK_MODE?: string
-    TARO_APP_COMMERCE_MOCK_FALLBACK?: string
     TARO_APP_ENABLE_MOCK_LOGIN?: string
     TARO_APP_WEAPP_PHONE_PROOF_SIMULATION?: string
     TARO_APP_IDENTITY_BASE_URL?: string

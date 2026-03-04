@@ -49,7 +49,18 @@ func (h *Handler) GetMe(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, userFromModel(user, roles, userType))
+	response := userFromModel(user, roles, userType)
+	if user.OwnerSalesUserID.Valid {
+		owner, err := h.Store.GetUserByID(c.Request.Context(), user.OwnerSalesUserID.Bytes)
+		if err != nil && err != pgx.ErrNoRows {
+			h.logError("lookup owner sales failed", err)
+		}
+		if err == nil && owner.DisplayName != nil {
+			response.OwnerSalesDisplayName = owner.DisplayName
+		}
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func (h *Handler) GetMeSalesQrCode(c *gin.Context, params oapi.GetMeSalesQrCodeParams) {

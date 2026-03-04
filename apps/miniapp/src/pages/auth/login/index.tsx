@@ -91,7 +91,10 @@ export default function LoginPage() {
   const [agreed, setAgreed] = useState(false)
   const [loading, setLoading] = useState(false)
   const launchContext = useMemo(readLaunchContext, [])
-  const enableMockLogin = useMemo(() => runtimeEnv.enableMockLogin, [])
+  const enableMockLogin = useMemo(
+    () => runtimeEnv.isIsolatedMock && runtimeEnv.enableMockLogin,
+    []
+  )
   const enableWeappPhoneProofSimulation = useMemo(() => runtimeEnv.weappPhoneProofSimulation, [])
   const platform = useMemo(() => getPlatform() as MiniPlatform, [])
   const redirect = (() => {
@@ -196,8 +199,15 @@ export default function LoginPage() {
   }
 
   const handleMockLogin = async () => {
-    await applyMockLogin()
-    await switchTabLike(redirect || ROUTES.home)
+    try {
+      await applyMockLogin()
+      await switchTabLike(redirect || ROUTES.home)
+    } catch (error) {
+      const message = error instanceof Error && error.message
+        ? error.message
+        : '测试登录不可用'
+      await Taro.showToast({ title: message, icon: 'none' })
+    }
   }
 
   return (

@@ -9,6 +9,7 @@ import { createCartService, type CartService } from './services/cart'
 import { createCatalogService, type CatalogService } from './services/catalog'
 import { createWishlistService, type WishlistService } from './services/wishlist'
 import { createOrdersService, type OrdersService } from './services/orders'
+import { createAddressesService, type AddressesService } from './services/addresses'
 import { createProductRequestService, type ProductRequestService } from './services/product-requests'
 import { createAfterSalesService, type AfterSalesService } from './services/after-sales'
 import { createInquiryService, type InquiryService } from './services/inquiries'
@@ -18,6 +19,7 @@ export interface CommerceServices {
   catalog: CatalogService
   cart: CartService
   orders: OrdersService
+  addresses: AddressesService
   tracking: TrackingService
   wishlist: WishlistService
   productRequests: ProductRequestService
@@ -75,6 +77,7 @@ export const createCommerceServices = (config: CommerceServicesConfig = {}): Com
     catalog: createCatalogService(),
     cart: createCartService(uploadClient),
     orders: createOrdersService(idempotency),
+    addresses: createAddressesService(),
     tracking: createTrackingService(uploadClient),
     wishlist: createWishlistService(),
     productRequests: createProductRequestService(uploadClient),

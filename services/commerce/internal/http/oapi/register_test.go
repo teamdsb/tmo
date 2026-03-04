@@ -20,6 +20,22 @@ func (server *stubServer) GetCart(context *gin.Context) {
 	context.Status(http.StatusOK)
 }
 
+func (server *stubServer) GetAddresses(context *gin.Context) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) PostAddresses(context *gin.Context) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) DeleteAddressesAddressId(context *gin.Context, addressId openapi_types.UUID) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) PatchAddressesAddressId(context *gin.Context, addressId openapi_types.UUID) {
+	context.Status(http.StatusNotImplemented)
+}
+
 func (server *stubServer) PostCartImportJobs(context *gin.Context) {
 	context.Status(http.StatusNotImplemented)
 }
@@ -93,6 +109,10 @@ func (server *stubServer) GetOrders(context *gin.Context, params oapi.GetOrdersP
 }
 
 func (server *stubServer) PostOrders(context *gin.Context, params oapi.PostOrdersParams) {
+	context.Status(http.StatusNotImplemented)
+}
+
+func (server *stubServer) GetOrdersStats(context *gin.Context) {
 	context.Status(http.StatusNotImplemented)
 }
 

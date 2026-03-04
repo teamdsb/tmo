@@ -1,8 +1,6 @@
-import type { BootstrapResponse } from '@tmo/gateway-api-client'
 import { runtimeEnv } from '../config/runtime-env'
 import { saveBootstrap, savePendingRoleSelection } from './bootstrap'
 import {
-  buildIsolatedMockBootstrapForRuntimeRoles,
   buildIsolatedMockBootstrap,
   createIsolatedMockAccessToken,
   setIsolatedMockToken
@@ -10,16 +8,13 @@ import {
 
 export const MOCK_USER_ID = 'mock-user-id'
 
-export const mockBootstrap: BootstrapResponse = buildIsolatedMockBootstrap('mock-token')
-
 export const applyMockLogin = async (): Promise<void> => {
-  if (runtimeEnv.isIsolatedMock) {
-    const token = createIsolatedMockAccessToken()
-    await setIsolatedMockToken(token)
-    await saveBootstrap(await buildIsolatedMockBootstrapForRuntimeRoles(token))
-    await savePendingRoleSelection(null)
-    return
+  if (!runtimeEnv.isIsolatedMock) {
+    throw new Error('测试登录仅在 TARO_APP_MOCK_MODE=isolated 下可用')
   }
-  await saveBootstrap(mockBootstrap)
+
+  const token = createIsolatedMockAccessToken()
+  await setIsolatedMockToken(token)
+  await saveBootstrap(buildIsolatedMockBootstrap(token))
   await savePendingRoleSelection(null)
 }

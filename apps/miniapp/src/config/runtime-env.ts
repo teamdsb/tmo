@@ -38,7 +38,6 @@ const parseMockMode = (raw: string): 'off' | 'isolated' => {
 
 const nodeEnv = readProcessEnv('NODE_ENV')
 const nonProductionFallbackBaseUrl = nodeEnv === 'production' ? '' : 'http://localhost:8080'
-const developmentDefaultCommerceMockFallback = nodeEnv === 'development' ? 'true' : ''
 
 const apiBaseUrlConst = typeof __TMO_API_BASE_URL__ !== 'undefined'
   ? __TMO_API_BASE_URL__
@@ -63,9 +62,6 @@ const identityDevTokenConst = typeof __TMO_IDENTITY_DEV_TOKEN__ !== 'undefined'
   ? __TMO_IDENTITY_DEV_TOKEN__
   : ''
 
-const commerceMockFallbackConst = typeof __TMO_COMMERCE_MOCK_FALLBACK__ !== 'undefined'
-  ? __TMO_COMMERCE_MOCK_FALLBACK__
-  : ''
 const mockModeConst = typeof __TMO_MOCK_MODE__ !== 'undefined'
   ? __TMO_MOCK_MODE__
   : ''
@@ -82,11 +78,6 @@ const mockMode = parseMockMode(firstNonEmpty(
   readProcessEnv('TARO_APP_MOCK_MODE')
 ))
 const isIsolatedMock = mockMode === 'isolated'
-const legacyCommerceMockFallback = readBoolean(firstNonEmpty(
-  readConst(commerceMockFallbackConst),
-  readProcessEnv('TARO_APP_COMMERCE_MOCK_FALLBACK'),
-  developmentDefaultCommerceMockFallback
-))
 
 export const runtimeEnv = Object.freeze({
   mockMode,
@@ -125,7 +116,6 @@ export const runtimeEnv = Object.freeze({
     readConst(identityDevTokenConst),
     readProcessEnv('TARO_APP_IDENTITY_DEV_TOKEN')
   )),
-  commerceMockFallback: isIsolatedMock || legacyCommerceMockFallback,
   enableMockLogin: readBoolean(firstNonEmpty(
     readConst(mockLoginEnabledConst),
     readProcessEnv('TARO_APP_ENABLE_MOCK_LOGIN')

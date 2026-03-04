@@ -214,6 +214,45 @@ func (q *Queries) ListOrderItems(ctx context.Context, orderID uuid.UUID) ([]Orde
 	return items, nil
 }
 
+const listOrderStatusStats = `-- name: ListOrderStatusStats :many
+SELECT status, count(*)::bigint AS order_count
+FROM orders
+WHERE ($1::uuid IS NULL OR customer_id = $1)
+  AND ($2::uuid IS NULL OR owner_sales_user_id = $2)
+GROUP BY status
+ORDER BY status
+`
+
+type ListOrderStatusStatsParams struct {
+	CustomerID       pgtype.UUID `db:"customer_id" json:"customer_id"`
+	OwnerSalesUserID pgtype.UUID `db:"owner_sales_user_id" json:"owner_sales_user_id"`
+}
+
+type ListOrderStatusStatsRow struct {
+	Status     string `db:"status" json:"status"`
+	OrderCount int64  `db:"order_count" json:"order_count"`
+}
+
+func (q *Queries) ListOrderStatusStats(ctx context.Context, arg ListOrderStatusStatsParams) ([]ListOrderStatusStatsRow, error) {
+	rows, err := q.db.Query(ctx, listOrderStatusStats, arg.CustomerID, arg.OwnerSalesUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListOrderStatusStatsRow
+	for rows.Next() {
+		var i ListOrderStatusStatsRow
+		if err := rows.Scan(&i.Status, &i.OrderCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOrders = `-- name: ListOrders :many
 SELECT id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at
 FROM orders
