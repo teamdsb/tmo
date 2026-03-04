@@ -1,29 +1,35 @@
 # RBAC / Role Model (v1)
 
 ## Goals
-- Support customer mini program (browse, cart, intent order, requests, after-sales)
-- Support internal roles (sales binding & follow-up, procurement shipment updates, admin operations)
-- Provide *scoped access* (customer sees self; sales sees owned customers; admin sees all)
-- Only the admin console is web; all other user-facing surfaces are mini programs
+- Support customer miniapp (browse, cart, intent order, requests, after-sales)
+- Support internal roles (business follow-up, customer service + shipment operations, admin operations)
+- Provide *scoped access* (customer sees self; sales sees owned customers; admin roles see all)
+- Clarify work surfaces: miniapp vs admin-web
 
 ## User Types
-- customer: external user authenticated via WeChat/Alipay mini program
-- staff: internal user authenticated via staff mini program (sales/procurement/CS)
-- admin: internal user authenticated via web console (admin only)
+- customer: external user authenticated via WeChat/Alipay miniapp
+- staff: internal user
+- admin: internal admin-web user
+- 中文映射：`customer`（客户端用户）/ `staff`（内部员工）/ `admin`（管理后台用户）
 
 ## Roles (system roles)
-- CUSTOMER
-- SALES
-- PROCUREMENT
-- CS (customer service)
-- ADMIN
-- BOSS
-- MANAGER
+- CUSTOMER: 客户（外部小程序用户）
+- SALES: 业务员（仅在 miniapp 与客户交互、跟进）
+- CS: 客服（合并原 CS + PROCUREMENT 职责，仅在 admin-web 工作）
+- ADMIN: 管理员（后台管理，系统级配置与治理）
+- BOSS: 老板（业务全局最高权限）
+- MANAGER: 经理（运营管理角色，具备员工与客户管理能力）
+
+> 说明：`PROCUREMENT` 已并入 `CS`，不再作为独立角色分配。
+
+## Work Surface (主要工作端)
+- miniapp: `CUSTOMER`, `SALES`
+- admin-web: `CS`, `ADMIN`, `BOSS`, `MANAGER`
 
 ## Scope Rules
-- SELF: only the authenticated user's own resources (e.g., my orders)
-- OWNED: resources owned/assigned to the user (e.g., customers bound to a sales)
-- ALL: all resources
+- SELF（本人）: only the authenticated user's own resources (e.g., my orders)
+- OWNED（我负责/被分配）: resources owned/assigned to the user (e.g., customers bound to a sales)
+- ALL（全量）: all resources
 
 ## Permission Codes (examples)
 Catalog / Shopping:
@@ -57,9 +63,13 @@ Admin / Ops:
 - config:feature_flags
 - payment:manage
 - rbac:manage
+- staff:read
+- staff:status_manage
 
 ## Default Role → Permission Mapping (suggested)
 ### CUSTOMER
+- 角色说明：客户自助下单、查询、售后、询价（仅 SELF）
+- 工作端：miniapp
 - catalog:read (public)
 - wishlist:manage (SELF)
 - cart:manage (SELF)
@@ -75,7 +85,9 @@ Admin / Ops:
 - inquiry:read (SELF)
 
 ### SALES
-- catalog:read
+- 角色说明：业务员，负责自己名下客户跟进（OWNED）
+- 工作端：miniapp
+- catalog:read (ALL)
 - order:read (OWNED)
 - tracking:read (OWNED)
 - inquiry:manage (OWNED)
@@ -83,26 +95,30 @@ Admin / Ops:
 - after_sales:manage (OWNED)
 - customer:read (OWNED)
 
-### PROCUREMENT
-- order:read (ALL)
-- tracking:read (ALL)
-- import:shipment (ALL) # bulk waybill import
-- shipment:manage (ALL)
-
 ### CS
+- 角色说明：客服（含原采购职责），处理售后、询单、发运与物流（ALL）
+- 工作端：admin-web
 - after_sales:manage (ALL)
 - inquiry:manage (ALL)
 - order:read (ALL, read-only)
 - tracking:read (ALL)
 - product_request:read (ALL)
+- import:shipment (ALL)
+- shipment:manage (ALL)
 
 ### ADMIN
+- 角色说明：平台治理与配置管理（ALL）
+- 工作端：admin-web
 - ALL permissions with ALL scope
 
 ### BOSS
+- 角色说明：全业务全权限（ALL）
+- 工作端：admin-web
 - ALL permissions with ALL scope
 
 ### MANAGER
+- 角色说明：运营管理与人员/客户管理（ALL，低于 BOSS 的业务管理位阶）
+- 工作端：admin-web
 - catalog:read (ALL)
 - order:read (ALL)
 - tracking:read (ALL)
@@ -127,6 +143,3 @@ Track these actions:
 - feature flag changes (paymentEnabled)
 - product import job submissions and results
 - shipment bulk imports
-
-## Notes
-- CS uses permissive access initially to reduce support friction; tighten as needed.

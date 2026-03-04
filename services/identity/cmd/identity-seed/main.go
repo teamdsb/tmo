@@ -19,6 +19,8 @@ const (
 	bossPassword    = "boss123"
 	managerUsername = "manager"
 	managerPassword = "manager123"
+	csUsername      = "cs"
+	csPassword      = "cs123"
 	salesUsername   = "sales"
 	salesPassword   = "sales123"
 	adminUsername   = "admin"
@@ -71,6 +73,7 @@ RESTART IDENTITY CASCADE
 	adminID := uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 	bossID := uuid.MustParse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
 	managerID := uuid.MustParse("ffffffff-ffff-ffff-ffff-ffffffffffff")
+	csID := uuid.MustParse("99999999-9999-9999-9999-999999999999")
 	salesID := uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
 	multiID := uuid.MustParse("cccccccc-cccc-cccc-cccc-cccccccccccc")
 	customerID := uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
@@ -96,6 +99,14 @@ RESTART IDENTITY CASCADE
 		DisplayName: "Manager",
 		UserType:    "staff",
 		Phone:       strPtr("+15550000006"),
+	}); err != nil {
+		return err
+	}
+	if err := ensureUser(ctx, pool, seedUser{
+		ID:          csID,
+		DisplayName: "CS Dev",
+		UserType:    "staff",
+		Phone:       strPtr("+15550000007"),
 	}); err != nil {
 		return err
 	}
@@ -133,6 +144,9 @@ RESTART IDENTITY CASCADE
 		return err
 	}
 	if err := ensureRole(ctx, pool, managerID, "MANAGER"); err != nil {
+		return err
+	}
+	if err := ensureRole(ctx, pool, csID, "CS"); err != nil {
 		return err
 	}
 	if err := ensureRole(ctx, pool, salesID, "SALES"); err != nil {
@@ -179,7 +193,7 @@ RESTART IDENTITY CASCADE
 	}
 	if err := ensureStaffPhoneWhitelist(ctx, pool, seedStaffPhoneWhitelist{
 		Phone: "+15550000004",
-		Roles: []string{"SALES", "PROCUREMENT"},
+		Roles: []string{"SALES", "CS"},
 		Note:  "multi-role fixture",
 	}); err != nil {
 		return err
@@ -213,17 +227,26 @@ RESTART IDENTITY CASCADE
 	if err := ensurePassword(ctx, pool, salesID, salesUsername, string(salesPasswordHash)); err != nil {
 		return err
 	}
+	csPasswordHash, err := bcrypt.GenerateFromPassword([]byte(csPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash cs password: %w", err)
+	}
+	if err := ensurePassword(ctx, pool, csID, csUsername, string(csPasswordHash)); err != nil {
+		return err
+	}
 
 	fmt.Println("seed data applied")
 	fmt.Printf("boss username: %s\n", bossUsername)
 	fmt.Printf("boss password: %s\n", bossPassword)
 	fmt.Printf("manager username: %s\n", managerUsername)
 	fmt.Printf("manager password: %s\n", managerPassword)
+	fmt.Printf("cs username: %s\n", csUsername)
+	fmt.Printf("cs password: %s\n", csPassword)
 	fmt.Printf("sales username: %s\n", salesUsername)
 	fmt.Printf("sales password: %s\n", salesPassword)
 	fmt.Printf("admin username: %s\n", adminUsername)
 	fmt.Printf("admin password: %s\n", adminPassword)
-	fmt.Println("seeded phones: +15550000001(admin), +15550000002(sales), +15550000003(customer), +15550000004(multi-role), +15550000005(boss), +15550000006(manager)")
+	fmt.Println("seeded phones: +15550000001(admin), +15550000002(sales), +15550000003(customer), +15550000004(multi-role), +15550000005(boss), +15550000006(manager), +15550000007(cs)")
 	return nil
 }
 

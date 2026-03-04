@@ -31,6 +31,8 @@ import (
 const (
 	adminUsername = "admin"
 	adminPassword = "admin123"
+	csUsername    = "cs"
+	csPassword    = "cs123"
 	salesUsername = "sales"
 	salesPassword = "sales123"
 )
@@ -166,7 +168,7 @@ func TestPasswordLoginRoleConflictAndRetry(t *testing.T) {
 	}
 }
 
-func TestPasswordLoginSales(t *testing.T) {
+func TestPasswordLoginSalesRejected(t *testing.T) {
 	router, pool := setupTestRouter(t)
 	ctx := context.Background()
 
@@ -183,6 +185,34 @@ func TestPasswordLoginSales(t *testing.T) {
 	resp := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
 		"username": salesUsername,
 		"password": salesPassword,
+	}, "")
+	if resp.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d: %s", resp.Code, resp.Body.String())
+	}
+}
+
+func TestPasswordLoginCS(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+
+	csID := uuid.New()
+	if err := seedUser(ctx, pool, csID, "CS Dev", "staff"); err != nil {
+		t.Fatalf("seed cs: %v", err)
+	}
+	if err := seedRole(ctx, pool, csID, "CS"); err != nil {
+		t.Fatalf("seed cs role: %v", err)
+	}
+	if err := seedPassword(ctx, pool, csID, csUsername, csPassword); err != nil {
+		t.Fatalf("seed cs password: %v", err)
+	}
+
+	resp := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": csUsername,
+		"password": csPassword,
 	}, "")
 	if resp.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())

@@ -17,7 +17,6 @@ const ROLE_LABELS = {
   MANAGER: '管理员',
   ADMIN: '管理员(兼容)',
   SALES: '业务员',
-  PROCUREMENT: '采购',
   CS: '客服',
   CUSTOMER: '客户'
 };

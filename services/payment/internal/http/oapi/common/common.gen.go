@@ -17,15 +17,16 @@ const (
 
 // Defines values for MiniLoginRequestRole.
 const (
-	CS          MiniLoginRequestRole = "CS"
-	CUSTOMER    MiniLoginRequestRole = "CUSTOMER"
-	PROCUREMENT MiniLoginRequestRole = "PROCUREMENT"
-	SALES       MiniLoginRequestRole = "SALES"
+	CUSTOMER MiniLoginRequestRole = "CUSTOMER"
+	SALES    MiniLoginRequestRole = "SALES"
 )
 
 // Defines values for PasswordLoginRequestRole.
 const (
-	ADMIN PasswordLoginRequestRole = "ADMIN"
+	ADMIN   PasswordLoginRequestRole = "ADMIN"
+	BOSS    PasswordLoginRequestRole = "BOSS"
+	CS      PasswordLoginRequestRole = "CS"
+	MANAGER PasswordLoginRequestRole = "MANAGER"
 )
 
 // Defines values for SalesQrCodePlatform.
@@ -74,7 +75,7 @@ type MiniLoginRequest struct {
 	PhoneProof *PhoneProof              `json:"phoneProof,omitempty"`
 	Platform   MiniLoginRequestPlatform `json:"platform"`
 
-	// Role Optional current role; required when multiple roles. ADMIN is not allowed.
+	// Role Optional current role; required when multiple roles. Only CUSTOMER or SALES is allowed.
 	Role *MiniLoginRequestRole `json:"role,omitempty"`
 
 	// Scene Optional: QR scene parameter for sales binding (only applied on first bind)
@@ -84,28 +85,43 @@ type MiniLoginRequest struct {
 // MiniLoginRequestPlatform defines model for MiniLoginRequest.Platform.
 type MiniLoginRequestPlatform string
 
-// MiniLoginRequestRole Optional current role; required when multiple roles. ADMIN is not allowed.
+// MiniLoginRequestRole Optional current role; required when multiple roles. Only CUSTOMER or SALES is allowed.
 type MiniLoginRequestRole string
 
 // PasswordLoginRequest defines model for PasswordLoginRequest.
 type PasswordLoginRequest struct {
 	Password string `json:"password"`
 
-	// Role Optional; must be ADMIN when provided.
+	// Role Optional current role for password login; if omitted and user has multiple web roles, server may return 409 with availableRoles.
 	Role     *PasswordLoginRequestRole `json:"role,omitempty"`
 	Username string                    `json:"username"`
 }
 
-// PasswordLoginRequestRole Optional; must be ADMIN when provided.
+// PasswordLoginRequestRole Optional current role for password login; if omitted and user has multiple web roles, server may return 409 with availableRoles.
 type PasswordLoginRequestRole string
 
 // PhoneProof Phone authorization proof from mini program platform APIs.
 type PhoneProof struct {
+	// Charset Charset metadata for Alipay phone response.
+	Charset *string `json:"charset,omitempty"`
+
 	// Code Platform-issued one-time code used by backend to resolve phone number.
 	Code *string `json:"code,omitempty"`
 
+	// EncryptType Encryption algorithm for Alipay phone response (typically AES).
+	EncryptType *string `json:"encryptType,omitempty"`
+
 	// Phone Optional direct phone fallback for environments where code exchange is unavailable.
 	Phone *string `json:"phone,omitempty"`
+
+	// Response Alipay encrypted response payload returned by my.getPhoneNumber.
+	Response *string `json:"response,omitempty"`
+
+	// Sign Signature corresponding to Alipay phone response.
+	Sign *string `json:"sign,omitempty"`
+
+	// SignType Signature algorithm for Alipay phone response (typically RSA2).
+	SignType *string `json:"signType,omitempty"`
 }
 
 // SalesQrCode defines model for SalesQrCode.

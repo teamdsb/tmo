@@ -17,7 +17,6 @@ const roleLabels = {
   sales: '业务员',
   support: '客服专员',
   logistics: '物流协调员',
-  procurement: '采购',
   cs: '客服',
   customer: '客户'
 };
@@ -67,7 +66,7 @@ const inferCurrentRole = (user, explicitRole) => {
   if (roles.length === 1) {
     return roles[0];
   }
-  const priority = ['BOSS', 'MANAGER', 'ADMIN', 'SALES', 'PROCUREMENT', 'CS', 'CUSTOMER'];
+  const priority = ['BOSS', 'MANAGER', 'ADMIN', 'CS', 'SALES', 'CUSTOMER'];
   for (const role of priority) {
     if (roles.includes(role)) {
       return role;

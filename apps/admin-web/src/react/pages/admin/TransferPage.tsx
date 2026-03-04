@@ -783,7 +783,7 @@ export const TransferPage = () => {
   return (
     <>
       <AdminTopbar
-        searchPlaceholder="搜索客户、订单、销售代表..."
+        searchPlaceholder="搜索客户、订单、业务员..."
         leftSlot={
           <div className="flex items-center gap-3 text-primary dark:text-blue-400">
             <span className="material-symbols-outlined text-3xl">admin_panel_settings</span>

@@ -3,7 +3,7 @@ info:
   title: Procurement Mini Program - Identity API
   version: 0.1.0
   description: |
-    v1 API contract for customer/staff mini programs + Admin Web.
+    v1 API contract for customer + sales mini programs and Admin Web.
     Conventions:
     - JSON field naming: camelCase
     - Time: RFC3339 date-time strings
@@ -26,7 +26,7 @@ paths:
     post:
       tags:
       - Auth
-      summary: Mini program login (customer/staff, WeChat/Alipay)
+      summary: Mini program login (customer/sales, WeChat/Alipay)
       security: []
       requestBody:
         required: true
@@ -49,7 +49,7 @@ paths:
     post:
       tags:
       - Auth
-      summary: Admin web password login
+      summary: Admin web password login (BOSS/MANAGER/ADMIN/CS)
       security: []
       requestBody:
         required: true

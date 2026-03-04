@@ -580,7 +580,7 @@ func filterPasswordLoginRoles(roles []string) []string {
 	available := make([]string, 0, len(roles))
 	for _, role := range roles {
 		switch strings.ToUpper(strings.TrimSpace(role)) {
-		case "BOSS", "MANAGER", "ADMIN", "SALES":
+		case "BOSS", "MANAGER", "ADMIN", "CS":
 			available = append(available, strings.ToUpper(strings.TrimSpace(role)))
 		}
 	}
@@ -597,7 +597,7 @@ func selectPasswordLoginRole(availableRoles []string, requested *string) (string
 		return role, true
 	}
 
-	priority := []string{"BOSS", "MANAGER", "ADMIN", "SALES"}
+	priority := []string{"BOSS", "MANAGER", "ADMIN", "CS"}
 	for _, role := range priority {
 		if containsRole(availableRoles, role) {
 			return role, true
