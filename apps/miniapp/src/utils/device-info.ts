@@ -54,6 +54,17 @@ const getWindowInfoFromTaro = (): GenericRecord => {
   return {}
 }
 
+const getLegacySystemInfoFromTaro = (): GenericRecord => {
+  try {
+    if (typeof Taro.getSystemInfoSync === 'function') {
+      return (Taro.getSystemInfoSync() as unknown as GenericRecord) ?? {}
+    }
+  } catch {
+    // ignore read errors
+  }
+  return {}
+}
+
 const getThemeFromAppBaseInfo = (): string | undefined => {
   try {
     if (typeof Taro.getAppBaseInfo === 'function') {
@@ -66,74 +77,20 @@ const getThemeFromAppBaseInfo = (): string | undefined => {
   return undefined
 }
 
-const readFromWeappApis = (): RuntimeDeviceInfo => {
-  const weapp = (globalThis as { wx?: GenericRecord }).wx as
-    | {
-        getWindowInfo?: () => GenericRecord
-        getAppBaseInfo?: () => GenericRecord
-      }
-    | undefined
-
-  if (!weapp) {
-    return { statusBarHeight: 0, safeAreaTop: 0 }
-  }
-
-  const windowInfo = (() => {
-    try {
-      return weapp.getWindowInfo?.() ?? {}
-    } catch {
-      return {}
-    }
-  })()
-
-  const appBaseInfo = (() => {
-    try {
-      return weapp.getAppBaseInfo?.() ?? {}
-    } catch {
-      return {}
-    }
-  })()
-
-  return {
-    statusBarHeight: toFinitePositiveNumber(windowInfo.statusBarHeight),
-    safeAreaTop: getSafeAreaTop(windowInfo),
-    theme: toTheme(appBaseInfo.theme) ?? toTheme(windowInfo.theme)
-  }
-}
-
-const readFromAlipayApi = (): RuntimeDeviceInfo => {
-  const alipay = (globalThis as { my?: GenericRecord }).my as
-    | {
-        getSystemInfoSync?: () => GenericRecord
-      }
-    | undefined
-
-  if (!alipay || typeof alipay.getSystemInfoSync !== 'function') {
-    return { statusBarHeight: 0, safeAreaTop: 0 }
-  }
-
-  const systemInfo = (() => {
-    try {
-      return alipay.getSystemInfoSync?.() ?? {}
-    } catch {
-      return {}
-    }
-  })()
-
-  return {
-    statusBarHeight: toFinitePositiveNumber(systemInfo.statusBarHeight),
-    safeAreaTop: getSafeAreaTop(systemInfo),
-    theme: toTheme(systemInfo.theme)
-  }
-}
-
 const readFromTaroFallback = (): RuntimeDeviceInfo => {
   const windowInfo = getWindowInfoFromTaro()
+  const legacySystemInfo = getLegacySystemInfoFromTaro()
+  const statusBarHeight = toFinitePositiveNumber(windowInfo.statusBarHeight)
+    || toFinitePositiveNumber(legacySystemInfo.statusBarHeight)
+  const safeAreaTop = getSafeAreaTop(windowInfo) || getSafeAreaTop(legacySystemInfo)
+  const theme = getThemeFromAppBaseInfo()
+    || toTheme(windowInfo.theme)
+    || toTheme(legacySystemInfo.theme)
 
   return {
-    statusBarHeight: toFinitePositiveNumber(windowInfo.statusBarHeight),
-    safeAreaTop: getSafeAreaTop(windowInfo),
-    theme: getThemeFromAppBaseInfo() ?? toTheme(windowInfo.theme)
+    statusBarHeight,
+    safeAreaTop,
+    theme
   }
 }
 
@@ -149,16 +106,6 @@ const readThemeFromH5 = (): string | undefined => {
 }
 
 export const getRuntimeDeviceInfo = (): RuntimeDeviceInfo => {
-  const taroEnv = process.env.TARO_ENV
-
-  if (taroEnv === 'weapp') {
-    return readFromWeappApis()
-  }
-
-  if (taroEnv === 'alipay') {
-    return readFromAlipayApi()
-  }
-
   return readFromTaroFallback()
 }
 

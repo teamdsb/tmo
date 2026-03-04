@@ -1,323 +1,886 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import {
+  fetchInquiries,
+  fetchInquiryById,
+  fetchInquiryMessages,
+  postInquiryMessage
+} from '../../../lib/api';
+import { isMockMode } from '../../../lib/env';
 import { AdminTopbar } from '../../layout/AdminTopbar';
 
+type InquiryStatus = 'OPEN' | 'RESPONDED' | 'CLOSED';
+type SenderType = 'customer' | 'staff' | 'ai';
+
+type InquiryItem = {
+  id: string;
+  createdByUserId: string;
+  assignedSalesUserId: string;
+  orderId: string;
+  skuId: string;
+  message: string;
+  status: InquiryStatus;
+  responseNote: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type InquiryMessageItem = {
+  id: string;
+  inquiryId: string;
+  senderType: SenderType;
+  senderUserId: string;
+  content: string;
+  createdAt: string;
+};
+
+type RequirementOrderProfile = {
+  requirementNo: string;
+  title: string;
+  companyName: string;
+  contactName: string;
+  contactPhone: string;
+  expectedQty: string;
+  targetUnitPrice: string;
+  priority: string;
+  source: string;
+  summary: string;
+  attachments: string[];
+};
+
+const STATUS_OPTIONS: Array<{ status: InquiryStatus; label: string }> = [
+  { status: 'OPEN', label: '进行中' },
+  { status: 'RESPONDED', label: '待客户' },
+  { status: 'CLOSED', label: '已关闭' }
+];
+
+const MOCK_INQUIRIES: InquiryItem[] = [
+  {
+    id: '6b35a359-8633-48c7-b694-c4fdbb4e1519',
+    createdByUserId: '2e5f2acc-fd3a-481a-8d5f-977762d16657',
+    assignedSalesUserId: 'f09c98a5-a6cc-43b2-b076-f4e84d18e5a2',
+    orderId: '9ea88595-8d4d-4bb9-b9c9-6b9efbbf3c7a',
+    skuId: '8a0cf5fa-15f4-46aa-ac2d-4b0d8606d4ed',
+    message: '我们有一批工位椅需求，想确认批量价格和交付周期。',
+    status: 'OPEN',
+    responseNote: '客服已接入，等待补充参数。',
+    createdAt: '2026-03-03T09:20:00Z',
+    updatedAt: '2026-03-04T07:10:00Z'
+  },
+  {
+    id: 'cc5f0ae0-e5b9-44ce-b8d4-8c6f9a9f8b03',
+    createdByUserId: 'ae8e8c9e-4c6f-41d8-bad7-f9a160ad23c1',
+    assignedSalesUserId: 'a2dc5d6f-1283-4bf0-b9c0-a22e5d2f9e5b',
+    orderId: '',
+    skuId: '',
+    message: '客户希望对比两款机械键盘的起订量折扣，需尽快回复。',
+    status: 'RESPONDED',
+    responseNote: '已发首轮报价，等待客户确认。',
+    createdAt: '2026-03-02T03:40:00Z',
+    updatedAt: '2026-03-04T01:05:00Z'
+  },
+  {
+    id: 'da911f23-0f96-4a38-bca7-13ef4d6ad5e6',
+    createdByUserId: '126d541a-2f13-4211-93bb-2f509cba1f9c',
+    assignedSalesUserId: '24b40335-0cc5-42ff-8363-8a455f6e59e5',
+    orderId: '085c0562-20b7-47f0-af54-d6af61e801f2',
+    skuId: 'ae54e009-6f65-41b6-8522-9629e5f0f3ba',
+    message: '这条需求已完成沟通，客户转入正式下单。',
+    status: 'CLOSED',
+    responseNote: '已关闭会话。',
+    createdAt: '2026-03-01T05:10:00Z',
+    updatedAt: '2026-03-03T12:32:00Z'
+  }
+];
+
+const MOCK_MESSAGES: Record<string, InquiryMessageItem[]> = {
+  '6b35a359-8633-48c7-b694-c4fdbb4e1519': [
+    {
+      id: '9ed0e580-7119-46af-8f00-6f0de4acc33c',
+      inquiryId: '6b35a359-8633-48c7-b694-c4fdbb4e1519',
+      senderType: 'customer',
+      senderUserId: '2e5f2acc-fd3a-481a-8d5f-977762d16657',
+      content: '我们计划采购 300 把工位椅，想看下批量价格。',
+      createdAt: '2026-03-04T06:43:00Z'
+    },
+    {
+      id: '77e3c104-2b5a-4a6a-94f0-4eeec877d200',
+      inquiryId: '6b35a359-8633-48c7-b694-c4fdbb4e1519',
+      senderType: 'staff',
+      senderUserId: 'f09c98a5-a6cc-43b2-b076-f4e84d18e5a2',
+      content: '收到，我这边先帮您确认不同材质版本的阶梯报价。',
+      createdAt: '2026-03-04T06:47:00Z'
+    }
+  ],
+  'cc5f0ae0-e5b9-44ce-b8d4-8c6f9a9f8b03': [
+    {
+      id: '68d06756-7237-49fe-9681-a2c7a1f2abf5',
+      inquiryId: 'cc5f0ae0-e5b9-44ce-b8d4-8c6f9a9f8b03',
+      senderType: 'staff',
+      senderUserId: 'a2dc5d6f-1283-4bf0-b9c0-a22e5d2f9e5b',
+      content: '已给您发送两档报价，辛苦确认预算区间。',
+      createdAt: '2026-03-04T01:01:00Z'
+    }
+  ],
+  'da911f23-0f96-4a38-bca7-13ef4d6ad5e6': [
+    {
+      id: 'f43e2e4a-f7af-4aab-b47e-18507a7bc712',
+      inquiryId: 'da911f23-0f96-4a38-bca7-13ef4d6ad5e6',
+      senderType: 'customer',
+      senderUserId: '126d541a-2f13-4211-93bb-2f509cba1f9c',
+      content: '报价确认，我们已经在系统提交订单了。',
+      createdAt: '2026-03-03T12:30:00Z'
+    },
+    {
+      id: '75b5aeed-abde-4f77-930a-db9a2d04e4f6',
+      inquiryId: 'da911f23-0f96-4a38-bca7-13ef4d6ad5e6',
+      senderType: 'staff',
+      senderUserId: '24b40335-0cc5-42ff-8363-8a455f6e59e5',
+      content: '好的，后续物流节点我们会在订单详情同步。',
+      createdAt: '2026-03-03T12:32:00Z'
+    }
+  ]
+};
+
+const MOCK_REQUIREMENT_PROFILES: Record<string, RequirementOrderProfile> = {
+  '6b35a359-8633-48c7-b694-c4fdbb4e1519': {
+    requirementNo: 'REQ-20260304-001',
+    title: '人体工学工位椅批量采购',
+    companyName: '华东联合办公科技有限公司',
+    contactName: '王女士',
+    contactPhone: '138-0013-8000',
+    expectedQty: '300 把',
+    targetUnitPrice: '¥ 460 / 把',
+    priority: '高',
+    source: '小程序需求链接',
+    summary: '客户要求网布靠背 + 铝合金底盘，4 月 15 日前首批交付 100 把。',
+    attachments: ['工位布局图.pdf', '颜色偏好说明.docx']
+  },
+  'cc5f0ae0-e5b9-44ce-b8d4-8c6f9a9f8b03': {
+    requirementNo: 'REQ-20260303-018',
+    title: '机械键盘起订量折扣咨询',
+    companyName: '北方智能制造集团',
+    contactName: '刘先生',
+    contactPhone: '139-0013-9000',
+    expectedQty: '500 套',
+    targetUnitPrice: '¥ 280 / 套',
+    priority: '中',
+    source: '客户自助提交',
+    summary: '关注轴体寿命与售后政策，要求两档报价（300/500 套）。',
+    attachments: ['规格清单.xlsx']
+  },
+  'da911f23-0f96-4a38-bca7-13ef4d6ad5e6': {
+    requirementNo: 'REQ-20260301-006',
+    title: '扩展坞补货需求',
+    companyName: '明悦数字科技',
+    contactName: '陈女士',
+    contactPhone: '137-0013-7000',
+    expectedQty: '1000 台',
+    targetUnitPrice: '¥ 95 / 台',
+    priority: '低',
+    source: '订单售后衍生',
+    summary: '会话已关闭，客户转入正式下单流程。',
+    attachments: []
+  }
+};
+
+const safeText = (value: unknown, fallback = '') => {
+  if (typeof value !== 'string') {
+    return fallback;
+  }
+  const trimmed = value.trim();
+  return trimmed || fallback;
+};
+
+const normalizeStatus = (value: unknown): InquiryStatus => {
+  const status = String(value || '').toUpperCase();
+  if (status === 'RESPONDED') return 'RESPONDED';
+  if (status === 'CLOSED') return 'CLOSED';
+  return 'OPEN';
+};
+
+const normalizeInquiry = (input: unknown): InquiryItem | null => {
+  const item = input as {
+    id?: string;
+    createdByUserId?: string;
+    assignedSalesUserId?: string | null;
+    orderId?: string | null;
+    skuId?: string | null;
+    message?: string;
+    status?: string;
+    responseNote?: string | null;
+    createdAt?: string;
+    updatedAt?: string | null;
+  };
+
+  if (!item?.id) {
+    return null;
+  }
+
+  return {
+    id: item.id,
+    createdByUserId: safeText(item.createdByUserId, '-'),
+    assignedSalesUserId: safeText(item.assignedSalesUserId, '-'),
+    orderId: safeText(item.orderId, '-'),
+    skuId: safeText(item.skuId, '-'),
+    message: safeText(item.message, '无消息内容'),
+    status: normalizeStatus(item.status),
+    responseNote: safeText(item.responseNote, ''),
+    createdAt: safeText(item.createdAt),
+    updatedAt: safeText(item.updatedAt)
+  };
+};
+
+const normalizeInquiryList = (payload: unknown): InquiryItem[] => {
+  const items = Array.isArray((payload as { items?: unknown[] })?.items)
+    ? ((payload as { items?: unknown[] }).items as unknown[])
+    : [];
+
+  return items
+    .map((item) => normalizeInquiry(item))
+    .filter(Boolean) as InquiryItem[];
+};
+
+const normalizeInquiryMessage = (input: unknown): InquiryMessageItem | null => {
+  const item = input as {
+    id?: string;
+    inquiryId?: string;
+    senderType?: string;
+    senderUserId?: string | null;
+    content?: string;
+    createdAt?: string;
+  };
+
+  if (!item?.id || !item?.inquiryId) {
+    return null;
+  }
+
+  const rawSenderType = String(item.senderType || '').toLowerCase();
+  let senderType: SenderType = 'staff';
+  if (rawSenderType === 'customer' || rawSenderType === 'staff' || rawSenderType === 'ai') {
+    senderType = rawSenderType;
+  }
+
+  return {
+    id: item.id,
+    inquiryId: item.inquiryId,
+    senderType,
+    senderUserId: safeText(item.senderUserId, '-'),
+    content: safeText(item.content, ''),
+    createdAt: safeText(item.createdAt)
+  };
+};
+
+const normalizeMessageList = (payload: unknown): InquiryMessageItem[] => {
+  const items = Array.isArray((payload as { items?: unknown[] })?.items)
+    ? ((payload as { items?: unknown[] }).items as unknown[])
+    : [];
+
+  return items
+    .map((item) => normalizeInquiryMessage(item))
+    .filter(Boolean)
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) as InquiryMessageItem[];
+};
+
+const formatDateTime = (value: string) => {
+  if (!value) return '-';
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) {
+    return value;
+  }
+  return new Date(timestamp).toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+};
+
+const formatShortId = (id: string) => {
+  if (!id || id.length < 8) {
+    return id || '-';
+  }
+  return id.slice(0, 8);
+};
+
+const getStatusLabel = (status: InquiryStatus) => {
+  const matched = STATUS_OPTIONS.find((item) => item.status === status);
+  return matched?.label || status;
+};
+
+const getStatusClassName = (status: InquiryStatus) => {
+  if (status === 'OPEN') {
+    return 'bg-blue-100 text-blue-700 border border-blue-200';
+  }
+  if (status === 'RESPONDED') {
+    return 'bg-amber-100 text-amber-700 border border-amber-200';
+  }
+  return 'bg-slate-100 text-slate-600 border border-slate-200';
+};
+
+const getSenderLabel = (message: InquiryMessageItem) => {
+  if (message.senderType === 'customer') {
+    return '客户';
+  }
+  if (message.senderType === 'ai') {
+    return 'AI 助手';
+  }
+  return '客服';
+};
+
+const buildInquiryLink = (inquiryId: string) => {
+  if (typeof window === 'undefined') {
+    return `/inquiries.html?inquiryId=${encodeURIComponent(inquiryId)}`;
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.set('inquiryId', inquiryId);
+  return url.toString();
+};
+
+const readInitialInquiryId = () => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  const raw = new URLSearchParams(window.location.search).get('inquiryId');
+  return safeText(raw);
+};
+
+const buildRequirementOrderProfile = (inquiry: InquiryItem | null): RequirementOrderProfile | null => {
+  if (!inquiry) {
+    return null;
+  }
+
+  const mock = MOCK_REQUIREMENT_PROFILES[inquiry.id];
+  if (mock) {
+    return mock;
+  }
+
+  // TODO: replace with real requirement-order detail API when backend provides it.
+  return {
+    requirementNo: `REQ-${formatShortId(inquiry.id)}`,
+    title: '待补充需求主题',
+    companyName: `客户 ${formatShortId(inquiry.createdByUserId)}`,
+    contactName: '未提供',
+    contactPhone: '未提供',
+    expectedQty: '待确认',
+    targetUnitPrice: '待确认',
+    priority: inquiry.status === 'OPEN' ? '高' : inquiry.status === 'RESPONDED' ? '中' : '低',
+    source: '需求链接',
+    summary: inquiry.message,
+    attachments: []
+  };
+};
+
 export const InquiriesPage = () => {
-  return (
-    <>
-      <div>
-        <AdminTopbar
-          searchPlaceholder="按订单号、客户或商品搜索..."
-          leftSlot={
-            <div className="flex items-center gap-3 text-primary dark:text-blue-400">
-              <span className="material-symbols-outlined text-3xl">inventory_2</span>
-              <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">需求订单后台</h1>
-            </div>
+  const [statusFilter, setStatusFilter] = useState<InquiryStatus>('OPEN');
+  const [keyword, setKeyword] = useState('');
+  const [inquiries, setInquiries] = useState<InquiryItem[]>([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState('');
+
+  const [activeInquiryId, setActiveInquiryId] = useState<string>('');
+  const [activeInquiry, setActiveInquiry] = useState<InquiryItem | null>(null);
+  const [requirementProfile, setRequirementProfile] = useState<RequirementOrderProfile | null>(null);
+
+  const [messages, setMessages] = useState<InquiryMessageItem[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [messagesError, setMessagesError] = useState('');
+
+  const [inputContent, setInputContent] = useState('');
+  const [sending, setSending] = useState(false);
+  const [copyTip, setCopyTip] = useState('');
+
+  const initialInquiryIdRef = useRef(readInitialInquiryId());
+  const copyTimeoutRef = useRef<number | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  const filteredInquiries = useMemo(() => {
+    const value = keyword.trim().toLowerCase();
+    if (!value) {
+      return inquiries;
+    }
+
+    return inquiries.filter((item) => {
+      return (
+        item.id.toLowerCase().includes(value) ||
+        item.message.toLowerCase().includes(value) ||
+        item.createdByUserId.toLowerCase().includes(value) ||
+        item.assignedSalesUserId.toLowerCase().includes(value)
+      );
+    });
+  }, [inquiries, keyword]);
+
+  const activeInquiryLink = useMemo(() => {
+    if (!activeInquiryId) {
+      return '';
+    }
+    return buildInquiryLink(activeInquiryId);
+  }, [activeInquiryId]);
+
+  const loadInquiries = useCallback(async () => {
+    setListLoading(true);
+    setListError('');
+
+    try {
+      if (isMockMode) {
+        const mockItems = MOCK_INQUIRIES.filter((item) => item.status === statusFilter);
+        setInquiries(mockItems);
+        return;
+      }
+
+      const response = await fetchInquiries({
+        page: 1,
+        pageSize: 100,
+        status: statusFilter
+      });
+
+      if (response.status !== 200 || !response.data) {
+        throw new Error('加载需求列表失败');
+      }
+
+      setInquiries(normalizeInquiryList(response.data));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '加载需求列表失败';
+      setListError(message || '加载需求列表失败');
+      setInquiries([]);
+    } finally {
+      setListLoading(false);
+    }
+  }, [statusFilter]);
+
+  useEffect(() => {
+    void loadInquiries();
+  }, [loadInquiries]);
+
+  useEffect(() => {
+    if (filteredInquiries.length === 0) {
+      setActiveInquiryId('');
+      return;
+    }
+
+    if (activeInquiryId && filteredInquiries.some((item) => item.id === activeInquiryId)) {
+      return;
+    }
+
+    const initialInquiryId = initialInquiryIdRef.current;
+    if (initialInquiryId) {
+      const initialMatch = filteredInquiries.find((item) => item.id === initialInquiryId);
+      if (initialMatch) {
+        setActiveInquiryId(initialMatch.id);
+        initialInquiryIdRef.current = '';
+        return;
+      }
+    }
+
+    setActiveInquiryId(filteredInquiries[0].id);
+  }, [activeInquiryId, filteredInquiries]);
+
+  useEffect(() => {
+    if (!activeInquiryId) {
+      setActiveInquiry(null);
+      setRequirementProfile(null);
+      setMessages([]);
+      setMessagesError('');
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('inquiryId', activeInquiryId);
+      window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+    }
+
+    let cancelled = false;
+
+    const loadThread = async () => {
+      setMessagesLoading(true);
+      setMessagesError('');
+
+      try {
+        if (isMockMode) {
+          const mockInquiry = MOCK_INQUIRIES.find((item) => item.id === activeInquiryId) || null;
+          const mockMessages = MOCK_MESSAGES[activeInquiryId] || [];
+          if (!cancelled) {
+            setActiveInquiry(mockInquiry);
+            setMessages(mockMessages);
           }
-        />
-        <div className="flex flex-1 overflow-hidden">
-          <main className="flex-1 overflow-hidden flex flex-col md:flex-row bg-background-light dark:bg-background-dark">
-            <div className="w-full md:w-80 lg:w-96 border-r border-border-color bg-surface-light dark:bg-surface-dark flex flex-col h-full">
-              <div className="p-4 border-b border-border-color">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-bold text-lg text-slate-800 dark:text-white">需求列表</h2>
-                  <button className="text-primary hover:bg-primary/10 p-1.5 rounded-lg transition-colors">
-                    <span className="material-symbols-outlined text-xl">filter_list</span>
-                  </button>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    className="bg-primary text-white text-xs px-3 py-1.5 rounded-full font-medium shadow-sm hover:shadow-md transition-all"
-                    data-role="inquiry-status-filter"
-                    data-status="IN_PROGRESS"
-                  >
-                    进行中
-                  </button>
-                  <button
-                    className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs px-3 py-1.5 rounded-full font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
-                    data-role="inquiry-status-filter"
-                    data-status="PENDING"
-                  >
-                    待处理
-                  </button>
-                  <button
-                    className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs px-3 py-1.5 rounded-full font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
-                    data-role="inquiry-status-filter"
-                    data-status="CLOSED"
-                  >
-                    已关闭
-                  </button>
-                </div>
+          return;
+        }
+
+        const [inquiryResponse, messageResponse] = await Promise.all([
+          fetchInquiryById(activeInquiryId),
+          fetchInquiryMessages(activeInquiryId, { page: 1, pageSize: 200 })
+        ]);
+
+        if (cancelled) {
+          return;
+        }
+
+        const detail = inquiryResponse.status === 200 ? normalizeInquiry(inquiryResponse.data) : null;
+        setActiveInquiry(detail || inquiries.find((item) => item.id === activeInquiryId) || null);
+
+        if (messageResponse.status !== 200 || !messageResponse.data) {
+          setMessages([]);
+          setMessagesError('加载会话消息失败。');
+          return;
+        }
+
+        setMessages(normalizeMessageList(messageResponse.data));
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+        const message = error instanceof Error ? error.message : '加载会话消息失败';
+        setMessages([]);
+        setMessagesError(message || '加载会话消息失败');
+      } finally {
+        if (!cancelled) {
+          setMessagesLoading(false);
+        }
+      }
+    };
+
+    void loadThread();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeInquiryId, inquiries]);
+
+  useEffect(() => {
+    setRequirementProfile(buildRequirementOrderProfile(activeInquiry));
+  }, [activeInquiry]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length, messagesLoading]);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        window.clearTimeout(copyTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleCopyLink = useCallback(async (inquiryId: string) => {
+    if (!inquiryId) {
+      return;
+    }
+    const link = buildInquiryLink(inquiryId);
+
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopyTip('需求链接已复制。');
+    } catch {
+      window.prompt('复制需求链接：', link);
+      setCopyTip('已打开复制弹窗。');
+    }
+
+    if (copyTimeoutRef.current) {
+      window.clearTimeout(copyTimeoutRef.current);
+    }
+    copyTimeoutRef.current = window.setTimeout(() => {
+      setCopyTip('');
+    }, 2000);
+  }, []);
+
+  const handleSendMessage = useCallback(
+    async (event?: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
+      event?.preventDefault();
+      const content = inputContent.trim();
+      if (!activeInquiryId || !content || sending) {
+        return;
+      }
+
+      setMessagesError('');
+      setSending(true);
+
+      try {
+        if (isMockMode) {
+          const createdAt = new Date().toISOString();
+          const created: InquiryMessageItem = {
+            id: `mock-${Date.now()}`,
+            inquiryId: activeInquiryId,
+            senderType: 'staff',
+            senderUserId: 'mock-support',
+            content,
+            createdAt
+          };
+          setMessages((prev) => [...prev, created]);
+          setInputContent('');
+          return;
+        }
+
+        const response = await postInquiryMessage(activeInquiryId, { content });
+        if (response.status !== 201 || !response.data) {
+          throw new Error('发送消息失败');
+        }
+
+        const created = normalizeInquiryMessage(response.data);
+        if (!created) {
+          throw new Error('消息返回格式错误');
+        }
+
+        setMessages((prev) => [...prev, created]);
+        setInputContent('');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '发送消息失败';
+        setMessagesError(message || '发送消息失败');
+      } finally {
+        setSending(false);
+      }
+    },
+    [activeInquiryId, inputContent, sending]
+  );
+
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+      <AdminTopbar
+        searchPlaceholder="搜索需求链接、客户或会话..."
+        leftSlot={
+          <div className="flex items-center gap-3 text-primary dark:text-blue-400">
+            <span className="material-symbols-outlined text-3xl">support_agent</span>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">在线客服工作台</h1>
+          </div>
+        }
+      />
+
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <main className="flex h-full min-h-0 flex-1 overflow-hidden bg-background-light dark:bg-background-dark lg:flex">
+          <aside className="flex h-full w-full shrink-0 flex-col border-r border-border-color bg-surface-light dark:bg-surface-dark lg:w-72 xl:w-80 2xl:w-96">
+            <div className="border-b border-border-color p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-slate-800 dark:text-white">需求列表</h2>
+                <span className="rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">{inquiries.length} 条</span>
               </div>
-              <div className="flex-1 overflow-y-auto" data-role="inquiry-list">
-                <div className="p-4 border-b border-border-color bg-primary/5 border-l-4 border-l-primary cursor-pointer" data-role="inquiry-list-item" data-inquiry-status="IN_PROGRESS">
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="text-xs font-bold text-primary">#2024-8932</span>
-                    <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-semibold border border-red-200">高优先级</span>
-                  </div>
-                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-1 line-clamp-1">批量采购：机械键盘</h3>
-                  <p className="text-xs text-text-sub line-clamp-2 mb-2">需求 500 套定制配列机械键盘，使用高品质机械轴体...</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold">技</div>
-                      <span className="text-xs text-slate-500">科技方案公司</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400">2小时前</span>
-                  </div>
-                </div>
-                <div className="p-4 border-b border-border-color hover:bg-background-light dark:hover:bg-slate-800 cursor-pointer transition-colors border-l-4 border-l-transparent" data-role="inquiry-list-item" data-inquiry-status="PENDING">
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="text-xs font-medium text-slate-500">#2024-8930</span>
-                    <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold border border-amber-200">中优先级</span>
-                  </div>
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1 line-clamp-1">办公椅人体工学方案</h3>
-                  <p className="text-xs text-text-sub line-clamp-2 mb-2">需要 50 把高端人体工学办公椅报价，用于新的旧金山办公室...</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-[10px] font-bold">环</div>
-                      <span className="text-xs text-slate-500">环球企业</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400">5小时前</span>
-                  </div>
-                </div>
-                <div className="p-4 border-b border-border-color hover:bg-background-light dark:hover:bg-slate-800 cursor-pointer transition-colors border-l-4 border-l-transparent" data-role="inquiry-list-item" data-inquiry-status="CLOSED">
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="text-xs font-medium text-slate-500">#2024-8928</span>
-                    <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold border border-slate-200">低优先级</span>
-                  </div>
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1 line-clamp-1">多功能扩展坞（1000件）</h3>
-                  <p className="text-xs text-text-sub line-clamp-2 mb-2">需要标准 7 合 1 扩展坞，需支持品牌定制，目标价低于 $15/件。</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-5 h-5 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-[10px] font-bold">像</div>
-                      <span className="text-xs text-slate-500">像素工作室</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400">1天前</span>
-                  </div>
-                </div>
-                <div className="p-4 border-b border-border-color hover:bg-background-light dark:hover:bg-slate-800 cursor-pointer transition-colors border-l-4 border-l-transparent" data-role="inquiry-list-item" data-inquiry-status="PENDING">
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="text-xs font-medium text-slate-500">#2024-8925</span>
-                    <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold border border-amber-200">中优先级</span>
-                  </div>
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1 line-clamp-1">双臂显示器支架</h3>
-                  <p className="text-xs text-text-sub line-clamp-2 mb-2">需求已附，需核验指定显示器的通用支架标准兼容性。</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-5 h-5 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-[10px] font-bold">顶</div>
-                      <span className="text-xs text-slate-500">顶点设计</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400">2天前</span>
-                  </div>
-                </div>
+              <div className="mb-3 flex gap-2">
+                {STATUS_OPTIONS.map((option) => {
+                  const active = option.status === statusFilter;
+                  return (
+                    <button
+                      key={option.status}
+                      type="button"
+                      className={
+                        active
+                          ? 'rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-white shadow-sm'
+                          : 'rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300'
+                      }
+                      onClick={() => setStatusFilter(option.status)}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
               </div>
+              <label className="relative block">
+                <span className="material-symbols-outlined pointer-events-none absolute left-2.5 top-2.5 text-base text-slate-400">search</span>
+                <input
+                  className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm text-slate-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                  placeholder="按需求链接或客户ID搜索"
+                  value={keyword}
+                  onChange={(event) => setKeyword(event.currentTarget.value)}
+                />
+              </label>
             </div>
-            <div className="flex-1 flex flex-col min-w-0 overflow-y-auto bg-white dark:bg-slate-900/50">
-              <div className="p-6 border-b border-border-color sticky top-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm z-10">
-                <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
-                  <div>
-                    <div className="flex items-center gap-3 mb-1">
-                      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">需求单 #2024-8932</h1>
-                      <span className="bg-blue-100 text-blue-700 text-xs px-2.5 py-0.5 rounded-full font-semibold border border-blue-200">进行中</span>
+
+            <div className="flex-1 overflow-y-auto">
+              {listLoading ? <div className="px-4 py-8 text-sm text-slate-500">正在加载需求列表...</div> : null}
+              {!listLoading && listError ? <div className="px-4 py-8 text-sm text-red-600">{listError}</div> : null}
+              {!listLoading && !listError && filteredInquiries.length === 0 ? (
+                <div className="px-4 py-8 text-sm text-slate-500">当前筛选条件下暂无需求会话。</div>
+              ) : null}
+
+              {!listLoading &&
+                !listError &&
+                filteredInquiries.map((item) => {
+                  const active = item.id === activeInquiryId;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setActiveInquiryId(item.id)}
+                      className={
+                        active
+                          ? 'w-full border-b border-border-color border-l-4 border-l-primary bg-primary/5 px-4 py-3 text-left'
+                          : 'w-full border-b border-border-color border-l-4 border-l-transparent px-4 py-3 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                      }
+                    >
+                      <div className="mb-1 flex items-start justify-between gap-2">
+                        <span className={active ? 'text-xs font-bold text-primary' : 'text-xs font-semibold text-slate-500'}>#{formatShortId(item.id)}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${getStatusClassName(item.status)}`}>{getStatusLabel(item.status)}</span>
+                      </div>
+                      <p className={`mb-2 line-clamp-2 text-xs ${active ? 'text-slate-800 dark:text-slate-100' : 'text-slate-600 dark:text-slate-300'}`}>{item.message}</p>
+                      <div className="flex items-center justify-between text-[10px] text-slate-400">
+                        <span>客户: {formatShortId(item.createdByUserId)}</span>
+                        <span>{formatDateTime(item.updatedAt || item.createdAt)}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+            </div>
+          </aside>
+
+          <section className="flex min-w-0 flex-1 flex-col bg-white dark:bg-slate-900/40 lg:flex-[1.4] xl:flex-[1.8]">
+            {activeInquiry ? (
+              <>
+                <div className="sticky top-0 z-10 border-b border-border-color bg-white/95 px-5 py-4 backdrop-blur-sm dark:bg-slate-900/95">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="mb-1 flex items-center gap-2">
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white">需求链接 #{formatShortId(activeInquiry.id)}</h2>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${getStatusClassName(activeInquiry.status)}`}>{getStatusLabel(activeInquiry.status)}</span>
+                      </div>
+                      <p className="text-xs text-slate-500">最近更新时间：{formatDateTime(activeInquiry.updatedAt || activeInquiry.createdAt)}</p>
                     </div>
-                  </div>
-                  <div className="flex gap-3">
-                    <button className="px-4 py-2 border border-border-color rounded-lg text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">驳回</button>
-                    <button className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium shadow hover:bg-blue-700 transition-colors flex items-center gap-2">
-                      <span className="material-symbols-outlined text-sm">edit</span>
-                      编辑需求
+                    <button
+                      type="button"
+                      onClick={() => void handleCopyLink(activeInquiry.id)}
+                      className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-300"
+                    >
+                      复制需求链接
                     </button>
                   </div>
+                  {copyTip ? <div className="text-xs text-emerald-600">{copyTip}</div> : null}
                 </div>
-                <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-lg p-4 flex items-center justify-between relative overflow-hidden">
-                  <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-slate-300 dark:bg-slate-600 -translate-y-1/2 z-0" />
-                  <div className="relative z-10 flex flex-col items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-green-500 text-white flex items-center justify-center shadow-sm">
-                      <span className="material-symbols-outlined text-sm">check</span>
-                    </div>
-                    <span className="text-xs font-semibold text-green-600">已接收</span>
-                  </div>
-                  <div className="relative z-10 flex flex-col items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center shadow-sm ring-4 ring-blue-50 dark:ring-blue-900/30">
-                      <span className="material-symbols-outlined text-sm">cached</span>
-                    </div>
-                    <span className="text-xs font-semibold text-primary">需求订单中</span>
-                  </div>
-                  <div className="relative z-10 flex flex-col items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-400 flex items-center justify-center border-2 border-white dark:border-slate-800">
-                      <span className="material-symbols-outlined text-sm">gavel</span>
-                    </div>
-                    <span className="text-xs font-medium text-slate-500">议价中</span>
-                  </div>
-                  <div className="relative z-10 flex flex-col items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-400 flex items-center justify-center border-2 border-white dark:border-slate-800">
-                      <span className="material-symbols-outlined text-sm">local_shipping</span>
-                    </div>
-                    <span className="text-xs font-medium text-slate-500">交付中</span>
-                  </div>
+
+                <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50/60 p-5 dark:bg-slate-900/20">
+                  {messagesLoading ? <div className="text-sm text-slate-500">正在加载会话消息...</div> : null}
+                  {!messagesLoading && messagesError ? <div className="text-sm text-red-600">{messagesError}</div> : null}
+                  {!messagesLoading && !messagesError && messages.length === 0 ? (
+                    <div className="text-sm text-slate-500">当前会话暂无消息，客服可直接发起沟通。</div>
+                  ) : null}
+
+                  {!messagesLoading &&
+                    !messagesError &&
+                    messages.map((message) => {
+                      const fromCustomer = message.senderType === 'customer';
+                      return (
+                        <div key={message.id} className={fromCustomer ? 'flex items-start gap-3' : 'flex items-start gap-3 justify-end'}>
+                          {fromCustomer ? <div className="h-8 w-8 shrink-0 rounded-full bg-slate-200" /> : null}
+                          <div className={fromCustomer ? 'max-w-[85%]' : 'max-w-[85%] text-right'}>
+                            <div className={`mb-1 text-[11px] text-slate-500 ${fromCustomer ? '' : 'text-right'}`}>{getSenderLabel(message)}</div>
+                            <div
+                              className={
+                                fromCustomer
+                                  ? 'rounded-2xl rounded-tl-none border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
+                                  : 'rounded-2xl rounded-tr-none bg-primary px-4 py-3 text-sm text-white shadow-sm'
+                              }
+                            >
+                              {message.content}
+                            </div>
+                            <div className="mt-1 text-[10px] text-slate-400">{formatDateTime(message.createdAt)}</div>
+                          </div>
+                          {!fromCustomer ? <div className="h-8 w-8 shrink-0 rounded-full bg-primary/15" /> : null}
+                        </div>
+                      );
+                    })}
+                  <div ref={messagesEndRef} />
                 </div>
-              </div>
-              <div className="p-6 grid grid-cols-1 xl:grid-cols-3 gap-6">
-                <div className="xl:col-span-2 space-y-6">
-                  <div className="bg-surface-light dark:bg-surface-dark border border-border-color rounded-xl p-5 shadow-sm">
-                    <h3 className="font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary">info</span>
-                      需求详情
-                    </h3>
-                    <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-                      <div>
-                        <p className="text-xs font-medium text-text-sub uppercase mb-1">客户姓名</p>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">艾丽丝·陈</p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium text-text-sub uppercase mb-1">公司</p>
-                        <div className="flex items-center gap-2">
-                          <div className="w-5 h-5 bg-slate-200 rounded flex items-center justify-center text-[10px] font-bold">技</div>
-                          <p className="text-sm font-semibold text-slate-900 dark:text-white">科技方案有限公司</p>
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium text-text-sub uppercase mb-1">联系邮箱</p>
-                        <p className="text-sm text-slate-700 dark:text-slate-300">客户联系邮箱（已隐藏）</p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium text-text-sub uppercase mb-1">电话</p>
-                        <p className="text-sm text-slate-700 dark:text-slate-300">+1 (555) 012-3456</p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium text-text-sub uppercase mb-1">目标单价</p>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">$450.00 <span className="text-xs font-normal text-slate-400">/件</span></p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium text-text-sub uppercase mb-1">数量</p>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">500 件</p>
-                      </div>
-                    </div>
+
+                <form className="border-t border-border-color bg-white p-4 dark:bg-surface-dark" onSubmit={(event) => void handleSendMessage(event)}>
+                  <textarea
+                    className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 outline-none focus:border-primary focus:ring-1 focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                    rows={4}
+                    placeholder="输入消息并发送给客户..."
+                    value={inputContent}
+                    onChange={(event) => setInputContent(event.currentTarget.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault();
+                        void handleSendMessage();
+                      }
+                    }}
+                  />
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="text-xs text-slate-400">Enter 发送，Shift + Enter 换行</span>
+                    <button
+                      type="submit"
+                      disabled={sending || !inputContent.trim()}
+                      className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {sending ? '发送中...' : '发送'}
+                    </button>
                   </div>
-                  <div className="bg-surface-light dark:bg-surface-dark border border-border-color rounded-xl p-5 shadow-sm">
-                    <h3 className="font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                      <span className="material-symbols-outlined text-primary">description</span>
-                      规格与附件
-                    </h3>
-                    <div className="space-y-4">
-                      <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg text-sm text-slate-700 dark:text-slate-300 leading-relaxed border border-slate-100 dark:border-slate-800">
-                        <p>客户需要高品质机械键盘，规格如下：</p>
-                        <ul className="list-disc list-inside mt-2 space-y-1 ml-1">
-                          <li>全尺寸 104 键布局</li>
-                          <li>高品质机械轴体（红轴或茶轴）</li>
-                          <li>多色背光（支持软件控制）</li>
-                          <li>耐磨注塑键帽</li>
-                          <li>可拆卸通用接口线缆</li>
-                        </ul>
-                      </div>
-                      <div className="flex gap-3 mt-4">
-                        <div className="flex items-center gap-3 p-3 border border-border-color rounded-lg hover:border-primary/50 hover:bg-blue-50/30 transition-colors cursor-pointer group w-full md:w-auto">
-                          <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                            <span className="material-symbols-outlined text-red-500">picture_as_pdf</span>
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium text-slate-900 dark:text-white group-hover:text-primary">技术规格（版本二）</span>
-                            <span className="text-xs text-text-sub">2.4 兆字节</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 p-3 border border-border-color rounded-lg hover:border-primary/50 hover:bg-blue-50/30 transition-colors cursor-pointer group w-full md:w-auto">
-                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <span className="material-symbols-outlined text-blue-500">image</span>
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium text-slate-900 dark:text-white group-hover:text-primary">参考设计图</span>
-                            <span className="text-xs text-text-sub">4.1 兆字节</span>
-                          </div>
-                        </div>
-                      </div>
+                </form>
+              </>
+            ) : (
+              <div className="flex flex-1 items-center justify-center px-6 text-sm text-slate-500">请先从左侧选择一条需求会话。</div>
+            )}
+          </section>
+
+          <aside className="hidden h-full w-72 shrink-0 border-l border-border-color bg-surface-light px-4 py-5 dark:bg-surface-dark xl:block 2xl:w-80">
+            <h3 className="mb-4 text-xs font-semibold uppercase tracking-wide text-slate-500">需求订单信息</h3>
+            {activeInquiry && requirementProfile ? (
+              <div className="space-y-4 text-sm text-slate-700 dark:text-slate-300">
+                <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                  <p className="text-xs text-slate-500">需求单号</p>
+                  <p className="mt-0.5 font-semibold">{requirementProfile.requirementNo}</p>
+                  <p className="mt-2 text-xs text-slate-500">需求主题</p>
+                  <p className="mt-0.5 text-sm font-medium leading-5">{requirementProfile.title}</p>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                  <p className="text-xs text-slate-500">公司 / 联系人</p>
+                  <p className="mt-0.5 font-medium">{requirementProfile.companyName}</p>
+                  <p className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">{requirementProfile.contactName} · {requirementProfile.contactPhone}</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p className="text-slate-500">需求数量</p>
+                      <p className="mt-0.5 font-medium text-slate-700 dark:text-slate-200">{requirementProfile.expectedQty}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">目标单价</p>
+                      <p className="mt-0.5 font-medium text-slate-700 dark:text-slate-200">{requirementProfile.targetUnitPrice}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">优先级</p>
+                      <p className="mt-0.5 font-medium text-slate-700 dark:text-slate-200">{requirementProfile.priority}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-500">来源</p>
+                      <p className="mt-0.5 font-medium text-slate-700 dark:text-slate-200">{requirementProfile.source}</p>
                     </div>
                   </div>
                 </div>
-                <div className="xl:col-span-1 flex flex-col gap-6">
-                  <div className="bg-surface-light dark:bg-surface-dark border border-border-color rounded-xl p-5 shadow-sm">
-                    <h3 className="text-xs font-bold text-text-sub uppercase mb-3">跟进负责人</h3>
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-cover bg-center ring-2 ring-white dark:ring-slate-800 shadow-sm" data-alt="跟进人员头像" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuD_wYuUd8bdILwziU8s4Ugh5eL3F21YgRlKMffjAfXFdjpS4n7acT0591OU-RJMBdTsxMFSTC0zeJB-FHR13rdjAam1X4zvgr2kSlovCtlPr5zgswrWF70YxkWK_9Fru0fo_bQmih6VtA7q43sqURfj_paciYtwfqNnLug65XlWEZll2dE5r1H1ECuAv31E-Tv23BJjltL5aZ7IHRd_33Jk-FdqBOcXnfXRjI950ZKaQ7F-IZUbHh9kCuX-IFpMRV0mbzWs4JapfmE")'}} />
-                      <div className="flex-1">
-                        <p className="text-sm font-bold text-slate-900 dark:text-white">马克·威尔逊</p>
-                        <p className="text-xs text-text-sub">产品专员</p>
-                      </div>
-                      <button className="text-primary hover:text-blue-700 text-xs font-semibold">更换</button>
-                    </div>
+
+                <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                  <p className="text-xs text-slate-500">需求说明</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-300">{requirementProfile.summary}</p>
+                  <p className="mt-3 text-xs text-slate-500">附件</p>
+                  {requirementProfile.attachments.length > 0 ? (
+                    <ul className="mt-1 space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                      {requirementProfile.attachments.map((name) => (
+                        <li key={name}>- {name}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-1 text-xs text-slate-400">暂无附件</p>
+                  )}
+                </div>
+
+                <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                  <p className="mb-1 text-xs text-slate-500">需求链接</p>
+                  <div className="flex gap-2">
+                    <input className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" readOnly value={activeInquiryLink} />
+                    <button
+                      type="button"
+                      className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-medium text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-300"
+                      onClick={() => void handleCopyLink(activeInquiry.id)}
+                    >
+                      复制
+                    </button>
                   </div>
-                  <div className="bg-surface-light dark:bg-surface-dark border border-border-color rounded-xl flex flex-col shadow-sm flex-1 min-h-[500px]">
-                    <div className="p-4 border-b border-border-color flex justify-between items-center">
-                      <h3 className="font-bold text-slate-800 dark:text-white">活动动态</h3>
-                      <div className="flex gap-2">
-                        <button className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500"><span className="material-symbols-outlined text-lg">history</span></button>
-                        <button className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500"><span className="material-symbols-outlined text-lg">more_horiz</span></button>
-                      </div>
-                    </div>
-                    <div className="flex-1 p-4 space-y-6 overflow-y-auto bg-slate-50/50 dark:bg-slate-900/20 max-h-[600px]">
-                      <div className="flex gap-3">
-                        <div className="flex flex-col items-center gap-1">
-                          <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
-                            <span className="material-symbols-outlined text-sm text-slate-500">settings</span>
-                          </div>
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-baseline justify-between mb-1">
-                            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">系统</span>
-                            <span className="text-[10px] text-slate-400">10月24日 10:23</span>
-                          </div>
-                          <p className="text-xs text-slate-600 dark:text-slate-400 italic">需求已通过企业采购门户创建，优先级已设为高。</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-3">
-                        <div className="w-8 h-8 rounded-full bg-cover bg-center shrink-0" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDLSiqQL-_5Q8UYdhd938QFQsrHuMWYB4QgyMIumDq2X-Cc9S8hU7as4k3tl_lQWupN7YYreqUc_A4yBtLfBe_LbasHZqrzLVpv9bi-8bzEj3X3xYSDEUw-3XcfJxYA5L_fNZ8G8-K0PoCRRXCHypZTQTLX0Y7rJCHzYtWOSb9i2moo3sFRq6ENAU_rMu9z9NHCsvPq8m7woy81cNPfINiOiGYGctrLpcvGZFO-uypzqLJIP8pMa46nKDAHDrkXlqmpU_8eEVgJxjg")'}} />
-                        <div className="flex-1">
-                          <div className="flex items-baseline justify-between mb-1">
-                            <span className="text-xs font-bold text-primary">马克·威尔逊</span>
-                            <span className="text-[10px] text-slate-400">昨天 14:15</span>
-                          </div>
-                          <div className="bg-white dark:bg-slate-800 p-3 rounded-tr-xl rounded-b-xl shadow-sm border border-slate-100 dark:border-slate-700">
-                            <p className="text-sm text-slate-700 dark:text-slate-300">我已审核规格。我们在深圳有两家符合条件的潜在供应商，我今天会联系并获取报价。</p>
-                          </div>
-                          <div className="flex gap-2 mt-1">
-                            <span className="text-[10px] font-medium text-slate-400 cursor-pointer hover:text-slate-600">内部备注</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex gap-3">
-                        <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 font-bold text-xs">艾</div>
-                        <div className="flex-1">
-                          <div className="flex items-baseline justify-between mb-1">
-                            <span className="text-xs font-bold text-slate-800 dark:text-white">艾丽丝·陈</span>
-                            <span className="text-[10px] text-slate-400">今天 09:30</span>
-                          </div>
-                          <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-tl-xl rounded-b-xl shadow-sm border border-blue-100 dark:border-blue-900/30">
-                            <p className="text-sm text-slate-800 dark:text-slate-200">你好，马克，补充一下：如果可以的话，我们更偏好哑光黑机身。谢谢！</p>
-                          </div>
-                          <div className="flex gap-2 mt-1">
-                            <span className="text-[10px] font-medium text-primary cursor-pointer hover:underline flex items-center gap-1"><span className="material-symbols-outlined text-[12px]">reply</span> 通过邮件回复</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="p-3 border-t border-border-color bg-white dark:bg-surface-dark rounded-b-xl">
-                      <div className="flex gap-2 mb-2">
-                        <button className="text-[10px] font-medium bg-primary/10 text-primary px-2 py-1 rounded hover:bg-primary/20 transition-colors">内部备注</button>
-                        <button className="text-[10px] font-medium text-text-sub px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">发送邮件给客户</button>
-                      </div>
-                      <div className="relative">
-                        <textarea className="w-full text-sm border-border-color rounded-lg focus:ring-primary focus:border-primary bg-slate-50 dark:bg-slate-800 dark:text-white resize-none pr-10" placeholder="在此输入备注..." rows={3} defaultValue={""} />
-                        <div className="absolute bottom-2 right-2 flex gap-1">
-                          <button className="p-1 text-slate-400 hover:text-primary transition-colors"><span className="material-symbols-outlined text-lg">attach_file</span></button>
-                          <button className="p-1 text-primary hover:text-blue-700 transition-colors bg-primary/10 rounded-md"><span className="material-symbols-outlined text-lg">send</span></button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <p className="mt-2 text-[11px] text-slate-500">客户ID: {formatShortId(activeInquiry.createdByUserId)} · 业务员ID: {formatShortId(activeInquiry.assignedSalesUserId)}</p>
                 </div>
               </div>
-            </div>
-          </main>
-        </div>
+            ) : (
+              <p className="text-sm text-slate-500">暂无已选需求会话。</p>
+            )}
+          </aside>
+        </main>
       </div>
-      
-    </>
+    </div>
   );
 };

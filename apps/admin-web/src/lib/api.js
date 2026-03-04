@@ -3,11 +3,15 @@ import {
   getCatalogCategories,
   getCatalogProducts,
   getInquiriesPrice,
+  getInquiriesPriceInquiryId,
+  getInquiriesPriceInquiryIdMessages,
   getOrders,
   getProductRequests,
   patchCatalogCategoriesCategoryId,
+  patchInquiriesPriceInquiryId,
   postCatalogCategories,
   postCatalogProducts,
+  postInquiriesPriceInquiryIdMessages,
   postShipmentsImportJobs,
   setApiClientConfig
 } from '@tmo/api-client';
@@ -166,6 +170,22 @@ export const fetchOrders = async (params = {}) => {
 
 export const fetchInquiries = async (params = {}) => {
   return getInquiriesPrice(params);
+};
+
+export const fetchInquiryById = async (inquiryId) => {
+  return getInquiriesPriceInquiryId(inquiryId);
+};
+
+export const fetchInquiryMessages = async (inquiryId, params = {}) => {
+  return getInquiriesPriceInquiryIdMessages(inquiryId, params);
+};
+
+export const postInquiryMessage = async (inquiryId, payload) => {
+  return postInquiriesPriceInquiryIdMessages(inquiryId, payload);
+};
+
+export const patchInquiry = async (inquiryId, payload) => {
+  return patchInquiriesPriceInquiryId(inquiryId, payload);
 };
 
 export const fetchProductRequests = async (params = {}) => {
