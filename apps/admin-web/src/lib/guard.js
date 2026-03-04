@@ -9,6 +9,7 @@ import {
 import { canAccessPath, normalizePermissionMap } from './permissions';
 
 let isLogoutDelegated = false;
+const legacyMockPermissionNoticeKey = 'tmo:admin:web:mock:legacy-permissions-notice';
 
 const bindLogoutActions = () => {
   if (isLogoutDelegated) {
@@ -49,6 +50,22 @@ const applyProfile = (profile) => {
   });
 };
 
+const hasPermissionItems = (session) => {
+  return Array.isArray(session?.permissions?.items);
+};
+
+const notifyLegacyMockSession = () => {
+  try {
+    if (sessionStorage.getItem(legacyMockPermissionNoticeKey) === '1') {
+      return;
+    }
+    sessionStorage.setItem(legacyMockPermissionNoticeKey, '1');
+  } catch {
+    // ignore storage read/write errors
+  }
+  window.alert('检测到旧版 mock 会话，权限分级尚未生效。请重新登录以启用老板/管理/业务员分级权限。');
+};
+
 export const ensureProtectedPage = async () => {
   const session = getCurrentSession();
   if (!session) {
@@ -79,6 +96,16 @@ export const ensureProtectedPage = async () => {
   if (isDevMode && !canAccessPath(window.location.pathname, permissionMap)) {
     window.location.href = '/dashboard.html';
     return null;
+  }
+  if (isMockMode) {
+    if (hasPermissionItems(latestSession)) {
+      if (!canAccessPath(window.location.pathname, permissionMap)) {
+        window.location.href = '/dashboard.html';
+        return null;
+      }
+    } else {
+      notifyLegacyMockSession();
+    }
   }
 
   return {

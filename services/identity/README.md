@@ -23,12 +23,19 @@ Identity service for authentication, JWT issuing, and sales binding.
 - Admin password (兼容): `POST /auth/password/login` with `{"username":"admin","password":"admin123"}`
 - Staff binding: create staff + binding token (admin), then `POST /auth/mini/login` with `{"platform":"weapp","code":"mock_staff_001","bindingToken":"<token>","role":"SALES"}`
 
+说明：
+
+- `admin` 与 `boss` 在 admin-web 场景均视为最高层级。
+- `tools/scripts/identity-seed.sh` 反复执行会收敛固定账号角色（删除历史多余角色并补齐缺失角色），避免本地脏数据导致角色漂移。
+
 默认 seed 还会写入以下手机号（`users.phone`）：
 
 - Admin: `+15550000001`
 - Sales: `+15550000002`
 - Customer: `+15550000003`
 - Multi-role: `+15550000004`
+- Boss: `+15550000005`
+- Manager: `+15550000006`
 
 并写入员工手机号白名单（`staff_phone_whitelist`）：
 

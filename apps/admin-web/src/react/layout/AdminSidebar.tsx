@@ -1,6 +1,6 @@
-import { isDevMode } from '../../lib/env';
+import { getCurrentSession } from '../../lib/auth';
+import { isDevMode, isMockMode } from '../../lib/env';
 import { canAccessPath, normalizePermissionMap } from '../../lib/permissions';
-import { readAuthState } from '../../lib/state';
 
 export type AdminRouteKey =
   | 'dashboard'
@@ -42,11 +42,13 @@ type AdminSidebarProps = {
 };
 
 export const AdminSidebar = ({ currentKey, currentSettingKey }: AdminSidebarProps) => {
-  const authState = readAuthState();
-  const permissionMap = normalizePermissionMap(authState?.permissions);
-  const visibleNavItems = isDevMode ? navItems.filter((item) => canAccessPath(item.href, permissionMap)) : navItems;
-  const showGeneralSetting = isDevMode ? canAccessPath('/settings.html', permissionMap) : true;
-  const showSecuritySetting = isDevMode ? canAccessPath('/rbac.html', permissionMap) : true;
+  const session = getCurrentSession();
+  const permissionMap = normalizePermissionMap(session?.permissions);
+  const hasPermissionItems = Array.isArray(session?.permissions?.items);
+  const shouldFilterByPermissions = isDevMode || (isMockMode && hasPermissionItems);
+  const visibleNavItems = shouldFilterByPermissions ? navItems.filter((item) => canAccessPath(item.href, permissionMap)) : navItems;
+  const showGeneralSetting = shouldFilterByPermissions ? canAccessPath('/settings.html', permissionMap) : true;
+  const showSecuritySetting = shouldFilterByPermissions ? canAccessPath('/rbac.html', permissionMap) : true;
 
   return (
     <aside

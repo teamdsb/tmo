@@ -16,7 +16,7 @@ Bootstrap and local dev scripts.
 - `infra/dev/docker-compose.dev.yml`: overlay compose file for dev containers (Dockerfile.dev + source mount + Air command + Go cache volumes).
 - `dev-stack-health.sh`: check local identity/commerce/payment/gateway `/ready` and `/health` endpoints.
 - `admin-web-dev-stack.sh`: one command for backend stack + admin-web dev server (`pnpm run dev:admin-web:stack`).
-- `admin-web-smoke.sh`: smoke-check admin-web required API paths through gateway (`pnpm run smoke:admin-web`).
+- `admin-web-smoke.sh`: smoke-check admin-web required API paths through gateway with four web roles (`admin`/`boss`/`manager`/`sales`) and role-level assertions; supports per-role env overrides (`ADMIN_WEB_SMOKE_*_USERNAME/PASSWORD`) and keeps `ADMIN_WEB_SMOKE_USERNAME/PASSWORD` compatibility for admin.
 - `miniapp-http-smoke.sh`: smoke-check miniapp core API paths via gateway (`/bff/bootstrap`, `/catalog/categories`, `/catalog/products`) and validate product images from `/assets/img` or `/assets/media`.
 - `miniapp-smoke.sh`: run multi-route WeChat automator smoke on `apps/miniapp` (`MINIAPP_SMOKE_STACK_UP=true` to auto start backend stack; supports `WEAPP_SMOKE_ASSERT_*` assertion thresholds).
 - `catalog-image-audit.sh`: audit `catalog_products` image refs and print domain distribution.

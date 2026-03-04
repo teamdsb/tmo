@@ -40,10 +40,17 @@ pnpm run dev:admin-web:stack
 
 ## 模式说明
 
-- `mock`：保持现有纯前端原型行为，不请求后端。
+- `mock`：纯前端模拟，不请求后端；登录启用固定账号校验（账号/密码必须命中预置账号），并按角色分级展示页面与权限。
 - `dev`：严格真实鉴权，登录走 `POST /auth/password/login`，业务数据通过 gateway 获取。
   - 不展示固定示例数字/示例记录；没有后端数据时展示空态。
   - 暂未接入的 dashboard 扩展区块会明确标记为不可用，而不是展示 mock 卡片。
+
+mock/dev 默认四个分级账号一致：
+
+- username: `admin` / password: `admin123`（最高权限，兼容）
+- username: `boss` / password: `boss123`（最高权限）
+- username: `manager` / password: `manager123`
+- username: `sales` / password: `sales123`
 
 默认 gateway 基址通过 Vite 代理 `/api -> http://localhost:8080`。
 可通过环境变量 `ADMIN_WEB_PROXY_TARGET` 覆盖代理目标。
@@ -54,13 +61,12 @@ pnpm run dev:admin-web:stack
 pnpm run smoke:admin-web
 ```
 
-默认测试账号：
+默认测试账号（mock/dev 通用）：
 
+- username: `admin` / password: `admin123`
 - username: `boss` / password: `boss123`
 - username: `manager` / password: `manager123`
 - username: `sales` / password: `sales123`
-- username: `admin`
-- password: `admin123`
 
 ## 视觉回归
 

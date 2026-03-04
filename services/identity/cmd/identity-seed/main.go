@@ -126,26 +126,18 @@ RESTART IDENTITY CASCADE
 		return err
 	}
 
-	if err := ensureRole(ctx, pool, adminID, "ADMIN"); err != nil {
-		return err
+	roleTargets := []seedRoleAssignment{
+		{UserID: adminID, Roles: []string{"ADMIN"}},
+		{UserID: bossID, Roles: []string{"BOSS"}},
+		{UserID: managerID, Roles: []string{"MANAGER"}},
+		{UserID: salesID, Roles: []string{"SALES"}},
+		{UserID: customerID, Roles: []string{"CUSTOMER"}},
+		{UserID: multiID, Roles: []string{"CUSTOMER", "SALES"}},
 	}
-	if err := ensureRole(ctx, pool, bossID, "BOSS"); err != nil {
-		return err
-	}
-	if err := ensureRole(ctx, pool, managerID, "MANAGER"); err != nil {
-		return err
-	}
-	if err := ensureRole(ctx, pool, salesID, "SALES"); err != nil {
-		return err
-	}
-	if err := ensureRole(ctx, pool, customerID, "CUSTOMER"); err != nil {
-		return err
-	}
-	if err := ensureRole(ctx, pool, multiID, "CUSTOMER"); err != nil {
-		return err
-	}
-	if err := ensureRole(ctx, pool, multiID, "SALES"); err != nil {
-		return err
+	for _, roleTarget := range roleTargets {
+		if err := ensureExactRoles(ctx, pool, roleTarget.UserID, roleTarget.Roles); err != nil {
+			return err
+		}
 	}
 
 	if err := ensureIdentity(ctx, pool, seedIdentity{
@@ -214,15 +206,12 @@ RESTART IDENTITY CASCADE
 		return err
 	}
 
-	fmt.Println("seed data applied")
-	fmt.Printf("boss username: %s\n", bossUsername)
-	fmt.Printf("boss password: %s\n", bossPassword)
-	fmt.Printf("manager username: %s\n", managerUsername)
-	fmt.Printf("manager password: %s\n", managerPassword)
-	fmt.Printf("sales username: %s\n", salesUsername)
-	fmt.Printf("sales password: %s\n", salesPassword)
-	fmt.Printf("admin username: %s\n", adminUsername)
-	fmt.Printf("admin password: %s\n", adminPassword)
+	fmt.Println("seed data applied (identity)")
+	fmt.Println("web login accounts:")
+	fmt.Printf("- %s / %s (role: ADMIN)\n", adminUsername, adminPassword)
+	fmt.Printf("- %s / %s (role: BOSS)\n", bossUsername, bossPassword)
+	fmt.Printf("- %s / %s (role: MANAGER)\n", managerUsername, managerPassword)
+	fmt.Printf("- %s / %s (role: SALES)\n", salesUsername, salesPassword)
 	fmt.Println("seeded phones: +15550000001(admin), +15550000002(sales), +15550000003(customer), +15550000004(multi-role), +15550000005(boss), +15550000006(manager)")
 	return nil
 }
@@ -251,13 +240,32 @@ SET display_name = EXCLUDED.display_name,
 	return nil
 }
 
-func ensureRole(ctx context.Context, pool *pgxpool.Pool, userID uuid.UUID, role string) error {
+type seedRoleAssignment struct {
+	UserID uuid.UUID
+	Roles  []string
+}
+
+func ensureExactRoles(ctx context.Context, pool *pgxpool.Pool, userID uuid.UUID, roles []string) error {
+	if len(roles) == 0 {
+		return fmt.Errorf("seed roles for user %s: roles is required", userID)
+	}
+
 	if _, err := pool.Exec(ctx, `
+DELETE FROM user_roles
+WHERE user_id = $1
+  AND NOT (role = ANY($2::text[]))
+`, userID, roles); err != nil {
+		return fmt.Errorf("cleanup stale roles for user %s: %w", userID, err)
+	}
+
+	for _, role := range roles {
+		if _, err := pool.Exec(ctx, `
 INSERT INTO user_roles (user_id, role)
 VALUES ($1, $2)
 ON CONFLICT (user_id, role) DO NOTHING
 `, userID, role); err != nil {
-		return fmt.Errorf("seed role %s: %w", role, err)
+			return fmt.Errorf("seed role %s for user %s: %w", role, userID, err)
+		}
 	}
 	return nil
 }
@@ -284,12 +292,15 @@ SET user_id = EXCLUDED.user_id,
 
 func ensurePassword(ctx context.Context, pool *pgxpool.Pool, userID uuid.UUID, username, passwordHash string) error {
 	if _, err := pool.Exec(ctx, `
+DELETE FROM user_passwords
+WHERE user_id = $1 OR username = $2
+`, userID, username); err != nil {
+		return fmt.Errorf("cleanup password for %s: %w", username, err)
+	}
+
+	if _, err := pool.Exec(ctx, `
 INSERT INTO user_passwords (user_id, username, password_hash)
 VALUES ($1, $2, $3)
-ON CONFLICT (user_id) DO UPDATE
-SET username = EXCLUDED.username,
-    password_hash = EXCLUDED.password_hash,
-    updated_at = now()
 `, userID, username, passwordHash); err != nil {
 		return fmt.Errorf("seed password for %s: %w", username, err)
 	}
