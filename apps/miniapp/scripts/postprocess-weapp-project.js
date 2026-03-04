@@ -134,6 +134,11 @@ function processWeappProjectConfig() {
     changed = true
   }
 
+  if (config.setting.bundle !== false) {
+    config.setting.bundle = false
+    changed = true
+  }
+
   if (!changed) {
     return {
       status: hasAppId ? 'unchanged' : 'unchanged-no-appid',

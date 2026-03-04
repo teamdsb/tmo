@@ -1,13 +1,9 @@
 import { useMemo, useState } from 'react'
 import { View, Text, Input } from '@tarojs/components'
-import Taro from '@tarojs/taro'
-import Navbar from '@taroify/core/navbar'
 import {
   AppsOutlined,
-  ArrowLeft,
   ArrowRight,
   BarChartOutlined,
-  HomeOutlined,
   Logistics,
   OrdersOutlined,
   Search,
@@ -15,9 +11,6 @@ import {
   TodoList,
   UserOutlined
 } from '@taroify/icons'
-import { getNavbarStyle } from '../../utils/navbar'
-import { ROUTES } from '../../routes'
-import { switchTabLike } from '../../utils/navigation'
 
 type SalesTab = 'dashboard' | 'customers' | 'orders' | 'accounting'
 
@@ -183,24 +176,21 @@ const ordersListData: Order[] = [
 
 function DashboardView() {
   return (
-    <View className='flex-1 flex flex-col items-center justify-center overflow-y-auto pb-28 bg-white px-6'>
-      <View className='flex flex-col items-center justify-center text-center mb-8'>
-        <View
-          className='bg-center bg-no-repeat bg-cover rounded-full w-20 h-20 border-2 border-slate-100 mb-4 shadow-sm'
-          style={{
-            backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDS-Ii8-RYQWRHi7NRn7ujP4nBj5b27SqsnQlr_jvCr1fNZ90Xa8PTUAgyVff7zsjkZ-CVcpfqpAFImVPrHYYkc7sQ2SK11qP1fyuoHScxGlRWJWip7l6hx-vy7vDIPO79FUnu-avStjGabIojNzp5t-Cm_8yomJTd7f4VrGZgGKs65ExahSrNzzSFs0bhWkesNgUYkN4W8o2VLTqF7AICOtosah3hqXwPjHUarAXV6Gr2wFfDyN2jCHHgOG2BTs8jfp5Cd8GXDHu8")'
-          }}
-        />
-        <Text className='text-2xl font-bold leading-tight tracking-tight text-slate-900'>李明浩</Text>
-        <Text className='text-slate-500 text-sm font-medium mt-1'>高级 B2B 客户经理</Text>
+    <View className='flex-1 flex flex-col items-center overflow-y-auto bg-[#f3f4f6] px-8 pt-16 pb-36'>
+      <View className='mb-14 flex flex-col items-center justify-center text-center'>
+        <View className='mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-[#f6b298] shadow-[0_4px_12px_rgba(15,23,42,0.08)]'>
+          <UserOutlined className='text-[42px] text-[#1f2937]' />
+        </View>
+        <Text className='text-[34px] font-bold leading-tight tracking-tight text-[#111827]'>李明浩</Text>
+        <Text className='mt-2 text-sm font-semibold text-[#64748b]'>高级 B2B 客户经理</Text>
       </View>
 
-      <View className='flex flex-col items-center justify-center rounded-3xl p-8 bg-slate-50 border border-slate-100 shadow-md w-full max-w-[320px]'>
-        <View className='bg-white p-5 rounded-2xl border border-slate-200 shadow-sm mb-5 flex items-center justify-center'>
-          <AppsOutlined className='text-7xl text-slate-900' />
+      <View className='w-full rounded-[30px] border border-[#e3e8ef] bg-[#eceff3] px-8 py-9 shadow-[0_8px_20px_rgba(15,23,42,0.06)]'>
+        <View className='mb-6 flex items-center justify-center rounded-[22px] border border-[#dde4ec] bg-white p-6 shadow-[0_2px_8px_rgba(15,23,42,0.06)]'>
+          <AppsOutlined className='text-[132px] text-[#0f172a]' />
         </View>
-        <Text className='text-lg font-bold text-slate-900'>您的专属推广二维码</Text>
-        <Text className='text-sm text-slate-500 mt-1'>请客户扫码以绑定归属</Text>
+        <Text className='text-center text-[26px] font-bold leading-tight text-[#0f172a]'>您的专属推广二维码</Text>
+        <Text className='mt-2 text-center text-sm font-medium text-[#64748b]'>请客户扫码以绑定归属</Text>
       </View>
     </View>
   )
@@ -469,66 +459,46 @@ function AccountingView() {
 
 export default function SalesPage() {
   const [activeTab, setActiveTab] = useState<SalesTab>('dashboard')
-  const navbarStyle = getNavbarStyle()
-
-  const handleBack = () => {
-    Taro.navigateBack().catch(() => switchTabLike(ROUTES.mine))
-  }
 
   return (
-    <View className='bg-[#f6f7f8] text-slate-900 min-h-screen flex justify-center w-full'>
-      <View className='relative flex min-h-screen w-full flex-col overflow-x-hidden max-w-md mx-auto shadow-2xl bg-white'>
-        <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
-          <Navbar.NavLeft onClick={handleBack}>
-            <ArrowLeft />
-          </Navbar.NavLeft>
-          <Navbar.Title>业务员页面（临时）</Navbar.Title>
-        </Navbar>
-
+    <View className='min-h-screen w-full bg-[#eceff3] text-slate-900'>
+      <View className='relative mx-auto flex min-h-screen w-full max-w-md flex-col overflow-x-hidden bg-[#f3f4f6]'>
         {activeTab === 'dashboard' ? <DashboardView /> : null}
         {activeTab === 'customers' ? <CustomersView /> : null}
         {activeTab === 'orders' ? <OrdersView /> : null}
         {activeTab === 'accounting' ? <AccountingView /> : null}
 
-        <View className='fixed bottom-0 left-0 right-0 flex gap-2 border-t border-slate-200 bg-white px-4 pb-6 pt-3 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]'>
+        <View className='absolute bottom-0 left-0 right-0 z-50 flex border-t border-[#dbe1ea] bg-white px-3 pb-6 pt-3 shadow-[0_-4px_10px_rgba(15,23,42,0.04)]'>
           <View
             onClick={() => setActiveTab('dashboard')}
-            className={`flex flex-1 flex-col items-center justify-end gap-1 ${activeTab === 'dashboard' ? 'text-[#137fec]' : 'text-slate-500'}`}
+            className={`flex flex-1 flex-col items-center justify-center gap-1.5 ${activeTab === 'dashboard' ? 'text-[#2f67c7]' : 'text-[#94a3b8]'}`}
           >
-            <View className={`flex h-8 items-center justify-center w-12 rounded-full ${activeTab === 'dashboard' ? 'bg-[#137fec]/10' : ''}`}>
-              <HomeOutlined className='text-xl' />
-            </View>
-            <Text className='text-[10px] font-semibold leading-normal tracking-wide uppercase'>主页</Text>
+            <AppsOutlined className='text-[22px]' />
+            <Text className='text-[11px] font-semibold leading-none'>主页</Text>
           </View>
 
           <View
             onClick={() => setActiveTab('customers')}
-            className={`flex flex-1 flex-col items-center justify-end gap-1 ${activeTab === 'customers' ? 'text-[#137fec]' : 'text-slate-500'}`}
+            className={`flex flex-1 flex-col items-center justify-center gap-1.5 ${activeTab === 'customers' ? 'text-[#2f67c7]' : 'text-[#94a3b8]'}`}
           >
-            <View className={`flex h-8 items-center justify-center w-12 rounded-full ${activeTab === 'customers' ? 'bg-[#137fec]/10' : ''}`}>
-              <UserOutlined className='text-xl' />
-            </View>
-            <Text className='text-[10px] font-semibold leading-normal tracking-wide uppercase'>客户</Text>
+            <UserOutlined className='text-[22px]' />
+            <Text className='text-[11px] font-semibold leading-none'>客户</Text>
           </View>
 
           <View
             onClick={() => setActiveTab('orders')}
-            className={`flex flex-1 flex-col items-center justify-end gap-1 ${activeTab === 'orders' ? 'text-[#137fec]' : 'text-slate-500'}`}
+            className={`flex flex-1 flex-col items-center justify-center gap-1.5 ${activeTab === 'orders' ? 'text-[#2f67c7]' : 'text-[#94a3b8]'}`}
           >
-            <View className={`flex h-8 items-center justify-center w-12 rounded-full ${activeTab === 'orders' ? 'bg-[#137fec]/10' : ''}`}>
-              <OrdersOutlined className='text-xl' />
-            </View>
-            <Text className='text-[10px] font-semibold leading-normal tracking-wide uppercase'>订单</Text>
+            <OrdersOutlined className='text-[22px]' />
+            <Text className='text-[11px] font-semibold leading-none'>订单</Text>
           </View>
 
           <View
             onClick={() => setActiveTab('accounting')}
-            className={`flex flex-1 flex-col items-center justify-end gap-1 ${activeTab === 'accounting' ? 'text-[#137fec]' : 'text-slate-500'}`}
+            className={`flex flex-1 flex-col items-center justify-center gap-1.5 ${activeTab === 'accounting' ? 'text-[#2f67c7]' : 'text-[#94a3b8]'}`}
           >
-            <View className={`flex h-8 items-center justify-center w-12 rounded-full ${activeTab === 'accounting' ? 'bg-[#137fec]/10' : ''}`}>
-              <BarChartOutlined className='text-xl' />
-            </View>
-            <Text className='text-[10px] font-semibold leading-normal tracking-wide uppercase'>财务</Text>
+            <TodoList className='text-[22px]' />
+            <Text className='text-[11px] font-semibold leading-none'>财务</Text>
           </View>
         </View>
       </View>

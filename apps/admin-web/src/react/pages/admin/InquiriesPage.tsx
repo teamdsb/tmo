@@ -10,6 +10,7 @@ import { isMockMode } from '../../../lib/env';
 import { AdminTopbar } from '../../layout/AdminTopbar';
 
 type InquiryStatus = 'OPEN' | 'RESPONDED' | 'CLOSED';
+type InquiryStatusFilter = 'ALL' | InquiryStatus;
 type SenderType = 'customer' | 'staff' | 'ai';
 
 type InquiryItem = {
@@ -48,7 +49,8 @@ type RequirementOrderProfile = {
   attachments: string[];
 };
 
-const STATUS_OPTIONS: Array<{ status: InquiryStatus; label: string }> = [
+const STATUS_OPTIONS: Array<{ status: InquiryStatusFilter; label: string }> = [
+  { status: 'ALL', label: '全部' },
   { status: 'OPEN', label: '进行中' },
   { status: 'RESPONDED', label: '待客户' },
   { status: 'CLOSED', label: '已关闭' }
@@ -373,7 +375,7 @@ const buildRequirementOrderProfile = (inquiry: InquiryItem | null): RequirementO
 };
 
 export const InquiriesPage = () => {
-  const [statusFilter, setStatusFilter] = useState<InquiryStatus>('OPEN');
+  const [statusFilter, setStatusFilter] = useState<InquiryStatusFilter>('ALL');
   const [keyword, setKeyword] = useState('');
   const [inquiries, setInquiries] = useState<InquiryItem[]>([]);
   const [listLoading, setListLoading] = useState(false);
@@ -424,16 +426,22 @@ export const InquiriesPage = () => {
 
     try {
       if (isMockMode) {
-        const mockItems = MOCK_INQUIRIES.filter((item) => item.status === statusFilter);
+        const mockItems = statusFilter === 'ALL'
+          ? MOCK_INQUIRIES
+          : MOCK_INQUIRIES.filter((item) => item.status === statusFilter);
         setInquiries(mockItems);
         return;
       }
 
-      const response = await fetchInquiries({
+      const params: { page: number; pageSize: number; status?: InquiryStatus } = {
         page: 1,
-        pageSize: 100,
-        status: statusFilter
-      });
+        pageSize: 100
+      };
+      if (statusFilter !== 'ALL') {
+        params.status = statusFilter;
+      }
+
+      const response = await fetchInquiries(params);
 
       if (response.status !== 200 || !response.data) {
         throw new Error('加载需求列表失败');
