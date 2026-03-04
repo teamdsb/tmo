@@ -1,6 +1,7 @@
 import { goToDashboard, isLoggedIn, loginDev, loginMock, refreshBootstrap } from './lib/auth';
 import { isDevMode, isMockMode } from './lib/env';
 import { installZhLocalization } from './lib/i18n-zh';
+import { resolveMockAccount } from './lib/mock-accounts';
 
 const form = document.querySelector('#login-form');
 const usernameInput = document.querySelector('#username');
@@ -16,7 +17,6 @@ const ROLE_LABELS = {
   BOSS: '老板',
   MANAGER: '管理员',
   ADMIN: '管理员(兼容)',
-  SALES: '业务员',
   CS: '客服',
   CUSTOMER: '客户'
 };
@@ -149,7 +149,11 @@ if (form && usernameInput && passwordInput) {
       setFormPending(true);
 
       if (isMockMode) {
-        loginMock(username, 'admin');
+        const mockAccount = resolveMockAccount(username, password);
+        if (!mockAccount) {
+          throw new Error('invalid credentials');
+        }
+        loginMock(mockAccount);
         goToDashboard();
         return;
       }

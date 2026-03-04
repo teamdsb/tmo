@@ -14,7 +14,6 @@ const roleLabels = {
   admin: '管理员',
   boss: '老板',
   manager: '管理员',
-  sales: '业务员',
   support: '客服专员',
   logistics: '物流协调员',
   cs: '客服',
@@ -49,11 +48,66 @@ export const logout = () => {
   goToLogin();
 };
 
-export const loginMock = (username, role) => {
-  saveMockSession({
+const buildLegacyMockSession = (username, role) => {
+  const normalizedRole = String(role || 'ADMIN').trim().toUpperCase() || 'ADMIN';
+  return {
     mode: 'mock',
-    username,
-    role,
+    username: String(username || '').trim(),
+    role: normalizedRole.toLowerCase(),
+    currentRole: normalizedRole,
+    user: {
+      id: '',
+      displayName: String(username || '').trim(),
+      userType: normalizedRole === 'BOSS' || normalizedRole === 'ADMIN' ? 'admin' : 'staff',
+      roles: [normalizedRole],
+      createdAt: new Date().toISOString()
+    },
+    permissions: null,
+    featureFlags: null
+  };
+};
+
+const buildMockSessionFromAccount = (account) => {
+  const normalizedRole = String(account.role || '').trim().toUpperCase();
+  const normalizedUsername = String(account.username || '').trim();
+  const normalizedDisplayName = String(account.displayName || '').trim();
+  const userType = String(account.userType || (normalizedRole === 'BOSS' || normalizedRole === 'ADMIN' ? 'admin' : 'staff')).trim();
+  const permissionItems = Array.isArray(account?.permissions?.items)
+    ? account.permissions.items.map((item) => ({
+      code: String(item?.code || '').trim(),
+      scope: String(item?.scope || 'SELF').trim().toUpperCase()
+    })).filter((item) => Boolean(item.code))
+    : [];
+
+  return {
+    mode: 'mock',
+    username: normalizedUsername,
+    role: normalizedRole.toLowerCase(),
+    currentRole: normalizedRole,
+    user: {
+      id: String(account.userId || normalizedUsername || normalizedRole).trim(),
+      displayName: normalizedDisplayName || normalizedUsername || '管理员用户',
+      userType: userType || 'admin',
+      roles: [normalizedRole],
+      createdAt: '2026-01-01T00:00:00Z'
+    },
+    permissions: {
+      items: permissionItems
+    },
+    featureFlags: null
+  };
+};
+
+export const loginMock = (input, role) => {
+  let sessionPayload = null;
+  if (input && typeof input === 'object' && typeof input.username === 'string' && typeof input.role === 'string') {
+    sessionPayload = buildMockSessionFromAccount(input);
+  } else {
+    sessionPayload = buildLegacyMockSession(input, role);
+  }
+
+  saveMockSession({
+    ...sessionPayload,
     loginAt: new Date().toISOString()
   });
 };
@@ -66,7 +120,7 @@ const inferCurrentRole = (user, explicitRole) => {
   if (roles.length === 1) {
     return roles[0];
   }
-  const priority = ['BOSS', 'MANAGER', 'ADMIN', 'CS', 'SALES', 'CUSTOMER'];
+  const priority = ['BOSS', 'MANAGER', 'ADMIN', 'CS'];
   for (const role of priority) {
     if (roles.includes(role)) {
       return role;
@@ -155,9 +209,15 @@ export const getDisplayProfile = () => {
     if (!session) {
       return null;
     }
+    const name = (
+      (typeof session?.user?.displayName === 'string' && session.user.displayName.trim()) ||
+      (typeof session.username === 'string' && session.username.trim()) ||
+      '管理员用户'
+    );
+    const role = session?.currentRole || session?.role || 'admin';
     return {
-      name: typeof session.username === 'string' && session.username.trim() ? session.username.trim() : '管理员用户',
-      role: getRoleLabel(session.role || 'admin')
+      name,
+      role: getRoleLabel(role)
     };
   }
 

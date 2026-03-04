@@ -20,9 +20,15 @@ Identity service for authentication, JWT issuing, and sales binding.
 - Boss password: `POST /auth/password/login` with `{"username":"boss","password":"boss123"}`
 - Manager password: `POST /auth/password/login` with `{"username":"manager","password":"manager123"}`
 - CS password: `POST /auth/password/login` with `{"username":"cs","password":"cs123"}`
-- Sales password is disabled (sales only uses miniapp login).
-- Admin password (兼容): `POST /auth/password/login` with `{"username":"admin","password":"admin123"}`
+- Admin password（超管）: `POST /auth/password/login` with `{"username":"admin","password":"admin123"}`
 - Staff binding: create staff + binding token (admin), then `POST /auth/mini/login` with `{"platform":"weapp","code":"mock_staff_001","bindingToken":"<token>","role":"SALES"}`
+
+说明：
+
+- `admin` 与 `boss` 在 admin-web 场景均视为最高层级。
+- admin-web password login role whitelist: `BOSS`, `MANAGER`, `ADMIN`, `CS`.
+- `SALES` 不允许 password login（业务员仅走 miniapp 登录）。
+- `tools/scripts/identity-seed.sh` 反复执行会收敛固定账号角色（删除历史多余角色并补齐缺失角色），避免本地脏数据导致角色漂移。
 
 默认 seed 还会写入以下手机号（`users.phone`）：
 
@@ -30,12 +36,13 @@ Identity service for authentication, JWT issuing, and sales binding.
 - Sales: `+15550000002`
 - Customer: `+15550000003`
 - Multi-role: `+15550000004`
+- Boss: `+15550000005`
+- Manager: `+15550000006`
 - CS: `+15550000007`
 
 并写入员工手机号白名单（`staff_phone_whitelist`）：
 
 - `+15550000002` -> `["SALES"]`
-- `+15550000007` -> `["CS"]`
 - `+15550000004` -> `["SALES","CS"]`
 
 ## Environment variables
@@ -64,7 +71,7 @@ Identity service for authentication, JWT issuing, and sales binding.
 - 支付宝建议上送 `phoneProof.response/sign/signType/encryptType/charset`（`my.getPhoneNumber` 原始结果），后端会验签并解密取号。
 - 已绑定手机号的 identity 可在后续仅做角色选择时不重复提交手机号证明（避免二次授权/一次性 code 失效）。
 - 新手机号默认自动注册为 `CUSTOMER`；员工角色不会自动创建（需现有员工绑定流程）。
-- miniapp 仅支持 `CUSTOMER` 与 `SALES`；`CS/ADMIN/BOSS/MANAGER` 通过 admin-web 密码登录。
+- miniapp 仅允许角色选择 `CUSTOMER` / `SALES`。
 
 ## 审核期模拟策略
 

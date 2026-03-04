@@ -16,7 +16,7 @@
 - CUSTOMER: 客户（外部小程序用户）
 - SALES: 业务员（仅在 miniapp 与客户交互、跟进）
 - CS: 客服（合并原 CS + PROCUREMENT 职责，仅在 admin-web 工作）
-- ADMIN: 管理员（后台管理，系统级配置与治理）
+- ADMIN: 管理员/超管（技术管理员，admin-web 全权）
 - BOSS: 老板（业务全局最高权限）
 - MANAGER: 经理（运营管理角色，具备员工与客户管理能力）
 
@@ -24,7 +24,12 @@
 
 ## Work Surface (主要工作端)
 - miniapp: `CUSTOMER`, `SALES`
-- admin-web: `CS`, `ADMIN`, `BOSS`, `MANAGER`
+- admin-web: `BOSS`, `MANAGER`, `ADMIN`, `CS`
+
+## Login Role Rules
+- `POST /auth/mini/login` only supports role selection: `CUSTOMER`, `SALES`
+- `POST /auth/password/login` role whitelist: `BOSS`, `MANAGER`, `ADMIN`, `CS`
+- `SALES` does not use password login (miniapp only)
 
 ## Scope Rules
 - SELF（本人）: only the authenticated user's own resources (e.g., my orders)
@@ -73,7 +78,7 @@ Admin / Ops:
 - catalog:read (public)
 - wishlist:manage (SELF)
 - cart:manage (SELF)
-- import:cart (SELF)  # bulk add-to-cart Excel
+- import:cart (SELF)
 - order:create (SELF)
 - order:read (SELF)
 - tracking:read (SELF)
@@ -107,7 +112,7 @@ Admin / Ops:
 - shipment:manage (ALL)
 
 ### ADMIN
-- 角色说明：平台治理与配置管理（ALL）
+- 角色说明：管理员/超管（技术管理员）
 - 工作端：admin-web
 - ALL permissions with ALL scope
 
@@ -117,7 +122,7 @@ Admin / Ops:
 - ALL permissions with ALL scope
 
 ### MANAGER
-- 角色说明：运营管理与人员/客户管理（ALL，低于 BOSS 的业务管理位阶）
+- 角色说明：运营管理与人员/客户管理（ALL）
 - 工作端：admin-web
 - catalog:read (ALL)
 - order:read (ALL)
@@ -130,16 +135,3 @@ Admin / Ops:
 - customer:tag (ALL)
 - staff:read (ALL)
 - staff:status_manage (ALL)
-
-## Ownership Fields (recommended)
-- customers.ownerSalesUserId: sales ownership (set on first QR bind; only admin transfer can change)
-- orders.ownerSalesUserId: snapshot from customer ownership at order submit time
-- afterSalesTickets.ownerSalesUserId: derived from order/customer for routing
-- inquiries.assignedSalesUserId: assigned for follow-up
-
-## Audit Log (must)
-Track these actions:
-- customer transfer (from sales A to B)
-- feature flag changes (paymentEnabled)
-- product import job submissions and results
-- shipment bulk imports

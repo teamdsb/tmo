@@ -3,7 +3,7 @@ info:
   title: Procurement Mini Program - Identity API
   version: 0.1.0
   description: |
-    v1 API contract for customer + sales mini programs and Admin Web.
+    v1 API contract for customer/sales mini programs + Admin Web.
     Conventions:
     - JSON field naming: camelCase
     - Time: RFC3339 date-time strings

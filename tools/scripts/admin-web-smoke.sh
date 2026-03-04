@@ -2,8 +2,14 @@
 set -euo pipefail
 
 base_url="${ADMIN_WEB_SMOKE_BASE_URL:-http://localhost:8080}"
-admin_username="${ADMIN_WEB_SMOKE_USERNAME:-admin}"
-admin_password="${ADMIN_WEB_SMOKE_PASSWORD:-admin123}"
+admin_username="${ADMIN_WEB_SMOKE_ADMIN_USERNAME:-${ADMIN_WEB_SMOKE_USERNAME:-admin}}"
+admin_password="${ADMIN_WEB_SMOKE_ADMIN_PASSWORD:-${ADMIN_WEB_SMOKE_PASSWORD:-admin123}}"
+boss_username="${ADMIN_WEB_SMOKE_BOSS_USERNAME:-boss}"
+boss_password="${ADMIN_WEB_SMOKE_BOSS_PASSWORD:-boss123}"
+manager_username="${ADMIN_WEB_SMOKE_MANAGER_USERNAME:-manager}"
+manager_password="${ADMIN_WEB_SMOKE_MANAGER_PASSWORD:-manager123}"
+sales_username="${ADMIN_WEB_SMOKE_SALES_USERNAME:-sales}"
+sales_password="${ADMIN_WEB_SMOKE_SALES_PASSWORD:-sales123}"
 
 http_code=""
 http_body=""
@@ -59,6 +65,55 @@ PY
   exit 1
 }
 
+login_with_role() {
+  local username="$1"
+  local password="$2"
+  local role="$3"
+  local label="$4"
+
+  echo "[admin-web-smoke] ${label} password login..." >&2
+  request "POST" "$base_url/auth/password/login" "{\"username\":\"$username\",\"password\":\"$password\",\"role\":\"$role\"}"
+  if [[ "$http_code" != "200" ]]; then
+    echo "${label} login failed: $http_code" >&2
+    echo "$http_body" >&2
+    exit 1
+  fi
+  local token
+  token="$(echo "$http_body" | parse_token)"
+  if [[ -z "$token" ]]; then
+    echo "${label} token missing" >&2
+    exit 1
+  fi
+  printf "%s" "$token"
+}
+
+verify_bootstrap() {
+  local token="$1"
+  local label="$2"
+
+  echo "[admin-web-smoke] ${label} bootstrap..."
+  request "GET" "$base_url/bff/bootstrap" "" "$token"
+  if [[ "$http_code" != "200" ]]; then
+    echo "${label} bootstrap failed: $http_code" >&2
+    echo "$http_body" >&2
+    exit 1
+  fi
+}
+
+verify_admin_sales_users_status() {
+  local token="$1"
+  local expected="$2"
+  local label="$3"
+
+  echo "[admin-web-smoke] ${label} /admin/sales-users expect ${expected}..."
+  request "GET" "$base_url/admin/sales-users?page=1&pageSize=5" "" "$token"
+  if [[ "$http_code" != "$expected" ]]; then
+    echo "${label} /admin/sales-users expected ${expected}, got ${http_code}" >&2
+    echo "$http_body" >&2
+    exit 1
+  fi
+}
+
 echo "[admin-web-smoke] checking gateway health..."
 request "GET" "$base_url/health"
 if [[ "$http_code" != "200" ]]; then
@@ -67,54 +122,47 @@ if [[ "$http_code" != "200" ]]; then
   exit 1
 fi
 
-echo "[admin-web-smoke] admin password login..."
-request "POST" "$base_url/auth/password/login" "{\"username\":\"$admin_username\",\"password\":\"$admin_password\",\"role\":\"ADMIN\"}"
-if [[ "$http_code" != "200" ]]; then
-  echo "admin login failed: $http_code" >&2
-  echo "$http_body" >&2
-  exit 1
-fi
+admin_token="$(login_with_role "$admin_username" "$admin_password" "ADMIN" "admin")"
+boss_token="$(login_with_role "$boss_username" "$boss_password" "BOSS" "boss")"
+manager_token="$(login_with_role "$manager_username" "$manager_password" "MANAGER" "manager")"
+sales_token="$(login_with_role "$sales_username" "$sales_password" "SALES" "sales")"
 
-token="$(echo "$http_body" | parse_token)"
-if [[ -z "$token" ]]; then
-  echo "admin token missing" >&2
-  exit 1
-fi
+verify_bootstrap "$admin_token" "admin"
+verify_bootstrap "$boss_token" "boss"
+verify_bootstrap "$manager_token" "manager"
+verify_bootstrap "$sales_token" "sales"
 
-echo "[admin-web-smoke] bootstrap..."
-request "GET" "$base_url/bff/bootstrap" "" "$token"
-if [[ "$http_code" != "200" ]]; then
-  echo "bootstrap failed: $http_code" >&2
-  echo "$http_body" >&2
-  exit 1
-fi
+verify_admin_sales_users_status "$admin_token" "200" "admin"
+verify_admin_sales_users_status "$boss_token" "200" "boss"
+verify_admin_sales_users_status "$manager_token" "200" "manager"
+verify_admin_sales_users_status "$sales_token" "403" "sales"
 
-echo "[admin-web-smoke] list products..."
-request "GET" "$base_url/catalog/products?page=1&pageSize=5" "" "$token"
+echo "[admin-web-smoke] admin list products..."
+request "GET" "$base_url/catalog/products?page=1&pageSize=5" "" "$admin_token"
 if [[ "$http_code" != "200" ]]; then
   echo "catalog query failed: $http_code" >&2
   echo "$http_body" >&2
   exit 1
 fi
 
-echo "[admin-web-smoke] list orders..."
-request "GET" "$base_url/orders?page=1&pageSize=5" "" "$token"
+echo "[admin-web-smoke] admin list orders..."
+request "GET" "$base_url/orders?page=1&pageSize=5" "" "$admin_token"
 if [[ "$http_code" != "200" ]]; then
   echo "orders query failed: $http_code" >&2
   echo "$http_body" >&2
   exit 1
 fi
 
-echo "[admin-web-smoke] list inquiries..."
-request "GET" "$base_url/inquiries/price?page=1&pageSize=5" "" "$token"
+echo "[admin-web-smoke] admin list inquiries..."
+request "GET" "$base_url/inquiries/price?page=1&pageSize=5" "" "$admin_token"
 if [[ "$http_code" != "200" ]]; then
   echo "inquiries query failed: $http_code" >&2
   echo "$http_body" >&2
   exit 1
 fi
 
-echo "[admin-web-smoke] get feature flags..."
-request "GET" "$base_url/admin/config/feature-flags" "" "$token"
+echo "[admin-web-smoke] admin get feature flags..."
+request "GET" "$base_url/admin/config/feature-flags" "" "$admin_token"
 if [[ "$http_code" != "200" ]]; then
   echo "feature flags query failed: $http_code" >&2
   echo "$http_body" >&2
