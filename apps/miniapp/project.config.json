@@ -11,8 +11,9 @@
     "compileHotReLoad": false,
     "postcss": false,
     "minified": false,
-    "packNpmManually": true,
+    "packNpmManually": false,
     "packNpmRelationList": [],
+    "ignoreDevUnusedFiles": true,
     "ignoreUploadUnusedFiles": true
   },
   "compileType": "miniprogram"

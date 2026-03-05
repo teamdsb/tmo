@@ -46,6 +46,9 @@
   top: 0px
 }
 
+.top-14 {
+  top: 112rpx
+}
 
 .top-full {
   top: 100%
@@ -80,11 +83,6 @@
   margin-bottom: 8rpx
 }
 
-
-.mb-14 {
-  margin-bottom: 112rpx
-}
-
 .mb-2 {
   margin-bottom: 16rpx
 }
@@ -105,8 +103,16 @@
   margin-bottom: 48rpx
 }
 
+.mb-8 {
+  margin-bottom: 64rpx
+}
+
 .ml-1 {
   margin-left: 8rpx
+}
+
+.ml-3 {
+  margin-left: 24rpx
 }
 
 .mr-8 {
@@ -263,7 +269,6 @@
   width: 64rpx
 }
 
-
 .w-full {
   width: 100%
 }
@@ -276,6 +281,10 @@
   max-width: 896rpx
 }
 
+.max-w-xs {
+  max-width: 640rpx
+}
+
 .flex-1 {
   flex: 1 1 0%
 }
@@ -283,7 +292,6 @@
 .shrink-0 {
   flex-shrink: 0
 }
-
 
 
 
@@ -350,6 +358,10 @@
   justify-content: space-between
 }
 
+.gap-1 {
+  gap: 8rpx
+}
+
 
 .gap-2 {
   gap: 16rpx
@@ -405,7 +417,9 @@
   border-radius: 32rpx
 }
 
-
+.rounded-3xl {
+  border-radius: 48rpx
+}
 
 .rounded-full {
   border-radius: 9999px
@@ -444,7 +458,6 @@
   border-bottom-width: 2px
 }
 
-
 .border-t {
   border-top-width: 1px
 }
@@ -453,82 +466,127 @@
   border-style: none
 }
 
+.border-blue-100 {
 
-
-
-
-
-
-
-
-
-
-
-
-
-.border-transparent {
-  border-color: transparent
+  border-color: rgb(219 234 254)
 }
 
+.border-blue-200 {
 
+  border-color: rgb(191 219 254)
+}
 
+.border-blue-600 {
 
+  border-color: rgb(37 99 235)
+}
 
+.border-emerald-200 {
 
+  border-color: rgb(167 243 208)
+}
 
+.border-gray-200 {
 
+  border-color: rgb(229 231 235)
+}
 
+.border-slate-100 {
 
+  border-color: rgb(241 245 249)
+}
 
+.border-slate-200 {
 
+  border-color: rgb(226 232 240)
+}
 
+.border-slate-50 {
 
+  border-color: rgb(248 250 252)
+}
 
+.bg-amber-100 {
 
+  background-color: rgb(254 243 199)
+}
 
+.bg-amber-50 {
 
+  background-color: rgb(255 251 235)
+}
 
+.bg-black {
+
+  background-color: rgb(0 0 0)
+}
+
+.bg-blue-100 {
+
+  background-color: rgb(219 234 254)
+}
+
+.bg-blue-50 {
+
+  background-color: rgb(239 246 255)
+}
+
+.bg-blue-500 {
+
+  background-color: rgb(59 130 246)
+}
+
+.bg-blue-600 {
+
+  background-color: rgb(37 99 235)
+}
+
+.bg-emerald-100 {
+
+  background-color: rgb(209 250 229)
+}
+
+.bg-emerald-50 {
+
+  background-color: rgb(236 253 245)
+}
+
+.bg-gray-50 {
+
+  background-color: rgb(249 250 251)
+}
+
+.bg-red-50 {
+
+  background-color: rgb(254 242 242)
+}
+
+.bg-slate-100 {
+
+  background-color: rgb(241 245 249)
+}
+
+.bg-slate-200 {
+
+  background-color: rgb(226 232 240)
+}
+
+.bg-slate-50 {
+
+  background-color: rgb(248 250 252)
+}
 
 .bg-transparent {
   background-color: transparent
 }
 
+.bg-white {
 
-
-.bg-cover {
-  background-size: cover
+  background-color: rgb(255 255 255)
 }
 
-.bg-center {
-  background-position: center
-}
+.bg-opacity-40 {
 
-.p-1 {
-  padding: 8rpx
-}
-
-.p-2 {
-  padding: 16rpx
-}
-
-.p-3 {
-  padding: 24rpx
-}
-
-.p-4 {
-  padding: 32rpx
-}
-
-.p-5 {
-  padding: 40rpx
-}
-
-.p-6 {
-  padding: 48rpx
-}
-
-.px-1 {
-  padding-left: 8rpx;
   padding-right: 8rpx
 }
 
@@ -556,11 +614,6 @@
 .px-6 {
   padding-left: 48rpx;
   padding-right: 48rpx
-}
-
-.px-8 {
-  padding-left: 64rpx;
-  padding-right: 64rpx
 }
 
 .py-1 {
@@ -603,11 +656,6 @@
   padding-bottom: 40rpx
 }
 
-.py-9 {
-  padding-top: 72rpx;
-  padding-bottom: 72rpx
-}
-
 .pb-12 {
   padding-bottom: 96rpx
 }
@@ -616,8 +664,8 @@
   padding-bottom: 16rpx
 }
 
-.pb-28 {
-  padding-bottom: 224rpx
+.pb-24 {
+  padding-bottom: 192rpx
 }
 
 .pb-3 {
@@ -626,10 +674,6 @@
 
 .pb-32 {
   padding-bottom: 256rpx
-}
-
-.pb-36 {
-  padding-bottom: 288rpx
 }
 
 .pb-4 {
@@ -697,12 +741,6 @@
   font-size: 72rpx;
   line-height: 80rpx
 }
-
-
-
-
-
-
 
 .text-base {
   font-size: 32rpx;
@@ -785,33 +823,69 @@
   letter-spacing: 0.05em
 }
 
+.text-amber-600 {
 
+  color: rgb(217 119 6)
+}
 
+.text-amber-700 {
 
+  color: rgb(180 83 9)
+}
 
+.text-blue-600 {
 
+  color: rgb(37 99 235)
+}
 
+.text-emerald-600 {
 
+  color: rgb(5 150 105)
+}
 
+.text-red-600 {
 
+  color: rgb(220 38 38)
+}
 
+.text-slate-300 {
 
+  color: rgb(203 213 225)
+}
 
+.text-slate-400 {
 
+  color: rgb(148 163 184)
+}
 
+.text-slate-500 {
 
+  color: rgb(100 116 139)
+}
 
+.text-slate-600 {
 
+  color: rgb(71 85 105)
+}
 
+.text-slate-700 {
 
+  color: rgb(51 65 85)
+}
+
+.text-slate-900 {
+
+  color: rgb(15 23 42)
+}
+
+.text-white {
+
+  color: rgb(255 255 255)
+}
 
 .opacity-60 {
   opacity: 0.6
 }
-
-
-
-
 
 
 

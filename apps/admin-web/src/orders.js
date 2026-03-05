@@ -1,5 +1,6 @@
 import { fetchOrders } from './lib/api';
 import { ensureProtectedPage } from './lib/guard';
+import { canonicalOrderFixtures, canonicalSkuById, resolveAdminTabByStatus } from '../../../packages/shared/src/mock-data/index.js';
 import {
   buildEmptyState,
   escape,
@@ -821,6 +822,122 @@ const buildMockOrders = () => {
   ];
 };
 
+const statusLabelByOrderStatus = {
+  SUBMITTED: '待处理',
+  CONFIRMED: '已确认',
+  SHIPPED: '已发出',
+  DELIVERED: '已送达',
+  CANCELLED: '退货处理中',
+  CLOSED: '已退回'
+};
+
+const statusKeyByOrderStatus = {
+  SUBMITTED: 'SUBMITTED',
+  CONFIRMED: 'CONFIRMED',
+  SHIPPED: 'DISPATCHED',
+  DELIVERED: 'DELIVERED',
+  CANCELLED: 'RETURNING',
+  CLOSED: 'RETURNED'
+};
+
+const shippingBadgeByStatusKey = {
+  SUBMITTED: '待分拣',
+  CONFIRMED: '待出库',
+  DISPATCHED: '已发出',
+  IN_TRANSIT: '运输中',
+  DELIVERED: '配送完成',
+  RETURNING: '逆向物流中',
+  RETURNED: '退货完成'
+};
+
+const buildLineItemsFromFixtureItems = (items) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    return [{ name: '基础款 T 恤', qty: 1, size: 'M' }];
+  }
+  return items.map((item, index) => {
+    const sku = canonicalSkuById[safeText(item?.skuId, '')] || null;
+    return {
+      name: safeText(sku?.name, `商品 ${index + 1}`),
+      qty: Number.isFinite(Number(item?.qty)) ? Number(item.qty) : 1,
+      size: safeText(sku?.spec, '默认')
+    };
+  });
+};
+
+const buildTimelineFromTracking = (tracking) => {
+  const shipments = Array.isArray(tracking?.shipments) ? tracking.shipments : [];
+  if (shipments.length === 0) {
+    return [];
+  }
+  return shipments.map((shipment, index) => {
+    const carrier = safeText(shipment?.carrier, '承运商');
+    const shippedAt = safeText(shipment?.shippedAt, '');
+    return {
+      title: index === 0 ? '最新物流节点' : `物流节点 ${index + 1}`,
+      detail: `${carrier}${shippedAt ? ` • ${shippedAt}` : ''}`
+    };
+  });
+};
+
+const buildCanonicalMockOrders = () => {
+  if (!Array.isArray(canonicalOrderFixtures) || canonicalOrderFixtures.length === 0) {
+    return buildMockOrders();
+  }
+
+  return canonicalOrderFixtures.map((fixture) => {
+    const orderStatus = String(fixture?.status || 'SUBMITTED').toUpperCase();
+    const adminMeta = fixture?.admin || {};
+    const statusKey = safeText(adminMeta.statusKey, statusKeyByOrderStatus[orderStatus] || 'SUBMITTED');
+    const statusLabel = safeText(adminMeta.statusLabel, statusLabelByOrderStatus[orderStatus] || '待处理');
+    const trackingNumber = safeText(
+      adminMeta.trackingNumber,
+      fixture?.tracking?.shipments?.[0]?.waybillNo || '--'
+    );
+    const lineItems = Array.isArray(adminMeta.lineItems) && adminMeta.lineItems.length > 0
+      ? adminMeta.lineItems
+      : buildLineItemsFromFixtureItems(fixture?.items);
+    const amount = Array.isArray(fixture?.items)
+      ? fixture.items.reduce((sum, item) => {
+          const qty = Number(item?.qty || 0);
+          const unit = Number(item?.unitPriceFen || 0);
+          if (!Number.isFinite(qty) || !Number.isFinite(unit)) {
+            return sum;
+          }
+          return sum + (qty * unit) / 100;
+        }, 0)
+      : 0;
+    const createdAt = safeText(fixture?.createdAt, '');
+    const date = createdAt ? createdAt.slice(0, 10) : formatDate(new Date().toISOString());
+    const customer = fixture?.customer || {};
+    const address = fixture?.address || {};
+    const timeline = Array.isArray(adminMeta.timeline) && adminMeta.timeline.length > 0
+      ? adminMeta.timeline
+      : buildTimelineFromTracking(fixture?.tracking);
+
+    return mockOrder({
+      id: safeText(fixture?.id, '--'),
+      tab: resolveAdminTabByStatus(orderStatus, statusKey),
+      date,
+      amount: Number(amount.toFixed(2)),
+      statusKey,
+      statusLabel,
+      trackingNumber,
+      shippingBadge: safeText(adminMeta.shippingBadge, shippingBadgeByStatusKey[statusKey] || statusLabel),
+      customerName: safeText(customer?.name || address?.receiverName, '客户'),
+      customerMember: safeText(customer?.member, '普通会员'),
+      customerEmail: safeText(customer?.email, '--'),
+      customerPhone: safeText(customer?.phone || address?.receiverPhone, '--'),
+      customerAddress: safeText(address?.detail, '加利福尼亚州旧金山市 Market St 100 号'),
+      customerOrderCount: Number.isFinite(Number(customer?.orderCount)) ? Number(customer.orderCount) : 0,
+      customerLtv: safeText(customer?.ltv, '$0'),
+      deliveryNote: safeText(customer?.note || fixture?.remark, '暂无备注'),
+      purchasedAt: safeText(adminMeta.purchasedAt, createdAt ? createdAt.replace('T', ' ').slice(0, 16) : ''),
+      lineItems,
+      timeline
+    });
+  });
+};
+
 const mountDevLayout = (main) => {
   main.innerHTML = `
     <div class="mx-auto w-full max-w-7xl space-y-6">
@@ -1021,7 +1138,7 @@ const renderMockLogisticsPanel = (order) => {
 };
 
 const initMockOrders = () => {
-  const orders = buildMockOrders();
+  const orders = buildCanonicalMockOrders();
   const state = {
     tab: 'shipped',
     page: 1,

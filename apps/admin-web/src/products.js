@@ -10,6 +10,11 @@ import {
 } from './lib/api';
 import { ensureProtectedPage } from './lib/guard';
 import { escape, safeText } from './lib/render';
+import {
+  canonicalCategories,
+  canonicalDisplayCategories,
+  canonicalProducts
+} from '../../../packages/shared/src/mock-data/index.js';
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -46,13 +51,23 @@ const STATUS_FILTER_ITEMS = [
   { value: 'INACTIVE', label: '状态：停用' },
   { value: 'DRAFT', label: '状态：草稿' }
 ];
-const DEFAULT_CATEGORIES = [
+const FALLBACK_DEFAULT_CATEGORIES = [
   { id: 'apparel', name: '服饰', sort: 10, parentId: null },
   { id: 'electronics', name: '电子产品', sort: 20, parentId: null },
   { id: 'accessories', name: '配件', sort: 30, parentId: null },
   { id: 'home-decor', name: '家居装饰', sort: 40, parentId: null },
   { id: 'footwear', name: '鞋履', sort: 50, parentId: null }
 ];
+
+const DEFAULT_CATEGORIES = (Array.isArray(canonicalCategories) && canonicalCategories.length > 0
+  ? canonicalCategories
+  : FALLBACK_DEFAULT_CATEGORIES
+).map((item, index) => ({
+  id: safeText(item?.id, `category-${index + 1}`),
+  name: safeText(item?.name, `类目 ${index + 1}`),
+  sort: Number.isFinite(Number(item?.sort)) ? Number(item.sort) : (index + 1) * 10,
+  parentId: safeText(item?.parentId, '') || null
+}));
 
 const DISPLAY_CATEGORY_ICON_ITEMS = [
   { value: 'setting', label: '紧固/工业', symbol: 'settings' },
@@ -64,11 +79,24 @@ const DISPLAY_CATEGORY_ICON_ITEMS = [
   { value: 'apps', label: '通用图标', symbol: 'apps' }
 ];
 
-const DEFAULT_DISPLAY_CATEGORIES = [
-  { id: 'cat-fasteners', name: '紧固件', iconKey: 'setting', sort: 1, enabled: true },
-  { id: 'cat-electrical', name: '电气', iconKey: 'desktop', sort: 2, enabled: true },
-  { id: 'cat-ppe', name: '安全防护', iconKey: 'shield', sort: 3, enabled: true }
+const FALLBACK_DISPLAY_CATEGORIES = [
+  { id: 'apparel', name: '服饰', iconKey: 'notes', sort: 1, enabled: true },
+  { id: 'electronics', name: '电子产品', iconKey: 'desktop', sort: 2, enabled: true },
+  { id: 'accessories', name: '配件', iconKey: 'apps', sort: 3, enabled: true },
+  { id: 'home-decor', name: '家居装饰', iconKey: 'brush', sort: 4, enabled: true },
+  { id: 'footwear', name: '鞋履', iconKey: 'hot', sort: 5, enabled: true }
 ];
+
+const DEFAULT_DISPLAY_CATEGORIES = (Array.isArray(canonicalDisplayCategories) && canonicalDisplayCategories.length > 0
+  ? canonicalDisplayCategories
+  : FALLBACK_DISPLAY_CATEGORIES
+).map((item, index) => ({
+  id: safeText(item?.id, `display-category-${index + 1}`),
+  name: safeText(item?.name, `展示类目 ${index + 1}`),
+  iconKey: safeText(item?.iconKey, 'apps'),
+  sort: Number.isFinite(Number(item?.sort)) ? Number(item.sort) : index + 1,
+  enabled: item?.enabled !== false
+}));
 
 const CATEGORY_BADGE_CLASS = {
   服饰: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
@@ -155,6 +183,49 @@ const MOCK_PRODUCT_TEMPLATES = [
   { name: '电竞键盘 K87', categoryId: 'electronics', tier: '设置分层价格', inventory: 69, status: 'INACTIVE', basePrice: 329 },
   { name: '跑步水壶', categoryId: 'accessories', tier: '标准', inventory: 506, status: 'ACTIVE', basePrice: 49 }
 ];
+
+const canonicalCategoryNameById = DEFAULT_CATEGORIES.reduce((acc, item) => {
+  acc[safeText(item.id, '')] = safeText(item.name, CATEGORY_EMPTY_LABEL);
+  return acc;
+}, {});
+
+const resolveCanonicalTierLabel = (item) => {
+  const rawTier = Array.isArray(item?.tags) && item.tags[1] ? safeText(item.tags[1], '') : '';
+  return rawTier || '标准档';
+};
+
+const CANONICAL_PRODUCT_TEMPLATES = (Array.isArray(canonicalProducts) ? canonicalProducts : [])
+  .map((item, index) => {
+    const categoryId = safeText(item?.categoryId, '').trim();
+    const categoryLabel = canonicalCategoryNameById[categoryId] || CATEGORY_EMPTY_LABEL;
+    const models = Array.isArray(item?.models)
+      ? item.models.map((model, modelIndex) => ({
+          name: safeText(model?.name, `${DEFAULT_MODEL_NAME} ${modelIndex + 1}`),
+          code: safeText(model?.code, `${DEFAULT_MODEL_CODE}-${modelIndex + 1}`),
+          basePrice: Number.isFinite(Number(model?.basePrice)) ? Number(model.basePrice) : 0
+        }))
+      : [];
+    const tierPricing = Array.isArray(item?.tierPricing)
+      ? item.tierPricing.map((tier) => ({
+          minQty: Number.isFinite(Number(tier?.minQty)) ? Number(tier.minQty) : MIN_TIER_QTY,
+          discountRate: Number.isFinite(Number(tier?.discountRate)) ? Number(tier.discountRate) : 0
+        }))
+      : [];
+    return {
+      id: safeText(item?.id, `SPU-${index + 1}`),
+      name: safeText(item?.name, `模拟商品 ${index + 1}`),
+      categoryId,
+      categoryLabel,
+      tier: resolveCanonicalTierLabel(item),
+      inventory: Number.isFinite(Number(item?.inventory)) ? Number(item.inventory) : 0,
+      status: safeText(item?.status, 'ACTIVE'),
+      coverImageUrl: safeText(item?.coverImageUrl, ''),
+      description: safeText(item?.description, ''),
+      models,
+      tierPricing
+    };
+  })
+  .filter((item) => item.id && item.name);
 
 const normalizeProductText = (value, fallback = '') => {
   const key = String(value || '').trim();
@@ -1020,9 +1091,14 @@ const renderProducts = (payload, currentPage = 1, remote = state.context?.mode =
 };
 
 const createMockProducts = (count = 30) => {
+  const templates = CANONICAL_PRODUCT_TEMPLATES.length > 0 ? CANONICAL_PRODUCT_TEMPLATES : MOCK_PRODUCT_TEMPLATES;
+  if (templates.length === 0) {
+    return [];
+  }
+
   return Array.from({ length: count }, (_, index) => {
-    const template = MOCK_PRODUCT_TEMPLATES[index % MOCK_PRODUCT_TEMPLATES.length];
-    const suffix = index < MOCK_PRODUCT_TEMPLATES.length ? '' : ` ${index + 1}`;
+    const template = templates[index % templates.length];
+    const suffix = index < templates.length ? '' : ` ${index + 1}`;
     const modelSource = Array.isArray(template.models) ? template.models : [];
     const models = (modelSource.length > 0
       ? modelSource
@@ -1034,14 +1110,14 @@ const createMockProducts = (count = 30) => {
     }));
 
     return {
-      id: `MOCK-${String(index + 1).padStart(4, '0')}`,
+      id: suffix ? `${safeText(template.id, `MOCK-${String(index + 1).padStart(4, '0')}`)}-${index + 1}` : safeText(template.id, `MOCK-${String(index + 1).padStart(4, '0')}`),
       name: `${template.name}${suffix}`,
       categoryId: safeText(template.categoryId, ''),
-      tags: [resolveCategoryLabelById(template.categoryId), template.tier],
+      tags: [resolveCategoryLabelById(template.categoryId), safeText(template.tier, '标准档')],
       inventory: Math.max(0, template.inventory + (index % 7) * 13),
       status: template.status,
-      coverImageUrl: MOCK_IMAGE_POOL[index % MOCK_IMAGE_POOL.length],
-      description: `模拟商品数据 #${index + 1}`,
+      coverImageUrl: safeText(template.coverImageUrl, '') || MOCK_IMAGE_POOL[index % MOCK_IMAGE_POOL.length],
+      description: safeText(template.description, '') || `模拟商品数据 #${index + 1}`,
       models,
       tierPricing: Array.isArray(template.tierPricing)
         ? template.tierPricing.map((tier) => ({

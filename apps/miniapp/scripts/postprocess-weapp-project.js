@@ -119,13 +119,18 @@ function processWeappProjectConfig() {
     changed = true
   }
 
-  if (config.setting.packNpmManually !== true) {
-    config.setting.packNpmManually = true
+  if (config.setting.packNpmManually !== false) {
+    config.setting.packNpmManually = false
     changed = true
   }
 
   if (!Array.isArray(config.setting.packNpmRelationList) || config.setting.packNpmRelationList.length > 0) {
     config.setting.packNpmRelationList = []
+    changed = true
+  }
+
+  if (config.setting.ignoreDevUnusedFiles !== true) {
+    config.setting.ignoreDevUnusedFiles = true
     changed = true
   }
 
@@ -165,7 +170,9 @@ if (require.main === module) {
   } else if (result.status === 'updated') {
     console.log(`[postprocess-weapp-project] set appid to ${result.appId}, urlCheck=${String(result.urlCheck)}`)
   } else {
-    console.log(`[postprocess-weapp-project] appid already ${result.appId}, urlCheck=${String(result.urlCheck)}, packNpmManually=true`)
+    console.log(
+      `[postprocess-weapp-project] appid already ${result.appId}, urlCheck=${String(result.urlCheck)}, packNpmManually=false`
+    )
   }
 }
 

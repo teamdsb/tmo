@@ -28,7 +28,13 @@ import {
 } from '@tmo/api-client'
 import type { ChooseFile } from '@tmo/platform-adapter'
 import { runtimeEnv } from '../../config/runtime-env'
-import { buildMockProductDetail, mockCategories, mockProductDetails, mockProducts } from '../mocks/catalog'
+import {
+  buildMockProductDetail,
+  mockCategories,
+  mockDisplayCategories,
+  mockProductDetails,
+  mockProducts
+} from '../mocks/catalog'
 import {
   createIsolatedTokenStore,
   getMockUser,
@@ -165,13 +171,7 @@ const ensureCategory = (categoryId: string): Category => {
 }
 
 const toMockDisplayCategories = (): DisplayCategory[] => {
-  return mockCategories.map((item, index) => ({
-    id: item.id,
-    name: item.name,
-    iconKey: item.name.includes('电') ? 'desktop' : item.name.includes('安全') ? 'shield' : 'setting',
-    sort: typeof item.sort === 'number' ? item.sort : index + 1,
-    enabled: true
-  }))
+  return mockDisplayCategories.map((item) => ({ ...item }))
 }
 
 const toCartImportJob = (jobId: string): CartImportJob => ({

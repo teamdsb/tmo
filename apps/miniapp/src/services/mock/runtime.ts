@@ -11,6 +11,7 @@ import type {
 } from '@tmo/api-client'
 import type { BootstrapResponse, PermissionList } from '@tmo/gateway-api-client'
 import { getStorage, removeStorage, setStorage } from '@tmo/platform-adapter'
+import { buildSeedOrders, buildSeedTrackingByOrderId } from '../mocks/orders'
 
 const isolatedMockStorageKey = 'tmo:isolated:mock-state'
 const authTokenStorageKey = 'tmo:auth:token'
@@ -121,8 +122,8 @@ const createDefaultState = (): IsolatedMockState => ({
   wishlistSkuIds: [],
   cartEntries: [],
   addresses: [],
-  orders: [],
-  trackingByOrderId: {},
+  orders: buildSeedOrders(),
+  trackingByOrderId: buildSeedTrackingByOrderId(),
   productRequests: [],
   afterSalesTickets: [],
   afterSalesMessagesByTicketId: {},
@@ -138,14 +139,18 @@ const normalizeState = (value: unknown): IsolatedMockState => {
 
   const state = value as Partial<IsolatedMockState>
   const fallback = createDefaultState()
+  const normalizedOrders = Array.isArray(state.orders) && state.orders.length > 0 ? state.orders : fallback.orders
+  const normalizedTrackingByOrderId = isRecord(state.trackingByOrderId)
+    && Object.keys(state.trackingByOrderId).length > 0
+    ? (state.trackingByOrderId as Record<string, TrackingInfo>)
+    : fallback.trackingByOrderId
+
   return {
     wishlistSkuIds: normalizeStringArray(state.wishlistSkuIds),
     cartEntries: normalizeCartEntries(state.cartEntries),
     addresses: Array.isArray(state.addresses) ? state.addresses : [],
-    orders: Array.isArray(state.orders) ? state.orders : [],
-    trackingByOrderId: isRecord(state.trackingByOrderId)
-      ? (state.trackingByOrderId as Record<string, TrackingInfo>)
-      : {},
+    orders: normalizedOrders,
+    trackingByOrderId: normalizedTrackingByOrderId,
     productRequests: Array.isArray(state.productRequests) ? state.productRequests : [],
     afterSalesTickets: Array.isArray(state.afterSalesTickets) ? state.afterSalesTickets : [],
     afterSalesMessagesByTicketId: isRecord(state.afterSalesMessagesByTicketId)

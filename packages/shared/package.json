@@ -8,6 +8,7 @@
     "./constants": "./src/constants/index.ts",
     "./dto": "./src/dto/index.ts",
     "./enums": "./src/enums/index.ts",
-    "./validators": "./src/validators/index.ts"
+    "./validators": "./src/validators/index.ts",
+    "./mock-data": "./src/mock-data/index.js"
   }
 }

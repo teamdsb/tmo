@@ -23,7 +23,6 @@ import type { BootstrapResponse } from '@tmo/gateway-api-client'
 import { ROUTES } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
 import { navigateTo } from '../../utils/navigation'
-import { isSalesUser } from '../../utils/authz'
 import { gatewayServices } from '../../services/gateway'
 import { commerceServices } from '../../services/commerce'
 import { identityServices } from '../../services/identity'
@@ -62,7 +61,7 @@ const SALES_MENU_ITEM: MenuItem = {
   key: 'sales-workbench',
   label: '业务员工作台',
   icon: ServiceOutlined,
-  route: ROUTES.support
+  route: ROUTES.sales
 }
 
 const ORDER_ITEMS: OrderItem[] = [
@@ -201,13 +200,12 @@ export default function PersonalCenter() {
   }, [bootstrap?.me?.id, refreshOrderBadges])
 
   const isLoggedIn = Boolean(bootstrap?.me)
-  const isSales = isSalesUser(bootstrap)
   const displayName = bootstrap?.me?.displayName ?? '访客'
   const ownerSalesDisplayName = bootstrap?.me?.ownerSalesDisplayName?.trim() ?? ''
   const themeClassName = isDark ? 'mine-theme mine-theme--dark' : 'mine-theme'
   const visibleMenuItems = useMemo(
-    () => (isSales ? [SALES_MENU_ITEM, ...MENU_ITEMS] : MENU_ITEMS),
-    [isSales]
+    () => [SALES_MENU_ITEM, ...MENU_ITEMS],
+    []
   )
 
   const handleLogout = async () => {
