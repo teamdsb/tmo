@@ -208,11 +208,11 @@ function Badge({ count }: BadgeProps) {
 function OrderTrackItem({ icon: Icon, label, badge, onClick }: OrderItem) {
   return (
     <View className='group flex flex-col items-center gap-2 text-center' onClick={onClick}>
-      <View className='mine-modern-order-icon relative flex h-11 w-11 items-center justify-center rounded-2xl'>
-        <Icon className='text-base mine-modern-muted' />
+      <View className='mine-modern-order-icon relative flex h-12 w-12 items-center justify-center rounded-2xl'>
+        <Icon className='text-lg mine-modern-muted' />
         <Badge count={badge} />
       </View>
-      <Text className='text-10 font-bold mine-modern-muted leading-tight whitespace-nowrap'>{label}</Text>
+      <Text className='text-xs font-semibold mine-modern-muted leading-tight whitespace-nowrap'>{label}</Text>
     </View>
   )
 }
@@ -228,15 +228,15 @@ function MenuLink({ icon: Icon, label, showDivider, onClick }: MenuLinkProps) {
   return (
     <View
       onClick={onClick}
-      className={`mine-modern-menu-row flex items-center justify-between px-4 py-4 ${showDivider ? 'border-b mine-modern-border' : ''}`}
+      className={`mine-modern-menu-row flex items-center justify-between px-4 py-5 ${showDivider ? 'border-b mine-modern-border' : ''}`}
     >
       <View className='flex items-center gap-3'>
-        <View className='mine-modern-menu-icon flex h-8 w-8 items-center justify-center rounded-lg'>
-          <Icon className='text-base mine-modern-subtle' />
+        <View className='mine-modern-menu-icon flex h-10 w-10 items-center justify-center rounded-xl'>
+          <Icon className='text-lg mine-modern-subtle' />
         </View>
-        <Text className='text-sm font-medium mine-modern-text'>{label}</Text>
+        <Text className='text-base font-semibold mine-modern-text'>{label}</Text>
       </View>
-      <ArrowRight className='text-sm mine-modern-subtle' />
+      <ArrowRight className='text-base mine-modern-subtle' />
     </View>
   )
 }
@@ -274,7 +274,7 @@ function ChatView({ messages, isTyping, inputValue, onInput, onSend, onBack }: C
     <View className='mine-modern-subview'>
       <SubviewHeader title='联系经理' onBack={onBack} />
 
-      <View className='mine-modern-chat-list mine-modern-subview-scroll'>
+      <View className='mine-modern-chat-list mine-modern-subview-scroll no-scrollbar'>
         {messages.map((msg) => (
           <View key={msg.id} className={`mb-4 flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
             <View className={msg.sender === 'user' ? 'mine-modern-chat-bubble-user' : 'mine-modern-chat-bubble-agent'}>
@@ -331,7 +331,7 @@ function AddressView({ addresses, onBack }: AddressViewProps) {
   return (
     <View className='mine-modern-subview'>
       <SubviewHeader title='收货地址' onBack={onBack} />
-      <View className='mine-modern-subview-scroll'>
+      <View className='mine-modern-subview-scroll no-scrollbar'>
         {addresses.map((addr) => (
           <View key={addr.id} className='mine-modern-card mb-3 rounded-2xl p-4'>
             <View className='mb-2 flex items-center justify-between'>
@@ -359,7 +359,7 @@ function DemandView({ demands, onBack }: DemandViewProps) {
   return (
     <View className='mine-modern-subview'>
       <SubviewHeader title='我的需求' onBack={onBack} />
-      <View className='mine-modern-subview-scroll'>
+      <View className='mine-modern-subview-scroll no-scrollbar'>
         {demands.map((demand) => (
           <View key={demand.id} className='mine-modern-card mb-3 rounded-2xl p-4'>
             <View className='mb-2 flex items-start justify-between gap-2'>
@@ -384,7 +384,7 @@ function OrderManagementView({ orders, initialTab, onBack }: OrderViewProps) {
   return (
     <View className='mine-modern-subview'>
       <SubviewHeader title={`订单列表 - ${initialTab}`} onBack={onBack} />
-      <View className='mine-modern-subview-scroll'>
+      <View className='mine-modern-subview-scroll no-scrollbar'>
         {orders.map((order) => (
           <View key={order.id} className='mine-modern-card mb-3 rounded-2xl p-4'>
             <Text className='mb-2 block text-xs mine-modern-subtle'>单号: {order.id}</Text>
@@ -661,17 +661,17 @@ export default function PersonalCenter() {
               <View className='min-w-0 flex-1'>
                 <View className='flex items-center gap-1.5'>
                   <Text className='truncate text-2xl font-bold mine-modern-text'>{displayName}</Text>
-                  <ShieldOutlined className='text-base text-green-500' />
+                  <ShieldOutlined className='text-lg text-green-500' />
                 </View>
-                <Text className='mt-1 block text-sm font-medium mine-modern-subtle'>高级 B2B 客户经理</Text>
-                <Text className='mt-1 block text-xs mine-modern-muted'>{ownerSalesDisplayName} · 已绑定专属渠道</Text>
+                <Text className='mt-1 block text-base font-medium mine-modern-subtle'>高级 B2B 客户经理</Text>
+                <Text className='mt-1 block text-sm mine-modern-muted'>{ownerSalesDisplayName} · 已绑定专属渠道</Text>
               </View>
             </View>
 
             <View className='mine-modern-section-head mb-2 mt-1 flex items-center justify-between'>
-              <Text className='text-sm font-bold mine-modern-text'>订单跟踪</Text>
+              <Text className='text-base font-bold mine-modern-text'>订单跟踪</Text>
               <Text
-                className='text-10 font-semibold mine-modern-subtle'
+                className='text-xs font-semibold mine-modern-subtle'
                 onClick={() => {
                   setInitialOrderTab('全部')
                   setCurrentPage('orders')
@@ -692,20 +692,20 @@ export default function PersonalCenter() {
             <View className='mine-modern-surface mb-4 overflow-hidden rounded-3xl'>
               <View
                 onClick={() => setCurrentPage('chat')}
-                className='mine-modern-menu-row flex items-center justify-between px-4 py-4 border-b mine-modern-border'
+                className='mine-modern-menu-row flex items-center justify-between px-4 py-5 border-b mine-modern-border'
               >
                 <View className='flex items-center gap-3'>
-                  <View className='mine-modern-menu-icon flex h-8 w-8 items-center justify-center rounded-lg'>
-                    <ChatOutlined className='text-base mine-modern-subtle' />
+                  <View className='mine-modern-menu-icon flex h-10 w-10 items-center justify-center rounded-xl'>
+                    <ChatOutlined className='text-lg mine-modern-subtle' />
                   </View>
                   <View className='flex flex-col'>
-                    <Text className='text-sm font-semibold mine-modern-text'>专属客户经理</Text>
-                    <Text className='text-10 mine-modern-subtle'>在线咨询</Text>
+                    <Text className='text-base font-semibold mine-modern-text'>专属客户经理</Text>
+                    <Text className='text-xs mine-modern-subtle'>在线咨询</Text>
                   </View>
                 </View>
                 <View className='flex items-center gap-2'>
                   <View className='mine-modern-online-dot h-1.5 w-1.5 rounded-full'></View>
-                  <ArrowRight className='text-sm mine-modern-subtle' />
+                  <ArrowRight className='text-base mine-modern-subtle' />
                 </View>
               </View>
               {menuItems.map((item, index) => (
@@ -733,8 +733,8 @@ export default function PersonalCenter() {
               onClick={isLoggedIn ? handleLogout : () => navigateTo(ROUTES.authLogin)}
               disabled={loggingOut}
             >
-              <Revoke className='text-base mine-modern-muted' />
-              <Text className='text-sm font-bold mine-modern-muted'>切换账号或退出登录</Text>
+              <Revoke className='text-lg mine-modern-muted' />
+              <Text className='text-base font-bold mine-modern-muted'>切换账号或退出登录</Text>
             </NativeButton>
             <Text className='mine-modern-version mt-6 block text-center text-10 font-medium uppercase tracking-widest'>
               B2B Portal v2.4.0

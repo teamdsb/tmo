@@ -311,6 +311,17 @@
   font-size: calc(24px * var(--font-size-scale, 1));
 }
 
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 .page-grid {
   margin-top: 12px;
 }
@@ -1145,18 +1156,19 @@
 }
 
 .mine-modern {
-  --mine-modern-bg: #f6f7f8;
+  --mine-modern-bg: #edf2f7;
   --mine-modern-surface: #fff;
-  --mine-modern-surface-soft: #f8fafc;
-  --mine-modern-border: #e6edf5;
+  --mine-modern-surface-soft: #e8eff7;
+  --mine-modern-border: #cfd9e6;
   --mine-modern-text: #0f172a;
-  --mine-modern-muted: #64748b;
-  --mine-modern-subtle: #94a3b8;
+  --mine-modern-muted: #334155;
+  --mine-modern-subtle: #475569;
   --mine-modern-primary: #137fec;
-  --mine-modern-primary-soft: rgb(19 127 236 / 10%);
-  --mine-modern-primary-soft-strong: rgb(19 127 236 / 22%);
+  --mine-modern-primary-soft: rgb(19 127 236 / 14%);
+  --mine-modern-primary-soft-strong: rgb(19 127 236 / 30%);
   --mine-modern-danger-soft: #fee2e2;
   --mine-modern-emerald: #10b981;
+  --font-size-scale: 1.15;
 
   background: var(--mine-modern-bg);
   color: var(--mine-modern-text);
@@ -1169,15 +1181,15 @@
 }
 
 .mine-modern-main-content {
-  padding: 16px;
-  padding-bottom: calc(16px + var(--tabbar-safe-offset));
-  padding-bottom: calc(16px + var(--tabbar-safe-offset-legacy));
+  padding: 18px;
+  padding-bottom: calc(18px + var(--tabbar-safe-offset));
+  padding-bottom: calc(18px + var(--tabbar-safe-offset-legacy));
 }
 
 .mine-modern-profile-card {
-  background: linear-gradient(180deg, #eef3f9 0%, #f6f8fb 100%);
+  background: linear-gradient(180deg, #e9f0f9 0%, #f3f7fc 100%);
   border: 1px solid var(--mine-modern-border);
-  box-shadow: 0 6px 16px rgb(15 23 42 / 5%);
+  box-shadow: 0 10px 22px rgb(15 23 42 / 10%);
 }
 
 .mine-modern-text {
@@ -1203,7 +1215,7 @@
 .mine-modern-surface {
   background: var(--mine-modern-surface);
   border: 1px solid var(--mine-modern-border);
-  box-shadow: 0 2px 8px rgb(15 23 42 / 5%);
+  box-shadow: 0 4px 12px rgb(15 23 42 / 8%);
 }
 
 .mine-modern-avatar-wrap {
@@ -1211,12 +1223,12 @@
   height: 72px;
   overflow: hidden;
   border: 2px solid #fff;
-  box-shadow: 0 8px 20px rgb(15 23 42 / 10%);
+  box-shadow: 0 10px 22px rgb(15 23 42 / 14%);
 }
 
 .mine-modern-order-icon {
   background: var(--mine-modern-primary-soft);
-  border: 1px solid rgb(19 127 236 / 14%);
+  border: 1px solid rgb(19 127 236 / 34%);
 }
 
 .mine-modern-badge {
@@ -1235,19 +1247,22 @@
 
 .mine-modern-menu-icon {
   background: var(--mine-modern-surface-soft);
+  border: 1px solid rgb(15 23 42 / 6%);
 }
 
 .mine-modern-section-head {
   padding-left: 2px;
   padding-right: 2px;
+  margin-bottom: 8px;
 }
 
 .mine-modern-menu-row {
-  transition: background-color 200ms ease;
+  transition: background-color 200ms ease, transform 180ms ease;
 }
 
 .mine-modern-menu-row:active {
-  background: var(--mine-modern-surface-soft);
+  background: #f1f5fa;
+  transform: scale(0.995);
 }
 
 .mine-modern-logout-btn {
@@ -1275,18 +1290,22 @@
 .mine-modern-subview {
   min-height: 100vh;
   background: var(--mine-modern-bg);
+  display: flex;
+  flex-direction: column;
 }
 
 .mine-modern-subview-header {
-  background: rgb(255 255 255 / 92%);
+  background: rgb(255 255 255 / 96%);
   border-bottom: 1px solid var(--mine-modern-border);
   backdrop-filter: blur(8px);
 }
 
 .mine-modern-subview-scroll {
-  padding: 16px;
-  padding-bottom: calc(16px + var(--tabbar-safe-offset));
-  padding-bottom: calc(16px + var(--tabbar-safe-offset-legacy));
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px;
+  padding-bottom: calc(18px + var(--tabbar-safe-offset));
+  padding-bottom: calc(18px + var(--tabbar-safe-offset-legacy));
 }
 
 .mine-modern-icon-btn {

@@ -64,6 +64,16 @@ make dev-stack-down-air
 - 若需查看 Air 重编译日志，可执行：
   `docker compose -f infra/dev/docker-compose.yml -f infra/dev/docker-compose.backend.yml -f infra/dev/docker-compose.dev.yml logs -f identity commerce payment gateway-bff`
 
+稳定 Docker 联调（推荐）：
+- `make dev-stack-up` 默认会为容器构建与 Air 运行时注入稳定的 Go 模块参数：
+  - `DEV_STACK_GOPROXY=https://goproxy.cn,direct`
+  - `DEV_STACK_GOSUMDB=off`
+  - `DEV_STACK_GONOSUMDB=*`
+- 如需覆盖，可在命令前显式设置（例如恢复官方 proxy）：
+  `DEV_STACK_GOPROXY=https://proxy.golang.org,direct DEV_STACK_GOSUMDB=sum.golang.org DEV_STACK_GONOSUMDB= make dev-stack-up`
+- 栈启动后可执行：`bash tools/scripts/dev-stack-health.sh` 验证 `/ready`、`/health` 与网关业务接口联通性。
+- 若构建报 `no space left on device`，先执行 `docker system df` 与 `docker builder prune -f` 再重试。
+
 miniapp 编译产物目录：
 - 微信：`apps/miniapp/dist/weapp`
 - 支付宝：`apps/miniapp/dist/alipay`

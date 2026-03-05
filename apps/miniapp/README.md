@@ -49,15 +49,13 @@
     pnpm -C apps/miniapp dev:weapp
     pnpm -C apps/miniapp dev:alipay
 
-容器化后端（可选）：
+容器化后端（推荐）：
 
-    docker compose -f infra/dev/docker-compose.yml up -d
-    bash tools/scripts/dev-bootstrap.sh
-    bash tools/scripts/dev-seed.sh
-    cp infra/dev/backend.env.example infra/dev/backend.env.local
-    docker compose --env-file infra/dev/backend.env.local \
-      -f infra/dev/docker-compose.yml \
-      -f infra/dev/docker-compose.backend.yml up -d
+    make dev-stack-up
+
+容器化后端（Air 热更新，可选）：
+
+    make dev-stack-up-air
 
 说明：
 
@@ -65,6 +63,9 @@
 - `TARO_APP_MOCK_MODE=off`（默认）时走真实后端，不再提供运行时 commerce 自动 fallback 到 mock。
 - `TARO_APP_ENABLE_MOCK_LOGIN` 默认为关闭（`false`）；且仅在 `TARO_APP_MOCK_MODE=isolated` 时才会展示“测试登录”按钮。
 - 如果使用容器化后端，保持 `TARO_APP_API_BASE_URL=http://localhost:8080` 即可。
+- `make dev-stack-up` 默认注入稳定 Go 模块参数（`DEV_STACK_GOPROXY=https://goproxy.cn,direct`、`DEV_STACK_GOSUMDB=off`、`DEV_STACK_GONOSUMDB=*`），可降低容器内 `go build` 拉包失败概率。
+- 如需覆盖代理策略，可执行：
+  `DEV_STACK_GOPROXY=https://proxy.golang.org,direct DEV_STACK_GOSUMDB=sum.golang.org DEV_STACK_GONOSUMDB= make dev-stack-up`
 - `preflight:weapp` 会在编译前执行 HTTP 烟测（`/bff/bootstrap`、`/catalog/categories`、`/catalog/products`）；失败时自动输出 DB 诊断日志摘要。
 - `dev:weapp` 默认启用编译前门禁（`WEAPP_PREFLIGHT_HTTP_SMOKE=true`），并在 watch 构建后自动校验页面路由、tabBar 图标与 API 基址，避免旧产物导致 `demand 2`、`__route__`、`api.example.com` 类问题。
 - 商品接口返回的图片 URL 默认由 gateway 服务端改写为 `${TARO_APP_API_BASE_URL}/assets/img?url=...`；若已迁移到本地媒体目录则会直接返回 `${TARO_APP_API_BASE_URL}/assets/media/...`。前端仅负责渲染与占位兜底。
@@ -130,6 +131,7 @@
 - `WEAPP_PREFLIGHT_TIMEOUT_MS`：编译前门禁超时（毫秒），默认 `120000`。
 - `WEAPP_PREFLIGHT_RUN_DIAG`：门禁失败时是否输出 DB 诊断（`preflight:weapp`），默认 `true`。
 - `MINIAPP_HTTP_SMOKE_ALLOW_EMPTY_PRODUCTS`：`preflight:weapp` 是否允许 `/catalog/products` 空列表时跳过封面图代理断言；默认在 preflight 中按 `true` 处理。
+- `MINIAPP_HTTP_SMOKE_ALLOW_PROXY_FAILURE`：`preflight:weapp` 遇到 `/assets/img` 代理失败时是否软通过；默认在 preflight 中按 `true` 处理。若要严格阻断请显式设为 `false`。
 - `WEAPP_SKIP_LAUNCH`：跳过自动拉起 DevTools，仅连接已有 automator 端口（默认 `false`）。
 - `MINIAPP_SMOKE_STACK_UP`：仅 `debug:weapp:smoke` 使用；为 `true` 时先执行 `tools/scripts/dev-stack-up.sh` 再采集。
 - `WEAPP_SMOKE_PREFLIGHT`：仅 `debug:weapp:smoke` 使用；为 `true` 时先执行 `preflight:weapp`，默认 `true`。

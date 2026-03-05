@@ -1,10 +1,12 @@
-version: "3.9"
-
 services:
   identity:
     build:
       context: ../..
       dockerfile: services/identity/Dockerfile
+      args:
+        GOPROXY: "${DEV_STACK_GOPROXY:-https://goproxy.cn,direct}"
+        GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"
+        GONOSUMDB: "${DEV_STACK_GONOSUMDB:-*}"
     environment:
       IDENTITY_HTTP_ADDR: ":8081"
       IDENTITY_DB_DSN: "postgres://commerce:commerce@postgres:5432/identity?sslmode=disable"
@@ -32,6 +34,10 @@ services:
     build:
       context: ../..
       dockerfile: services/commerce/Dockerfile
+      args:
+        GOPROXY: "${DEV_STACK_GOPROXY:-https://goproxy.cn,direct}"
+        GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"
+        GONOSUMDB: "${DEV_STACK_GONOSUMDB:-*}"
     environment:
       COMMERCE_HTTP_ADDR: ":8082"
       COMMERCE_DB_DSN: "postgres://commerce:commerce@postgres:5432/commerce?sslmode=disable"
@@ -49,6 +55,10 @@ services:
     build:
       context: ../..
       dockerfile: services/payment/Dockerfile
+      args:
+        GOPROXY: "${DEV_STACK_GOPROXY:-https://goproxy.cn,direct}"
+        GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"
+        GONOSUMDB: "${DEV_STACK_GONOSUMDB:-*}"
     environment:
       PAYMENT_HTTP_ADDR: ":8083"
       PAYMENT_IDENTITY_BASE_URL: "http://identity:8081"
@@ -62,6 +72,10 @@ services:
     build:
       context: ../..
       dockerfile: services/gateway-bff/Dockerfile
+      args:
+        GOPROXY: "${DEV_STACK_GOPROXY:-https://goproxy.cn,direct}"
+        GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"
+        GONOSUMDB: "${DEV_STACK_GONOSUMDB:-*}"
     environment:
       GATEWAY_HTTP_ADDR: ":8080"
       GATEWAY_IDENTITY_BASE_URL: "http://identity:8081"
@@ -71,7 +85,7 @@ services:
       GATEWAY_PUBLIC_BASE_URL: "${GATEWAY_PUBLIC_BASE_URL:-http://localhost:8080}"
       GATEWAY_MEDIA_LOCAL_DIR: "${GATEWAY_MEDIA_LOCAL_DIR:-/data/media}"
       GATEWAY_IMAGE_PROXY_ALLOWLIST: "${GATEWAY_IMAGE_PROXY_ALLOWLIST:-images.unsplash.com}"
-      GATEWAY_IMAGE_PROXY_TIMEOUT: "${GATEWAY_IMAGE_PROXY_TIMEOUT:-10s}"
+      GATEWAY_IMAGE_PROXY_TIMEOUT: "${GATEWAY_IMAGE_PROXY_TIMEOUT:-120s}"
       GATEWAY_IMAGE_PROXY_MAX_BYTES: "${GATEWAY_IMAGE_PROXY_MAX_BYTES:-8388608}"
       GATEWAY_IMAGE_PROXY_CACHE_MAX_AGE_SECONDS: "${GATEWAY_IMAGE_PROXY_CACHE_MAX_AGE_SECONDS:-3600}"
     ports:

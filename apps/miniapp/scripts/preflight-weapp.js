@@ -93,7 +93,8 @@ const runShell = (scriptPath, timeout, extraEnv = {}) => {
     env: {
       ...process.env,
       ...extraEnv,
-      MINIAPP_HTTP_SMOKE_ALLOW_EMPTY_PRODUCTS: process.env.MINIAPP_HTTP_SMOKE_ALLOW_EMPTY_PRODUCTS || 'true'
+      MINIAPP_HTTP_SMOKE_ALLOW_EMPTY_PRODUCTS: process.env.MINIAPP_HTTP_SMOKE_ALLOW_EMPTY_PRODUCTS || 'true',
+      MINIAPP_HTTP_SMOKE_ALLOW_PROXY_FAILURE: process.env.MINIAPP_HTTP_SMOKE_ALLOW_PROXY_FAILURE || 'true'
     },
     timeout
   })
