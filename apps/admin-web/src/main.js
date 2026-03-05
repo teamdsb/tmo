@@ -1,4 +1,5 @@
 import { goToDashboard, isLoggedIn, loginDev, loginMock, refreshBootstrap } from './lib/auth';
+import { filterAllowedAdminWebRoles } from './lib/admin-role-policy';
 import { isDevMode, isMockMode } from './lib/env';
 import { installZhLocalization } from './lib/i18n-zh';
 import { resolveMockAccount } from './lib/mock-accounts';
@@ -15,19 +16,13 @@ const roleSelectCancel = document.querySelector('#role-select-cancel');
 
 const ROLE_LABELS = {
   BOSS: '老板',
-  MANAGER: '管理员',
-  ADMIN: '管理员(兼容)',
-  CS: '客服',
-  CUSTOMER: '客户'
+  ADMIN: '管理员',
+  CS: '客服'
 };
 
 // 归一化角色列表（去空、转大写、去重）。
 const normalizeRoles = (input) => {
-  if (!Array.isArray(input)) return [];
-  const normalized = input
-    .map((item) => String(item || '').trim().toUpperCase())
-    .filter((item) => Boolean(item));
-  return Array.from(new Set(normalized));
+  return filterAllowedAdminWebRoles(input);
 };
 
 // 登录失败提示（优先页面内提示，兜底 alert）。
@@ -167,6 +162,10 @@ if (form && usernameInput && passwordInput) {
       const firstAttempt = await loginDev(username, password);
       if (firstAttempt?.status === 409) {
         const availableRoles = normalizeRoles(firstAttempt?.data?.details?.availableRoles);
+        if (availableRoles.length === 0) {
+          showError('该账号角色不受 admin-web 支持（仅支持 ADMIN / BOSS / CS）。');
+          return;
+        }
         const selectedRole = await showRoleModal(availableRoles);
         if (!selectedRole) {
           showError('已取消角色选择。');

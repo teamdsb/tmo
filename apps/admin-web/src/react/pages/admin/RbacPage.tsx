@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { fetchRbacPermissions, fetchRbacRoles, replaceRbacRolePermissions } from '../../../lib/api';
+import { isAllowedAdminWebRole } from '../../../lib/admin-role-policy';
 
 type RbacScope = 'SELF' | 'OWNED' | 'ALL';
 
@@ -77,6 +78,10 @@ const parseRoles = (value: unknown): RbacRole[] => {
       } as RbacRole;
     })
     .filter(Boolean) as RbacRole[];
+};
+
+const filterAllowedRoles = (roles: RbacRole[]) => {
+  return roles.filter((role) => isAllowedAdminWebRole(role.code));
 };
 
 const parsePermissionCatalog = (value: unknown): PermissionCatalogItem[] => {
@@ -184,7 +189,7 @@ export const RbacPage = () => {
         return;
       }
 
-      const nextRoles = parseRoles(rolesResponse.data);
+      const nextRoles = filterAllowedRoles(parseRoles(rolesResponse.data));
       const nextCatalog = parsePermissionCatalog(permissionsResponse.data);
 
       setRoles(nextRoles);
@@ -458,7 +463,7 @@ export const RbacPage = () => {
           <div className="flex flex-col gap-2 p-3">
             {!loading && filteredRoles.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border-light bg-white p-4 text-sm text-text-secondary dark:border-border-dark dark:bg-surface-dark">
-                No roles found.
+                No supported roles found.
               </div>
             ) : null}
 
@@ -500,7 +505,7 @@ export const RbacPage = () => {
 
           {!loading && roles.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border-light bg-white p-8 text-center text-sm text-text-secondary shadow-sm dark:border-border-dark dark:bg-surface-dark">
-              No roles available.
+              当前平台无可管理角色（仅支持 ADMIN / BOSS / CS）。
             </div>
           ) : null}
 

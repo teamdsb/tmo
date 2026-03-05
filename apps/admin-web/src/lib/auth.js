@@ -1,4 +1,5 @@
 import { bootstrap, passwordLogin } from './api';
+import { filterAllowedAdminWebRoles, isAllowedAdminWebRole, normalizeRole } from './admin-role-policy';
 import { isDevMode, isMockMode, routes } from './env';
 import {
   clearAllSessions,
@@ -13,11 +14,7 @@ import {
 const roleLabels = {
   admin: '管理员',
   boss: '老板',
-  manager: '管理员',
-  support: '客服专员',
-  logistics: '物流协调员',
-  cs: '客服',
-  customer: '客户'
+  cs: '客服'
 };
 
 // 统一提取展示名，避免空值导致 UI 显示异常。
@@ -35,6 +32,17 @@ const toDisplayName = (user) => {
 export const getRoleLabel = (role) => {
   const normalized = String(role || '').toLowerCase();
   return roleLabels[normalized] || role || '管理员';
+};
+
+const normalizeSessionUserRoles = (user) => {
+  if (!user || typeof user !== 'object') {
+    return user;
+  }
+  const allowedRoles = filterAllowedAdminWebRoles(user.roles);
+  return {
+    ...user,
+    roles: allowedRoles
+  };
 };
 
 // 跳转登录页。
@@ -123,19 +131,23 @@ export const loginMock = (input, role) => {
 // 从显式选择或用户角色列表中推断当前角色。
 const inferCurrentRole = (user, explicitRole) => {
   if (explicitRole) {
-    return String(explicitRole).toUpperCase();
+    const normalizedExplicit = normalizeRole(explicitRole);
+    return isAllowedAdminWebRole(normalizedExplicit) ? normalizedExplicit : '';
   }
-  const roles = Array.isArray(user?.roles) ? user.roles.map((role) => String(role).toUpperCase()) : [];
+  const roles = filterAllowedAdminWebRoles(user?.roles);
+  if (roles.length === 0) {
+    return '';
+  }
   if (roles.length === 1) {
     return roles[0];
   }
-  const priority = ['BOSS', 'MANAGER', 'ADMIN', 'CS'];
+  const priority = ['BOSS', 'ADMIN', 'CS'];
   for (const role of priority) {
     if (roles.includes(role)) {
       return role;
     }
   }
-  return roles[0] || 'ADMIN';
+  return '';
 };
 
 // real(dev) 登录并写入 token + 当前角色。
@@ -150,10 +162,13 @@ export const loginDev = async (username, password, role) => {
   }
 
   const currentRole = inferCurrentRole(response.data.user, role);
+  if (!currentRole) {
+    throw new Error('该账号角色不受 admin-web 支持（仅支持 ADMIN / BOSS / CS）。');
+  }
   saveAuthState({
     mode: 'dev',
     accessToken: response.data.accessToken,
-    user: response.data.user,
+    user: normalizeSessionUserRoles(response.data.user),
     currentRole,
     permissions: null,
     featureFlags: null,
@@ -188,7 +203,7 @@ export const refreshBootstrap = async () => {
   saveAuthState({
     ...previous,
     mode: 'dev',
-    user: response.data.me || previous.user || null,
+    user: normalizeSessionUserRoles(response.data.me || previous.user || null),
     permissions: response.data.permissions || null,
     featureFlags: response.data.featureFlags || null,
     lastBootstrapAt: new Date().toISOString()
@@ -241,7 +256,11 @@ export const getDisplayProfile = () => {
   }
 
   const roles = Array.isArray(state?.user?.roles) ? state.user.roles : [];
-  const primaryRole = state?.currentRole || roles[0] || 'ADMIN';
+  const allowedRoles = filterAllowedAdminWebRoles(roles);
+  const normalizedCurrentRole = normalizeRole(state?.currentRole);
+  const primaryRole = isAllowedAdminWebRole(normalizedCurrentRole)
+    ? normalizedCurrentRole
+    : (allowedRoles[0] || 'ADMIN');
 
   return {
     name: toDisplayName(state.user),
