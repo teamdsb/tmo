@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 
 type BootstrapFn = () => Promise<unknown> | unknown;
 
+// 挂载登录页并执行 bootstrap（legacy 登录逻辑接入点）。
 export const mountLoginPage = async (page: ReactElement, bootstrap: BootstrapFn) => {
   const rootContainer = document.createElement('div');
   rootContainer.setAttribute('data-react-admin-root', 'true');

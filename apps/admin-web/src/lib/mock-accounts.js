@@ -1,5 +1,6 @@
 import { adminWebMockAccounts, buildPermissionListForRole } from '../../../../packages/shared/src/mock-data/auth.js';
 
+// 克隆并补齐权限清单，避免污染共享源对象。
 const cloneMockAccount = (account) => {
   const role = String(account?.role || '').trim().toUpperCase();
   return {
@@ -9,10 +10,12 @@ const cloneMockAccount = (account) => {
   };
 };
 
+// 返回可登录的 mock 账号列表（含权限）。
 export const listMockAccounts = () => {
   return adminWebMockAccounts.map((account) => cloneMockAccount(account));
 };
 
+// 按用户名密码匹配 mock 账号。
 export const resolveMockAccount = (username, password) => {
   const normalizedUsername = String(username || '').trim().toLowerCase();
   const rawPassword = String(password || '');

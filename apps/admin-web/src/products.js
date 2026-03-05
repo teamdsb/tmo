@@ -635,6 +635,7 @@ const buildStatusFilterOptionsHtml = () => {
   return STATUS_FILTER_ITEMS.map((item) => `<option value="${escape(item.value)}">${escape(item.label)}</option>`).join('');
 };
 
+// 同步筛选/表单中的类目选项，保证展示与 state.categories 一致。
 const syncCategorySelectOptions = () => {
   const selectors = [
     '#create-product-modal select[name="categoryKey"]',
@@ -942,6 +943,7 @@ const toModelClassBadge = (modelClass) => {
   return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${className}">${escape(modelClass)}</span>`;
 };
 
+// 渲染单条商品表格行。
 const renderProductRow = (item) => {
   const image = safeText(item.coverImageUrl, '');
   const tag = resolveCategoryTag(item);
@@ -999,6 +1001,7 @@ const buildPageTokens = (totalPages, currentPage) => {
   return tokens;
 };
 
+// 渲染分页控件（兼容远端分页和本地分页）。
 const renderPagination = (totalCount = state.total) => {
   const container = getPaginationContainer();
   const prevButton = getPrevPageButton();
@@ -1028,6 +1031,7 @@ const renderPagination = (totalCount = state.total) => {
   nextButton.disabled = currentPage >= resolvedTotalPages;
 };
 
+// 按当前筛选和分页状态渲染列表。
 const renderCurrentPage = () => {
   const tbody = document.querySelector('table tbody');
   if (!tbody) {
@@ -1084,12 +1088,14 @@ const applyProducts = (items, total = items.length, currentPage = 1, remote = fa
   renderCurrentPage();
 };
 
+// 消费后端分页响应并落到统一渲染入口。
 const renderProducts = (payload, currentPage = 1, remote = state.context?.mode === 'dev') => {
   const items = Array.isArray(payload?.items) ? payload.items : [];
   const total = Number(payload?.total || items.length);
   applyProducts(items, total, currentPage, remote);
 };
 
+// 生成 mock 商品数据（用于 mock 模式与回退场景）。
 const createMockProducts = (count = 30) => {
   const templates = CANONICAL_PRODUCT_TEMPLATES.length > 0 ? CANONICAL_PRODUCT_TEMPLATES : MOCK_PRODUCT_TEMPLATES;
   if (templates.length === 0) {
@@ -1129,6 +1135,7 @@ const createMockProducts = (count = 30) => {
   });
 };
 
+// 组装商品查询参数，保持与后端分页接口一致。
 const buildProductsQueryParams = (page = 1) => {
   const params = {
     page,
@@ -1141,6 +1148,7 @@ const buildProductsQueryParams = (page = 1) => {
   return params;
 };
 
+// 应用筛选：dev 模式重新请求，mock 模式本地过滤。
 const applyProductFilters = async () => {
   state.pagination.currentPage = 1;
   if (state.context?.mode !== 'dev') {
@@ -1164,6 +1172,7 @@ const applyProductFilters = async () => {
   renderProducts(response.data, 1, true);
 };
 
+// 翻页处理：优先走远端分页窗口，必要时回退本地分页。
 const goToPage = async (page) => {
   const hasClientOnlyFilter = Boolean(state.filters.status) || state.filters.categoryId === NO_CATEGORY_FILTER;
   const useRemotePageWindow = state.pagination.remote && !hasClientOnlyFilter;
@@ -1295,6 +1304,7 @@ const closeCreateModal = () => {
   document.body.classList.remove('overflow-hidden');
 };
 
+// 打开新建商品弹窗并重置状态。
 const openCreateModal = () => {
   const modal = document.querySelector('#create-product-modal');
   if (!modal) {
@@ -1461,6 +1471,7 @@ const replaceProductInCollection = (product) => {
   renderCurrentPage();
 };
 
+// 关闭商品编辑抽屉并清空上下文。
 const closeEditDrawer = () => {
   const overlay = document.querySelector('#product-drawer-overlay');
   const drawer = document.querySelector('#product-edit-drawer');
@@ -1472,6 +1483,7 @@ const closeEditDrawer = () => {
   document.body.classList.remove('overflow-hidden');
 };
 
+// 更新抽屉封面预览与“查看大图”按钮状态。
 const updateDrawerPreview = (drawer, imageUrl) => {
   const image = drawer.querySelector('[data-role="drawer-preview-image"]');
   const emptyState = drawer.querySelector('[data-role="drawer-preview-empty"]');
@@ -1526,6 +1538,7 @@ const ensureImagePreviewModal = () => {
   return modal;
 };
 
+// 打开图片预览浮层。
 const openImagePreview = (imageUrl) => {
   const url = safeText(imageUrl, '').trim();
   if (!url) {
@@ -1772,6 +1785,7 @@ const collectDrawerTierPricing = (drawer) => {
   return tiers;
 };
 
+// 懒创建并复用商品编辑抽屉。
 const ensureEditDrawer = () => {
   const existed = document.querySelector('#product-edit-drawer');
   if (existed) {
@@ -2023,6 +2037,7 @@ const ensureEditDrawer = () => {
   return drawer;
 };
 
+// 打开编辑抽屉并回填当前行商品数据。
 const openEditDrawer = (row) => {
   const drawer = ensureEditDrawer();
   const overlay = document.querySelector('#product-drawer-overlay');
@@ -2331,6 +2346,7 @@ const rebuildProductsAfterCategoryChange = () => {
   renderCurrentPage();
 };
 
+// 组装类目创建/更新 payload。
 const toCategoryPayload = (name, sort, parentId) => {
   return {
     name,
@@ -2343,6 +2359,7 @@ const shouldUseLocalCategoryStore = () => {
   return state.context?.mode !== 'dev';
 };
 
+// 组装展示类目 payload，统一字段清洗与默认值。
 const toDisplayCategoryPayload = (item, index = 0) => {
   return {
     id: safeText(item?.id, '').trim(),
@@ -2355,6 +2372,7 @@ const toDisplayCategoryPayload = (item, index = 0) => {
   };
 };
 
+// 持久化展示类目：dev 写后端，mock 写本地存储。
 const persistDisplayCategories = async (items) => {
   const payloadItems = items.map((item, index) => toDisplayCategoryPayload(item, index)).filter((item) => item.id && item.name);
   if (state.context?.mode === 'dev') {
@@ -2370,6 +2388,7 @@ const persistDisplayCategories = async (items) => {
   setDisplayCategories(payloadItems, { persist: true });
 };
 
+// 加载展示类目：优先 real，其次 localStorage，最后默认值。
 const loadDisplayCategories = async () => {
   if (state.context?.mode === 'dev') {
     try {
@@ -2400,6 +2419,7 @@ const closeDisplayCategoryManagerModal = () => {
   document.body.classList.remove('overflow-hidden');
 };
 
+// 渲染展示类目预览（仅启用项）。
 const renderDisplayCategoryPreview = (modal) => {
   const preview = modal.querySelector('[data-role="display-category-preview"]');
   if (!(preview instanceof HTMLElement)) {
@@ -2428,6 +2448,7 @@ const renderDisplayCategoryPreview = (modal) => {
     .join('');
 };
 
+// 渲染展示类目管理表格主体。
 const renderDisplayCategoryManagerBody = (modal) => {
   const body = modal.querySelector('[data-role="display-category-list-body"]');
   if (!(body instanceof HTMLElement)) {
@@ -2478,6 +2499,7 @@ const renderDisplayCategoryManagerBody = (modal) => {
   renderDisplayCategoryPreview(modal);
 };
 
+// 懒创建并复用“展示类目管理”弹窗。
 const ensureDisplayCategoryManagerModal = () => {
   const existed = document.querySelector('#display-category-manager-modal');
   if (existed instanceof HTMLElement) {
@@ -2685,6 +2707,7 @@ const ensureDisplayCategoryManagerModal = () => {
   return modal;
 };
 
+// 打开展示类目管理弹窗。
 const openDisplayCategoryManagerModal = () => {
   const modal = ensureDisplayCategoryManagerModal();
   renderDisplayCategoryManagerBody(modal);
@@ -2723,6 +2746,7 @@ const buildCategoryParentOptions = (selectedParentId = '', currentCategoryId = '
   return options.join('');
 };
 
+// 渲染类目管理表格主体。
 const renderCategoryManagerBody = (modal) => {
   const body = modal.querySelector('[data-role="category-list-body"]');
   const parentSelect = modal.querySelector('[data-role="create-category-parent"]');
@@ -2766,6 +2790,7 @@ const renderCategoryManagerBody = (modal) => {
     .join('');
 };
 
+// 懒创建并复用“类目管理”弹窗。
 const ensureCategoryManagerModal = () => {
   const existed = document.querySelector('#category-manager-modal');
   if (existed instanceof HTMLElement) {
@@ -2983,6 +3008,7 @@ const ensureCategoryManagerModal = () => {
   return modal;
 };
 
+// 打开类目管理弹窗。
 const openCategoryManagerModal = () => {
   const modal = ensureCategoryManagerModal();
   renderCategoryManagerBody(modal);
@@ -3001,6 +3027,7 @@ const bindCategoryManageAction = () => {
   });
 };
 
+// 加载类目：dev 读后端，mock 读本地或默认类目。
 const loadCategories = async () => {
   if (state.context?.mode === 'dev') {
     try {
@@ -3025,6 +3052,7 @@ const loadCategories = async () => {
   setCategories(DEFAULT_CATEGORIES, { persist: true });
 };
 
+// 商品页入口：初始化数据、事件、抽屉与模式分支。
 const initProducts = async () => {
   const context = await ensureProtectedPage();
   if (!context) {

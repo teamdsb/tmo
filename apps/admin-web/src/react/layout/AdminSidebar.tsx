@@ -29,6 +29,7 @@ const navItems: NavItem[] = [
   { key: 'users', href: '/transfer.html', icon: 'group', label: '用户' }
 ];
 
+// 侧边栏菜单项样式计算。
 const itemClass = (isActive: boolean) => {
   if (isActive) {
     return 'flex items-center gap-2.5 rounded-lg bg-primary/10 px-3 py-1.5 text-primary transition-colors';
@@ -41,6 +42,7 @@ type AdminSidebarProps = {
   currentSettingKey: Extract<AdminRouteKey, 'general' | 'security'> | null;
 };
 
+// 后台统一侧边栏（含按权限过滤导航）。
 export const AdminSidebar = ({ currentKey, currentSettingKey }: AdminSidebarProps) => {
   const session = getCurrentSession();
   const permissionMap = normalizePermissionMap(session?.permissions);

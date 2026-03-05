@@ -121,6 +121,7 @@ type StatusBadgeProps = {
   tone: OrderRow['statusTone'];
 };
 
+// 订单状态徽标。
 const StatusBadge = ({ label, tone }: StatusBadgeProps) => {
   const toneClass = statusToneClass[tone];
 
@@ -138,6 +139,7 @@ type OrderTableRowProps = {
   row: OrderRow;
 };
 
+// 订单表格行。
 const OrderTableRow = ({ row }: OrderTableRowProps) => {
   return (
     <tr
@@ -179,6 +181,7 @@ type TabLinkProps = {
   tab: OrderTab;
 };
 
+// 顶部状态筛选 Tab。
 const TabLink = ({ tab }: TabLinkProps) => {
   if (tab.isReturns) {
     return (
@@ -234,6 +237,7 @@ const TabLink = ({ tab }: TabLinkProps) => {
   );
 };
 
+// 订单页（当前主要承载 React 容器与静态视图）。
 export const OrdersPage = () => {
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">

@@ -128,6 +128,7 @@ const mockCustomerSeed: AdminCustomer[] = [
   }
 ];
 
+// 安全读取字符串并去空白，统一前端容错行为。
 const safeText = (value: unknown, fallback = '') => {
   if (typeof value !== 'string') {
     return fallback;
@@ -136,6 +137,7 @@ const safeText = (value: unknown, fallback = '') => {
   return trimmed || fallback;
 };
 
+// 归一化业务员列表响应，消除后端可空字段差异。
 const normalizeSalesUsers = (data: unknown): SalesUser[] => {
   const items = (data as { items?: unknown[] })?.items;
   if (!Array.isArray(items)) {
@@ -166,6 +168,7 @@ const normalizeSalesUsers = (data: unknown): SalesUser[] => {
     .filter(Boolean) as SalesUser[];
 };
 
+// 归一化标签列表响应并按 sort 排序。
 const normalizeTags = (data: unknown): CustomerTag[] => {
   const items = Array.isArray((data as { items?: unknown[] })?.items)
     ? ((data as { items?: unknown[] }).items as unknown[])
@@ -195,6 +198,7 @@ const normalizeTags = (data: unknown): CustomerTag[] => {
     .sort((a, b) => a.sort - b.sort) as CustomerTag[];
 };
 
+// 归一化客户列表响应，同时统一 owner/tags 结构。
 const normalizeCustomers = (data: unknown): { items: AdminCustomer[]; total: number } => {
   const payload = data as { items?: unknown[]; total?: number };
   const items = Array.isArray(payload?.items) ? payload.items : [];
@@ -240,6 +244,7 @@ const normalizeCustomers = (data: unknown): { items: AdminCustomer[]; total: num
   };
 };
 
+// 生成 mock 新实体 ID。
 const createMockId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -247,6 +252,7 @@ const createMockId = () => {
   return `mock-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 };
 
+// 统一日期时间展示格式。
 const formatDateTime = (raw: string) => {
   if (!raw) {
     return '-';
@@ -260,6 +266,7 @@ const formatDateTime = (raw: string) => {
   });
 };
 
+// 客户转移页：支持 mock/dev 双模式下的客户归属、标签与账期操作。
 export const TransferPage = () => {
   const [queryInput, setQueryInput] = useState('');
   const [appliedQuery, setAppliedQuery] = useState('');
@@ -304,6 +311,7 @@ export const TransferPage = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  // 清理错误/成功提示，避免跨操作残留。
   const clearFeedback = () => {
     setErrorMessage('');
     setSuccessMessage('');
@@ -324,6 +332,7 @@ export const TransferPage = () => {
 
   const remarkLength = remarkInput.trim().length;
 
+  // 刷新业务员候选列表（mock 读本地，dev 走 real API）。
   const refreshSalesUsers = async () => {
     setSalesLoading(true);
     try {
@@ -350,6 +359,7 @@ export const TransferPage = () => {
     }
   };
 
+  // 刷新标签列表（含停用标签，用于批量更新）。
   const refreshTags = async () => {
     setTagsLoading(true);
     try {
@@ -373,6 +383,7 @@ export const TransferPage = () => {
     }
   };
 
+  // 按筛选条件刷新客户列表并维护当前选中态。
   const refreshCustomers = async () => {
     setCustomersLoading(true);
     clearFeedback();
@@ -444,6 +455,7 @@ export const TransferPage = () => {
     }
   };
 
+  // 刷新当前客户账期备注。
   const refreshFinanceRemark = async (customerId: string) => {
     if (!customerId) {
       setRemarkInput('');
@@ -490,12 +502,14 @@ export const TransferPage = () => {
     void refreshFinanceRemark(focusedCustomerId);
   }, [focusedCustomerId]);
 
+  // 应用查询条件并回到第一页。
   const handleApplySearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setPage(1);
     setAppliedQuery(queryInput.trim());
   };
 
+  // 切换单个客户勾选状态。
   const handleToggleSelectCustomer = (customerId: string) => {
     setSelectedCustomerIds((current) => {
       if (current.includes(customerId)) {
@@ -505,6 +519,7 @@ export const TransferPage = () => {
     });
   };
 
+  // 全选/反选当前页客户。
   const handleToggleSelectAllCurrentPage = () => {
     const currentPageIds = customers.map((customer) => customer.id);
     const isAllSelected = currentPageIds.every((id) => selectedCustomerIds.includes(id));
@@ -519,6 +534,7 @@ export const TransferPage = () => {
     });
   };
 
+  // 统一计算本次转移目标客户集合（单个优先，其次批量，再次聚焦项）。
   const transferCustomerIds = (singleCustomerId?: string) => {
     if (singleCustomerId) {
       return [singleCustomerId];
@@ -529,6 +545,7 @@ export const TransferPage = () => {
     return focusedCustomerId ? [focusedCustomerId] : [];
   };
 
+  // 执行客户归属转移。
   const handleTransferCustomers = async (singleCustomerId?: string) => {
     const customerIds = transferCustomerIds(singleCustomerId);
     if (customerIds.length === 0) {
@@ -591,6 +608,7 @@ export const TransferPage = () => {
     }
   };
 
+  // 执行客户标签批量新增/移除。
   const handleBatchTagUpdate = async () => {
     const customerIds = selectedCustomerIds.length > 0 ? selectedCustomerIds : (focusedCustomerId ? [focusedCustomerId] : []);
     if (customerIds.length === 0) {
@@ -656,6 +674,7 @@ export const TransferPage = () => {
     }
   };
 
+  // 创建新标签。
   const handleCreateTag = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -703,6 +722,7 @@ export const TransferPage = () => {
     }
   };
 
+  // 启用/停用标签。
   const handleToggleTagStatus = async (tag: CustomerTag) => {
     clearFeedback();
     setSubmitting(true);
@@ -734,6 +754,7 @@ export const TransferPage = () => {
     }
   };
 
+  // 保存当前聚焦客户的账期备注。
   const handleSaveRemark = async () => {
     if (!focusedCustomerId) {
       setErrorMessage('请先选择客户。');

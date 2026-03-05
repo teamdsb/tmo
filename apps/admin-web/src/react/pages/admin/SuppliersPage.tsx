@@ -1,5 +1,6 @@
 import { AdminTopbar } from '../../layout/AdminTopbar';
 
+// 供应商页（当前为前端展示壳）。
 export const SuppliersPage = () => {
   return (
     <>

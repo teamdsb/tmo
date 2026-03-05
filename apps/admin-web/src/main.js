@@ -21,6 +21,7 @@ const ROLE_LABELS = {
   CUSTOMER: '客户'
 };
 
+// 归一化角色列表（去空、转大写、去重）。
 const normalizeRoles = (input) => {
   if (!Array.isArray(input)) return [];
   const normalized = input
@@ -29,6 +30,7 @@ const normalizeRoles = (input) => {
   return Array.from(new Set(normalized));
 };
 
+// 登录失败提示（优先页面内提示，兜底 alert）。
 const showError = (message) => {
   if (!loginError) {
     window.alert(message);
@@ -38,12 +40,14 @@ const showError = (message) => {
   loginError.classList.remove('hidden');
 };
 
+// 清空错误提示。
 const clearError = () => {
   if (!loginError) return;
   loginError.textContent = '';
   loginError.classList.add('hidden');
 };
 
+// 多角色冲突时展示角色选择弹窗。
 const showRoleModal = (roles) => {
   const normalized = normalizeRoles(roles);
   if (!roleSelectModal || !roleSelectOptions || normalized.length === 0) {
@@ -89,6 +93,7 @@ const showRoleModal = (roles) => {
   });
 };
 
+// 控制登录表单 pending 态，避免重复提交。
 const setFormPending = (pending) => {
   if (!form) {
     return;
@@ -103,6 +108,7 @@ const setFormPending = (pending) => {
   }
 };
 
+// 已登录场景直接跳转并尝试刷新 bootstrap。
 const initSessionRedirect = async () => {
   if (!isLoggedIn()) {
     return;

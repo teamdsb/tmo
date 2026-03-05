@@ -1,9 +1,11 @@
 const rawMode = String(import.meta.env.VITE_ADMIN_WEB_MODE || 'mock').toLowerCase().trim();
 
+// 运行模式：仅支持 dev / mock 两种。
 export const appMode = rawMode === 'dev' ? 'dev' : 'mock';
 export const isDevMode = appMode === 'dev';
 export const isMockMode = !isDevMode;
 
+// API 基础路径：dev 默认走 /api，mock 默认同源。
 const rawBaseUrl = String(import.meta.env.VITE_ADMIN_WEB_API_BASE_URL || (isDevMode ? '/api' : '')).trim();
 export const apiBaseUrl = rawBaseUrl.replace(/\/+$/, '');
 

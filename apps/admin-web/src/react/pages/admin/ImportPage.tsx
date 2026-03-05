@@ -104,6 +104,7 @@ const statusStyleMap: Record<ShipmentStatus, { wrapper: string; dot: string }> =
   }
 };
 
+// 渲染表格行操作按钮。
 const renderRowAction = (action: RowAction) => {
   if (action === 'addTracking') {
     return (
@@ -150,6 +151,7 @@ const renderRowAction = (action: RowAction) => {
   );
 };
 
+// 物流与发货管理页（当前为前端演示态主导）。
 export const ImportPage = () => {
   const [activeStatus, setActiveStatus] = useState<FilterStatus>('待发货');
 

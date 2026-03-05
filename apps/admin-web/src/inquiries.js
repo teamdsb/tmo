@@ -9,6 +9,7 @@ import {
   toStatusBadge
 } from './lib/render';
 
+// 统计 OPEN 状态询价数量。
 const countOpenInquiries = (items) => {
   return items.filter((item) => String(item?.status || '').toUpperCase() === 'OPEN').length;
 };
@@ -18,10 +19,12 @@ const MOCK_FILTER_BUTTON_ACTIVE_CLASS =
 const MOCK_FILTER_BUTTON_INACTIVE_CLASS =
   'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs px-3 py-1.5 rounded-full font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-all';
 
+// 归一化询价状态字符串。
 const normalizeInquiryStatus = (value) => {
   return String(value || '').trim().toUpperCase();
 };
 
+// 切换 mock 状态筛选按钮视觉态。
 const setMockFilterButtonState = (button, active) => {
   if (!(button instanceof HTMLElement)) {
     return;
@@ -30,6 +33,7 @@ const setMockFilterButtonState = (button, active) => {
   button.setAttribute('aria-pressed', active ? 'true' : 'false');
 };
 
+// 为 mock 列表补一个“筛选结果为空”提示容器。
 const ensureMockFilterEmptyState = (listElement) => {
   if (!(listElement instanceof HTMLElement)) {
     return null;
@@ -47,6 +51,7 @@ const ensureMockFilterEmptyState = (listElement) => {
   return emptyElement;
 };
 
+// 初始化 mock 询价状态筛选交互。
 const initMockStatusFilter = () => {
   const filterButtons = Array.from(document.querySelectorAll('[data-role="inquiry-status-filter"]')).filter((item) => item instanceof HTMLElement);
   const listElement = document.querySelector('[data-role="inquiry-list"]');
@@ -91,6 +96,7 @@ const initMockStatusFilter = () => {
   applyStatusFilter(initialStatus);
 };
 
+// dev 模式询价页骨架。
 const mountDevLayout = (main) => {
   main.innerHTML = `
     <div class="mx-auto w-full max-w-7xl space-y-6">
@@ -125,6 +131,7 @@ const mountDevLayout = (main) => {
   `;
 };
 
+// 渲染询价指标卡。
 const renderMetrics = (container, payload) => {
   if (!container) {
     return;
@@ -141,6 +148,7 @@ const renderMetrics = (container, payload) => {
   `;
 };
 
+// 渲染询价列表表格。
 const renderInquiryRows = (tbody, payload) => {
   if (!tbody) {
     return;
@@ -169,6 +177,7 @@ const renderInquiryRows = (tbody, payload) => {
   }).join('');
 };
 
+// 询价页入口：dev 走 real 数据，mock 走本地状态筛选。
 const initInquiries = async () => {
   const context = await ensureProtectedPage();
   if (!context) {

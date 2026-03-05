@@ -31,6 +31,7 @@ type ToggleRowProps = {
   defaultChecked?: boolean;
 };
 
+// 设置开关行组件。
 const ToggleRow = ({ inputId, title, description, defaultChecked = false }: ToggleRowProps) => {
   return (
     <div className="flex items-start justify-between gap-4">
@@ -54,6 +55,7 @@ const passwordPolicies = [
   { label: 'Enforce password rotation (90 days)', defaultChecked: false }
 ] as const;
 
+// 设置页（当前为前端展示壳）。
 export const SettingsPage = () => {
   return (
     <main className="flex h-screen flex-1 flex-col overflow-hidden bg-background-light dark:bg-background-dark">
