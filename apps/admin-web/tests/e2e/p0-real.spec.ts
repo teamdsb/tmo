@@ -21,7 +21,7 @@ const loginAsBoss = async (page: Page) => {
   await expect(page).toHaveURL(/dashboard\.html/);
 };
 
-test('P0 real mode flows work in admin-web', async ({ page }) => {
+test('P0/P1 real mode flows work in admin-web', async ({ page }) => {
   await loginAsBoss(page);
 
   const customersRespPromise = page.waitForResponse((response) => isGet(response, '/api/admin/customers'));
@@ -109,5 +109,27 @@ test('P0 real mode flows work in admin-web', async ({ page }) => {
     await expect(page.getByTestId('payments-success')).toContainText('已提交重放');
   } else {
     await expect(page.getByTestId('webhooks-empty-state')).toBeVisible();
+  }
+
+  const suppliersRespPromise = page.waitForResponse((response) => isGet(response, '/api/admin/suppliers'));
+  await page.goto('/suppliers.html');
+  await expect(page.getByTestId('suppliers-page')).toBeVisible();
+  const suppliersResp = await suppliersRespPromise;
+  expect(suppliersResp.status()).toBe(200);
+
+  const supplierRows = page.locator('[data-testid^="supplier-row-"]');
+  if ((await supplierRows.count()) > 0) {
+    await supplierRows.first().click();
+    await expect(page.getByTestId('supplier-detail')).toBeVisible();
+
+    const saveRespPromise = page.waitForResponse((response) =>
+      matchesPath(response, 'PATCH', /^\/api\/admin\/suppliers\/[^/]+$/)
+    );
+    await page.getByTestId('supplier-save-button').click();
+    const saveResp = await saveRespPromise;
+    expect(saveResp.status()).toBe(200);
+    await expect(page.getByTestId('suppliers-success')).toContainText('保存成功');
+  } else {
+    await expect(page.getByTestId('suppliers-empty-state')).toBeVisible();
   }
 });

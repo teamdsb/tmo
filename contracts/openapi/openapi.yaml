@@ -169,6 +169,14 @@ paths:
     $ref: "./admin.yaml#/paths/~1admin~1import-jobs~1{jobId}"
   /admin/inquiries/{inquiryId}/requirement-profile:
     $ref: "./admin.yaml#/paths/~1admin~1inquiries~1{inquiryId}~1requirement-profile"
+  /admin/suppliers:
+    $ref: "./admin.yaml#/paths/~1admin~1suppliers"
+  /admin/suppliers/{supplierId}:
+    $ref: "./admin.yaml#/paths/~1admin~1suppliers~1{supplierId}"
+  /admin/suppliers/{supplierId}/contacts:
+    $ref: "./admin.yaml#/paths/~1admin~1suppliers~1{supplierId}~1contacts"
+  /admin/suppliers/{supplierId}/scorecards:
+    $ref: "./admin.yaml#/paths/~1admin~1suppliers~1{supplierId}~1scorecards"
   /admin/payments/transactions:
     $ref: "./admin.yaml#/paths/~1admin~1payments~1transactions"
   /admin/payments/transactions/{id}:

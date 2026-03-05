@@ -442,6 +442,121 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/InquiryRequirementProfile"
+  "/admin/suppliers":
+    get:
+      tags:
+      - Admin
+      summary: List suppliers for admin operations
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PagedAdminSupplierList"
+  "/admin/suppliers/{supplierId}":
+    get:
+      tags:
+      - Admin
+      summary: Get supplier detail
+      parameters:
+      - in: path
+        name: supplierId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminSupplier"
+    patch:
+      tags:
+      - Admin
+      summary: Update supplier profile
+      parameters:
+      - in: path
+        name: supplierId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PatchAdminSupplierRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminSupplier"
+  "/admin/suppliers/{supplierId}/contacts":
+    get:
+      tags:
+      - Admin
+      summary: List supplier contacts
+      parameters:
+      - in: path
+        name: supplierId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminSupplierContactListResponse"
+  "/admin/suppliers/{supplierId}/scorecards":
+    get:
+      tags:
+      - Admin
+      summary: List supplier scorecards
+      parameters:
+      - in: path
+        name: supplierId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminSupplierScorecardListResponse"
   "/admin/payments/transactions":
     get:
       tags:
@@ -1065,6 +1180,174 @@ components:
       - source
       - summary
       - attachments
+    AdminSupplier:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        supplierCode:
+          type: string
+        name:
+          type: string
+        country:
+          type: string
+        city:
+          type: string
+        categories:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+        score:
+          type: integer
+        lastQuoteAmountCents:
+          type: integer
+          nullable: true
+        lastQuoteAt:
+          type: string
+          format: date-time
+          nullable: true
+        primaryContactName:
+          type: string
+        notes:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - supplierCode
+      - name
+      - country
+      - city
+      - categories
+      - status
+      - score
+      - primaryContactName
+      - notes
+      - createdAt
+      - updatedAt
+    PagedAdminSupplierList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/AdminSupplier"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required:
+      - items
+      - page
+      - pageSize
+      - total
+    PatchAdminSupplierRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        country:
+          type: string
+        city:
+          type: string
+        categories:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - PAUSED
+          - TERMINATED
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        notes:
+          type: string
+      additionalProperties: false
+    AdminSupplierContact:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        title:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        isPrimary:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - name
+      - title
+      - email
+      - phone
+      - isPrimary
+      - updatedAt
+    AdminSupplierContactListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/AdminSupplierContact"
+      required:
+      - items
+    AdminSupplierScorecard:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        period:
+          type: string
+        deliveryScore:
+          type: integer
+        qualityScore:
+          type: integer
+        priceScore:
+          type: integer
+        riskLevel:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - period
+      - deliveryScore
+      - qualityScore
+      - priceScore
+      - riskLevel
+      - createdAt
+    AdminSupplierScorecardListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/AdminSupplierScorecard"
+      required:
+      - items
     PaymentTransaction:
       type: object
       properties:

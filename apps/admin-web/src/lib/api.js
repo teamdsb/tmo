@@ -360,6 +360,29 @@ export const fetchAdminInquiryRequirementProfile = async (inquiryId) => {
   return requestRaw(`/admin/inquiries/${inquiryId}/requirement-profile`);
 };
 
+export const fetchAdminSuppliers = async (params = {}) => {
+  return requestRaw(`/admin/suppliers${buildQueryString(params)}`);
+};
+
+export const fetchAdminSupplierById = async (supplierId) => {
+  return requestRaw(`/admin/suppliers/${supplierId}`);
+};
+
+export const patchAdminSupplierById = async (supplierId, payload) => {
+  return requestRaw(`/admin/suppliers/${supplierId}`, {
+    method: 'PATCH',
+    body: payload
+  });
+};
+
+export const fetchAdminSupplierContacts = async (supplierId) => {
+  return requestRaw(`/admin/suppliers/${supplierId}/contacts`);
+};
+
+export const fetchAdminSupplierScorecards = async (supplierId) => {
+  return requestRaw(`/admin/suppliers/${supplierId}/scorecards`);
+};
+
 export const fetchAdminPaymentTransactions = async (params = {}) => {
   return requestRaw(`/admin/payments/transactions${buildQueryString(params)}`);
 };
