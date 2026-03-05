@@ -1488,15 +1488,15 @@ export const UserOperationsPage = () => {
   const renderCustomerPanel = () => {
     return (
       <section className="space-y-4">
-        <form className="grid grid-cols-1 gap-3 rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark lg:grid-cols-[1.5fr_1fr_1fr_auto]" onSubmit={handleApplyCustomerSearch}>
+        <form className="grid grid-cols-1 gap-3 rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark lg:grid-cols-[minmax(260px,1.2fr)_minmax(180px,0.8fr)_minmax(180px,0.8fr)_auto]" onSubmit={handleApplyCustomerSearch}>
           <input
-            className="rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+            className="h-11 rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
             onChange={(event) => setCustomerQueryInput(event.currentTarget.value)}
             placeholder="搜索客户名称、手机号或 ID"
             value={customerQueryInput}
           />
           <select
-            className="rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+            className="h-11 rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
             onChange={(event) => {
               setOwnerSalesFilter(event.currentTarget.value);
               setCustomerPage(1);
@@ -1509,7 +1509,7 @@ export const UserOperationsPage = () => {
             ))}
           </select>
           <select
-            className="rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+            className="h-11 rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
             multiple
             onChange={(event) => {
               const values = Array.from(event.currentTarget.selectedOptions).map((option) => option.value);
@@ -1523,11 +1523,11 @@ export const UserOperationsPage = () => {
             ))}
           </select>
           <button
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="h-11 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400 lg:w-12 lg:min-w-12 lg:px-0"
             disabled={customersLoading}
             type="submit"
           >
-            {customersLoading ? '查询中...' : '查询'}
+            {customersLoading ? '...' : '查询'}
           </button>
         </form>
 
@@ -1606,19 +1606,19 @@ export const UserOperationsPage = () => {
   const renderStaffPanel = () => {
     return (
       <section className="space-y-4">
-        <form className="grid grid-cols-1 gap-3 rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark lg:grid-cols-[1fr_auto]" onSubmit={handleApplyStaffSearch}>
+        <form className="grid grid-cols-1 gap-3 rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark lg:grid-cols-[minmax(320px,1fr)_auto]" onSubmit={handleApplyStaffSearch}>
           <input
-            className="rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+            className="h-11 rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
             onChange={(event) => setStaffQueryInput(event.currentTarget.value)}
             placeholder="搜索业务员姓名、ID 或角色"
             value={staffQueryInput}
           />
           <button
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="h-11 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400 lg:w-12 lg:min-w-12 lg:px-0"
             disabled={staffLoading}
             type="submit"
           >
-            {staffLoading ? '查询中...' : '查询'}
+            {staffLoading ? '...' : '查询'}
           </button>
         </form>
 
