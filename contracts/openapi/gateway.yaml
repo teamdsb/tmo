@@ -144,6 +144,10 @@ components:
           "$ref": "#/components/schemas/UserStatus"
         displayName:
           type: string
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
         ownerSalesUserId:
           type: string
           format: uuid

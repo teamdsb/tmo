@@ -122,7 +122,13 @@ export interface User {
   status?: UserStatus;
   displayName?: string;
   /** @nullable */
+  avatarUrl?: string | null;
+  /** @nullable */
   phone?: string | null;
+  /** @nullable */
+  ownerSalesUserId?: string | null;
+  /** @nullable */
+  ownerSalesDisplayName?: string | null;
   roles: string[];
   /** @nullable */
   disabledAt?: string | null;

@@ -4,6 +4,8 @@ import { getCurrentSession, getDisplayProfile, getRoleLabel, logout } from '../.
 import { fetchMe } from '../../../lib/api';
 import { isDevMode } from '../../../lib/env';
 import { AdminTopbar } from '../../layout/AdminTopbar';
+import { UserAvatar } from '../../layout/UserAvatar';
+import { resolveAvatarModel } from '../../layout/avatar';
 
 type ProfileViewModel = {
   displayName: string;
@@ -14,6 +16,7 @@ type ProfileViewModel = {
   createdAt: string;
   phone: string;
   status: string;
+  avatarUrl?: string;
 };
 
 type RealProfileViewModel = ProfileViewModel;
@@ -58,6 +61,14 @@ const formatStatus = (value: unknown) => {
   return EMPTY_VALUE;
 };
 
+const extractAvatarUrl = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed || undefined;
+};
+
 const resolveRoleCodeFromMe = (me: Record<string, unknown>) => {
   const priority = ['BOSS', 'MANAGER', 'ADMIN', 'CS', 'SALES', 'CUSTOMER'];
   const roles = Array.isArray(me.roles)
@@ -93,7 +104,8 @@ const buildRealProfileData = (meRaw: unknown): RealProfileViewModel => {
     userType: formatUserType(me.userType),
     createdAt: formatDateTime(me.createdAt),
     phone: normalizeText(me.phone),
-    status: formatStatus(me.status)
+    status: formatStatus(me.status),
+    avatarUrl: extractAvatarUrl(me.avatarUrl)
   };
 };
 
@@ -114,7 +126,8 @@ const buildMockProfileData = (session: unknown): ProfileViewModel => {
     userType: formatUserType(sessionUser?.userType),
     createdAt: formatDateTime(sessionUser?.createdAt),
     phone: normalizeText(sessionUser?.phone),
-    status: formatStatus(sessionUser?.status)
+    status: formatStatus(sessionUser?.status),
+    avatarUrl: extractAvatarUrl(sessionUser?.avatarUrl)
   };
 };
 
@@ -126,7 +139,8 @@ const emptyRealProfile: RealProfileViewModel = {
   userType: EMPTY_VALUE,
   createdAt: EMPTY_VALUE,
   phone: EMPTY_VALUE,
-  status: EMPTY_VALUE
+  status: EMPTY_VALUE,
+  avatarUrl: undefined
 };
 
 const DataRow = ({ label, value, note }: { label: string; value: string; note?: string }) => {
@@ -206,6 +220,10 @@ export const ProfilePage = () => {
         ? '已加载后端实时资料'
         : '实时资料拉取失败，请稍后重试')
     : '已加载当前账号资料';
+  const avatarModel = resolveAvatarModel({
+    displayName: profile.displayName,
+    avatarUrl: profile.avatarUrl
+  });
 
   return (
     <>
@@ -229,9 +247,12 @@ export const ProfilePage = () => {
 
           <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="mb-5 flex items-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-xl font-semibold text-primary">
-                {profile.displayName.slice(0, 1) || EMPTY_VALUE}
-              </div>
+              <UserAvatar
+                avatarUrl={avatarModel.avatarUrl}
+                className="h-16 w-16"
+                fallbackLetter={avatarModel.fallbackLetter}
+                textClassName="text-2xl"
+              />
               <div>
                 <p className="text-lg font-semibold text-slate-900 dark:text-white">{profile.displayName}</p>
                 <p className="text-sm text-slate-500 dark:text-slate-400">{profile.userType}</p>
