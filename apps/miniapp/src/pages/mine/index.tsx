@@ -169,7 +169,7 @@ export default function PersonalCenter() {
       setBootstrap(cached)
     }
     const token = await gatewayServices.tokens.getToken()
-    if (!token && runtimeEnv.commerceMockFallback) {
+    if (!token && runtimeEnv.isIsolatedMock) {
       return
     }
     try {

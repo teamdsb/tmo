@@ -59,6 +59,14 @@ export const canAccessPath = (path, permissionMap) => {
   if (currentPath === '/transfer.html') {
     return hasPermission(permissionMap, 'customer:read', 'ALL') || hasPermission(permissionMap, 'customer:transfer', 'ALL');
   }
+  if (currentPath === '/user-operations.html') {
+    return (
+      hasPermission(permissionMap, 'customer:read', 'ALL') ||
+      hasPermission(permissionMap, 'customer:transfer', 'ALL') ||
+      hasPermission(permissionMap, 'staff:read', 'ALL') ||
+      hasPermission(permissionMap, 'rbac:manage', 'ALL')
+    );
+  }
   if (currentPath === '/support.html') {
     return hasPermission(permissionMap, 'customer:read', 'SELF');
   }

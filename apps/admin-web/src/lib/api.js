@@ -16,7 +16,13 @@ import {
   setApiClientConfig
 } from '@tmo/api-client';
 import { getBffBootstrap, setGatewayApiClientConfig } from '@tmo/gateway-api-client';
-import { getCustomers, postAuthPasswordLogin, setIdentityApiClientConfig } from '@tmo/identity-api-client';
+import {
+  getCustomers,
+  getStaff,
+  patchStaffStaffId,
+  postAuthPasswordLogin,
+  setIdentityApiClientConfig
+} from '@tmo/identity-api-client';
 
 import { apiBaseUrl, isDevMode } from './env';
 import { getAccessToken } from './state';
@@ -236,6 +242,23 @@ export const fetchAdminSummary = async () => {
 
 export const fetchCustomers = async (params = {}) => {
   return getCustomers(params);
+};
+
+export const fetchStaffUsers = async (params = {}) => {
+  return getStaff(params);
+};
+
+export const patchStaffRoles = async (staffId, roles) => {
+  return patchStaffStaffId(staffId, {
+    roles
+  });
+};
+
+export const patchStaffStatus = async (staffId, status, disabledReason = undefined) => {
+  return patchStaffStaffId(staffId, {
+    status,
+    disabledReason
+  });
 };
 
 export const fetchMiniappDisplayCategories = async () => {
