@@ -11,7 +11,7 @@ const verifyRoutesScript = path.resolve(__dirname, './verify-weapp-routes.js')
 const verifyApiBaseScript = path.resolve(__dirname, './verify-weapp-api-base.js')
 const preflightScript = path.resolve(__dirname, './preflight-weapp.js')
 const preflightEnabled = readBool(process.env.WEAPP_PREFLIGHT_HTTP_SMOKE, true)
-const preflightTimeoutMs = parsePositiveInt(process.env.WEAPP_PREFLIGHT_TIMEOUT_MS, 30000)
+const preflightTimeoutMs = parsePositiveInt(process.env.WEAPP_PREFLIGHT_TIMEOUT_MS, 120000)
 
 let lastWxssMtimeMs = -1
 let lastAppJsonMtimeMs = -1

@@ -18,7 +18,7 @@ const parsePositiveInt = (raw, fallback) => {
   return Math.floor(value)
 }
 
-const timeoutMs = parsePositiveInt(process.env.WEAPP_PREFLIGHT_TIMEOUT_MS, 30000)
+const timeoutMs = parsePositiveInt(process.env.WEAPP_PREFLIGHT_TIMEOUT_MS, 120000)
 const runDiagnoseOnFail = process.env.WEAPP_PREFLIGHT_RUN_DIAG !== 'false'
 
 const ensureResultDir = () => {

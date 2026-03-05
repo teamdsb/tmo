@@ -10,24 +10,20 @@ echo "Creating identity database..."
 create_identity_db() {
   if command -v psql >/dev/null 2>&1; then
     psql "postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable" <<'SQL'
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'identity') THEN
-    CREATE DATABASE identity OWNER commerce;
-  END IF;
-END $$;
+SELECT 'CREATE DATABASE identity OWNER commerce'
+WHERE NOT EXISTS (
+  SELECT FROM pg_database WHERE datname = 'identity'
+)\gexec
 SQL
     return
   fi
 
   if command -v docker >/dev/null 2>&1; then
     docker exec -i tmo-postgres psql -U commerce -d commerce <<'SQL'
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'identity') THEN
-    CREATE DATABASE identity OWNER commerce;
-  END IF;
-END $$;
+SELECT 'CREATE DATABASE identity OWNER commerce'
+WHERE NOT EXISTS (
+  SELECT FROM pg_database WHERE datname = 'identity'
+)\gexec
 SQL
     return
   fi
