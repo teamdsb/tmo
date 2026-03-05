@@ -115,9 +115,9 @@ const buildDraftByRole = (roles: RbacRole[]): Record<string, RbacPermission[]> =
 };
 
 const userTypeLabel: Record<RbacRole['userType'], string> = {
-  admin: 'Admin',
-  customer: 'Customer',
-  staff: 'Staff'
+  admin: '管理员',
+  customer: '客户',
+  staff: '员工'
 };
 
 const extractResponseMessage = (response: unknown) => {
@@ -388,8 +388,8 @@ export const RbacPage = () => {
     <main className="flex h-screen flex-1 flex-col overflow-hidden">
       <header className="flex shrink-0 items-center justify-between border-b border-border-light bg-surface-light px-8 py-5 dark:border-border-dark dark:bg-surface-dark">
         <div>
-          <h1 className="text-2xl font-bold text-text-main dark:text-white">Roles & Permissions</h1>
-          <p className="mt-1 text-sm text-text-secondary">Role definitions and scope-based permissions from identity service.</p>
+          <h1 className="text-2xl font-bold text-text-main dark:text-white">角色与权限</h1>
+          <p className="mt-1 text-sm text-text-secondary">来自身份服务的角色定义与按范围划分的权限配置。</p>
         </div>
         <div className="flex gap-3">
           <button
@@ -398,7 +398,7 @@ export const RbacPage = () => {
             onClick={discardChanges}
             type="button"
           >
-            Cancel
+            取消
           </button>
           <button
             className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
@@ -409,7 +409,7 @@ export const RbacPage = () => {
             type="button"
           >
             <span className="material-symbols-outlined text-lg">save</span>
-            {saving ? 'Saving...' : `Save Changes${dirtyRoles.size > 0 ? ` (${dirtyRoles.size})` : ''}`}
+            {saving ? '保存中...' : `保存变更${dirtyRoles.size > 0 ? ` (${dirtyRoles.size})` : ''}`}
           </button>
         </div>
       </header>
@@ -425,7 +425,7 @@ export const RbacPage = () => {
               }}
               type="button"
             >
-              Retry
+              重试
             </button>
           </div>
         </div>
@@ -441,7 +441,7 @@ export const RbacPage = () => {
         <div className="flex w-80 flex-col overflow-y-auto border-r border-border-light bg-background-light dark:border-border-dark dark:bg-background-dark">
           <div className="sticky top-0 z-10 border-b border-border-light bg-surface-light/60 p-4 backdrop-blur-sm dark:border-border-dark">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">Roles</h2>
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-text-secondary">角色</h2>
               <span className="rounded-full border border-border-light px-2 py-0.5 text-xs text-text-secondary dark:border-border-dark">
                 {roles.length}
               </span>
@@ -453,7 +453,7 @@ export const RbacPage = () => {
                 onChange={(event) => {
                   setSearchKeyword(event.target.value);
                 }}
-                placeholder="Search roles..."
+                placeholder="搜索角色..."
                 type="text"
                 value={searchKeyword}
               />
@@ -463,7 +463,7 @@ export const RbacPage = () => {
           <div className="flex flex-col gap-2 p-3">
             {!loading && filteredRoles.length === 0 ? (
               <div className="rounded-lg border border-dashed border-border-light bg-white p-4 text-sm text-text-secondary dark:border-border-dark dark:bg-surface-dark">
-                No supported roles found.
+                未找到可管理的角色。
               </div>
             ) : null}
 
@@ -499,7 +499,7 @@ export const RbacPage = () => {
         <div className="flex-1 overflow-y-auto bg-surface-light p-8 dark:bg-surface-dark">
           {loading ? (
             <div className="rounded-xl border border-border-light bg-white p-6 text-sm text-text-secondary shadow-sm dark:border-border-dark dark:bg-surface-dark">
-              Loading RBAC configuration...
+              正在加载 RBAC 配置...
             </div>
           ) : null}
 
@@ -513,9 +513,9 @@ export const RbacPage = () => {
             <div className="mx-auto max-w-4xl space-y-6">
               <div className="flex items-start justify-between border-b border-border-light pb-6 dark:border-border-dark">
                 <div>
-                  <h2 className="text-xl font-bold text-text-main dark:text-white">{selectedRole.code} Configuration</h2>
+                  <h2 className="text-xl font-bold text-text-main dark:text-white">{selectedRole.code} 配置</h2>
                   <p className="mt-1 text-sm text-text-secondary">
-                    User Type: <span className="font-medium uppercase">{selectedRole.userType}</span>
+                    用户类型：<span className="font-medium uppercase">{userTypeLabel[selectedRole.userType]}</span>
                   </p>
                   {selectedRole.description ? <p className="mt-1 text-sm text-text-secondary">{selectedRole.description}</p> : null}
                 </div>
@@ -524,19 +524,19 @@ export const RbacPage = () => {
                   onClick={addPermission}
                   type="button"
                 >
-                  Add Permission
+                  新增权限
                 </button>
               </div>
 
               <div className="overflow-hidden rounded-xl border border-border-light bg-white shadow-sm dark:border-border-dark dark:bg-surface-dark">
                 <div className="grid grid-cols-12 gap-3 border-b border-border-light bg-background-light px-4 py-3 text-xs font-semibold uppercase tracking-wide text-text-secondary dark:border-border-dark dark:bg-background-dark">
-                  <div className="col-span-7">Permission Code</div>
-                  <div className="col-span-3">Scope</div>
-                  <div className="col-span-2 text-right">Action</div>
+                  <div className="col-span-7">权限编码</div>
+                  <div className="col-span-3">范围</div>
+                  <div className="col-span-2 text-right">操作</div>
                 </div>
 
                 {selectedDraft.length === 0 ? (
-                  <div className="px-4 py-6 text-sm text-text-secondary">No permissions assigned for this role.</div>
+                  <div className="px-4 py-6 text-sm text-text-secondary">当前角色未分配权限。</div>
                 ) : (
                   <div className="divide-y divide-border-light dark:divide-border-dark">
                     {selectedDraft.map((permission, index) => (
@@ -579,7 +579,7 @@ export const RbacPage = () => {
                             }}
                             type="button"
                           >
-                            Remove
+                            移除
                           </button>
                         </div>
                       </div>
