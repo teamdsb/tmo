@@ -7,11 +7,13 @@ import { AdminSidebar, type AdminRouteKey } from '../layout/AdminSidebar';
 
 type BootstrapFn = () => Promise<unknown> | unknown;
 
+// 规范化当前路径，根路径默认映射到 dashboard。
 const normalizePath = (value: string) => {
   if (!value || value === '/') return '/dashboard.html';
   return value;
 };
 
+// 根据 path 解析当前主导航 key。
 const resolveCurrentKey = (currentPath: string): Exclude<AdminRouteKey, 'general' | 'security'> | null => {
   if (currentPath === '/dashboard.html') return 'dashboard';
   if (currentPath === '/products.html') return 'products';
@@ -28,12 +30,14 @@ const resolveCurrentKey = (currentPath: string): Exclude<AdminRouteKey, 'general
   return null;
 };
 
+// 根据 path 解析当前设置导航 key。
 const resolveCurrentSettingKey = (currentPath: string): Extract<AdminRouteKey, 'general' | 'security'> | null => {
   if (currentPath === '/settings.html') return 'general';
   if (currentPath === '/rbac.html') return 'security';
   return null;
 };
 
+// 统一主内容容器滚动行为，避免双滚动条。
 const applyMainOverflowClass = () => {
   const mainColumn = document.querySelector('#react-admin-main-column');
   if (!(mainColumn instanceof HTMLElement)) {
@@ -58,6 +62,7 @@ type AdminPageProps = {
   currentPath: string;
 };
 
+// 后台通用页面框架（侧边栏 + 主内容区）。
 const AdminPage = ({ content, currentPath }: AdminPageProps) => {
   return (
     <div className="flex h-screen w-full flex-row overflow-hidden">
@@ -69,6 +74,7 @@ const AdminPage = ({ content, currentPath }: AdminPageProps) => {
   );
 };
 
+// 挂载后台页面并执行 bootstrap 逻辑（可加载 legacy 模块）。
 export const mountAdminPage = async (content: ReactElement, bootstrap: BootstrapFn) => {
   const rootContainer = document.createElement('div');
   rootContainer.setAttribute('data-react-admin-root', 'true');

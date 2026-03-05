@@ -186,6 +186,7 @@ const MOCK_REQUIREMENT_PROFILES: Record<string, RequirementOrderProfile> = {
   }
 };
 
+// 安全读取字符串并去空白，统一前端容错行为。
 const safeText = (value: unknown, fallback = '') => {
   if (typeof value !== 'string') {
     return fallback;
@@ -194,6 +195,7 @@ const safeText = (value: unknown, fallback = '') => {
   return trimmed || fallback;
 };
 
+// 将后端状态值归一化到页面识别的状态集合。
 const normalizeStatus = (value: unknown): InquiryStatus => {
   const status = String(value || '').toUpperCase();
   if (status === 'RESPONDED') return 'RESPONDED';
@@ -201,6 +203,7 @@ const normalizeStatus = (value: unknown): InquiryStatus => {
   return 'OPEN';
 };
 
+// 归一化单条询价会话。
 const normalizeInquiry = (input: unknown): InquiryItem | null => {
   const item = input as {
     id?: string;
@@ -233,6 +236,7 @@ const normalizeInquiry = (input: unknown): InquiryItem | null => {
   };
 };
 
+// 归一化询价列表响应。
 const normalizeInquiryList = (payload: unknown): InquiryItem[] => {
   const items = Array.isArray((payload as { items?: unknown[] })?.items)
     ? ((payload as { items?: unknown[] }).items as unknown[])
@@ -243,6 +247,7 @@ const normalizeInquiryList = (payload: unknown): InquiryItem[] => {
     .filter(Boolean) as InquiryItem[];
 };
 
+// 归一化单条消息。
 const normalizeInquiryMessage = (input: unknown): InquiryMessageItem | null => {
   const item = input as {
     id?: string;
@@ -273,6 +278,7 @@ const normalizeInquiryMessage = (input: unknown): InquiryMessageItem | null => {
   };
 };
 
+// 归一化消息列表并按时间升序排列。
 const normalizeMessageList = (payload: unknown): InquiryMessageItem[] => {
   const items = Array.isArray((payload as { items?: unknown[] })?.items)
     ? ((payload as { items?: unknown[] }).items as unknown[])
@@ -284,6 +290,7 @@ const normalizeMessageList = (payload: unknown): InquiryMessageItem[] => {
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) as InquiryMessageItem[];
 };
 
+// 统一时间展示格式。
 const formatDateTime = (value: string) => {
   if (!value) return '-';
   const timestamp = Date.parse(value);
@@ -299,6 +306,7 @@ const formatDateTime = (value: string) => {
   });
 };
 
+// 展示短 ID，提升列表可读性。
 const formatShortId = (id: string) => {
   if (!id || id.length < 8) {
     return id || '-';
@@ -306,11 +314,13 @@ const formatShortId = (id: string) => {
   return id.slice(0, 8);
 };
 
+// 将状态 code 映射到中文标签。
 const getStatusLabel = (status: InquiryStatus) => {
   const matched = STATUS_OPTIONS.find((item) => item.status === status);
   return matched?.label || status;
 };
 
+// 根据状态返回标签样式。
 const getStatusClassName = (status: InquiryStatus) => {
   if (status === 'OPEN') {
     return 'bg-blue-100 text-blue-700 border border-blue-200';
@@ -321,6 +331,7 @@ const getStatusClassName = (status: InquiryStatus) => {
   return 'bg-slate-100 text-slate-600 border border-slate-200';
 };
 
+// 渲染消息发送方显示名。
 const getSenderLabel = (message: InquiryMessageItem) => {
   if (message.senderType === 'customer') {
     return '客户';
@@ -331,6 +342,7 @@ const getSenderLabel = (message: InquiryMessageItem) => {
   return '客服';
 };
 
+// 构建可复制的询价深链 URL。
 const buildInquiryLink = (inquiryId: string) => {
   if (typeof window === 'undefined') {
     return `/inquiries.html?inquiryId=${encodeURIComponent(inquiryId)}`;
@@ -340,6 +352,7 @@ const buildInquiryLink = (inquiryId: string) => {
   return url.toString();
 };
 
+// 读取首次进入页面时的 inquiryId 参数。
 const readInitialInquiryId = () => {
   if (typeof window === 'undefined') {
     return '';
@@ -348,6 +361,7 @@ const readInitialInquiryId = () => {
   return safeText(raw);
 };
 
+// 构建右侧“需求订单信息”视图模型（无后端详情接口时提供兜底）。
 const buildRequirementOrderProfile = (inquiry: InquiryItem | null): RequirementOrderProfile | null => {
   if (!inquiry) {
     return null;
@@ -374,6 +388,7 @@ const buildRequirementOrderProfile = (inquiry: InquiryItem | null): RequirementO
   };
 };
 
+// 在线客服页：管理询价会话列表、线程消息和快捷回复。
 export const InquiriesPage = () => {
   const [statusFilter, setStatusFilter] = useState<InquiryStatusFilter>('ALL');
   const [keyword, setKeyword] = useState('');
@@ -397,6 +412,7 @@ export const InquiriesPage = () => {
   const copyTimeoutRef = useRef<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
+  // 关键词过滤列表（基于会话ID/消息/客户ID/业务员ID）。
   const filteredInquiries = useMemo(() => {
     const value = keyword.trim().toLowerCase();
     if (!value) {
@@ -413,6 +429,7 @@ export const InquiriesPage = () => {
     });
   }, [inquiries, keyword]);
 
+  // 当前会话对应的可分享链接。
   const activeInquiryLink = useMemo(() => {
     if (!activeInquiryId) {
       return '';
@@ -420,6 +437,7 @@ export const InquiriesPage = () => {
     return buildInquiryLink(activeInquiryId);
   }, [activeInquiryId]);
 
+  // 加载询价列表（按状态过滤，mock/dev 双模式）。
   const loadInquiries = useCallback(async () => {
     setListLoading(true);
     setListError('');
@@ -572,6 +590,7 @@ export const InquiriesPage = () => {
     };
   }, []);
 
+  // 复制当前询价深链。
   const handleCopyLink = useCallback(async (inquiryId: string) => {
     if (!inquiryId) {
       return;
@@ -594,6 +613,7 @@ export const InquiriesPage = () => {
     }, 2000);
   }, []);
 
+  // 发送客服消息。
   const handleSendMessage = useCallback(
     async (event?: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
       event?.preventDefault();

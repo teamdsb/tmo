@@ -16,6 +16,7 @@ import {
   safeText
 } from './lib/render';
 
+// 打开文件选择器并返回单个 Excel 文件。
 const pickFile = () => {
   return new Promise((resolve) => {
     const input = document.createElement('input');
@@ -28,6 +29,7 @@ const pickFile = () => {
   });
 };
 
+// 将接口响应渲染为调试可读的 JSON 面板。
 const renderResult = (container, title, payload) => {
   container.innerHTML = `
     <h4 class="text-sm font-semibold text-slate-800">${escape(title)}</h4>
@@ -35,6 +37,7 @@ const renderResult = (container, title, payload) => {
   `;
 };
 
+// 渲染 feature flags 表单。
 const renderFeatureFlags = (container, flags) => {
   container.innerHTML = `
     <label class="flex items-center gap-2 text-sm"><input type="checkbox" data-flag="paymentEnabled" ${flags.paymentEnabled ? 'checked' : ''} /> 支付开关（paymentEnabled）</label>
@@ -43,6 +46,7 @@ const renderFeatureFlags = (container, flags) => {
   `;
 };
 
+// dev 模式导入工具页骨架。
 const mountDevLayout = (main) => {
   main.innerHTML = `
     <div class="mx-auto w-full max-w-5xl space-y-6">
@@ -84,6 +88,7 @@ const mountDevLayout = (main) => {
   `;
 };
 
+// 初始化导入工具：权限控制 + 任务创建 + 状态查询 + 开关更新。
 const initImportTools = async () => {
   const context = await ensureProtectedPage();
   if (!context || context.mode !== 'dev') {

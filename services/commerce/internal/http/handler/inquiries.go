@@ -16,7 +16,7 @@ import (
 )
 
 func (h *Handler) GetInquiriesPrice(c *gin.Context, params oapi.GetInquiriesPriceParams) {
-	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "ADMIN")
+	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "MANAGER", "BOSS", "ADMIN")
 	if !ok {
 		return
 	}
@@ -88,7 +88,7 @@ func (h *Handler) GetInquiriesPrice(c *gin.Context, params oapi.GetInquiriesPric
 }
 
 func (h *Handler) PostInquiriesPrice(c *gin.Context) {
-	claims, ok := h.requireRole(c, "CUSTOMER", "ADMIN")
+	claims, ok := h.requireRole(c, "CUSTOMER", "BOSS", "MANAGER", "ADMIN")
 	if !ok {
 		return
 	}
@@ -174,7 +174,7 @@ func (h *Handler) PostInquiriesPrice(c *gin.Context) {
 }
 
 func (h *Handler) GetInquiriesPriceInquiryId(c *gin.Context, inquiryId types.UUID) {
-	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "ADMIN")
+	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "MANAGER", "BOSS", "ADMIN")
 	if !ok {
 		return
 	}
@@ -199,7 +199,7 @@ func (h *Handler) GetInquiriesPriceInquiryId(c *gin.Context, inquiryId types.UUI
 }
 
 func (h *Handler) PatchInquiriesPriceInquiryId(c *gin.Context, inquiryId types.UUID) {
-	claims, ok := h.requireRole(c, "SALES", "CS", "ADMIN")
+	claims, ok := h.requireRole(c, "SALES", "CS", "MANAGER", "BOSS", "ADMIN")
 	if !ok {
 		return
 	}
@@ -268,7 +268,7 @@ func (h *Handler) GetInquiriesPriceInquiryIdMessages(
 	inquiryId types.UUID,
 	params oapi.GetInquiriesPriceInquiryIdMessagesParams,
 ) {
-	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "ADMIN")
+	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "MANAGER", "BOSS", "ADMIN")
 	if !ok {
 		return
 	}
@@ -334,7 +334,7 @@ func (h *Handler) GetInquiriesPriceInquiryIdMessages(
 }
 
 func (h *Handler) PostInquiriesPriceInquiryIdMessages(c *gin.Context, inquiryId types.UUID) {
-	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "ADMIN")
+	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "MANAGER", "BOSS", "ADMIN")
 	if !ok {
 		return
 	}

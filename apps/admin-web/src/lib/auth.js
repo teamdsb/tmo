@@ -20,6 +20,7 @@ const roleLabels = {
   customer: '客户'
 };
 
+// 统一提取展示名，避免空值导致 UI 显示异常。
 const toDisplayName = (user) => {
   if (!user || typeof user !== 'object') {
     return '管理员用户';
@@ -30,24 +31,29 @@ const toDisplayName = (user) => {
   return '管理员用户';
 };
 
+// 将角色 code 映射为中文展示名。
 export const getRoleLabel = (role) => {
   const normalized = String(role || '').toLowerCase();
   return roleLabels[normalized] || role || '管理员';
 };
 
+// 跳转登录页。
 export const goToLogin = () => {
   window.location.href = routes.login;
 };
 
+// 跳转后台首页。
 export const goToDashboard = () => {
   window.location.href = routes.dashboard;
 };
 
+// 退出登录并清理所有会话状态。
 export const logout = () => {
   clearAllSessions();
   goToLogin();
 };
 
+// 兼容旧 mock 登录入口，构造最小会话结构。
 const buildLegacyMockSession = (username, role) => {
   const normalizedRole = String(role || 'ADMIN').trim().toUpperCase() || 'ADMIN';
   return {
@@ -67,6 +73,7 @@ const buildLegacyMockSession = (username, role) => {
   };
 };
 
+// 使用共享 mock 账号结构构造完整 mock 会话。
 const buildMockSessionFromAccount = (account) => {
   const normalizedRole = String(account.role || '').trim().toUpperCase();
   const normalizedUsername = String(account.username || '').trim();
@@ -98,6 +105,7 @@ const buildMockSessionFromAccount = (account) => {
   };
 };
 
+// mock 登录：兼容旧参数与新账号对象两种输入。
 export const loginMock = (input, role) => {
   let sessionPayload = null;
   if (input && typeof input === 'object' && typeof input.username === 'string' && typeof input.role === 'string') {
@@ -112,6 +120,7 @@ export const loginMock = (input, role) => {
   });
 };
 
+// 从显式选择或用户角色列表中推断当前角色。
 const inferCurrentRole = (user, explicitRole) => {
   if (explicitRole) {
     return String(explicitRole).toUpperCase();
@@ -129,6 +138,7 @@ const inferCurrentRole = (user, explicitRole) => {
   return roles[0] || 'ADMIN';
 };
 
+// real(dev) 登录并写入 token + 当前角色。
 export const loginDev = async (username, password, role) => {
   const response = await passwordLogin(username, password, role);
   if (response.status === 409) {
@@ -153,6 +163,7 @@ export const loginDev = async (username, password, role) => {
   return response;
 };
 
+// 刷新 bootstrap，更新 me/permissions/featureFlags。
 export const refreshBootstrap = async () => {
   if (!isDevMode) {
     return null;
@@ -186,6 +197,7 @@ export const refreshBootstrap = async () => {
   return response.data;
 };
 
+// 按当前模式读取会话（mock 或 dev）。
 export const getCurrentSession = () => {
   if (isMockMode) {
     return readMockSession();
@@ -196,6 +208,7 @@ export const getCurrentSession = () => {
   return null;
 };
 
+// 判断是否已登录（模式感知）。
 export const isLoggedIn = () => {
   if (isMockMode) {
     return Boolean(readMockSession());
@@ -203,6 +216,7 @@ export const isLoggedIn = () => {
   return Boolean(getAccessToken());
 };
 
+// 构造顶部栏需要的展示资料（昵称 + 角色名）。
 export const getDisplayProfile = () => {
   if (isMockMode) {
     const session = readMockSession();

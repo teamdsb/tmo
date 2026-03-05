@@ -49,6 +49,7 @@ const STATUS_DOT_CLASS = {
   RETURNED: 'bg-red-600 dark:bg-red-400'
 };
 
+// 兜底计算订单总金额（分），用于 dev 实时列表金额展示。
 const calcAmountFen = (order) => {
   if (!Array.isArray(order?.items)) {
     return 0;
@@ -63,6 +64,7 @@ const calcAmountFen = (order) => {
   }, 0);
 };
 
+// 从姓名生成头像缩写。
 const initials = (name) => {
   const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) {
@@ -75,11 +77,13 @@ const initials = (name) => {
     .toUpperCase();
 };
 
+// 统计指定状态集合数量。
 const countByStatuses = (items, statuses) => {
   const set = new Set(statuses.map((status) => String(status).toUpperCase()));
   return items.filter((item) => set.has(String(item?.status || '').toUpperCase())).length;
 };
 
+// 渲染统一状态徽标。
 const buildStatusBadge = (statusKey, label) => {
   const normalized = String(statusKey || '').toUpperCase();
   const classes = STATUS_BADGE_CLASS[normalized] || STATUS_BADGE_CLASS.SUBMITTED;
@@ -89,6 +93,7 @@ const buildStatusBadge = (statusKey, label) => {
   )}</span>`;
 };
 
+// 统计商品行总数量。
 const sumLineItemQty = (lineItems) => {
   if (!Array.isArray(lineItems)) {
     return 0;
@@ -104,6 +109,7 @@ const orderDetailDrawerContext = {
   onSave: null
 };
 
+// 构建抽屉里的单条商品编辑行。
 const buildLineItemEditRow = (item) => {
   return `
     <div data-role="detail-line-item-row" class="rounded-lg border border-slate-100 bg-slate-50 p-3">
@@ -134,6 +140,7 @@ const buildLineItemEditRow = (item) => {
   `;
 };
 
+// 从抽屉 DOM 收集商品行编辑结果。
 const collectLineItemsFromDrawer = (drawer) => {
   const rows = Array.from(drawer.querySelectorAll('[data-role="detail-line-item-row"]'));
   const items = rows
@@ -152,6 +159,7 @@ const collectLineItemsFromDrawer = (drawer) => {
   return items;
 };
 
+// 刷新抽屉里的“购买商品总数量”。
 const refreshDrawerProductCount = (drawer) => {
   const countEl = drawer.querySelector('[data-role="detail-product-count"]');
   if (!countEl) {
@@ -161,6 +169,7 @@ const refreshDrawerProductCount = (drawer) => {
   countEl.textContent = `${qty} 件`;
 };
 
+// 渲染抽屉商品编辑区。
 const renderDetailLineItemEditor = (drawer, lineItems) => {
   const container = drawer.querySelector('[data-role="detail-line-items"]');
   if (!container) {
@@ -171,6 +180,7 @@ const renderDetailLineItemEditor = (drawer, lineItems) => {
   refreshDrawerProductCount(drawer);
 };
 
+// 懒创建并复用订单详情抽屉。
 const ensureOrderDetailDrawer = () => {
   const existed = document.querySelector('#order-detail-drawer');
   if (existed instanceof HTMLElement) {
@@ -365,6 +375,7 @@ const ensureOrderDetailDrawer = () => {
   return drawer;
 };
 
+// 打开抽屉并回填订单详情，可在保存后回写主列表。
 const openOrderDetailDrawer = (order, onSave) => {
   const drawer = ensureOrderDetailDrawer();
   const overlay = document.querySelector('#order-detail-overlay');
@@ -404,6 +415,7 @@ const openOrderDetailDrawer = (order, onSave) => {
   document.body.classList.add('overflow-hidden');
 };
 
+// 标准化 mock 订单结构。
 const mockOrder = (config) => {
   const fallbackLineItems = [
     { name: '基础款 T 恤', qty: 1, size: 'M' }
@@ -433,6 +445,7 @@ const mockOrder = (config) => {
   };
 };
 
+// 构建 legacy mock 订单样本。
 const buildMockOrders = () => {
   return [
     mockOrder({
@@ -850,6 +863,7 @@ const shippingBadgeByStatusKey = {
   RETURNED: '退货完成'
 };
 
+// 将 canonical fixture 的 items 映射为抽屉可编辑行。
 const buildLineItemsFromFixtureItems = (items) => {
   if (!Array.isArray(items) || items.length === 0) {
     return [{ name: '基础款 T 恤', qty: 1, size: 'M' }];
@@ -864,6 +878,7 @@ const buildLineItemsFromFixtureItems = (items) => {
   });
 };
 
+// 将 tracking 节点映射为时间线展示模型。
 const buildTimelineFromTracking = (tracking) => {
   const shipments = Array.isArray(tracking?.shipments) ? tracking.shipments : [];
   if (shipments.length === 0) {
@@ -879,6 +894,7 @@ const buildTimelineFromTracking = (tracking) => {
   });
 };
 
+// 优先使用 shared canonical fixtures 生成 mock 列表。
 const buildCanonicalMockOrders = () => {
   if (!Array.isArray(canonicalOrderFixtures) || canonicalOrderFixtures.length === 0) {
     return buildMockOrders();
@@ -938,6 +954,7 @@ const buildCanonicalMockOrders = () => {
   });
 };
 
+// dev 模式页面骨架（实时接口视图）。
 const mountDevLayout = (main) => {
   main.innerHTML = `
     <div class="mx-auto w-full max-w-7xl space-y-6">
@@ -973,6 +990,7 @@ const mountDevLayout = (main) => {
   `;
 };
 
+// 渲染 dev 模式顶部指标。
 const renderDevMetrics = (container, payload) => {
   if (!container) {
     return;
@@ -990,6 +1008,7 @@ const renderDevMetrics = (container, payload) => {
   `;
 };
 
+// 渲染 dev 模式订单表格。
 const renderDevOrdersTable = (tbody, payload) => {
   if (!tbody) {
     return;
@@ -1028,6 +1047,7 @@ const renderDevOrdersTable = (tbody, payload) => {
     .join('');
 };
 
+// 渲染 dev 模式分页摘要文案。
 const renderDevSummaryText = (container, payload) => {
   if (!container) {
     return;
@@ -1037,6 +1057,7 @@ const renderDevSummaryText = (container, payload) => {
   container.textContent = `当前页显示 ${items.length} 笔订单，总计 ${total} 笔。`;
 };
 
+// 初始化 dev 模式订单页（仅 real 数据）。
 const initDevOrders = async (main) => {
   mountDevLayout(main);
 
@@ -1060,6 +1081,7 @@ const initDevOrders = async (main) => {
   }
 };
 
+// 设置单个元素文本（不存在则忽略）。
 const setElementText = (selector, value) => {
   const element = document.querySelector(selector);
   if (!element) {
@@ -1068,6 +1090,7 @@ const setElementText = (selector, value) => {
   element.textContent = safeText(value, '--');
 };
 
+// 渲染 mock 物流时间线。
 const renderMockTimeline = (timeline) => {
   const container = document.querySelector('[data-role="sorting-timeline"]');
   if (!container) {
@@ -1112,6 +1135,7 @@ const renderMockTimeline = (timeline) => {
     .join('');
 };
 
+// 渲染 mock 物流详情侧栏。
 const renderMockLogisticsPanel = (order) => {
   if (!order) {
     setElementText('[data-role="tracking-number"]', '--');
@@ -1137,6 +1161,7 @@ const renderMockLogisticsPanel = (order) => {
   renderMockTimeline(order.timeline);
 };
 
+// 初始化 mock 模式订单页（含分页、Tab、详情抽屉）。
 const initMockOrders = () => {
   const orders = buildCanonicalMockOrders();
   const state = {
@@ -1335,6 +1360,7 @@ const initMockOrders = () => {
   render();
 };
 
+// 订单页入口：先过守卫，再按模式走 dev/mock 初始化。
 const initOrders = async () => {
   const context = await ensureProtectedPage();
   if (!context) {

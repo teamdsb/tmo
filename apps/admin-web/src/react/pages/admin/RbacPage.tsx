@@ -82,6 +82,7 @@ const permissionSections: PermissionSection[] = [
   }
 ];
 
+// 角色卡片。
 const RoleCard = ({ role }: { role: RoleItem }) => {
   if (role.active) {
     return (
@@ -109,6 +110,7 @@ const RoleCard = ({ role }: { role: RoleItem }) => {
   );
 };
 
+// 权限明细行。
 const PermissionRow = ({ item }: { item: PermissionItem }) => {
   return (
     <label className="group flex cursor-pointer items-start gap-3">
@@ -127,6 +129,7 @@ const PermissionRow = ({ item }: { item: PermissionItem }) => {
   );
 };
 
+// RBAC 页面（当前为前端展示壳）。
 export const RbacPage = () => {
   return (
     <main className="flex h-screen flex-1 flex-col overflow-hidden">

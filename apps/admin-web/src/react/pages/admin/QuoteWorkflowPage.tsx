@@ -113,6 +113,7 @@ const chatMessages: readonly ChatMessage[] = [
   }
 ];
 
+// 流程步骤徽标。
 const WorkflowStepBadge = ({ step, index }: { step: WorkflowStep; index: number }) => {
   if (step.status === 'completed') {
     return (
@@ -146,6 +147,7 @@ const WorkflowStepBadge = ({ step, index }: { step: WorkflowStep; index: number 
   );
 };
 
+// 报价版本行。
 const QuoteVersionRow = ({ item }: { item: QuoteVersion }) => {
   return (
     <tr
@@ -178,6 +180,7 @@ const QuoteVersionRow = ({ item }: { item: QuoteVersion }) => {
   );
 };
 
+// 议价消息气泡。
 const NegotiationMessage = ({ message }: { message: ChatMessage }) => {
   if (message.self) {
     return (
@@ -208,6 +211,7 @@ const NegotiationMessage = ({ message }: { message: ChatMessage }) => {
   );
 };
 
+// 询报价工作流页面（当前为前端展示壳）。
 export const QuoteWorkflowPage = () => {
   return (
     <>

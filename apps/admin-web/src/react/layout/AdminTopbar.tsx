@@ -11,10 +11,12 @@ type AdminTopbarProps = {
 const AVATAR_URL =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuA-cgHCBUtae-Yeq4htivL0q-zghx8kkGV8lTLp1eHRlAxWjiaIFAYFPIhx0QLEoc0XZtVxRR0l7xp4Y4dMZrbafdPBMeVuMEfLeZf8WqH6g65hdBksOAHYEOfMRtION01akpgMv3e2e145ccEHKliMknQEpfbQSU1hfEX43mCkPIEdDbF0yT82K6c2zOcL-ljXW66qgxtI2MqGXZOG-oBuyoCF7HV6Nzo2jQIDX7vLx7eHcVNqjKm6M8kcRXUU7fdLIYk9Zkhj8Dc';
 
+// 拼接 className，忽略空值。
 const joinClasses = (...classes: Array<string | undefined>) => {
   return classes.filter(Boolean).join(' ');
 };
 
+// 后台顶部栏（搜索、用户菜单、退出）。
 export const AdminTopbar = ({
   leftSlot,
   searchPlaceholder = '搜索...',
