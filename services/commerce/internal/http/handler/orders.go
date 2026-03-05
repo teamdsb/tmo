@@ -211,7 +211,7 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 }
 
 func (h *Handler) GetOrders(c *gin.Context, params oapi.GetOrdersParams) {
-	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "PROCUREMENT", "CS", "ADMIN")
+	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "PROCUREMENT", "CS", "MANAGER", "BOSS", "ADMIN")
 	if !ok {
 		return
 	}
@@ -240,7 +240,7 @@ func (h *Handler) GetOrders(c *gin.Context, params oapi.GetOrdersParams) {
 		if params.CustomerId != nil {
 			customerFilter = pgtype.UUID{Bytes: uuid.UUID(*params.CustomerId), Valid: true}
 		}
-	case "PROCUREMENT", "CS", "ADMIN":
+	case "PROCUREMENT", "CS", "MANAGER", "BOSS", "ADMIN":
 		if params.CustomerId != nil {
 			customerFilter = pgtype.UUID{Bytes: uuid.UUID(*params.CustomerId), Valid: true}
 		}
@@ -327,7 +327,7 @@ func (h *Handler) GetOrders(c *gin.Context, params oapi.GetOrdersParams) {
 }
 
 func (h *Handler) GetOrdersStats(c *gin.Context) {
-	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "PROCUREMENT", "CS", "ADMIN")
+	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "PROCUREMENT", "CS", "MANAGER", "BOSS", "ADMIN")
 	if !ok {
 		return
 	}
@@ -365,7 +365,7 @@ func (h *Handler) GetOrdersStats(c *gin.Context) {
 }
 
 func (h *Handler) GetOrdersOrderId(c *gin.Context, orderId types.UUID) {
-	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "PROCUREMENT", "CS", "ADMIN")
+	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "PROCUREMENT", "CS", "MANAGER", "BOSS", "ADMIN")
 	if !ok {
 		return
 	}

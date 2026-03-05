@@ -11,7 +11,7 @@ export const createMockGatewayServices = (): GatewayServices => {
     bootstrap: {
       get: async () => {
         const token = await tokens.getToken()
-        return buildIsolatedMockBootstrap(token)
+        return await buildIsolatedMockBootstrap(token)
       }
     },
     tokens

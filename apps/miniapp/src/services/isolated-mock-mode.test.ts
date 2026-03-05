@@ -39,7 +39,7 @@ describe('isolated mock mode', () => {
 
     await identityServices.auth.miniLogin({})
     const afterLogin = await gatewayServices.bootstrap.get()
-    expect(afterLogin.me?.id).toBe('mock-user-id')
+    expect(afterLogin.me?.id).toBe('dddddddd-dddd-dddd-dddd-dddddddddddd')
 
     const categories = await commerceServices.catalog.listCategories()
     expect(categories.items.length).toBeGreaterThan(0)

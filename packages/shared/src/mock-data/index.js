@@ -14,3 +14,10 @@ export {
   canonicalTrackingByOrderId,
   resolveAdminTabByStatus
 } from './orders.js';
+
+export {
+  adminWebMockAccounts,
+  buildPermissionListForRole,
+  miniMockIdentityFixtures,
+  resolveMiniMockIdentityFixture
+} from './auth.js';

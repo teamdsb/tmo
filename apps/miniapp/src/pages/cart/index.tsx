@@ -94,7 +94,7 @@ export default function ExcelImportConfirmation() {
   const [skuOptionsBySpuId, setSkuOptionsBySpuId] = useState<Record<string, Sku[]>>({})
   const productNameBySpuIdRef = useRef<Record<string, string>>({})
   const skuOptionsBySpuIdRef = useRef<Record<string, Sku[]>>({})
-  const spuDetailRequestByIdRef = useRef<Record<string, Promise<ProductDetail | null>>>({})
+  const spuDetailRequestByIdRef = useRef<Partial<Record<string, Promise<ProductDetail | null>>>>({})
   const navbarStyle = getNavbarStyle()
   const isH5 = process.env.TARO_ENV === 'h5'
 

@@ -29,7 +29,7 @@ import { identityServices } from '../../services/identity'
 import { clearBootstrap, loadBootstrap, saveBootstrap } from '../../services/bootstrap'
 import placeholderProductImage from '../../assets/images/placeholder-product.svg'
 import { getRuntimeTheme } from '../../utils/device-info'
-import { runtimeEnv } from '../../config/runtime-env'
+import { hasRole } from '../../utils/authz'
 
 type IconComponent = (props: { className?: string }) => JSX.Element
 
@@ -169,7 +169,7 @@ export default function PersonalCenter() {
       setBootstrap(cached)
     }
     const token = await gatewayServices.tokens.getToken()
-    if (!token && runtimeEnv.commerceMockFallback) {
+    if (!token) {
       return
     }
     try {
@@ -203,10 +203,12 @@ export default function PersonalCenter() {
   const displayName = bootstrap?.me?.displayName ?? '访客'
   const ownerSalesDisplayName = bootstrap?.me?.ownerSalesDisplayName?.trim() ?? ''
   const themeClassName = isDark ? 'mine-theme mine-theme--dark' : 'mine-theme'
-  const visibleMenuItems = useMemo(
-    () => [SALES_MENU_ITEM, ...MENU_ITEMS],
-    []
-  )
+  const visibleMenuItems = useMemo(() => {
+    if (hasRole(bootstrap, 'SALES')) {
+      return [SALES_MENU_ITEM, ...MENU_ITEMS]
+    }
+    return MENU_ITEMS
+  }, [bootstrap])
 
   const handleLogout = async () => {
     if (loggingOut) {
