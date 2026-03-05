@@ -1,3 +1,4 @@
+// 登录页壳组件（实际登录流程在 legacy main.js）。
 export const LoginPage = () => {
   return (
     <div className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden">

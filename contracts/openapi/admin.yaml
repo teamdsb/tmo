@@ -366,6 +366,35 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ImportJob"
+  "/admin/miniapp/display-categories":
+    get:
+      tags:
+      - Admin
+      summary: List miniapp display categories (including disabled)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminMiniappDisplayCategoryListResponse"
+    put:
+      tags:
+      - Admin
+      summary: Replace miniapp display categories
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ReplaceAdminMiniappDisplayCategoriesRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminMiniappDisplayCategoryListResponse"
   "/admin/config/feature-flags":
     get:
       tags:
@@ -1632,6 +1661,51 @@ components:
       - status
       - progress
       - createdAt
+    AdminMiniappDisplayCategory:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        iconKey:
+          type: string
+          enum:
+          - notes
+          - setting
+          - desktop
+          - shield
+          - brush
+          - hot
+          - apps
+        sort:
+          type: integer
+        enabled:
+          type: boolean
+      required:
+      - id
+      - name
+      - iconKey
+      - sort
+      - enabled
+    AdminMiniappDisplayCategoryListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/AdminMiniappDisplayCategory"
+      required:
+      - items
+    ReplaceAdminMiniappDisplayCategoriesRequest:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/AdminMiniappDisplayCategory"
+      required:
+      - items
     FeatureFlags:
       type: object
       properties:

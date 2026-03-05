@@ -1,12 +1,14 @@
 import { runtimeEnv } from '../config/runtime-env'
 import { saveBootstrap, savePendingRoleSelection } from './bootstrap'
 import {
+  buildMockAuthContext,
   buildIsolatedMockBootstrap,
   createIsolatedMockAccessToken,
+  saveIsolatedMockAuthContext,
   setIsolatedMockToken
 } from './mock/runtime'
 
-export const MOCK_USER_ID = 'mock-user-id'
+export const MOCK_USER_ID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 
 export const applyMockLogin = async (): Promise<void> => {
   if (!runtimeEnv.isIsolatedMock) {
@@ -14,7 +16,9 @@ export const applyMockLogin = async (): Promise<void> => {
   }
 
   const token = createIsolatedMockAccessToken()
+  const context = buildMockAuthContext('mock_sales_001', 'SALES')
   await setIsolatedMockToken(token)
-  await saveBootstrap(buildIsolatedMockBootstrap(token))
+  await saveIsolatedMockAuthContext(context)
+  await saveBootstrap(await buildIsolatedMockBootstrap(token))
   await savePendingRoleSelection(null)
 }

@@ -16,7 +16,7 @@ import (
 )
 
 func (h *Handler) GetAfterSalesTickets(c *gin.Context, params oapi.GetAfterSalesTicketsParams) {
-	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "ADMIN")
+	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "MANAGER", "BOSS", "ADMIN")
 	if !ok {
 		return
 	}
@@ -95,7 +95,7 @@ func (h *Handler) GetAfterSalesTickets(c *gin.Context, params oapi.GetAfterSales
 }
 
 func (h *Handler) PostAfterSalesTickets(c *gin.Context) {
-	claims, ok := h.requireRole(c, "CUSTOMER", "ADMIN")
+	claims, ok := h.requireRole(c, "CUSTOMER", "BOSS", "MANAGER", "ADMIN")
 	if !ok {
 		return
 	}
@@ -162,7 +162,7 @@ func (h *Handler) PostAfterSalesTickets(c *gin.Context) {
 }
 
 func (h *Handler) GetAfterSalesTicketsTicketId(c *gin.Context, ticketId types.UUID) {
-	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "ADMIN")
+	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "MANAGER", "BOSS", "ADMIN")
 	if !ok {
 		return
 	}
@@ -187,7 +187,7 @@ func (h *Handler) GetAfterSalesTicketsTicketId(c *gin.Context, ticketId types.UU
 }
 
 func (h *Handler) PatchAfterSalesTicketsTicketId(c *gin.Context, ticketId types.UUID) {
-	claims, ok := h.requireRole(c, "SALES", "CS", "ADMIN")
+	claims, ok := h.requireRole(c, "SALES", "CS", "MANAGER", "BOSS", "ADMIN")
 	if !ok {
 		return
 	}
@@ -253,7 +253,7 @@ func (h *Handler) GetAfterSalesTicketsTicketIdMessages(
 	ticketId types.UUID,
 	params oapi.GetAfterSalesTicketsTicketIdMessagesParams,
 ) {
-	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "ADMIN")
+	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "MANAGER", "BOSS", "ADMIN")
 	if !ok {
 		return
 	}
@@ -319,7 +319,7 @@ func (h *Handler) GetAfterSalesTicketsTicketIdMessages(
 }
 
 func (h *Handler) PostAfterSalesTicketsTicketIdMessages(c *gin.Context, ticketId types.UUID) {
-	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "ADMIN")
+	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "MANAGER", "BOSS", "ADMIN")
 	if !ok {
 		return
 	}

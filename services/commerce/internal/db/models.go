@@ -148,6 +148,16 @@ type InquiryMessage struct {
 	CreatedAt    pgtype.Timestamptz `db:"created_at" json:"created_at"`
 }
 
+type MiniappDisplayCategory struct {
+	ID        string             `db:"id" json:"id"`
+	Name      string             `db:"name" json:"name"`
+	IconKey   string             `db:"icon_key" json:"icon_key"`
+	Sort      int32              `db:"sort" json:"sort"`
+	Enabled   bool               `db:"enabled" json:"enabled"`
+	CreatedAt pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
 type Order struct {
 	ID               uuid.UUID          `db:"id" json:"id"`
 	Status           string             `db:"status" json:"status"`

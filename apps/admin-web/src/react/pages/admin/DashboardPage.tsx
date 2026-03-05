@@ -1,5 +1,6 @@
 import { AdminTopbar } from '../../layout/AdminTopbar';
 
+// 管理后台仪表盘页面（当前为前端展示壳）。
 export const DashboardPage = () => {
   return (
     <>

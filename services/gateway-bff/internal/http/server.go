@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -91,7 +92,11 @@ func NewRouter(handlers ProxyHandlers, logger *slog.Logger, readyCheck func(cont
 }
 
 func NewServer(addr string, router http.Handler) *http.Server {
-	return httpx.NewServer(addr, router)
+	server := httpx.NewServer(addr, router)
+	// Gateway image proxy may need extra time before first byte is written.
+	// Keep a longer write timeout here to avoid empty replies on slow upstream images.
+	server.WriteTimeout = 2 * time.Minute
+	return server
 }
 
 func limitRequestBody(maxBytes int64) gin.HandlerFunc {

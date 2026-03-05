@@ -1,5 +1,6 @@
 import { fetchOrders } from './lib/api';
 import { ensureProtectedPage } from './lib/guard';
+import { canonicalOrderFixtures, canonicalSkuById, resolveAdminTabByStatus } from '../../../packages/shared/src/mock-data/index.js';
 import {
   buildEmptyState,
   escape,
@@ -48,6 +49,7 @@ const STATUS_DOT_CLASS = {
   RETURNED: 'bg-red-600 dark:bg-red-400'
 };
 
+// 兜底计算订单总金额（分），用于 dev 实时列表金额展示。
 const calcAmountFen = (order) => {
   if (!Array.isArray(order?.items)) {
     return 0;
@@ -62,6 +64,7 @@ const calcAmountFen = (order) => {
   }, 0);
 };
 
+// 从姓名生成头像缩写。
 const initials = (name) => {
   const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) {
@@ -74,11 +77,13 @@ const initials = (name) => {
     .toUpperCase();
 };
 
+// 统计指定状态集合数量。
 const countByStatuses = (items, statuses) => {
   const set = new Set(statuses.map((status) => String(status).toUpperCase()));
   return items.filter((item) => set.has(String(item?.status || '').toUpperCase())).length;
 };
 
+// 渲染统一状态徽标。
 const buildStatusBadge = (statusKey, label) => {
   const normalized = String(statusKey || '').toUpperCase();
   const classes = STATUS_BADGE_CLASS[normalized] || STATUS_BADGE_CLASS.SUBMITTED;
@@ -88,6 +93,7 @@ const buildStatusBadge = (statusKey, label) => {
   )}</span>`;
 };
 
+// 统计商品行总数量。
 const sumLineItemQty = (lineItems) => {
   if (!Array.isArray(lineItems)) {
     return 0;
@@ -103,6 +109,7 @@ const orderDetailDrawerContext = {
   onSave: null
 };
 
+// 构建抽屉里的单条商品编辑行。
 const buildLineItemEditRow = (item) => {
   return `
     <div data-role="detail-line-item-row" class="rounded-lg border border-slate-100 bg-slate-50 p-3">
@@ -133,6 +140,7 @@ const buildLineItemEditRow = (item) => {
   `;
 };
 
+// 从抽屉 DOM 收集商品行编辑结果。
 const collectLineItemsFromDrawer = (drawer) => {
   const rows = Array.from(drawer.querySelectorAll('[data-role="detail-line-item-row"]'));
   const items = rows
@@ -151,6 +159,7 @@ const collectLineItemsFromDrawer = (drawer) => {
   return items;
 };
 
+// 刷新抽屉里的“购买商品总数量”。
 const refreshDrawerProductCount = (drawer) => {
   const countEl = drawer.querySelector('[data-role="detail-product-count"]');
   if (!countEl) {
@@ -160,6 +169,7 @@ const refreshDrawerProductCount = (drawer) => {
   countEl.textContent = `${qty} 件`;
 };
 
+// 渲染抽屉商品编辑区。
 const renderDetailLineItemEditor = (drawer, lineItems) => {
   const container = drawer.querySelector('[data-role="detail-line-items"]');
   if (!container) {
@@ -170,6 +180,7 @@ const renderDetailLineItemEditor = (drawer, lineItems) => {
   refreshDrawerProductCount(drawer);
 };
 
+// 懒创建并复用订单详情抽屉。
 const ensureOrderDetailDrawer = () => {
   const existed = document.querySelector('#order-detail-drawer');
   if (existed instanceof HTMLElement) {
@@ -364,6 +375,7 @@ const ensureOrderDetailDrawer = () => {
   return drawer;
 };
 
+// 打开抽屉并回填订单详情，可在保存后回写主列表。
 const openOrderDetailDrawer = (order, onSave) => {
   const drawer = ensureOrderDetailDrawer();
   const overlay = document.querySelector('#order-detail-overlay');
@@ -403,6 +415,7 @@ const openOrderDetailDrawer = (order, onSave) => {
   document.body.classList.add('overflow-hidden');
 };
 
+// 标准化 mock 订单结构。
 const mockOrder = (config) => {
   const fallbackLineItems = [
     { name: '基础款 T 恤', qty: 1, size: 'M' }
@@ -432,6 +445,7 @@ const mockOrder = (config) => {
   };
 };
 
+// 构建 legacy mock 订单样本。
 const buildMockOrders = () => {
   return [
     mockOrder({
@@ -821,6 +835,126 @@ const buildMockOrders = () => {
   ];
 };
 
+const statusLabelByOrderStatus = {
+  SUBMITTED: '待处理',
+  CONFIRMED: '已确认',
+  SHIPPED: '已发出',
+  DELIVERED: '已送达',
+  CANCELLED: '退货处理中',
+  CLOSED: '已退回'
+};
+
+const statusKeyByOrderStatus = {
+  SUBMITTED: 'SUBMITTED',
+  CONFIRMED: 'CONFIRMED',
+  SHIPPED: 'DISPATCHED',
+  DELIVERED: 'DELIVERED',
+  CANCELLED: 'RETURNING',
+  CLOSED: 'RETURNED'
+};
+
+const shippingBadgeByStatusKey = {
+  SUBMITTED: '待分拣',
+  CONFIRMED: '待出库',
+  DISPATCHED: '已发出',
+  IN_TRANSIT: '运输中',
+  DELIVERED: '配送完成',
+  RETURNING: '逆向物流中',
+  RETURNED: '退货完成'
+};
+
+// 将 canonical fixture 的 items 映射为抽屉可编辑行。
+const buildLineItemsFromFixtureItems = (items) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    return [{ name: '基础款 T 恤', qty: 1, size: 'M' }];
+  }
+  return items.map((item, index) => {
+    const sku = canonicalSkuById[safeText(item?.skuId, '')] || null;
+    return {
+      name: safeText(sku?.name, `商品 ${index + 1}`),
+      qty: Number.isFinite(Number(item?.qty)) ? Number(item.qty) : 1,
+      size: safeText(sku?.spec, '默认')
+    };
+  });
+};
+
+// 将 tracking 节点映射为时间线展示模型。
+const buildTimelineFromTracking = (tracking) => {
+  const shipments = Array.isArray(tracking?.shipments) ? tracking.shipments : [];
+  if (shipments.length === 0) {
+    return [];
+  }
+  return shipments.map((shipment, index) => {
+    const carrier = safeText(shipment?.carrier, '承运商');
+    const shippedAt = safeText(shipment?.shippedAt, '');
+    return {
+      title: index === 0 ? '最新物流节点' : `物流节点 ${index + 1}`,
+      detail: `${carrier}${shippedAt ? ` • ${shippedAt}` : ''}`
+    };
+  });
+};
+
+// 优先使用 shared canonical fixtures 生成 mock 列表。
+const buildCanonicalMockOrders = () => {
+  if (!Array.isArray(canonicalOrderFixtures) || canonicalOrderFixtures.length === 0) {
+    return buildMockOrders();
+  }
+
+  return canonicalOrderFixtures.map((fixture) => {
+    const orderStatus = String(fixture?.status || 'SUBMITTED').toUpperCase();
+    const adminMeta = fixture?.admin || {};
+    const statusKey = safeText(adminMeta.statusKey, statusKeyByOrderStatus[orderStatus] || 'SUBMITTED');
+    const statusLabel = safeText(adminMeta.statusLabel, statusLabelByOrderStatus[orderStatus] || '待处理');
+    const trackingNumber = safeText(
+      adminMeta.trackingNumber,
+      fixture?.tracking?.shipments?.[0]?.waybillNo || '--'
+    );
+    const lineItems = Array.isArray(adminMeta.lineItems) && adminMeta.lineItems.length > 0
+      ? adminMeta.lineItems
+      : buildLineItemsFromFixtureItems(fixture?.items);
+    const amount = Array.isArray(fixture?.items)
+      ? fixture.items.reduce((sum, item) => {
+          const qty = Number(item?.qty || 0);
+          const unit = Number(item?.unitPriceFen || 0);
+          if (!Number.isFinite(qty) || !Number.isFinite(unit)) {
+            return sum;
+          }
+          return sum + (qty * unit) / 100;
+        }, 0)
+      : 0;
+    const createdAt = safeText(fixture?.createdAt, '');
+    const date = createdAt ? createdAt.slice(0, 10) : formatDate(new Date().toISOString());
+    const customer = fixture?.customer || {};
+    const address = fixture?.address || {};
+    const timeline = Array.isArray(adminMeta.timeline) && adminMeta.timeline.length > 0
+      ? adminMeta.timeline
+      : buildTimelineFromTracking(fixture?.tracking);
+
+    return mockOrder({
+      id: safeText(fixture?.id, '--'),
+      tab: resolveAdminTabByStatus(orderStatus, statusKey),
+      date,
+      amount: Number(amount.toFixed(2)),
+      statusKey,
+      statusLabel,
+      trackingNumber,
+      shippingBadge: safeText(adminMeta.shippingBadge, shippingBadgeByStatusKey[statusKey] || statusLabel),
+      customerName: safeText(customer?.name || address?.receiverName, '客户'),
+      customerMember: safeText(customer?.member, '普通会员'),
+      customerEmail: safeText(customer?.email, '--'),
+      customerPhone: safeText(customer?.phone || address?.receiverPhone, '--'),
+      customerAddress: safeText(address?.detail, '加利福尼亚州旧金山市 Market St 100 号'),
+      customerOrderCount: Number.isFinite(Number(customer?.orderCount)) ? Number(customer.orderCount) : 0,
+      customerLtv: safeText(customer?.ltv, '$0'),
+      deliveryNote: safeText(customer?.note || fixture?.remark, '暂无备注'),
+      purchasedAt: safeText(adminMeta.purchasedAt, createdAt ? createdAt.replace('T', ' ').slice(0, 16) : ''),
+      lineItems,
+      timeline
+    });
+  });
+};
+
+// dev 模式页面骨架（实时接口视图）。
 const mountDevLayout = (main) => {
   main.innerHTML = `
     <div class="mx-auto w-full max-w-7xl space-y-6">
@@ -856,6 +990,7 @@ const mountDevLayout = (main) => {
   `;
 };
 
+// 渲染 dev 模式顶部指标。
 const renderDevMetrics = (container, payload) => {
   if (!container) {
     return;
@@ -873,6 +1008,7 @@ const renderDevMetrics = (container, payload) => {
   `;
 };
 
+// 渲染 dev 模式订单表格。
 const renderDevOrdersTable = (tbody, payload) => {
   if (!tbody) {
     return;
@@ -911,6 +1047,7 @@ const renderDevOrdersTable = (tbody, payload) => {
     .join('');
 };
 
+// 渲染 dev 模式分页摘要文案。
 const renderDevSummaryText = (container, payload) => {
   if (!container) {
     return;
@@ -920,6 +1057,7 @@ const renderDevSummaryText = (container, payload) => {
   container.textContent = `当前页显示 ${items.length} 笔订单，总计 ${total} 笔。`;
 };
 
+// 初始化 dev 模式订单页（仅 real 数据）。
 const initDevOrders = async (main) => {
   mountDevLayout(main);
 
@@ -943,6 +1081,7 @@ const initDevOrders = async (main) => {
   }
 };
 
+// 设置单个元素文本（不存在则忽略）。
 const setElementText = (selector, value) => {
   const element = document.querySelector(selector);
   if (!element) {
@@ -951,6 +1090,7 @@ const setElementText = (selector, value) => {
   element.textContent = safeText(value, '--');
 };
 
+// 渲染 mock 物流时间线。
 const renderMockTimeline = (timeline) => {
   const container = document.querySelector('[data-role="sorting-timeline"]');
   if (!container) {
@@ -995,6 +1135,7 @@ const renderMockTimeline = (timeline) => {
     .join('');
 };
 
+// 渲染 mock 物流详情侧栏。
 const renderMockLogisticsPanel = (order) => {
   if (!order) {
     setElementText('[data-role="tracking-number"]', '--');
@@ -1020,8 +1161,9 @@ const renderMockLogisticsPanel = (order) => {
   renderMockTimeline(order.timeline);
 };
 
+// 初始化 mock 模式订单页（含分页、Tab、详情抽屉）。
 const initMockOrders = () => {
-  const orders = buildMockOrders();
+  const orders = buildCanonicalMockOrders();
   const state = {
     tab: 'shipped',
     page: 1,
@@ -1218,6 +1360,7 @@ const initMockOrders = () => {
   render();
 };
 
+// 订单页入口：先过守卫，再按模式走 dev/mock 初始化。
 const initOrders = async () => {
   const context = await ensureProtectedPage();
   if (!context) {

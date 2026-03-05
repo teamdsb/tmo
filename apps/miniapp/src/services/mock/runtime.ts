@@ -11,26 +11,27 @@ import type {
 } from '@tmo/api-client'
 import type { BootstrapResponse, PermissionList } from '@tmo/gateway-api-client'
 import { getStorage, removeStorage, setStorage } from '@tmo/platform-adapter'
+import { buildPermissionListForRole, resolveMiniMockIdentityFixture } from '../../../../../packages/shared/src/mock-data/auth.js'
+import { buildSeedOrders, buildSeedTrackingByOrderId } from '../mocks/orders'
 
 const isolatedMockStorageKey = 'tmo:isolated:mock-state'
+const isolatedMockAuthContextStorageKey = 'tmo:isolated:auth-context'
 const authTokenStorageKey = 'tmo:auth:token'
 const legacyAuthTokenStorageKey = 'tmo:commerce:token'
 
-const mockUser: User = Object.freeze({
-  id: 'mock-user-id',
-  userType: 'staff',
-  status: 'active',
-  displayName: '测试账号',
-  phone: null,
-  roles: ['TEST'],
-  disabledAt: null,
-  disabledReason: null,
-  createdAt: '2026-01-01T00:00:00Z'
-})
+const mockCreatedAt = '2026-01-01T00:00:00Z'
 
-const mockPermissions: PermissionList = Object.freeze({
-  items: []
-})
+type MockRole = 'CUSTOMER' | 'SALES'
+
+export type IsolatedMockAuthContext = {
+  code: string
+  userId: string
+  displayName: string
+  userType: 'customer' | 'staff' | 'admin'
+  roles: string[]
+  currentRole: MockRole
+  ownerSalesDisplayName?: string
+}
 
 export type MockCartEntry = {
   skuId: string
@@ -121,8 +122,8 @@ const createDefaultState = (): IsolatedMockState => ({
   wishlistSkuIds: [],
   cartEntries: [],
   addresses: [],
-  orders: [],
-  trackingByOrderId: {},
+  orders: buildSeedOrders(),
+  trackingByOrderId: buildSeedTrackingByOrderId(),
   productRequests: [],
   afterSalesTickets: [],
   afterSalesMessagesByTicketId: {},
@@ -138,14 +139,18 @@ const normalizeState = (value: unknown): IsolatedMockState => {
 
   const state = value as Partial<IsolatedMockState>
   const fallback = createDefaultState()
+  const normalizedOrders = Array.isArray(state.orders) && state.orders.length > 0 ? state.orders : fallback.orders
+  const normalizedTrackingByOrderId = isRecord(state.trackingByOrderId)
+    && Object.keys(state.trackingByOrderId).length > 0
+    ? (state.trackingByOrderId as Record<string, TrackingInfo>)
+    : fallback.trackingByOrderId
+
   return {
     wishlistSkuIds: normalizeStringArray(state.wishlistSkuIds),
     cartEntries: normalizeCartEntries(state.cartEntries),
     addresses: Array.isArray(state.addresses) ? state.addresses : [],
-    orders: Array.isArray(state.orders) ? state.orders : [],
-    trackingByOrderId: isRecord(state.trackingByOrderId)
-      ? (state.trackingByOrderId as Record<string, TrackingInfo>)
-      : {},
+    orders: normalizedOrders,
+    trackingByOrderId: normalizedTrackingByOrderId,
     productRequests: Array.isArray(state.productRequests) ? state.productRequests : [],
     afterSalesTickets: Array.isArray(state.afterSalesTickets) ? state.afterSalesTickets : [],
     afterSalesMessagesByTicketId: isRecord(state.afterSalesMessagesByTicketId)
@@ -179,14 +184,114 @@ const readTokenFromStorage = async (storageKey: string): Promise<string | null> 
 
 export const nowIso = (): string => new Date().toISOString()
 
-export const getMockUser = (): User => ({
-  ...mockUser,
-  roles: [...mockUser.roles]
+const normalizeAuthContext = (value: unknown): IsolatedMockAuthContext | null => {
+  if (!isRecord(value)) {
+    return null
+  }
+  if (typeof value.code !== 'string' || typeof value.userId !== 'string' || typeof value.displayName !== 'string') {
+    return null
+  }
+  if (!Array.isArray(value.roles)) {
+    return null
+  }
+  const roles = value.roles
+    .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    .map((item) => item.trim().toUpperCase())
+  if (roles.length === 0) {
+    return null
+  }
+  const currentRoleRaw = typeof value.currentRole === 'string' ? value.currentRole.trim().toUpperCase() : ''
+  const currentRole = (currentRoleRaw === 'SALES' ? 'SALES' : 'CUSTOMER') as MockRole
+  if (!roles.includes(currentRole)) {
+    return null
+  }
+  const userTypeRaw = typeof value.userType === 'string' ? value.userType.trim().toLowerCase() : ''
+  const userType = (userTypeRaw === 'staff' || userTypeRaw === 'admin' ? userTypeRaw : 'customer') as IsolatedMockAuthContext['userType']
+  const ownerSalesDisplayName = typeof value.ownerSalesDisplayName === 'string' && value.ownerSalesDisplayName.trim()
+    ? value.ownerSalesDisplayName.trim()
+    : undefined
+  return {
+    code: value.code.trim(),
+    userId: value.userId.trim(),
+    displayName: value.displayName.trim(),
+    userType,
+    roles,
+    currentRole,
+    ownerSalesDisplayName
+  }
+}
+
+export const buildMockAuthContext = (code: string, role?: string): IsolatedMockAuthContext => {
+  const fixture = resolveMiniMockIdentityFixture(code)
+  const roles = fixture.roles.map((item) => String(item).toUpperCase())
+  const requestedRole = String(role || '').trim().toUpperCase()
+  const currentRole = (requestedRole === 'SALES' ? 'SALES' : 'CUSTOMER') as MockRole
+  const selectedRole = roles.includes(currentRole) ? currentRole : (roles.includes('CUSTOMER') ? 'CUSTOMER' : 'SALES')
+  return {
+    code: String(code || '').trim() || 'mock_customer_001',
+    userId: String(fixture.userId),
+    displayName: String(fixture.displayName),
+    userType: fixture.userType === 'staff' ? 'staff' : fixture.userType === 'admin' ? 'admin' : 'customer',
+    roles,
+    currentRole: selectedRole,
+    ownerSalesDisplayName: typeof fixture.ownerSalesDisplayName === 'string'
+      ? fixture.ownerSalesDisplayName
+      : undefined
+  }
+}
+
+export const saveIsolatedMockAuthContext = async (context: IsolatedMockAuthContext | null): Promise<void> => {
+  try {
+    if (!context) {
+      await removeStorage(isolatedMockAuthContextStorageKey)
+      setLocalStorage(isolatedMockAuthContextStorageKey, null)
+      return
+    }
+    await setStorage(isolatedMockAuthContextStorageKey, context)
+    setLocalStorage(isolatedMockAuthContextStorageKey, JSON.stringify(context))
+  } catch {
+    // ignore storage errors
+  }
+}
+
+export const loadIsolatedMockAuthContext = async (): Promise<IsolatedMockAuthContext | null> => {
+  try {
+    const result = await getStorage<IsolatedMockAuthContext>(isolatedMockAuthContextStorageKey)
+    const normalized = normalizeAuthContext(result.data)
+    if (normalized) {
+      return normalized
+    }
+  } catch {
+    // ignore storage errors
+  }
+
+  const raw = getLocalStorage(isolatedMockAuthContextStorageKey)
+  if (!raw) {
+    return null
+  }
+  try {
+    return normalizeAuthContext(JSON.parse(raw))
+  } catch {
+    return null
+  }
+}
+
+export const getMockUser = (context: IsolatedMockAuthContext): User => ({
+  id: context.userId,
+  userType: context.userType,
+  status: 'active',
+  displayName: context.displayName,
+  phone: null,
+  roles: [...context.roles],
+  ownerSalesDisplayName: context.ownerSalesDisplayName,
+  disabledAt: null,
+  disabledReason: null,
+  createdAt: mockCreatedAt
 })
 
-export const getMockPermissions = (): PermissionList => ({
-  items: [...mockPermissions.items]
-})
+export const getMockPermissions = (context: IsolatedMockAuthContext): PermissionList => {
+  return buildPermissionListForRole(context.currentRole)
+}
 
 export const createIsolatedMockAccessToken = (): string => {
   const random = Math.random().toString(36).slice(2, 10)
@@ -215,6 +320,7 @@ export const setIsolatedMockToken = async (token: string | null): Promise<void> 
   setLocalStorage(authTokenStorageKey, token)
   if (token === null) {
     setLocalStorage(legacyAuthTokenStorageKey, null)
+    await saveIsolatedMockAuthContext(null)
   }
 }
 
@@ -233,10 +339,11 @@ export const createIsolatedTokenStore = (devToken?: string) => {
   }
 }
 
-export const buildIsolatedMockBootstrap = (token: string | null): BootstrapResponse => {
+export const buildIsolatedMockBootstrap = async (token: string | null): Promise<BootstrapResponse> => {
+  const context = token ? await loadIsolatedMockAuthContext() : null
   return {
-    me: token ? getMockUser() : undefined,
-    permissions: getMockPermissions(),
+    me: token && context ? getMockUser(context) : undefined,
+    permissions: context ? getMockPermissions(context) : { items: [] },
     featureFlags: {
       paymentEnabled: false,
       wechatPayEnabled: false,
@@ -280,5 +387,11 @@ export const resetIsolatedMockState = async (): Promise<void> => {
   } catch {
     // ignore storage errors
   }
+  try {
+    await removeStorage(isolatedMockAuthContextStorageKey)
+  } catch {
+    // ignore storage errors
+  }
+  setLocalStorage(isolatedMockAuthContextStorageKey, null)
   await setIsolatedMockToken(null)
 }

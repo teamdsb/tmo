@@ -11,6 +11,7 @@ import {
   toStatusBadge
 } from './lib/render';
 
+// 将 orders/inquiries/requests 汇总为统一活动流数据。
 const buildRows = (orders, inquiries, requests) => {
   const rows = [];
 
@@ -44,6 +45,7 @@ const buildRows = (orders, inquiries, requests) => {
   return rows.slice(0, 8);
 };
 
+// dev 模式仪表盘页面骨架。
 const mountDevLayout = (root) => {
   root.innerHTML = `
     <section class="mb-6" data-role="status"></section>
@@ -85,6 +87,7 @@ const mountDevLayout = (root) => {
   `;
 };
 
+// 渲染顶部指标卡（按权限层级过滤）。
 const renderSummaryCards = (container, summary, tier) => {
   if (!container || !summary) {
     return;
@@ -117,6 +120,7 @@ const renderSummaryCards = (container, summary, tier) => {
   }).join('');
 };
 
+// 渲染后端返回的 warning 标签。
 const renderWarnings = (container, summary) => {
   if (!container) {
     return;
@@ -138,6 +142,7 @@ const renderWarnings = (container, summary) => {
   `;
 };
 
+// 渲染最近活动表格。
 const renderActivityRows = (tbody, rows) => {
   if (!tbody) {
     return;
@@ -162,6 +167,7 @@ const renderActivityRows = (tbody, rows) => {
   `).join('');
 };
 
+// 渲染暂未接线模块的占位面板。
 const renderExtraPanels = (container) => {
   if (!container) {
     return;
@@ -173,6 +179,7 @@ const renderExtraPanels = (container) => {
   ].join('');
 };
 
+// 仪表盘入口：dev 模式并行拉取聚合/订单/询价/需求数据并渲染。
 const initDashboard = async () => {
   const context = await ensureProtectedPage();
   if (!context || context.mode !== 'dev') {

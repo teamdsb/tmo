@@ -1,3 +1,4 @@
+// HTML 转义，避免插入字符串时造成 XSS。
 const escapeHtml = (value) => {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -10,6 +11,7 @@ const escapeHtml = (value) => {
 const defaultEmptyDescription = '暂无实时数据。';
 const defaultErrorDescription = '请求失败，请稍后重试。';
 
+// 格式化日期时间（本地中文格式）。
 export const formatDateTime = (value) => {
   if (!value) {
     return '--';
@@ -21,6 +23,7 @@ export const formatDateTime = (value) => {
   return date.toLocaleString('zh-CN');
 };
 
+// 格式化日期（本地中文格式）。
 export const formatDate = (value) => {
   if (!value) {
     return '--';
@@ -32,6 +35,7 @@ export const formatDate = (value) => {
   return date.toLocaleDateString('zh-CN');
 };
 
+// 将“分”转换为美元字符串。
 export const formatCurrencyFen = (value) => {
   const numeric = Number(value || 0);
   if (!Number.isFinite(numeric)) {
@@ -40,6 +44,7 @@ export const formatCurrencyFen = (value) => {
   return `$${(numeric / 100).toFixed(2)}`;
 };
 
+// 安全读取文本，空值时回退默认文案。
 export const safeText = (value, fallback = '--') => {
   if (value === null || value === undefined) {
     return fallback;
@@ -48,6 +53,7 @@ export const safeText = (value, fallback = '--') => {
   return normalized || fallback;
 };
 
+// 构建统一空态 HTML。
 export const buildEmptyState = (title, description = defaultEmptyDescription) => {
   return `
     <div class="rounded-xl border border-slate-200 bg-white p-5 text-slate-700">
@@ -57,6 +63,7 @@ export const buildEmptyState = (title, description = defaultEmptyDescription) =>
   `;
 };
 
+// 构建统一错误态 HTML。
 export const buildErrorState = (message, description = defaultErrorDescription) => {
   return `
     <div class="rounded-xl border border-red-200 bg-red-50 p-5 text-red-700">
@@ -67,6 +74,7 @@ export const buildErrorState = (message, description = defaultErrorDescription) 
   `;
 };
 
+// 将空态渲染到指定容器。
 export const renderEmptyState = (container, title, description) => {
   if (!container) {
     return;
@@ -74,6 +82,7 @@ export const renderEmptyState = (container, title, description) => {
   container.innerHTML = buildEmptyState(title, description);
 };
 
+// 将错误态渲染到指定容器。
 export const renderErrorState = (container, message, description) => {
   if (!container) {
     return;
@@ -81,6 +90,7 @@ export const renderErrorState = (container, message, description) => {
   container.innerHTML = buildErrorState(message, description);
 };
 
+// 将状态值渲染为统一徽标 HTML。
 export const toStatusBadge = (status) => {
   const normalized = String(status || '').toUpperCase();
   if (!normalized) {

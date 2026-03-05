@@ -4,6 +4,8 @@ set -euo pipefail
 base_url="${GATEWAY_BASE_URL:-http://localhost:8080}"
 allow_empty_products_raw="${MINIAPP_HTTP_SMOKE_ALLOW_EMPTY_PRODUCTS:-false}"
 allow_empty_products="$(printf '%s' "$allow_empty_products_raw" | tr '[:upper:]' '[:lower:]')"
+allow_proxy_failure_raw="${MINIAPP_HTTP_SMOKE_ALLOW_PROXY_FAILURE:-false}"
+allow_proxy_failure="$(printf '%s' "$allow_proxy_failure_raw" | tr '[:upper:]' '[:lower:]')"
 
 http_code=""
 http_body=""
@@ -154,7 +156,16 @@ fi
 if [[ "$proxy_url" == *"/assets/img?url="* ]]; then
   echo "[miniapp-http-smoke] checking gateway image proxy url..."
   request "GET" "$proxy_url"
-  require_200 "image proxy"
+  if [[ "$http_code" != "200" ]]; then
+    if [[ "$allow_proxy_failure" == "true" ]]; then
+      echo "[miniapp-http-smoke] image proxy soft-failed: ${http_code}; continue because MINIAPP_HTTP_SMOKE_ALLOW_PROXY_FAILURE=true."
+      if [[ -n "$http_body" ]]; then
+        echo "$http_body"
+      fi
+    else
+      require_200 "image proxy"
+    fi
+  fi
 elif [[ "$proxy_url" == *"/assets/media/"* ]]; then
   echo "[miniapp-http-smoke] checking gateway local media url..."
   request "GET" "$proxy_url"

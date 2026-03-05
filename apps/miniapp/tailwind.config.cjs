@@ -1,4 +1,5 @@
 module.exports = {
+  darkMode: "class",
   content: [
     "./src/**/*.{ts,tsx,js,jsx}",
     "!./src/**/*.test.{ts,tsx,js,jsx}",
@@ -7,8 +8,14 @@ module.exports = {
     "./index.html",
   ],
   theme: {
-    extend: {},
+    extend: {
+      borderRadius: {
+        "2xl": "1rem",
+        "3xl": "1.5rem",
+      },
+    },
   },
+  plugins: [require("tailwindcss-animate")],
   corePlugins: {
     preflight: false,
   },

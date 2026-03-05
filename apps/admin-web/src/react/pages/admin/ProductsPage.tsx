@@ -129,6 +129,7 @@ type ProductStatusBadgeProps = {
   tone: ProductStatusTone;
 };
 
+// 商品状态徽标。
 const ProductStatusBadge = ({ label, tone }: ProductStatusBadgeProps) => {
   const styles = statusClassMap[tone];
   return (
@@ -143,6 +144,7 @@ type ProductTableRowProps = {
   row: ProductRow;
 };
 
+// 商品表格行。
 const ProductTableRow = ({ row }: ProductTableRowProps) => {
   return (
     <tr className="group transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50">
@@ -210,6 +212,7 @@ const ProductTableRow = ({ row }: ProductTableRowProps) => {
   );
 };
 
+// 商品页（当前主要承载 React 容器与静态视图）。
 export const ProductsPage = () => {
   return (
     <>

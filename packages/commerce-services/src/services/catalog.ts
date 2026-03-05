@@ -3,6 +3,7 @@ import {
   deleteCatalogProductsSpuId,
   getCatalogCategories,
   getCatalogCategoriesCategoryId,
+  getCatalogDisplayCategories,
   getCatalogProducts,
   getCatalogProductsSpuId,
   patchCatalogCategoriesCategoryId,
@@ -12,6 +13,7 @@ import {
   type Category,
   type CreateCatalogProductRequest,
   type CreateCategoryRequest,
+  type DisplayCategoryListResponse,
   type GetCatalogCategories200,
   type GetCatalogProductsParams,
   type PagedProductList,
@@ -24,6 +26,7 @@ import { withRetry } from '../retry'
 
 export interface CatalogService {
   listCategories: () => Promise<GetCatalogCategories200>
+  listDisplayCategories: () => Promise<DisplayCategoryListResponse>
   getCategory: (categoryId: string) => Promise<Category>
   createCategory: (payload: CreateCategoryRequest) => Promise<Category>
   updateCategory: (categoryId: string, payload: UpdateCategoryRequest) => Promise<Category>
@@ -45,6 +48,7 @@ export const createCatalogService = (): CatalogService => {
 
   return {
     listCategories: () => withRetry(async () => (await getCatalogCategories()).data),
+    listDisplayCategories: () => withRetry(async () => (await getCatalogDisplayCategories()).data),
     getCategory: (categoryId) => withRetry(async () => {
       const data = (await getCatalogCategoriesCategoryId(categoryId)).data
       if ('id' in data) {

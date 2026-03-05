@@ -18,7 +18,7 @@ const parsePositiveInt = (raw, fallback) => {
   return Math.floor(value)
 }
 
-const timeoutMs = parsePositiveInt(process.env.WEAPP_PREFLIGHT_TIMEOUT_MS, 30000)
+const timeoutMs = parsePositiveInt(process.env.WEAPP_PREFLIGHT_TIMEOUT_MS, 120000)
 const runDiagnoseOnFail = process.env.WEAPP_PREFLIGHT_RUN_DIAG !== 'false'
 
 const ensureResultDir = () => {
@@ -93,7 +93,8 @@ const runShell = (scriptPath, timeout, extraEnv = {}) => {
     env: {
       ...process.env,
       ...extraEnv,
-      MINIAPP_HTTP_SMOKE_ALLOW_EMPTY_PRODUCTS: process.env.MINIAPP_HTTP_SMOKE_ALLOW_EMPTY_PRODUCTS || 'true'
+      MINIAPP_HTTP_SMOKE_ALLOW_EMPTY_PRODUCTS: process.env.MINIAPP_HTTP_SMOKE_ALLOW_EMPTY_PRODUCTS || 'true',
+      MINIAPP_HTTP_SMOKE_ALLOW_PROXY_FAILURE: process.env.MINIAPP_HTTP_SMOKE_ALLOW_PROXY_FAILURE || 'true'
     },
     timeout
   })

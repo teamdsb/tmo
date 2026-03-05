@@ -1,3 +1,4 @@
+// 权限作用域权重：ALL > OWNED > SELF。
 const rankScope = (scope) => {
   const normalized = String(scope || '').toUpperCase();
   if (normalized === 'ALL') return 3;
@@ -6,6 +7,7 @@ const rankScope = (scope) => {
   return 0;
 };
 
+// 将权限列表归并成 Map<code, strongestScope>。
 export const normalizePermissionMap = (permissions) => {
   const map = new Map();
   const items = Array.isArray(permissions?.items) ? permissions.items : [];
@@ -21,6 +23,7 @@ export const normalizePermissionMap = (permissions) => {
   return map;
 };
 
+// 校验是否具备某权限且作用域满足要求。
 export const hasPermission = (permissionMap, code, requiredScope = 'SELF') => {
   if (!(permissionMap instanceof Map)) {
     return false;
@@ -32,6 +35,7 @@ export const hasPermission = (permissionMap, code, requiredScope = 'SELF') => {
   return rankScope(actual) >= rankScope(requiredScope);
 };
 
+// 从会话角色推断页面展示层级（boss/manager/sales）。
 export const resolveAccessTier = (session) => {
   const currentRole = String(session?.currentRole || '').trim().toUpperCase();
   if (currentRole === 'BOSS' || currentRole === 'ADMIN') return 'boss';
@@ -45,6 +49,7 @@ export const resolveAccessTier = (session) => {
   return 'unknown';
 };
 
+// 路径级访问控制，作为菜单和守卫的统一判定入口。
 export const canAccessPath = (path, permissionMap) => {
   const currentPath = String(path || '/');
   if (currentPath === '/dashboard.html' || currentPath === '/') return true;
@@ -58,6 +63,14 @@ export const canAccessPath = (path, permissionMap) => {
   }
   if (currentPath === '/transfer.html') {
     return hasPermission(permissionMap, 'customer:read', 'ALL') || hasPermission(permissionMap, 'customer:transfer', 'ALL');
+  }
+  if (currentPath === '/user-operations.html') {
+    return (
+      hasPermission(permissionMap, 'customer:read', 'ALL') ||
+      hasPermission(permissionMap, 'customer:transfer', 'ALL') ||
+      hasPermission(permissionMap, 'staff:read', 'ALL') ||
+      hasPermission(permissionMap, 'rbac:manage', 'ALL')
+    );
   }
   if (currentPath === '/support.html') {
     return hasPermission(permissionMap, 'customer:read', 'SELF');

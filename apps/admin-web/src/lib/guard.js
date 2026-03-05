@@ -11,6 +11,7 @@ import { canAccessPath, normalizePermissionMap } from './permissions';
 let isLogoutDelegated = false;
 const legacyMockPermissionNoticeKey = 'tmo:admin:web:mock:legacy-permissions-notice';
 
+// 绑定全局退出事件（只绑定一次，避免重复监听）。
 const bindLogoutActions = () => {
   if (isLogoutDelegated) {
     return;
@@ -34,6 +35,7 @@ const bindLogoutActions = () => {
   isLogoutDelegated = true;
 };
 
+// 将登录用户展示信息写入侧边栏。
 const applyProfile = (profile) => {
   if (!profile) {
     return;
@@ -50,10 +52,12 @@ const applyProfile = (profile) => {
   });
 };
 
+// 判断会话是否携带新权限结构。
 const hasPermissionItems = (session) => {
   return Array.isArray(session?.permissions?.items);
 };
 
+// 提示旧版 mock 会话需要重新登录以启用分级权限。
 const notifyLegacyMockSession = () => {
   try {
     if (sessionStorage.getItem(legacyMockPermissionNoticeKey) === '1') {
@@ -66,6 +70,7 @@ const notifyLegacyMockSession = () => {
   window.alert('检测到旧版 mock 会话，权限分级尚未生效。请重新登录以启用老板/管理/业务员分级权限。');
 };
 
+// 页面守卫：校验登录态、刷新 bootstrap、执行路径级权限拦截。
 export const ensureProtectedPage = async () => {
   const session = getCurrentSession();
   if (!session) {

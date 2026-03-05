@@ -16,6 +16,13 @@ if [[ "$use_air_lower" == "true" && -z "$build_images_set" ]]; then
   build_images="true"
 fi
 build_images_lower="$(printf '%s' "$build_images" | tr '[:upper:]' '[:lower:]')"
+dev_stack_goproxy="${DEV_STACK_GOPROXY:-https://goproxy.cn,direct}"
+dev_stack_gosumdb="${DEV_STACK_GOSUMDB:-off}"
+dev_stack_gonosumdb="${DEV_STACK_GONOSUMDB:-*}"
+
+export DEV_STACK_GOPROXY="$dev_stack_goproxy"
+export DEV_STACK_GOSUMDB="$dev_stack_gosumdb"
+export DEV_STACK_GONOSUMDB="$dev_stack_gonosumdb"
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "docker is required." >&2
@@ -41,6 +48,14 @@ if [[ ! -f "$backend_env_local" ]]; then
 fi
 
 mkdir -p "$root_dir/infra/dev/media"
+
+echo "[dev-stack-up] using Go module proxy settings:"
+echo "  - DEV_STACK_GOPROXY=${DEV_STACK_GOPROXY}"
+echo "  - DEV_STACK_GOSUMDB=${DEV_STACK_GOSUMDB}"
+echo "  - DEV_STACK_GONOSUMDB=${DEV_STACK_GONOSUMDB}"
+if [[ "$DEV_STACK_GOSUMDB" == "off" ]]; then
+  echo "[dev-stack-up] note: DEV_STACK_GOSUMDB=off prioritizes local build stability for dev containers."
+fi
 
 echo "[dev-stack-up] starting postgres container..."
 docker compose -f "$compose_base" up -d postgres
@@ -88,7 +103,15 @@ if [[ "$build_images_lower" == "true" ]]; then
   fi
 fi
 
-docker compose "${compose_args[@]}"
+if ! docker compose "${compose_args[@]}"; then
+  echo "[dev-stack-up] failed to start backend containers." >&2
+  echo "[dev-stack-up] troubleshooting hints:" >&2
+  echo "  1) inspect docker disk usage: docker system df" >&2
+  echo "  2) clear build cache if disk is full: docker builder prune -f" >&2
+  echo "  3) retry with stable Go proxy env (already default):" >&2
+  echo "     DEV_STACK_GOPROXY=https://goproxy.cn,direct DEV_STACK_GOSUMDB=off DEV_STACK_GONOSUMDB='*' make dev-stack-up" >&2
+  exit 1
+fi
 
 if [[ "$use_air_lower" == "true" && -z "${DEV_STACK_HEALTH_TIMEOUT_SECONDS+x}" ]]; then
   export DEV_STACK_HEALTH_TIMEOUT_SECONDS=420

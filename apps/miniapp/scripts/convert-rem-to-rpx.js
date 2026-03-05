@@ -3,6 +3,7 @@ const path = require('path')
 
 const inputFile = path.resolve(__dirname, '..', 'src', 'styles', 'tailwind.generated.css')
 const REM_TO_RPX = 32
+const FONT_SCALE = 1
 
 function formatNumber(value) {
   const fixed = value.toFixed(4)
@@ -16,6 +17,30 @@ function convertRemToRpx(css) {
     if (num === 0) return '0rpx'
     return `${formatNumber(num * REM_TO_RPX)}rpx`
   })
+}
+
+function scaleTypography(css) {
+  const scaleRpxDeclaration = (source, property) =>
+    source.replace(new RegExp(`(${property}:\\s*)(-?\\d*\\.?\\d+)rpx\\b`, 'g'), (_, prefix, raw) => {
+      const num = Number(raw)
+      if (!Number.isFinite(num)) return `${prefix}${raw}rpx`
+      if (num === 0) return `${prefix}0rpx`
+      return `${prefix}${formatNumber(num * FONT_SCALE)}rpx`
+    })
+
+  const scaledFontSize = scaleRpxDeclaration(css, 'font-size')
+  return scaleRpxDeclaration(scaledFontSize, 'line-height')
+}
+
+function normalizeTailwindColorSyntax(css) {
+  const normalizedOpacityVar = css
+    .replace(/^\s*--tw-(bg|text|border)-opacity:\s*[^;]+;\s*$/gm, '')
+    .replace(
+      /rgb\(([^()]+?)\s*\/\s*var\(--tw-(?:bg|text|border)-opacity(?:,\s*[^)]+)?\)\)/g,
+      'rgb($1)'
+    )
+
+  return normalizedOpacityVar
 }
 
 function stripUnsupportedBlocks(css) {
@@ -80,7 +105,7 @@ function run() {
   }
 
   const original = fs.readFileSync(inputFile, 'utf8')
-  const converted = stripUnsupportedBlocks(convertRemToRpx(original))
+  const converted = stripUnsupportedBlocks(normalizeTailwindColorSyntax(scaleTypography(convertRemToRpx(original))))
   if (converted !== original) {
     fs.writeFileSync(inputFile, converted, 'utf8')
   }

@@ -1,15 +1,18 @@
-import { useMemo, useState } from 'react'
-import { View, Text, Input } from '@tarojs/components'
+import { Fragment, useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
+import { Image, Input, Text, View } from '@tarojs/components'
 import {
   AppsOutlined,
+  ArrowDown,
   ArrowRight,
+  BalanceOutlined,
   BarChartOutlined,
+  FriendsOutlined,
   Logistics,
   OrdersOutlined,
+  Qr,
   Search,
-  ShoppingCartOutlined,
-  TodoList,
-  UserOutlined
+  TodoList
 } from '@taroify/icons'
 
 type SalesTab = 'dashboard' | 'customers' | 'orders' | 'accounting'
@@ -41,14 +44,34 @@ type OrderProduct = {
   image: string
 }
 
+type OrderStatus = '待处理' | '已发货' | '已送达'
+
 type Order = {
   id: string
   company: string
   date: string
-  status: '待处理' | '已发货' | '已送达'
+  status: OrderStatus
   total: string
   products: OrderProduct[]
 }
+
+type CustomerSubFilter = '全部' | OrderStatus
+
+type CustomerSubOrder = {
+  id: string
+  date: string
+  amount: string
+  status: OrderStatus
+}
+
+type NavItem = {
+  key: SalesTab
+  label: string
+  Icon: (props: { className?: string; style?: CSSProperties }) => JSX.Element
+}
+
+const PROFILE_IMAGE_URL =
+  'https://lh3.googleusercontent.com/aida-public/AB6AXuDS-Ii8-RYQWRHi7NRn7ujP4nBj5b27SqsnQlr_jvCr1fNZ90Xa8PTUAgyVff7zsjkZ-CVcpfqpAFImVPrHYYkc7sQ2SK11qP1fyuoHScxGlRWJWip7l6hx-vy7vDIPO79FUnu-avStjGabIojNzp5t-Cm_8yomJTd7f4VrGZgGKs65ExahSrNzzSFs0bhWkesNgUYkN4W8o2VLTqF7AICOtosah3hqXwPjHUarAXV6Gr2wFfDyN2jCHHgOG2BTs8jfp5Cd8GXDHu8'
 
 const customersData: Customer[] = [
   { id: 1, initial: 'A', name: 'Acme 集团', contact: '张伟', active: '2天前', orders: 45 },
@@ -174,80 +197,171 @@ const ordersListData: Order[] = [
   }
 ]
 
+const customerSubFilters: CustomerSubFilter[] = ['全部', '待处理', '已发货', '已送达']
+
+const customerSubOrdersById: Record<number, CustomerSubOrder[]> = {
+  1: [
+    { id: 'CUST-1001', date: '10月24日', amount: '$4,300', status: '已发货' },
+    { id: 'CUST-1002', date: '10月19日', amount: '$2,150', status: '待处理' }
+  ],
+  2: [
+    { id: 'CUST-1003', date: '10月25日', amount: '$1,200', status: '待处理' },
+    { id: 'CUST-1004', date: '10月03日', amount: '$9,800', status: '已送达' }
+  ],
+  3: [
+    { id: 'CUST-1005', date: '10月23日', amount: '$8,500', status: '已送达' },
+    { id: 'CUST-1006', date: '10月21日', amount: '$5,600', status: '已送达' }
+  ],
+  4: [
+    { id: 'CUST-1007', date: '10月26日', amount: '$3,400', status: '待处理' }
+  ]
+}
+
+const navItems: NavItem[] = [
+  { key: 'dashboard', label: '主页', Icon: AppsOutlined },
+  { key: 'customers', label: '客户', Icon: FriendsOutlined },
+  { key: 'orders', label: '订单', Icon: OrdersOutlined },
+  { key: 'accounting', label: '财务', Icon: BalanceOutlined }
+]
+
+const getStatusTone = (status: OrderStatus) => {
+  if (status === '待处理') {
+    return { bg: 'bg-amber-100', text: 'text-amber-700' }
+  }
+  if (status === '已送达') {
+    return { bg: 'bg-emerald-100', text: 'text-emerald-600' }
+  }
+  return { bg: 'sales-primary-soft-bg', text: 'sales-primary-text' }
+}
+
 function DashboardView() {
   return (
-    <View className='flex-1 flex flex-col items-center overflow-y-auto bg-[#f3f4f6] px-8 pt-16 pb-36'>
-      <View className='mb-14 flex flex-col items-center justify-center text-center'>
-        <View className='mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-[#f6b298] shadow-[0_4px_12px_rgba(15,23,42,0.08)]'>
-          <UserOutlined className='text-[42px] text-[#1f2937]' />
-        </View>
-        <Text className='text-[34px] font-bold leading-tight tracking-tight text-[#111827]'>李明浩</Text>
-        <Text className='mt-2 text-sm font-semibold text-[#64748b]'>高级 B2B 客户经理</Text>
+    <View className='sales-content min-h-0 flex-1 flex flex-col items-center justify-center overflow-y-auto px-6 pb-24 bg-white'>
+      <View className='mb-8 flex flex-col items-center justify-center text-center'>
+        <Image
+          src={PROFILE_IMAGE_URL}
+          mode='aspectFill'
+          className='mb-4 h-20 w-20 rounded-full border-2 border-slate-100 shadow-sm'
+        />
+        <Text className='sales-title-tight text-2xl font-bold leading-tight text-slate-900'>李明浩</Text>
+        <Text className='mt-1 text-sm font-medium text-slate-500'>高级 B2B 客户经理</Text>
       </View>
 
-      <View className='w-full rounded-[30px] border border-[#e3e8ef] bg-[#eceff3] px-8 py-9 shadow-[0_8px_20px_rgba(15,23,42,0.06)]'>
-        <View className='mb-6 flex items-center justify-center rounded-[22px] border border-[#dde4ec] bg-white p-6 shadow-[0_2px_8px_rgba(15,23,42,0.06)]'>
-          <AppsOutlined className='text-[132px] text-[#0f172a]' />
+      <View className='flex w-full max-w-xs flex-col items-center justify-center rounded-3xl border border-slate-100 bg-slate-50 p-8 shadow-md'>
+        <View className='mb-5 flex items-center justify-center rounded-2xl border border-slate-100 bg-white p-5 shadow-sm'>
+          <Qr className='text-slate-900' style={{ fontSize: '192rpx' }} />
         </View>
-        <Text className='text-center text-[26px] font-bold leading-tight text-[#0f172a]'>您的专属推广二维码</Text>
-        <Text className='mt-2 text-center text-sm font-medium text-[#64748b]'>请客户扫码以绑定归属</Text>
+        <Text className='text-lg font-bold text-slate-900'>您的专属推广二维码</Text>
+        <Text className='mt-1 text-sm font-medium text-slate-500'>请客户扫码以绑定归属</Text>
       </View>
     </View>
   )
 }
 
 function CustomersView() {
+  const [expandedCustomerId, setExpandedCustomerId] = useState<number | null>(customersData[0]?.id ?? null)
+  const [subFilter, setSubFilter] = useState<CustomerSubFilter>('全部')
+
   return (
-    <View className='flex-1 overflow-y-auto pb-28'>
-      <View className='flex items-center bg-white p-4 pb-2 justify-between sticky top-0 z-10 shadow-sm border-b border-slate-100'>
-        <Text className='text-lg font-bold leading-tight tracking-tight flex-1'>客户列表</Text>
+    <View className='min-h-0 flex-1 overflow-y-auto bg-white pb-24'>
+      <View className='sticky top-0 z-20 flex items-center justify-between border-b border-slate-100 bg-white p-4 pb-2 shadow-sm'>
+        <Text className='flex-1 text-lg font-bold leading-tight sales-title-tight text-slate-900'>客户列表</Text>
         <View className='flex w-12 items-center justify-end'>
-          <View className='flex items-center justify-center rounded-lg h-10 w-10 bg-[#137fec]/10 text-[#137fec]'>
-            <AppsOutlined className='text-lg' />
+          <View className='sales-primary-soft-bg sales-primary-text flex h-10 w-10 items-center justify-center overflow-hidden rounded-lg'>
+            <Qr className='text-lg' />
           </View>
         </View>
       </View>
 
-      <View className='px-4 py-4 bg-white shadow-sm mb-2 border-b border-slate-100'>
-        <View className='flex w-full items-stretch rounded-lg h-12 bg-slate-100'>
-          <View className='text-slate-500 flex items-center justify-center pl-4'>
+      <View className='sticky top-14 z-10 border-b border-slate-100 bg-white px-4 py-4 shadow-sm'>
+        <View className='sales-search-shell flex h-12 w-full items-stretch rounded-lg bg-slate-100'>
+          <View className='flex items-center justify-center pl-4 text-slate-500'>
             <Search className='text-base' />
           </View>
           <Input
-            className='flex-1 text-slate-900 bg-transparent h-full px-4 pl-2 text-base'
+            className='h-full flex-1 bg-transparent px-4 pl-2 text-base text-slate-900'
             placeholder='搜索客户...'
+            confirmType='search'
           />
         </View>
       </View>
 
-      <View className='flex flex-col gap-3 px-4 py-2'>
-        {customersData.map((customer) => (
-          <View key={customer.id} className='flex items-center gap-4 bg-white px-4 py-4 justify-between rounded-xl shadow-sm border border-slate-100'>
-            <View className='flex items-center gap-4 flex-1 min-w-0'>
-              <View className='bg-slate-100 rounded-full h-14 w-14 shrink-0 flex items-center justify-center'>
-                <Text className='text-xl font-bold text-slate-600'>{customer.initial}</Text>
+      <View className='sales-content flex flex-col gap-3 px-4 py-3'>
+        {customersData.map((customer) => {
+          const expanded = expandedCustomerId === customer.id
+          const subOrders = customerSubOrdersById[customer.id] ?? []
+          const filteredSubOrders = subOrders.filter((item) => (subFilter === '全部' ? true : item.status === subFilter))
+
+          return (
+            <View key={customer.id} className='rounded-xl border border-slate-100 bg-white px-4 py-4 shadow-sm'>
+              <View
+                onClick={() => setExpandedCustomerId((prev) => (prev === customer.id ? null : customer.id))}
+                className='flex items-center justify-between gap-4'
+              >
+                <View className='flex min-w-0 flex-1 items-center gap-4'>
+                  <View className='flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-slate-100'>
+                    <Text className='text-xl font-bold text-slate-600'>{customer.initial}</Text>
+                  </View>
+                  <View className='flex min-w-0 flex-1 flex-col justify-center'>
+                    <Text className='mb-1 truncate text-base font-bold leading-tight text-slate-900'>{customer.name}</Text>
+                    <Text className='mb-1 truncate text-sm font-medium leading-none text-slate-500'>{customer.contact}</Text>
+                    <Text className='truncate text-xs font-normal leading-none text-slate-500'>
+                      最近活跃: {customer.active} • {customer.orders} 笔订单
+                    </Text>
+                  </View>
+                </View>
+                <ArrowRight className={`sales-chev text-base text-slate-400 ${expanded ? 'sales-chev--open' : ''}`} />
               </View>
-              <View className='flex flex-1 flex-col justify-center min-w-0'>
-                <Text className='text-base font-bold leading-tight mb-1 text-slate-900 truncate'>{customer.name}</Text>
-                <Text className='text-slate-500 text-sm font-medium leading-none mb-1.5 truncate'>{customer.contact}</Text>
-                <Text className='text-slate-400 text-xs font-normal leading-none truncate'>
-                  最近活跃: {customer.active} • {customer.orders} 笔订单
-                </Text>
-              </View>
+
+              {expanded ? (
+                <View className='sales-accordion-panel mt-3 rounded-lg border border-slate-100 bg-slate-50 p-3'>
+                  <View className='mb-3 flex gap-2 overflow-x-auto whitespace-nowrap'>
+                    {customerSubFilters.map((filter) => (
+                      <View
+                        key={`${customer.id}-${filter}`}
+                        onClick={() => setSubFilter(filter)}
+                        className={`sales-subpill ${subFilter === filter ? 'sales-subpill--active' : ''}`}
+                      >
+                        <Text>{filter}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  <View className='flex flex-col gap-2'>
+                    {filteredSubOrders.map((item) => {
+                      const tone = getStatusTone(item.status)
+
+                      return (
+                        <View
+                          key={item.id}
+                          className='flex items-center justify-between rounded-lg border border-slate-100 bg-white px-3 py-2'
+                        >
+                          <View className='min-w-0 flex-1'>
+                            <Text className='block truncate text-sm font-semibold text-slate-900'>{item.id}</Text>
+                            <Text className='mt-0.5 block text-xs text-slate-500'>{item.date}</Text>
+                          </View>
+                          <View className='ml-3 flex items-center gap-2'>
+                            <View className={`rounded-full px-2 py-1 ${tone.bg}`}>
+                              <Text className={`text-xs font-semibold ${tone.text}`}>{item.status}</Text>
+                            </View>
+                            <Text className='sales-primary-text text-sm font-bold'>{item.amount}</Text>
+                          </View>
+                        </View>
+                      )
+                    })}
+                  </View>
+                </View>
+              ) : null}
             </View>
-            <View className='flex items-center shrink-0'>
-              <ArrowRight className='text-slate-400 text-base' />
-            </View>
-          </View>
-        ))}
+          )
+        })}
       </View>
     </View>
   )
 }
 
 function OrdersView() {
-  const [filter, setFilter] = useState('全部')
-  const filters = ['全部', '待处理', '已发货', '已送达']
+  const [filter, setFilter] = useState<CustomerSubFilter>('全部')
 
   const filteredOrders = useMemo(
     () => ordersListData.filter((order) => (filter === '全部' ? true : order.status === filter)),
@@ -255,23 +369,21 @@ function OrdersView() {
   )
 
   return (
-    <View className='flex-1 flex flex-col overflow-y-auto pb-28'>
-      <View className='flex items-center p-4 pb-2 justify-between sticky top-0 bg-white z-20 shadow-sm border-b border-slate-100'>
-        <Text className='text-xl font-bold leading-tight flex-1'>订单列表</Text>
-        <View className='flex items-center justify-center text-slate-600'>
+    <View className='min-h-0 flex-1 flex flex-col overflow-y-auto bg-white pb-24'>
+      <View className='sticky top-0 z-20 flex items-center justify-between border-b border-slate-100 bg-white p-4 pb-2 shadow-sm'>
+        <Text className='flex-1 text-xl font-bold leading-tight text-slate-900'>订单列表</Text>
+        <View className='flex items-center justify-center text-slate-500'>
           <Search className='text-xl' />
         </View>
       </View>
 
-      <View className='sticky top-[52px] bg-white z-10 shadow-sm'>
-        <View className='flex border-b border-slate-200 px-4 gap-6 overflow-x-auto whitespace-nowrap'>
-          {filters.map((item) => (
+      <View className='sticky z-10 bg-white shadow-sm' style={{ top: '104rpx' }}>
+        <View className='flex gap-6 overflow-x-auto border-b border-slate-100 px-4 whitespace-nowrap'>
+          {customerSubFilters.map((item) => (
             <View
               key={item}
               onClick={() => setFilter(item)}
-              className={`flex flex-col items-center justify-center border-b-[3px] pb-3 pt-4 ${
-                filter === item ? 'border-[#137fec] text-[#137fec]' : 'border-transparent text-slate-600'
-              }`}
+              className={`sales-order-tab flex flex-col items-center justify-center pb-3 pt-4 ${filter === item ? 'sales-order-tab--active' : 'text-slate-500'}`}
             >
               <Text className='text-sm font-semibold leading-normal'>{item}</Text>
             </View>
@@ -279,72 +391,59 @@ function OrdersView() {
         </View>
       </View>
 
-      <View className='p-4 flex flex-col gap-4'>
+      <View className='sales-content flex flex-col gap-4 p-4'>
         {filteredOrders.length > 0 ? (
-          filteredOrders.map((order) => (
-            <View key={order.id} className='flex flex-col rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden'>
-              <View className='flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50'>
-                <View>
-                  <Text className='text-lg font-bold'>{order.company}</Text>
-                  <Text className='text-xs text-slate-500 mt-0.5'>订单号 #ORD-{order.id} • {order.date}</Text>
-                </View>
-                <View
-                  className={`px-2.5 py-1 rounded-full ${
-                    order.status === '待处理'
-                      ? 'bg-amber-100'
-                      : order.status === '已发货'
-                        ? 'bg-[#137fec]/10'
-                        : 'bg-emerald-100'
-                  }`}
-                >
-                  <Text
-                    className={`text-xs font-bold ${
-                      order.status === '待处理'
-                        ? 'text-amber-700'
-                        : order.status === '已发货'
-                          ? 'text-[#137fec]'
-                          : 'text-emerald-700'
-                    }`}
-                  >
-                    {order.status}
-                  </Text>
-                </View>
-              </View>
+          filteredOrders.map((order) => {
+            const tone = getStatusTone(order.status)
 
-              <View className='p-4 flex flex-col gap-4'>
-                {order.products.map((product, idx) => (
-                  <View key={product.id}>
-                    <View className='flex items-start gap-4'>
-                      <View
-                        className='bg-slate-100 rounded-lg w-16 h-16 shrink-0 bg-cover bg-center border border-slate-200'
-                        style={{ backgroundImage: `url("${product.image}")` }}
-                      />
-                      <View className='flex flex-1 flex-col justify-start'>
-                        <Text className='text-base font-semibold leading-tight'>{product.name}</Text>
-                        <Text className='text-slate-500 text-sm mt-1'>型号: {product.model}, 规格: {product.size}</Text>
-                        <View className='flex justify-between items-center mt-2'>
-                          <Text className='text-slate-700 font-medium text-sm'>数量: x{product.qty}</Text>
-                          <Text className='font-semibold text-slate-900'>{product.price}</Text>
+            return (
+              <View key={order.id} className='overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm'>
+                <View className='flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4'>
+                  <View>
+                    <Text className='text-lg font-bold text-slate-900'>{order.company}</Text>
+                    <Text className='mt-0.5 block text-xs text-slate-500'>订单号 #ORD-{order.id} • {order.date}</Text>
+                  </View>
+                  <View className={`rounded-full px-2.5 py-1 ${tone.bg}`}>
+                    <Text className={`text-xs font-bold uppercase tracking-wide ${tone.text}`}>{order.status}</Text>
+                  </View>
+                </View>
+
+                <View className='flex flex-col gap-4 p-4'>
+                  {order.products.map((product, index) => (
+                    <Fragment key={product.id}>
+                      <View className='flex items-start gap-4'>
+                        <Image
+                          src={product.image}
+                          mode='aspectFill'
+                          className='h-16 w-16 shrink-0 rounded-lg border border-slate-100 bg-slate-100'
+                        />
+                        <View className='flex flex-1 flex-col justify-start'>
+                          <Text className='text-base font-semibold leading-tight text-slate-900'>{product.name}</Text>
+                          <Text className='mt-1 text-sm font-medium text-slate-500'>型号: {product.model}, 规格: {product.size}</Text>
+                          <View className='mt-2 flex items-center justify-between'>
+                            <Text className='text-sm font-medium text-slate-500'>数量: x{product.qty}</Text>
+                            <Text className='text-base font-semibold text-slate-900'>{product.price}</Text>
+                          </View>
                         </View>
                       </View>
-                    </View>
-                    {idx !== order.products.length - 1 ? <View className='h-px bg-slate-100 w-full mt-4' /> : null}
-                  </View>
-                ))}
-              </View>
+                      {index !== order.products.length - 1 ? <View className='h-px w-full bg-slate-100' /> : null}
+                    </Fragment>
+                  ))}
+                </View>
 
-              <View className='bg-slate-50 p-4 flex justify-between items-center border-t border-slate-100'>
-                <Text className='text-[#137fec] font-semibold text-sm'>查看详情</Text>
-                <View className='text-right'>
-                  <Text className='text-xs text-slate-500 uppercase tracking-wide font-semibold'>总计金额</Text>
-                  <Text className='text-xl font-bold text-[#137fec] mt-0.5'>{order.total}</Text>
+                <View className='flex items-center justify-between border-t border-slate-100 bg-slate-50 p-4'>
+                  <Text className='sales-primary-text text-sm font-semibold'>查看详情</Text>
+                  <View className='text-right'>
+                    <Text className='text-xs font-semibold uppercase tracking-wide text-slate-500'>总计金额</Text>
+                    <Text className='sales-primary-text mt-0.5 block text-xl font-bold'>{order.total}</Text>
+                  </View>
                 </View>
               </View>
-            </View>
-          ))
+            )
+          })
         ) : (
           <View className='flex flex-col items-center justify-center py-12 text-slate-400'>
-            <TodoList className='text-4xl mb-4' />
+            <TodoList className='mb-4 text-4xl' />
             <Text className='text-sm font-medium'>暂无该状态下的订单。</Text>
           </View>
         )}
@@ -359,24 +458,23 @@ function AccountingView() {
   const availableMonths = ['2023年 8月', '2023年 7月', '2023年 6月', '2023年 5月', '2023年 4月']
 
   return (
-    <View className='flex-1 flex flex-col overflow-y-auto pb-28'>
-      <View className='flex items-center p-4 pb-2 justify-center sticky top-0 bg-white z-10 border-b border-slate-100 shadow-sm'>
-        <Text className='text-lg font-bold leading-tight tracking-tight'>财务结算</Text>
+    <View className='min-h-0 flex-1 flex flex-col overflow-y-auto bg-white pb-24'>
+      <View className='sticky top-0 z-20 flex items-center justify-center border-b border-slate-100 bg-white p-4 pb-2 shadow-sm'>
+        <Text className='text-lg font-bold leading-tight sales-title-tight text-slate-900'>财务结算</Text>
       </View>
 
-      <View className='flex items-center justify-between p-4 bg-white border-b border-slate-100 relative z-20'>
-        <View className='flex flex-col relative'>
+      <View className='relative z-20 flex items-center justify-between border-b border-slate-100 bg-white p-4'>
+        <View className='relative flex flex-col'>
           <Text className='text-sm text-slate-500'>结算周期</Text>
-          <View
-            onClick={() => setIsDropdownMenuOpen((prev) => !prev)}
-            className='flex items-center gap-1.5 mt-0.5'
-          >
-            <Text className='text-lg font-bold leading-tight'>{selectedMonth}</Text>
-            <ArrowRight className={`text-slate-400 ${isDropdownMenuOpen ? 'rotate-90' : '-rotate-90'}`} />
+          <View onClick={() => setIsDropdownMenuOpen((prev) => !prev)} className='mt-0.5 flex items-center gap-1.5'>
+            <Text className='text-lg font-bold leading-tight text-slate-900'>{selectedMonth}</Text>
+            <ArrowDown className={`text-slate-400 ${isDropdownMenuOpen ? 'rotate-180' : ''}`} />
           </View>
 
+          {isDropdownMenuOpen ? <View className='fixed inset-0 z-10' onClick={() => setIsDropdownMenuOpen(false)} /> : null}
+
           {isDropdownMenuOpen ? (
-            <View className='absolute top-full left-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-30 overflow-hidden'>
+            <View className='absolute left-0 top-full z-20 mt-2 w-48 overflow-hidden rounded-xl border border-slate-100 bg-white shadow-lg'>
               {availableMonths.map((month) => (
                 <View
                   key={month}
@@ -384,7 +482,7 @@ function AccountingView() {
                     setSelectedMonth(month)
                     setIsDropdownMenuOpen(false)
                   }}
-                  className={`px-4 py-3 ${selectedMonth === month ? 'text-[#137fec] bg-[#137fec]/5' : 'text-slate-700'}`}
+                  className={`px-4 py-3 ${selectedMonth === month ? 'sales-primary-soft-bg sales-primary-text' : 'text-slate-700'}`}
                 >
                   <Text className='text-sm font-medium'>{month}</Text>
                 </View>
@@ -394,63 +492,64 @@ function AccountingView() {
         </View>
 
         {selectedMonth === availableMonths[0] ? (
-          <View className='px-3 py-1 bg-[#137fec]/10 rounded-full'>
-            <Text className='text-[#137fec] text-xs font-bold uppercase tracking-wider'>最新</Text>
+          <View className='sales-primary-soft-bg rounded-full px-3 py-1'>
+            <Text className='sales-primary-text text-xs font-bold uppercase tracking-wider'>最新</Text>
           </View>
         ) : null}
       </View>
 
-      <View className='grid grid-cols-2 gap-3 p-4'>
-        <View className='flex flex-col gap-2 rounded-xl p-4 bg-[#137fec]/10 border border-[#137fec]/20'>
-          <View className='flex items-center gap-2 text-[#137fec]'>
+      <View className='sales-content grid grid-cols-2 gap-3 p-4'>
+        <View className='sales-primary-soft-border sales-primary-soft-bg flex flex-col gap-2 rounded-xl border p-4'>
+          <View className='sales-primary-text flex items-center gap-2'>
             <BarChartOutlined className='text-base' />
             <Text className='text-sm font-semibold'>总销售额</Text>
           </View>
-          <Text className='text-2xl font-bold leading-tight text-slate-900'>$45,230</Text>
-          <View className='w-full bg-[#137fec]/20 rounded-full h-1.5 mt-2'>
-            <View className='bg-[#137fec] h-1.5 rounded-full w-[92%]' />
+          <Text className='text-2xl font-bold leading-tight tracking-tight text-slate-900'>$45,230</Text>
+          <View className='mt-2 h-1.5 w-full rounded-full bg-blue-100'>
+            <View className='h-1.5 rounded-full bg-blue-500' style={{ width: '92%' }} />
           </View>
-          <Text className='text-xs text-slate-500 mt-1'>已达成 $50k 目标的 92%</Text>
+          <Text className='mt-1 text-xs text-slate-500'>已达成 $50k 目标的 92%</Text>
         </View>
-        <View className='flex flex-col gap-2 rounded-xl p-4 bg-emerald-50 border border-emerald-200'>
+
+        <View className='flex flex-col gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4'>
           <View className='flex items-center gap-2 text-emerald-600'>
-            <Logistics className='text-base' />
+            <BalanceOutlined className='text-base' />
             <Text className='text-sm font-semibold'>预计佣金</Text>
           </View>
-          <Text className='text-2xl font-bold leading-tight text-slate-900'>$2,261</Text>
-          <Text className='text-xs text-emerald-600 mt-auto font-medium'>较上月增长 15%</Text>
+          <Text className='text-2xl font-bold leading-tight tracking-tight text-slate-900'>$2,261</Text>
+          <Text className='mt-auto text-xs font-medium text-emerald-600'>较上月增长 15%</Text>
         </View>
       </View>
 
-      <View className='flex px-4 border-b border-slate-100'>
-        <View className='flex-1 py-3 border-b-2 border-[#137fec] text-center'>
-          <Text className='text-sm font-bold text-[#137fec]'>已结算订单</Text>
+      <View className='sales-content flex border-b border-slate-100 px-4'>
+        <View className='sales-order-tab sales-order-tab--active flex-1 py-3 text-center'>
+          <Text className='text-sm font-bold'>已结算订单</Text>
         </View>
-        <View className='flex-1 py-3 border-b-2 border-transparent text-center'>
+        <View className='sales-order-tab flex-1 py-3 text-center'>
           <Text className='text-sm font-medium text-slate-500'>数据明细</Text>
         </View>
       </View>
 
-      <View className='flex flex-col p-4 gap-3'>
+      <View className='sales-content flex flex-col gap-3 p-4'>
         {settledOrdersData.map((order) => (
-          <View key={order.id} className='flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50'>
+          <View key={order.id} className='flex items-center justify-between rounded-lg border border-slate-100 bg-white p-3 shadow-sm'>
             <View className='flex items-center gap-3'>
-              <View className='flex w-10 h-10 items-center justify-center rounded-full bg-[#137fec]/10 text-[#137fec]'>
-                <ShoppingCartOutlined className='text-lg' />
+              <View className='sales-primary-soft-bg sales-primary-text flex h-10 w-10 shrink-0 items-center justify-center rounded-full'>
+                <Logistics className='text-lg' />
               </View>
               <View>
                 <Text className='text-sm font-bold leading-tight text-slate-900'>{order.id}</Text>
-                <Text className='text-xs text-slate-500 mt-0.5'>{order.company} • {order.date}</Text>
+                <Text className='mt-0.5 block text-xs text-slate-500'>{order.company} • {order.date}</Text>
               </View>
             </View>
             <View className='text-right'>
               <Text className='text-sm font-bold leading-tight text-slate-900'>{order.amount}</Text>
-              <Text className='text-xs text-emerald-600 font-medium mt-0.5'>{order.commission}</Text>
+              <Text className='mt-0.5 block text-xs font-medium text-emerald-600'>{order.commission}</Text>
             </View>
           </View>
         ))}
-        <View className='w-full py-3 mt-2 rounded-lg bg-[#137fec]/10 text-center'>
-          <Text className='text-sm font-bold text-[#137fec]'>查看所有订单</Text>
+        <View className='sales-primary-soft-bg mt-2 w-full rounded-lg py-3 text-center'>
+          <Text className='sales-primary-text text-sm font-bold'>查看所有订单</Text>
         </View>
       </View>
     </View>
@@ -461,45 +560,33 @@ export default function SalesPage() {
   const [activeTab, setActiveTab] = useState<SalesTab>('dashboard')
 
   return (
-    <View className='min-h-screen w-full bg-[#eceff3] text-slate-900'>
-      <View className='relative mx-auto flex min-h-screen w-full max-w-md flex-col overflow-x-hidden bg-[#f3f4f6]'>
-        {activeTab === 'dashboard' ? <DashboardView /> : null}
-        {activeTab === 'customers' ? <CustomersView /> : null}
-        {activeTab === 'orders' ? <OrdersView /> : null}
-        {activeTab === 'accounting' ? <AccountingView /> : null}
+    <View className='sales-page-shell sales-font h-screen w-full text-slate-900'>
+      <View className='sales-main-container relative mx-auto flex h-screen w-full max-w-md flex-col overflow-hidden shadow-2xl'>
+        <View className='min-h-0 flex-1'>
+          {activeTab === 'dashboard' ? <DashboardView /> : null}
+          {activeTab === 'customers' ? <CustomersView /> : null}
+          {activeTab === 'orders' ? <OrdersView /> : null}
+          {activeTab === 'accounting' ? <AccountingView /> : null}
+        </View>
 
-        <View className='absolute bottom-0 left-0 right-0 z-50 flex border-t border-[#dbe1ea] bg-white px-3 pb-6 pt-3 shadow-[0_-4px_10px_rgba(15,23,42,0.04)]'>
-          <View
-            onClick={() => setActiveTab('dashboard')}
-            className={`flex flex-1 flex-col items-center justify-center gap-1.5 ${activeTab === 'dashboard' ? 'text-[#2f67c7]' : 'text-[#94a3b8]'}`}
-          >
-            <AppsOutlined className='text-[22px]' />
-            <Text className='text-[11px] font-semibold leading-none'>主页</Text>
-          </View>
+        <View className='sales-bottom-nav sales-bottom-nav-shadow absolute bottom-0 left-0 right-0 z-50 flex gap-2 border-t border-slate-200 bg-white px-4 pb-6 pt-3'>
+          {navItems.map(({ key, label, Icon }) => {
+            const active = activeTab === key
+            const iconStyle = { fontSize: active ? '44rpx' : '40rpx' }
 
-          <View
-            onClick={() => setActiveTab('customers')}
-            className={`flex flex-1 flex-col items-center justify-center gap-1.5 ${activeTab === 'customers' ? 'text-[#2f67c7]' : 'text-[#94a3b8]'}`}
-          >
-            <UserOutlined className='text-[22px]' />
-            <Text className='text-[11px] font-semibold leading-none'>客户</Text>
-          </View>
-
-          <View
-            onClick={() => setActiveTab('orders')}
-            className={`flex flex-1 flex-col items-center justify-center gap-1.5 ${activeTab === 'orders' ? 'text-[#2f67c7]' : 'text-[#94a3b8]'}`}
-          >
-            <OrdersOutlined className='text-[22px]' />
-            <Text className='text-[11px] font-semibold leading-none'>订单</Text>
-          </View>
-
-          <View
-            onClick={() => setActiveTab('accounting')}
-            className={`flex flex-1 flex-col items-center justify-center gap-1.5 ${activeTab === 'accounting' ? 'text-[#2f67c7]' : 'text-[#94a3b8]'}`}
-          >
-            <TodoList className='text-[22px]' />
-            <Text className='text-[11px] font-semibold leading-none'>财务</Text>
-          </View>
+            return (
+              <View
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className={`flex flex-1 flex-col items-center justify-end gap-1 ${active ? 'sales-primary-text' : 'text-slate-500'}`}
+              >
+                <View className={`flex h-8 w-12 items-center justify-center rounded-full ${active ? 'sales-primary-soft-bg' : ''}`}>
+                  <Icon className={active ? 'sales-primary-text' : 'text-slate-500'} style={iconStyle} />
+                </View>
+                <Text className='text-10 font-semibold leading-normal tracking-wide uppercase'>{label}</Text>
+              </View>
+            )
+          })}
         </View>
       </View>
     </View>

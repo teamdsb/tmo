@@ -239,6 +239,12 @@ jest.mock('@tmo/commerce-services', () => {
             { id: 'industrial', name: '工业' }
           ]
         })),
+        listDisplayCategories: jest.fn(async () => ({
+          items: [
+            { id: 'office', name: '办公用品', iconKey: 'notes', sort: 1, enabled: true },
+            { id: 'industrial', name: '工业', iconKey: 'setting', sort: 2, enabled: true }
+          ]
+        })),
         listProducts: jest.fn(async () => ({
           items: mockProducts,
           total: mockProducts.length

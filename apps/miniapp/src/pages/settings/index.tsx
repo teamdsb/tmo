@@ -6,7 +6,7 @@ import Cell from '@taroify/core/cell'
 import Switch from '@taroify/core/switch'
 import { ROUTES } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
-import { switchTabLike } from '../../utils/navigation'
+import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { clearBootstrap } from '../../services/bootstrap'
 import { resetIsolatedMockState } from '../../services/mock/runtime'
 import { runtimeEnv } from '../../config/runtime-env'
@@ -79,6 +79,12 @@ export default function SettingsPage() {
         </View>
 
         <Cell.Group inset>
+          <Cell
+            title='业务员页面'
+            brief='进入业务员工作台'
+            isLink
+            onClick={() => navigateTo(ROUTES.sales)}
+          />
           <Cell
             title='订单通知'
             brief='获取状态更新和发货提醒'

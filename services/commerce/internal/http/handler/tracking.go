@@ -61,7 +61,7 @@ func (h *Handler) GetOrdersOrderIdTracking(c *gin.Context, orderId types.UUID) {
 }
 
 func (h *Handler) PostOrdersOrderIdTracking(c *gin.Context, orderId types.UUID) {
-	if _, ok := h.requireRole(c, "PROCUREMENT", "ADMIN"); !ok {
+	if _, ok := h.requireRole(c, "PROCUREMENT", "CS", "MANAGER", "BOSS", "ADMIN"); !ok {
 		return
 	}
 
@@ -121,7 +121,7 @@ func (h *Handler) PostOrdersOrderIdTracking(c *gin.Context, orderId types.UUID) 
 }
 
 func (h *Handler) PostShipmentsImportJobs(c *gin.Context) {
-	claims, ok := h.requireRole(c, "PROCUREMENT", "ADMIN")
+	claims, ok := h.requireRole(c, "PROCUREMENT", "CS", "MANAGER", "BOSS", "ADMIN")
 	if !ok {
 		return
 	}

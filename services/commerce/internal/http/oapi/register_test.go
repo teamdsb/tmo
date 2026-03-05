@@ -80,6 +80,10 @@ func (server *stubServer) PatchCatalogCategoriesCategoryId(context *gin.Context,
 	context.Status(http.StatusNotImplemented)
 }
 
+func (server *stubServer) GetCatalogDisplayCategories(context *gin.Context) {
+	context.Status(http.StatusNotImplemented)
+}
+
 func (server *stubServer) GetCatalogProducts(context *gin.Context, params oapi.GetCatalogProductsParams) {
 	context.Status(http.StatusNotImplemented)
 }

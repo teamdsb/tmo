@@ -6,7 +6,7 @@ import Search from '@taroify/core/search'
 import Grid from '@taroify/core/grid'
 import Flex from '@taroify/core/flex'
 import SearchIcon from '@taroify/icons/Search'
-import type { Category, ProductSummary } from '@tmo/api-client'
+import type { Category, DisplayCategory, ProductSummary } from '@tmo/api-client'
 import SafeImage from '../../components/safe-image'
 import { ROUTES, goodsDetailRoute, withQuery } from '../../routes'
 import { type CategoryIconKey, renderCategoryIcon, resolveCategoryIconKey } from '../../utils/category-icons'
@@ -25,7 +25,19 @@ type QuickCategoryItem = {
 
 const QUICK_CATEGORY_CAPACITY = 8
 
-const sortCategories = (items: Category[]) => {
+const isCategoryIconKey = (value: string): value is CategoryIconKey => {
+  return ['notes', 'setting', 'desktop', 'shield', 'brush', 'hot', 'apps'].includes(value)
+}
+
+const resolveQuickCategoryIconKey = (iconKey: string | undefined, name: string, index: number): CategoryIconKey => {
+  const normalized = String(iconKey || '').trim().toLowerCase()
+  if (isCategoryIconKey(normalized)) {
+    return normalized
+  }
+  return resolveCategoryIconKey(name, index)
+}
+
+const sortDisplayCategories = (items: DisplayCategory[]) => {
   return [...items].sort((left, right) => {
     const leftSort = typeof left.sort === 'number' ? left.sort : Number.MAX_SAFE_INTEGER
     const rightSort = typeof right.sort === 'number' ? right.sort : Number.MAX_SAFE_INTEGER
@@ -33,20 +45,30 @@ const sortCategories = (items: Category[]) => {
   })
 }
 
-const buildQuickCategories = (categories: Category[]): QuickCategoryItem[] => {
-  return sortCategories(categories)
-    .filter((item) => Boolean(item.id) && Boolean(item.name))
+const toDisplayCategoriesFromCatalog = (categories: Category[]): DisplayCategory[] => {
+  return categories.map((item, index) => ({
+    id: String(item.id),
+    name: item.name,
+    iconKey: resolveCategoryIconKey(item.name, index),
+    sort: typeof item.sort === 'number' ? item.sort : index + 1,
+    enabled: true
+  }))
+}
+
+const buildQuickCategories = (categories: DisplayCategory[]): QuickCategoryItem[] => {
+  return sortDisplayCategories(categories)
+    .filter((item) => item.enabled !== false && Boolean(item.id) && Boolean(item.name))
     .map((item, index) => ({
       id: String(item.id),
       name: item.name,
-      iconKey: resolveCategoryIconKey(item.name, index),
+      iconKey: resolveQuickCategoryIconKey(item.iconKey, item.name, index),
       isPlaceholder: false,
       targetRoute: ROUTES.category
     }))
 }
 
 export default function ProductCatalogApp() {
-  const [categories, setCategories] = useState<Category[]>([])
+  const [categories, setCategories] = useState<DisplayCategory[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [products, setProducts] = useState<ProductSummary[]>([])
@@ -70,13 +92,21 @@ export default function ProductCatalogApp() {
     void (async () => {
       setCategoriesLoading(true)
       try {
-        const data = await commerceServices.catalog.listCategories()
+        const data = await commerceServices.catalog.listDisplayCategories()
         if (!cancelled) {
           setCategories(data.items ?? [])
         }
       } catch (error) {
-        console.warn('load categories failed', error)
-        await Taro.showToast({ title: '加载分类失败', icon: 'none' })
+        console.warn('load display categories failed, fallback catalog categories', error)
+        try {
+          const data = await commerceServices.catalog.listCategories()
+          if (!cancelled) {
+            setCategories(toDisplayCategoriesFromCatalog(data.items ?? []))
+          }
+        } catch (fallbackError) {
+          console.warn('load categories failed', fallbackError)
+          await Taro.showToast({ title: '加载分类失败', icon: 'none' })
+        }
       } finally {
         if (!cancelled) {
           setCategoriesLoading(false)

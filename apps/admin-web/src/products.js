@@ -3,11 +3,18 @@ import {
   createCatalogProduct,
   deleteCatalogCategory,
   fetchCatalogCategories,
+  fetchMiniappDisplayCategories,
   fetchProducts,
+  replaceMiniappDisplayCategories,
   updateCatalogCategory
 } from './lib/api';
 import { ensureProtectedPage } from './lib/guard';
 import { escape, safeText } from './lib/render';
+import {
+  canonicalCategories,
+  canonicalDisplayCategories,
+  canonicalProducts
+} from '../../../packages/shared/src/mock-data/index.js';
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -44,13 +51,23 @@ const STATUS_FILTER_ITEMS = [
   { value: 'INACTIVE', label: '状态：停用' },
   { value: 'DRAFT', label: '状态：草稿' }
 ];
-const DEFAULT_CATEGORIES = [
+const FALLBACK_DEFAULT_CATEGORIES = [
   { id: 'apparel', name: '服饰', sort: 10, parentId: null },
   { id: 'electronics', name: '电子产品', sort: 20, parentId: null },
   { id: 'accessories', name: '配件', sort: 30, parentId: null },
   { id: 'home-decor', name: '家居装饰', sort: 40, parentId: null },
   { id: 'footwear', name: '鞋履', sort: 50, parentId: null }
 ];
+
+const DEFAULT_CATEGORIES = (Array.isArray(canonicalCategories) && canonicalCategories.length > 0
+  ? canonicalCategories
+  : FALLBACK_DEFAULT_CATEGORIES
+).map((item, index) => ({
+  id: safeText(item?.id, `category-${index + 1}`),
+  name: safeText(item?.name, `类目 ${index + 1}`),
+  sort: Number.isFinite(Number(item?.sort)) ? Number(item.sort) : (index + 1) * 10,
+  parentId: safeText(item?.parentId, '') || null
+}));
 
 const DISPLAY_CATEGORY_ICON_ITEMS = [
   { value: 'setting', label: '紧固/工业', symbol: 'settings' },
@@ -62,11 +79,24 @@ const DISPLAY_CATEGORY_ICON_ITEMS = [
   { value: 'apps', label: '通用图标', symbol: 'apps' }
 ];
 
-const DEFAULT_DISPLAY_CATEGORIES = [
-  { id: 'cat-fasteners', name: '紧固件', iconKey: 'setting', sort: 1, enabled: true },
-  { id: 'cat-electrical', name: '电气', iconKey: 'desktop', sort: 2, enabled: true },
-  { id: 'cat-ppe', name: '安全防护', iconKey: 'shield', sort: 3, enabled: true }
+const FALLBACK_DISPLAY_CATEGORIES = [
+  { id: 'apparel', name: '服饰', iconKey: 'notes', sort: 1, enabled: true },
+  { id: 'electronics', name: '电子产品', iconKey: 'desktop', sort: 2, enabled: true },
+  { id: 'accessories', name: '配件', iconKey: 'apps', sort: 3, enabled: true },
+  { id: 'home-decor', name: '家居装饰', iconKey: 'brush', sort: 4, enabled: true },
+  { id: 'footwear', name: '鞋履', iconKey: 'hot', sort: 5, enabled: true }
 ];
+
+const DEFAULT_DISPLAY_CATEGORIES = (Array.isArray(canonicalDisplayCategories) && canonicalDisplayCategories.length > 0
+  ? canonicalDisplayCategories
+  : FALLBACK_DISPLAY_CATEGORIES
+).map((item, index) => ({
+  id: safeText(item?.id, `display-category-${index + 1}`),
+  name: safeText(item?.name, `展示类目 ${index + 1}`),
+  iconKey: safeText(item?.iconKey, 'apps'),
+  sort: Number.isFinite(Number(item?.sort)) ? Number(item.sort) : index + 1,
+  enabled: item?.enabled !== false
+}));
 
 const CATEGORY_BADGE_CLASS = {
   服饰: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
@@ -153,6 +183,49 @@ const MOCK_PRODUCT_TEMPLATES = [
   { name: '电竞键盘 K87', categoryId: 'electronics', tier: '设置分层价格', inventory: 69, status: 'INACTIVE', basePrice: 329 },
   { name: '跑步水壶', categoryId: 'accessories', tier: '标准', inventory: 506, status: 'ACTIVE', basePrice: 49 }
 ];
+
+const canonicalCategoryNameById = DEFAULT_CATEGORIES.reduce((acc, item) => {
+  acc[safeText(item.id, '')] = safeText(item.name, CATEGORY_EMPTY_LABEL);
+  return acc;
+}, {});
+
+const resolveCanonicalTierLabel = (item) => {
+  const rawTier = Array.isArray(item?.tags) && item.tags[1] ? safeText(item.tags[1], '') : '';
+  return rawTier || '标准档';
+};
+
+const CANONICAL_PRODUCT_TEMPLATES = (Array.isArray(canonicalProducts) ? canonicalProducts : [])
+  .map((item, index) => {
+    const categoryId = safeText(item?.categoryId, '').trim();
+    const categoryLabel = canonicalCategoryNameById[categoryId] || CATEGORY_EMPTY_LABEL;
+    const models = Array.isArray(item?.models)
+      ? item.models.map((model, modelIndex) => ({
+          name: safeText(model?.name, `${DEFAULT_MODEL_NAME} ${modelIndex + 1}`),
+          code: safeText(model?.code, `${DEFAULT_MODEL_CODE}-${modelIndex + 1}`),
+          basePrice: Number.isFinite(Number(model?.basePrice)) ? Number(model.basePrice) : 0
+        }))
+      : [];
+    const tierPricing = Array.isArray(item?.tierPricing)
+      ? item.tierPricing.map((tier) => ({
+          minQty: Number.isFinite(Number(tier?.minQty)) ? Number(tier.minQty) : MIN_TIER_QTY,
+          discountRate: Number.isFinite(Number(tier?.discountRate)) ? Number(tier.discountRate) : 0
+        }))
+      : [];
+    return {
+      id: safeText(item?.id, `SPU-${index + 1}`),
+      name: safeText(item?.name, `模拟商品 ${index + 1}`),
+      categoryId,
+      categoryLabel,
+      tier: resolveCanonicalTierLabel(item),
+      inventory: Number.isFinite(Number(item?.inventory)) ? Number(item.inventory) : 0,
+      status: safeText(item?.status, 'ACTIVE'),
+      coverImageUrl: safeText(item?.coverImageUrl, ''),
+      description: safeText(item?.description, ''),
+      models,
+      tierPricing
+    };
+  })
+  .filter((item) => item.id && item.name);
 
 const normalizeProductText = (value, fallback = '') => {
   const key = String(value || '').trim();
@@ -562,6 +635,7 @@ const buildStatusFilterOptionsHtml = () => {
   return STATUS_FILTER_ITEMS.map((item) => `<option value="${escape(item.value)}">${escape(item.label)}</option>`).join('');
 };
 
+// 同步筛选/表单中的类目选项，保证展示与 state.categories 一致。
 const syncCategorySelectOptions = () => {
   const selectors = [
     '#create-product-modal select[name="categoryKey"]',
@@ -869,6 +943,7 @@ const toModelClassBadge = (modelClass) => {
   return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${className}">${escape(modelClass)}</span>`;
 };
 
+// 渲染单条商品表格行。
 const renderProductRow = (item) => {
   const image = safeText(item.coverImageUrl, '');
   const tag = resolveCategoryTag(item);
@@ -926,6 +1001,7 @@ const buildPageTokens = (totalPages, currentPage) => {
   return tokens;
 };
 
+// 渲染分页控件（兼容远端分页和本地分页）。
 const renderPagination = (totalCount = state.total) => {
   const container = getPaginationContainer();
   const prevButton = getPrevPageButton();
@@ -955,6 +1031,7 @@ const renderPagination = (totalCount = state.total) => {
   nextButton.disabled = currentPage >= resolvedTotalPages;
 };
 
+// 按当前筛选和分页状态渲染列表。
 const renderCurrentPage = () => {
   const tbody = document.querySelector('table tbody');
   if (!tbody) {
@@ -1011,16 +1088,23 @@ const applyProducts = (items, total = items.length, currentPage = 1, remote = fa
   renderCurrentPage();
 };
 
+// 消费后端分页响应并落到统一渲染入口。
 const renderProducts = (payload, currentPage = 1, remote = state.context?.mode === 'dev') => {
   const items = Array.isArray(payload?.items) ? payload.items : [];
   const total = Number(payload?.total || items.length);
   applyProducts(items, total, currentPage, remote);
 };
 
+// 生成 mock 商品数据（用于 mock 模式与回退场景）。
 const createMockProducts = (count = 30) => {
+  const templates = CANONICAL_PRODUCT_TEMPLATES.length > 0 ? CANONICAL_PRODUCT_TEMPLATES : MOCK_PRODUCT_TEMPLATES;
+  if (templates.length === 0) {
+    return [];
+  }
+
   return Array.from({ length: count }, (_, index) => {
-    const template = MOCK_PRODUCT_TEMPLATES[index % MOCK_PRODUCT_TEMPLATES.length];
-    const suffix = index < MOCK_PRODUCT_TEMPLATES.length ? '' : ` ${index + 1}`;
+    const template = templates[index % templates.length];
+    const suffix = index < templates.length ? '' : ` ${index + 1}`;
     const modelSource = Array.isArray(template.models) ? template.models : [];
     const models = (modelSource.length > 0
       ? modelSource
@@ -1032,14 +1116,14 @@ const createMockProducts = (count = 30) => {
     }));
 
     return {
-      id: `MOCK-${String(index + 1).padStart(4, '0')}`,
+      id: suffix ? `${safeText(template.id, `MOCK-${String(index + 1).padStart(4, '0')}`)}-${index + 1}` : safeText(template.id, `MOCK-${String(index + 1).padStart(4, '0')}`),
       name: `${template.name}${suffix}`,
       categoryId: safeText(template.categoryId, ''),
-      tags: [resolveCategoryLabelById(template.categoryId), template.tier],
+      tags: [resolveCategoryLabelById(template.categoryId), safeText(template.tier, '标准档')],
       inventory: Math.max(0, template.inventory + (index % 7) * 13),
       status: template.status,
-      coverImageUrl: MOCK_IMAGE_POOL[index % MOCK_IMAGE_POOL.length],
-      description: `模拟商品数据 #${index + 1}`,
+      coverImageUrl: safeText(template.coverImageUrl, '') || MOCK_IMAGE_POOL[index % MOCK_IMAGE_POOL.length],
+      description: safeText(template.description, '') || `模拟商品数据 #${index + 1}`,
       models,
       tierPricing: Array.isArray(template.tierPricing)
         ? template.tierPricing.map((tier) => ({
@@ -1051,6 +1135,7 @@ const createMockProducts = (count = 30) => {
   });
 };
 
+// 组装商品查询参数，保持与后端分页接口一致。
 const buildProductsQueryParams = (page = 1) => {
   const params = {
     page,
@@ -1063,6 +1148,7 @@ const buildProductsQueryParams = (page = 1) => {
   return params;
 };
 
+// 应用筛选：dev 模式重新请求，mock 模式本地过滤。
 const applyProductFilters = async () => {
   state.pagination.currentPage = 1;
   if (state.context?.mode !== 'dev') {
@@ -1086,6 +1172,7 @@ const applyProductFilters = async () => {
   renderProducts(response.data, 1, true);
 };
 
+// 翻页处理：优先走远端分页窗口，必要时回退本地分页。
 const goToPage = async (page) => {
   const hasClientOnlyFilter = Boolean(state.filters.status) || state.filters.categoryId === NO_CATEGORY_FILTER;
   const useRemotePageWindow = state.pagination.remote && !hasClientOnlyFilter;
@@ -1217,6 +1304,7 @@ const closeCreateModal = () => {
   document.body.classList.remove('overflow-hidden');
 };
 
+// 打开新建商品弹窗并重置状态。
 const openCreateModal = () => {
   const modal = document.querySelector('#create-product-modal');
   if (!modal) {
@@ -1383,6 +1471,7 @@ const replaceProductInCollection = (product) => {
   renderCurrentPage();
 };
 
+// 关闭商品编辑抽屉并清空上下文。
 const closeEditDrawer = () => {
   const overlay = document.querySelector('#product-drawer-overlay');
   const drawer = document.querySelector('#product-edit-drawer');
@@ -1394,6 +1483,7 @@ const closeEditDrawer = () => {
   document.body.classList.remove('overflow-hidden');
 };
 
+// 更新抽屉封面预览与“查看大图”按钮状态。
 const updateDrawerPreview = (drawer, imageUrl) => {
   const image = drawer.querySelector('[data-role="drawer-preview-image"]');
   const emptyState = drawer.querySelector('[data-role="drawer-preview-empty"]');
@@ -1448,6 +1538,7 @@ const ensureImagePreviewModal = () => {
   return modal;
 };
 
+// 打开图片预览浮层。
 const openImagePreview = (imageUrl) => {
   const url = safeText(imageUrl, '').trim();
   if (!url) {
@@ -1694,6 +1785,7 @@ const collectDrawerTierPricing = (drawer) => {
   return tiers;
 };
 
+// 懒创建并复用商品编辑抽屉。
 const ensureEditDrawer = () => {
   const existed = document.querySelector('#product-edit-drawer');
   if (existed) {
@@ -1945,6 +2037,7 @@ const ensureEditDrawer = () => {
   return drawer;
 };
 
+// 打开编辑抽屉并回填当前行商品数据。
 const openEditDrawer = (row) => {
   const drawer = ensureEditDrawer();
   const overlay = document.querySelector('#product-drawer-overlay');
@@ -2253,6 +2346,7 @@ const rebuildProductsAfterCategoryChange = () => {
   renderCurrentPage();
 };
 
+// 组装类目创建/更新 payload。
 const toCategoryPayload = (name, sort, parentId) => {
   return {
     name,
@@ -2265,7 +2359,49 @@ const shouldUseLocalCategoryStore = () => {
   return state.context?.mode !== 'dev';
 };
 
-const loadDisplayCategories = () => {
+// 组装展示类目 payload，统一字段清洗与默认值。
+const toDisplayCategoryPayload = (item, index = 0) => {
+  return {
+    id: safeText(item?.id, '').trim(),
+    name: safeText(item?.name, '').trim(),
+    iconKey: safeText(item?.iconKey, inferDisplayCategoryIconKey(safeText(item?.name, ''), 'apps'))
+      .trim()
+      .toLowerCase(),
+    sort: toNumber(item?.sort, index + 1),
+    enabled: item?.enabled !== false
+  };
+};
+
+// 持久化展示类目：dev 写后端，mock 写本地存储。
+const persistDisplayCategories = async (items) => {
+  const payloadItems = items.map((item, index) => toDisplayCategoryPayload(item, index)).filter((item) => item.id && item.name);
+  if (state.context?.mode === 'dev') {
+    const response = await replaceMiniappDisplayCategories({
+      items: payloadItems
+    });
+    if (response.status !== 200 || !Array.isArray(response.data?.items)) {
+      throw new Error('后端保存展示类目失败。');
+    }
+    setDisplayCategories(response.data.items, { persist: false });
+    return;
+  }
+  setDisplayCategories(payloadItems, { persist: true });
+};
+
+// 加载展示类目：优先 real，其次 localStorage，最后默认值。
+const loadDisplayCategories = async () => {
+  if (state.context?.mode === 'dev') {
+    try {
+      const response = await fetchMiniappDisplayCategories();
+      if (response.status === 200 && Array.isArray(response.data?.items)) {
+        setDisplayCategories(response.data.items, { persist: false });
+        return;
+      }
+    } catch {
+      // ignore and fallback
+    }
+  }
+
   const stored = readDisplayCategoriesFromStorage();
   if (stored.length > 0) {
     setDisplayCategories(stored, { persist: false });
@@ -2283,6 +2419,7 @@ const closeDisplayCategoryManagerModal = () => {
   document.body.classList.remove('overflow-hidden');
 };
 
+// 渲染展示类目预览（仅启用项）。
 const renderDisplayCategoryPreview = (modal) => {
   const preview = modal.querySelector('[data-role="display-category-preview"]');
   if (!(preview instanceof HTMLElement)) {
@@ -2311,6 +2448,7 @@ const renderDisplayCategoryPreview = (modal) => {
     .join('');
 };
 
+// 渲染展示类目管理表格主体。
 const renderDisplayCategoryManagerBody = (modal) => {
   const body = modal.querySelector('[data-role="display-category-list-body"]');
   if (!(body instanceof HTMLElement)) {
@@ -2361,6 +2499,7 @@ const renderDisplayCategoryManagerBody = (modal) => {
   renderDisplayCategoryPreview(modal);
 };
 
+// 懒创建并复用“展示类目管理”弹窗。
 const ensureDisplayCategoryManagerModal = () => {
   const existed = document.querySelector('#display-category-manager-modal');
   if (existed instanceof HTMLElement) {
@@ -2375,7 +2514,7 @@ const ensureDisplayCategoryManagerModal = () => {
       <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
         <div>
           <h3 class="text-lg font-bold text-slate-900">展示类目管理</h3>
-          <p class="text-xs text-slate-500">管理小程序首页/分类页的展示类目（当前为本地 Mock 存储）。</p>
+          <p class="text-xs text-slate-500">管理小程序首页/分类页的展示类目（Admin 改动会同步到小程序）。</p>
         </div>
         <button type="button" data-role="close-display-category-manager" class="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700">
           <span class="material-symbols-outlined">close</span>
@@ -2431,7 +2570,7 @@ const ensureDisplayCategoryManagerModal = () => {
 
   const createForm = modal.querySelector('[data-role="create-display-category-form"]');
   if (createForm instanceof HTMLFormElement) {
-    createForm.addEventListener('submit', (event) => {
+    createForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const formData = new FormData(createForm);
       const name = safeText(formData.get('name'), '').trim();
@@ -2457,23 +2596,28 @@ const ensureDisplayCategoryManagerModal = () => {
         showToast('新增展示类目失败，请稍后重试。', 'error');
         return;
       }
-      setDisplayCategories([...state.displayCategories, nextItem], { persist: true });
-      renderDisplayCategoryManagerBody(modal);
-      createForm.reset();
-      const iconSelect = createForm.elements.namedItem('iconKey');
-      if (iconSelect instanceof HTMLSelectElement) {
-        iconSelect.value = 'apps';
+      try {
+        await persistDisplayCategories([...state.displayCategories, nextItem]);
+        renderDisplayCategoryManagerBody(modal);
+        createForm.reset();
+        const iconSelect = createForm.elements.namedItem('iconKey');
+        if (iconSelect instanceof HTMLSelectElement) {
+          iconSelect.value = 'apps';
+        }
+        const enabledInput = createForm.elements.namedItem('enabled');
+        if (enabledInput instanceof HTMLInputElement) {
+          enabledInput.checked = true;
+        }
+        showToast('展示类目已新增。');
+      } catch (error) {
+        const reason = toMinimalErrorReason(error);
+        showToast(`新增展示类目失败：${reason}`, 'error');
       }
-      const enabledInput = createForm.elements.namedItem('enabled');
-      if (enabledInput instanceof HTMLInputElement) {
-        enabledInput.checked = true;
-      }
-      showToast('展示类目已新增。');
     });
   }
 
   const listBody = modal.querySelector('[data-role="display-category-list-body"]');
-  listBody?.addEventListener('click', (event) => {
+  listBody?.addEventListener('click', async (event) => {
     const target = event.target;
     if (!(target instanceof Element)) {
       return;
@@ -2497,10 +2641,15 @@ const ensureDisplayCategoryManagerModal = () => {
       if (!window.confirm(`确定删除展示类目“${categoryName}”吗？`)) {
         return;
       }
-      const nextItems = state.displayCategories.filter((item) => item.id !== categoryId);
-      setDisplayCategories(nextItems, { persist: true });
-      renderDisplayCategoryManagerBody(modal);
-      showToast('展示类目已删除。');
+      try {
+        const nextItems = state.displayCategories.filter((item) => item.id !== categoryId);
+        await persistDisplayCategories(nextItems);
+        renderDisplayCategoryManagerBody(modal);
+        showToast('展示类目已删除。');
+      } catch (error) {
+        const reason = toMinimalErrorReason(error);
+        showToast(`删除展示类目失败：${reason}`, 'error');
+      }
       return;
     }
 
@@ -2544,15 +2693,21 @@ const ensureDisplayCategoryManagerModal = () => {
         id: safeText(current?.id, categoryId)
       };
     });
-    setDisplayCategories(nextItems, { persist: true });
-    renderDisplayCategoryManagerBody(modal);
-    showToast('展示类目已更新。');
+    try {
+      await persistDisplayCategories(nextItems);
+      renderDisplayCategoryManagerBody(modal);
+      showToast('展示类目已更新。');
+    } catch (error) {
+      const reason = toMinimalErrorReason(error);
+      showToast(`保存展示类目失败：${reason}`, 'error');
+    }
   });
 
   renderDisplayCategoryManagerBody(modal);
   return modal;
 };
 
+// 打开展示类目管理弹窗。
 const openDisplayCategoryManagerModal = () => {
   const modal = ensureDisplayCategoryManagerModal();
   renderDisplayCategoryManagerBody(modal);
@@ -2591,6 +2746,7 @@ const buildCategoryParentOptions = (selectedParentId = '', currentCategoryId = '
   return options.join('');
 };
 
+// 渲染类目管理表格主体。
 const renderCategoryManagerBody = (modal) => {
   const body = modal.querySelector('[data-role="category-list-body"]');
   const parentSelect = modal.querySelector('[data-role="create-category-parent"]');
@@ -2634,6 +2790,7 @@ const renderCategoryManagerBody = (modal) => {
     .join('');
 };
 
+// 懒创建并复用“类目管理”弹窗。
 const ensureCategoryManagerModal = () => {
   const existed = document.querySelector('#category-manager-modal');
   if (existed instanceof HTMLElement) {
@@ -2851,6 +3008,7 @@ const ensureCategoryManagerModal = () => {
   return modal;
 };
 
+// 打开类目管理弹窗。
 const openCategoryManagerModal = () => {
   const modal = ensureCategoryManagerModal();
   renderCategoryManagerBody(modal);
@@ -2869,6 +3027,7 @@ const bindCategoryManageAction = () => {
   });
 };
 
+// 加载类目：dev 读后端，mock 读本地或默认类目。
 const loadCategories = async () => {
   if (state.context?.mode === 'dev') {
     try {
@@ -2893,6 +3052,7 @@ const loadCategories = async () => {
   setCategories(DEFAULT_CATEGORIES, { persist: true });
 };
 
+// 商品页入口：初始化数据、事件、抽屉与模式分支。
 const initProducts = async () => {
   const context = await ensureProtectedPage();
   if (!context) {
@@ -2900,7 +3060,7 @@ const initProducts = async () => {
   }
   state.context = context;
   await loadCategories();
-  loadDisplayCategories();
+  await loadDisplayCategories();
   state.total = 0;
   hydrateStaticRows();
   bindProductRowActions();

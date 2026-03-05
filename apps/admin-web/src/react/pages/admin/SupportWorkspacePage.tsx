@@ -143,6 +143,7 @@ const INITIAL_CHATS: ChatThread[] = [
   }
 ];
 
+// 左侧会话列表项。
 const SidebarItem = ({
   chat,
   active,
@@ -187,6 +188,7 @@ const SidebarItem = ({
   </button>
 );
 
+// 聊天气泡。
 const Message = ({ msg, customerAvatar, agentNameInitial }: { msg: ChatMessage; customerAvatar: string; agentNameInitial: string }) => {
   if (msg.type === 'date') {
     return (
@@ -233,10 +235,12 @@ const statusClassByOrderColor: Record<OrderStatusColor, string> = {
   green: 'bg-green-100 text-green-700'
 };
 
+// 生成当前时间字符串（用于发送时间戳）。
 const formatCurrentTime = () => {
   return new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
 };
 
+// 在线客服工作台（当前为前端展示壳）。
 export const SupportWorkspacePage = () => {
   const [chats, setChats] = useState<ChatThread[]>(INITIAL_CHATS);
   const [activeChatId, setActiveChatId] = useState(1);

@@ -12,6 +12,7 @@ import {
   type CartImportJob,
   type CartImportSelection,
   type Category,
+  type DisplayCategory,
   type ImportJob,
   type Order,
   type OrderStatsResponse,
@@ -27,10 +28,18 @@ import {
 } from '@tmo/api-client'
 import type { ChooseFile } from '@tmo/platform-adapter'
 import { runtimeEnv } from '../../config/runtime-env'
-import { buildMockProductDetail, mockCategories, mockProductDetails, mockProducts } from '../mocks/catalog'
 import {
+  buildMockProductDetail,
+  mockCategories,
+  mockDisplayCategories,
+  mockProductDetails,
+  mockProducts
+} from '../mocks/catalog'
+import {
+  buildMockAuthContext,
   createIsolatedTokenStore,
   getMockUser,
+  loadIsolatedMockAuthContext,
   loadIsolatedMockState,
   nowIso,
   type IsolatedMockState,
@@ -163,6 +172,10 @@ const ensureCategory = (categoryId: string): Category => {
   return category
 }
 
+const toMockDisplayCategories = (): DisplayCategory[] => {
+  return mockDisplayCategories.map((item) => ({ ...item }))
+}
+
 const toCartImportJob = (jobId: string): CartImportJob => ({
   id: jobId,
   type: ImportJobType.CART_IMPORT,
@@ -214,11 +227,20 @@ const buildOrderStats = (orders: Order[]): OrderStatsResponse => {
   }
 }
 
+const getCurrentMockUser = async () => {
+  const context = await loadIsolatedMockAuthContext()
+  if (context) {
+    return getMockUser(context)
+  }
+  return getMockUser(buildMockAuthContext('mock_customer_001'))
+}
+
 export const createMockCommerceServices = (): CommerceServices => {
   const tokens = createIsolatedTokenStore(runtimeEnv.commerceDevToken)
 
   const catalog: CommerceServices['catalog'] = {
     listCategories: async () => ({ items: mockCategories }),
+    listDisplayCategories: async () => ({ items: toMockDisplayCategories() }),
     getCategory: async (categoryId) => ensureCategory(categoryId),
     createCategory: async (payload) => ({
       id: `mock-category-${Date.now().toString(36)}`,
@@ -582,9 +604,10 @@ export const createMockCommerceServices = (): CommerceServices => {
       return paginate(filtered, params?.page, params?.pageSize)
     },
     create: async (payload) => {
+      const user = await getCurrentMockUser()
       const productRequest: ProductRequest = {
         id: `mock-pr-${Date.now().toString(36)}`,
-        createdByUserId: getMockUser().id,
+        createdByUserId: user.id,
         name: payload.name,
         categoryId: payload.categoryId ?? null,
         spec: payload.spec,
@@ -685,11 +708,12 @@ export const createMockCommerceServices = (): CommerceServices => {
       return paginate(messages, params?.page, params?.pageSize)
     },
     postMessage: async (ticketId, payload) => {
+      const user = await getCurrentMockUser()
       const message: AfterSalesMessage = {
         id: `mock-ticket-msg-${Date.now().toString(36)}`,
         ticketId,
         senderType: MessageSenderType.customer,
-        senderUserId: getMockUser().id,
+        senderUserId: user.id,
         content: payload.content,
         createdAt: nowIso()
       }
@@ -713,9 +737,10 @@ export const createMockCommerceServices = (): CommerceServices => {
       return paginate(state.inquiries, params?.page, params?.pageSize)
     },
     create: async (payload) => {
+      const user = await getCurrentMockUser()
       const inquiry: PriceInquiry = {
         id: `mock-inquiry-${Date.now().toString(36)}`,
-        createdByUserId: getMockUser().id,
+        createdByUserId: user.id,
         assignedSalesUserId: null,
         skuId: payload.skuId ?? null,
         orderId: payload.orderId ?? null,
@@ -775,11 +800,12 @@ export const createMockCommerceServices = (): CommerceServices => {
       return paginate(messages, params?.page, params?.pageSize)
     },
     postMessage: async (inquiryId, payload) => {
+      const user = await getCurrentMockUser()
       const message = {
         id: `mock-inquiry-msg-${Date.now().toString(36)}`,
         inquiryId,
         senderType: MessageSenderType.customer,
-        senderUserId: getMockUser().id,
+        senderUserId: user.id,
         content: payload.content,
         createdAt: nowIso()
       }

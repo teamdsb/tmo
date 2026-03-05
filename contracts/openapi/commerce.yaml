@@ -123,6 +123,19 @@ paths:
       responses:
         '204':
           description: No Content
+  "/catalog/display-categories":
+    get:
+      tags:
+      - Catalog
+      summary: List miniapp display categories
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/DisplayCategoryListResponse"
   "/catalog/products":
     get:
       tags:
@@ -1177,6 +1190,45 @@ components:
       - id
       - name
       - sort
+    DisplayCategory:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Stable display category key used by miniapp UI.
+        name:
+          type: string
+        iconKey:
+          type: string
+          enum:
+          - notes
+          - setting
+          - desktop
+          - shield
+          - brush
+          - hot
+          - apps
+        sort:
+          type: integer
+          default: 0
+        enabled:
+          type: boolean
+          default: true
+      required:
+      - id
+      - name
+      - iconKey
+      - sort
+      - enabled
+    DisplayCategoryListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/DisplayCategory"
+      required:
+      - items
     ProductSummary:
       type: object
       properties:

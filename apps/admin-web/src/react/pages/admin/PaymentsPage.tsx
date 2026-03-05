@@ -1,5 +1,6 @@
 import { AdminTopbar } from '../../layout/AdminTopbar';
 
+// 支付页（当前为前端展示壳）。
 export const PaymentsPage = () => {
   return (
     <>
