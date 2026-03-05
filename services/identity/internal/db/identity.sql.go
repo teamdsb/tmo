@@ -312,11 +312,24 @@ func (q *Queries) CountCustomersOwnedBySalesInIDs(ctx context.Context, arg Count
 }
 
 const countStaffUsers = `-- name: CountStaffUsers :one
-SELECT count(*) FROM users WHERE user_type = 'staff'
+SELECT count(*)
+FROM users
+WHERE user_type = 'staff'
+  AND (
+    $1::text IS NULL
+    OR COALESCE(display_name, '') ILIKE '%' || $1 || '%'
+    OR id::text ILIKE '%' || $1 || '%'
+    OR EXISTS (
+      SELECT 1
+      FROM user_roles ur
+      WHERE ur.user_id = users.id
+        AND ur.role ILIKE '%' || $1 || '%'
+    )
+  )
 `
 
-func (q *Queries) CountStaffUsers(ctx context.Context) (int64, error) {
-	row := q.db.QueryRow(ctx, countStaffUsers)
+func (q *Queries) CountStaffUsers(ctx context.Context, q_ *string) (int64, error) {
+	row := q.db.QueryRow(ctx, countStaffUsers, q_)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -1476,17 +1489,29 @@ func (q *Queries) ListRoles(ctx context.Context) ([]Role, error) {
 const listStaffUsers = `-- name: ListStaffUsers :many
 SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label FROM users
 WHERE user_type = 'staff'
+  AND (
+    $1::text IS NULL
+    OR COALESCE(display_name, '') ILIKE '%' || $1 || '%'
+    OR id::text ILIKE '%' || $1 || '%'
+    OR EXISTS (
+      SELECT 1
+      FROM user_roles ur
+      WHERE ur.user_id = users.id
+        AND ur.role ILIKE '%' || $1 || '%'
+    )
+  )
 ORDER BY created_at DESC
-LIMIT $2 OFFSET $1
+LIMIT $3 OFFSET $2
 `
 
 type ListStaffUsersParams struct {
-	Offset int32 `db:"offset" json:"offset"`
-	Limit  int32 `db:"limit" json:"limit"`
+	Q      *string `db:"q" json:"q"`
+	Offset int32   `db:"offset" json:"offset"`
+	Limit  int32   `db:"limit" json:"limit"`
 }
 
 func (q *Queries) ListStaffUsers(ctx context.Context, arg ListStaffUsersParams) ([]User, error) {
-	rows, err := q.db.Query(ctx, listStaffUsers, arg.Offset, arg.Limit)
+	rows, err := q.db.Query(ctx, listStaffUsers, arg.Q, arg.Offset, arg.Limit)
 	if err != nil {
 		return nil, err
 	}

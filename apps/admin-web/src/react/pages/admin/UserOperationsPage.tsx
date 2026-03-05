@@ -1,4 +1,4 @@
-import { memo, startTransition, useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 
 import {
   fetchAdminCustomers,
@@ -185,6 +185,13 @@ const removeRole = (roles: string[], role: string) => {
   return roles.filter((item) => item.toUpperCase() !== target);
 };
 
+const normalizeRoleList = (roles: unknown): string[] => {
+  if (!Array.isArray(roles)) {
+    return [];
+  }
+  return roles.filter((role): role is string => typeof role === 'string');
+};
+
 const normalizeSalesUsers = (data: unknown): SalesUser[] => {
   const items = (data as { items?: unknown[] })?.items;
   if (!Array.isArray(items)) {
@@ -289,12 +296,13 @@ const normalizeCustomers = (data: unknown): { items: AdminCustomer[]; total: num
   };
 };
 
-const normalizeStaffUsers = (data: unknown): StaffUser[] => {
-  const items = Array.isArray((data as { items?: unknown[] })?.items)
-    ? ((data as { items?: unknown[] }).items as unknown[])
+const normalizeStaffUsers = (data: unknown): { items: StaffUser[]; total: number } => {
+  const payload = data as { items?: unknown[]; total?: number };
+  const items = Array.isArray(payload?.items)
+    ? (payload.items as unknown[])
     : [];
 
-  return items
+  const normalizedItems = items
     .map((item) => {
       const record = item as {
         id?: string;
@@ -323,6 +331,11 @@ const normalizeStaffUsers = (data: unknown): StaffUser[] => {
       } as StaffUser;
     })
     .filter(Boolean) as StaffUser[];
+
+  return {
+    items: normalizedItems,
+    total: Number.isFinite(payload?.total) ? Number(payload.total) : normalizedItems.length
+  };
 };
 
 const normalizeAdminUsers = (data: unknown): { items: AdminUser[]; total: number } => {
@@ -543,6 +556,11 @@ export const UserOperationsPage = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [pendingCustomerActions, setPendingCustomerActions] = useState<Record<string, boolean>>({});
   const [pendingStaffActions, setPendingStaffActions] = useState<Record<string, boolean>>({});
+  const salesRequestVersion = useRef(0);
+  const tagsRequestVersion = useRef(0);
+  const customersRequestVersion = useRef(0);
+  const staffRequestVersion = useRef(0);
+  const adminRequestVersion = useRef(0);
 
   const activeTags = useMemo(() => tags.filter((tag) => tag.active), [tags]);
   const activeSalesUserIds = useMemo(() => new Set(salesUsers.map((item) => item.id)), [salesUsers]);
@@ -559,14 +577,21 @@ export const UserOperationsPage = () => {
   }, []);
 
   const refreshSalesUsers = useCallback(async () => {
+    const requestVersion = ++salesRequestVersion.current;
     setSalesLoading(true);
     try {
       if (isMockMode) {
+        if (requestVersion !== salesRequestVersion.current) {
+          return;
+        }
         setSalesUsers(mockSalesUsers.filter((item) => item.status === 'active' && item.roles.includes('SALES')));
         return;
       }
 
       const response = await fetchAdminSalesUsers({ page: 1, pageSize: 200 });
+      if (requestVersion !== salesRequestVersion.current) {
+        return;
+      }
       if (response.status !== 200) {
         setSalesUsers([]);
         setErrorMessage('加载业务员列表失败，请稍后重试。');
@@ -574,22 +599,34 @@ export const UserOperationsPage = () => {
       }
       setSalesUsers(normalizeSalesUsers(response.data));
     } catch {
+      if (requestVersion !== salesRequestVersion.current) {
+        return;
+      }
       setSalesUsers([]);
       setErrorMessage('加载业务员列表失败，请稍后重试。');
     } finally {
-      setSalesLoading(false);
+      if (requestVersion === salesRequestVersion.current) {
+        setSalesLoading(false);
+      }
     }
   }, [mockSalesUsers]);
 
   const refreshTags = useCallback(async () => {
+    const requestVersion = ++tagsRequestVersion.current;
     setTagsLoading(true);
     try {
       if (isMockMode) {
+        if (requestVersion !== tagsRequestVersion.current) {
+          return;
+        }
         setTags([...mockTags].sort((a, b) => a.sort - b.sort));
         return;
       }
 
       const response = await fetchAdminCustomerTags({ includeInactive: true });
+      if (requestVersion !== tagsRequestVersion.current) {
+        return;
+      }
       if (response.status !== 200) {
         setTags([]);
         setErrorMessage('加载客户标签失败，请稍后重试。');
@@ -597,14 +634,20 @@ export const UserOperationsPage = () => {
       }
       setTags(normalizeTags(response.data));
     } catch {
+      if (requestVersion !== tagsRequestVersion.current) {
+        return;
+      }
       setTags([]);
       setErrorMessage('加载客户标签失败，请稍后重试。');
     } finally {
-      setTagsLoading(false);
+      if (requestVersion === tagsRequestVersion.current) {
+        setTagsLoading(false);
+      }
     }
   }, [mockTags]);
 
   const refreshCustomers = useCallback(async () => {
+    const requestVersion = ++customersRequestVersion.current;
     setCustomersLoading(true);
 
     try {
@@ -634,6 +677,9 @@ export const UserOperationsPage = () => {
         const end = start + customerPageSize;
         const pagedItems = nextItems.slice(start, end);
 
+        if (requestVersion !== customersRequestVersion.current) {
+          return;
+        }
         setCustomers(pagedItems);
         setCustomerTotal(nextItems.length);
         return;
@@ -647,6 +693,9 @@ export const UserOperationsPage = () => {
         tagIds: customerTagFilters.length > 0 ? customerTagFilters : undefined
       });
 
+      if (requestVersion !== customersRequestVersion.current) {
+        return;
+      }
       if (response.status !== 200) {
         setCustomers([]);
         setCustomerTotal(0);
@@ -658,11 +707,16 @@ export const UserOperationsPage = () => {
       setCustomers(normalized.items);
       setCustomerTotal(normalized.total);
     } catch {
+      if (requestVersion !== customersRequestVersion.current) {
+        return;
+      }
       setCustomers([]);
       setCustomerTotal(0);
       setErrorMessage('加载客户列表失败，请稍后重试。');
     } finally {
-      setCustomersLoading(false);
+      if (requestVersion === customersRequestVersion.current) {
+        setCustomersLoading(false);
+      }
     }
   }, [
     appliedCustomerQuery,
@@ -674,50 +728,68 @@ export const UserOperationsPage = () => {
   ]);
 
   const refreshStaffUsers = useCallback(async () => {
+    const requestVersion = ++staffRequestVersion.current;
     setStaffLoading(true);
 
     try {
-      let allItems: StaffUser[] = [];
       if (isMockMode) {
-        allItems = [...mockStaffUsers];
-      } else {
-        const response = await fetchStaffUsers({ page: 1, pageSize: 200 });
-        if (response.status !== 200) {
-          setStaffUsers([]);
-          setStaffTotal(0);
-          setErrorMessage('加载业务员权限列表失败，请稍后重试。');
-          return;
-        }
-        allItems = normalizeStaffUsers(response.data);
-      }
-
-      const keyword = appliedStaffQuery.trim().toLowerCase();
-      const filtered = keyword
-        ? allItems.filter((staff) => {
+        const keyword = appliedStaffQuery.trim().toLowerCase();
+        const allItems = [...mockStaffUsers];
+        const filtered = keyword
+          ? allItems.filter((staff) => {
             return (
               staff.displayName.toLowerCase().includes(keyword)
               || staff.id.toLowerCase().includes(keyword)
               || staff.roles.some((role) => role.toLowerCase().includes(keyword))
             );
           })
-        : allItems;
+          : allItems;
 
-      const start = (staffPage - 1) * staffPageSize;
-      const end = start + staffPageSize;
-      const pagedItems = filtered.slice(start, end);
+        const start = (staffPage - 1) * staffPageSize;
+        const end = start + staffPageSize;
+        const pagedItems = filtered.slice(start, end);
 
-      setStaffUsers(pagedItems);
-      setStaffTotal(filtered.length);
+        if (requestVersion !== staffRequestVersion.current) {
+          return;
+        }
+        setStaffUsers(pagedItems);
+        setStaffTotal(filtered.length);
+        return;
+      }
+
+      const response = await fetchStaffUsers({
+        page: staffPage,
+        pageSize: staffPageSize,
+        q: appliedStaffQuery || undefined
+      });
+      if (requestVersion !== staffRequestVersion.current) {
+        return;
+      }
+      if (response.status !== 200) {
+        setStaffUsers([]);
+        setStaffTotal(0);
+        setErrorMessage('加载业务员权限列表失败，请稍后重试。');
+        return;
+      }
+      const normalized = normalizeStaffUsers(response.data);
+      setStaffUsers(normalized.items);
+      setStaffTotal(normalized.total);
     } catch {
+      if (requestVersion !== staffRequestVersion.current) {
+        return;
+      }
       setStaffUsers([]);
       setStaffTotal(0);
       setErrorMessage('加载业务员权限列表失败，请稍后重试。');
     } finally {
-      setStaffLoading(false);
+      if (requestVersion === staffRequestVersion.current) {
+        setStaffLoading(false);
+      }
     }
   }, [appliedStaffQuery, mockStaffUsers, staffPage, staffPageSize]);
 
   const refreshAdminUsers = useCallback(async () => {
+    const requestVersion = ++adminRequestVersion.current;
     setAdminLoading(true);
     try {
       if (isMockMode) {
@@ -737,6 +809,9 @@ export const UserOperationsPage = () => {
           });
         const start = (adminPage - 1) * adminPageSize;
         const end = start + adminPageSize;
+        if (requestVersion !== adminRequestVersion.current) {
+          return;
+        }
         setAdminUsers(mockAdmins.slice(start, end));
         setAdminTotal(mockAdmins.length);
         return;
@@ -747,6 +822,9 @@ export const UserOperationsPage = () => {
         pageSize: adminPageSize,
         role: 'ADMIN'
       });
+      if (requestVersion !== adminRequestVersion.current) {
+        return;
+      }
       if (response.status !== 200) {
         setAdminUsers([]);
         setAdminTotal(0);
@@ -757,11 +835,16 @@ export const UserOperationsPage = () => {
       setAdminUsers(normalized.items);
       setAdminTotal(normalized.total);
     } catch {
+      if (requestVersion !== adminRequestVersion.current) {
+        return;
+      }
       setAdminUsers([]);
       setAdminTotal(0);
       setErrorMessage('加载管理员列表失败，请稍后重试。');
     } finally {
-      setAdminLoading(false);
+      if (requestVersion === adminRequestVersion.current) {
+        setAdminLoading(false);
+      }
     }
   }, [adminPage, adminPageSize]);
 
@@ -830,6 +913,8 @@ export const UserOperationsPage = () => {
     setErrorMessage('');
     setSuccessMessage('');
     setCustomerPending(customer.id, true);
+    const previousSales = salesUsers.find((item) => item.id === customer.id);
+    const previousStaff = staffUsers.find((item) => item.id === customer.id);
 
     try {
       if (isMockMode) {
@@ -896,20 +981,134 @@ export const UserOperationsPage = () => {
         return;
       }
 
+      const optimisticUpdatedAt = new Date().toISOString();
+      setSalesUsers((current) => {
+        const found = current.find((item) => item.id === customer.id);
+        if (found) {
+          return current.map((item) => {
+            if (item.id !== customer.id) {
+              return item;
+            }
+            return {
+              ...item,
+              displayName: customer.displayName || item.displayName,
+              phone: customer.phone || item.phone,
+              status: 'active',
+              roles: appendRole(item.roles, SALES_ROLE)
+            };
+          });
+        }
+        return [
+          {
+            id: customer.id,
+            displayName: customer.displayName,
+            phone: customer.phone || '-',
+            status: 'active',
+            roles: [SALES_ROLE]
+          },
+          ...current
+        ];
+      });
+      setStaffUsers((current) => current.map((item) => {
+        if (item.id !== customer.id) {
+          return item;
+        }
+        return {
+          ...item,
+          displayName: customer.displayName || item.displayName,
+          roles: appendRole(item.roles, SALES_ROLE),
+          status: 'active',
+          updatedAt: optimisticUpdatedAt
+        };
+      }));
+
       const response = await promoteAdminCustomerToSales(customer.id);
       if (response.status !== 200) {
+        setSalesUsers((current) => {
+          const filtered = current.filter((item) => item.id !== customer.id);
+          if (!previousSales) {
+            return filtered;
+          }
+          return [previousSales, ...filtered];
+        });
+        if (previousStaff) {
+          setStaffUsers((current) => current.map((item) => (item.id === customer.id ? previousStaff : item)));
+        }
         setErrorMessage('设置业务员权限失败，请稍后重试。');
         return;
       }
 
+      const payload = (response.data || {}) as {
+        status?: string;
+        roles?: unknown;
+        updatedAt?: string;
+        promoted?: boolean;
+      };
+      const resolvedRoles = normalizeRoleList(payload.roles);
+      const resolvedStatus = safeText(payload.status, 'active').toLowerCase();
+      const resolvedUpdatedAt = safeText(payload.updatedAt, new Date().toISOString());
+
+      setSalesUsers((current) => {
+        const found = current.find((item) => item.id === customer.id);
+        if (found) {
+          return current.map((item) => {
+            if (item.id !== customer.id) {
+              return item;
+            }
+            return {
+              ...item,
+              displayName: customer.displayName || item.displayName,
+              phone: customer.phone || item.phone,
+              status: resolvedStatus,
+              roles: resolvedRoles.length > 0 ? resolvedRoles : appendRole(item.roles, SALES_ROLE)
+            };
+          });
+        }
+        return [
+          {
+            id: customer.id,
+            displayName: customer.displayName,
+            phone: customer.phone || '-',
+            status: resolvedStatus,
+            roles: resolvedRoles.length > 0 ? resolvedRoles : [SALES_ROLE]
+          },
+          ...current
+        ];
+      });
+
+      setStaffUsers((current) => current.map((item) => {
+        if (item.id !== customer.id) {
+          return item;
+        }
+        return {
+          ...item,
+          displayName: customer.displayName || item.displayName,
+          roles: resolvedRoles.length > 0 ? resolvedRoles : appendRole(item.roles, SALES_ROLE),
+          status: resolvedStatus,
+          updatedAt: resolvedUpdatedAt
+        };
+      }));
+
       setSuccessMessage(`已将「${customer.displayName}」设置为业务员。`);
-      await Promise.all([refreshStaffUsers(), refreshSalesUsers(), refreshCustomers()]);
+      if (payload.promoted) {
+        void refreshStaffUsers();
+      }
     } catch {
+      setSalesUsers((current) => {
+        const filtered = current.filter((item) => item.id !== customer.id);
+        if (!previousSales) {
+          return filtered;
+        }
+        return [previousSales, ...filtered];
+      });
+      if (previousStaff) {
+        setStaffUsers((current) => current.map((item) => (item.id === customer.id ? previousStaff : item)));
+      }
       setErrorMessage('设置业务员权限失败，请稍后重试。');
     } finally {
       setCustomerPending(customer.id, false);
     }
-  }, [refreshCustomers, refreshSalesUsers, refreshStaffUsers, setCustomerPending, setMockSalesUsers, setMockStaffUsers]);
+  }, [refreshStaffUsers, salesUsers, setCustomerPending, setMockSalesUsers, setMockStaffUsers, staffUsers]);
 
   const handleGrantSalesRole = useCallback(async (staff: StaffUser) => {
     if (hasRole(staff.roles, SALES_ROLE)) {
@@ -919,6 +1118,7 @@ export const UserOperationsPage = () => {
     setErrorMessage('');
     setSuccessMessage('');
     setStaffPending(staff.id, true);
+    const previousSales = salesUsers.find((item) => item.id === staff.id);
 
     try {
       const nextRoles = appendRole(staff.roles, SALES_ROLE);
@@ -964,19 +1164,106 @@ export const UserOperationsPage = () => {
         return;
       }
 
+      const optimisticUpdatedAt = new Date().toISOString();
+      setStaffUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          roles: nextRoles,
+          updatedAt: optimisticUpdatedAt
+        };
+      }));
+      setSalesUsers((current) => {
+        const found = current.find((item) => item.id === staff.id);
+        if (found) {
+          return current.map((item) => {
+            if (item.id !== staff.id) {
+              return item;
+            }
+            return {
+              ...item,
+              displayName: staff.displayName || item.displayName,
+              status: staff.status,
+              roles: appendRole(item.roles, SALES_ROLE)
+            };
+          });
+        }
+        return [
+          {
+            id: staff.id,
+            displayName: staff.displayName,
+            phone: '-',
+            status: staff.status,
+            roles: [SALES_ROLE]
+          },
+          ...current
+        ];
+      });
+
       const response = await patchStaffRoles(staff.id, nextRoles);
       if (response.status !== 200) {
+        setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
+        setSalesUsers((current) => {
+          const filtered = current.filter((item) => item.id !== staff.id);
+          if (!previousSales) {
+            return filtered;
+          }
+          return [previousSales, ...filtered];
+        });
         setErrorMessage('授予业务员权限失败，请稍后重试。');
         return;
       }
+
+      const payload = (response.data || {}) as {
+        status?: string;
+        roles?: unknown;
+        updatedAt?: string;
+      };
+      const resolvedRoles = normalizeRoleList(payload.roles);
+      const resolvedStatus = safeText(payload.status, staff.status).toLowerCase();
+      const resolvedUpdatedAt = safeText(payload.updatedAt, optimisticUpdatedAt);
+
+      setStaffUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          roles: resolvedRoles.length > 0 ? resolvedRoles : nextRoles,
+          status: resolvedStatus,
+          updatedAt: resolvedUpdatedAt
+        };
+      }));
+
+      setSalesUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          displayName: staff.displayName || item.displayName,
+          status: resolvedStatus,
+          roles: resolvedRoles.length > 0 ? resolvedRoles : appendRole(item.roles, SALES_ROLE)
+        };
+      }));
+
       setSuccessMessage(`已授予「${staff.displayName}」业务员权限。`);
-      await Promise.all([refreshStaffUsers(), refreshSalesUsers()]);
     } catch {
+      setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
+      setSalesUsers((current) => {
+        const filtered = current.filter((item) => item.id !== staff.id);
+        if (!previousSales) {
+          return filtered;
+        }
+        return [previousSales, ...filtered];
+      });
       setErrorMessage('授予业务员权限失败，请稍后重试。');
     } finally {
       setStaffPending(staff.id, false);
     }
-  }, [refreshSalesUsers, refreshStaffUsers, setMockSalesUsers, setMockStaffUsers, setStaffPending]);
+  }, [salesUsers, setMockSalesUsers, setMockStaffUsers, setStaffPending]);
 
   const handleRevokeSalesRole = useCallback(async (staff: StaffUser) => {
     if (!hasRole(staff.roles, SALES_ROLE)) {
@@ -990,6 +1277,7 @@ export const UserOperationsPage = () => {
     setErrorMessage('');
     setSuccessMessage('');
     setStaffPending(staff.id, true);
+    const previousSales = salesUsers.find((item) => item.id === staff.id);
 
     try {
       const nextRoles = removeRole(staff.roles, SALES_ROLE);
@@ -1010,19 +1298,68 @@ export const UserOperationsPage = () => {
         return;
       }
 
+      const optimisticUpdatedAt = new Date().toISOString();
+      setStaffUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          roles: nextRoles,
+          updatedAt: optimisticUpdatedAt
+        };
+      }));
+      setSalesUsers((current) => current.filter((item) => item.id !== staff.id));
+
       const response = await patchStaffRoles(staff.id, nextRoles);
       if (response.status !== 200) {
+        setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
+        setSalesUsers((current) => {
+          if (!previousSales) {
+            return current;
+          }
+          const filtered = current.filter((item) => item.id !== staff.id);
+          return [previousSales, ...filtered];
+        });
         setErrorMessage('移除业务员权限失败，请稍后重试。');
         return;
       }
+
+      const payload = (response.data || {}) as {
+        status?: string;
+        roles?: unknown;
+        updatedAt?: string;
+      };
+      const resolvedRoles = normalizeRoleList(payload.roles);
+      const resolvedStatus = safeText(payload.status, staff.status).toLowerCase();
+      const resolvedUpdatedAt = safeText(payload.updatedAt, optimisticUpdatedAt);
+      setStaffUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          roles: resolvedRoles.length > 0 ? resolvedRoles : nextRoles,
+          status: resolvedStatus,
+          updatedAt: resolvedUpdatedAt
+        };
+      }));
+
       setSuccessMessage(`已移除「${staff.displayName}」业务员权限。`);
-      await Promise.all([refreshStaffUsers(), refreshSalesUsers()]);
     } catch {
+      setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
+      setSalesUsers((current) => {
+        const filtered = current.filter((item) => item.id !== staff.id);
+        if (!previousSales) {
+          return filtered;
+        }
+        return [previousSales, ...filtered];
+      });
       setErrorMessage('移除业务员权限失败，请稍后重试。');
     } finally {
       setStaffPending(staff.id, false);
     }
-  }, [refreshSalesUsers, refreshStaffUsers, setMockSalesUsers, setMockStaffUsers, setStaffPending]);
+  }, [salesUsers, setMockSalesUsers, setMockStaffUsers, setStaffPending]);
 
   const handleToggleStaffStatus = useCallback(async (staff: StaffUser) => {
     setErrorMessage('');
@@ -1058,23 +1395,95 @@ export const UserOperationsPage = () => {
         return;
       }
 
+      const optimisticUpdatedAt = new Date().toISOString();
+      setStaffUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          status: nextStatus,
+          updatedAt: optimisticUpdatedAt
+        };
+      }));
+      setSalesUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          status: nextStatus
+        };
+      }));
+
       const response = await patchStaffStatus(
         staff.id,
         nextStatus,
         nextStatus === 'disabled' ? '由用户运营中心禁用' : undefined
       );
       if (response.status !== 200) {
+        setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
+        setSalesUsers((current) => current.map((item) => {
+          if (item.id !== staff.id) {
+            return item;
+          }
+          return {
+            ...item,
+            status: staff.status
+          };
+        }));
         setErrorMessage('更新账号状态失败，请稍后重试。');
         return;
       }
+
+      const payload = (response.data || {}) as {
+        status?: string;
+        roles?: unknown;
+        updatedAt?: string;
+      };
+      const resolvedStatus = safeText(payload.status, nextStatus).toLowerCase();
+      const resolvedRoles = normalizeRoleList(payload.roles);
+      const resolvedUpdatedAt = safeText(payload.updatedAt, optimisticUpdatedAt);
+
+      setStaffUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          status: resolvedStatus,
+          roles: resolvedRoles.length > 0 ? resolvedRoles : item.roles,
+          updatedAt: resolvedUpdatedAt
+        };
+      }));
+      setSalesUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          status: resolvedStatus,
+          roles: resolvedRoles.length > 0 ? resolvedRoles : item.roles
+        };
+      }));
+
       setSuccessMessage(nextStatus === 'active' ? `已启用「${staff.displayName}」账号。` : `已禁用「${staff.displayName}」账号。`);
-      await Promise.all([refreshStaffUsers(), refreshSalesUsers()]);
     } catch {
+      setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
+      setSalesUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          status: staff.status
+        };
+      }));
       setErrorMessage('更新账号状态失败，请稍后重试。');
     } finally {
       setStaffPending(staff.id, false);
     }
-  }, [refreshSalesUsers, refreshStaffUsers, setMockSalesUsers, setMockStaffUsers, setStaffPending]);
+  }, [setMockSalesUsers, setMockStaffUsers, setStaffPending]);
 
   const renderCustomerPanel = () => {
     return (

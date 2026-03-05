@@ -262,8 +262,9 @@ type GetMeSalesQrCodeParamsPlatform string
 
 // GetStaffParams defines parameters for GetStaff.
 type GetStaffParams struct {
-	Page     *int `form:"page,omitempty" json:"page,omitempty"`
-	PageSize *int `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+	Q        *string `form:"q,omitempty" json:"q,omitempty"`
+	Page     *int    `form:"page,omitempty" json:"page,omitempty"`
+	PageSize *int    `form:"pageSize,omitempty" json:"pageSize,omitempty"`
 }
 
 // PostAuthMiniLoginJSONRequestBody defines body for PostAuthMiniLogin for application/json ContentType.
@@ -674,6 +675,14 @@ func (siw *ServerInterfaceWrapper) GetStaff(c *gin.Context) {
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetStaffParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "q", c.Request.URL.Query(), &params.Q)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter q: %w", err), http.StatusBadRequest)
+		return
+	}
 
 	// ------------- Optional query parameter "page" -------------
 

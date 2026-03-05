@@ -123,6 +123,10 @@ export interface User {
   displayName?: string;
   /** @nullable */
   phone?: string | null;
+  /** @nullable */
+  ownerSalesUserId?: string | null;
+  /** @nullable */
+  ownerSalesDisplayName?: string | null;
   roles: string[];
   /** @nullable */
   disabledAt?: string | null;
@@ -872,6 +876,7 @@ export const GetMeSalesQrCodePlatform = {
 } as const;
 
 export type GetStaffParams = {
+q?: string;
 /**
  * @minimum 1
  */

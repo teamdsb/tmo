@@ -55,11 +55,35 @@ RETURNING *;
 -- name: ListStaffUsers :many
 SELECT * FROM users
 WHERE user_type = 'staff'
+  AND (
+    sqlc.narg('q')::text IS NULL
+    OR COALESCE(display_name, '') ILIKE '%' || sqlc.narg('q') || '%'
+    OR id::text ILIKE '%' || sqlc.narg('q') || '%'
+    OR EXISTS (
+      SELECT 1
+      FROM user_roles ur
+      WHERE ur.user_id = users.id
+        AND ur.role ILIKE '%' || sqlc.narg('q') || '%'
+    )
+  )
 ORDER BY created_at DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
 -- name: CountStaffUsers :one
-SELECT count(*) FROM users WHERE user_type = 'staff';
+SELECT count(*)
+FROM users
+WHERE user_type = 'staff'
+  AND (
+    sqlc.narg('q')::text IS NULL
+    OR COALESCE(display_name, '') ILIKE '%' || sqlc.narg('q') || '%'
+    OR id::text ILIKE '%' || sqlc.narg('q') || '%'
+    OR EXISTS (
+      SELECT 1
+      FROM user_roles ur
+      WHERE ur.user_id = users.id
+        AND ur.role ILIKE '%' || sqlc.narg('q') || '%'
+    )
+  );
 
 -- name: ListCustomers :many
 SELECT * FROM users
