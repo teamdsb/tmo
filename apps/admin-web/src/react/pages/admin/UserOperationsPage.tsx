@@ -15,6 +15,7 @@ import { listMockAccounts } from '../../../lib/mock-accounts';
 import { AdminTopbar } from '../../layout/AdminTopbar';
 
 type UserOperationsTab = 'customers' | 'staff' | 'admins';
+type TabMessage = { error: string; success: string };
 
 type SalesUser = {
   id: string;
@@ -514,6 +515,27 @@ const StaffRow = memo(({ staff, isPending, onGrantSales, onRevokeSales, onToggle
 
 StaffRow.displayName = 'StaffRow';
 
+type TableSkeletonBodyProps = {
+  cols: number;
+  rows?: number;
+};
+
+const TableSkeletonBody = ({ cols, rows = 5 }: TableSkeletonBodyProps) => {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, rowIndex) => (
+        <tr className="border-b border-border-light dark:border-border-dark" key={`skeleton-row-${rowIndex}`}>
+          {Array.from({ length: cols }).map((__, colIndex) => (
+            <td className="px-4 py-3" key={`skeleton-cell-${rowIndex}-${colIndex}`}>
+              <div className="h-4 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+            </td>
+          ))}
+        </tr>
+      ))}
+    </>
+  );
+};
+
 export const UserOperationsPage = () => {
   const [activeTab, setActiveTab] = useState<UserOperationsTab>('customers');
 
@@ -521,6 +543,8 @@ export const UserOperationsPage = () => {
   const [appliedCustomerQuery, setAppliedCustomerQuery] = useState('');
   const [ownerSalesFilter, setOwnerSalesFilter] = useState('');
   const [customerTagFilters, setCustomerTagFilters] = useState<string[]>([]);
+  const [customerTagFilterOpen, setCustomerTagFilterOpen] = useState(false);
+  const [customerTagFilterKeyword, setCustomerTagFilterKeyword] = useState('');
 
   const [staffQueryInput, setStaffQueryInput] = useState('');
   const [appliedStaffQuery, setAppliedStaffQuery] = useState('');
@@ -552,8 +576,11 @@ export const UserOperationsPage = () => {
   const [staffLoading, setStaffLoading] = useState(false);
   const [adminLoading, setAdminLoading] = useState(false);
 
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [tabMessages, setTabMessages] = useState<Record<UserOperationsTab, TabMessage>>({
+    customers: { error: '', success: '' },
+    staff: { error: '', success: '' },
+    admins: { error: '', success: '' }
+  });
   const [pendingCustomerActions, setPendingCustomerActions] = useState<Record<string, boolean>>({});
   const [pendingStaffActions, setPendingStaffActions] = useState<Record<string, boolean>>({});
   const salesRequestVersion = useRef(0);
@@ -561,9 +588,27 @@ export const UserOperationsPage = () => {
   const customersRequestVersion = useRef(0);
   const staffRequestVersion = useRef(0);
   const adminRequestVersion = useRef(0);
+  const customerTagFilterRef = useRef<HTMLDivElement | null>(null);
 
   const activeTags = useMemo(() => tags.filter((tag) => tag.active), [tags]);
+  const selectedCustomerTags = useMemo(
+    () => tags.filter((tag) => customerTagFilters.includes(tag.id)),
+    [customerTagFilters, tags]
+  );
+  const filteredTagOptions = useMemo(() => {
+    const keyword = customerTagFilterKeyword.trim().toLowerCase();
+    if (!keyword) {
+      return activeTags;
+    }
+    return activeTags.filter((tag) => tag.name.toLowerCase().includes(keyword));
+  }, [activeTags, customerTagFilterKeyword]);
   const activeSalesUserIds = useMemo(() => new Set(salesUsers.map((item) => item.id)), [salesUsers]);
+  const customerInitialLoading = customersLoading && customers.length === 0;
+  const staffInitialLoading = staffLoading && staffUsers.length === 0;
+  const adminInitialLoading = adminLoading && adminUsers.length === 0;
+  const customerRefreshing = customersLoading && customers.length > 0;
+  const staffRefreshing = staffLoading && staffUsers.length > 0;
+  const adminRefreshing = adminLoading && adminUsers.length > 0;
 
   const customerTotalPages = Math.max(1, Math.ceil(customerTotal / customerPageSize));
   const staffTotalPages = Math.max(1, Math.ceil(staffTotal / staffPageSize));
@@ -574,6 +619,42 @@ export const UserOperationsPage = () => {
       return null;
     }
     return listMockAccounts().filter((account) => account.userType === 'admin').length;
+  }, []);
+
+  const clearTabMessage = useCallback((tab: UserOperationsTab) => {
+    setTabMessages((current) => ({
+      ...current,
+      [tab]: { error: '', success: '' }
+    }));
+  }, []);
+
+  const setTabError = useCallback((tab: UserOperationsTab, message: string) => {
+    setTabMessages((current) => ({
+      ...current,
+      [tab]: { error: message, success: '' }
+    }));
+  }, []);
+
+  const setTabSuccess = useCallback((tab: UserOperationsTab, message: string) => {
+    setTabMessages((current) => ({
+      ...current,
+      [tab]: { error: '', success: message }
+    }));
+  }, []);
+
+  const toggleCustomerTagFilter = useCallback((tagId: string) => {
+    setCustomerTagFilters((current) => {
+      if (current.includes(tagId)) {
+        return current.filter((item) => item !== tagId);
+      }
+      return [...current, tagId];
+    });
+    setCustomerPage(1);
+  }, []);
+
+  const clearCustomerTagFilters = useCallback(() => {
+    setCustomerTagFilters([]);
+    setCustomerPage(1);
   }, []);
 
   const refreshSalesUsers = useCallback(async () => {
@@ -594,7 +675,7 @@ export const UserOperationsPage = () => {
       }
       if (response.status !== 200) {
         setSalesUsers([]);
-        setErrorMessage('加载业务员列表失败，请稍后重试。');
+        setTabError('customers', '加载业务员列表失败，请稍后重试。');
         return;
       }
       setSalesUsers(normalizeSalesUsers(response.data));
@@ -603,7 +684,7 @@ export const UserOperationsPage = () => {
         return;
       }
       setSalesUsers([]);
-      setErrorMessage('加载业务员列表失败，请稍后重试。');
+      setTabError('customers', '加载业务员列表失败，请稍后重试。');
     } finally {
       if (requestVersion === salesRequestVersion.current) {
         setSalesLoading(false);
@@ -629,7 +710,7 @@ export const UserOperationsPage = () => {
       }
       if (response.status !== 200) {
         setTags([]);
-        setErrorMessage('加载客户标签失败，请稍后重试。');
+        setTabError('customers', '加载客户标签失败，请稍后重试。');
         return;
       }
       setTags(normalizeTags(response.data));
@@ -638,7 +719,7 @@ export const UserOperationsPage = () => {
         return;
       }
       setTags([]);
-      setErrorMessage('加载客户标签失败，请稍后重试。');
+      setTabError('customers', '加载客户标签失败，请稍后重试。');
     } finally {
       if (requestVersion === tagsRequestVersion.current) {
         setTagsLoading(false);
@@ -699,7 +780,7 @@ export const UserOperationsPage = () => {
       if (response.status !== 200) {
         setCustomers([]);
         setCustomerTotal(0);
-        setErrorMessage('加载客户列表失败，请稍后重试。');
+        setTabError('customers', '加载客户列表失败，请稍后重试。');
         return;
       }
 
@@ -712,7 +793,7 @@ export const UserOperationsPage = () => {
       }
       setCustomers([]);
       setCustomerTotal(0);
-      setErrorMessage('加载客户列表失败，请稍后重试。');
+      setTabError('customers', '加载客户列表失败，请稍后重试。');
     } finally {
       if (requestVersion === customersRequestVersion.current) {
         setCustomersLoading(false);
@@ -768,7 +849,7 @@ export const UserOperationsPage = () => {
       if (response.status !== 200) {
         setStaffUsers([]);
         setStaffTotal(0);
-        setErrorMessage('加载业务员权限列表失败，请稍后重试。');
+        setTabError('staff', '加载业务员权限列表失败，请稍后重试。');
         return;
       }
       const normalized = normalizeStaffUsers(response.data);
@@ -780,7 +861,7 @@ export const UserOperationsPage = () => {
       }
       setStaffUsers([]);
       setStaffTotal(0);
-      setErrorMessage('加载业务员权限列表失败，请稍后重试。');
+      setTabError('staff', '加载业务员权限列表失败，请稍后重试。');
     } finally {
       if (requestVersion === staffRequestVersion.current) {
         setStaffLoading(false);
@@ -828,7 +909,7 @@ export const UserOperationsPage = () => {
       if (response.status !== 200) {
         setAdminUsers([]);
         setAdminTotal(0);
-        setErrorMessage('加载管理员列表失败，请稍后重试。');
+        setTabError('admins', '加载管理员列表失败，请稍后重试。');
         return;
       }
       const normalized = normalizeAdminUsers(response.data);
@@ -840,7 +921,7 @@ export const UserOperationsPage = () => {
       }
       setAdminUsers([]);
       setAdminTotal(0);
-      setErrorMessage('加载管理员列表失败，请稍后重试。');
+      setTabError('admins', '加载管理员列表失败，请稍后重试。');
     } finally {
       if (requestVersion === adminRequestVersion.current) {
         setAdminLoading(false);
@@ -865,8 +946,43 @@ export const UserOperationsPage = () => {
     void refreshAdminUsers();
   }, [refreshAdminUsers]);
 
+  useEffect(() => {
+    if (!customerTagFilterOpen) {
+      return;
+    }
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+      if (customerTagFilterRef.current?.contains(target)) {
+        return;
+      }
+      setCustomerTagFilterOpen(false);
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [customerTagFilterOpen]);
+
+  useEffect(() => {
+    if (activeTab !== 'customers') {
+      setCustomerTagFilterOpen(false);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!customerTagFilterOpen) {
+      setCustomerTagFilterKeyword('');
+    }
+  }, [customerTagFilterOpen]);
+
   const handleApplyCustomerSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setCustomerTagFilterOpen(false);
     startTransition(() => {
       setCustomerPage(1);
       setAppliedCustomerQuery(customerQueryInput.trim());
@@ -910,8 +1026,7 @@ export const UserOperationsPage = () => {
   }, []);
 
   const handlePromoteCustomerToSales = useCallback(async (customer: AdminCustomer) => {
-    setErrorMessage('');
-    setSuccessMessage('');
+    clearTabMessage('customers');
     setCustomerPending(customer.id, true);
     const previousSales = salesUsers.find((item) => item.id === customer.id);
     const previousStaff = staffUsers.find((item) => item.id === customer.id);
@@ -977,7 +1092,7 @@ export const UserOperationsPage = () => {
           ];
         });
 
-        setSuccessMessage(`已将「${customer.displayName}」设置为业务员（mock）。`);
+        setTabSuccess('customers', `已将「${customer.displayName}」设置为业务员（mock）。`);
         return;
       }
 
@@ -1034,7 +1149,7 @@ export const UserOperationsPage = () => {
         if (previousStaff) {
           setStaffUsers((current) => current.map((item) => (item.id === customer.id ? previousStaff : item)));
         }
-        setErrorMessage('设置业务员权限失败，请稍后重试。');
+        setTabError('customers', '设置业务员权限失败，请稍后重试。');
         return;
       }
 
@@ -1089,7 +1204,7 @@ export const UserOperationsPage = () => {
         };
       }));
 
-      setSuccessMessage(`已将「${customer.displayName}」设置为业务员。`);
+      setTabSuccess('customers', `已将「${customer.displayName}」设置为业务员。`);
       if (payload.promoted) {
         void refreshStaffUsers();
       }
@@ -1104,19 +1219,18 @@ export const UserOperationsPage = () => {
       if (previousStaff) {
         setStaffUsers((current) => current.map((item) => (item.id === customer.id ? previousStaff : item)));
       }
-      setErrorMessage('设置业务员权限失败，请稍后重试。');
+      setTabError('customers', '设置业务员权限失败，请稍后重试。');
     } finally {
       setCustomerPending(customer.id, false);
     }
-  }, [refreshStaffUsers, salesUsers, setCustomerPending, setMockSalesUsers, setMockStaffUsers, staffUsers]);
+  }, [clearTabMessage, refreshStaffUsers, salesUsers, setCustomerPending, setMockSalesUsers, setMockStaffUsers, setTabError, setTabSuccess, staffUsers]);
 
   const handleGrantSalesRole = useCallback(async (staff: StaffUser) => {
     if (hasRole(staff.roles, SALES_ROLE)) {
       return;
     }
 
-    setErrorMessage('');
-    setSuccessMessage('');
+    clearTabMessage('staff');
     setStaffPending(staff.id, true);
     const previousSales = salesUsers.find((item) => item.id === staff.id);
 
@@ -1160,7 +1274,7 @@ export const UserOperationsPage = () => {
             ...current
           ];
         });
-        setSuccessMessage(`已授予「${staff.displayName}」业务员权限（mock）。`);
+        setTabSuccess('staff', `已授予「${staff.displayName}」业务员权限（mock）。`);
         return;
       }
 
@@ -1212,7 +1326,7 @@ export const UserOperationsPage = () => {
           }
           return [previousSales, ...filtered];
         });
-        setErrorMessage('授予业务员权限失败，请稍后重试。');
+        setTabError('staff', '授予业务员权限失败，请稍后重试。');
         return;
       }
 
@@ -1249,7 +1363,7 @@ export const UserOperationsPage = () => {
         };
       }));
 
-      setSuccessMessage(`已授予「${staff.displayName}」业务员权限。`);
+      setTabSuccess('staff', `已授予「${staff.displayName}」业务员权限。`);
     } catch {
       setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
       setSalesUsers((current) => {
@@ -1259,23 +1373,22 @@ export const UserOperationsPage = () => {
         }
         return [previousSales, ...filtered];
       });
-      setErrorMessage('授予业务员权限失败，请稍后重试。');
+      setTabError('staff', '授予业务员权限失败，请稍后重试。');
     } finally {
       setStaffPending(staff.id, false);
     }
-  }, [salesUsers, setMockSalesUsers, setMockStaffUsers, setStaffPending]);
+  }, [clearTabMessage, salesUsers, setMockSalesUsers, setMockStaffUsers, setStaffPending, setTabError, setTabSuccess]);
 
   const handleRevokeSalesRole = useCallback(async (staff: StaffUser) => {
     if (!hasRole(staff.roles, SALES_ROLE)) {
       return;
     }
     if (staff.roles.length <= 1) {
-      setErrorMessage('该账号仅剩一个角色，无法直接移除业务员角色。');
+      setTabError('staff', '该账号仅剩一个角色，无法直接移除业务员角色。');
       return;
     }
 
-    setErrorMessage('');
-    setSuccessMessage('');
+    clearTabMessage('staff');
     setStaffPending(staff.id, true);
     const previousSales = salesUsers.find((item) => item.id === staff.id);
 
@@ -1294,7 +1407,7 @@ export const UserOperationsPage = () => {
           };
         }));
         setMockSalesUsers((current) => current.filter((item) => item.id !== staff.id));
-        setSuccessMessage(`已移除「${staff.displayName}」业务员权限（mock）。`);
+        setTabSuccess('staff', `已移除「${staff.displayName}」业务员权限（mock）。`);
         return;
       }
 
@@ -1321,7 +1434,7 @@ export const UserOperationsPage = () => {
           const filtered = current.filter((item) => item.id !== staff.id);
           return [previousSales, ...filtered];
         });
-        setErrorMessage('移除业务员权限失败，请稍后重试。');
+        setTabError('staff', '移除业务员权限失败，请稍后重试。');
         return;
       }
 
@@ -1345,7 +1458,7 @@ export const UserOperationsPage = () => {
         };
       }));
 
-      setSuccessMessage(`已移除「${staff.displayName}」业务员权限。`);
+      setTabSuccess('staff', `已移除「${staff.displayName}」业务员权限。`);
     } catch {
       setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
       setSalesUsers((current) => {
@@ -1355,15 +1468,14 @@ export const UserOperationsPage = () => {
         }
         return [previousSales, ...filtered];
       });
-      setErrorMessage('移除业务员权限失败，请稍后重试。');
+      setTabError('staff', '移除业务员权限失败，请稍后重试。');
     } finally {
       setStaffPending(staff.id, false);
     }
-  }, [salesUsers, setMockSalesUsers, setMockStaffUsers, setStaffPending]);
+  }, [clearTabMessage, salesUsers, setMockSalesUsers, setMockStaffUsers, setStaffPending, setTabError, setTabSuccess]);
 
   const handleToggleStaffStatus = useCallback(async (staff: StaffUser) => {
-    setErrorMessage('');
-    setSuccessMessage('');
+    clearTabMessage('staff');
     setStaffPending(staff.id, true);
 
     try {
@@ -1389,7 +1501,7 @@ export const UserOperationsPage = () => {
             status: nextStatus
           };
         }));
-        setSuccessMessage(nextStatus === 'active'
+        setTabSuccess('staff', nextStatus === 'active'
           ? `已启用「${staff.displayName}」账号（mock）。`
           : `已禁用「${staff.displayName}」账号（mock）。`);
         return;
@@ -1432,7 +1544,7 @@ export const UserOperationsPage = () => {
             status: staff.status
           };
         }));
-        setErrorMessage('更新账号状态失败，请稍后重试。');
+        setTabError('staff', '更新账号状态失败，请稍后重试。');
         return;
       }
 
@@ -1467,7 +1579,7 @@ export const UserOperationsPage = () => {
         };
       }));
 
-      setSuccessMessage(nextStatus === 'active' ? `已启用「${staff.displayName}」账号。` : `已禁用「${staff.displayName}」账号。`);
+      setTabSuccess('staff', nextStatus === 'active' ? `已启用「${staff.displayName}」账号。` : `已禁用「${staff.displayName}」账号。`);
     } catch {
       setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
       setSalesUsers((current) => current.map((item) => {
@@ -1479,11 +1591,15 @@ export const UserOperationsPage = () => {
           status: staff.status
         };
       }));
-      setErrorMessage('更新账号状态失败，请稍后重试。');
+      setTabError('staff', '更新账号状态失败，请稍后重试。');
     } finally {
       setStaffPending(staff.id, false);
     }
-  }, [setMockSalesUsers, setMockStaffUsers, setStaffPending]);
+  }, [clearTabMessage, setMockSalesUsers, setMockStaffUsers, setStaffPending, setTabError, setTabSuccess]);
+
+  const customersMessage = tabMessages.customers;
+  const staffMessage = tabMessages.staff;
+  const adminsMessage = tabMessages.admins;
 
   const renderCustomerPanel = () => {
     return (
@@ -1508,20 +1624,79 @@ export const UserOperationsPage = () => {
               <option key={sales.id} value={sales.id}>{sales.displayName}</option>
             ))}
           </select>
-          <select
-            className="h-11 rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
-            multiple
-            onChange={(event) => {
-              const values = Array.from(event.currentTarget.selectedOptions).map((option) => option.value);
-              setCustomerTagFilters(values);
-              setCustomerPage(1);
-            }}
-            value={customerTagFilters}
-          >
-            {activeTags.map((tag) => (
-              <option key={tag.id} value={tag.id}>{tag.name}</option>
-            ))}
-          </select>
+          <div className="relative" ref={customerTagFilterRef}>
+            <button
+              className="flex h-11 w-full items-center justify-between rounded-lg border border-border-light bg-background-light px-3 text-sm text-text-primary-light transition-colors hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+              onClick={() => setCustomerTagFilterOpen((current) => !current)}
+              type="button"
+            >
+              <span className="flex min-w-0 items-center gap-1 overflow-hidden">
+                {selectedCustomerTags.length === 0 ? (
+                  <span className="truncate text-text-secondary-light dark:text-text-secondary-dark">全部标签</span>
+                ) : (
+                  selectedCustomerTags.slice(0, 2).map((tag) => (
+                    <span
+                      className="max-w-[80px] truncate rounded px-2 py-0.5 text-xs font-medium text-white"
+                      key={`selected-tag-${tag.id}`}
+                      style={{ backgroundColor: tag.color || DEFAULT_TAG_COLOR }}
+                    >
+                      {tag.name}
+                    </span>
+                  ))
+                )}
+                {selectedCustomerTags.length > 2 ? (
+                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-text-secondary-light dark:bg-slate-700 dark:text-text-secondary-dark">
+                    +{selectedCustomerTags.length - 2}
+                  </span>
+                ) : null}
+              </span>
+              <span className="ml-2 text-xs text-text-secondary-light dark:text-text-secondary-dark">{customerTagFilterOpen ? '收起' : '展开'}</span>
+            </button>
+
+            {customerTagFilterOpen ? (
+              <div className="absolute z-30 mt-2 w-full min-w-[240px] rounded-lg border border-border-light bg-surface-light p-3 shadow-lg dark:border-border-dark dark:bg-surface-dark">
+                <input
+                  className="mb-2 h-9 w-full rounded border-border-light bg-background-light px-2 text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+                  onChange={(event) => setCustomerTagFilterKeyword(event.currentTarget.value)}
+                  placeholder="搜索标签"
+                  value={customerTagFilterKeyword}
+                />
+                <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
+                  {tagsLoading ? <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">标签加载中...</p> : null}
+                  {!tagsLoading && filteredTagOptions.length === 0 ? (
+                    <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">未匹配到标签</p>
+                  ) : null}
+                  {!tagsLoading ? filteredTagOptions.map((tag) => (
+                    <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm text-text-primary-light hover:bg-gray-100 dark:text-text-primary-dark dark:hover:bg-gray-800/60" key={`tag-option-${tag.id}`}>
+                      <input
+                        checked={customerTagFilters.includes(tag.id)}
+                        onChange={() => toggleCustomerTagFilter(tag.id)}
+                        type="checkbox"
+                      />
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: tag.color || DEFAULT_TAG_COLOR }} />
+                      <span className="truncate">{tag.name}</span>
+                    </label>
+                  )) : null}
+                </div>
+                <div className="mt-3 flex items-center justify-between">
+                  <button
+                    className="text-xs text-text-secondary-light transition-colors hover:text-primary dark:text-text-secondary-dark dark:hover:text-blue-300"
+                    onClick={clearCustomerTagFilters}
+                    type="button"
+                  >
+                    清空筛选
+                  </button>
+                  <button
+                    className="text-xs text-text-secondary-light transition-colors hover:text-primary dark:text-text-secondary-dark dark:hover:text-blue-300"
+                    onClick={() => setCustomerTagFilterOpen(false)}
+                    type="button"
+                  >
+                    完成
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
           <button
             className="h-11 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400 lg:w-12 lg:min-w-12 lg:px-0"
             disabled={customersLoading}
@@ -1531,15 +1706,21 @@ export const UserOperationsPage = () => {
           </button>
         </form>
 
+        {customersMessage.error ? <p className="text-sm text-red-600" data-testid="user-operations-error">{customersMessage.error}</p> : null}
+        {customersMessage.success ? <p className="text-sm text-emerald-600" data-testid="user-operations-success">{customersMessage.success}</p> : null}
+
         <section className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
           <div className="flex items-center justify-between border-b border-border-light px-4 py-3 dark:border-border-dark">
             <div>
               <p className="text-sm font-semibold text-text-primary-light dark:text-text-primary-dark">客户信息</p>
               <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">共 {customerTotal} 位客户</p>
             </div>
-            <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-primary dark:bg-blue-900/40 dark:text-blue-300">
-              {isMockMode ? 'mock' : 'dev'}
-            </span>
+            <div className="flex items-center gap-2">
+              {customerRefreshing ? <span className="text-xs text-text-secondary-light dark:text-text-secondary-dark">刷新中...</span> : null}
+              <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-primary dark:bg-blue-900/40 dark:text-blue-300">
+                {isMockMode ? 'mock' : 'dev'}
+              </span>
+            </div>
           </div>
 
           <div className="overflow-x-auto" style={{ contentVisibility: 'auto' }}>
@@ -1554,7 +1735,7 @@ export const UserOperationsPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-light dark:divide-border-dark">
-                {customers.map((customer) => (
+                {customerInitialLoading ? <TableSkeletonBody cols={5} /> : customers.map((customer) => (
                   <CustomerRow
                     customer={customer}
                     isPending={Boolean(pendingCustomerActions[customer.id])}
@@ -1564,7 +1745,7 @@ export const UserOperationsPage = () => {
                   />
                 ))}
 
-                {!customersLoading && customers.length === 0 ? (
+                {!customerInitialLoading && !customersLoading && customers.length === 0 ? (
                   <tr>
                     <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={5} data-testid="customers-empty-state">
                       暂无客户数据
@@ -1622,15 +1803,21 @@ export const UserOperationsPage = () => {
           </button>
         </form>
 
+        {staffMessage.error ? <p className="text-sm text-red-600" data-testid="staff-operations-error">{staffMessage.error}</p> : null}
+        {staffMessage.success ? <p className="text-sm text-emerald-600" data-testid="staff-operations-success">{staffMessage.success}</p> : null}
+
         <section className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
           <div className="flex items-center justify-between border-b border-border-light px-4 py-3 dark:border-border-dark">
             <div>
               <p className="text-sm font-semibold text-text-primary-light dark:text-text-primary-dark">业务员与员工信息</p>
               <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">共 {staffTotal} 位员工</p>
             </div>
-            <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-primary dark:bg-blue-900/40 dark:text-blue-300">
-              {isMockMode ? 'mock' : 'dev'}
-            </span>
+            <div className="flex items-center gap-2">
+              {staffRefreshing ? <span className="text-xs text-text-secondary-light dark:text-text-secondary-dark">刷新中...</span> : null}
+              <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-primary dark:bg-blue-900/40 dark:text-blue-300">
+                {isMockMode ? 'mock' : 'dev'}
+              </span>
+            </div>
           </div>
 
           <div className="overflow-x-auto" style={{ contentVisibility: 'auto' }}>
@@ -1645,7 +1832,7 @@ export const UserOperationsPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {staffUsers.map((staff) => (
+                {staffInitialLoading ? <TableSkeletonBody cols={5} /> : staffUsers.map((staff) => (
                   <StaffRow
                     isPending={Boolean(pendingStaffActions[staff.id])}
                     key={staff.id}
@@ -1655,7 +1842,7 @@ export const UserOperationsPage = () => {
                     staff={staff}
                   />
                 ))}
-                {!staffLoading && staffUsers.length === 0 ? (
+                {!staffInitialLoading && !staffLoading && staffUsers.length === 0 ? (
                   <tr>
                     <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={5}>
                       暂无业务员数据
@@ -1696,16 +1883,23 @@ export const UserOperationsPage = () => {
 
   const renderAdminPanel = () => {
     return (
-      <section className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
-        <div className="flex items-center justify-between border-b border-border-light px-4 py-3 dark:border-border-dark">
-          <div>
-            <p className="text-sm font-semibold text-text-primary-light dark:text-text-primary-dark">管理员用户</p>
-            <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">共 {adminTotal} 位管理员</p>
+      <section className="space-y-3">
+        {adminsMessage.error ? <p className="text-sm text-red-600" data-testid="admin-operations-error">{adminsMessage.error}</p> : null}
+        {adminsMessage.success ? <p className="text-sm text-emerald-600" data-testid="admin-operations-success">{adminsMessage.success}</p> : null}
+
+        <section className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
+          <div className="flex items-center justify-between border-b border-border-light px-4 py-3 dark:border-border-dark">
+            <div>
+              <p className="text-sm font-semibold text-text-primary-light dark:text-text-primary-dark">管理员用户</p>
+              <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">共 {adminTotal} 位管理员</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {adminRefreshing ? <span className="text-xs text-text-secondary-light dark:text-text-secondary-dark">刷新中...</span> : null}
+              <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-primary dark:bg-blue-900/40 dark:text-blue-300">
+                {isMockMode ? 'mock' : 'dev'}
+              </span>
+            </div>
           </div>
-          <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-primary dark:bg-blue-900/40 dark:text-blue-300">
-            {isMockMode ? 'mock' : 'dev'}
-          </span>
-        </div>
 
         <div className="overflow-x-auto" style={{ contentVisibility: 'auto' }}>
           <table className="w-full min-w-[760px] text-left text-sm">
@@ -1718,7 +1912,7 @@ export const UserOperationsPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-light dark:divide-border-dark">
-              {adminUsers.map((admin) => (
+              {adminInitialLoading ? <TableSkeletonBody cols={4} /> : adminUsers.map((admin) => (
                 <tr className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30" key={admin.id}>
                   <td className="px-4 py-3">
                     <p className="font-medium text-text-primary-light dark:text-text-primary-dark">{admin.displayName}</p>
@@ -1740,7 +1934,7 @@ export const UserOperationsPage = () => {
                   <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{formatDateTime(admin.updatedAt || admin.createdAt)}</td>
                 </tr>
               ))}
-              {!adminLoading && adminUsers.length === 0 ? (
+              {!adminInitialLoading && !adminLoading && adminUsers.length === 0 ? (
                 <tr>
                   <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={4}>
                     暂无管理员数据
@@ -1774,6 +1968,7 @@ export const UserOperationsPage = () => {
             </button>
           </div>
         </div>
+        </section>
       </section>
     );
   };
@@ -1838,9 +2033,6 @@ export const UserOperationsPage = () => {
             管理员
           </button>
         </div>
-
-        {errorMessage ? <p className="mb-3 text-sm text-red-600" data-testid="user-operations-error">{errorMessage}</p> : null}
-        {successMessage ? <p className="mb-3 text-sm text-emerald-600" data-testid="user-operations-success">{successMessage}</p> : null}
 
         {activeTab === 'customers'
           ? renderCustomerPanel()
