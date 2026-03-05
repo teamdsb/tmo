@@ -32,6 +32,17 @@ const (
 	NOTFOUND  CartImportPendingItemMatchType = "NOT_FOUND"
 )
 
+// Defines values for DisplayCategoryIconKey.
+const (
+	Apps    DisplayCategoryIconKey = "apps"
+	Brush   DisplayCategoryIconKey = "brush"
+	Desktop DisplayCategoryIconKey = "desktop"
+	Hot     DisplayCategoryIconKey = "hot"
+	Notes   DisplayCategoryIconKey = "notes"
+	Setting DisplayCategoryIconKey = "setting"
+	Shield  DisplayCategoryIconKey = "shield"
+)
+
 // Defines values for ImportJobType.
 const (
 	ImportJobTypeCARTIMPORT           ImportJobType = "CART_IMPORT"
@@ -303,6 +314,25 @@ type CreateUserAddressRequest struct {
 	IsDefault     *bool  `json:"isDefault,omitempty"`
 	ReceiverName  string `json:"receiverName"`
 	ReceiverPhone string `json:"receiverPhone"`
+}
+
+// DisplayCategory defines model for DisplayCategory.
+type DisplayCategory struct {
+	Enabled bool                   `json:"enabled"`
+	IconKey DisplayCategoryIconKey `json:"iconKey"`
+
+	// Id Stable display category key used by miniapp UI.
+	Id   string `json:"id"`
+	Name string `json:"name"`
+	Sort int    `json:"sort"`
+}
+
+// DisplayCategoryIconKey defines model for DisplayCategory.IconKey.
+type DisplayCategoryIconKey string
+
+// DisplayCategoryListResponse defines model for DisplayCategoryListResponse.
+type DisplayCategoryListResponse struct {
+	Items []DisplayCategory `json:"items"`
 }
 
 // ErrorResponse defines model for ErrorResponse.
@@ -835,6 +865,9 @@ type ServerInterface interface {
 	// Update category
 	// (PATCH /catalog/categories/{categoryId})
 	PatchCatalogCategoriesCategoryId(c *gin.Context, categoryId openapi_types.UUID)
+	// List miniapp display categories
+	// (GET /catalog/display-categories)
+	GetCatalogDisplayCategories(c *gin.Context)
 	// Search/list products (SPU list)
 	// (GET /catalog/products)
 	GetCatalogProducts(c *gin.Context, params GetCatalogProductsParams)
@@ -1444,6 +1477,19 @@ func (siw *ServerInterfaceWrapper) PatchCatalogCategoriesCategoryId(c *gin.Conte
 	}
 
 	siw.Handler.PatchCatalogCategoriesCategoryId(c, categoryId)
+}
+
+// GetCatalogDisplayCategories operation middleware
+func (siw *ServerInterfaceWrapper) GetCatalogDisplayCategories(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetCatalogDisplayCategories(c)
 }
 
 // GetCatalogProducts operation middleware
@@ -2191,6 +2237,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.DELETE(options.BaseURL+"/catalog/categories/:categoryId", wrapper.DeleteCatalogCategoriesCategoryId)
 	router.GET(options.BaseURL+"/catalog/categories/:categoryId", wrapper.GetCatalogCategoriesCategoryId)
 	router.PATCH(options.BaseURL+"/catalog/categories/:categoryId", wrapper.PatchCatalogCategoriesCategoryId)
+	router.GET(options.BaseURL+"/catalog/display-categories", wrapper.GetCatalogDisplayCategories)
 	router.GET(options.BaseURL+"/catalog/products", wrapper.GetCatalogProducts)
 	router.POST(options.BaseURL+"/catalog/products", wrapper.PostCatalogProducts)
 	router.DELETE(options.BaseURL+"/catalog/products/:spuId", wrapper.DeleteCatalogProductsSpuId)

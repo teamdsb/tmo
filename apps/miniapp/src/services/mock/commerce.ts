@@ -12,6 +12,7 @@ import {
   type CartImportJob,
   type CartImportSelection,
   type Category,
+  type DisplayCategory,
   type ImportJob,
   type Order,
   type OrderStatsResponse,
@@ -163,6 +164,16 @@ const ensureCategory = (categoryId: string): Category => {
   return category
 }
 
+const toMockDisplayCategories = (): DisplayCategory[] => {
+  return mockCategories.map((item, index) => ({
+    id: item.id,
+    name: item.name,
+    iconKey: item.name.includes('电') ? 'desktop' : item.name.includes('安全') ? 'shield' : 'setting',
+    sort: typeof item.sort === 'number' ? item.sort : index + 1,
+    enabled: true
+  }))
+}
+
 const toCartImportJob = (jobId: string): CartImportJob => ({
   id: jobId,
   type: ImportJobType.CART_IMPORT,
@@ -219,6 +230,7 @@ export const createMockCommerceServices = (): CommerceServices => {
 
   const catalog: CommerceServices['catalog'] = {
     listCategories: async () => ({ items: mockCategories }),
+    listDisplayCategories: async () => ({ items: toMockDisplayCategories() }),
     getCategory: async (categoryId) => ensureCategory(categoryId),
     createCategory: async (payload) => ({
       id: `mock-category-${Date.now().toString(36)}`,

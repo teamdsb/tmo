@@ -238,6 +238,17 @@ export const fetchCustomers = async (params = {}) => {
   return getCustomers(params);
 };
 
+export const fetchMiniappDisplayCategories = async () => {
+  return requestRaw('/admin/miniapp/display-categories');
+};
+
+export const replaceMiniappDisplayCategories = async (payload) => {
+  return requestRaw('/admin/miniapp/display-categories', {
+    method: 'PUT',
+    body: payload
+  });
+};
+
 const buildQueryString = (params = {}) => {
   const search = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {

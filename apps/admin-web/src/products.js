@@ -3,7 +3,9 @@ import {
   createCatalogProduct,
   deleteCatalogCategory,
   fetchCatalogCategories,
+  fetchMiniappDisplayCategories,
   fetchProducts,
+  replaceMiniappDisplayCategories,
   updateCatalogCategory
 } from './lib/api';
 import { ensureProtectedPage } from './lib/guard';
@@ -2265,7 +2267,46 @@ const shouldUseLocalCategoryStore = () => {
   return state.context?.mode !== 'dev';
 };
 
-const loadDisplayCategories = () => {
+const toDisplayCategoryPayload = (item, index = 0) => {
+  return {
+    id: safeText(item?.id, '').trim(),
+    name: safeText(item?.name, '').trim(),
+    iconKey: safeText(item?.iconKey, inferDisplayCategoryIconKey(safeText(item?.name, ''), 'apps'))
+      .trim()
+      .toLowerCase(),
+    sort: toNumber(item?.sort, index + 1),
+    enabled: item?.enabled !== false
+  };
+};
+
+const persistDisplayCategories = async (items) => {
+  const payloadItems = items.map((item, index) => toDisplayCategoryPayload(item, index)).filter((item) => item.id && item.name);
+  if (state.context?.mode === 'dev') {
+    const response = await replaceMiniappDisplayCategories({
+      items: payloadItems
+    });
+    if (response.status !== 200 || !Array.isArray(response.data?.items)) {
+      throw new Error('后端保存展示类目失败。');
+    }
+    setDisplayCategories(response.data.items, { persist: false });
+    return;
+  }
+  setDisplayCategories(payloadItems, { persist: true });
+};
+
+const loadDisplayCategories = async () => {
+  if (state.context?.mode === 'dev') {
+    try {
+      const response = await fetchMiniappDisplayCategories();
+      if (response.status === 200 && Array.isArray(response.data?.items)) {
+        setDisplayCategories(response.data.items, { persist: false });
+        return;
+      }
+    } catch {
+      // ignore and fallback
+    }
+  }
+
   const stored = readDisplayCategoriesFromStorage();
   if (stored.length > 0) {
     setDisplayCategories(stored, { persist: false });
@@ -2375,7 +2416,7 @@ const ensureDisplayCategoryManagerModal = () => {
       <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
         <div>
           <h3 class="text-lg font-bold text-slate-900">展示类目管理</h3>
-          <p class="text-xs text-slate-500">管理小程序首页/分类页的展示类目（当前为本地 Mock 存储）。</p>
+          <p class="text-xs text-slate-500">管理小程序首页/分类页的展示类目（Admin 改动会同步到小程序）。</p>
         </div>
         <button type="button" data-role="close-display-category-manager" class="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700">
           <span class="material-symbols-outlined">close</span>
@@ -2431,7 +2472,7 @@ const ensureDisplayCategoryManagerModal = () => {
 
   const createForm = modal.querySelector('[data-role="create-display-category-form"]');
   if (createForm instanceof HTMLFormElement) {
-    createForm.addEventListener('submit', (event) => {
+    createForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       const formData = new FormData(createForm);
       const name = safeText(formData.get('name'), '').trim();
@@ -2457,23 +2498,28 @@ const ensureDisplayCategoryManagerModal = () => {
         showToast('新增展示类目失败，请稍后重试。', 'error');
         return;
       }
-      setDisplayCategories([...state.displayCategories, nextItem], { persist: true });
-      renderDisplayCategoryManagerBody(modal);
-      createForm.reset();
-      const iconSelect = createForm.elements.namedItem('iconKey');
-      if (iconSelect instanceof HTMLSelectElement) {
-        iconSelect.value = 'apps';
+      try {
+        await persistDisplayCategories([...state.displayCategories, nextItem]);
+        renderDisplayCategoryManagerBody(modal);
+        createForm.reset();
+        const iconSelect = createForm.elements.namedItem('iconKey');
+        if (iconSelect instanceof HTMLSelectElement) {
+          iconSelect.value = 'apps';
+        }
+        const enabledInput = createForm.elements.namedItem('enabled');
+        if (enabledInput instanceof HTMLInputElement) {
+          enabledInput.checked = true;
+        }
+        showToast('展示类目已新增。');
+      } catch (error) {
+        const reason = toMinimalErrorReason(error);
+        showToast(`新增展示类目失败：${reason}`, 'error');
       }
-      const enabledInput = createForm.elements.namedItem('enabled');
-      if (enabledInput instanceof HTMLInputElement) {
-        enabledInput.checked = true;
-      }
-      showToast('展示类目已新增。');
     });
   }
 
   const listBody = modal.querySelector('[data-role="display-category-list-body"]');
-  listBody?.addEventListener('click', (event) => {
+  listBody?.addEventListener('click', async (event) => {
     const target = event.target;
     if (!(target instanceof Element)) {
       return;
@@ -2497,10 +2543,15 @@ const ensureDisplayCategoryManagerModal = () => {
       if (!window.confirm(`确定删除展示类目“${categoryName}”吗？`)) {
         return;
       }
-      const nextItems = state.displayCategories.filter((item) => item.id !== categoryId);
-      setDisplayCategories(nextItems, { persist: true });
-      renderDisplayCategoryManagerBody(modal);
-      showToast('展示类目已删除。');
+      try {
+        const nextItems = state.displayCategories.filter((item) => item.id !== categoryId);
+        await persistDisplayCategories(nextItems);
+        renderDisplayCategoryManagerBody(modal);
+        showToast('展示类目已删除。');
+      } catch (error) {
+        const reason = toMinimalErrorReason(error);
+        showToast(`删除展示类目失败：${reason}`, 'error');
+      }
       return;
     }
 
@@ -2544,9 +2595,14 @@ const ensureDisplayCategoryManagerModal = () => {
         id: safeText(current?.id, categoryId)
       };
     });
-    setDisplayCategories(nextItems, { persist: true });
-    renderDisplayCategoryManagerBody(modal);
-    showToast('展示类目已更新。');
+    try {
+      await persistDisplayCategories(nextItems);
+      renderDisplayCategoryManagerBody(modal);
+      showToast('展示类目已更新。');
+    } catch (error) {
+      const reason = toMinimalErrorReason(error);
+      showToast(`保存展示类目失败：${reason}`, 'error');
+    }
   });
 
   renderDisplayCategoryManagerBody(modal);
@@ -2900,7 +2956,7 @@ const initProducts = async () => {
   }
   state.context = context;
   await loadCategories();
-  loadDisplayCategories();
+  await loadDisplayCategories();
   state.total = 0;
   hydrateStaticRows();
   bindProductRowActions();

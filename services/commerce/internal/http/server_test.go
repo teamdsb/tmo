@@ -34,6 +34,12 @@ func TestNewRouterRegistersRoutes(test *testing.T) {
 	if !hasRoute(routes, http.MethodGet, "/cart") {
 		test.Fatalf("expected /cart route to be registered")
 	}
+	if !hasRoute(routes, http.MethodGet, "/catalog/display-categories") {
+		test.Fatalf("expected /catalog/display-categories route to be registered")
+	}
+	if !hasRoute(routes, http.MethodPut, "/admin/miniapp/display-categories") {
+		test.Fatalf("expected /admin/miniapp/display-categories route to be registered")
+	}
 }
 
 func TestNewServer(test *testing.T) {

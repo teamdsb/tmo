@@ -79,6 +79,8 @@ paths:
     $ref: "./commerce.yaml#/paths/~1catalog~1categories"
   /catalog/categories/{categoryId}:
     $ref: "./commerce.yaml#/paths/~1catalog~1categories~1{categoryId}"
+  /catalog/display-categories:
+    $ref: "./commerce.yaml#/paths/~1catalog~1display-categories"
   /catalog/products:
     $ref: "./commerce.yaml#/paths/~1catalog~1products"
   /catalog/products/{spuId}:
@@ -161,6 +163,8 @@ paths:
     $ref: "./admin.yaml#/paths/~1admin~1product-requests~1export-jobs"
   /admin/import-jobs/{jobId}:
     $ref: "./admin.yaml#/paths/~1admin~1import-jobs~1{jobId}"
+  /admin/miniapp/display-categories:
+    $ref: "./admin.yaml#/paths/~1admin~1miniapp~1display-categories"
   /admin/config/feature-flags:
     $ref: "./admin.yaml#/paths/~1admin~1config~1feature-flags"
 
