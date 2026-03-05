@@ -878,6 +878,7 @@ export const GetMeSalesQrCodePlatform = {
 } as const;
 
 export type GetStaffParams = {
+q?: string;
 /**
  * @minimum 1
  */

@@ -1,18 +1,21 @@
-import { memo, startTransition, useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 
 import {
   fetchAdminCustomers,
   fetchAdminCustomerTags,
   fetchAdminSalesUsers,
+  fetchAdminUsers,
   fetchStaffUsers,
   patchStaffRoles,
-  patchStaffStatus
+  patchStaffStatus,
+  promoteAdminCustomerToSales
 } from '../../../lib/api';
 import { isMockMode } from '../../../lib/env';
 import { listMockAccounts } from '../../../lib/mock-accounts';
 import { AdminTopbar } from '../../layout/AdminTopbar';
 
 type UserOperationsTab = 'customers' | 'staff' | 'admins';
+type TabMessage = { error: string; success: string };
 
 type SalesUser = {
   id: string;
@@ -51,6 +54,16 @@ type StaffUser = {
   displayName: string;
   roles: string[];
   status: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type AdminUser = {
+  id: string;
+  displayName: string;
+  roles: string[];
+  status: string;
+  userType: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -173,6 +186,13 @@ const removeRole = (roles: string[], role: string) => {
   return roles.filter((item) => item.toUpperCase() !== target);
 };
 
+const normalizeRoleList = (roles: unknown): string[] => {
+  if (!Array.isArray(roles)) {
+    return [];
+  }
+  return roles.filter((role): role is string => typeof role === 'string');
+};
+
 const normalizeSalesUsers = (data: unknown): SalesUser[] => {
   const items = (data as { items?: unknown[] })?.items;
   if (!Array.isArray(items)) {
@@ -277,12 +297,13 @@ const normalizeCustomers = (data: unknown): { items: AdminCustomer[]; total: num
   };
 };
 
-const normalizeStaffUsers = (data: unknown): StaffUser[] => {
-  const items = Array.isArray((data as { items?: unknown[] })?.items)
-    ? ((data as { items?: unknown[] }).items as unknown[])
+const normalizeStaffUsers = (data: unknown): { items: StaffUser[]; total: number } => {
+  const payload = data as { items?: unknown[]; total?: number };
+  const items = Array.isArray(payload?.items)
+    ? (payload.items as unknown[])
     : [];
 
-  return items
+  const normalizedItems = items
     .map((item) => {
       const record = item as {
         id?: string;
@@ -311,6 +332,48 @@ const normalizeStaffUsers = (data: unknown): StaffUser[] => {
       } as StaffUser;
     })
     .filter(Boolean) as StaffUser[];
+
+  return {
+    items: normalizedItems,
+    total: Number.isFinite(payload?.total) ? Number(payload.total) : normalizedItems.length
+  };
+};
+
+const normalizeAdminUsers = (data: unknown): { items: AdminUser[]; total: number } => {
+  const payload = data as { items?: unknown[]; total?: number };
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+
+  return {
+    items: items
+      .map((item) => {
+        const record = item as {
+          id?: string;
+          displayName?: string;
+          roles?: unknown[];
+          status?: string;
+          userType?: string;
+          createdAt?: string;
+          updatedAt?: string;
+        };
+        if (!record.id) {
+          return null;
+        }
+        const roles = Array.isArray(record.roles)
+          ? record.roles.filter((role): role is string => typeof role === 'string')
+          : [];
+        return {
+          id: record.id,
+          displayName: safeText(record.displayName, '未命名管理员'),
+          roles,
+          status: safeText(record.status, 'active').toLowerCase(),
+          userType: safeText(record.userType, 'admin').toLowerCase(),
+          createdAt: safeText(record.createdAt, ''),
+          updatedAt: safeText(record.updatedAt, '')
+        } as AdminUser;
+      })
+      .filter(Boolean) as AdminUser[],
+    total: Number.isFinite(payload?.total) ? Number(payload.total) : 0
+  };
 };
 
 const buildMockStaffSeed = (): StaffUser[] => {
@@ -336,7 +399,7 @@ type CustomerRowProps = {
 
 const CustomerRow = memo(({ customer, isPending, isSales, onPromoteToSales }: CustomerRowProps) => {
   return (
-    <tr className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30">
+    <tr className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30" data-testid={`customer-row-${customer.id}`}>
       <td className="px-4 py-3">
         <p className="font-medium text-text-primary-light dark:text-text-primary-dark">{customer.displayName}</p>
         <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{customer.phone || '-'}</p>
@@ -366,6 +429,7 @@ const CustomerRow = memo(({ customer, isPending, isSales, onPromoteToSales }: Cu
       <td className="px-4 py-3">
         <button
           className="rounded border border-primary px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400 dark:disabled:border-slate-700 dark:disabled:text-slate-500"
+          data-testid={`promote-to-sales-${customer.id}`}
           disabled={isPending || isSales}
           onClick={() => onPromoteToSales(customer)}
           type="button"
@@ -451,6 +515,27 @@ const StaffRow = memo(({ staff, isPending, onGrantSales, onRevokeSales, onToggle
 
 StaffRow.displayName = 'StaffRow';
 
+type TableSkeletonBodyProps = {
+  cols: number;
+  rows?: number;
+};
+
+const TableSkeletonBody = ({ cols, rows = 5 }: TableSkeletonBodyProps) => {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, rowIndex) => (
+        <tr className="border-b border-border-light dark:border-border-dark" key={`skeleton-row-${rowIndex}`}>
+          {Array.from({ length: cols }).map((__, colIndex) => (
+            <td className="px-4 py-3" key={`skeleton-cell-${rowIndex}-${colIndex}`}>
+              <div className="h-4 animate-pulse rounded bg-slate-200 dark:bg-slate-700" />
+            </td>
+          ))}
+        </tr>
+      ))}
+    </>
+  );
+};
+
 export const UserOperationsPage = () => {
   const [activeTab, setActiveTab] = useState<UserOperationsTab>('customers');
 
@@ -458,6 +543,8 @@ export const UserOperationsPage = () => {
   const [appliedCustomerQuery, setAppliedCustomerQuery] = useState('');
   const [ownerSalesFilter, setOwnerSalesFilter] = useState('');
   const [customerTagFilters, setCustomerTagFilters] = useState<string[]>([]);
+  const [customerTagFilterOpen, setCustomerTagFilterOpen] = useState(false);
+  const [customerTagFilterKeyword, setCustomerTagFilterKeyword] = useState('');
 
   const [staffQueryInput, setStaffQueryInput] = useState('');
   const [appliedStaffQuery, setAppliedStaffQuery] = useState('');
@@ -468,11 +555,15 @@ export const UserOperationsPage = () => {
   const [customerTotal, setCustomerTotal] = useState(0);
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
   const [staffTotal, setStaffTotal] = useState(0);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [adminTotal, setAdminTotal] = useState(0);
 
   const [customerPage, setCustomerPage] = useState(1);
   const [customerPageSize] = useState(20);
   const [staffPage, setStaffPage] = useState(1);
   const [staffPageSize] = useState(20);
+  const [adminPage, setAdminPage] = useState(1);
+  const [adminPageSize] = useState(20);
 
   const [mockTags] = useState<CustomerTag[]>(mockTagSeed);
   const [mockCustomers] = useState<AdminCustomer[]>(mockCustomerSeed);
@@ -483,17 +574,45 @@ export const UserOperationsPage = () => {
   const [tagsLoading, setTagsLoading] = useState(false);
   const [customersLoading, setCustomersLoading] = useState(false);
   const [staffLoading, setStaffLoading] = useState(false);
+  const [adminLoading, setAdminLoading] = useState(false);
 
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [tabMessages, setTabMessages] = useState<Record<UserOperationsTab, TabMessage>>({
+    customers: { error: '', success: '' },
+    staff: { error: '', success: '' },
+    admins: { error: '', success: '' }
+  });
   const [pendingCustomerActions, setPendingCustomerActions] = useState<Record<string, boolean>>({});
   const [pendingStaffActions, setPendingStaffActions] = useState<Record<string, boolean>>({});
+  const salesRequestVersion = useRef(0);
+  const tagsRequestVersion = useRef(0);
+  const customersRequestVersion = useRef(0);
+  const staffRequestVersion = useRef(0);
+  const adminRequestVersion = useRef(0);
+  const customerTagFilterRef = useRef<HTMLDivElement | null>(null);
 
   const activeTags = useMemo(() => tags.filter((tag) => tag.active), [tags]);
+  const selectedCustomerTags = useMemo(
+    () => tags.filter((tag) => customerTagFilters.includes(tag.id)),
+    [customerTagFilters, tags]
+  );
+  const filteredTagOptions = useMemo(() => {
+    const keyword = customerTagFilterKeyword.trim().toLowerCase();
+    if (!keyword) {
+      return activeTags;
+    }
+    return activeTags.filter((tag) => tag.name.toLowerCase().includes(keyword));
+  }, [activeTags, customerTagFilterKeyword]);
   const activeSalesUserIds = useMemo(() => new Set(salesUsers.map((item) => item.id)), [salesUsers]);
+  const customerInitialLoading = customersLoading && customers.length === 0;
+  const staffInitialLoading = staffLoading && staffUsers.length === 0;
+  const adminInitialLoading = adminLoading && adminUsers.length === 0;
+  const customerRefreshing = customersLoading && customers.length > 0;
+  const staffRefreshing = staffLoading && staffUsers.length > 0;
+  const adminRefreshing = adminLoading && adminUsers.length > 0;
 
   const customerTotalPages = Math.max(1, Math.ceil(customerTotal / customerPageSize));
   const staffTotalPages = Math.max(1, Math.ceil(staffTotal / staffPageSize));
+  const adminTotalPages = Math.max(1, Math.ceil(adminTotal / adminPageSize));
 
   const adminCountInMock = useMemo(() => {
     if (!isMockMode) {
@@ -502,53 +621,114 @@ export const UserOperationsPage = () => {
     return listMockAccounts().filter((account) => account.userType === 'admin').length;
   }, []);
 
+  const clearTabMessage = useCallback((tab: UserOperationsTab) => {
+    setTabMessages((current) => ({
+      ...current,
+      [tab]: { error: '', success: '' }
+    }));
+  }, []);
+
+  const setTabError = useCallback((tab: UserOperationsTab, message: string) => {
+    setTabMessages((current) => ({
+      ...current,
+      [tab]: { error: message, success: '' }
+    }));
+  }, []);
+
+  const setTabSuccess = useCallback((tab: UserOperationsTab, message: string) => {
+    setTabMessages((current) => ({
+      ...current,
+      [tab]: { error: '', success: message }
+    }));
+  }, []);
+
+  const toggleCustomerTagFilter = useCallback((tagId: string) => {
+    setCustomerTagFilters((current) => {
+      if (current.includes(tagId)) {
+        return current.filter((item) => item !== tagId);
+      }
+      return [...current, tagId];
+    });
+    setCustomerPage(1);
+  }, []);
+
+  const clearCustomerTagFilters = useCallback(() => {
+    setCustomerTagFilters([]);
+    setCustomerPage(1);
+  }, []);
+
   const refreshSalesUsers = useCallback(async () => {
+    const requestVersion = ++salesRequestVersion.current;
     setSalesLoading(true);
     try {
       if (isMockMode) {
+        if (requestVersion !== salesRequestVersion.current) {
+          return;
+        }
         setSalesUsers(mockSalesUsers.filter((item) => item.status === 'active' && item.roles.includes('SALES')));
         return;
       }
 
       const response = await fetchAdminSalesUsers({ page: 1, pageSize: 200 });
+      if (requestVersion !== salesRequestVersion.current) {
+        return;
+      }
       if (response.status !== 200) {
         setSalesUsers([]);
-        setErrorMessage('加载业务员列表失败，请稍后重试。');
+        setTabError('customers', '加载业务员列表失败，请稍后重试。');
         return;
       }
       setSalesUsers(normalizeSalesUsers(response.data));
     } catch {
+      if (requestVersion !== salesRequestVersion.current) {
+        return;
+      }
       setSalesUsers([]);
-      setErrorMessage('加载业务员列表失败，请稍后重试。');
+      setTabError('customers', '加载业务员列表失败，请稍后重试。');
     } finally {
-      setSalesLoading(false);
+      if (requestVersion === salesRequestVersion.current) {
+        setSalesLoading(false);
+      }
     }
   }, [mockSalesUsers]);
 
   const refreshTags = useCallback(async () => {
+    const requestVersion = ++tagsRequestVersion.current;
     setTagsLoading(true);
     try {
       if (isMockMode) {
+        if (requestVersion !== tagsRequestVersion.current) {
+          return;
+        }
         setTags([...mockTags].sort((a, b) => a.sort - b.sort));
         return;
       }
 
       const response = await fetchAdminCustomerTags({ includeInactive: true });
+      if (requestVersion !== tagsRequestVersion.current) {
+        return;
+      }
       if (response.status !== 200) {
         setTags([]);
-        setErrorMessage('加载客户标签失败，请稍后重试。');
+        setTabError('customers', '加载客户标签失败，请稍后重试。');
         return;
       }
       setTags(normalizeTags(response.data));
     } catch {
+      if (requestVersion !== tagsRequestVersion.current) {
+        return;
+      }
       setTags([]);
-      setErrorMessage('加载客户标签失败，请稍后重试。');
+      setTabError('customers', '加载客户标签失败，请稍后重试。');
     } finally {
-      setTagsLoading(false);
+      if (requestVersion === tagsRequestVersion.current) {
+        setTagsLoading(false);
+      }
     }
   }, [mockTags]);
 
   const refreshCustomers = useCallback(async () => {
+    const requestVersion = ++customersRequestVersion.current;
     setCustomersLoading(true);
 
     try {
@@ -578,6 +758,9 @@ export const UserOperationsPage = () => {
         const end = start + customerPageSize;
         const pagedItems = nextItems.slice(start, end);
 
+        if (requestVersion !== customersRequestVersion.current) {
+          return;
+        }
         setCustomers(pagedItems);
         setCustomerTotal(nextItems.length);
         return;
@@ -591,10 +774,13 @@ export const UserOperationsPage = () => {
         tagIds: customerTagFilters.length > 0 ? customerTagFilters : undefined
       });
 
+      if (requestVersion !== customersRequestVersion.current) {
+        return;
+      }
       if (response.status !== 200) {
         setCustomers([]);
         setCustomerTotal(0);
-        setErrorMessage('加载客户列表失败，请稍后重试。');
+        setTabError('customers', '加载客户列表失败，请稍后重试。');
         return;
       }
 
@@ -602,11 +788,16 @@ export const UserOperationsPage = () => {
       setCustomers(normalized.items);
       setCustomerTotal(normalized.total);
     } catch {
+      if (requestVersion !== customersRequestVersion.current) {
+        return;
+      }
       setCustomers([]);
       setCustomerTotal(0);
-      setErrorMessage('加载客户列表失败，请稍后重试。');
+      setTabError('customers', '加载客户列表失败，请稍后重试。');
     } finally {
-      setCustomersLoading(false);
+      if (requestVersion === customersRequestVersion.current) {
+        setCustomersLoading(false);
+      }
     }
   }, [
     appliedCustomerQuery,
@@ -618,48 +809,125 @@ export const UserOperationsPage = () => {
   ]);
 
   const refreshStaffUsers = useCallback(async () => {
+    const requestVersion = ++staffRequestVersion.current;
     setStaffLoading(true);
 
     try {
-      let allItems: StaffUser[] = [];
       if (isMockMode) {
-        allItems = [...mockStaffUsers];
-      } else {
-        const response = await fetchStaffUsers({ page: 1, pageSize: 200 });
-        if (response.status !== 200) {
-          setStaffUsers([]);
-          setStaffTotal(0);
-          setErrorMessage('加载业务员权限列表失败，请稍后重试。');
-          return;
-        }
-        allItems = normalizeStaffUsers(response.data);
-      }
-
-      const keyword = appliedStaffQuery.trim().toLowerCase();
-      const filtered = keyword
-        ? allItems.filter((staff) => {
+        const keyword = appliedStaffQuery.trim().toLowerCase();
+        const allItems = [...mockStaffUsers];
+        const filtered = keyword
+          ? allItems.filter((staff) => {
             return (
               staff.displayName.toLowerCase().includes(keyword)
               || staff.id.toLowerCase().includes(keyword)
               || staff.roles.some((role) => role.toLowerCase().includes(keyword))
             );
           })
-        : allItems;
+          : allItems;
 
-      const start = (staffPage - 1) * staffPageSize;
-      const end = start + staffPageSize;
-      const pagedItems = filtered.slice(start, end);
+        const start = (staffPage - 1) * staffPageSize;
+        const end = start + staffPageSize;
+        const pagedItems = filtered.slice(start, end);
 
-      setStaffUsers(pagedItems);
-      setStaffTotal(filtered.length);
+        if (requestVersion !== staffRequestVersion.current) {
+          return;
+        }
+        setStaffUsers(pagedItems);
+        setStaffTotal(filtered.length);
+        return;
+      }
+
+      const response = await fetchStaffUsers({
+        page: staffPage,
+        pageSize: staffPageSize,
+        q: appliedStaffQuery || undefined
+      });
+      if (requestVersion !== staffRequestVersion.current) {
+        return;
+      }
+      if (response.status !== 200) {
+        setStaffUsers([]);
+        setStaffTotal(0);
+        setTabError('staff', '加载业务员权限列表失败，请稍后重试。');
+        return;
+      }
+      const normalized = normalizeStaffUsers(response.data);
+      setStaffUsers(normalized.items);
+      setStaffTotal(normalized.total);
     } catch {
+      if (requestVersion !== staffRequestVersion.current) {
+        return;
+      }
       setStaffUsers([]);
       setStaffTotal(0);
-      setErrorMessage('加载业务员权限列表失败，请稍后重试。');
+      setTabError('staff', '加载业务员权限列表失败，请稍后重试。');
     } finally {
-      setStaffLoading(false);
+      if (requestVersion === staffRequestVersion.current) {
+        setStaffLoading(false);
+      }
     }
   }, [appliedStaffQuery, mockStaffUsers, staffPage, staffPageSize]);
+
+  const refreshAdminUsers = useCallback(async () => {
+    const requestVersion = ++adminRequestVersion.current;
+    setAdminLoading(true);
+    try {
+      if (isMockMode) {
+        const mockAdmins = listMockAccounts()
+          .filter((account) => account.userType === 'admin')
+          .map((account) => {
+            const now = new Date().toISOString();
+            return {
+              id: account.userId,
+              displayName: account.displayName || account.username,
+              roles: account.role ? [String(account.role).toUpperCase()] : ['ADMIN'],
+              status: 'active',
+              userType: 'admin',
+              createdAt: now,
+              updatedAt: now
+            } as AdminUser;
+          });
+        const start = (adminPage - 1) * adminPageSize;
+        const end = start + adminPageSize;
+        if (requestVersion !== adminRequestVersion.current) {
+          return;
+        }
+        setAdminUsers(mockAdmins.slice(start, end));
+        setAdminTotal(mockAdmins.length);
+        return;
+      }
+
+      const response = await fetchAdminUsers({
+        page: adminPage,
+        pageSize: adminPageSize,
+        role: 'ADMIN'
+      });
+      if (requestVersion !== adminRequestVersion.current) {
+        return;
+      }
+      if (response.status !== 200) {
+        setAdminUsers([]);
+        setAdminTotal(0);
+        setTabError('admins', '加载管理员列表失败，请稍后重试。');
+        return;
+      }
+      const normalized = normalizeAdminUsers(response.data);
+      setAdminUsers(normalized.items);
+      setAdminTotal(normalized.total);
+    } catch {
+      if (requestVersion !== adminRequestVersion.current) {
+        return;
+      }
+      setAdminUsers([]);
+      setAdminTotal(0);
+      setTabError('admins', '加载管理员列表失败，请稍后重试。');
+    } finally {
+      if (requestVersion === adminRequestVersion.current) {
+        setAdminLoading(false);
+      }
+    }
+  }, [adminPage, adminPageSize]);
 
   useEffect(() => {
     // Parallel requests avoid lookup waterfall on first load.
@@ -674,8 +942,47 @@ export const UserOperationsPage = () => {
     void refreshStaffUsers();
   }, [refreshStaffUsers]);
 
+  useEffect(() => {
+    void refreshAdminUsers();
+  }, [refreshAdminUsers]);
+
+  useEffect(() => {
+    if (!customerTagFilterOpen) {
+      return;
+    }
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+      if (customerTagFilterRef.current?.contains(target)) {
+        return;
+      }
+      setCustomerTagFilterOpen(false);
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [customerTagFilterOpen]);
+
+  useEffect(() => {
+    if (activeTab !== 'customers') {
+      setCustomerTagFilterOpen(false);
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!customerTagFilterOpen) {
+      setCustomerTagFilterKeyword('');
+    }
+  }, [customerTagFilterOpen]);
+
   const handleApplyCustomerSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setCustomerTagFilterOpen(false);
     startTransition(() => {
       setCustomerPage(1);
       setAppliedCustomerQuery(customerQueryInput.trim());
@@ -719,9 +1026,10 @@ export const UserOperationsPage = () => {
   }, []);
 
   const handlePromoteCustomerToSales = useCallback(async (customer: AdminCustomer) => {
-    setErrorMessage('');
-    setSuccessMessage('');
+    clearTabMessage('customers');
     setCustomerPending(customer.id, true);
+    const previousSales = salesUsers.find((item) => item.id === customer.id);
+    const previousStaff = staffUsers.find((item) => item.id === customer.id);
 
     try {
       if (isMockMode) {
@@ -784,37 +1092,147 @@ export const UserOperationsPage = () => {
           ];
         });
 
-        setSuccessMessage(`已将「${customer.displayName}」设置为业务员（mock）。`);
+        setTabSuccess('customers', `已将「${customer.displayName}」设置为业务员（mock）。`);
         return;
       }
 
-      const response = await patchStaffRoles(customer.id, ['CUSTOMER', SALES_ROLE]);
-      if (response.status !== 200) {
-        if (response.status === 404) {
-          setErrorMessage('后端暂未开放“客户直接提权为业务员”能力，请先创建员工后再授权。');
-        } else {
-          setErrorMessage('设置业务员权限失败，请稍后重试。');
+      const optimisticUpdatedAt = new Date().toISOString();
+      setSalesUsers((current) => {
+        const found = current.find((item) => item.id === customer.id);
+        if (found) {
+          return current.map((item) => {
+            if (item.id !== customer.id) {
+              return item;
+            }
+            return {
+              ...item,
+              displayName: customer.displayName || item.displayName,
+              phone: customer.phone || item.phone,
+              status: 'active',
+              roles: appendRole(item.roles, SALES_ROLE)
+            };
+          });
         }
+        return [
+          {
+            id: customer.id,
+            displayName: customer.displayName,
+            phone: customer.phone || '-',
+            status: 'active',
+            roles: [SALES_ROLE]
+          },
+          ...current
+        ];
+      });
+      setStaffUsers((current) => current.map((item) => {
+        if (item.id !== customer.id) {
+          return item;
+        }
+        return {
+          ...item,
+          displayName: customer.displayName || item.displayName,
+          roles: appendRole(item.roles, SALES_ROLE),
+          status: 'active',
+          updatedAt: optimisticUpdatedAt
+        };
+      }));
+
+      const response = await promoteAdminCustomerToSales(customer.id);
+      if (response.status !== 200) {
+        setSalesUsers((current) => {
+          const filtered = current.filter((item) => item.id !== customer.id);
+          if (!previousSales) {
+            return filtered;
+          }
+          return [previousSales, ...filtered];
+        });
+        if (previousStaff) {
+          setStaffUsers((current) => current.map((item) => (item.id === customer.id ? previousStaff : item)));
+        }
+        setTabError('customers', '设置业务员权限失败，请稍后重试。');
         return;
       }
 
-      setSuccessMessage(`已将「${customer.displayName}」设置为业务员。`);
-      await Promise.all([refreshStaffUsers(), refreshSalesUsers()]);
+      const payload = (response.data || {}) as {
+        status?: string;
+        roles?: unknown;
+        updatedAt?: string;
+        promoted?: boolean;
+      };
+      const resolvedRoles = normalizeRoleList(payload.roles);
+      const resolvedStatus = safeText(payload.status, 'active').toLowerCase();
+      const resolvedUpdatedAt = safeText(payload.updatedAt, new Date().toISOString());
+
+      setSalesUsers((current) => {
+        const found = current.find((item) => item.id === customer.id);
+        if (found) {
+          return current.map((item) => {
+            if (item.id !== customer.id) {
+              return item;
+            }
+            return {
+              ...item,
+              displayName: customer.displayName || item.displayName,
+              phone: customer.phone || item.phone,
+              status: resolvedStatus,
+              roles: resolvedRoles.length > 0 ? resolvedRoles : appendRole(item.roles, SALES_ROLE)
+            };
+          });
+        }
+        return [
+          {
+            id: customer.id,
+            displayName: customer.displayName,
+            phone: customer.phone || '-',
+            status: resolvedStatus,
+            roles: resolvedRoles.length > 0 ? resolvedRoles : [SALES_ROLE]
+          },
+          ...current
+        ];
+      });
+
+      setStaffUsers((current) => current.map((item) => {
+        if (item.id !== customer.id) {
+          return item;
+        }
+        return {
+          ...item,
+          displayName: customer.displayName || item.displayName,
+          roles: resolvedRoles.length > 0 ? resolvedRoles : appendRole(item.roles, SALES_ROLE),
+          status: resolvedStatus,
+          updatedAt: resolvedUpdatedAt
+        };
+      }));
+
+      setTabSuccess('customers', `已将「${customer.displayName}」设置为业务员。`);
+      if (payload.promoted) {
+        void refreshStaffUsers();
+      }
     } catch {
-      setErrorMessage('设置业务员权限失败，请稍后重试。');
+      setSalesUsers((current) => {
+        const filtered = current.filter((item) => item.id !== customer.id);
+        if (!previousSales) {
+          return filtered;
+        }
+        return [previousSales, ...filtered];
+      });
+      if (previousStaff) {
+        setStaffUsers((current) => current.map((item) => (item.id === customer.id ? previousStaff : item)));
+      }
+      setTabError('customers', '设置业务员权限失败，请稍后重试。');
     } finally {
       setCustomerPending(customer.id, false);
     }
-  }, [refreshSalesUsers, refreshStaffUsers, setCustomerPending, setMockSalesUsers, setMockStaffUsers]);
+  }, [clearTabMessage, refreshStaffUsers, salesUsers, setCustomerPending, setMockSalesUsers, setMockStaffUsers, setTabError, setTabSuccess, staffUsers]);
 
   const handleGrantSalesRole = useCallback(async (staff: StaffUser) => {
     if (hasRole(staff.roles, SALES_ROLE)) {
       return;
     }
 
-    setErrorMessage('');
-    setSuccessMessage('');
+    clearTabMessage('staff');
     setStaffPending(staff.id, true);
+    const previousSales = salesUsers.find((item) => item.id === staff.id);
 
     try {
       const nextRoles = appendRole(staff.roles, SALES_ROLE);
@@ -856,36 +1274,123 @@ export const UserOperationsPage = () => {
             ...current
           ];
         });
-        setSuccessMessage(`已授予「${staff.displayName}」业务员权限（mock）。`);
+        setTabSuccess('staff', `已授予「${staff.displayName}」业务员权限（mock）。`);
         return;
       }
 
+      const optimisticUpdatedAt = new Date().toISOString();
+      setStaffUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          roles: nextRoles,
+          updatedAt: optimisticUpdatedAt
+        };
+      }));
+      setSalesUsers((current) => {
+        const found = current.find((item) => item.id === staff.id);
+        if (found) {
+          return current.map((item) => {
+            if (item.id !== staff.id) {
+              return item;
+            }
+            return {
+              ...item,
+              displayName: staff.displayName || item.displayName,
+              status: staff.status,
+              roles: appendRole(item.roles, SALES_ROLE)
+            };
+          });
+        }
+        return [
+          {
+            id: staff.id,
+            displayName: staff.displayName,
+            phone: '-',
+            status: staff.status,
+            roles: [SALES_ROLE]
+          },
+          ...current
+        ];
+      });
+
       const response = await patchStaffRoles(staff.id, nextRoles);
       if (response.status !== 200) {
-        setErrorMessage('授予业务员权限失败，请稍后重试。');
+        setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
+        setSalesUsers((current) => {
+          const filtered = current.filter((item) => item.id !== staff.id);
+          if (!previousSales) {
+            return filtered;
+          }
+          return [previousSales, ...filtered];
+        });
+        setTabError('staff', '授予业务员权限失败，请稍后重试。');
         return;
       }
-      setSuccessMessage(`已授予「${staff.displayName}」业务员权限。`);
-      await Promise.all([refreshStaffUsers(), refreshSalesUsers()]);
+
+      const payload = (response.data || {}) as {
+        status?: string;
+        roles?: unknown;
+        updatedAt?: string;
+      };
+      const resolvedRoles = normalizeRoleList(payload.roles);
+      const resolvedStatus = safeText(payload.status, staff.status).toLowerCase();
+      const resolvedUpdatedAt = safeText(payload.updatedAt, optimisticUpdatedAt);
+
+      setStaffUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          roles: resolvedRoles.length > 0 ? resolvedRoles : nextRoles,
+          status: resolvedStatus,
+          updatedAt: resolvedUpdatedAt
+        };
+      }));
+
+      setSalesUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          displayName: staff.displayName || item.displayName,
+          status: resolvedStatus,
+          roles: resolvedRoles.length > 0 ? resolvedRoles : appendRole(item.roles, SALES_ROLE)
+        };
+      }));
+
+      setTabSuccess('staff', `已授予「${staff.displayName}」业务员权限。`);
     } catch {
-      setErrorMessage('授予业务员权限失败，请稍后重试。');
+      setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
+      setSalesUsers((current) => {
+        const filtered = current.filter((item) => item.id !== staff.id);
+        if (!previousSales) {
+          return filtered;
+        }
+        return [previousSales, ...filtered];
+      });
+      setTabError('staff', '授予业务员权限失败，请稍后重试。');
     } finally {
       setStaffPending(staff.id, false);
     }
-  }, [refreshSalesUsers, refreshStaffUsers, setMockSalesUsers, setMockStaffUsers, setStaffPending]);
+  }, [clearTabMessage, salesUsers, setMockSalesUsers, setMockStaffUsers, setStaffPending, setTabError, setTabSuccess]);
 
   const handleRevokeSalesRole = useCallback(async (staff: StaffUser) => {
     if (!hasRole(staff.roles, SALES_ROLE)) {
       return;
     }
     if (staff.roles.length <= 1) {
-      setErrorMessage('该账号仅剩一个角色，无法直接移除业务员角色。');
+      setTabError('staff', '该账号仅剩一个角色，无法直接移除业务员角色。');
       return;
     }
 
-    setErrorMessage('');
-    setSuccessMessage('');
+    clearTabMessage('staff');
     setStaffPending(staff.id, true);
+    const previousSales = salesUsers.find((item) => item.id === staff.id);
 
     try {
       const nextRoles = removeRole(staff.roles, SALES_ROLE);
@@ -902,27 +1407,75 @@ export const UserOperationsPage = () => {
           };
         }));
         setMockSalesUsers((current) => current.filter((item) => item.id !== staff.id));
-        setSuccessMessage(`已移除「${staff.displayName}」业务员权限（mock）。`);
+        setTabSuccess('staff', `已移除「${staff.displayName}」业务员权限（mock）。`);
         return;
       }
+
+      const optimisticUpdatedAt = new Date().toISOString();
+      setStaffUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          roles: nextRoles,
+          updatedAt: optimisticUpdatedAt
+        };
+      }));
+      setSalesUsers((current) => current.filter((item) => item.id !== staff.id));
 
       const response = await patchStaffRoles(staff.id, nextRoles);
       if (response.status !== 200) {
-        setErrorMessage('移除业务员权限失败，请稍后重试。');
+        setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
+        setSalesUsers((current) => {
+          if (!previousSales) {
+            return current;
+          }
+          const filtered = current.filter((item) => item.id !== staff.id);
+          return [previousSales, ...filtered];
+        });
+        setTabError('staff', '移除业务员权限失败，请稍后重试。');
         return;
       }
-      setSuccessMessage(`已移除「${staff.displayName}」业务员权限。`);
-      await Promise.all([refreshStaffUsers(), refreshSalesUsers()]);
+
+      const payload = (response.data || {}) as {
+        status?: string;
+        roles?: unknown;
+        updatedAt?: string;
+      };
+      const resolvedRoles = normalizeRoleList(payload.roles);
+      const resolvedStatus = safeText(payload.status, staff.status).toLowerCase();
+      const resolvedUpdatedAt = safeText(payload.updatedAt, optimisticUpdatedAt);
+      setStaffUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          roles: resolvedRoles.length > 0 ? resolvedRoles : nextRoles,
+          status: resolvedStatus,
+          updatedAt: resolvedUpdatedAt
+        };
+      }));
+
+      setTabSuccess('staff', `已移除「${staff.displayName}」业务员权限。`);
     } catch {
-      setErrorMessage('移除业务员权限失败，请稍后重试。');
+      setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
+      setSalesUsers((current) => {
+        const filtered = current.filter((item) => item.id !== staff.id);
+        if (!previousSales) {
+          return filtered;
+        }
+        return [previousSales, ...filtered];
+      });
+      setTabError('staff', '移除业务员权限失败，请稍后重试。');
     } finally {
       setStaffPending(staff.id, false);
     }
-  }, [refreshSalesUsers, refreshStaffUsers, setMockSalesUsers, setMockStaffUsers, setStaffPending]);
+  }, [clearTabMessage, salesUsers, setMockSalesUsers, setMockStaffUsers, setStaffPending, setTabError, setTabSuccess]);
 
   const handleToggleStaffStatus = useCallback(async (staff: StaffUser) => {
-    setErrorMessage('');
-    setSuccessMessage('');
+    clearTabMessage('staff');
     setStaffPending(staff.id, true);
 
     try {
@@ -948,11 +1501,32 @@ export const UserOperationsPage = () => {
             status: nextStatus
           };
         }));
-        setSuccessMessage(nextStatus === 'active'
+        setTabSuccess('staff', nextStatus === 'active'
           ? `已启用「${staff.displayName}」账号（mock）。`
           : `已禁用「${staff.displayName}」账号（mock）。`);
         return;
       }
+
+      const optimisticUpdatedAt = new Date().toISOString();
+      setStaffUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          status: nextStatus,
+          updatedAt: optimisticUpdatedAt
+        };
+      }));
+      setSalesUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          status: nextStatus
+        };
+      }));
 
       const response = await patchStaffStatus(
         staff.id,
@@ -960,30 +1534,85 @@ export const UserOperationsPage = () => {
         nextStatus === 'disabled' ? '由用户运营中心禁用' : undefined
       );
       if (response.status !== 200) {
-        setErrorMessage('更新账号状态失败，请稍后重试。');
+        setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
+        setSalesUsers((current) => current.map((item) => {
+          if (item.id !== staff.id) {
+            return item;
+          }
+          return {
+            ...item,
+            status: staff.status
+          };
+        }));
+        setTabError('staff', '更新账号状态失败，请稍后重试。');
         return;
       }
-      setSuccessMessage(nextStatus === 'active' ? `已启用「${staff.displayName}」账号。` : `已禁用「${staff.displayName}」账号。`);
-      await Promise.all([refreshStaffUsers(), refreshSalesUsers()]);
+
+      const payload = (response.data || {}) as {
+        status?: string;
+        roles?: unknown;
+        updatedAt?: string;
+      };
+      const resolvedStatus = safeText(payload.status, nextStatus).toLowerCase();
+      const resolvedRoles = normalizeRoleList(payload.roles);
+      const resolvedUpdatedAt = safeText(payload.updatedAt, optimisticUpdatedAt);
+
+      setStaffUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          status: resolvedStatus,
+          roles: resolvedRoles.length > 0 ? resolvedRoles : item.roles,
+          updatedAt: resolvedUpdatedAt
+        };
+      }));
+      setSalesUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          status: resolvedStatus,
+          roles: resolvedRoles.length > 0 ? resolvedRoles : item.roles
+        };
+      }));
+
+      setTabSuccess('staff', nextStatus === 'active' ? `已启用「${staff.displayName}」账号。` : `已禁用「${staff.displayName}」账号。`);
     } catch {
-      setErrorMessage('更新账号状态失败，请稍后重试。');
+      setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
+      setSalesUsers((current) => current.map((item) => {
+        if (item.id !== staff.id) {
+          return item;
+        }
+        return {
+          ...item,
+          status: staff.status
+        };
+      }));
+      setTabError('staff', '更新账号状态失败，请稍后重试。');
     } finally {
       setStaffPending(staff.id, false);
     }
-  }, [refreshSalesUsers, refreshStaffUsers, setMockSalesUsers, setMockStaffUsers, setStaffPending]);
+  }, [clearTabMessage, setMockSalesUsers, setMockStaffUsers, setStaffPending, setTabError, setTabSuccess]);
+
+  const customersMessage = tabMessages.customers;
+  const staffMessage = tabMessages.staff;
+  const adminsMessage = tabMessages.admins;
 
   const renderCustomerPanel = () => {
     return (
       <section className="space-y-4">
-        <form className="grid grid-cols-1 gap-3 rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark lg:grid-cols-[1.5fr_1fr_1fr_auto]" onSubmit={handleApplyCustomerSearch}>
+        <form className="grid grid-cols-1 gap-3 rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark lg:grid-cols-[minmax(260px,1.2fr)_minmax(180px,0.8fr)_minmax(180px,0.8fr)_auto]" onSubmit={handleApplyCustomerSearch}>
           <input
-            className="rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+            className="h-11 rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
             onChange={(event) => setCustomerQueryInput(event.currentTarget.value)}
             placeholder="搜索客户名称、手机号或 ID"
             value={customerQueryInput}
           />
           <select
-            className="rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+            className="h-11 rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
             onChange={(event) => {
               setOwnerSalesFilter(event.currentTarget.value);
               setCustomerPage(1);
@@ -995,28 +1624,90 @@ export const UserOperationsPage = () => {
               <option key={sales.id} value={sales.id}>{sales.displayName}</option>
             ))}
           </select>
-          <select
-            className="rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
-            multiple
-            onChange={(event) => {
-              const values = Array.from(event.currentTarget.selectedOptions).map((option) => option.value);
-              setCustomerTagFilters(values);
-              setCustomerPage(1);
-            }}
-            value={customerTagFilters}
-          >
-            {activeTags.map((tag) => (
-              <option key={tag.id} value={tag.id}>{tag.name}</option>
-            ))}
-          </select>
+          <div className="relative" ref={customerTagFilterRef}>
+            <button
+              className="flex h-11 w-full items-center justify-between rounded-lg border border-border-light bg-background-light px-3 text-sm text-text-primary-light transition-colors hover:border-primary focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+              onClick={() => setCustomerTagFilterOpen((current) => !current)}
+              type="button"
+            >
+              <span className="flex min-w-0 items-center gap-1 overflow-hidden">
+                {selectedCustomerTags.length === 0 ? (
+                  <span className="truncate text-text-secondary-light dark:text-text-secondary-dark">全部标签</span>
+                ) : (
+                  selectedCustomerTags.slice(0, 2).map((tag) => (
+                    <span
+                      className="max-w-[80px] truncate rounded px-2 py-0.5 text-xs font-medium text-white"
+                      key={`selected-tag-${tag.id}`}
+                      style={{ backgroundColor: tag.color || DEFAULT_TAG_COLOR }}
+                    >
+                      {tag.name}
+                    </span>
+                  ))
+                )}
+                {selectedCustomerTags.length > 2 ? (
+                  <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-text-secondary-light dark:bg-slate-700 dark:text-text-secondary-dark">
+                    +{selectedCustomerTags.length - 2}
+                  </span>
+                ) : null}
+              </span>
+              <span className="ml-2 text-xs text-text-secondary-light dark:text-text-secondary-dark">{customerTagFilterOpen ? '收起' : '展开'}</span>
+            </button>
+
+            {customerTagFilterOpen ? (
+              <div className="absolute z-30 mt-2 w-full min-w-[240px] rounded-lg border border-border-light bg-surface-light p-3 shadow-lg dark:border-border-dark dark:bg-surface-dark">
+                <input
+                  className="mb-2 h-9 w-full rounded border-border-light bg-background-light px-2 text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+                  onChange={(event) => setCustomerTagFilterKeyword(event.currentTarget.value)}
+                  placeholder="搜索标签"
+                  value={customerTagFilterKeyword}
+                />
+                <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
+                  {tagsLoading ? <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">标签加载中...</p> : null}
+                  {!tagsLoading && filteredTagOptions.length === 0 ? (
+                    <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">未匹配到标签</p>
+                  ) : null}
+                  {!tagsLoading ? filteredTagOptions.map((tag) => (
+                    <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm text-text-primary-light hover:bg-gray-100 dark:text-text-primary-dark dark:hover:bg-gray-800/60" key={`tag-option-${tag.id}`}>
+                      <input
+                        checked={customerTagFilters.includes(tag.id)}
+                        onChange={() => toggleCustomerTagFilter(tag.id)}
+                        type="checkbox"
+                      />
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: tag.color || DEFAULT_TAG_COLOR }} />
+                      <span className="truncate">{tag.name}</span>
+                    </label>
+                  )) : null}
+                </div>
+                <div className="mt-3 flex items-center justify-between">
+                  <button
+                    className="text-xs text-text-secondary-light transition-colors hover:text-primary dark:text-text-secondary-dark dark:hover:text-blue-300"
+                    onClick={clearCustomerTagFilters}
+                    type="button"
+                  >
+                    清空筛选
+                  </button>
+                  <button
+                    className="text-xs text-text-secondary-light transition-colors hover:text-primary dark:text-text-secondary-dark dark:hover:text-blue-300"
+                    onClick={() => setCustomerTagFilterOpen(false)}
+                    type="button"
+                  >
+                    完成
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
           <button
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="h-11 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400 lg:w-12 lg:min-w-12 lg:px-0"
             disabled={customersLoading}
             type="submit"
           >
-            {customersLoading ? '查询中...' : '查询'}
+            {customersLoading ? '...' : '查询'}
           </button>
         </form>
+
+        {customersMessage.error ? <p className="text-sm text-red-600" data-testid="user-operations-error">{customersMessage.error}</p> : null}
+        {customersMessage.success ? <p className="text-sm text-emerald-600" data-testid="user-operations-success">{customersMessage.success}</p> : null}
 
         <section className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
           <div className="flex items-center justify-between border-b border-border-light px-4 py-3 dark:border-border-dark">
@@ -1024,9 +1715,12 @@ export const UserOperationsPage = () => {
               <p className="text-sm font-semibold text-text-primary-light dark:text-text-primary-dark">客户信息</p>
               <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">共 {customerTotal} 位客户</p>
             </div>
-            <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-primary dark:bg-blue-900/40 dark:text-blue-300">
-              {isMockMode ? 'mock' : 'dev'}
-            </span>
+            <div className="flex items-center gap-2">
+              {customerRefreshing ? <span className="text-xs text-text-secondary-light dark:text-text-secondary-dark">刷新中...</span> : null}
+              <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-primary dark:bg-blue-900/40 dark:text-blue-300">
+                {isMockMode ? 'mock' : 'dev'}
+              </span>
+            </div>
           </div>
 
           <div className="overflow-x-auto" style={{ contentVisibility: 'auto' }}>
@@ -1041,7 +1735,7 @@ export const UserOperationsPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-light dark:divide-border-dark">
-                {customers.map((customer) => (
+                {customerInitialLoading ? <TableSkeletonBody cols={5} /> : customers.map((customer) => (
                   <CustomerRow
                     customer={customer}
                     isPending={Boolean(pendingCustomerActions[customer.id])}
@@ -1051,9 +1745,9 @@ export const UserOperationsPage = () => {
                   />
                 ))}
 
-                {!customersLoading && customers.length === 0 ? (
+                {!customerInitialLoading && !customersLoading && customers.length === 0 ? (
                   <tr>
-                    <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={5}>
+                    <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={5} data-testid="customers-empty-state">
                       暂无客户数据
                     </td>
                   </tr>
@@ -1093,21 +1787,24 @@ export const UserOperationsPage = () => {
   const renderStaffPanel = () => {
     return (
       <section className="space-y-4">
-        <form className="grid grid-cols-1 gap-3 rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark lg:grid-cols-[1fr_auto]" onSubmit={handleApplyStaffSearch}>
+        <form className="grid grid-cols-1 gap-3 rounded-xl border border-border-light bg-surface-light p-4 dark:border-border-dark dark:bg-surface-dark lg:grid-cols-[minmax(320px,1fr)_auto]" onSubmit={handleApplyStaffSearch}>
           <input
-            className="rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+            className="h-11 rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
             onChange={(event) => setStaffQueryInput(event.currentTarget.value)}
             placeholder="搜索业务员姓名、ID 或角色"
             value={staffQueryInput}
           />
           <button
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="h-11 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400 lg:w-12 lg:min-w-12 lg:px-0"
             disabled={staffLoading}
             type="submit"
           >
-            {staffLoading ? '查询中...' : '查询'}
+            {staffLoading ? '...' : '查询'}
           </button>
         </form>
+
+        {staffMessage.error ? <p className="text-sm text-red-600" data-testid="staff-operations-error">{staffMessage.error}</p> : null}
+        {staffMessage.success ? <p className="text-sm text-emerald-600" data-testid="staff-operations-success">{staffMessage.success}</p> : null}
 
         <section className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
           <div className="flex items-center justify-between border-b border-border-light px-4 py-3 dark:border-border-dark">
@@ -1115,9 +1812,12 @@ export const UserOperationsPage = () => {
               <p className="text-sm font-semibold text-text-primary-light dark:text-text-primary-dark">业务员与员工信息</p>
               <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">共 {staffTotal} 位员工</p>
             </div>
-            <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-primary dark:bg-blue-900/40 dark:text-blue-300">
-              {isMockMode ? 'mock' : 'dev'}
-            </span>
+            <div className="flex items-center gap-2">
+              {staffRefreshing ? <span className="text-xs text-text-secondary-light dark:text-text-secondary-dark">刷新中...</span> : null}
+              <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-primary dark:bg-blue-900/40 dark:text-blue-300">
+                {isMockMode ? 'mock' : 'dev'}
+              </span>
+            </div>
           </div>
 
           <div className="overflow-x-auto" style={{ contentVisibility: 'auto' }}>
@@ -1132,7 +1832,7 @@ export const UserOperationsPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {staffUsers.map((staff) => (
+                {staffInitialLoading ? <TableSkeletonBody cols={5} /> : staffUsers.map((staff) => (
                   <StaffRow
                     isPending={Boolean(pendingStaffActions[staff.id])}
                     key={staff.id}
@@ -1142,7 +1842,7 @@ export const UserOperationsPage = () => {
                     staff={staff}
                   />
                 ))}
-                {!staffLoading && staffUsers.length === 0 ? (
+                {!staffInitialLoading && !staffLoading && staffUsers.length === 0 ? (
                   <tr>
                     <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={5}>
                       暂无业务员数据
@@ -1183,22 +1883,98 @@ export const UserOperationsPage = () => {
 
   const renderAdminPanel = () => {
     return (
-      <div className="rounded-xl border border-border-light bg-surface-light p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark">
-        <h3 className="text-lg font-semibold text-text-primary-light dark:text-text-primary-dark">管理员用户（待接入）</h3>
-        <p className="mt-2 text-sm text-text-secondary-light dark:text-text-secondary-dark">
-          当前仓库未提供管理员列表聚合接口。此区域将在后续接入管理员查询能力。
-        </p>
-        <div className="mt-4 rounded-lg border border-dashed border-border-light bg-background-light p-4 text-sm text-text-secondary-light dark:border-border-dark dark:bg-background-dark dark:text-text-secondary-dark">
-          {adminCountInMock !== null
-            ? `mock 数据下识别到 ${adminCountInMock} 位管理员账号，可用于后续联调。`
-            : 'dev 模式下等待后端管理员列表接口接入。'}
+      <section className="space-y-3">
+        {adminsMessage.error ? <p className="text-sm text-red-600" data-testid="admin-operations-error">{adminsMessage.error}</p> : null}
+        {adminsMessage.success ? <p className="text-sm text-emerald-600" data-testid="admin-operations-success">{adminsMessage.success}</p> : null}
+
+        <section className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
+          <div className="flex items-center justify-between border-b border-border-light px-4 py-3 dark:border-border-dark">
+            <div>
+              <p className="text-sm font-semibold text-text-primary-light dark:text-text-primary-dark">管理员用户</p>
+              <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">共 {adminTotal} 位管理员</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {adminRefreshing ? <span className="text-xs text-text-secondary-light dark:text-text-secondary-dark">刷新中...</span> : null}
+              <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-primary dark:bg-blue-900/40 dark:text-blue-300">
+                {isMockMode ? 'mock' : 'dev'}
+              </span>
+            </div>
+          </div>
+
+        <div className="overflow-x-auto" style={{ contentVisibility: 'auto' }}>
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead className="border-b border-border-light bg-gray-50 text-xs font-semibold text-text-secondary-light dark:border-border-dark dark:bg-gray-800/60 dark:text-text-secondary-dark">
+              <tr>
+                <th className="px-4 py-3">管理员</th>
+                <th className="px-4 py-3">角色</th>
+                <th className="px-4 py-3">状态</th>
+                <th className="px-4 py-3">更新时间</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border-light dark:divide-border-dark">
+              {adminInitialLoading ? <TableSkeletonBody cols={4} /> : adminUsers.map((admin) => (
+                <tr className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30" key={admin.id}>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-text-primary-light dark:text-text-primary-dark">{admin.displayName}</p>
+                    <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{admin.id}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      {admin.roles.length > 0 ? admin.roles.map((role) => (
+                        <span
+                          className="rounded bg-blue-100 px-2 py-0.5 text-xs font-semibold text-primary dark:bg-blue-900/30 dark:text-blue-300"
+                          key={`${admin.id}-${role}`}
+                        >
+                          {role}
+                        </span>
+                      )) : <span className="text-xs text-text-secondary-light dark:text-text-secondary-dark">未设置</span>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{admin.status}</td>
+                  <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{formatDateTime(admin.updatedAt || admin.createdAt)}</td>
+                </tr>
+              ))}
+              {!adminInitialLoading && !adminLoading && adminUsers.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={4}>
+                    暂无管理员数据
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
         </div>
-      </div>
+
+        <div className="flex items-center justify-between border-t border-border-light px-4 py-3 text-xs text-text-secondary-light dark:border-border-dark dark:text-text-secondary-dark">
+          <span>
+            第 {adminPage} / {adminTotalPages} 页
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              className="rounded border border-border-light px-2 py-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-border-dark dark:hover:bg-gray-800"
+              disabled={adminPage <= 1}
+              onClick={() => setAdminPage((current) => Math.max(1, current - 1))}
+              type="button"
+            >
+              上一页
+            </button>
+            <button
+              className="rounded border border-border-light px-2 py-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-border-dark dark:hover:bg-gray-800"
+              disabled={adminPage >= adminTotalPages}
+              onClick={() => setAdminPage((current) => Math.min(adminTotalPages, current + 1))}
+              type="button"
+            >
+              下一页
+            </button>
+          </div>
+        </div>
+        </section>
+      </section>
     );
   };
 
   return (
-    <main className="flex h-screen flex-1 flex-col overflow-hidden bg-background-light dark:bg-background-dark">
+    <main className="flex h-screen flex-1 flex-col overflow-hidden bg-background-light dark:bg-background-dark" data-testid="user-operations-page">
       <AdminTopbar
         leftSlot={(
           <div className="min-w-0">
@@ -1227,13 +2003,14 @@ export const UserOperationsPage = () => {
           </div>
           <div className="rounded-lg border border-border-light bg-surface-light p-3 text-sm dark:border-border-dark dark:bg-surface-dark">
             <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">管理员总量</p>
-            <p className="mt-1 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark">{adminCountInMock ?? '待接入'}</p>
+            <p className="mt-1 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark">{adminTotal || adminCountInMock || 0}</p>
           </div>
         </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-border-light bg-surface-light p-2 dark:border-border-dark dark:bg-surface-dark">
           <button
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'customers' ? 'bg-primary text-white' : 'text-text-secondary-light hover:bg-gray-100 dark:text-text-secondary-dark dark:hover:bg-gray-800'}`}
+            data-testid="tab-customers"
             onClick={() => setActiveTab('customers')}
             type="button"
           >
@@ -1241,6 +2018,7 @@ export const UserOperationsPage = () => {
           </button>
           <button
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'staff' ? 'bg-primary text-white' : 'text-text-secondary-light hover:bg-gray-100 dark:text-text-secondary-dark dark:hover:bg-gray-800'}`}
+            data-testid="tab-staff"
             onClick={() => setActiveTab('staff')}
             type="button"
           >
@@ -1248,15 +2026,13 @@ export const UserOperationsPage = () => {
           </button>
           <button
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'admins' ? 'bg-primary text-white' : 'text-text-secondary-light hover:bg-gray-100 dark:text-text-secondary-dark dark:hover:bg-gray-800'}`}
+            data-testid="tab-admins"
             onClick={() => setActiveTab('admins')}
             type="button"
           >
             管理员
           </button>
         </div>
-
-        {errorMessage ? <p className="mb-3 text-sm text-red-600">{errorMessage}</p> : null}
-        {successMessage ? <p className="mb-3 text-sm text-emerald-600">{successMessage}</p> : null}
 
         {activeTab === 'customers'
           ? renderCustomerPanel()

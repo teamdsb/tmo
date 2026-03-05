@@ -9,7 +9,8 @@
     "dev:real": "VITE_ADMIN_WEB_MODE=dev VITE_ADMIN_WEB_API_BASE_URL=/api vite --host 0.0.0.0 --port 5174",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0 --port 4174",
-    "test:visual": "playwright test -c playwright.visual.config.mjs"
+    "test:visual": "playwright test -c playwright.visual.config.mjs",
+    "test:e2e:real": "playwright test -c playwright.e2e.real.config.mjs"
   },
   "dependencies": {
     "@tmo/api-client": "workspace:*",

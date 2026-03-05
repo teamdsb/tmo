@@ -786,6 +786,153 @@ func TestAdminCustomerTransferAndBatch(t *testing.T) {
 	}
 }
 
+func TestAdminUsersList(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedAdmin(ctx, pool); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+
+	managerID := uuid.New()
+	if err := seedUser(ctx, pool, managerID, "Manager", "staff"); err != nil {
+		t.Fatalf("seed manager user: %v", err)
+	}
+	if err := seedRole(ctx, pool, managerID, "MANAGER"); err != nil {
+		t.Fatalf("seed manager role: %v", err)
+	}
+
+	adminLogin := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": adminUsername,
+		"password": adminPassword,
+	}, "")
+	if adminLogin.Code != http.StatusOK {
+		t.Fatalf("expected admin login 200, got %d: %s", adminLogin.Code, adminLogin.Body.String())
+	}
+	var adminAuth oapi.AuthResponse
+	if err := json.NewDecoder(adminLogin.Body).Decode(&adminAuth); err != nil {
+		t.Fatalf("decode admin auth: %v", err)
+	}
+
+	listResp := doJSON(t, router, http.MethodGet, "/admin/users?page=1&pageSize=20", nil, adminAuth.AccessToken)
+	if listResp.Code != http.StatusOK {
+		t.Fatalf("expected list admin users 200, got %d: %s", listResp.Code, listResp.Body.String())
+	}
+	var listPayload struct {
+		Items []struct {
+			ID    string   `json:"id"`
+			Roles []string `json:"roles"`
+		} `json:"items"`
+		Total int `json:"total"`
+	}
+	if err := json.NewDecoder(listResp.Body).Decode(&listPayload); err != nil {
+		t.Fatalf("decode list admin users: %v", err)
+	}
+	if listPayload.Total < 2 {
+		t.Fatalf("expected at least 2 admin users, got %d", listPayload.Total)
+	}
+
+	filteredResp := doJSON(t, router, http.MethodGet, "/admin/users?page=1&pageSize=20&role=ADMIN", nil, adminAuth.AccessToken)
+	if filteredResp.Code != http.StatusOK {
+		t.Fatalf("expected filtered admin users 200, got %d: %s", filteredResp.Code, filteredResp.Body.String())
+	}
+	var filteredPayload struct {
+		Items []struct {
+			ID    string   `json:"id"`
+			Roles []string `json:"roles"`
+		} `json:"items"`
+		Total int `json:"total"`
+	}
+	if err := json.NewDecoder(filteredResp.Body).Decode(&filteredPayload); err != nil {
+		t.Fatalf("decode filtered admin users: %v", err)
+	}
+	if filteredPayload.Total == 0 {
+		t.Fatalf("expected filtered admin users")
+	}
+	for _, item := range filteredPayload.Items {
+		if !containsRole(item.Roles, "ADMIN") {
+			t.Fatalf("expected ADMIN role in filtered result, got %#v", item.Roles)
+		}
+	}
+}
+
+func TestPromoteCustomerToSalesIsIdempotent(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedAdmin(ctx, pool); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+
+	customerID := uuid.New()
+	if err := seedCustomer(ctx, pool, customerID, "待提权客户", nil); err != nil {
+		t.Fatalf("seed customer: %v", err)
+	}
+
+	adminLogin := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": adminUsername,
+		"password": adminPassword,
+	}, "")
+	if adminLogin.Code != http.StatusOK {
+		t.Fatalf("expected admin login 200, got %d: %s", adminLogin.Code, adminLogin.Body.String())
+	}
+	var adminAuth oapi.AuthResponse
+	if err := json.NewDecoder(adminLogin.Body).Decode(&adminAuth); err != nil {
+		t.Fatalf("decode admin auth: %v", err)
+	}
+
+	path := "/admin/customers/" + customerID.String() + "/promote-to-sales"
+	first := doJSON(t, router, http.MethodPost, path, map[string]interface{}{}, adminAuth.AccessToken)
+	if first.Code != http.StatusOK {
+		t.Fatalf("expected first promote 200, got %d: %s", first.Code, first.Body.String())
+	}
+	var firstPayload struct {
+		ID       string   `json:"id"`
+		UserType string   `json:"userType"`
+		Roles    []string `json:"roles"`
+		Promoted bool     `json:"promoted"`
+	}
+	if err := json.NewDecoder(first.Body).Decode(&firstPayload); err != nil {
+		t.Fatalf("decode first promote payload: %v", err)
+	}
+	if firstPayload.ID != customerID.String() {
+		t.Fatalf("expected id %s, got %s", customerID, firstPayload.ID)
+	}
+	if firstPayload.UserType != "staff" {
+		t.Fatalf("expected promoted userType staff, got %s", firstPayload.UserType)
+	}
+	if !containsRole(firstPayload.Roles, "SALES") {
+		t.Fatalf("expected SALES role after promote, got %#v", firstPayload.Roles)
+	}
+	if !firstPayload.Promoted {
+		t.Fatalf("expected first promote marked as promoted")
+	}
+
+	second := doJSON(t, router, http.MethodPost, path, map[string]interface{}{}, adminAuth.AccessToken)
+	if second.Code != http.StatusOK {
+		t.Fatalf("expected second promote 200, got %d: %s", second.Code, second.Body.String())
+	}
+	var secondPayload struct {
+		Roles    []string `json:"roles"`
+		Promoted bool     `json:"promoted"`
+	}
+	if err := json.NewDecoder(second.Body).Decode(&secondPayload); err != nil {
+		t.Fatalf("decode second promote payload: %v", err)
+	}
+	if !containsRole(secondPayload.Roles, "SALES") {
+		t.Fatalf("expected SALES role after second promote, got %#v", secondPayload.Roles)
+	}
+	if secondPayload.Promoted {
+		t.Fatalf("expected second promote to be idempotent")
+	}
+}
+
 func TestAdminCustomerTagsAndBatchUpdate(t *testing.T) {
 	router, pool := setupTestRouter(t)
 	ctx := context.Background()
@@ -895,6 +1042,15 @@ func TestAdminCustomerTagsAndBatchUpdate(t *testing.T) {
 	if addInactive.Code != http.StatusBadRequest {
 		t.Fatalf("expected add inactive tag 400, got %d: %s", addInactive.Code, addInactive.Body.String())
 	}
+}
+
+func containsRole(roles []string, role string) bool {
+	for _, candidate := range roles {
+		if strings.EqualFold(candidate, role) {
+			return true
+		}
+	}
+	return false
 }
 
 func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool) {

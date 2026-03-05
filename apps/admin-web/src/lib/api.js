@@ -318,8 +318,19 @@ export const fetchAdminSalesUsers = async (params = {}) => {
   return requestRaw(`/admin/sales-users${buildQueryString(params)}`);
 };
 
+export const fetchAdminUsers = async (params = {}) => {
+  return requestRaw(`/admin/users${buildQueryString(params)}`);
+};
+
 export const fetchAdminCustomers = async (params = {}) => {
   return requestRaw(`/admin/customers${buildQueryString(params)}`);
+};
+
+export const promoteAdminCustomerToSales = async (customerId) => {
+  return requestRaw(`/admin/customers/${customerId}/promote-to-sales`, {
+    method: 'POST',
+    body: {}
+  });
 };
 
 export const batchTransferCustomers = async (payload) => {
@@ -364,5 +375,55 @@ export const patchAdminCustomerFinanceProfile = async (customerId, paymentTermRe
     body: {
       paymentTermRemark
     }
+  });
+};
+
+export const fetchAdminInquiryRequirementProfile = async (inquiryId) => {
+  return requestRaw(`/admin/inquiries/${inquiryId}/requirement-profile`);
+};
+
+export const fetchAdminSuppliers = async (params = {}) => {
+  return requestRaw(`/admin/suppliers${buildQueryString(params)}`);
+};
+
+export const fetchAdminSupplierById = async (supplierId) => {
+  return requestRaw(`/admin/suppliers/${supplierId}`);
+};
+
+export const patchAdminSupplierById = async (supplierId, payload) => {
+  return requestRaw(`/admin/suppliers/${supplierId}`, {
+    method: 'PATCH',
+    body: payload
+  });
+};
+
+export const fetchAdminSupplierContacts = async (supplierId) => {
+  return requestRaw(`/admin/suppliers/${supplierId}/contacts`);
+};
+
+export const fetchAdminSupplierScorecards = async (supplierId) => {
+  return requestRaw(`/admin/suppliers/${supplierId}/scorecards`);
+};
+
+export const fetchAdminPaymentTransactions = async (params = {}) => {
+  return requestRaw(`/admin/payments/transactions${buildQueryString(params)}`);
+};
+
+export const fetchAdminPaymentTransaction = async (transactionId) => {
+  return requestRaw(`/admin/payments/transactions/${transactionId}`);
+};
+
+export const fetchAdminPaymentAuditLogs = async (params = {}) => {
+  return requestRaw(`/admin/payments/audit-logs${buildQueryString(params)}`);
+};
+
+export const fetchAdminPaymentWebhooks = async (params = {}) => {
+  return requestRaw(`/admin/payments/webhooks${buildQueryString(params)}`);
+};
+
+export const replayAdminPaymentWebhook = async (webhookId) => {
+  return requestRaw(`/admin/payments/webhooks/${webhookId}/replay`, {
+    method: 'POST',
+    body: {}
   });
 };

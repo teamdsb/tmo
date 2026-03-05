@@ -103,6 +103,24 @@ type pagedSalesUsersResponse struct {
 	Total    int                `json:"total"`
 }
 
+type adminUserSummary struct {
+	ID          string   `json:"id"`
+	DisplayName string   `json:"displayName"`
+	Phone       *string  `json:"phone"`
+	UserType    string   `json:"userType"`
+	Status      string   `json:"status"`
+	Roles       []string `json:"roles"`
+	CreatedAt   string   `json:"createdAt"`
+	UpdatedAt   string   `json:"updatedAt"`
+}
+
+type pagedAdminUsersResponse struct {
+	Items    []adminUserSummary `json:"items"`
+	Page     int                `json:"page"`
+	PageSize int                `json:"pageSize"`
+	Total    int                `json:"total"`
+}
+
 type customerTagResponse struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`
@@ -157,6 +175,16 @@ type batchUpdateCustomerTagsRequest struct {
 type batchTagUpdateResult struct {
 	RequestedCount int `json:"requestedCount"`
 	UpdatedCount   int `json:"updatedCount"`
+}
+
+type promoteCustomerToSalesResponse struct {
+	ID        string   `json:"id"`
+	UserType  string   `json:"userType"`
+	Status    string   `json:"status"`
+	Roles     []string `json:"roles"`
+	Promoted  bool     `json:"promoted"`
+	CreatedAt string   `json:"createdAt"`
+	UpdatedAt string   `json:"updatedAt"`
 }
 
 func (h *Handler) GetAdminConfigFeatureFlags(c *gin.Context) {
@@ -273,6 +301,159 @@ func (h *Handler) GetAdminSalesUsers(c *gin.Context) {
 		Page:     page,
 		PageSize: pageSize,
 		Total:    int(total),
+	})
+}
+
+func (h *Handler) GetAdminUsers(c *gin.Context) {
+	if _, _, ok := h.requirePermission(c, "rbac:manage", "ALL"); !ok {
+		return
+	}
+
+	page, pageSize := parsePagination(c)
+	offset := (page - 1) * pageSize
+	keyword := normalizeKeyword(c.Query("q"))
+	status := normalizeLowerKeyword(c.Query("status"))
+	role := normalizeUpperKeyword(c.Query("role"))
+
+	users, err := h.Store.ListAdminUsers(c.Request.Context(), db.ListAdminUsersParams{
+		Q:      keyword,
+		Status: status,
+		Role:   role,
+		Limit:  int32(pageSize),
+		Offset: int32(offset),
+	})
+	if err != nil {
+		h.logError("list admin users failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to list admin users")
+		return
+	}
+
+	total, err := h.Store.CountAdminUsers(c.Request.Context(), db.CountAdminUsersParams{
+		Q:      keyword,
+		Status: status,
+		Role:   role,
+	})
+	if err != nil {
+		h.logError("count admin users failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to list admin users")
+		return
+	}
+
+	items := make([]adminUserSummary, 0, len(users))
+	for _, user := range users {
+		roles, err := h.Store.ListUserRoles(c.Request.Context(), user.ID)
+		if err != nil {
+			h.logError("list admin user roles failed", err)
+			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to list admin users")
+			return
+		}
+		items = append(items, adminUserSummary{
+			ID:          user.ID.String(),
+			DisplayName: safeString(user.DisplayName, "未命名用户"),
+			Phone:       user.Phone,
+			UserType:    strings.ToLower(strings.TrimSpace(user.UserType)),
+			Status:      strings.ToLower(strings.TrimSpace(user.Status)),
+			Roles:       normalizeRoles(roles),
+			CreatedAt:   user.CreatedAt.Time.Format(time.RFC3339),
+			UpdatedAt:   user.UpdatedAt.Time.Format(time.RFC3339),
+		})
+	}
+
+	c.JSON(http.StatusOK, pagedAdminUsersResponse{
+		Items:    items,
+		Page:     page,
+		PageSize: pageSize,
+		Total:    int(total),
+	})
+}
+
+func (h *Handler) PostAdminCustomersCustomerIdPromoteToSales(c *gin.Context) {
+	claims, _, ok := h.requirePermission(c, "customer:transfer", "ALL")
+	if !ok {
+		return
+	}
+
+	customerID, err := uuid.Parse(strings.TrimSpace(c.Param("customerId")))
+	if err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid customerId")
+		return
+	}
+
+	user, err := h.Store.GetUserByID(c.Request.Context(), customerID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			h.writeError(c, http.StatusNotFound, "not_found", "customer not found")
+			return
+		}
+		h.logError("get customer failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to promote customer")
+		return
+	}
+
+	promoted := false
+	switch strings.ToLower(strings.TrimSpace(user.UserType)) {
+	case "customer":
+		promotedUser, err := h.Store.PromoteCustomerToStaff(c.Request.Context(), customerID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				h.writeError(c, http.StatusNotFound, "not_found", "customer not found")
+				return
+			}
+			h.logError("promote customer to staff failed", err)
+			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to promote customer")
+			return
+		}
+		user = promotedUser
+		promoted = true
+	case "staff":
+		// Already staff, only ensure SALES role.
+	case "admin":
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "admin user cannot be promoted")
+		return
+	default:
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "unsupported user type")
+		return
+	}
+
+	if err := h.Store.AddUserRole(c.Request.Context(), db.AddUserRoleParams{
+		UserID: user.ID,
+		Role:   "SALES",
+	}); err != nil {
+		h.logError("add sales role failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to promote customer")
+		return
+	}
+
+	if err := h.Store.AddUserRole(c.Request.Context(), db.AddUserRoleParams{
+		UserID: user.ID,
+		Role:   "CUSTOMER",
+	}); err != nil {
+		h.logError("keep customer role failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to promote customer")
+		return
+	}
+
+	roles, err := h.Store.ListUserRoles(c.Request.Context(), user.ID)
+	if err != nil {
+		h.logError("list promoted user roles failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to promote customer")
+		return
+	}
+
+	h.recordAudit(c, &claims.UserID, "customer.promote_to_sales", "customer", &user.ID, map[string]interface{}{
+		"customerId": user.ID.String(),
+		"promoted":   promoted,
+		"roles":      normalizeRoles(roles),
+	})
+
+	c.JSON(http.StatusOK, promoteCustomerToSalesResponse{
+		ID:        user.ID.String(),
+		UserType:  strings.ToLower(strings.TrimSpace(user.UserType)),
+		Status:    strings.ToLower(strings.TrimSpace(user.Status)),
+		Roles:     normalizeRoles(roles),
+		Promoted:  promoted,
+		CreatedAt: user.CreatedAt.Time.Format(time.RFC3339),
+		UpdatedAt: user.UpdatedAt.Time.Format(time.RFC3339),
 	})
 }
 
@@ -1132,6 +1313,35 @@ func normalizeKeyword(raw string) *string {
 		return nil
 	}
 	return &trimmed
+}
+
+func normalizeUpperKeyword(raw string) *string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil
+	}
+	upper := strings.ToUpper(trimmed)
+	return &upper
+}
+
+func normalizeLowerKeyword(raw string) *string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil
+	}
+	lower := strings.ToLower(trimmed)
+	return &lower
+}
+
+func safeString(value *string, fallback string) string {
+	if value == nil {
+		return fallback
+	}
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return fallback
+	}
+	return trimmed
 }
 
 func validateTransferInput(toSalesUserID string, reason *string) (uuid.UUID, string, error) {

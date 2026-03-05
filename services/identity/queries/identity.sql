@@ -55,11 +55,35 @@ RETURNING *;
 -- name: ListStaffUsers :many
 SELECT * FROM users
 WHERE user_type = 'staff'
+  AND (
+    sqlc.narg('q')::text IS NULL
+    OR COALESCE(display_name, '') ILIKE '%' || sqlc.narg('q') || '%'
+    OR id::text ILIKE '%' || sqlc.narg('q') || '%'
+    OR EXISTS (
+      SELECT 1
+      FROM user_roles ur
+      WHERE ur.user_id = users.id
+        AND ur.role ILIKE '%' || sqlc.narg('q') || '%'
+    )
+  )
 ORDER BY created_at DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
 -- name: CountStaffUsers :one
-SELECT count(*) FROM users WHERE user_type = 'staff';
+SELECT count(*)
+FROM users
+WHERE user_type = 'staff'
+  AND (
+    sqlc.narg('q')::text IS NULL
+    OR COALESCE(display_name, '') ILIKE '%' || sqlc.narg('q') || '%'
+    OR id::text ILIKE '%' || sqlc.narg('q') || '%'
+    OR EXISTS (
+      SELECT 1
+      FROM user_roles ur
+      WHERE ur.user_id = users.id
+        AND ur.role ILIKE '%' || sqlc.narg('q') || '%'
+    )
+  );
 
 -- name: ListCustomers :many
 SELECT * FROM users
@@ -322,6 +346,51 @@ FROM (
     )
   GROUP BY u.id
 ) AS filtered_sales;
+
+-- name: ListAdminUsers :many
+SELECT DISTINCT u.*
+FROM users u
+JOIN user_roles ur ON ur.user_id = u.id
+WHERE u.user_type IN ('admin', 'staff')
+  AND (
+    sqlc.narg('q')::text IS NULL
+    OR COALESCE(u.display_name, '') ILIKE '%' || sqlc.narg('q') || '%'
+    OR COALESCE(u.phone, '') ILIKE '%' || sqlc.narg('q') || '%'
+    OR u.id::text ILIKE '%' || sqlc.narg('q') || '%'
+  )
+  AND (sqlc.narg('status')::text IS NULL OR u.status = sqlc.narg('status'))
+  AND (sqlc.narg('role')::text IS NULL OR ur.role = sqlc.narg('role'))
+ORDER BY u.created_at DESC
+LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
+
+-- name: CountAdminUsers :one
+SELECT count(*)
+FROM (
+  SELECT u.id
+  FROM users u
+  JOIN user_roles ur ON ur.user_id = u.id
+  WHERE u.user_type IN ('admin', 'staff')
+    AND (
+      sqlc.narg('q')::text IS NULL
+      OR COALESCE(u.display_name, '') ILIKE '%' || sqlc.narg('q') || '%'
+      OR COALESCE(u.phone, '') ILIKE '%' || sqlc.narg('q') || '%'
+      OR u.id::text ILIKE '%' || sqlc.narg('q') || '%'
+    )
+    AND (sqlc.narg('status')::text IS NULL OR u.status = sqlc.narg('status'))
+    AND (sqlc.narg('role')::text IS NULL OR ur.role = sqlc.narg('role'))
+  GROUP BY u.id
+) AS filtered_admin_users;
+
+-- name: PromoteCustomerToStaff :one
+UPDATE users
+SET user_type = 'staff',
+    owner_sales_user_id = NULL,
+    status = 'active',
+    disabled_at = NULL,
+    disabled_reason = NULL,
+    updated_at = now()
+WHERE id = $1 AND user_type = 'customer'
+RETURNING *;
 
 -- name: ListAdminCustomers :many
 SELECT u.*

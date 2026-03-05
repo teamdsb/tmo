@@ -98,8 +98,16 @@ func (h *Handler) GetStaff(c *gin.Context, params oapi.GetStaffParams) {
 		pageSize = 100
 	}
 	offset := (page - 1) * pageSize
+	var q *string
+	if params.Q != nil {
+		trimmed := strings.TrimSpace(*params.Q)
+		if trimmed != "" {
+			q = &trimmed
+		}
+	}
 
 	users, err := h.Store.ListStaffUsers(c.Request.Context(), db.ListStaffUsersParams{
+		Q:      q,
 		Limit:  int32(pageSize),
 		Offset: int32(offset),
 	})
@@ -109,7 +117,7 @@ func (h *Handler) GetStaff(c *gin.Context, params oapi.GetStaffParams) {
 		return
 	}
 
-	total, err := h.Store.CountStaffUsers(c.Request.Context())
+	total, err := h.Store.CountStaffUsers(c.Request.Context(), q)
 	if err != nil {
 		h.logError("count staff failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to list staff")

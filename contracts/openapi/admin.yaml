@@ -47,6 +47,44 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/PagedSalesUserList"
+  "/admin/users":
+    get:
+      tags:
+      - Admin
+      summary: List admin users for admin console
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: role
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PagedAdminUserList"
   "/admin/customers":
     get:
       tags:
@@ -130,6 +168,25 @@ paths:
       responses:
         '204':
           description: No Content
+  "/admin/customers/{customerId}/promote-to-sales":
+    post:
+      tags:
+      - Admin
+      summary: Promote customer account to sales
+      parameters:
+      - in: path
+        name: customerId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PromoteCustomerToSalesResponse"
   "/admin/customer-tags":
     get:
       tags:
@@ -366,6 +423,266 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ImportJob"
+  "/admin/inquiries/{inquiryId}/requirement-profile":
+    get:
+      tags:
+      - Admin
+      summary: Get requirement profile for inquiry detail panel
+      parameters:
+      - in: path
+        name: inquiryId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/InquiryRequirementProfile"
+  "/admin/suppliers":
+    get:
+      tags:
+      - Admin
+      summary: List suppliers for admin operations
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PagedAdminSupplierList"
+  "/admin/suppliers/{supplierId}":
+    get:
+      tags:
+      - Admin
+      summary: Get supplier detail
+      parameters:
+      - in: path
+        name: supplierId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminSupplier"
+    patch:
+      tags:
+      - Admin
+      summary: Update supplier profile
+      parameters:
+      - in: path
+        name: supplierId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PatchAdminSupplierRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminSupplier"
+  "/admin/suppliers/{supplierId}/contacts":
+    get:
+      tags:
+      - Admin
+      summary: List supplier contacts
+      parameters:
+      - in: path
+        name: supplierId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminSupplierContactListResponse"
+  "/admin/suppliers/{supplierId}/scorecards":
+    get:
+      tags:
+      - Admin
+      summary: List supplier scorecards
+      parameters:
+      - in: path
+        name: supplierId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminSupplierScorecardListResponse"
+  "/admin/payments/transactions":
+    get:
+      tags:
+      - Admin
+      summary: List payment transactions for admin operations
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PagedPaymentTransactionList"
+  "/admin/payments/transactions/{id}":
+    get:
+      tags:
+      - Admin
+      summary: Get payment transaction detail
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PaymentTransaction"
+  "/admin/payments/audit-logs":
+    get:
+      tags:
+      - Admin
+      summary: List payment audit logs
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PagedPaymentAuditLogList"
+  "/admin/payments/webhooks":
+    get:
+      tags:
+      - Admin
+      summary: List payment webhooks
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PagedPaymentWebhookList"
+  "/admin/payments/webhooks/{id}/replay":
+    post:
+      tags:
+      - Admin
+      summary: Replay one payment webhook event
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ReplayWebhookResponse"
   "/admin/miniapp/display-categories":
     get:
       tags:
@@ -546,6 +863,87 @@ components:
       - page
       - pageSize
       - total
+    AdminUserSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        userType:
+          type: string
+        status:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - displayName
+      - userType
+      - status
+      - roles
+      - createdAt
+      - updatedAt
+    PagedAdminUserList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/AdminUserSummary"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required:
+      - items
+      - page
+      - pageSize
+      - total
+    PromoteCustomerToSalesResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userType:
+          type: string
+        status:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        promoted:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - userType
+      - status
+      - roles
+      - promoted
+      - createdAt
+      - updatedAt
     CustomerTag:
       type: object
       properties:
@@ -743,6 +1141,371 @@ components:
       required:
       - requestedCount
       - updatedCount
+    InquiryRequirementProfile:
+      type: object
+      properties:
+        requirementNo:
+          type: string
+        title:
+          type: string
+        companyName:
+          type: string
+        contactName:
+          type: string
+        contactPhone:
+          type: string
+        expectedQty:
+          type: string
+        targetUnitPrice:
+          type: string
+        priority:
+          type: string
+        source:
+          type: string
+        summary:
+          type: string
+        attachments:
+          type: array
+          items:
+            type: string
+      required:
+      - requirementNo
+      - title
+      - companyName
+      - contactName
+      - contactPhone
+      - expectedQty
+      - targetUnitPrice
+      - priority
+      - source
+      - summary
+      - attachments
+    AdminSupplier:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        supplierCode:
+          type: string
+        name:
+          type: string
+        country:
+          type: string
+        city:
+          type: string
+        categories:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+        score:
+          type: integer
+        lastQuoteAmountCents:
+          type: integer
+          nullable: true
+        lastQuoteAt:
+          type: string
+          format: date-time
+          nullable: true
+        primaryContactName:
+          type: string
+        notes:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - supplierCode
+      - name
+      - country
+      - city
+      - categories
+      - status
+      - score
+      - primaryContactName
+      - notes
+      - createdAt
+      - updatedAt
+    PagedAdminSupplierList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/AdminSupplier"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required:
+      - items
+      - page
+      - pageSize
+      - total
+    PatchAdminSupplierRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        country:
+          type: string
+        city:
+          type: string
+        categories:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - PAUSED
+          - TERMINATED
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        notes:
+          type: string
+      additionalProperties: false
+    AdminSupplierContact:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        title:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        isPrimary:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - name
+      - title
+      - email
+      - phone
+      - isPrimary
+      - updatedAt
+    AdminSupplierContactListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/AdminSupplierContact"
+      required:
+      - items
+    AdminSupplierScorecard:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        period:
+          type: string
+        deliveryScore:
+          type: integer
+        qualityScore:
+          type: integer
+        priceScore:
+          type: integer
+        riskLevel:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - period
+      - deliveryScore
+      - qualityScore
+      - priceScore
+      - riskLevel
+      - createdAt
+    AdminSupplierScorecardListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/AdminSupplierScorecard"
+      required:
+      - items
+    PaymentTransaction:
+      type: object
+      properties:
+        id:
+          type: string
+        orderId:
+          type: string
+        userId:
+          type: string
+        channel:
+          type: string
+        status:
+          type: string
+        amountFen:
+          type: integer
+        currency:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        failureReason:
+          type: string
+      required:
+      - id
+      - orderId
+      - userId
+      - channel
+      - status
+      - amountFen
+      - currency
+      - createdAt
+      - updatedAt
+    PagedPaymentTransactionList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/PaymentTransaction"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required:
+      - items
+      - page
+      - pageSize
+      - total
+    PaymentAuditLog:
+      type: object
+      properties:
+        id:
+          type: string
+        transactionId:
+          type: string
+        action:
+          type: string
+        actor:
+          type: string
+        detail:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - transactionId
+      - action
+      - actor
+      - detail
+      - createdAt
+    PagedPaymentAuditLogList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/PaymentAuditLog"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required:
+      - items
+      - page
+      - pageSize
+      - total
+    PaymentWebhook:
+      type: object
+      properties:
+        id:
+          type: string
+        provider:
+          type: string
+        eventType:
+          type: string
+        transactionId:
+          type: string
+        status:
+          type: string
+        replayCount:
+          type: integer
+        receivedAt:
+          type: string
+          format: date-time
+        lastReplayAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - provider
+      - eventType
+      - transactionId
+      - status
+      - replayCount
+      - receivedAt
+    PagedPaymentWebhookList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/PaymentWebhook"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required:
+      - items
+      - page
+      - pageSize
+      - total
+    ReplayWebhookResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        replayCount:
+          type: integer
+        replayedAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - status
+      - replayCount
+      - replayedAt
     AdminCustomerFinanceProfile:
       type: object
       properties:

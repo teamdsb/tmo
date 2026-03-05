@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
+  fetchAdminInquiryRequirementProfile,
   fetchInquiries,
   fetchInquiryById,
   fetchInquiryMessages,
@@ -388,6 +389,41 @@ const buildRequirementOrderProfile = (inquiry: InquiryItem | null): RequirementO
   };
 };
 
+const normalizeRequirementOrderProfile = (payload: unknown, inquiry: InquiryItem | null): RequirementOrderProfile | null => {
+  if (!payload || typeof payload !== 'object') {
+    return buildRequirementOrderProfile(inquiry);
+  }
+  const record = payload as {
+    requirementNo?: string;
+    title?: string;
+    companyName?: string;
+    contactName?: string;
+    contactPhone?: string;
+    expectedQty?: string;
+    targetUnitPrice?: string;
+    priority?: string;
+    source?: string;
+    summary?: string;
+    attachments?: unknown[];
+  };
+
+  return {
+    requirementNo: safeText(record.requirementNo, inquiry ? `REQ-${formatShortId(inquiry.id)}` : 'REQ-未知'),
+    title: safeText(record.title, '待补充需求主题'),
+    companyName: safeText(record.companyName, inquiry ? `客户 ${formatShortId(inquiry.createdByUserId)}` : '客户信息待补充'),
+    contactName: safeText(record.contactName, '未提供'),
+    contactPhone: safeText(record.contactPhone, '未提供'),
+    expectedQty: safeText(record.expectedQty, '待确认'),
+    targetUnitPrice: safeText(record.targetUnitPrice, '待确认'),
+    priority: safeText(record.priority, '中'),
+    source: safeText(record.source, '需求链接'),
+    summary: safeText(record.summary, inquiry?.message || '暂无补充说明'),
+    attachments: Array.isArray(record.attachments)
+      ? record.attachments.filter((item): item is string => typeof item === 'string')
+      : []
+  };
+};
+
 // 在线客服页：管理询价会话列表、线程消息和快捷回复。
 export const InquiriesPage = () => {
   const [statusFilter, setStatusFilter] = useState<InquiryStatusFilter>('ALL');
@@ -529,14 +565,16 @@ export const InquiriesPage = () => {
           const mockMessages = MOCK_MESSAGES[activeInquiryId] || [];
           if (!cancelled) {
             setActiveInquiry(mockInquiry);
+            setRequirementProfile(buildRequirementOrderProfile(mockInquiry));
             setMessages(mockMessages);
           }
           return;
         }
 
-        const [inquiryResponse, messageResponse] = await Promise.all([
+        const [inquiryResponse, messageResponse, profileResponse] = await Promise.all([
           fetchInquiryById(activeInquiryId),
-          fetchInquiryMessages(activeInquiryId, { page: 1, pageSize: 200 })
+          fetchInquiryMessages(activeInquiryId, { page: 1, pageSize: 200 }),
+          fetchAdminInquiryRequirementProfile(activeInquiryId)
         ]);
 
         if (cancelled) {
@@ -544,7 +582,13 @@ export const InquiriesPage = () => {
         }
 
         const detail = inquiryResponse.status === 200 ? normalizeInquiry(inquiryResponse.data) : null;
-        setActiveInquiry(detail || inquiries.find((item) => item.id === activeInquiryId) || null);
+        const resolvedInquiry = detail || inquiries.find((item) => item.id === activeInquiryId) || null;
+        setActiveInquiry(resolvedInquiry);
+        if (profileResponse.status === 200) {
+          setRequirementProfile(normalizeRequirementOrderProfile(profileResponse.data, resolvedInquiry));
+        } else {
+          setRequirementProfile(buildRequirementOrderProfile(resolvedInquiry));
+        }
 
         if (messageResponse.status !== 200 || !messageResponse.data) {
           setMessages([]);
@@ -559,6 +603,7 @@ export const InquiriesPage = () => {
         }
         const message = error instanceof Error ? error.message : '加载会话消息失败';
         setMessages([]);
+        setRequirementProfile(buildRequirementOrderProfile(inquiries.find((item) => item.id === activeInquiryId) || null));
         setMessagesError(message || '加载会话消息失败');
       } finally {
         if (!cancelled) {
@@ -573,10 +618,6 @@ export const InquiriesPage = () => {
       cancelled = true;
     };
   }, [activeInquiryId, inquiries]);
-
-  useEffect(() => {
-    setRequirementProfile(buildRequirementOrderProfile(activeInquiry));
-  }, [activeInquiry]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -664,7 +705,7 @@ export const InquiriesPage = () => {
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden" data-testid="inquiries-page">
       <AdminTopbar
         searchPlaceholder="搜索需求链接、客户或会话..."
         leftSlot={
@@ -713,11 +754,11 @@ export const InquiriesPage = () => {
               </label>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto" data-testid="inquiry-list">
               {listLoading ? <div className="px-4 py-8 text-sm text-slate-500">正在加载需求列表...</div> : null}
               {!listLoading && listError ? <div className="px-4 py-8 text-sm text-red-600">{listError}</div> : null}
               {!listLoading && !listError && filteredInquiries.length === 0 ? (
-                <div className="px-4 py-8 text-sm text-slate-500">当前筛选条件下暂无需求会话。</div>
+                <div className="px-4 py-8 text-sm text-slate-500" data-testid="inquiry-list-empty">当前筛选条件下暂无需求会话。</div>
               ) : null}
 
               {!listLoading &&
@@ -726,6 +767,7 @@ export const InquiriesPage = () => {
                   const active = item.id === activeInquiryId;
                   return (
                     <button
+                      data-testid={`inquiry-item-${item.id}`}
                       key={item.id}
                       type="button"
                       onClick={() => setActiveInquiryId(item.id)}
@@ -838,13 +880,13 @@ export const InquiriesPage = () => {
             )}
           </section>
 
-          <aside className="hidden h-full w-72 shrink-0 border-l border-border-color bg-surface-light px-4 py-5 dark:bg-surface-dark xl:block 2xl:w-80">
+          <aside className="hidden h-full w-72 shrink-0 border-l border-border-color bg-surface-light px-4 py-5 dark:bg-surface-dark xl:block 2xl:w-80" data-testid="requirement-profile-panel">
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-wide text-slate-500">需求订单信息</h3>
             {activeInquiry && requirementProfile ? (
               <div className="space-y-4 text-sm text-slate-700 dark:text-slate-300">
-                <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900" data-testid="requirement-profile-card">
                   <p className="text-xs text-slate-500">需求单号</p>
-                  <p className="mt-0.5 font-semibold">{requirementProfile.requirementNo}</p>
+                  <p className="mt-0.5 font-semibold" data-testid="requirement-no">{requirementProfile.requirementNo}</p>
                   <p className="mt-2 text-xs text-slate-500">需求主题</p>
                   <p className="mt-0.5 text-sm font-medium leading-5">{requirementProfile.title}</p>
                 </div>

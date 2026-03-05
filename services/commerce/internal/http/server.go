@@ -26,6 +26,12 @@ func NewRouter(handler *handler.Handler, logger *slog.Logger, readyCheck func(co
 	router.POST("/admin/shipments/import-jobs", handler.PostShipmentsImportJobs)
 	router.POST("/admin/product-requests/export-jobs", handler.PostAdminProductRequestsExportJobs)
 	router.GET("/admin/import-jobs/:jobId", handler.GetAdminImportJobsJobId)
+	router.GET("/admin/inquiries/:inquiryId/requirement-profile", handler.GetAdminInquiriesInquiryIdRequirementProfile)
+	router.GET("/admin/suppliers", handler.GetAdminSuppliers)
+	router.GET("/admin/suppliers/:supplierId", handler.GetAdminSuppliersSupplierId)
+	router.PATCH("/admin/suppliers/:supplierId", handler.PatchAdminSuppliersSupplierId)
+	router.GET("/admin/suppliers/:supplierId/contacts", handler.GetAdminSuppliersSupplierIdContacts)
+	router.GET("/admin/suppliers/:supplierId/scorecards", handler.GetAdminSuppliersSupplierIdScorecards)
 	router.GET("/admin/miniapp/display-categories", handler.GetAdminMiniappDisplayCategories)
 	router.PUT("/admin/miniapp/display-categories", handler.PutAdminMiniappDisplayCategories)
 
