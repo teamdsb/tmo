@@ -127,7 +127,7 @@
 - `WEAPP_FAIL_ON_ERROR`：遇到错误是否退出非 0，默认 `true`。
 - `WEAPP_STRICT_P1`：是否将 P1 问题按阻断处理，默认 `true`。
 - `WEAPP_PREFLIGHT_HTTP_SMOKE`：`dev:weapp` 是否启用编译前 HTTP 门禁，默认 `true`。
-- `WEAPP_PREFLIGHT_TIMEOUT_MS`：编译前门禁超时（毫秒），默认 `30000`。
+- `WEAPP_PREFLIGHT_TIMEOUT_MS`：编译前门禁超时（毫秒），默认 `120000`。
 - `WEAPP_PREFLIGHT_RUN_DIAG`：门禁失败时是否输出 DB 诊断（`preflight:weapp`），默认 `true`。
 - `MINIAPP_HTTP_SMOKE_ALLOW_EMPTY_PRODUCTS`：`preflight:weapp` 是否允许 `/catalog/products` 空列表时跳过封面图代理断言；默认在 preflight 中按 `true` 处理。
 - `WEAPP_SKIP_LAUNCH`：跳过自动拉起 DevTools，仅连接已有 automator 端口（默认 `false`）。

@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { View, Text, Image, Button as NativeButton } from '@tarojs/components'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Button as NativeButton, Image, Input, Text, View } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import {
+  AddOutlined,
   AppsOutlined,
+  ArrowLeft,
   ArrowRight,
   BarChartOutlined,
   ChatOutlined,
@@ -11,13 +13,14 @@ import {
   Exchange,
   LocationOutlined,
   Logistics,
+  MoreOutlined,
   OrdersOutlined,
   Revoke,
   ServiceOutlined,
   SettingOutlined,
+  ShieldOutlined,
   StarOutlined,
-  TodoList,
-  UserOutlined
+  TodoList
 } from '@taroify/icons'
 import type { BootstrapResponse } from '@tmo/gateway-api-client'
 import { ROUTES } from '../../routes'
@@ -28,8 +31,7 @@ import { commerceServices } from '../../services/commerce'
 import { identityServices } from '../../services/identity'
 import { clearBootstrap, loadBootstrap, saveBootstrap } from '../../services/bootstrap'
 import placeholderProductImage from '../../assets/images/placeholder-product.svg'
-import { getRuntimeTheme } from '../../utils/device-info'
-import { hasRole } from '../../utils/authz'
+import { runtimeEnv } from '../../config/runtime-env'
 
 type IconComponent = (props: { className?: string }) => JSX.Element
 
@@ -37,7 +39,8 @@ type MenuItem = {
   key: string
   label: string
   icon: IconComponent
-  route: string
+  action?: () => void
+  route?: string
 }
 
 type OrderItem = {
@@ -45,17 +48,56 @@ type OrderItem = {
   label: string
   icon: IconComponent
   badge?: string
-  route: string
+  onClick: () => void
 }
 
-const MENU_ITEMS: MenuItem[] = [
-  { key: 'demand', label: '我的需求', icon: Description, route: ROUTES.demandList },
-  { key: 'favorites', label: '收藏', icon: StarOutlined, route: ROUTES.favorites },
-  { key: 'address', label: '收货地址', icon: LocationOutlined, route: ROUTES.addressList },
-  { key: 'import', label: 'Excel 批量导入', icon: AppsOutlined, route: ROUTES.import },
-  { key: 'tracking', label: '批量物流', icon: BarChartOutlined, route: ROUTES.trackingBatch },
-  { key: 'settings', label: '系统设置', icon: SettingOutlined, route: ROUTES.settings }
-]
+type MineSubview = 'profile' | 'chat' | 'orders' | 'address' | 'demand'
+
+type ChatMessage = {
+  id: number
+  sender: 'agent' | 'user'
+  text: string
+  time: string
+  hasActions?: boolean
+}
+
+type MockOrderItem = {
+  name: string
+  specs: string
+  price: number
+  count: number
+  image: string
+}
+
+type MockOrder = {
+  id: string
+  status: string
+  date: string
+  totalPrice: number
+  items: MockOrderItem[]
+  tracking: {
+    latest: string
+    time: string
+  }
+}
+
+type MockAddress = {
+  id: number
+  name: string
+  phone: string
+  tag: string
+  address: string
+  isDefault: boolean
+}
+
+type MockDemand = {
+  id: number
+  title: string
+  status: string
+  count: string
+  date: string
+  createdAt: string
+}
 
 const SALES_MENU_ITEM: MenuItem = {
   key: 'sales-workbench',
@@ -64,16 +106,81 @@ const SALES_MENU_ITEM: MenuItem = {
   route: ROUTES.sales
 }
 
-const ORDER_ITEMS: OrderItem[] = [
-  { key: 'pending', label: '待处理', icon: OrdersOutlined, route: ROUTES.orders },
-  { key: 'shipped', label: '已发货', icon: Logistics, route: ROUTES.orders },
-  { key: 'delivered', label: '已送达', icon: TodoList, route: ROUTES.orders },
-  { key: 'returns', label: '退货', icon: Exchange, route: ROUTES.orders }
-]
-
 const PENDING_ORDER_STATUSES = ['SUBMITTED', 'CONFIRMED', 'PAY_PENDING', 'PAID', 'PAY_FAILED']
 
-type OrderBadges = Partial<Record<OrderItem['key'], string>>
+type OrderBadges = Partial<Record<'pending' | 'shipped' | 'delivered' | 'returns', string>>
+
+const INITIAL_MESSAGES: ChatMessage[] = [
+  { id: 1, sender: 'agent', text: '您好！我是您的专属客户经理。今天有什么可以帮您的吗？', time: '09:41' },
+  { id: 2, sender: 'user', text: '我想咨询一下最近那批电子元件订单的批量价格。', time: '09:42' },
+  {
+    id: 3,
+    sender: 'agent',
+    text: '好的，没问题。请问您是指哪个订单或者哪款产品？您可以直接发送链接给我。',
+    time: '09:42',
+    hasActions: true
+  }
+]
+
+const INITIAL_ORDERS_DATA: MockOrder[] = [
+  {
+    id: 'ORD-20240520-99',
+    status: '待收货',
+    date: '2024-05-20 14:30',
+    totalPrice: 2580,
+    items: [
+      {
+        name: '人体工学办公椅 - 旗舰版',
+        specs: '黑色 / 尼龙脚',
+        price: 1290,
+        count: 2,
+        image: 'https://images.unsplash.com/photo-1505797149-43b0069ec26b?auto=format&fit=crop&q=80&w=100&h=100'
+      }
+    ],
+    tracking: {
+      latest: '[上海市] 派送中：快递员小王正在为您派送',
+      time: '10分钟前'
+    }
+  }
+]
+
+const INITIAL_ADDRESSES_DATA: MockAddress[] = [
+  {
+    id: 1,
+    name: '王小明',
+    phone: '13812348888',
+    tag: '默认',
+    address: '上海市 浦东新区 世纪大道100号 上海环球金融中心 71层',
+    isDefault: true
+  },
+  {
+    id: 2,
+    name: '李华',
+    phone: '13900009999',
+    tag: '',
+    address: '北京市 朝阳区 建国路87号 SKP办公楼 15层',
+    isDefault: false
+  }
+]
+
+const INITIAL_DEMANDS_DATA: MockDemand[] = [
+  {
+    id: 1,
+    title: '需要定制一批办公椅，带人体工学设计',
+    status: '处理中',
+    count: '500把',
+    date: '2024-06-15',
+    createdAt: '2024-05-20'
+  },
+  {
+    id: 2,
+    title: '寻源高性价比的A4打印纸',
+    status: '已报价',
+    count: '10000箱',
+    date: '2024-05-30',
+    createdAt: '2024-05-18'
+  }
+]
 
 const toOrderBadge = (count: number): string | undefined => {
   if (!Number.isFinite(count) || count <= 0) {
@@ -82,50 +189,221 @@ const toOrderBadge = (count: number): string | undefined => {
   return String(Math.floor(count))
 }
 
-type MenuLinkProps = {
-  icon: IconComponent
-  label: string
-  onClick: () => void
-  showDivider: boolean
+type BadgeProps = {
+  count?: string
 }
 
-function MenuLink({ icon: Icon, label, onClick, showDivider }: MenuLinkProps) {
-  const rowClassName = `flex items-center justify-between px-4 py-3 ${
-    showDivider ? 'border-b mine-divider' : ''
-  }`
+function Badge({ count }: BadgeProps) {
+  if (!count) {
+    return null
+  }
 
   return (
-    <View className={rowClassName} onClick={onClick}>
-      <View className='flex items-center gap-3'>
-        <View className='w-6 h-6 flex items-center justify-center'>
-          <Icon className='text-lg mine-icon' />
-        </View>
-        <Text className='text-sm font-medium'>{label}</Text>
-      </View>
-      <ArrowRight className='text-lg mine-subtle' />
+    <View className='mine-modern-badge'>
+      <Text className='text-10 font-bold text-white'>{count}</Text>
     </View>
   )
 }
 
-type OrderItemProps = {
+function OrderTrackItem({ icon: Icon, label, badge, onClick }: OrderItem) {
+  return (
+    <View className='group flex flex-col items-center gap-2 text-center' onClick={onClick}>
+      <View className='mine-modern-order-icon relative flex h-11 w-11 items-center justify-center rounded-2xl'>
+        <Icon className='text-base mine-modern-muted' />
+        <Badge count={badge} />
+      </View>
+      <Text className='text-10 font-bold mine-modern-muted leading-tight whitespace-nowrap'>{label}</Text>
+    </View>
+  )
+}
+
+type MenuLinkProps = {
   icon: IconComponent
   label: string
-  badge?: string
+  showDivider: boolean
   onClick: () => void
 }
 
-function OrderItem({ icon: Icon, label, badge, onClick }: OrderItemProps) {
+function MenuLink({ icon: Icon, label, showDivider, onClick }: MenuLinkProps) {
   return (
-    <View className='flex flex-col items-center gap-2' onClick={onClick}>
-      <View className='relative w-10 h-10 rounded-full mine-accent-bg flex items-center justify-center'>
-        <Icon className='text-lg mine-accent' />
-        {badge ? (
-          <View className='absolute -top-1 -right-1 w-5 h-5 rounded-full mine-accent-solid text-xs leading-none flex items-center justify-center'>
-            {badge}
+    <View
+      onClick={onClick}
+      className={`mine-modern-menu-row flex items-center justify-between px-4 py-4 ${showDivider ? 'border-b mine-modern-border' : ''}`}
+    >
+      <View className='flex items-center gap-3'>
+        <View className='mine-modern-menu-icon flex h-8 w-8 items-center justify-center rounded-lg'>
+          <Icon className='text-base mine-modern-subtle' />
+        </View>
+        <Text className='text-sm font-medium mine-modern-text'>{label}</Text>
+      </View>
+      <ArrowRight className='text-sm mine-modern-subtle' />
+    </View>
+  )
+}
+
+type SubviewHeaderProps = {
+  title: string
+  onBack: () => void
+}
+
+function SubviewHeader({ title, onBack }: SubviewHeaderProps) {
+  return (
+    <View className='mine-modern-subview-header sticky top-0 z-20 flex items-center justify-between px-4 py-3'>
+      <View className='mine-modern-icon-btn flex h-9 w-9 items-center justify-center rounded-full' onClick={onBack}>
+        <ArrowLeft className='text-lg mine-modern-text' />
+      </View>
+      <Text className='text-base font-bold mine-modern-text'>{title}</Text>
+      <View className='mine-modern-icon-btn flex h-9 w-9 items-center justify-center rounded-full'>
+        <MoreOutlined className='text-base mine-modern-subtle' />
+      </View>
+    </View>
+  )
+}
+
+type ChatViewProps = {
+  messages: ChatMessage[]
+  isTyping: boolean
+  inputValue: string
+  onInput: (value: string) => void
+  onSend: () => void
+  onBack: () => void
+}
+
+function ChatView({ messages, isTyping, inputValue, onInput, onSend, onBack }: ChatViewProps) {
+  return (
+    <View className='mine-modern-subview'>
+      <SubviewHeader title='联系经理' onBack={onBack} />
+
+      <View className='mine-modern-chat-list mine-modern-subview-scroll'>
+        {messages.map((msg) => (
+          <View key={msg.id} className={`mb-4 flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <View className={msg.sender === 'user' ? 'mine-modern-chat-bubble-user' : 'mine-modern-chat-bubble-agent'}>
+              <Text className={`text-sm ${msg.sender === 'user' ? 'text-white' : 'mine-modern-text'}`}>{msg.text}</Text>
+              {msg.hasActions ? (
+                <View className='mt-2 flex gap-2'>
+                  <View className='mine-modern-chip'>
+                    <Text className='text-10 font-bold mine-modern-primary'>发送订单</Text>
+                  </View>
+                  <View className='mine-modern-chip'>
+                    <Text className='text-10 font-bold mine-modern-primary'>发送产品</Text>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          </View>
+        ))}
+
+        {isTyping ? (
+          <View className='mine-modern-chat-typing px-1'>
+            <Text className='text-10 mine-modern-subtle'>对方正在输入...</Text>
           </View>
         ) : null}
       </View>
-      <Text className='text-xs mine-muted'>{label}</Text>
+
+      <View className='mine-modern-chat-input-panel px-5 py-3'>
+        <View className='mine-modern-chat-input-wrap flex items-center gap-2'>
+          <View className='mine-modern-icon-btn flex h-9 w-9 items-center justify-center rounded-full'>
+            <AddOutlined className='text-base mine-modern-muted' />
+          </View>
+          <Input
+            value={inputValue}
+            onInput={(event: { detail: { value: string } }) => onInput(event.detail.value)}
+            onConfirm={onSend}
+            className='mine-modern-chat-input h-10 flex-1 rounded-xl px-3 text-sm'
+            placeholder='请输入...'
+            confirmType='send'
+          />
+          <View className='mine-modern-chat-send-btn flex h-10 w-10 items-center justify-center rounded-xl' onClick={onSend}>
+            <ChatOutlined className='text-base text-white' />
+          </View>
+        </View>
+      </View>
+    </View>
+  )
+}
+
+type AddressViewProps = {
+  addresses: MockAddress[]
+  onBack: () => void
+}
+
+function AddressView({ addresses, onBack }: AddressViewProps) {
+  return (
+    <View className='mine-modern-subview'>
+      <SubviewHeader title='收货地址' onBack={onBack} />
+      <View className='mine-modern-subview-scroll'>
+        {addresses.map((addr) => (
+          <View key={addr.id} className='mine-modern-card mb-3 rounded-2xl p-4'>
+            <View className='mb-2 flex items-center justify-between'>
+              <Text className='text-sm font-bold mine-modern-text'>{addr.name} {addr.phone}</Text>
+              {addr.isDefault ? (
+                <View className='mine-modern-chip-active'>
+                  <Text className='text-10 font-bold mine-modern-primary'>默认</Text>
+                </View>
+              ) : null}
+            </View>
+            <Text className='text-sm mine-modern-muted'>{addr.address}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  )
+}
+
+type DemandViewProps = {
+  demands: MockDemand[]
+  onBack: () => void
+}
+
+function DemandView({ demands, onBack }: DemandViewProps) {
+  return (
+    <View className='mine-modern-subview'>
+      <SubviewHeader title='我的需求' onBack={onBack} />
+      <View className='mine-modern-subview-scroll'>
+        {demands.map((demand) => (
+          <View key={demand.id} className='mine-modern-card mb-3 rounded-2xl p-4'>
+            <View className='mb-2 flex items-start justify-between gap-2'>
+              <Text className='flex-1 text-sm font-bold mine-modern-text'>{demand.title}</Text>
+              <Text className='text-10 font-bold mine-modern-primary'>{demand.status}</Text>
+            </View>
+            <Text className='text-xs mine-modern-subtle'>数量: {demand.count} | 交期: {demand.date}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  )
+}
+
+type OrderViewProps = {
+  orders: MockOrder[]
+  initialTab: string
+  onBack: () => void
+}
+
+function OrderManagementView({ orders, initialTab, onBack }: OrderViewProps) {
+  return (
+    <View className='mine-modern-subview'>
+      <SubviewHeader title={`订单列表 - ${initialTab}`} onBack={onBack} />
+      <View className='mine-modern-subview-scroll'>
+        {orders.map((order) => (
+          <View key={order.id} className='mine-modern-card mb-3 rounded-2xl p-4'>
+            <Text className='mb-2 block text-xs mine-modern-subtle'>单号: {order.id}</Text>
+            {order.items.map((item, index) => (
+              <View key={`${order.id}-${index}`} className='mb-2 flex gap-3'>
+                <View className='mine-modern-order-thumb h-16 w-16 overflow-hidden rounded-lg'>
+                  <Image src={item.image} mode='aspectFill' className='h-full w-full' />
+                </View>
+                <View className='flex-1 min-w-0'>
+                  <Text className='block truncate text-sm font-bold mine-modern-text'>{item.name}</Text>
+                  <Text className='mt-1 block text-xs mine-modern-subtle'>{item.specs}</Text>
+                  <Text className='mt-1 block text-xs mine-modern-muted'>￥{item.price.toFixed(2)} × {item.count}</Text>
+                </View>
+              </View>
+            ))}
+            <Text className='mt-2 block text-xs mine-modern-subtle'>{order.tracking.latest}</Text>
+          </View>
+        ))}
+      </View>
     </View>
   )
 }
@@ -133,10 +411,19 @@ function OrderItem({ icon: Icon, label, badge, onClick }: OrderItemProps) {
 export default function PersonalCenter() {
   const navbarStyle = getNavbarStyle()
   const isH5 = process.env.TARO_ENV === 'h5'
+
   const [bootstrap, setBootstrap] = useState<BootstrapResponse | null>(null)
   const [orderBadges, setOrderBadges] = useState<OrderBadges>({})
-  const [isDark] = useState(() => getRuntimeTheme() === 'dark')
   const [loggingOut, setLoggingOut] = useState(false)
+  const [currentPage, setCurrentPage] = useState<MineSubview>('profile')
+  const [initialOrderTab, setInitialOrderTab] = useState('全部')
+
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES)
+  const [chatInputValue, setChatInputValue] = useState('')
+  const [isTyping, setIsTyping] = useState(false)
+  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const replyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const avatarFallback = placeholderProductImage
 
   const refreshOrderBadges = useCallback(async () => {
@@ -169,7 +456,7 @@ export default function PersonalCenter() {
       setBootstrap(cached)
     }
     const token = await gatewayServices.tokens.getToken()
-    if (!token) {
+    if (!token && runtimeEnv.isIsolatedMock) {
       return
     }
     try {
@@ -199,16 +486,84 @@ export default function PersonalCenter() {
     void refreshOrderBadges()
   }, [bootstrap?.me?.id, refreshOrderBadges])
 
-  const isLoggedIn = Boolean(bootstrap?.me)
-  const displayName = bootstrap?.me?.displayName ?? '访客'
-  const ownerSalesDisplayName = bootstrap?.me?.ownerSalesDisplayName?.trim() ?? ''
-  const themeClassName = isDark ? 'mine-theme mine-theme--dark' : 'mine-theme'
-  const visibleMenuItems = useMemo(() => {
-    if (hasRole(bootstrap, 'SALES')) {
-      return [SALES_MENU_ITEM, ...MENU_ITEMS]
+  useEffect(() => {
+    return () => {
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current)
+      }
+      if (replyTimerRef.current) {
+        clearTimeout(replyTimerRef.current)
+      }
     }
-    return MENU_ITEMS
-  }, [bootstrap])
+  }, [])
+
+  const isLoggedIn = Boolean(bootstrap?.me)
+  const displayName = bootstrap?.me?.displayName ?? '王小明'
+  const ownerSalesDisplayName = bootstrap?.me?.ownerSalesDisplayName?.trim() || '李经理 (专属顾问)'
+
+  const orderItems: OrderItem[] = [
+    {
+      key: 'pending',
+      label: '待处理',
+      icon: OrdersOutlined,
+      badge: orderBadges.pending,
+      onClick: () => {
+        setInitialOrderTab('待处理')
+        setCurrentPage('orders')
+      }
+    },
+    {
+      key: 'shipped',
+      label: '已发货',
+      icon: Logistics,
+      badge: orderBadges.shipped,
+      onClick: () => {
+        setInitialOrderTab('已发货')
+        setCurrentPage('orders')
+      }
+    },
+    {
+      key: 'delivered',
+      label: '已送达',
+      icon: TodoList,
+      badge: orderBadges.delivered,
+      onClick: () => {
+        setInitialOrderTab('已送达')
+        setCurrentPage('orders')
+      }
+    },
+    {
+      key: 'returns',
+      label: '退换货',
+      icon: Exchange,
+      badge: orderBadges.returns,
+      onClick: () => {
+        setInitialOrderTab('退换货')
+        setCurrentPage('orders')
+      }
+    }
+  ]
+
+  const menuItems: MenuItem[] = useMemo(
+    () => [
+      SALES_MENU_ITEM,
+      { key: 'demand', label: '我的需求', icon: Description, action: () => setCurrentPage('demand') },
+      { key: 'favorites', label: '我的收藏', icon: StarOutlined, route: ROUTES.favorites },
+      { key: 'address', label: '收货地址', icon: LocationOutlined, action: () => setCurrentPage('address') },
+      { key: 'import', label: 'Excel 批量导入', icon: AppsOutlined, route: ROUTES.import },
+      {
+        key: 'tracking',
+        label: '物流追踪',
+        icon: BarChartOutlined,
+        action: () => {
+          setInitialOrderTab('待收货')
+          setCurrentPage('orders')
+        }
+      },
+      { key: 'settings', label: '系统设置', icon: SettingOutlined, route: ROUTES.settings }
+    ],
+    []
+  )
 
   const handleLogout = async () => {
     if (loggingOut) {
@@ -237,113 +592,157 @@ export default function PersonalCenter() {
     }
   }
 
+  const handleSendChat = () => {
+    const trimmed = chatInputValue.trim()
+    if (!trimmed) {
+      return
+    }
+
+    setChatMessages((prev) => [...prev, { id: Date.now(), sender: 'user', text: trimmed, time: '14:35' }])
+    setChatInputValue('')
+
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current)
+    }
+    if (replyTimerRef.current) {
+      clearTimeout(replyTimerRef.current)
+    }
+
+    typingTimerRef.current = setTimeout(() => {
+      setIsTyping(true)
+      replyTimerRef.current = setTimeout(() => {
+        setIsTyping(false)
+        setChatMessages((prev) => [
+          ...prev,
+          { id: Date.now() + 1, sender: 'agent', text: '已收到，我马上为您核实。', time: '14:36' }
+        ])
+      }, 1200)
+    }, 600)
+  }
+
   return (
-    <View className={`page font-sans mine-page ${themeClassName}`} style={isH5 ? navbarStyle : undefined}>
+    <View className='page font-sans mine-modern' style={isH5 ? navbarStyle : undefined}>
       {isH5 ? <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'></Navbar> : null}
 
-      <View className='px-5 pt-4 pb-6'>
-        <View className='flex items-center gap-4'>
-          {isLoggedIn ? (
-            <>
-              <View className='relative'>
-                <Image
-                  className='w-16 h-16 rounded-full'
-                  src={avatarFallback}
-                  mode='aspectFill'
-                />
-                <View className='absolute bottom-0 right-0 w-3 h-3 rounded-full mine-accent-solid border-2 mine-avatar-border' />
-              </View>
-              <View>
-                <Text className='text-xl font-semibold'>{displayName}</Text>
-              </View>
-            </>
-          ) : (
-            <>
-              <View
-                className='w-16 h-16 rounded-full border border-slate-200 bg-slate-100 flex items-center justify-center'
-                onClick={() => navigateTo(ROUTES.authLogin)}
-              >
-                <UserOutlined className='text-2xl text-slate-400' />
-              </View>
-              <View className='flex-1'>
-                <Text className='text-xl font-semibold'>未登录</Text>
-                <Text className='text-sm mine-muted'>请先登录以查看账号信息</Text>
-              </View>
-            </>
-          )}
-        </View>
-      </View>
-
-      {isLoggedIn && ownerSalesDisplayName ? (
-        <View className='px-5 mb-6'>
-          <View
-            className='mine-card mine-shadow border rounded-2xl p-4 mine-contact-card'
-            onClick={() => navigateTo(ROUTES.support)}
-          >
-            <View className='mine-contact-row'>
-              <View className='mine-contact-icon'>
-                <ServiceOutlined className='text-base mine-accent' />
-              </View>
-              <Text className='mine-contact-label'>客户经理</Text>
-              <View className='mine-contact-spacer' />
-              <View className='mine-contact-action'>
-                <ChatOutlined className='text-base' />
-              </View>
-            </View>
-            <Text className='mine-contact-name'>{ownerSalesDisplayName}</Text>
-          </View>
-        </View>
+      {currentPage === 'chat' ? (
+        <ChatView
+          messages={chatMessages}
+          isTyping={isTyping}
+          inputValue={chatInputValue}
+          onInput={setChatInputValue}
+          onSend={handleSendChat}
+          onBack={() => setCurrentPage('profile')}
+        />
       ) : null}
 
-      <View className='px-5 mb-6'>
-        <View className='flex items-center justify-between mb-4'>
-          <Text className='text-lg font-medium'>订单跟踪</Text>
-          <Text className='text-sm mine-muted' onClick={() => navigateTo(ROUTES.orders)}>
-            查看全部
-          </Text>
-        </View>
-        <View className='mine-card mine-shadow border rounded-2xl p-4'>
-          <View className='grid grid-cols-4 gap-2'>
-            {ORDER_ITEMS.map((item) => (
-              <OrderItem
-                key={item.key}
-                icon={item.icon}
-                label={item.label}
-                badge={orderBadges[item.key]}
-                onClick={() => navigateTo(item.route)}
-              />
-            ))}
+      {currentPage === 'orders' ? (
+        <OrderManagementView
+          orders={INITIAL_ORDERS_DATA}
+          initialTab={initialOrderTab}
+          onBack={() => setCurrentPage('profile')}
+        />
+      ) : null}
+
+      {currentPage === 'address' ? (
+        <AddressView addresses={INITIAL_ADDRESSES_DATA} onBack={() => setCurrentPage('profile')} />
+      ) : null}
+
+      {currentPage === 'demand' ? (
+        <DemandView demands={INITIAL_DEMANDS_DATA} onBack={() => setCurrentPage('profile')} />
+      ) : null}
+
+      {currentPage === 'profile' ? (
+        <View className='mine-modern-main'>
+          <View className='mine-modern-main-content'>
+            <View className='mine-modern-profile-card mb-4 flex items-center gap-4 px-5 py-6'>
+              <View className='mine-modern-avatar-wrap h-16 w-16 overflow-hidden rounded-full'>
+                <Image src={avatarFallback} mode='aspectFill' className='h-full w-full' />
+              </View>
+              <View className='min-w-0 flex-1'>
+                <View className='flex items-center gap-1.5'>
+                  <Text className='truncate text-2xl font-bold mine-modern-text'>{displayName}</Text>
+                  <ShieldOutlined className='text-base text-green-500' />
+                </View>
+                <Text className='mt-1 block text-sm font-medium mine-modern-subtle'>高级 B2B 客户经理</Text>
+                <Text className='mt-1 block text-xs mine-modern-muted'>{ownerSalesDisplayName} · 已绑定专属渠道</Text>
+              </View>
+            </View>
+
+            <View className='mine-modern-section-head mb-2 mt-1 flex items-center justify-between'>
+              <Text className='text-sm font-bold mine-modern-text'>订单跟踪</Text>
+              <Text
+                className='text-10 font-semibold mine-modern-subtle'
+                onClick={() => {
+                  setInitialOrderTab('全部')
+                  setCurrentPage('orders')
+                }}
+              >
+                查看全部
+              </Text>
+            </View>
+
+            <View className='mine-modern-surface mb-4 rounded-3xl p-5'>
+              <View className='grid grid-cols-4 gap-4'>
+                {orderItems.map((item) => (
+                  <OrderTrackItem key={item.key} icon={item.icon} label={item.label} badge={item.badge} onClick={item.onClick} />
+                ))}
+              </View>
+            </View>
+
+            <View className='mine-modern-surface mb-4 overflow-hidden rounded-3xl'>
+              <View
+                onClick={() => setCurrentPage('chat')}
+                className='mine-modern-menu-row flex items-center justify-between px-4 py-4 border-b mine-modern-border'
+              >
+                <View className='flex items-center gap-3'>
+                  <View className='mine-modern-menu-icon flex h-8 w-8 items-center justify-center rounded-lg'>
+                    <ChatOutlined className='text-base mine-modern-subtle' />
+                  </View>
+                  <View className='flex flex-col'>
+                    <Text className='text-sm font-semibold mine-modern-text'>专属客户经理</Text>
+                    <Text className='text-10 mine-modern-subtle'>在线咨询</Text>
+                  </View>
+                </View>
+                <View className='flex items-center gap-2'>
+                  <View className='mine-modern-online-dot h-1.5 w-1.5 rounded-full'></View>
+                  <ArrowRight className='text-sm mine-modern-subtle' />
+                </View>
+              </View>
+              {menuItems.map((item, index) => (
+                <MenuLink
+                  key={item.key}
+                  icon={item.icon}
+                  label={item.label}
+                  onClick={() => {
+                    if (typeof item.action === 'function') {
+                      item.action()
+                      return
+                    }
+                    if (item.route) {
+                      navigateTo(item.route)
+                    }
+                  }}
+                  showDivider={index < menuItems.length - 1}
+                />
+              ))}
+            </View>
+
+          <View className='mt-4'>
+            <NativeButton
+              className='mine-modern-logout-btn flex w-full items-center justify-center gap-2 rounded-2xl border py-4 mine-modern-border'
+              onClick={isLoggedIn ? handleLogout : () => navigateTo(ROUTES.authLogin)}
+              disabled={loggingOut}
+            >
+              <Revoke className='text-base mine-modern-muted' />
+              <Text className='text-sm font-bold mine-modern-muted'>切换账号或退出登录</Text>
+            </NativeButton>
+            <Text className='mine-modern-version mt-6 block text-center text-10 font-medium uppercase tracking-widest'>
+              B2B Portal v2.4.0
+            </Text>
           </View>
         </View>
       </View>
-
-      <View className='px-5 mb-6'>
-        <View className='mine-card mine-shadow border rounded-2xl overflow-hidden'>
-          {visibleMenuItems.map((item, index) => (
-            <MenuLink
-              key={item.key}
-              icon={item.icon}
-              label={item.label}
-              onClick={() => navigateTo(item.route)}
-              showDivider={index < visibleMenuItems.length - 1}
-            />
-          ))}
-        </View>
-      </View>
-
-      <View className='px-5 pb-8 mine-logout-section'>
-        <NativeButton
-          id='mine-logout-btn'
-          className={`mine-card border rounded-xl py-3 flex items-center justify-center gap-2 mine-logout-btn ${
-            loggingOut ? 'opacity-60' : ''
-          }`}
-          disabled={loggingOut}
-          onClick={handleLogout}
-        >
-          <Revoke className='text-base mine-subtle' />
-          <Text className='text-sm font-medium mine-muted'>切换账号或退出登录</Text>
-        </NativeButton>
-      </View>
+      ) : null}
     </View>
   )
 }

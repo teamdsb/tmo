@@ -236,7 +236,7 @@ const getStatusTone = (status: OrderStatus) => {
 
 function DashboardView() {
   return (
-    <View className='sales-content flex-1 flex flex-col items-center justify-center overflow-y-auto px-6 pb-24 bg-white'>
+    <View className='sales-content min-h-0 flex-1 flex flex-col items-center justify-center overflow-y-auto px-6 pb-24 bg-white'>
       <View className='mb-8 flex flex-col items-center justify-center text-center'>
         <Image
           src={PROFILE_IMAGE_URL}
@@ -263,7 +263,7 @@ function CustomersView() {
   const [subFilter, setSubFilter] = useState<CustomerSubFilter>('全部')
 
   return (
-    <View className='flex-1 overflow-y-auto bg-white pb-24'>
+    <View className='min-h-0 flex-1 overflow-y-auto bg-white pb-24'>
       <View className='sticky top-0 z-20 flex items-center justify-between border-b border-slate-100 bg-white p-4 pb-2 shadow-sm'>
         <Text className='flex-1 text-lg font-bold leading-tight sales-title-tight text-slate-900'>客户列表</Text>
         <View className='flex w-12 items-center justify-end'>
@@ -369,7 +369,7 @@ function OrdersView() {
   )
 
   return (
-    <View className='flex-1 flex flex-col overflow-y-auto bg-white pb-24'>
+    <View className='min-h-0 flex-1 flex flex-col overflow-y-auto bg-white pb-24'>
       <View className='sticky top-0 z-20 flex items-center justify-between border-b border-slate-100 bg-white p-4 pb-2 shadow-sm'>
         <Text className='flex-1 text-xl font-bold leading-tight text-slate-900'>订单列表</Text>
         <View className='flex items-center justify-center text-slate-500'>
@@ -458,7 +458,7 @@ function AccountingView() {
   const availableMonths = ['2023年 8月', '2023年 7月', '2023年 6月', '2023年 5月', '2023年 4月']
 
   return (
-    <View className='flex-1 flex flex-col overflow-y-auto bg-white pb-24'>
+    <View className='min-h-0 flex-1 flex flex-col overflow-y-auto bg-white pb-24'>
       <View className='sticky top-0 z-20 flex items-center justify-center border-b border-slate-100 bg-white p-4 pb-2 shadow-sm'>
         <Text className='text-lg font-bold leading-tight sales-title-tight text-slate-900'>财务结算</Text>
       </View>
@@ -560,12 +560,14 @@ export default function SalesPage() {
   const [activeTab, setActiveTab] = useState<SalesTab>('dashboard')
 
   return (
-    <View className='sales-page-shell sales-font min-h-screen w-full text-slate-900'>
-      <View className='sales-main-container relative mx-auto flex min-h-screen w-full max-w-md flex-col overflow-x-hidden shadow-2xl'>
-        {activeTab === 'dashboard' ? <DashboardView /> : null}
-        {activeTab === 'customers' ? <CustomersView /> : null}
-        {activeTab === 'orders' ? <OrdersView /> : null}
-        {activeTab === 'accounting' ? <AccountingView /> : null}
+    <View className='sales-page-shell sales-font h-screen w-full text-slate-900'>
+      <View className='sales-main-container relative mx-auto flex h-screen w-full max-w-md flex-col overflow-hidden shadow-2xl'>
+        <View className='min-h-0 flex-1'>
+          {activeTab === 'dashboard' ? <DashboardView /> : null}
+          {activeTab === 'customers' ? <CustomersView /> : null}
+          {activeTab === 'orders' ? <OrdersView /> : null}
+          {activeTab === 'accounting' ? <AccountingView /> : null}
+        </View>
 
         <View className='sales-bottom-nav sales-bottom-nav-shadow absolute bottom-0 left-0 right-0 z-50 flex gap-2 border-t border-slate-200 bg-white px-4 pb-6 pt-3'>
           {navItems.map(({ key, label, Icon }) => {

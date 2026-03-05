@@ -1143,3 +1143,243 @@
     color: #f8fafc;
   }
 }
+
+.mine-modern {
+  --mine-modern-bg: #f6f7f8;
+  --mine-modern-surface: #fff;
+  --mine-modern-surface-soft: #f8fafc;
+  --mine-modern-border: #e6edf5;
+  --mine-modern-text: #0f172a;
+  --mine-modern-muted: #64748b;
+  --mine-modern-subtle: #94a3b8;
+  --mine-modern-primary: #137fec;
+  --mine-modern-primary-soft: rgb(19 127 236 / 10%);
+  --mine-modern-primary-soft-strong: rgb(19 127 236 / 22%);
+  --mine-modern-danger-soft: #fee2e2;
+  --mine-modern-emerald: #10b981;
+
+  background: var(--mine-modern-bg);
+  color: var(--mine-modern-text);
+  font-family: Manrope, "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+}
+
+.mine-modern-main {
+  min-height: 100vh;
+  background: var(--mine-modern-bg);
+}
+
+.mine-modern-main-content {
+  padding: 16px;
+  padding-bottom: calc(16px + var(--tabbar-safe-offset));
+  padding-bottom: calc(16px + var(--tabbar-safe-offset-legacy));
+}
+
+.mine-modern-profile-card {
+  background: linear-gradient(180deg, #eef3f9 0%, #f6f8fb 100%);
+  border: 1px solid var(--mine-modern-border);
+  box-shadow: 0 6px 16px rgb(15 23 42 / 5%);
+}
+
+.mine-modern-text {
+  color: var(--mine-modern-text);
+}
+
+.mine-modern-muted {
+  color: var(--mine-modern-muted);
+}
+
+.mine-modern-subtle {
+  color: var(--mine-modern-subtle);
+}
+
+.mine-modern-primary {
+  color: var(--mine-modern-primary);
+}
+
+.mine-modern-border {
+  border-color: var(--mine-modern-border);
+}
+
+.mine-modern-surface {
+  background: var(--mine-modern-surface);
+  border: 1px solid var(--mine-modern-border);
+  box-shadow: 0 2px 8px rgb(15 23 42 / 5%);
+}
+
+.mine-modern-avatar-wrap {
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border: 2px solid #fff;
+  box-shadow: 0 8px 20px rgb(15 23 42 / 10%);
+}
+
+.mine-modern-order-icon {
+  background: var(--mine-modern-primary-soft);
+  border: 1px solid rgb(19 127 236 / 14%);
+}
+
+.mine-modern-badge {
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: #ef4444;
+  border: 2px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mine-modern-menu-icon {
+  background: var(--mine-modern-surface-soft);
+}
+
+.mine-modern-section-head {
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+.mine-modern-menu-row {
+  transition: background-color 200ms ease;
+}
+
+.mine-modern-menu-row:active {
+  background: var(--mine-modern-surface-soft);
+}
+
+.mine-modern-logout-btn {
+  background: var(--mine-modern-surface);
+  color: var(--mine-modern-muted);
+  border-color: var(--mine-modern-border);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 4%);
+  line-height: 1.2;
+}
+
+.mine-modern-logout-btn:active {
+  background: var(--mine-modern-danger-soft);
+  color: #ef4444;
+}
+
+.mine-modern-logout-btn::after {
+  border: none;
+}
+
+.mine-modern-version {
+  color: var(--mine-modern-subtle);
+  letter-spacing: 2px;
+}
+
+.mine-modern-subview {
+  min-height: 100vh;
+  background: var(--mine-modern-bg);
+}
+
+.mine-modern-subview-header {
+  background: rgb(255 255 255 / 92%);
+  border-bottom: 1px solid var(--mine-modern-border);
+  backdrop-filter: blur(8px);
+}
+
+.mine-modern-subview-scroll {
+  padding: 16px;
+  padding-bottom: calc(16px + var(--tabbar-safe-offset));
+  padding-bottom: calc(16px + var(--tabbar-safe-offset-legacy));
+}
+
+.mine-modern-icon-btn {
+  background: var(--mine-modern-surface);
+  border: 1px solid var(--mine-modern-border);
+}
+
+.mine-modern-chat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.mine-modern-chat-bubble-agent {
+  max-width: 80%;
+  border-radius: 16px;
+  border-top-left-radius: 4px;
+  border: 1px solid var(--mine-modern-border);
+  background: var(--mine-modern-surface);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 6%);
+  padding: 10px 14px;
+}
+
+.mine-modern-chat-bubble-user {
+  max-width: 80%;
+  border-radius: 16px;
+  border-top-right-radius: 4px;
+  background: var(--mine-modern-primary);
+  padding: 10px 14px;
+  box-shadow: 0 4px 12px rgb(19 127 236 / 26%);
+}
+
+.mine-modern-chat-typing {
+  animation: mine-modern-fade 1s ease-in-out infinite alternate;
+}
+
+.mine-modern-chip {
+  border: 1px solid var(--mine-modern-primary-soft-strong);
+  background: var(--mine-modern-primary-soft);
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+
+.mine-modern-chip-active {
+  border: 1px solid var(--mine-modern-primary-soft-strong);
+  background: var(--mine-modern-primary-soft);
+  border-radius: 9999px;
+  padding: 2px 8px;
+}
+
+.mine-modern-chat-input-panel {
+  background: var(--mine-modern-surface);
+  border-top: 1px solid var(--mine-modern-border);
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  padding-bottom: calc(12px + constant(safe-area-inset-bottom));
+}
+
+.mine-modern-chat-input-wrap {
+  align-items: center;
+}
+
+.mine-modern-chat-input {
+  background: var(--mine-modern-bg);
+  border: 1px solid var(--mine-modern-border);
+  color: var(--mine-modern-text);
+}
+
+.mine-modern-chat-send-btn {
+  background: var(--mine-modern-primary);
+}
+
+.mine-modern-card {
+  background: var(--mine-modern-surface);
+  border: 1px solid var(--mine-modern-border);
+  box-shadow: 0 1px 4px rgb(15 23 42 / 6%);
+}
+
+.mine-modern-order-thumb {
+  background: var(--mine-modern-bg);
+  border: 1px solid var(--mine-modern-border);
+}
+
+.mine-modern-online-dot {
+  background: var(--mine-modern-emerald);
+  box-shadow: 0 0 0 3px rgb(16 185 129 / 20%);
+}
+
+@keyframes mine-modern-fade {
+  from {
+    opacity: 0.35;
+  }
+
+  to {
+    opacity: 1;
+  }
+}

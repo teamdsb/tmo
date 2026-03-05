@@ -184,8 +184,9 @@ export default function ExcelImportConfirmation() {
     if (!normalizedSpuId) {
       return null
     }
-    if (spuDetailRequestByIdRef.current[normalizedSpuId]) {
-      return spuDetailRequestByIdRef.current[normalizedSpuId]
+    const inflightRequest = spuDetailRequestByIdRef.current[normalizedSpuId]
+    if (inflightRequest) {
+      return inflightRequest
     }
 
     const task = (async () => {
