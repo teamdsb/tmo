@@ -53,6 +53,7 @@ export const resolveAccessTier = (session) => {
 export const canAccessPath = (path, permissionMap) => {
   const currentPath = String(path || '/');
   if (currentPath === '/dashboard.html' || currentPath === '/') return true;
+  if (currentPath === '/profile.html') return true;
   if (currentPath === '/rbac.html') return hasPermission(permissionMap, 'rbac:manage', 'ALL');
   if (currentPath === '/settings.html') {
     return (

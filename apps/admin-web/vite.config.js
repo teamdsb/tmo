@@ -43,6 +43,7 @@ export default defineConfig({
         exports: resolve(__dirname, 'exports.html'),
         rbac: resolve(__dirname, 'rbac.html'),
         settings: resolve(__dirname, 'settings.html'),
+        profile: resolve(__dirname, 'profile.html'),
         userOperations: resolve(__dirname, 'user-operations.html'),
         transfer: resolve(__dirname, 'transfer.html'),
         support: resolve(__dirname, 'support.html')

@@ -127,7 +127,7 @@ export const AdminTopbar = ({
                 </div>
                 <a
                   className="block rounded px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-50 hover:text-primary dark:text-slate-300 dark:hover:bg-slate-800"
-                  href="#"
+                  href="/profile.html"
                   onClick={closeMenu}
                   role="menuitem"
                 >
