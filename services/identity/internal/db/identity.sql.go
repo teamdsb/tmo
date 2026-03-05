@@ -198,6 +198,38 @@ func (q *Queries) CountAdminCustomers(ctx context.Context, arg CountAdminCustome
 	return count, err
 }
 
+const countAdminUsers = `-- name: CountAdminUsers :one
+SELECT count(*)
+FROM (
+  SELECT u.id
+  FROM users u
+  JOIN user_roles ur ON ur.user_id = u.id
+  WHERE u.user_type IN ('admin', 'staff')
+    AND (
+      $1::text IS NULL
+      OR COALESCE(u.display_name, '') ILIKE '%' || $1 || '%'
+      OR COALESCE(u.phone, '') ILIKE '%' || $1 || '%'
+      OR u.id::text ILIKE '%' || $1 || '%'
+    )
+    AND ($2::text IS NULL OR u.status = $2)
+    AND ($3::text IS NULL OR ur.role = $3)
+  GROUP BY u.id
+) AS filtered_admin_users
+`
+
+type CountAdminUsersParams struct {
+	Q      *string `db:"q" json:"q"`
+	Status *string `db:"status" json:"status"`
+	Role   *string `db:"role" json:"role"`
+}
+
+func (q *Queries) CountAdminUsers(ctx context.Context, arg CountAdminUsersParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countAdminUsers, arg.Q, arg.Status, arg.Role)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countAuditLogs = `-- name: CountAuditLogs :one
 SELECT count(*)
 FROM audit_logs
@@ -1010,6 +1042,72 @@ func (q *Queries) ListAdminCustomers(ctx context.Context, arg ListAdminCustomers
 	return items, nil
 }
 
+const listAdminUsers = `-- name: ListAdminUsers :many
+SELECT DISTINCT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone, u.payment_term_remark, u.payment_term_type, u.payment_term_days, u.payment_term_custom_label
+FROM users u
+JOIN user_roles ur ON ur.user_id = u.id
+WHERE u.user_type IN ('admin', 'staff')
+  AND (
+    $1::text IS NULL
+    OR COALESCE(u.display_name, '') ILIKE '%' || $1 || '%'
+    OR COALESCE(u.phone, '') ILIKE '%' || $1 || '%'
+    OR u.id::text ILIKE '%' || $1 || '%'
+  )
+  AND ($2::text IS NULL OR u.status = $2)
+  AND ($3::text IS NULL OR ur.role = $3)
+ORDER BY u.created_at DESC
+LIMIT $5 OFFSET $4
+`
+
+type ListAdminUsersParams struct {
+	Q      *string `db:"q" json:"q"`
+	Status *string `db:"status" json:"status"`
+	Role   *string `db:"role" json:"role"`
+	Offset int32   `db:"offset" json:"offset"`
+	Limit  int32   `db:"limit" json:"limit"`
+}
+
+func (q *Queries) ListAdminUsers(ctx context.Context, arg ListAdminUsersParams) ([]User, error) {
+	rows, err := q.db.Query(ctx, listAdminUsers,
+		arg.Q,
+		arg.Status,
+		arg.Role,
+		arg.Offset,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.DisplayName,
+			&i.UserType,
+			&i.OwnerSalesUserID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Status,
+			&i.DisabledAt,
+			&i.DisabledReason,
+			&i.Phone,
+			&i.PaymentTermRemark,
+			&i.PaymentTermType,
+			&i.PaymentTermDays,
+			&i.PaymentTermCustomLabel,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAuditLogs = `-- name: ListAuditLogs :many
 SELECT id, actor_user_id, action, target_type, target_id, metadata, request_id, ip, user_agent, created_at FROM audit_logs
 WHERE ($1::uuid IS NULL OR actor_user_id = $1)
@@ -1496,6 +1594,40 @@ WHERE token = $1
 func (q *Queries) MarkStaffBindingTokenUsed(ctx context.Context, token string) error {
 	_, err := q.db.Exec(ctx, markStaffBindingTokenUsed, token)
 	return err
+}
+
+const promoteCustomerToStaff = `-- name: PromoteCustomerToStaff :one
+UPDATE users
+SET user_type = 'staff',
+    owner_sales_user_id = NULL,
+    status = 'active',
+    disabled_at = NULL,
+    disabled_reason = NULL,
+    updated_at = now()
+WHERE id = $1 AND user_type = 'customer'
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label
+`
+
+func (q *Queries) PromoteCustomerToStaff(ctx context.Context, id uuid.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, promoteCustomerToStaff, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.DisplayName,
+		&i.UserType,
+		&i.OwnerSalesUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Status,
+		&i.DisabledAt,
+		&i.DisabledReason,
+		&i.Phone,
+		&i.PaymentTermRemark,
+		&i.PaymentTermType,
+		&i.PaymentTermDays,
+		&i.PaymentTermCustomLabel,
+	)
+	return i, err
 }
 
 const removeCustomerTagBindings = `-- name: RemoveCustomerTagBindings :exec

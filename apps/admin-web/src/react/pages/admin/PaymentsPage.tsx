@@ -1,299 +1,601 @@
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+
+import {
+  fetchAdminPaymentAuditLogs,
+  fetchAdminPaymentTransaction,
+  fetchAdminPaymentTransactions,
+  fetchAdminPaymentWebhooks,
+  replayAdminPaymentWebhook
+} from '../../../lib/api';
+import { isMockMode } from '../../../lib/env';
 import { AdminTopbar } from '../../layout/AdminTopbar';
 
-// 支付页（当前为前端展示壳）。
+type PaymentsTab = 'transactions' | 'audit' | 'webhooks';
+
+type TransactionItem = {
+  id: string;
+  orderId: string;
+  userId: string;
+  channel: string;
+  status: string;
+  amountFen: number;
+  currency: string;
+  createdAt: string;
+  updatedAt: string;
+  failureReason?: string;
+};
+
+type AuditItem = {
+  id: string;
+  transactionId: string;
+  action: string;
+  actor: string;
+  detail: string;
+  createdAt: string;
+};
+
+type WebhookItem = {
+  id: string;
+  provider: string;
+  eventType: string;
+  transactionId: string;
+  status: string;
+  replayCount: number;
+  receivedAt: string;
+  lastReplayAt?: string;
+};
+
+const safeText = (value: unknown, fallback = '') => {
+  if (typeof value !== 'string') {
+    return fallback;
+  }
+  const trimmed = value.trim();
+  return trimmed || fallback;
+};
+
+const safeNumber = (value: unknown, fallback = 0) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  return fallback;
+};
+
+const formatDateTime = (raw: string) => {
+  if (!raw) {
+    return '-';
+  }
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) {
+    return raw;
+  }
+  return date.toLocaleString('zh-CN', { hour12: false });
+};
+
+const formatAmount = (amountFen: number, currency: string) => {
+  return `${(amountFen / 100).toFixed(2)} ${currency || 'CNY'}`;
+};
+
+const normalizeTransactions = (data: unknown): { items: TransactionItem[]; total: number } => {
+  const payload = data as { items?: unknown[]; total?: number };
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+
+  return {
+    items: items
+      .map((item) => {
+        const record = item as {
+          id?: string;
+          orderId?: string;
+          userId?: string;
+          channel?: string;
+          status?: string;
+          amountFen?: number;
+          currency?: string;
+          createdAt?: string;
+          updatedAt?: string;
+          failureReason?: string;
+        };
+        if (!record.id) {
+          return null;
+        }
+        return {
+          id: record.id,
+          orderId: safeText(record.orderId, '-'),
+          userId: safeText(record.userId, '-'),
+          channel: safeText(record.channel, '-'),
+          status: safeText(record.status, '-'),
+          amountFen: safeNumber(record.amountFen, 0),
+          currency: safeText(record.currency, 'CNY'),
+          createdAt: safeText(record.createdAt, ''),
+          updatedAt: safeText(record.updatedAt, ''),
+          failureReason: safeText(record.failureReason)
+        } as TransactionItem;
+      })
+      .filter(Boolean) as TransactionItem[],
+    total: safeNumber(payload?.total, 0)
+  };
+};
+
+const normalizeAudits = (data: unknown): { items: AuditItem[]; total: number } => {
+  const payload = data as { items?: unknown[]; total?: number };
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+
+  return {
+    items: items
+      .map((item) => {
+        const record = item as {
+          id?: string;
+          transactionId?: string;
+          action?: string;
+          actor?: string;
+          detail?: string;
+          createdAt?: string;
+        };
+        if (!record.id) {
+          return null;
+        }
+        return {
+          id: record.id,
+          transactionId: safeText(record.transactionId, '-'),
+          action: safeText(record.action, '-'),
+          actor: safeText(record.actor, '-'),
+          detail: safeText(record.detail, '-'),
+          createdAt: safeText(record.createdAt, '')
+        } as AuditItem;
+      })
+      .filter(Boolean) as AuditItem[],
+    total: safeNumber(payload?.total, 0)
+  };
+};
+
+const normalizeWebhooks = (data: unknown): { items: WebhookItem[]; total: number } => {
+  const payload = data as { items?: unknown[]; total?: number };
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+
+  return {
+    items: items
+      .map((item) => {
+        const record = item as {
+          id?: string;
+          provider?: string;
+          eventType?: string;
+          transactionId?: string;
+          transaction?: string;
+          status?: string;
+          replayCount?: number;
+          receivedAt?: string;
+          lastReplayAt?: string;
+        };
+        if (!record.id) {
+          return null;
+        }
+        return {
+          id: record.id,
+          provider: safeText(record.provider, '-'),
+          eventType: safeText(record.eventType, '-'),
+          transactionId: safeText(record.transactionId || record.transaction, '-'),
+          status: safeText(record.status, '-'),
+          replayCount: safeNumber(record.replayCount, 0),
+          receivedAt: safeText(record.receivedAt, ''),
+          lastReplayAt: safeText(record.lastReplayAt)
+        } as WebhookItem;
+      })
+      .filter(Boolean) as WebhookItem[],
+    total: safeNumber(payload?.total, 0)
+  };
+};
+
 export const PaymentsPage = () => {
+  const [activeTab, setActiveTab] = useState<PaymentsTab>('transactions');
+  const [queryInput, setQueryInput] = useState('');
+  const [appliedQuery, setAppliedQuery] = useState('');
+
+  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
+  const [audits, setAudits] = useState<AuditItem[]>([]);
+  const [webhooks, setWebhooks] = useState<WebhookItem[]>([]);
+  const [selectedTransaction, setSelectedTransaction] = useState<TransactionItem | null>(null);
+
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [total, setTotal] = useState(0);
+
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize]);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    setErrorMessage('');
+
+    try {
+      if (isMockMode) {
+        const mockTransactions: TransactionItem[] = [
+          {
+            id: 'TXN-MOCK-001',
+            orderId: 'ORD-MOCK-001',
+            userId: 'mock-user-1',
+            channel: 'wechat',
+            status: 'paid',
+            amountFen: 123400,
+            currency: 'CNY',
+            createdAt: new Date(Date.now() - 3600 * 1000).toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        ];
+        const mockAudits: AuditItem[] = [
+          {
+            id: 'AUD-MOCK-001',
+            transactionId: 'TXN-MOCK-001',
+            action: 'status_updated',
+            actor: 'mock-system',
+            detail: 'status changed to paid',
+            createdAt: new Date().toISOString()
+          }
+        ];
+        const mockWebhooks: WebhookItem[] = [
+          {
+            id: 'WH-MOCK-001',
+            provider: 'wechat',
+            eventType: 'payment.succeeded',
+            transactionId: 'TXN-MOCK-001',
+            status: 'processed',
+            replayCount: 0,
+            receivedAt: new Date().toISOString()
+          }
+        ];
+
+        if (activeTab === 'transactions') {
+          setTransactions(mockTransactions);
+          setTotal(mockTransactions.length);
+          setSelectedTransaction(mockTransactions[0] || null);
+        } else if (activeTab === 'audit') {
+          setAudits(mockAudits);
+          setTotal(mockAudits.length);
+        } else {
+          setWebhooks(mockWebhooks);
+          setTotal(mockWebhooks.length);
+        }
+        return;
+      }
+
+      if (activeTab === 'transactions') {
+        const listResp = await fetchAdminPaymentTransactions({
+          page,
+          pageSize,
+          q: appliedQuery || undefined
+        });
+        if (listResp.status !== 200) {
+          setTransactions([]);
+          setTotal(0);
+          setErrorMessage('加载交易列表失败，请稍后重试。');
+          return;
+        }
+
+        const normalized = normalizeTransactions(listResp.data);
+        setTransactions(normalized.items);
+        setTotal(normalized.total);
+
+        if (normalized.items.length > 0) {
+          const detailResp = await fetchAdminPaymentTransaction(normalized.items[0].id);
+          if (detailResp.status === 200 && detailResp.data) {
+            const detail = normalizeTransactions({ items: [detailResp.data], total: 1 }).items[0] || null;
+            setSelectedTransaction(detail);
+          } else {
+            setSelectedTransaction(normalized.items[0]);
+          }
+        } else {
+          setSelectedTransaction(null);
+        }
+        return;
+      }
+
+      if (activeTab === 'audit') {
+        const listResp = await fetchAdminPaymentAuditLogs({
+          page,
+          pageSize,
+          q: appliedQuery || undefined
+        });
+        if (listResp.status !== 200) {
+          setAudits([]);
+          setTotal(0);
+          setErrorMessage('加载审计日志失败，请稍后重试。');
+          return;
+        }
+
+        const normalized = normalizeAudits(listResp.data);
+        setAudits(normalized.items);
+        setTotal(normalized.total);
+        return;
+      }
+
+      const webhookResp = await fetchAdminPaymentWebhooks({
+        page,
+        pageSize,
+        q: appliedQuery || undefined
+      });
+      if (webhookResp.status !== 200) {
+        setWebhooks([]);
+        setTotal(0);
+        setErrorMessage('加载回调事件失败，请稍后重试。');
+        return;
+      }
+      const normalized = normalizeWebhooks(webhookResp.data);
+      setWebhooks(normalized.items);
+      setTotal(normalized.total);
+    } catch {
+      setErrorMessage('加载支付数据失败，请稍后重试。');
+      setTotal(0);
+      setTransactions([]);
+      setAudits([]);
+      setWebhooks([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, appliedQuery, page, pageSize]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  const handleSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setPage(1);
+    setAppliedQuery(queryInput.trim());
+  };
+
+  const handleReplayWebhook = async (webhook: WebhookItem) => {
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      const response = await replayAdminPaymentWebhook(webhook.id);
+      if (response.status !== 200) {
+        setErrorMessage('重放 Webhook 失败，请稍后重试。');
+        return;
+      }
+      setSuccessMessage(`已提交重放：${webhook.id}`);
+      await loadData();
+    } catch {
+      setErrorMessage('重放 Webhook 失败，请稍后重试。');
+    }
+  };
+
   return (
-    <>
-      <div>
-        <AdminTopbar
-          searchPlaceholder="搜索交易号、用户或订单号..."
-          leftSlot={<h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">支付与审计</h2>}
-        />
-        <header className="bg-white border-b border-slate-200 px-8 py-6 shrink-0 z-10 shadow-sm">
-          <div className="max-w-[1400px] mx-auto w-full">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">System Activity &amp; Financials</h1>
+    <main className="flex h-screen flex-1 flex-col overflow-hidden bg-background-light dark:bg-background-dark">
+      <AdminTopbar
+        leftSlot={<h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">支付与审计</h2>}
+        searchPlaceholder="搜索交易号、订单号或事件 ID"
+      />
+
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-border-light bg-surface-light p-2 dark:border-border-dark dark:bg-surface-dark">
+          <button
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'transactions' ? 'bg-primary text-white' : 'text-text-secondary-light hover:bg-gray-100 dark:text-text-secondary-dark dark:hover:bg-gray-800'}`}
+            onClick={() => setActiveTab('transactions')}
+            type="button"
+          >
+            交易
+          </button>
+          <button
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'audit' ? 'bg-primary text-white' : 'text-text-secondary-light hover:bg-gray-100 dark:text-text-secondary-dark dark:hover:bg-gray-800'}`}
+            onClick={() => setActiveTab('audit')}
+            type="button"
+          >
+            审计日志
+          </button>
+          <button
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'webhooks' ? 'bg-primary text-white' : 'text-text-secondary-light hover:bg-gray-100 dark:text-text-secondary-dark dark:hover:bg-gray-800'}`}
+            onClick={() => setActiveTab('webhooks')}
+            type="button"
+          >
+            Webhooks
+          </button>
+        </div>
+
+        <form className="mb-4 flex gap-2" onSubmit={handleSearch}>
+          <input
+            className="flex-1 rounded-lg border border-border-light bg-background-light px-3 py-2 text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
+            onChange={(event) => setQueryInput(event.currentTarget.value)}
+            placeholder="输入关键字搜索"
+            value={queryInput}
+          />
+          <button
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+            disabled={loading}
+            type="submit"
+          >
+            {loading ? '查询中...' : '查询'}
+          </button>
+        </form>
+
+        {errorMessage ? <p className="mb-3 text-sm text-red-600">{errorMessage}</p> : null}
+        {successMessage ? <p className="mb-3 text-sm text-emerald-600">{successMessage}</p> : null}
+
+        {activeTab === 'transactions' ? (
+          <section className="grid grid-cols-1 gap-4 xl:grid-cols-[2fr_1fr]">
+            <div className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
+              <div className="border-b border-border-light px-4 py-3 text-sm font-semibold text-text-primary-light dark:border-border-dark dark:text-text-primary-dark">
+                交易列表（共 {total} 条）
               </div>
-              <div className="flex gap-3">
-                <button className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg text-sm font-medium transition-colors shadow-sm">
-                  <span className="material-symbols-outlined text-[20px]">download</span>
-                  Export Report
-                </button>
-              </div>
-            </div>
-            <div className="flex gap-8 mt-8 border-b border-slate-100">
-              <a className="pb-3 border-b-2 border-primary text-primary font-semibold text-sm flex items-center gap-2" href="#">
-                <span className="material-symbols-outlined text-[20px]">payments</span>
-                Transactions
-              </a>
-              <a className="pb-3 border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 font-medium text-sm flex items-center gap-2 transition-all" href="#">
-                <span className="material-symbols-outlined text-[20px]">manage_history</span>
-                Audit Logs
-              </a>
-              <a className="pb-3 border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300 font-medium text-sm flex items-center gap-2 transition-all" href="#">
-                <span className="material-symbols-outlined text-[20px]">webhook</span>
-                Webhooks
-              </a>
-            </div>
-          </div>
-        </header>
-        <main className="flex-1 overflow-y-auto p-8">
-          <div className="max-w-[1400px] mx-auto w-full flex flex-col gap-6">
-            <div className="flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-              <div className="flex flex-wrap gap-3 items-center w-full xl:w-auto">
-                <div className="relative group w-full sm:w-80">
-                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 group-focus-within:text-primary transition-colors">
-                    <span className="material-symbols-outlined text-[20px]">search</span>
-                  </div>
-                  <input className="block w-full pl-10 pr-3 py-2 bg-slate-50 hover:bg-slate-100 focus:bg-white border border-transparent focus:border-primary/20 rounded-lg text-sm placeholder-slate-400 focus:ring-2 focus:ring-primary/20 text-slate-700 transition-all shadow-sm" placeholder="Search Transaction ID, User, or Order #" type="text" />
-                </div>
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
-                  <button className="whitespace-nowrap flex items-center gap-2 px-3 py-1.5 bg-white hover:bg-slate-50 rounded-lg text-xs font-medium text-slate-600 transition-colors border border-slate-200 hover:border-slate-300 shadow-sm">
-                    <span className="material-symbols-outlined text-[16px] text-slate-400">calendar_today</span>
-                    Last 30 Days
-                  </button>
-                  <button className="whitespace-nowrap flex items-center gap-2 px-3 py-1.5 bg-white hover:bg-slate-50 rounded-lg text-xs font-medium text-slate-600 transition-colors border border-slate-200 hover:border-slate-300 shadow-sm">
-                    <span className="material-symbols-outlined text-[16px] text-slate-400">filter_list</span>
-                    Status: All
-                  </button>
-                  <button className="whitespace-nowrap flex items-center gap-2 px-3 py-1.5 bg-white hover:bg-slate-50 rounded-lg text-xs font-medium text-slate-600 transition-colors border border-slate-200 hover:border-slate-300 shadow-sm">
-                    <span className="material-symbols-outlined text-[16px] text-slate-400">credit_card</span>
-                    Channel: All
-                  </button>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 self-end xl:self-auto">
-                <span className="text-xs font-medium text-slate-500">Showing 1-10 of 2,450 results</span>
-                <div className="flex gap-1">
-                  <button className="p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 disabled:opacity-50 transition-colors border border-transparent hover:border-slate-200">
-                    <span className="material-symbols-outlined text-[20px]">chevron_left</span>
-                  </button>
-                  <button className="p-1 rounded-md hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors border border-transparent hover:border-slate-200">
-                    <span className="material-symbols-outlined text-[20px]">chevron_right</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full min-h-[500px]">
-              <div className="lg:col-span-2 flex flex-col bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-white">
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[18px]">list_alt</span>
-                    Recent Transactions
-                  </h2>
-                  <button className="text-primary text-xs font-semibold hover:underline">View All</button>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-semibold border-b border-slate-200">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead className="border-b border-border-light bg-gray-50 text-xs font-semibold text-text-secondary-light dark:border-border-dark dark:bg-gray-800/60 dark:text-text-secondary-dark">
+                    <tr>
+                      <th className="px-4 py-3">交易号</th>
+                      <th className="px-4 py-3">渠道</th>
+                      <th className="px-4 py-3">金额</th>
+                      <th className="px-4 py-3">状态</th>
+                      <th className="px-4 py-3">更新时间</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-light dark:divide-border-dark">
+                    {transactions.map((item) => (
+                      <tr
+                        className="cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30"
+                        key={item.id}
+                        onClick={() => setSelectedTransaction(item)}
+                      >
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-text-primary-light dark:text-text-primary-dark">{item.id}</p>
+                          <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{item.orderId}</p>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{item.channel}</td>
+                        <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{formatAmount(item.amountFen, item.currency)}</td>
+                        <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{item.status}</td>
+                        <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{formatDateTime(item.updatedAt)}</td>
+                      </tr>
+                    ))}
+                    {!loading && transactions.length === 0 ? (
                       <tr>
-                        <th className="px-6 py-3 tracking-wide">Transaction ID</th>
-                        <th className="px-6 py-3 tracking-wide">Channel</th>
-                        <th className="px-6 py-3 tracking-wide text-right">Amount</th>
-                        <th className="px-6 py-3 tracking-wide text-center">Status</th>
-                        <th className="px-6 py-3 tracking-wide text-right">Date</th>
+                        <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={5}>
+                          暂无交易数据
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      <tr className="group hover:bg-slate-50 transition-colors cursor-pointer">
-                        <td className="px-6 py-4">
-                          <div className="font-semibold text-slate-800">TXN_849202</div>
-                          <div className="text-xs text-slate-500">Order #3321 • User: alex_m</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="size-6 rounded-full bg-white border border-slate-100 flex items-center justify-center p-1 shrink-0 shadow-sm">
-                              <img alt="PayPal" className="w-full h-full object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDsMH5r78CqOb1xPm7CkNB2G7UVC9R8-BNlS5exzIbsPvir79NtloyXWSfdPt7PFkQ7eMm8WZAeMKWA5HgnYXgjRHsTXrmntatslUVVXS97FiZHUwcsDSuHYyy--vTWHY0jEHLIQpVrdMTzVK8unbc_INtITevbsxSJIgLE0FNOIElBp8Gab7nYg8DB5M0UrZVnHmzb6CeUYKZ4HrUSwXa58jZWH5tiBhCIitaaaLnQ-dg-WYgzE9qvOMzpvr9rBffBFLzix44USEo" />
-                            </div>
-                            <span className="text-slate-600 font-medium">PayPal</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right font-bold text-slate-800">$1,240.00</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                            <span className="size-1.5 rounded-full bg-emerald-500" />
-                            Paid
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right text-slate-400 text-xs">Oct 24, 2023<br />14:30 PM</td>
-                      </tr>
-                      <tr className="group hover:bg-slate-50 transition-colors cursor-pointer">
-                        <td className="px-6 py-4">
-                          <div className="font-semibold text-slate-800">TXN_849201</div>
-                          <div className="text-xs text-slate-500">Order #3320 • User: sarah_k</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="size-6 rounded-full bg-slate-800 flex items-center justify-center p-1 shrink-0 text-white text-[10px] font-bold shadow-sm">ST</div>
-                            <span className="text-slate-600 font-medium">Stripe</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right font-bold text-slate-800">$45.50</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
-                            <span className="size-1.5 rounded-full bg-amber-500" />
-                            Pending
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right text-slate-400 text-xs">Oct 24, 2023<br />14:15 PM</td>
-                      </tr>
-                      <tr className="group hover:bg-slate-50 transition-colors cursor-pointer bg-red-50/30">
-                        <td className="px-6 py-4">
-                          <div className="font-semibold text-slate-800">TXN_849199</div>
-                          <div className="text-xs text-slate-500">Order #3319 • User: guest_02</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="size-6 rounded-full bg-black flex items-center justify-center p-1 shrink-0 text-white text-[8px] font-bold shadow-sm">AP</div>
-                            <span className="text-slate-600 font-medium">Apple Pay</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right font-bold text-slate-800">$210.00</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-100">
-                            <span className="material-symbols-outlined text-[14px]">close</span>
-                            Failed
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right text-slate-400 text-xs">Oct 24, 2023<br />13:55 PM</td>
-                      </tr>
-                      <tr className="group hover:bg-slate-50 transition-colors cursor-pointer">
-                        <td className="px-6 py-4">
-                          <div className="font-semibold text-slate-800">TXN_849198</div>
-                          <div className="text-xs text-slate-500">Ref #9921 • User: mark_tw</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="size-6 rounded-full bg-slate-800 flex items-center justify-center p-1 shrink-0 text-white text-[10px] font-bold shadow-sm">ST</div>
-                            <span className="text-slate-600 font-medium">Stripe</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right font-bold text-slate-800">-$55.00</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-                            <span className="material-symbols-outlined text-[14px]">replay</span>
-                            Refunded
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right text-slate-400 text-xs">Oct 24, 2023<br />12:10 PM</td>
-                      </tr>
-                      <tr className="group hover:bg-slate-50 transition-colors cursor-pointer">
-                        <td className="px-6 py-4">
-                          <div className="font-semibold text-slate-800">TXN_849195</div>
-                          <div className="text-xs text-slate-500">Order #3318 • User: j_doe</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="size-6 rounded-full bg-white border border-slate-100 flex items-center justify-center p-1 shrink-0 shadow-sm">
-                              <img alt="PayPal" className="w-full h-full object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDP894EEQzPBeNujU_j6KYTQquMfh1QsosASOQvyrIiE-hFOHYjNmj6V5wQ7fVGO9bKcxehgMvTN3xzfZawkfodqsQ2xugYWuSpOWof67G8IczKVOU6KeOLPKyi9qRknEDgONINpDVYnsG7OdBPEyGoFVJc0VgUVKRzua4Ldppp8q7RLFyneyv8B1mto7tVufaQsNl_k1mDLB9rUZq0uYLc7Qf3CVeRX62K7kqiql8EiGzs8oLLwJg9Ju286iFDQvvy8vA2VWO6ogk" />
-                            </div>
-                            <span className="text-slate-600 font-medium">PayPal</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-right font-bold text-slate-800">$89.99</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                            <span className="size-1.5 rounded-full bg-emerald-500" />
-                            Paid
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right text-slate-400 text-xs">Oct 24, 2023<br />11:45 AM</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-              <div className="flex flex-col gap-6">
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                  <div className="flex justify-between items-start mb-6">
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-800">Audit Trail</h3>
-                      <p className="text-xs text-slate-500">Recent system operations</p>
-                    </div>
-                    <button className="text-slate-400 hover:text-primary transition-colors">
-                      <span className="material-symbols-outlined">filter_list</span>
-                    </button>
-                  </div>
-                  <div className="relative pl-4 border-l border-slate-200 space-y-8">
-                    <div className="relative group">
-                      <div className="absolute -left-[21px] top-1 bg-white border border-slate-200 rounded-full p-1 group-hover:border-primary/50 transition-colors">
-                        <div className="size-2 rounded-full bg-primary" />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-bold text-primary tracking-wide">STATUS_UPDATE</span>
-                          <span className="text-[10px] text-slate-400 font-mono">14:32:05</span>
-                        </div>
-                        <p className="text-sm text-slate-700">Changed status to <span className="font-semibold text-emerald-700">Paid</span></p>
-                        <div className="bg-slate-50 p-2 rounded-lg text-[11px] font-mono text-slate-500 border border-slate-100 mt-1">
-                          User: system_bot<br />
-                          IP: 192.168.1.10
-                        </div>
-                      </div>
-                    </div>
-                    <div className="relative group">
-                      <div className="absolute -left-[21px] top-1 bg-white border border-slate-200 rounded-full p-1 group-hover:border-slate-400 transition-colors">
-                        <div className="size-2 rounded-full bg-slate-400" />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-bold text-slate-600 tracking-wide">CALLBACK_RECEIVED</span>
-                          <span className="text-[10px] text-slate-400 font-mono">14:32:02</span>
-                        </div>
-                        <p className="text-sm text-slate-700">Webhook received from PayPal</p>
-                        <div className="bg-slate-50 p-2 rounded-lg text-[11px] font-mono text-slate-500 border border-slate-100 mt-1 truncate">ID: PAY-129381923...</div>
-                      </div>
-                    </div>
-                    <div className="relative group">
-                      <div className="absolute -left-[21px] top-1 bg-white border border-slate-200 rounded-full p-1 group-hover:border-amber-400 transition-colors">
-                        <div className="size-2 rounded-full bg-amber-400" />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-bold text-amber-600 tracking-wide">MANUAL_OVERRIDE</span>
-                          <span className="text-[10px] text-slate-400 font-mono">14:15:22</span>
-                        </div>
-                        <p className="text-sm text-slate-700">Admin verified address</p>
-                        <div className="flex items-center gap-2 mt-1 px-2 py-1 bg-slate-50 rounded-lg w-fit">
-                          <div className="bg-center bg-no-repeat bg-cover rounded-full size-5 shadow-sm" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBKFnQ852eyj1iR2szKoFACeYI3wNzwkjh_e1nachAMrKarf9F2WdZ31Mbrg_AjOul6XATSvttbj-pEBfjgMkYpAtiK1uA0U9THMc_fiYh5INiVZzVMTRkYg8AJ-iVHdn3mj8NxVSKYDoD1hhsrjtDmJfNTr1-np6crwrO66RxGrkR7YEgk0BGEsLqqhc4IcEOIL04zV3IevFHGHSepkyAe1gdgPU9NCqVWWiFOVlMUZqiwXjLY3OpV3zQO8SIjvKNgmwB81ViPYmg")'}} />
-                          <span className="text-xs text-slate-500 font-medium">Admin: Sarah</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <button className="w-full mt-8 py-2.5 text-xs font-semibold text-slate-500 hover:text-slate-800 hover:bg-slate-50 border border-dashed border-slate-200 rounded-lg transition-colors">View Full Audit Log</button>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-primary p-4 rounded-xl text-white shadow-md shadow-primary/20 bg-gradient-to-br from-primary to-[#0f3a9a]">
-                    <div className="flex items-center justify-between mb-2 opacity-90">
-                      <span className="text-xs font-medium">Daily Volume</span>
-                      <span className="material-symbols-outlined text-[18px]">show_chart</span>
-                    </div>
-                    <div className="text-2xl font-bold tracking-tight">$42.5k</div>
-                    <div className="text-[10px] mt-1 flex items-center gap-1 font-medium">
-                      <span className="bg-white/20 rounded px-1.5 py-0.5">+12%</span>
-                      <span className="opacity-80">vs yesterday</span>
-                    </div>
-                  </div>
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                    <div className="flex items-center justify-between mb-2 text-slate-500">
-                      <span className="text-xs font-medium">Failed Rate</span>
-                      <span className="material-symbols-outlined text-[18px]">warning</span>
-                    </div>
-                    <div className="text-2xl font-bold text-slate-800 tracking-tight">1.2%</div>
-                    <div className="text-[10px] mt-1 flex items-center gap-1 text-emerald-600 font-medium">
-                      <span className="material-symbols-outlined text-[12px]">trending_down</span>
-                      <span>-0.5% stable</span>
-                    </div>
-                  </div>
-                </div>
+                    ) : null}
+                  </tbody>
+                </table>
               </div>
             </div>
+
+            <aside className="rounded-xl border border-border-light bg-surface-light p-4 shadow-sm dark:border-border-dark dark:bg-surface-dark">
+              <h3 className="text-sm font-semibold text-text-primary-light dark:text-text-primary-dark">交易详情</h3>
+              {selectedTransaction ? (
+                <div className="mt-3 space-y-2 text-xs text-text-secondary-light dark:text-text-secondary-dark">
+                  <p>交易号：{selectedTransaction.id}</p>
+                  <p>订单号：{selectedTransaction.orderId}</p>
+                  <p>用户：{selectedTransaction.userId}</p>
+                  <p>渠道：{selectedTransaction.channel}</p>
+                  <p>状态：{selectedTransaction.status}</p>
+                  <p>金额：{formatAmount(selectedTransaction.amountFen, selectedTransaction.currency)}</p>
+                  <p>创建时间：{formatDateTime(selectedTransaction.createdAt)}</p>
+                  <p>更新时间：{formatDateTime(selectedTransaction.updatedAt)}</p>
+                  {selectedTransaction.failureReason ? <p>失败原因：{selectedTransaction.failureReason}</p> : null}
+                </div>
+              ) : <p className="mt-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">请选择一条交易查看详情。</p>}
+            </aside>
+          </section>
+        ) : null}
+
+        {activeTab === 'audit' ? (
+          <section className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
+            <div className="border-b border-border-light px-4 py-3 text-sm font-semibold text-text-primary-light dark:border-border-dark dark:text-text-primary-dark">
+              审计日志（共 {total} 条）
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-left text-sm">
+                <thead className="border-b border-border-light bg-gray-50 text-xs font-semibold text-text-secondary-light dark:border-border-dark dark:bg-gray-800/60 dark:text-text-secondary-dark">
+                  <tr>
+                    <th className="px-4 py-3">操作</th>
+                    <th className="px-4 py-3">交易号</th>
+                    <th className="px-4 py-3">执行者</th>
+                    <th className="px-4 py-3">详情</th>
+                    <th className="px-4 py-3">时间</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-light dark:divide-border-dark">
+                  {audits.map((item) => (
+                    <tr className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30" key={item.id}>
+                      <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{item.action}</td>
+                      <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{item.transactionId}</td>
+                      <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{item.actor}</td>
+                      <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{item.detail}</td>
+                      <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{formatDateTime(item.createdAt)}</td>
+                    </tr>
+                  ))}
+                  {!loading && audits.length === 0 ? (
+                    <tr>
+                      <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={5}>
+                        暂无审计日志
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : null}
+
+        {activeTab === 'webhooks' ? (
+          <section className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
+            <div className="border-b border-border-light px-4 py-3 text-sm font-semibold text-text-primary-light dark:border-border-dark dark:text-text-primary-dark">
+              Webhook 事件（共 {total} 条）
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[860px] text-left text-sm">
+                <thead className="border-b border-border-light bg-gray-50 text-xs font-semibold text-text-secondary-light dark:border-border-dark dark:bg-gray-800/60 dark:text-text-secondary-dark">
+                  <tr>
+                    <th className="px-4 py-3">事件 ID</th>
+                    <th className="px-4 py-3">渠道</th>
+                    <th className="px-4 py-3">事件类型</th>
+                    <th className="px-4 py-3">交易号</th>
+                    <th className="px-4 py-3">状态</th>
+                    <th className="px-4 py-3">重放次数</th>
+                    <th className="px-4 py-3">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-light dark:divide-border-dark">
+                  {webhooks.map((item) => (
+                    <tr className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30" key={item.id}>
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-text-primary-light dark:text-text-primary-dark">{item.id}</p>
+                        <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">接收于 {formatDateTime(item.receivedAt)}</p>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{item.provider}</td>
+                      <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{item.eventType}</td>
+                      <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{item.transactionId}</td>
+                      <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{item.status}</td>
+                      <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{item.replayCount}</td>
+                      <td className="px-4 py-3">
+                        <button
+                          className="rounded border border-primary px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+                          onClick={() => void handleReplayWebhook(item)}
+                          type="button"
+                        >
+                          重放
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {!loading && webhooks.length === 0 ? (
+                    <tr>
+                      <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={7}>
+                        暂无 webhook 事件
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : null}
+
+        <div className="mt-4 flex items-center justify-between text-xs text-text-secondary-light dark:text-text-secondary-dark">
+          <span>第 {page} / {totalPages} 页</span>
+          <div className="flex items-center gap-2">
+            <button
+              className="rounded border border-border-light px-2 py-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-border-dark dark:hover:bg-gray-800"
+              disabled={page <= 1}
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              type="button"
+            >
+              上一页
+            </button>
+            <button
+              className="rounded border border-border-light px-2 py-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-border-dark dark:hover:bg-gray-800"
+              disabled={page >= totalPages}
+              onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+              type="button"
+            >
+              下一页
+            </button>
           </div>
-        </main>
+        </div>
       </div>
-      
-    </>
+    </main>
   );
 };

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
+  fetchAdminInquiryRequirementProfile,
   fetchInquiries,
   fetchInquiryById,
   fetchInquiryMessages,
@@ -388,6 +389,41 @@ const buildRequirementOrderProfile = (inquiry: InquiryItem | null): RequirementO
   };
 };
 
+const normalizeRequirementOrderProfile = (payload: unknown, inquiry: InquiryItem | null): RequirementOrderProfile | null => {
+  if (!payload || typeof payload !== 'object') {
+    return buildRequirementOrderProfile(inquiry);
+  }
+  const record = payload as {
+    requirementNo?: string;
+    title?: string;
+    companyName?: string;
+    contactName?: string;
+    contactPhone?: string;
+    expectedQty?: string;
+    targetUnitPrice?: string;
+    priority?: string;
+    source?: string;
+    summary?: string;
+    attachments?: unknown[];
+  };
+
+  return {
+    requirementNo: safeText(record.requirementNo, inquiry ? `REQ-${formatShortId(inquiry.id)}` : 'REQ-未知'),
+    title: safeText(record.title, '待补充需求主题'),
+    companyName: safeText(record.companyName, inquiry ? `客户 ${formatShortId(inquiry.createdByUserId)}` : '客户信息待补充'),
+    contactName: safeText(record.contactName, '未提供'),
+    contactPhone: safeText(record.contactPhone, '未提供'),
+    expectedQty: safeText(record.expectedQty, '待确认'),
+    targetUnitPrice: safeText(record.targetUnitPrice, '待确认'),
+    priority: safeText(record.priority, '中'),
+    source: safeText(record.source, '需求链接'),
+    summary: safeText(record.summary, inquiry?.message || '暂无补充说明'),
+    attachments: Array.isArray(record.attachments)
+      ? record.attachments.filter((item): item is string => typeof item === 'string')
+      : []
+  };
+};
+
 // 在线客服页：管理询价会话列表、线程消息和快捷回复。
 export const InquiriesPage = () => {
   const [statusFilter, setStatusFilter] = useState<InquiryStatusFilter>('ALL');
@@ -529,14 +565,16 @@ export const InquiriesPage = () => {
           const mockMessages = MOCK_MESSAGES[activeInquiryId] || [];
           if (!cancelled) {
             setActiveInquiry(mockInquiry);
+            setRequirementProfile(buildRequirementOrderProfile(mockInquiry));
             setMessages(mockMessages);
           }
           return;
         }
 
-        const [inquiryResponse, messageResponse] = await Promise.all([
+        const [inquiryResponse, messageResponse, profileResponse] = await Promise.all([
           fetchInquiryById(activeInquiryId),
-          fetchInquiryMessages(activeInquiryId, { page: 1, pageSize: 200 })
+          fetchInquiryMessages(activeInquiryId, { page: 1, pageSize: 200 }),
+          fetchAdminInquiryRequirementProfile(activeInquiryId)
         ]);
 
         if (cancelled) {
@@ -544,7 +582,13 @@ export const InquiriesPage = () => {
         }
 
         const detail = inquiryResponse.status === 200 ? normalizeInquiry(inquiryResponse.data) : null;
-        setActiveInquiry(detail || inquiries.find((item) => item.id === activeInquiryId) || null);
+        const resolvedInquiry = detail || inquiries.find((item) => item.id === activeInquiryId) || null;
+        setActiveInquiry(resolvedInquiry);
+        if (profileResponse.status === 200) {
+          setRequirementProfile(normalizeRequirementOrderProfile(profileResponse.data, resolvedInquiry));
+        } else {
+          setRequirementProfile(buildRequirementOrderProfile(resolvedInquiry));
+        }
 
         if (messageResponse.status !== 200 || !messageResponse.data) {
           setMessages([]);
@@ -559,6 +603,7 @@ export const InquiriesPage = () => {
         }
         const message = error instanceof Error ? error.message : '加载会话消息失败';
         setMessages([]);
+        setRequirementProfile(buildRequirementOrderProfile(inquiries.find((item) => item.id === activeInquiryId) || null));
         setMessagesError(message || '加载会话消息失败');
       } finally {
         if (!cancelled) {
@@ -573,10 +618,6 @@ export const InquiriesPage = () => {
       cancelled = true;
     };
   }, [activeInquiryId, inquiries]);
-
-  useEffect(() => {
-    setRequirementProfile(buildRequirementOrderProfile(activeInquiry));
-  }, [activeInquiry]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

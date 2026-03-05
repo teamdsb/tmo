@@ -141,8 +141,12 @@ paths:
     $ref: "./commerce.yaml#/paths/~1shipments~1import-jobs"
   /admin/sales-users:
     $ref: "./admin.yaml#/paths/~1admin~1sales-users"
+  /admin/users:
+    $ref: "./admin.yaml#/paths/~1admin~1users"
   /admin/customers:
     $ref: "./admin.yaml#/paths/~1admin~1customers"
+  /admin/customers/{customerId}/promote-to-sales:
+    $ref: "./admin.yaml#/paths/~1admin~1customers~1{customerId}~1promote-to-sales"
   /admin/customers/transfer:
     $ref: "./admin.yaml#/paths/~1admin~1customers~1transfer"
   /admin/customer-tags:
@@ -163,6 +167,18 @@ paths:
     $ref: "./admin.yaml#/paths/~1admin~1product-requests~1export-jobs"
   /admin/import-jobs/{jobId}:
     $ref: "./admin.yaml#/paths/~1admin~1import-jobs~1{jobId}"
+  /admin/inquiries/{inquiryId}/requirement-profile:
+    $ref: "./admin.yaml#/paths/~1admin~1inquiries~1{inquiryId}~1requirement-profile"
+  /admin/payments/transactions:
+    $ref: "./admin.yaml#/paths/~1admin~1payments~1transactions"
+  /admin/payments/transactions/{id}:
+    $ref: "./admin.yaml#/paths/~1admin~1payments~1transactions~1{id}"
+  /admin/payments/audit-logs:
+    $ref: "./admin.yaml#/paths/~1admin~1payments~1audit-logs"
+  /admin/payments/webhooks:
+    $ref: "./admin.yaml#/paths/~1admin~1payments~1webhooks"
+  /admin/payments/webhooks/{id}/replay:
+    $ref: "./admin.yaml#/paths/~1admin~1payments~1webhooks~1{id}~1replay"
   /admin/miniapp/display-categories:
     $ref: "./admin.yaml#/paths/~1admin~1miniapp~1display-categories"
   /admin/config/feature-flags:

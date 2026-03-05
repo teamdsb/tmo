@@ -4,9 +4,11 @@ import {
   fetchAdminCustomers,
   fetchAdminCustomerTags,
   fetchAdminSalesUsers,
+  fetchAdminUsers,
   fetchStaffUsers,
   patchStaffRoles,
-  patchStaffStatus
+  patchStaffStatus,
+  promoteAdminCustomerToSales
 } from '../../../lib/api';
 import { isMockMode } from '../../../lib/env';
 import { listMockAccounts } from '../../../lib/mock-accounts';
@@ -51,6 +53,16 @@ type StaffUser = {
   displayName: string;
   roles: string[];
   status: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type AdminUser = {
+  id: string;
+  displayName: string;
+  roles: string[];
+  status: string;
+  userType: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -313,6 +325,43 @@ const normalizeStaffUsers = (data: unknown): StaffUser[] => {
     .filter(Boolean) as StaffUser[];
 };
 
+const normalizeAdminUsers = (data: unknown): { items: AdminUser[]; total: number } => {
+  const payload = data as { items?: unknown[]; total?: number };
+  const items = Array.isArray(payload?.items) ? payload.items : [];
+
+  return {
+    items: items
+      .map((item) => {
+        const record = item as {
+          id?: string;
+          displayName?: string;
+          roles?: unknown[];
+          status?: string;
+          userType?: string;
+          createdAt?: string;
+          updatedAt?: string;
+        };
+        if (!record.id) {
+          return null;
+        }
+        const roles = Array.isArray(record.roles)
+          ? record.roles.filter((role): role is string => typeof role === 'string')
+          : [];
+        return {
+          id: record.id,
+          displayName: safeText(record.displayName, '未命名管理员'),
+          roles,
+          status: safeText(record.status, 'active').toLowerCase(),
+          userType: safeText(record.userType, 'admin').toLowerCase(),
+          createdAt: safeText(record.createdAt, ''),
+          updatedAt: safeText(record.updatedAt, '')
+        } as AdminUser;
+      })
+      .filter(Boolean) as AdminUser[],
+    total: Number.isFinite(payload?.total) ? Number(payload.total) : 0
+  };
+};
+
 const buildMockStaffSeed = (): StaffUser[] => {
   const now = new Date().toISOString();
   return listMockAccounts()
@@ -468,11 +517,15 @@ export const UserOperationsPage = () => {
   const [customerTotal, setCustomerTotal] = useState(0);
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
   const [staffTotal, setStaffTotal] = useState(0);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [adminTotal, setAdminTotal] = useState(0);
 
   const [customerPage, setCustomerPage] = useState(1);
   const [customerPageSize] = useState(20);
   const [staffPage, setStaffPage] = useState(1);
   const [staffPageSize] = useState(20);
+  const [adminPage, setAdminPage] = useState(1);
+  const [adminPageSize] = useState(20);
 
   const [mockTags] = useState<CustomerTag[]>(mockTagSeed);
   const [mockCustomers] = useState<AdminCustomer[]>(mockCustomerSeed);
@@ -483,6 +536,7 @@ export const UserOperationsPage = () => {
   const [tagsLoading, setTagsLoading] = useState(false);
   const [customersLoading, setCustomersLoading] = useState(false);
   const [staffLoading, setStaffLoading] = useState(false);
+  const [adminLoading, setAdminLoading] = useState(false);
 
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -494,6 +548,7 @@ export const UserOperationsPage = () => {
 
   const customerTotalPages = Math.max(1, Math.ceil(customerTotal / customerPageSize));
   const staffTotalPages = Math.max(1, Math.ceil(staffTotal / staffPageSize));
+  const adminTotalPages = Math.max(1, Math.ceil(adminTotal / adminPageSize));
 
   const adminCountInMock = useMemo(() => {
     if (!isMockMode) {
@@ -661,6 +716,54 @@ export const UserOperationsPage = () => {
     }
   }, [appliedStaffQuery, mockStaffUsers, staffPage, staffPageSize]);
 
+  const refreshAdminUsers = useCallback(async () => {
+    setAdminLoading(true);
+    try {
+      if (isMockMode) {
+        const mockAdmins = listMockAccounts()
+          .filter((account) => account.userType === 'admin')
+          .map((account) => {
+            const now = new Date().toISOString();
+            return {
+              id: account.userId,
+              displayName: account.displayName || account.username,
+              roles: account.role ? [String(account.role).toUpperCase()] : ['ADMIN'],
+              status: 'active',
+              userType: 'admin',
+              createdAt: now,
+              updatedAt: now
+            } as AdminUser;
+          });
+        const start = (adminPage - 1) * adminPageSize;
+        const end = start + adminPageSize;
+        setAdminUsers(mockAdmins.slice(start, end));
+        setAdminTotal(mockAdmins.length);
+        return;
+      }
+
+      const response = await fetchAdminUsers({
+        page: adminPage,
+        pageSize: adminPageSize,
+        role: 'ADMIN'
+      });
+      if (response.status !== 200) {
+        setAdminUsers([]);
+        setAdminTotal(0);
+        setErrorMessage('加载管理员列表失败，请稍后重试。');
+        return;
+      }
+      const normalized = normalizeAdminUsers(response.data);
+      setAdminUsers(normalized.items);
+      setAdminTotal(normalized.total);
+    } catch {
+      setAdminUsers([]);
+      setAdminTotal(0);
+      setErrorMessage('加载管理员列表失败，请稍后重试。');
+    } finally {
+      setAdminLoading(false);
+    }
+  }, [adminPage, adminPageSize]);
+
   useEffect(() => {
     // Parallel requests avoid lookup waterfall on first load.
     void Promise.all([refreshSalesUsers(), refreshTags()]);
@@ -673,6 +776,10 @@ export const UserOperationsPage = () => {
   useEffect(() => {
     void refreshStaffUsers();
   }, [refreshStaffUsers]);
+
+  useEffect(() => {
+    void refreshAdminUsers();
+  }, [refreshAdminUsers]);
 
   const handleApplyCustomerSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -788,24 +895,20 @@ export const UserOperationsPage = () => {
         return;
       }
 
-      const response = await patchStaffRoles(customer.id, ['CUSTOMER', SALES_ROLE]);
+      const response = await promoteAdminCustomerToSales(customer.id);
       if (response.status !== 200) {
-        if (response.status === 404) {
-          setErrorMessage('后端暂未开放“客户直接提权为业务员”能力，请先创建员工后再授权。');
-        } else {
-          setErrorMessage('设置业务员权限失败，请稍后重试。');
-        }
+        setErrorMessage('设置业务员权限失败，请稍后重试。');
         return;
       }
 
       setSuccessMessage(`已将「${customer.displayName}」设置为业务员。`);
-      await Promise.all([refreshStaffUsers(), refreshSalesUsers()]);
+      await Promise.all([refreshStaffUsers(), refreshSalesUsers(), refreshCustomers()]);
     } catch {
       setErrorMessage('设置业务员权限失败，请稍后重试。');
     } finally {
       setCustomerPending(customer.id, false);
     }
-  }, [refreshSalesUsers, refreshStaffUsers, setCustomerPending, setMockSalesUsers, setMockStaffUsers]);
+  }, [refreshCustomers, refreshSalesUsers, refreshStaffUsers, setCustomerPending, setMockSalesUsers, setMockStaffUsers]);
 
   const handleGrantSalesRole = useCallback(async (staff: StaffUser) => {
     if (hasRole(staff.roles, SALES_ROLE)) {
@@ -1183,17 +1286,85 @@ export const UserOperationsPage = () => {
 
   const renderAdminPanel = () => {
     return (
-      <div className="rounded-xl border border-border-light bg-surface-light p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark">
-        <h3 className="text-lg font-semibold text-text-primary-light dark:text-text-primary-dark">管理员用户（待接入）</h3>
-        <p className="mt-2 text-sm text-text-secondary-light dark:text-text-secondary-dark">
-          当前仓库未提供管理员列表聚合接口。此区域将在后续接入管理员查询能力。
-        </p>
-        <div className="mt-4 rounded-lg border border-dashed border-border-light bg-background-light p-4 text-sm text-text-secondary-light dark:border-border-dark dark:bg-background-dark dark:text-text-secondary-dark">
-          {adminCountInMock !== null
-            ? `mock 数据下识别到 ${adminCountInMock} 位管理员账号，可用于后续联调。`
-            : 'dev 模式下等待后端管理员列表接口接入。'}
+      <section className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
+        <div className="flex items-center justify-between border-b border-border-light px-4 py-3 dark:border-border-dark">
+          <div>
+            <p className="text-sm font-semibold text-text-primary-light dark:text-text-primary-dark">管理员用户</p>
+            <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">共 {adminTotal} 位管理员</p>
+          </div>
+          <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-primary dark:bg-blue-900/40 dark:text-blue-300">
+            {isMockMode ? 'mock' : 'dev'}
+          </span>
         </div>
-      </div>
+
+        <div className="overflow-x-auto" style={{ contentVisibility: 'auto' }}>
+          <table className="w-full min-w-[760px] text-left text-sm">
+            <thead className="border-b border-border-light bg-gray-50 text-xs font-semibold text-text-secondary-light dark:border-border-dark dark:bg-gray-800/60 dark:text-text-secondary-dark">
+              <tr>
+                <th className="px-4 py-3">管理员</th>
+                <th className="px-4 py-3">角色</th>
+                <th className="px-4 py-3">状态</th>
+                <th className="px-4 py-3">更新时间</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border-light dark:divide-border-dark">
+              {adminUsers.map((admin) => (
+                <tr className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30" key={admin.id}>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-text-primary-light dark:text-text-primary-dark">{admin.displayName}</p>
+                    <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{admin.id}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      {admin.roles.length > 0 ? admin.roles.map((role) => (
+                        <span
+                          className="rounded bg-blue-100 px-2 py-0.5 text-xs font-semibold text-primary dark:bg-blue-900/30 dark:text-blue-300"
+                          key={`${admin.id}-${role}`}
+                        >
+                          {role}
+                        </span>
+                      )) : <span className="text-xs text-text-secondary-light dark:text-text-secondary-dark">未设置</span>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{admin.status}</td>
+                  <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{formatDateTime(admin.updatedAt || admin.createdAt)}</td>
+                </tr>
+              ))}
+              {!adminLoading && adminUsers.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={4}>
+                    暂无管理员数据
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex items-center justify-between border-t border-border-light px-4 py-3 text-xs text-text-secondary-light dark:border-border-dark dark:text-text-secondary-dark">
+          <span>
+            第 {adminPage} / {adminTotalPages} 页
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              className="rounded border border-border-light px-2 py-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-border-dark dark:hover:bg-gray-800"
+              disabled={adminPage <= 1}
+              onClick={() => setAdminPage((current) => Math.max(1, current - 1))}
+              type="button"
+            >
+              上一页
+            </button>
+            <button
+              className="rounded border border-border-light px-2 py-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-border-dark dark:hover:bg-gray-800"
+              disabled={adminPage >= adminTotalPages}
+              onClick={() => setAdminPage((current) => Math.min(adminTotalPages, current + 1))}
+              type="button"
+            >
+              下一页
+            </button>
+          </div>
+        </div>
+      </section>
     );
   };
 
@@ -1227,7 +1398,7 @@ export const UserOperationsPage = () => {
           </div>
           <div className="rounded-lg border border-border-light bg-surface-light p-3 text-sm dark:border-border-dark dark:bg-surface-dark">
             <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">管理员总量</p>
-            <p className="mt-1 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark">{adminCountInMock ?? '待接入'}</p>
+            <p className="mt-1 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark">{adminTotal || adminCountInMock || 0}</p>
           </div>
         </div>
 

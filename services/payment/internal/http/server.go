@@ -22,6 +22,11 @@ func NewRouter(handler *handler.Handler, logger *slog.Logger, readyCheck func(co
 	router.GET("/ready", httpx.Ready(readyCheck))
 
 	oapi.RegisterHandlers(router, handler)
+	router.GET("/admin/payments/transactions", handler.GetAdminPaymentsTransactions)
+	router.GET("/admin/payments/transactions/:id", handler.GetAdminPaymentsTransactionsId)
+	router.GET("/admin/payments/audit-logs", handler.GetAdminPaymentsAuditLogs)
+	router.GET("/admin/payments/webhooks", handler.GetAdminPaymentsWebhooks)
+	router.POST("/admin/payments/webhooks/:id/replay", handler.PostAdminPaymentsWebhooksIdReplay)
 
 	return router
 }
