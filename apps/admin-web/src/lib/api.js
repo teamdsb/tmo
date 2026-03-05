@@ -18,9 +18,12 @@ import {
 import { getBffBootstrap, setGatewayApiClientConfig } from '@tmo/gateway-api-client';
 import {
   getCustomers,
+  getRbacPermissions,
+  getRbacRoles,
   getStaff,
   patchStaffStaffId,
   postAuthPasswordLogin,
+  putRbacRolesRolePermissions,
   setIdentityApiClientConfig
 } from '@tmo/identity-api-client';
 
@@ -258,6 +261,20 @@ export const patchStaffStatus = async (staffId, status, disabledReason = undefin
   return patchStaffStaffId(staffId, {
     status,
     disabledReason
+  });
+};
+
+export const fetchRbacRoles = async () => {
+  return getRbacRoles();
+};
+
+export const fetchRbacPermissions = async () => {
+  return getRbacPermissions();
+};
+
+export const replaceRbacRolePermissions = async (roleCode, permissions) => {
+  return putRbacRolesRolePermissions(roleCode, {
+    permissions
   });
 };
 

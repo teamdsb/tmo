@@ -39,11 +39,13 @@ export const hasPermission = (permissionMap, code, requiredScope = 'SELF') => {
 export const resolveAccessTier = (session) => {
   const currentRole = String(session?.currentRole || '').trim().toUpperCase();
   if (currentRole === 'BOSS' || currentRole === 'ADMIN') return 'boss';
+  if (currentRole === 'CS') return 'sales';
   if (currentRole === 'MANAGER') return 'manager';
   if (currentRole === 'SALES') return 'sales';
 
   const roles = Array.isArray(session?.user?.roles) ? session.user.roles.map((x) => String(x).toUpperCase()) : [];
   if (roles.includes('BOSS') || roles.includes('ADMIN')) return 'boss';
+  if (roles.includes('CS')) return 'sales';
   if (roles.includes('MANAGER')) return 'manager';
   if (roles.includes('SALES')) return 'sales';
   return 'unknown';
