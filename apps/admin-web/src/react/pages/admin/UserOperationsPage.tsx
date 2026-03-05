@@ -385,7 +385,7 @@ type CustomerRowProps = {
 
 const CustomerRow = memo(({ customer, isPending, isSales, onPromoteToSales }: CustomerRowProps) => {
   return (
-    <tr className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30">
+    <tr className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30" data-testid={`customer-row-${customer.id}`}>
       <td className="px-4 py-3">
         <p className="font-medium text-text-primary-light dark:text-text-primary-dark">{customer.displayName}</p>
         <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{customer.phone || '-'}</p>
@@ -415,6 +415,7 @@ const CustomerRow = memo(({ customer, isPending, isSales, onPromoteToSales }: Cu
       <td className="px-4 py-3">
         <button
           className="rounded border border-primary px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400 dark:disabled:border-slate-700 dark:disabled:text-slate-500"
+          data-testid={`promote-to-sales-${customer.id}`}
           disabled={isPending || isSales}
           onClick={() => onPromoteToSales(customer)}
           type="button"
@@ -1156,7 +1157,7 @@ export const UserOperationsPage = () => {
 
                 {!customersLoading && customers.length === 0 ? (
                   <tr>
-                    <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={5}>
+                    <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={5} data-testid="customers-empty-state">
                       暂无客户数据
                     </td>
                   </tr>
@@ -1369,7 +1370,7 @@ export const UserOperationsPage = () => {
   };
 
   return (
-    <main className="flex h-screen flex-1 flex-col overflow-hidden bg-background-light dark:bg-background-dark">
+    <main className="flex h-screen flex-1 flex-col overflow-hidden bg-background-light dark:bg-background-dark" data-testid="user-operations-page">
       <AdminTopbar
         leftSlot={(
           <div className="min-w-0">
@@ -1405,6 +1406,7 @@ export const UserOperationsPage = () => {
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-border-light bg-surface-light p-2 dark:border-border-dark dark:bg-surface-dark">
           <button
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'customers' ? 'bg-primary text-white' : 'text-text-secondary-light hover:bg-gray-100 dark:text-text-secondary-dark dark:hover:bg-gray-800'}`}
+            data-testid="tab-customers"
             onClick={() => setActiveTab('customers')}
             type="button"
           >
@@ -1412,6 +1414,7 @@ export const UserOperationsPage = () => {
           </button>
           <button
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'staff' ? 'bg-primary text-white' : 'text-text-secondary-light hover:bg-gray-100 dark:text-text-secondary-dark dark:hover:bg-gray-800'}`}
+            data-testid="tab-staff"
             onClick={() => setActiveTab('staff')}
             type="button"
           >
@@ -1419,6 +1422,7 @@ export const UserOperationsPage = () => {
           </button>
           <button
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'admins' ? 'bg-primary text-white' : 'text-text-secondary-light hover:bg-gray-100 dark:text-text-secondary-dark dark:hover:bg-gray-800'}`}
+            data-testid="tab-admins"
             onClick={() => setActiveTab('admins')}
             type="button"
           >
@@ -1426,8 +1430,8 @@ export const UserOperationsPage = () => {
           </button>
         </div>
 
-        {errorMessage ? <p className="mb-3 text-sm text-red-600">{errorMessage}</p> : null}
-        {successMessage ? <p className="mb-3 text-sm text-emerald-600">{successMessage}</p> : null}
+        {errorMessage ? <p className="mb-3 text-sm text-red-600" data-testid="user-operations-error">{errorMessage}</p> : null}
+        {successMessage ? <p className="mb-3 text-sm text-emerald-600" data-testid="user-operations-success">{successMessage}</p> : null}
 
         {activeTab === 'customers'
           ? renderCustomerPanel()

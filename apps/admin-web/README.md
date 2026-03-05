@@ -45,12 +45,13 @@ pnpm run dev:admin-web:stack
   - 不展示固定示例数字/示例记录；没有后端数据时展示空态。
   - 暂未接入的 dashboard 扩展区块会明确标记为不可用，而不是展示 mock 卡片。
 
-mock/dev 默认四个分级账号一致：
+mock/dev 常用账号如下（dev 仅支持 `BOSS/MANAGER/ADMIN/CS` 密码登录）：
 
 - username: `admin` / password: `admin123`（最高权限，兼容）
 - username: `boss` / password: `boss123`（最高权限）
 - username: `manager` / password: `manager123`
-- username: `sales` / password: `sales123`
+- username: `cs` / password: `cs123`
+- username: `sales` / password: `sales123`（仅 mock；dev 下不支持密码登录）
 
 默认 gateway 基址通过 Vite 代理 `/api -> http://localhost:8080`。
 可通过环境变量 `ADMIN_WEB_PROXY_TARGET` 覆盖代理目标。
@@ -61,12 +62,21 @@ mock/dev 默认四个分级账号一致：
 pnpm run smoke:admin-web
 ```
 
-默认测试账号（mock/dev 通用）：
+默认 smoke 测试账号：
 
 - username: `admin` / password: `admin123`
 - username: `boss` / password: `boss123`
 - username: `manager` / password: `manager123`
-- username: `sales` / password: `sales123`
+- username: `cs` / password: `cs123`
+
+## Real E2E
+
+```bash
+pnpm -C apps/admin-web test:e2e:real
+```
+
+- 默认会连接 `http://127.0.0.1:5174`（`dev:real`）并执行 P0 页面端到端脚本。
+- 如已手动启动前端，可设置 `ADMIN_WEB_BASE_URL` 复用现有服务。
 
 ## 视觉回归
 

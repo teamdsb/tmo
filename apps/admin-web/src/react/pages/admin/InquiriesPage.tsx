@@ -705,7 +705,7 @@ export const InquiriesPage = () => {
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden" data-testid="inquiries-page">
       <AdminTopbar
         searchPlaceholder="搜索需求链接、客户或会话..."
         leftSlot={
@@ -754,11 +754,11 @@ export const InquiriesPage = () => {
               </label>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto" data-testid="inquiry-list">
               {listLoading ? <div className="px-4 py-8 text-sm text-slate-500">正在加载需求列表...</div> : null}
               {!listLoading && listError ? <div className="px-4 py-8 text-sm text-red-600">{listError}</div> : null}
               {!listLoading && !listError && filteredInquiries.length === 0 ? (
-                <div className="px-4 py-8 text-sm text-slate-500">当前筛选条件下暂无需求会话。</div>
+                <div className="px-4 py-8 text-sm text-slate-500" data-testid="inquiry-list-empty">当前筛选条件下暂无需求会话。</div>
               ) : null}
 
               {!listLoading &&
@@ -767,6 +767,7 @@ export const InquiriesPage = () => {
                   const active = item.id === activeInquiryId;
                   return (
                     <button
+                      data-testid={`inquiry-item-${item.id}`}
                       key={item.id}
                       type="button"
                       onClick={() => setActiveInquiryId(item.id)}
@@ -879,13 +880,13 @@ export const InquiriesPage = () => {
             )}
           </section>
 
-          <aside className="hidden h-full w-72 shrink-0 border-l border-border-color bg-surface-light px-4 py-5 dark:bg-surface-dark xl:block 2xl:w-80">
+          <aside className="hidden h-full w-72 shrink-0 border-l border-border-color bg-surface-light px-4 py-5 dark:bg-surface-dark xl:block 2xl:w-80" data-testid="requirement-profile-panel">
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-wide text-slate-500">需求订单信息</h3>
             {activeInquiry && requirementProfile ? (
               <div className="space-y-4 text-sm text-slate-700 dark:text-slate-300">
-                <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
+                <div className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900" data-testid="requirement-profile-card">
                   <p className="text-xs text-slate-500">需求单号</p>
-                  <p className="mt-0.5 font-semibold">{requirementProfile.requirementNo}</p>
+                  <p className="mt-0.5 font-semibold" data-testid="requirement-no">{requirementProfile.requirementNo}</p>
                   <p className="mt-2 text-xs text-slate-500">需求主题</p>
                   <p className="mt-0.5 text-sm font-medium leading-5">{requirementProfile.title}</p>
                 </div>

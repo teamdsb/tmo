@@ -366,7 +366,7 @@ export const PaymentsPage = () => {
   };
 
   return (
-    <main className="flex h-screen flex-1 flex-col overflow-hidden bg-background-light dark:bg-background-dark">
+    <main className="flex h-screen flex-1 flex-col overflow-hidden bg-background-light dark:bg-background-dark" data-testid="payments-page">
       <AdminTopbar
         leftSlot={<h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">支付与审计</h2>}
         searchPlaceholder="搜索交易号、订单号或事件 ID"
@@ -376,6 +376,7 @@ export const PaymentsPage = () => {
         <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-border-light bg-surface-light p-2 dark:border-border-dark dark:bg-surface-dark">
           <button
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'transactions' ? 'bg-primary text-white' : 'text-text-secondary-light hover:bg-gray-100 dark:text-text-secondary-dark dark:hover:bg-gray-800'}`}
+            data-testid="payments-tab-transactions"
             onClick={() => setActiveTab('transactions')}
             type="button"
           >
@@ -383,6 +384,7 @@ export const PaymentsPage = () => {
           </button>
           <button
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'audit' ? 'bg-primary text-white' : 'text-text-secondary-light hover:bg-gray-100 dark:text-text-secondary-dark dark:hover:bg-gray-800'}`}
+            data-testid="payments-tab-audit"
             onClick={() => setActiveTab('audit')}
             type="button"
           >
@@ -390,6 +392,7 @@ export const PaymentsPage = () => {
           </button>
           <button
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'webhooks' ? 'bg-primary text-white' : 'text-text-secondary-light hover:bg-gray-100 dark:text-text-secondary-dark dark:hover:bg-gray-800'}`}
+            data-testid="payments-tab-webhooks"
             onClick={() => setActiveTab('webhooks')}
             type="button"
           >
@@ -413,8 +416,8 @@ export const PaymentsPage = () => {
           </button>
         </form>
 
-        {errorMessage ? <p className="mb-3 text-sm text-red-600">{errorMessage}</p> : null}
-        {successMessage ? <p className="mb-3 text-sm text-emerald-600">{successMessage}</p> : null}
+        {errorMessage ? <p className="mb-3 text-sm text-red-600" data-testid="payments-error">{errorMessage}</p> : null}
+        {successMessage ? <p className="mb-3 text-sm text-emerald-600" data-testid="payments-success">{successMessage}</p> : null}
 
         {activeTab === 'transactions' ? (
           <section className="grid grid-cols-1 gap-4 xl:grid-cols-[2fr_1fr]">
@@ -433,10 +436,11 @@ export const PaymentsPage = () => {
                       <th className="px-4 py-3">更新时间</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border-light dark:divide-border-dark">
+                  <tbody className="divide-y divide-border-light dark:divide-border-dark" data-testid="transactions-body">
                     {transactions.map((item) => (
                       <tr
                         className="cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30"
+                        data-testid={`transaction-row-${item.id}`}
                         key={item.id}
                         onClick={() => setSelectedTransaction(item)}
                       >
@@ -452,7 +456,7 @@ export const PaymentsPage = () => {
                     ))}
                     {!loading && transactions.length === 0 ? (
                       <tr>
-                        <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={5}>
+                        <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={5} data-testid="transactions-empty-state">
                           暂无交易数据
                         </td>
                       </tr>
@@ -462,7 +466,7 @@ export const PaymentsPage = () => {
               </div>
             </div>
 
-            <aside className="rounded-xl border border-border-light bg-surface-light p-4 shadow-sm dark:border-border-dark dark:bg-surface-dark">
+            <aside className="rounded-xl border border-border-light bg-surface-light p-4 shadow-sm dark:border-border-dark dark:bg-surface-dark" data-testid="transaction-detail">
               <h3 className="text-sm font-semibold text-text-primary-light dark:text-text-primary-dark">交易详情</h3>
               {selectedTransaction ? (
                 <div className="mt-3 space-y-2 text-xs text-text-secondary-light dark:text-text-secondary-dark">
@@ -538,9 +542,9 @@ export const PaymentsPage = () => {
                     <th className="px-4 py-3">操作</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border-light dark:divide-border-dark">
+                <tbody className="divide-y divide-border-light dark:divide-border-dark" data-testid="webhooks-body">
                   {webhooks.map((item) => (
-                    <tr className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30" key={item.id}>
+                    <tr className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30" data-testid={`webhook-row-${item.id}`} key={item.id}>
                       <td className="px-4 py-3">
                         <p className="font-medium text-text-primary-light dark:text-text-primary-dark">{item.id}</p>
                         <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">接收于 {formatDateTime(item.receivedAt)}</p>
@@ -553,6 +557,7 @@ export const PaymentsPage = () => {
                       <td className="px-4 py-3">
                         <button
                           className="rounded border border-primary px-2.5 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+                          data-testid={`webhook-replay-${item.id}`}
                           onClick={() => void handleReplayWebhook(item)}
                           type="button"
                         >
@@ -563,7 +568,7 @@ export const PaymentsPage = () => {
                   ))}
                   {!loading && webhooks.length === 0 ? (
                     <tr>
-                      <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={7}>
+                      <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={7} data-testid="webhooks-empty-state">
                         暂无 webhook 事件
                       </td>
                     </tr>
