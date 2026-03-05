@@ -121,6 +121,10 @@ components:
           "$ref": "#/components/schemas/UserStatus"
         displayName:
           type: string
+        avatarUrl:
+          type: string
+          format: uri
+          nullable: true
         phone:
           type: string
           nullable: true

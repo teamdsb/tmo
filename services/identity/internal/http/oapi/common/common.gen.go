@@ -139,6 +139,7 @@ type SalesQrCodePlatform string
 
 // User defines model for User.
 type User struct {
+	AvatarUrl             *string             `json:"avatarUrl"`
 	CreatedAt             time.Time           `json:"createdAt"`
 	DisabledAt            *time.Time          `json:"disabledAt"`
 	DisabledReason        *string             `json:"disabledReason"`

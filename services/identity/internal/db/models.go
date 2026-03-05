@@ -111,6 +111,7 @@ type User struct {
 	PaymentTermType        *string            `db:"payment_term_type" json:"payment_term_type"`
 	PaymentTermDays        *int32             `db:"payment_term_days" json:"payment_term_days"`
 	PaymentTermCustomLabel *string            `db:"payment_term_custom_label" json:"payment_term_custom_label"`
+	AvatarUrl              *string            `db:"avatar_url" json:"avatar_url"`
 }
 
 type UserIdentity struct {

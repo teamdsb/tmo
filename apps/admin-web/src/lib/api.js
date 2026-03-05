@@ -17,6 +17,7 @@ import {
 } from '@tmo/api-client';
 import { getBffBootstrap, setGatewayApiClientConfig } from '@tmo/gateway-api-client';
 import {
+  getMe,
   getCustomers,
   getRbacPermissions,
   getRbacRoles,
@@ -147,6 +148,10 @@ export const passwordLogin = async (username, password, role) => {
 
 export const bootstrap = async () => {
   return getBffBootstrap();
+};
+
+export const fetchMe = async () => {
+  return getMe();
 };
 
 export const fetchProducts = async (params = {}) => {

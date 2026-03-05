@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } from 'react';
-import { logout } from '../../lib/auth';
+import { getCurrentSession, getDisplayProfile, logout } from '../../lib/auth';
+import { UserAvatar } from './UserAvatar';
+import { resolveAvatarModel } from './avatar';
 
 type AdminTopbarProps = {
   leftSlot: ReactNode;
@@ -7,9 +9,6 @@ type AdminTopbarProps = {
   headerClassName?: string;
   innerClassName?: string;
 };
-
-const AVATAR_URL =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuA-cgHCBUtae-Yeq4htivL0q-zghx8kkGV8lTLp1eHRlAxWjiaIFAYFPIhx0QLEoc0XZtVxRR0l7xp4Y4dMZrbafdPBMeVuMEfLeZf8WqH6g65hdBksOAHYEOfMRtION01akpgMv3e2e145ccEHKliMknQEpfbQSU1hfEX43mCkPIEdDbF0yT82K6c2zOcL-ljXW66qgxtI2MqGXZOG-oBuyoCF7HV6Nzo2jQIDX7vLx7eHcVNqjKm6M8kcRXUU7fdLIYk9Zkhj8Dc';
 
 // 拼接 className，忽略空值。
 const joinClasses = (...classes: Array<string | undefined>) => {
@@ -27,6 +26,12 @@ export const AdminTopbar = ({
   const menuId = useId();
   const menuContainerRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const session = getCurrentSession();
+  const displayProfile = getDisplayProfile();
+  const sessionUser = (session?.user && typeof session.user === 'object') ? session.user : null;
+  const profileName = displayProfile?.name || '管理员用户';
+  const profileRole = displayProfile?.role || '管理员';
+  const avatar = resolveAvatarModel(sessionUser || { displayName: profileName });
 
   useEffect(() => {
     if (!isMenuOpen) {
@@ -105,12 +110,17 @@ export const AdminTopbar = ({
               aria-controls={menuId}
               aria-expanded={isMenuOpen}
               aria-haspopup="menu"
-              className="size-10 rounded-full border border-slate-200 bg-cover bg-center shadow-sm transition-opacity hover:opacity-90 dark:border-slate-700"
+              className="size-10 overflow-hidden rounded-full border border-slate-200 shadow-sm transition-opacity hover:opacity-90 dark:border-slate-700"
               onClick={handleMenuToggle}
               ref={menuButtonRef}
-              style={{ backgroundImage: `url("${AVATAR_URL}")` }}
               type="button"
-            />
+            >
+              <UserAvatar
+                avatarUrl={avatar.avatarUrl}
+                className="size-full rounded-full"
+                fallbackLetter={avatar.fallbackLetter}
+              />
+            </button>
             {isMenuOpen ? (
               <div
                 className="absolute right-0 top-full z-40 mt-2 w-52 rounded-lg border border-slate-200 bg-white p-2 shadow-lg ring-1 ring-black/5 dark:border-slate-700 dark:bg-slate-900"
@@ -119,15 +129,15 @@ export const AdminTopbar = ({
               >
                 <div className="mb-1 border-b border-slate-100 px-2 pb-2 dark:border-slate-800">
                   <p className="text-sm font-semibold text-slate-900 dark:text-white" id="user-name">
-                    管理员用户
+                    {profileName}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400" id="user-role">
-                    管理员
+                    {profileRole}
                   </p>
                 </div>
                 <a
                   className="block rounded px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-50 hover:text-primary dark:text-slate-300 dark:hover:bg-slate-800"
-                  href="#"
+                  href="/profile.html"
                   onClick={closeMenu}
                   role="menuitem"
                 >

@@ -1,6 +1,8 @@
-import { getCurrentSession } from '../../lib/auth';
+import { getCurrentSession, getDisplayProfile } from '../../lib/auth';
 import { isDevMode, isMockMode } from '../../lib/env';
 import { canAccessPath, normalizePermissionMap } from '../../lib/permissions';
+import { UserAvatar } from './UserAvatar';
+import { resolveAvatarModel } from './avatar';
 
 export type AdminRouteKey =
   | 'dashboard'
@@ -47,6 +49,11 @@ type AdminSidebarProps = {
 // 后台统一侧边栏（含按权限过滤导航）。
 export const AdminSidebar = ({ currentKey, currentSettingKey }: AdminSidebarProps) => {
   const session = getCurrentSession();
+  const displayProfile = getDisplayProfile();
+  const sessionUser = (session?.user && typeof session.user === 'object') ? session.user : null;
+  const profileName = displayProfile?.name || '管理员用户';
+  const profileRole = displayProfile?.role || '管理员';
+  const avatar = resolveAvatarModel(sessionUser || { displayName: profileName });
   const permissionMap = normalizePermissionMap(session?.permissions);
   const hasPermissionItems = Array.isArray(session?.permissions?.items);
   const shouldFilterByPermissions = isDevMode || (isMockMode && hasPermissionItems);
@@ -98,13 +105,17 @@ export const AdminSidebar = ({ currentKey, currentSettingKey }: AdminSidebarProp
       </nav>
       <div className="border-t border-slate-200 p-3 dark:border-slate-800">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 overflow-hidden rounded-full bg-slate-200 bg-cover bg-center"></div>
+          <UserAvatar
+            avatarUrl={avatar.avatarUrl}
+            className="h-10 w-10"
+            fallbackLetter={avatar.fallbackLetter}
+          />
           <div className="flex flex-col">
             <span id="user-name" className="text-sm font-semibold text-slate-900 dark:text-white">
-              管理员用户
+              {profileName}
             </span>
             <span id="user-role" className="text-xs text-slate-500 dark:text-slate-400">
-              管理员
+              {profileRole}
             </span>
           </div>
         </div>

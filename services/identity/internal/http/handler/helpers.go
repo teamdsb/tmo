@@ -125,6 +125,9 @@ func userFromModel(user db.User, roles []string, userType oapi.UserUserType) oap
 	if user.Phone != nil {
 		response.Phone = user.Phone
 	}
+	if user.AvatarUrl != nil {
+		response.AvatarUrl = user.AvatarUrl
+	}
 	if user.OwnerSalesUserID.Valid {
 		ownerSalesUserID := openapi_types.UUID(user.OwnerSalesUserID.Bytes)
 		response.OwnerSalesUserId = &ownerSalesUserID
