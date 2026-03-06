@@ -59,6 +59,26 @@ services:
       - tmo-go-mod-cache:/go/pkg/mod
       - tmo-go-build-cache:/root/.cache/go-build
 
+  ai:
+    build:
+      context: ../..
+      dockerfile: services/ai/Dockerfile.dev
+      args:
+        GOPROXY: "${DEV_STACK_GOPROXY:-https://goproxy.cn,direct}"
+        GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"
+        GONOSUMDB: "${DEV_STACK_GONOSUMDB:-*}"
+    working_dir: /workspace
+    command: >
+      sh -c "air -c services/ai/.air.toml"
+    environment:
+      GOPROXY: "${DEV_STACK_GOPROXY:-https://goproxy.cn,direct}"
+      GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"
+      GONOSUMDB: "${DEV_STACK_GONOSUMDB:-*}"
+    volumes:
+      - ../..:/workspace
+      - tmo-go-mod-cache:/go/pkg/mod
+      - tmo-go-build-cache:/root/.cache/go-build
+
   gateway-bff:
     build:
       context: ../..

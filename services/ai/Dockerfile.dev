@@ -1,0 +1,16 @@
+FROM golang:1.26.0
+
+WORKDIR /workspace
+
+ARG GOPROXY=https://proxy.golang.org,direct
+ARG GOSUMDB=sum.golang.org
+ARG GONOSUMDB=
+
+ENV GOPROXY="${GOPROXY}" \
+    GOSUMDB="${GOSUMDB}" \
+    GONOSUMDB="${GONOSUMDB}"
+ENV PATH="/go/bin:${PATH}"
+
+RUN go install github.com/air-verse/air@v1.64.5
+
+CMD ["air", "-c", "services/ai/.air.toml"]
