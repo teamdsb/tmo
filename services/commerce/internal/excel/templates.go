@@ -70,6 +70,29 @@ func ProductImportTemplate() TemplateSpec {
 	}
 }
 
+func ProductRequestExportTemplate() TemplateSpec {
+	return TemplateSpec{
+		Name:      "product_request_export",
+		SheetName: "需求导出",
+		Columns: []TemplateColumn{
+			{Key: "id", Header: "需求ID"},
+			{Key: "createdbyuserid", Header: "提交人ID"},
+			{Key: "ownersalesuserid", Header: "归属销售ID"},
+			{Key: "name", Header: "商品名称"},
+			{Key: "categoryid", Header: "类目ID"},
+			{Key: "spec", Header: "规格"},
+			{Key: "material", Header: "材质"},
+			{Key: "dimensions", Header: "尺寸"},
+			{Key: "color", Header: "颜色"},
+			{Key: "qty", Header: "数量"},
+			{Key: "note", Header: "备注"},
+			{Key: "referenceimageurls", Header: "参考图片URLs"},
+			{Key: "createdat", Header: "创建时间"},
+			{Key: "updatedat", Header: "更新时间"},
+		},
+	}
+}
+
 func TemplateHeaders(spec TemplateSpec) []string {
 	headers := make([]string, 0, len(spec.Columns))
 	for _, column := range spec.Columns {

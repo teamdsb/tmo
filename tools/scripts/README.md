@@ -6,6 +6,7 @@ Bootstrap and local dev scripts.
 - `commerce-migrate.sh`: apply migrations via Go runner (no goose install).
 - `commerce-seed.sh`: seed catalog data for v0 demo.
 - `commerce-verify.sh`: smoke-check health + catalog endpoints.
+- `commerce-product-request-export-smoke.sh`: create a sample `product_requests` record, trigger `/admin/product-requests/export-jobs`, poll `/admin/import-jobs/{jobId}`, download the generated Excel, and validate it contains Chinese headers plus at least one data row.
 - `commerce-generate.sh`: regenerate sqlc + oapi-codegen outputs.
 - `identity-generate.sh`: regenerate identity sqlc + oapi-codegen outputs.
 - `identity-migrate.sh`: apply identity migrations via Go runner.

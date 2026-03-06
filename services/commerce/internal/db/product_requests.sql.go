@@ -131,6 +131,68 @@ func (q *Queries) CreateProductRequest(ctx context.Context, arg CreateProductReq
 	return i, err
 }
 
+const listProductRequestExportRows = `-- name: ListProductRequestExportRows :many
+SELECT
+    id,
+    created_by_user_id,
+    owner_sales_user_id,
+    name,
+    spec,
+    qty,
+    note,
+    created_at,
+    updated_at,
+    category_id,
+    material,
+    dimensions,
+    color,
+    reference_image_urls
+FROM product_requests
+WHERE ($1::timestamptz IS NULL OR created_at >= $1)
+  AND ($2::timestamptz IS NULL OR created_at <= $2)
+ORDER BY created_at DESC
+`
+
+type ListProductRequestExportRowsParams struct {
+	CreatedAfter  pgtype.Timestamptz `db:"created_after" json:"created_after"`
+	CreatedBefore pgtype.Timestamptz `db:"created_before" json:"created_before"`
+}
+
+func (q *Queries) ListProductRequestExportRows(ctx context.Context, arg ListProductRequestExportRowsParams) ([]ProductRequest, error) {
+	rows, err := q.db.Query(ctx, listProductRequestExportRows, arg.CreatedAfter, arg.CreatedBefore)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ProductRequest
+	for rows.Next() {
+		var i ProductRequest
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedByUserID,
+			&i.OwnerSalesUserID,
+			&i.Name,
+			&i.Spec,
+			&i.Qty,
+			&i.Note,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.CategoryID,
+			&i.Material,
+			&i.Dimensions,
+			&i.Color,
+			&i.ReferenceImageUrls,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listProductRequests = `-- name: ListProductRequests :many
 SELECT
     id,
