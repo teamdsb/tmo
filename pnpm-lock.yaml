@@ -166,6 +166,12 @@ importers:
       '@tmo/identity-services':
         specifier: workspace:*
         version: link:../../packages/identity-services
+      '@tmo/payment-api-client':
+        specifier: workspace:*
+        version: link:../../packages/payment-api-client
+      '@tmo/payment-services':
+        specifier: workspace:*
+        version: link:../../packages/payment-services
       '@tmo/platform-adapter':
         specifier: workspace:*
         version: link:../../packages/platform-adapter
@@ -386,6 +392,31 @@ importers:
         version: link:../shared
 
   packages/openapi-client: {}
+
+  packages/payment-api-client:
+    dependencies:
+      '@tmo/openapi-client':
+        specifier: workspace:*
+        version: link:../openapi-client
+    devDependencies:
+      orval:
+        specifier: ^7.5.1
+        version: 7.20.0(openapi-types@12.1.3)(typescript@5.9.3)
+
+  packages/payment-services:
+    dependencies:
+      '@tmo/openapi-client':
+        specifier: workspace:*
+        version: link:../openapi-client
+      '@tmo/payment-api-client':
+        specifier: workspace:*
+        version: link:../payment-api-client
+      '@tmo/platform-adapter':
+        specifier: workspace:*
+        version: link:../platform-adapter
+      '@tmo/shared':
+        specifier: workspace:*
+        version: link:../shared
 
   packages/platform-adapter:
     dependencies:

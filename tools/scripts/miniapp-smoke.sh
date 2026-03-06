@@ -19,8 +19,12 @@ assert_image_scope="${WEAPP_SMOKE_ASSERT_IMAGE_SCOPE:-}"
 assert_no_console_error="${WEAPP_SMOKE_ASSERT_NO_CONSOLE_ERROR:-true}"
 route_wait_ms="${WEAPP_SMOKE_ROUTE_WAIT_MS:-8000}"
 automator_connect_timeout_ms="${WEAPP_AUTOMATOR_CONNECT_TIMEOUT_MS:-}"
+route_port_base="${WEAPP_MULTI_ROUTE_PORT_BASE:-19527}"
+smoke_build="${WEAPP_SMOKE_BUILD:-true}"
+smoke_build_lower="$(printf '%s' "$smoke_build" | tr '[:upper:]' '[:lower:]')"
 summary_path="$miniapp_dir/.logs/weapp/summary.md"
 run_json_path="$miniapp_dir/.logs/weapp/run.json"
+route_logs_root="$miniapp_dir/.logs/weapp/routes"
 
 print_structured_summary() {
   if [[ ! -f "$run_json_path" ]]; then
@@ -68,33 +72,65 @@ echo "[miniapp-smoke] assert min image success: $assert_image_success_min"
 echo "[miniapp-smoke] assert image scope: ${assert_image_scope:-auto}"
 echo "[miniapp-smoke] automator connect timeout: ${automator_connect_timeout_ms:-default}"
 echo "[miniapp-smoke] assert no console error: $assert_no_console_error"
-echo "[miniapp-smoke] running automator smoke..."
+echo "[miniapp-smoke] route port base: $route_port_base"
 
-set +e
-WEAPP_AUTOMATOR_ROUTES="$automator_routes" \
-WEAPP_SMOKE_ASSERT_MIN_PRODUCTS="$assert_min_products" \
-WEAPP_SMOKE_ASSERT_CATEGORY_MIN="$assert_category_min" \
-WEAPP_SMOKE_ASSERT_IMAGE_SUCCESS_MIN="$assert_image_success_min" \
-WEAPP_SMOKE_ASSERT_IMAGE_SCOPE="$assert_image_scope" \
-WEAPP_SMOKE_ASSERT_NO_CONSOLE_ERROR="$assert_no_console_error" \
-WEAPP_SMOKE_ROUTE_WAIT_MS="$route_wait_ms" \
-pnpm -C "$miniapp_dir" run debug:weapp:collect
-status=$?
-set -e
-
-if [[ $status -ne 0 ]]; then
-  print_structured_summary || true
-  if [[ -f "$summary_path" ]]; then
-    first_failed_line="$(grep '^|' "$summary_path" | grep 'fail(' | head -n1 || true)"
-    if [[ -n "$first_failed_line" ]]; then
-      first_failed_route="$(echo "$first_failed_line" | awk -F'|' '{gsub(/^ +| +$/,"",$2); print $2}')"
-      first_failed_asserts="$(echo "$first_failed_line" | awk -F'|' '{gsub(/^ +| +$/,"",$8); print $8}')"
-      echo "[miniapp-smoke] first failed route: ${first_failed_route:-unknown}" >&2
-      echo "[miniapp-smoke] first failed assertion keys: ${first_failed_asserts:-unknown}" >&2
-    fi
-  fi
-  exit $status
+if [[ "$smoke_build_lower" == "true" ]]; then
+  echo "[miniapp-smoke] building weapp bundle once before route checks..."
+  pnpm -C "$miniapp_dir" run build:weapp:dev
 fi
+
+mkdir -p "$route_logs_root"
+
+route_index=0
+IFS=',' read -r -a route_array <<< "$automator_routes"
+
+for route in "${route_array[@]}"; do
+  route_index=$((route_index + 1))
+  route_trimmed="$(printf '%s' "$route" | xargs)"
+  if [[ -z "$route_trimmed" ]]; then
+    continue
+  fi
+
+  route_slug="$(printf '%s' "$route_trimmed" | sed 's#^/##; s#[?=&/]#-#g')"
+  route_dir="$route_logs_root/$(printf '%02d' "$route_index")-$route_slug"
+  route_port=$((route_port_base + route_index - 1))
+
+  mkdir -p "$route_dir"
+  echo "[miniapp-smoke] route[$route_index/${#route_array[@]}]: $route_trimmed (port=$route_port)"
+  pkill -f 'wechatwebdevtools.*miniapp' || true
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -ti "tcp:$route_port" | xargs kill -9 2>/dev/null || true
+  fi
+  sleep 2
+
+  set +e
+  WEAPP_AUTOMATOR_ROUTE="$route_trimmed" \
+  WEAPP_AUTOMATOR_ROUTES="" \
+  WEAPP_AUTOMATOR_PORT="$route_port" \
+  WEAPP_SKIP_BUILD=true \
+  WEAPP_FORCE_EXIT=true \
+  WEAPP_SMOKE_ASSERT_MIN_PRODUCTS="$assert_min_products" \
+  WEAPP_SMOKE_ASSERT_CATEGORY_MIN="$assert_category_min" \
+  WEAPP_SMOKE_ASSERT_IMAGE_SUCCESS_MIN="$assert_image_success_min" \
+  WEAPP_SMOKE_ASSERT_IMAGE_SCOPE="${assert_image_scope:-route}" \
+  WEAPP_SMOKE_ASSERT_NO_CONSOLE_ERROR="$assert_no_console_error" \
+  WEAPP_SMOKE_ROUTE_WAIT_MS="$route_wait_ms" \
+  pnpm -C "$miniapp_dir" run debug:weapp:collect
+  status=$?
+  set -e
+
+  for artifact in console.jsonl network.jsonl summary.md run.json; do
+    if [[ -f "$miniapp_dir/.logs/weapp/$artifact" ]]; then
+      cp "$miniapp_dir/.logs/weapp/$artifact" "$route_dir/$artifact"
+    fi
+  done
+
+  if [[ $status -ne 0 ]]; then
+    print_structured_summary || true
+    echo "[miniapp-smoke] failed route: $route_trimmed" >&2
+    exit $status
+  fi
+done
 
 print_structured_summary
 echo "[miniapp-smoke] done. summary: $summary_path"

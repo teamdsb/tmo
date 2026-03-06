@@ -106,6 +106,56 @@ func TestMiniLoginRequiresPhoneProofInRealMode(t *testing.T) {
 	}
 }
 
+func TestMiniLoginUsesWeappSimulationInRealModeWithoutWeappConfig(t *testing.T) {
+	router, pool := setupTestRouterWithPlatformConfig(t, platform.Config{
+		Mode:                       platform.LoginModeReal,
+		EnablePhoneProofSimulation: true,
+		PhoneProofSimulationPhone:  "+15550000003",
+		WeappSalesPage:             "pages/index/index",
+		WeappQRWidth:               256,
+		AlipaySalesPage:            "pages/index/index",
+	})
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+
+	firstLogin := doJSON(t, router, http.MethodPost, "/auth/mini/login", map[string]interface{}{
+		"platform": "weapp",
+		"code":     "wx-first-code",
+		"phoneProof": map[string]interface{}{
+			"code": "simulated_weapp_phone_proof",
+		},
+	}, "")
+	if firstLogin.Code != http.StatusOK {
+		t.Fatalf("expected first login 200, got %d: %s", firstLogin.Code, firstLogin.Body.String())
+	}
+
+	secondLogin := doJSON(t, router, http.MethodPost, "/auth/mini/login", map[string]interface{}{
+		"platform": "weapp",
+		"code":     "wx-second-code",
+		"phoneProof": map[string]interface{}{
+			"code": "simulated_weapp_phone_proof",
+		},
+	}, "")
+	if secondLogin.Code != http.StatusOK {
+		t.Fatalf("expected second login 200, got %d: %s", secondLogin.Code, secondLogin.Body.String())
+	}
+
+	store := db.New(pool)
+	user, err := store.GetUserByIdentity(ctx, db.GetUserByIdentityParams{
+		Provider:       "weapp",
+		ProviderUserID: "sim_weapp:+15550000003",
+	})
+	if err != nil {
+		t.Fatalf("lookup simulated identity: %v", err)
+	}
+	if user.Phone == nil || *user.Phone != "+15550000003" {
+		t.Fatalf("expected simulated phone to be bound, got %#v", user.Phone)
+	}
+}
+
 func TestPasswordLoginAdmin(t *testing.T) {
 	router, pool := setupTestRouter(t)
 	ctx := context.Background()
@@ -1058,6 +1108,15 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *pgxpool.Pool) {
 }
 
 func setupTestRouterWithMode(t *testing.T, mode platform.LoginMode) (*gin.Engine, *pgxpool.Pool) {
+	return setupTestRouterWithPlatformConfig(t, platform.Config{
+		Mode:            mode,
+		WeappSalesPage:  "pages/index/index",
+		WeappQRWidth:    256,
+		AlipaySalesPage: "pages/index/index",
+	})
+}
+
+func setupTestRouterWithPlatformConfig(t *testing.T, resolverConfig platform.Config) (*gin.Engine, *pgxpool.Pool) {
 	t.Helper()
 
 	dsn := os.Getenv("IDENTITY_DB_DSN")
@@ -1091,16 +1150,11 @@ func setupTestRouterWithMode(t *testing.T, mode platform.LoginMode) (*gin.Engine
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	store := db.New(pool)
 	apiHandler := &handler.Handler{
-		DB:     pool,
-		Logger: logger,
-		Auth:   auth.NewTokenManager("test-secret", "test-issuer", 2*time.Hour),
-		Store:  store,
-		Platform: platform.NewMiniLoginResolver(platform.Config{
-			Mode:            mode,
-			WeappSalesPage:  "pages/index/index",
-			WeappQRWidth:    256,
-			AlipaySalesPage: "pages/index/index",
-		}),
+		DB:       pool,
+		Logger:   logger,
+		Auth:     auth.NewTokenManager("test-secret", "test-issuer", 2*time.Hour),
+		Store:    store,
+		Platform: platform.NewMiniLoginResolver(resolverConfig),
 	}
 
 	router := httpserver.NewRouter(apiHandler, logger, func(ctx context.Context) error {

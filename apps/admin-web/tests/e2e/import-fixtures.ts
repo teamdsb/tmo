@@ -22,7 +22,7 @@ const PRODUCT_IMPORT_HEADERS = [
   'Price Tiers (Fen)'
 ];
 
-export const loginMockBoss = async (page: Page) => {
+export const loginAsBoss = async (page: Page) => {
   await page.goto('/');
   await page.fill('#username', 'boss');
   await page.fill('#password', 'boss123');
@@ -30,25 +30,7 @@ export const loginMockBoss = async (page: Page) => {
     page.waitForURL('**/dashboard.html'),
     page.locator('#login-form button[type="submit"]').click()
   ]);
-};
-
-export const seedDevAuthState = async (page: Page) => {
-  await page.addInitScript(() => {
-    localStorage.setItem('tmo:admin:web:auth', JSON.stringify({
-      mode: 'dev',
-      accessToken: 'playwright-dev-token',
-      currentRole: 'BOSS',
-      user: {
-        id: 'boss-user',
-        displayName: 'Boss User',
-        userType: 'admin',
-        roles: ['BOSS']
-      },
-      permissions: null,
-      featureFlags: null,
-      loginAt: '2026-03-06T00:00:00Z'
-    }));
-  });
+  await page.waitForURL(/dashboard\.html/);
 };
 
 export const createImportFixture = async (

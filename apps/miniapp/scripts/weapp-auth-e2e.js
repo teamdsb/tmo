@@ -17,6 +17,23 @@ const cliCandidates = [
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+const waitFor = async (predicate, options = {}) => {
+  const timeoutMs = Number(options.timeoutMs || 12000)
+  const intervalMs = Number(options.intervalMs || 400)
+  const startAt = Date.now()
+  let lastValue
+
+  while (Date.now() - startAt <= timeoutMs) {
+    lastValue = await predicate()
+    if (lastValue) {
+      return lastValue
+    }
+    await sleep(intervalMs)
+  }
+
+  return lastValue
+}
+
 const normalizePath = (value) => String(value || '').replace(/^\/+/, '')
 
 const readErrorText = (error) => {
@@ -149,12 +166,31 @@ const run = async () => {
     const loginButton = await page.$('.login-native-button')
     assertPass(checks, 'login.primary.button', Boolean(loginButton), 'login button should be found')
     await loginButton.tap()
-    await sleep(6500)
+    const loginState = await waitFor(async () => {
+      const currentPage = await miniProgram.currentPage()
+      const currentRoute = normalizePath(currentPage?.path)
+      const token = await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
+      const bootstrap = await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
+      if (
+        currentRoute !== 'pages/auth/login/index'
+        && typeof token === 'string'
+        && token.trim().length > 0
+        && hasBootstrapMe(bootstrap)
+      ) {
+        return {
+          page: currentPage,
+          routeAfterLogin: currentRoute,
+          tokenAfterLogin: token,
+          bootstrapAfterLogin: bootstrap
+        }
+      }
+      return null
+    }, { timeoutMs: 15000, intervalMs: 500 })
 
-    page = await miniProgram.currentPage()
-    const routeAfterLogin = normalizePath(page?.path)
-    const tokenAfterLogin = await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
-    const bootstrapAfterLogin = await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
+    page = loginState?.page ?? await miniProgram.currentPage()
+    const routeAfterLogin = loginState?.routeAfterLogin ?? normalizePath(page?.path)
+    const tokenAfterLogin = loginState?.tokenAfterLogin ?? await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
+    const bootstrapAfterLogin = loginState?.bootstrapAfterLogin ?? await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
 
     assertPass(
       checks,
@@ -182,10 +218,20 @@ const run = async () => {
     const logoutButton = await page.$('#mine-logout-btn')
     assertPass(checks, 'logout.button.visible', Boolean(logoutButton), 'logout button should be found by #mine-logout-btn')
     await logoutButton.tap()
-    await sleep(2500)
+    const logoutState = await waitFor(async () => {
+      const token = await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
+      const bootstrap = await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
+      if (
+        (token === '' || token === null || token === undefined)
+        && (bootstrap === '' || bootstrap === null || bootstrap === undefined)
+      ) {
+        return { tokenAfterLogout: token, bootstrapAfterLogout: bootstrap }
+      }
+      return null
+    }, { timeoutMs: 10000, intervalMs: 400 })
 
-    const tokenAfterLogout = await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
-    const bootstrapAfterLogout = await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
+    const tokenAfterLogout = logoutState?.tokenAfterLogout ?? await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
+    const bootstrapAfterLogout = logoutState?.bootstrapAfterLogout ?? await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
 
     assertPass(
       checks,

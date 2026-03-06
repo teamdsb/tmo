@@ -93,10 +93,12 @@
     pnpm -C apps/miniapp debug:weapp:smoke:standard
     pnpm -C apps/miniapp debug:weapp:smoke:strict
     pnpm -C apps/miniapp debug:weapp:summary
+    pnpm run test:fullstack:real
 
 说明：
 
 - `debug:weapp:auto` 会先执行 `tools/scripts/dev-stack-up.sh`（拉起 postgres + backend 容器、migrate/seed、健康检查），再执行采集脚本。
+- `pnpm run test:fullstack:real` 会把 admin-web real 验收与 miniapp weapp real 验收串起来，默认设置 `TARO_APP_MOCK_MODE=off`、`TARO_APP_ENABLE_MOCK_LOGIN=false`、`TARO_APP_WEAPP_PHONE_PROOF_SIMULATION=true`。
 - `dev-stack-up.sh` 默认不强制重建镜像；如需重建可加 `DEV_STACK_BUILD_IMAGES=true`。
 - `debug:weapp:smoke` 默认执行 4 条核心路由（首页/分类/搜索/商品详情）的 automator 烟测，并把每条路由的日志单独归档到 `apps/miniapp/.logs/weapp/routes/`。
 - 若只想快速验证后端核心接口和图片代理，不启用微信 DevTools，可执行：

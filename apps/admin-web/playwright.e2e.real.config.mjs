@@ -1,10 +1,10 @@
 import { defineConfig } from '@playwright/test';
 
-const baseURL = process.env.ADMIN_WEB_BASE_URL || 'http://127.0.0.1:5174';
+const baseURL = process.env.ADMIN_WEB_BASE_URL || 'http://127.0.0.1:5175';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  testMatch: /.*\.real\.spec\.ts/,
+  testMatch: /.*(?:\.real|-real)\.spec\.ts/,
   timeout: 180000,
   expect: {
     timeout: 15000
@@ -21,9 +21,9 @@ export default defineConfig({
   webServer: process.env.ADMIN_WEB_BASE_URL
     ? undefined
     : {
-        command: 'pnpm dev:real',
+        command: 'VITE_ADMIN_WEB_MODE=dev VITE_ADMIN_WEB_API_BASE_URL=/api vite --host 127.0.0.1 --port 5175',
         url: baseURL,
-        reuseExistingServer: true,
+        reuseExistingServer: false,
         timeout: 180000
       }
 });
