@@ -498,8 +498,9 @@ export default function PersonalCenter() {
   }, [])
 
   const isLoggedIn = Boolean(bootstrap?.me)
-  const displayName = bootstrap?.me?.displayName ?? '王小明'
-  const ownerSalesDisplayName = bootstrap?.me?.ownerSalesDisplayName?.trim() || '李经理 (专属顾问)'
+  const displayName = bootstrap?.me?.displayName?.trim() || (isLoggedIn ? '企业用户' : '未登录')
+  const roleLabel = bootstrap?.me?.roles?.find((role) => typeof role === 'string' && role.trim())?.trim() || '高级 B2B 客户经理'
+  const ownerSalesDisplayName = bootstrap?.me?.ownerSalesDisplayName?.trim() || '暂未分配专属顾问'
 
   const orderItems: OrderItem[] = [
     {
@@ -663,8 +664,12 @@ export default function PersonalCenter() {
                   <Text className='truncate text-2xl font-bold mine-modern-text'>{displayName}</Text>
                   <ShieldOutlined className='text-lg text-green-500' />
                 </View>
-                <Text className='mt-1 block text-base font-medium mine-modern-subtle'>高级 B2B 客户经理</Text>
-                <Text className='mt-1 block text-sm mine-modern-muted'>{ownerSalesDisplayName} · 已绑定专属渠道</Text>
+                <Text className='mt-1 block text-base font-medium mine-modern-subtle'>
+                  {isLoggedIn ? roleLabel : '登录后查看企业采购权益'}
+                </Text>
+                <Text className='mt-1 block text-sm mine-modern-muted'>
+                  {isLoggedIn ? `${ownerSalesDisplayName} · 已绑定专属渠道` : '登录后同步订单、需求与收藏'}
+                </Text>
               </View>
             </View>
 
@@ -690,24 +695,26 @@ export default function PersonalCenter() {
             </View>
 
             <View className='mine-modern-surface mb-4 overflow-hidden rounded-3xl'>
-              <View
-                onClick={() => setCurrentPage('chat')}
-                className='mine-modern-menu-row flex items-center justify-between px-4 py-5 border-b mine-modern-border'
-              >
-                <View className='flex items-center gap-3'>
-                  <View className='mine-modern-menu-icon flex h-10 w-10 items-center justify-center rounded-xl'>
-                    <ChatOutlined className='text-lg mine-modern-subtle' />
+              {isLoggedIn ? (
+                <View
+                  onClick={() => setCurrentPage('chat')}
+                  className='mine-modern-menu-row flex items-center justify-between px-4 py-5 border-b mine-modern-border'
+                >
+                  <View className='flex items-center gap-3'>
+                    <View className='mine-modern-menu-icon flex h-10 w-10 items-center justify-center rounded-xl'>
+                      <ChatOutlined className='text-lg mine-modern-subtle' />
+                    </View>
+                    <View className='flex flex-col'>
+                      <Text className='text-base font-semibold mine-modern-text'>专属客户经理</Text>
+                      <Text className='text-xs mine-modern-subtle'>在线咨询</Text>
+                    </View>
                   </View>
-                  <View className='flex flex-col'>
-                    <Text className='text-base font-semibold mine-modern-text'>专属客户经理</Text>
-                    <Text className='text-xs mine-modern-subtle'>在线咨询</Text>
+                  <View className='flex items-center gap-2'>
+                    <View className='mine-modern-online-dot h-1.5 w-1.5 rounded-full'></View>
+                    <ArrowRight className='text-base mine-modern-subtle' />
                   </View>
                 </View>
-                <View className='flex items-center gap-2'>
-                  <View className='mine-modern-online-dot h-1.5 w-1.5 rounded-full'></View>
-                  <ArrowRight className='text-base mine-modern-subtle' />
-                </View>
-              </View>
+              ) : null}
               {menuItems.map((item, index) => (
                 <MenuLink
                   key={item.key}
@@ -729,6 +736,7 @@ export default function PersonalCenter() {
 
           <View className='mt-4'>
             <NativeButton
+              id='mine-logout-btn'
               className='mine-modern-logout-btn flex w-full items-center justify-center gap-2 rounded-2xl border py-4 mine-modern-border'
               onClick={isLoggedIn ? handleLogout : () => navigateTo(ROUTES.authLogin)}
               disabled={loggingOut}
