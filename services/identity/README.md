@@ -8,6 +8,9 @@ Identity service for authentication, JWT issuing, and sales binding.
 
    `bash tools/scripts/dev-bootstrap.sh`
 
+   若 admin-web real 登录异常，先执行 `bash tools/scripts/identity-seed-check.sh`。
+   若检查失败，再执行 `bash tools/scripts/identity-repair.sh` 重置并修复 identity fixtures。
+
 2) Run the service:
 
    `cd services/identity && IDENTITY_HTTP_ADDR=":8081" IDENTITY_DB_DSN="postgres://commerce:commerce@localhost:5432/identity?sslmode=disable" IDENTITY_LOGIN_MODE="real" go run ./cmd/identity`
@@ -29,6 +32,8 @@ Identity service for authentication, JWT issuing, and sales binding.
 - admin-web password login role whitelist: `BOSS`, `MANAGER`, `ADMIN`, `CS`.
 - `SALES` 不允许 password login（业务员仅走 miniapp 登录）。
 - `tools/scripts/identity-seed.sh` 反复执行会收敛固定账号角色（删除历史多余角色并补齐缺失角色），避免本地脏数据导致角色漂移。
+- `tools/scripts/identity-seed-check.sh` 会校验固定账号、密码、角色、mock 绑定和手机号白名单；若 gateway 可达，还会进一步校验 real password login 与 `/bff/bootstrap`。
+- `tools/scripts/identity-repair.sh` 会重置 identity 相关 seed 数据并重新种入固定 fixtures，适合处理“admin-web real 登录失败但 seed 看似跑过”的场景。
 
 默认 seed 还会写入以下手机号（`users.phone`）：
 
@@ -83,5 +88,7 @@ Identity service for authentication, JWT issuing, and sales binding.
 - `tools/scripts/identity-generate.sh`: sqlc + oapi-codegen
 - `tools/scripts/identity-migrate.sh`: apply migrations
 - `tools/scripts/identity-seed.sh`: seed dev users/roles
+- `tools/scripts/identity-seed-check.sh`: verify DB fixtures and real login baseline
+- `tools/scripts/identity-repair.sh`: reset + reseed + verify identity fixtures
 - `tools/scripts/dev-seed.sh`: seed commerce + identity together
 - `tools/scripts/gateway-verify-real.sh`: verify gateway + identity real-mode login constraints

@@ -79,8 +79,9 @@ if [[ "$postgres_status" != "healthy" && "$postgres_status" != "running" ]]; the
 fi
 
 echo "[dev-stack-up] bootstrapping databases (migrate + seed)..."
-bash "$root_dir/tools/scripts/dev-bootstrap.sh"
+IDENTITY_SEED_RESET=true bash "$root_dir/tools/scripts/dev-bootstrap.sh"
 bash "$root_dir/tools/scripts/dev-seed.sh"
+IDENTITY_SEED_CHECK_MODE=db bash "$root_dir/tools/scripts/identity-seed-check.sh"
 
 echo "[dev-stack-up] starting backend containers (identity/commerce/payment/gateway)..."
 compose_args=(
@@ -119,5 +120,6 @@ fi
 
 echo "[dev-stack-up] waiting for service readiness..."
 bash "$root_dir/tools/scripts/dev-stack-health.sh"
+IDENTITY_SEED_CHECK_MODE=full bash "$root_dir/tools/scripts/identity-seed-check.sh"
 
 echo "[dev-stack-up] backend stack is ready."

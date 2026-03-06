@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -54,6 +55,7 @@ func run() error {
 	}
 
 	if strings.EqualFold(os.Getenv("IDENTITY_SEED_RESET"), "true") {
+		fmt.Println("resetting identity seed data...")
 		if _, err := pool.Exec(ctx, `
 TRUNCATE TABLE
   audit_logs,
@@ -224,6 +226,9 @@ RESTART IDENTITY CASCADE
 	if err := ensurePassword(ctx, pool, salesID, salesUsername, string(salesPasswordHash)); err != nil {
 		return err
 	}
+	if err := verifySeedState(ctx, pool); err != nil {
+		return err
+	}
 
 	fmt.Println("seed data applied (identity)")
 	fmt.Println("web login accounts:")
@@ -235,6 +240,99 @@ RESTART IDENTITY CASCADE
 	fmt.Printf("- %s / %s (role: SALES, password login disabled)\n", salesUsername, salesPassword)
 	fmt.Println("seeded phones: +15550000001(admin), +15550000002(sales), +15550000003(customer), +15550000004(multi-role), +15550000005(boss), +15550000006(manager), +15550000007(cs)")
 	return nil
+}
+
+func verifySeedState(ctx context.Context, pool *pgxpool.Pool) error {
+	requiredPasswords := map[string]string{
+		adminUsername:   "ADMIN",
+		bossUsername:    "BOSS",
+		managerUsername: "MANAGER",
+		csUsername:      "CS",
+		salesUsername:   "SALES",
+	}
+	for username, role := range requiredPasswords {
+		var exists bool
+		if err := pool.QueryRow(ctx, `
+SELECT EXISTS (
+  SELECT 1
+  FROM user_passwords up
+  JOIN user_roles ur ON ur.user_id = up.user_id
+  WHERE up.username = $1 AND ur.role = $2
+)
+`, username, role).Scan(&exists); err != nil {
+			return fmt.Errorf("verify password seed for %s: %w", username, err)
+		}
+		if !exists {
+			return fmt.Errorf("verify password seed for %s: missing password or role %s", username, role)
+		}
+	}
+
+	requiredBindings := map[string]string{
+		"mock_sales_001":    "SALES",
+		"mock_customer_001": "CUSTOMER",
+		"mock_multi_001":    "CUSTOMER",
+	}
+	for providerUserID, role := range requiredBindings {
+		var exists bool
+		if err := pool.QueryRow(ctx, `
+SELECT EXISTS (
+  SELECT 1
+  FROM user_identities ui
+  JOIN user_roles ur ON ur.user_id = ui.user_id
+  WHERE ui.provider = 'weapp' AND ui.provider_user_id = $1 AND ur.role = $2
+)
+`, providerUserID, role).Scan(&exists); err != nil {
+			return fmt.Errorf("verify identity binding %s: %w", providerUserID, err)
+		}
+		if !exists {
+			return fmt.Errorf("verify identity binding %s: missing role %s", providerUserID, role)
+		}
+	}
+
+	requiredPhones := map[string][]string{
+		"+15550000002": {"SALES"},
+		"+15550000004": {"SALES", "CS"},
+	}
+	for phone, roles := range requiredPhones {
+		var stored []string
+		if err := pool.QueryRow(ctx, `
+SELECT roles
+FROM staff_phone_whitelist
+WHERE phone = $1 AND enabled = true
+`, phone).Scan(&stored); err != nil {
+			if err == pgx.ErrNoRows {
+				return fmt.Errorf("verify phone whitelist %s: %w", phone, err)
+			}
+			return fmt.Errorf("verify phone whitelist %s: %w", phone, err)
+		}
+		if !sameStringSet(stored, roles) {
+			return fmt.Errorf("verify phone whitelist %s: expected roles %v, got %v", phone, roles, stored)
+		}
+	}
+
+	return nil
+}
+
+func sameStringSet(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	seen := make(map[string]int, len(left))
+	for _, item := range left {
+		seen[item]++
+	}
+	for _, item := range right {
+		seen[item]--
+		if seen[item] < 0 {
+			return false
+		}
+	}
+	for _, count := range seen {
+		if count != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 type seedUser struct {

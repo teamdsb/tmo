@@ -11,9 +11,11 @@ Bootstrap and local dev scripts.
 - `identity-generate.sh`: regenerate identity sqlc + oapi-codegen outputs.
 - `identity-migrate.sh`: apply identity migrations via Go runner.
 - `identity-seed.sh`: seed identity dev users/roles.
+- `identity-seed-check.sh`: verify identity DB fixtures and, when gateway is reachable, real password-login + bootstrap.
+- `identity-repair.sh`: reset/reseed identity fixtures, then run `identity-seed-check.sh`.
 - `dev-seed.sh`: run commerce + identity seed scripts in one shot.
 - `dev-bootstrap.sh`: start Postgres, run commerce + identity migrations and seed.
-- `dev-stack-up.sh`: start local Docker stack (postgres + backend services), run bootstrap/seed, then wait for readiness (`DEV_STACK_BUILD_IMAGES=true` to force image rebuild; `DEV_STACK_AIR=true` to enable `infra/dev/docker-compose.dev.yml` overlay and run all Go services with Air hot reload). The script now injects stable Go module env by default (`DEV_STACK_GOPROXY=https://goproxy.cn,direct`, `DEV_STACK_GOSUMDB=off`, `DEV_STACK_GONOSUMDB=*`) and you can override them per command.
+- `dev-stack-up.sh`: start local Docker stack (postgres + backend services), run bootstrap/seed, enforce identity seed DB checks before container startup, then wait for readiness and enforce real password-login + bootstrap checks (`DEV_STACK_BUILD_IMAGES=true` to force image rebuild; `DEV_STACK_AIR=true` to enable `infra/dev/docker-compose.dev.yml` overlay and run all Go services with Air hot reload). The script now injects stable Go module env by default (`DEV_STACK_GOPROXY=https://goproxy.cn,direct`, `DEV_STACK_GOSUMDB=off`, `DEV_STACK_GONOSUMDB=*`) and you can override them per command.
 - `infra/dev/docker-compose.dev.yml`: overlay compose file for dev containers (Dockerfile.dev + source mount + Air command + Go cache volumes).
 - `dev-stack-health.sh`: check local identity/commerce/payment/gateway `/ready` and `/health` endpoints, then validate gateway business endpoints (`/bff/bootstrap`, `/catalog/categories`, `/catalog/products`).
 - `dev-diagnose-db.sh`: print DB failure diagnostics from container health/logs (used by stack health and preflight failure paths).

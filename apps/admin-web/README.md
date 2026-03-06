@@ -22,6 +22,18 @@ pnpm -C apps/admin-web dev:mock
 pnpm -C apps/admin-web dev:real
 ```
 
+如果 real 模式下 `admin/admin123`、`boss/boss123` 等固定账号返回“账号或密码错误”，先在仓库根目录执行：
+
+```bash
+bash tools/scripts/identity-seed-check.sh
+```
+
+若检查失败，再执行：
+
+```bash
+bash tools/scripts/identity-repair.sh
+```
+
 4. 一键启动 backend + admin-web（dev 模式）：
 
 ```bash
@@ -52,6 +64,8 @@ mock/dev 常用账号如下（dev 仅支持 `BOSS/MANAGER/ADMIN/CS` 密码登录
 - username: `manager` / password: `manager123`
 - username: `cs` / password: `cs123`
 - username: `sales` / password: `sales123`（仅 mock；dev 下不支持密码登录）
+
+这些 dev 账号依赖 identity seed 基线。`dev-stack-up` 现在会在 backend 启动后强制校验这批账号能否真实登录；校验失败时会直接中断，而不是继续让前端连到坏环境。
 
 默认 gateway 基址通过 Vite 代理 `/api -> http://localhost:8080`。
 可通过环境变量 `ADMIN_WEB_PROXY_TARGET` 覆盖代理目标。
