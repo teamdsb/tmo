@@ -291,6 +291,15 @@ type ProductRequest struct {
 	ReferenceImageUrls []string           `db:"reference_image_urls" json:"reference_image_urls"`
 }
 
+type ProductRequestExportJob struct {
+	JobID         uuid.UUID          `db:"job_id" json:"job_id"`
+	CreatedAfter  pgtype.Timestamptz `db:"created_after" json:"created_after"`
+	CreatedBefore pgtype.Timestamptz `db:"created_before" json:"created_before"`
+	ExportedRows  int32              `db:"exported_rows" json:"exported_rows"`
+	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
 type UserAddress struct {
 	ID            uuid.UUID          `db:"id" json:"id"`
 	UserID        uuid.UUID          `db:"user_id" json:"user_id"`

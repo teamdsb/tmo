@@ -18,6 +18,7 @@ import (
 	"github.com/teamdsb/tmo/services/commerce/internal/http/handler"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/middleware"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/productimport"
+	"github.com/teamdsb/tmo/services/commerce/internal/modules/productrequestexport"
 
 	"github.com/teamdsb/tmo/packages/go-shared/observability"
 )
@@ -74,25 +75,31 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	store := db.New(pool)
 	auth := middleware.NewAuthenticator(cfg.AuthEnabled, cfg.JWTSecret, cfg.JWTIssuer)
 	productImportService := productimport.NewService(pool, cfg.MediaLocalOutputDir, cfg.MediaPublicBaseURL, logger)
+	productRequestExportService := productrequestexport.NewService(pool, cfg.MediaLocalOutputDir, cfg.MediaPublicBaseURL)
 	apiHandler := &handler.Handler{
-		AddressStore:        store,
-		CatalogStore:        store,
-		CartStore:           store,
-		OrderStore:          store,
-		TrackingStore:       store,
-		WishlistStore:       store,
-		ProductRequestStore: store,
-		AfterSalesStore:     store,
-		InquiryStore:        store,
-		ProductImport:       productImportService,
-		MediaLocalOutputDir: cfg.MediaLocalOutputDir,
-		MediaPublicBaseURL:  cfg.MediaPublicBaseURL,
-		DB:                  pool,
-		Auth:                auth,
-		Logger:              logger,
+		AddressStore:         store,
+		CatalogStore:         store,
+		CartStore:            store,
+		OrderStore:           store,
+		TrackingStore:        store,
+		WishlistStore:        store,
+		ProductRequestStore:  store,
+		AfterSalesStore:      store,
+		InquiryStore:         store,
+		ProductImport:        productImportService,
+		ProductRequestExport: productRequestExportService,
+		MediaLocalOutputDir:  cfg.MediaLocalOutputDir,
+		MediaPublicBaseURL:   cfg.MediaPublicBaseURL,
+		DB:                   pool,
+		Auth:                 auth,
+		Logger:               logger,
 	}
 	(&productimport.Worker{
 		Runner: productImportService,
+		Logger: logger,
+	}).Start(ctx)
+	(&productrequestexport.Worker{
+		Runner: productRequestExportService,
 		Logger: logger,
 	}).Start(ctx)
 

@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 
 const MOCK_IMPORTED_PRODUCTS_STORAGE_KEY = 'admin-web-mock-imported-products';
 const MOCK_IMPORT_JOBS_STORAGE_KEY = 'admin-web-mock-import-jobs';
+const PRODUCT_REQUEST_EXPORT_FILE_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 const PRODUCT_IMPORT_COLUMNS = [
   'groupkey',
@@ -23,6 +24,22 @@ const PRODUCT_IMPORT_COLUMNS = [
 ];
 
 const REQUIRED_COLUMNS = ['groupkey', 'productname', 'categoryid'];
+const PRODUCT_REQUEST_EXPORT_HEADERS = [
+  '需求ID',
+  '提交人ID',
+  '归属销售ID',
+  '商品名称',
+  '类目ID',
+  '规格',
+  '材质',
+  '尺寸',
+  '颜色',
+  '数量',
+  '备注',
+  '参考图片URLs',
+  '创建时间',
+  '更新时间'
+];
 
 const IMAGE_MIME_BY_EXT = {
   png: 'image/png',
@@ -503,4 +520,88 @@ export const saveMockProductImportJob = (job) => {
 
 export const getMockProductImportJob = (jobId) => {
   return loadMockProductImportJobs().find((item) => item?.id === jobId) || null;
+};
+
+const buildMockProductRequestExportRows = () => {
+  const timestamp = new Date().toISOString();
+  return [
+    [
+      'mock-request-001',
+      'mock-customer-001',
+      'mock-sales-001',
+      '高精度铝合金支架',
+      'mock-category-metal',
+      '6061-T6',
+      '铝合金',
+      '120x40x8mm',
+      '银色',
+      '200 件',
+      '用于打样报价',
+      'https://example.com/mock-request-001-a.png | https://example.com/mock-request-001-b.png',
+      timestamp,
+      timestamp
+    ],
+    [
+      'mock-request-002',
+      'mock-customer-002',
+      '',
+      '注塑外壳',
+      'mock-category-plastic',
+      'ABS',
+      'ABS',
+      '180x90x35mm',
+      '黑色',
+      '500 件',
+      '需要开模建议',
+      '',
+      timestamp,
+      timestamp
+    ]
+  ];
+};
+
+const buildMockProductRequestExportFileUrl = () => {
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.aoa_to_sheet([
+    PRODUCT_REQUEST_EXPORT_HEADERS,
+    ...buildMockProductRequestExportRows()
+  ]);
+  XLSX.utils.book_append_sheet(workbook, worksheet, '需求导出');
+  const base64 = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+  return `data:${PRODUCT_REQUEST_EXPORT_FILE_MIME};base64,${base64}`;
+};
+
+export const advanceMockProductImportJob = (jobId) => {
+  const current = getMockProductImportJob(jobId);
+  if (!current) {
+    return null;
+  }
+  if (current.type !== 'PRODUCT_REQUEST_EXPORT' || !['PENDING', 'RUNNING'].includes(current.status)) {
+    return current;
+  }
+
+  const nextPollCount = Number(current.mockPollCount || 0) + 1;
+  const nextJob = nextPollCount >= 2
+    ? {
+        ...current,
+        status: 'SUCCEEDED',
+        progress: 100,
+        resultFileUrl: buildMockProductRequestExportFileUrl(),
+        details: {
+          exportedRows: 2,
+          note: 'Mock 模式已生成需求导出 Excel 文件。'
+        },
+        mockPollCount: nextPollCount
+      }
+    : {
+        ...current,
+        status: 'RUNNING',
+        progress: Math.max(Number(current.progress) || 0, 55),
+        details: {
+          note: 'Mock 模式正在生成需求导出文件。'
+        },
+        mockPollCount: nextPollCount
+      };
+  saveMockProductImportJob(nextJob);
+  return nextJob;
 };

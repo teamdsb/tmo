@@ -12,9 +12,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/teamdsb/tmo/services/commerce/internal/db"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/productimport"
+	"github.com/teamdsb/tmo/services/commerce/internal/modules/productrequestexport"
 )
 
 type productRequestExportJobRequest struct {
@@ -95,19 +95,21 @@ func (h *Handler) PostAdminProductRequestsExportJobs(c *gin.Context) {
 		return
 	}
 
+	if h.ProductRequestExport == nil {
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "product request export is not configured")
+		return
+	}
+
 	var request productRequestExportJobRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
 		return
 	}
 
-	job, err := h.TrackingStore.CreateImportJob(c.Request.Context(), db.CreateImportJobParams{
-		Type:            string(oapi.ImportJobTypePRODUCTREQUESTEXPORT),
-		Status:          string(oapi.PENDING),
-		Progress:        0,
-		ResultFileUrl:   nil,
-		ErrorReportUrl:  nil,
+	job, err := h.ProductRequestExport.Enqueue(c.Request.Context(), productrequestexport.EnqueueInput{
 		CreatedByUserID: pgtype.UUID{Bytes: claims.UserID, Valid: true},
+		CreatedAfter:    request.CreatedAfter,
+		CreatedBefore:   request.CreatedBefore,
 	})
 	if err != nil {
 		h.logError("create export job failed", err)

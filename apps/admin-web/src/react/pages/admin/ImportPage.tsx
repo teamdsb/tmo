@@ -12,6 +12,7 @@ import {
 import { ensureProtectedPage } from '../../../lib/guard';
 import { hasPermission, normalizePermissionMap } from '../../../lib/permissions';
 import {
+  advanceMockProductImportJob,
   getMockProductImportJob,
   parseMockProductImport,
   saveMockProductImportJob,
@@ -140,12 +141,25 @@ export const ImportPage = () => {
   }, [context, canManageFlags]);
 
   useEffect(() => {
-    if (!context || context.mode !== 'dev' || !latestJob?.id || !['PENDING', 'RUNNING'].includes(latestJob.status)) {
+    if (!context || !latestJob?.id || !['PENDING', 'RUNNING'].includes(latestJob.status)) {
       return;
     }
 
     let cancelled = false;
     const timer = window.setInterval(() => {
+      if (context.mode === 'mock') {
+        const nextJob = advanceMockProductImportJob(latestJob.id);
+        if (cancelled || !nextJob) {
+          return;
+        }
+        setLatestJob(nextJob as ImportJobView);
+        setLatestResponse(nextJob);
+        if (!['PENDING', 'RUNNING'].includes(String(nextJob.status || ''))) {
+          window.clearInterval(timer);
+        }
+        return;
+      }
+
       void getAdminImportJob(latestJob.id).then((response) => {
         if (cancelled) {
           return;
@@ -296,20 +310,18 @@ export const ImportPage = () => {
     setSubmittingAction('request-export');
     try {
       if (context.mode === 'mock') {
-        const mockJob: ImportJobView = {
+        const mockJob: ImportJobView & { mockPollCount: number } = {
           id: buildMockJobId('request-export'),
           type: 'PRODUCT_REQUEST_EXPORT',
-          status: 'SUCCEEDED',
-          progress: 100,
+          status: 'PENDING',
+          progress: 0,
           createdAt: new Date().toISOString(),
-          details: {
-            note: 'Mock 模式下仅模拟需求导出任务。'
-          }
+          mockPollCount: 0
         };
         setLatestJob(mockJob);
         setLatestResponse(mockJob);
         saveMockProductImportJob(mockJob);
-        setStatusMessage('Mock 模式已模拟需求导出任务。');
+        setStatusMessage('Mock 需求导出任务已创建，页面会自动轮询任务状态。');
         return;
       }
 
@@ -320,7 +332,7 @@ export const ImportPage = () => {
         return;
       }
       setLatestJob(response.data as ImportJobView);
-      setStatusMessage('需求导出任务已创建。');
+      setStatusMessage('需求导出任务已创建，页面会自动轮询任务状态。');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : String(error));
     } finally {
@@ -337,7 +349,7 @@ export const ImportPage = () => {
     setSubmittingAction('query-job');
     try {
       if (context.mode === 'mock') {
-        const job = getMockProductImportJob(queryJobId.trim());
+        const job = advanceMockProductImportJob(queryJobId.trim()) || getMockProductImportJob(queryJobId.trim());
         if (!job) {
           setErrorMessage('未找到该 mock 任务。');
           return;
@@ -382,6 +394,7 @@ export const ImportPage = () => {
   };
 
   const jobToneClass = statusToneClass[String(latestJob?.status || '').toUpperCase()] || 'bg-slate-100 text-slate-700 border border-slate-200';
+  const resultFileLabel = latestJob?.type === 'PRODUCT_REQUEST_EXPORT' ? '下载导出文件' : '下载结果摘要';
 
   return (
     <>
@@ -546,6 +559,7 @@ export const ImportPage = () => {
 
                 <button
                   className="mt-5 inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  data-testid="request-export-submit"
                   disabled={!canRequestExport || submittingAction === 'request-export'}
                   onClick={() => {
                     void handleRequestExport();
@@ -686,7 +700,7 @@ export const ImportPage = () => {
                       rel="noreferrer"
                       target="_blank"
                     >
-                      <span>下载结果摘要</span>
+                      <span>{resultFileLabel}</span>
                       <span className="material-symbols-outlined text-lg">download</span>
                     </a>
                   ) : null}
