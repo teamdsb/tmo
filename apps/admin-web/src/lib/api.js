@@ -28,7 +28,7 @@ import {
   setIdentityApiClientConfig
 } from '@tmo/identity-api-client';
 
-import { apiBaseUrl, isDevMode } from './env';
+import { apiBaseUrl, isDevMode, paymentApiBaseUrl } from './env';
 import { getAccessToken } from './state';
 
 const toHeaderRecord = (headers) => {
@@ -88,8 +88,12 @@ setIdentityApiClientConfig({ baseUrl, requester });
 setGatewayApiClientConfig({ baseUrl, requester });
 setApiClientConfig({ baseUrl, requester });
 
-const joinPath = (path) => {
-  const base = (isDevMode ? apiBaseUrl || '/api' : '').replace(/\/+$/, '');
+const resolveBaseUrl = (value, fallback = '') => {
+  return (isDevMode ? value || fallback : value || '').replace(/\/+$/, '');
+};
+
+const joinPath = (path, baseOverride = undefined) => {
+  const base = resolveBaseUrl(baseOverride, '/api');
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   if (!base) {
     return normalizedPath;
@@ -97,7 +101,7 @@ const joinPath = (path) => {
   return `${base}${normalizedPath}`;
 };
 
-export const requestRaw = async (path, options = {}) => {
+const requestWithBase = async (path, options = {}, baseOverride = undefined) => {
   const headers = {
     ...(options.headers || {})
   };
@@ -129,12 +133,20 @@ export const requestRaw = async (path, options = {}) => {
     }
   }
 
-  const response = await fetch(joinPath(path), init);
+  const response = await fetch(joinPath(path, baseOverride), init);
   return {
     status: response.status,
     data: await parseBody(response),
     headers: toHeaderRecord(response.headers)
   };
+};
+
+export const requestRaw = async (path, options = {}) => {
+  return requestWithBase(path, options, apiBaseUrl);
+};
+
+export const requestPaymentRaw = async (path, options = {}) => {
+  return requestWithBase(path, options, paymentApiBaseUrl);
 };
 
 export const passwordLogin = async (username, password, role) => {
@@ -409,23 +421,23 @@ export const fetchAdminSupplierScorecards = async (supplierId) => {
 };
 
 export const fetchAdminPaymentTransactions = async (params = {}) => {
-  return requestRaw(`/admin/payments/transactions${buildQueryString(params)}`);
+  return requestPaymentRaw(`/admin/payments/transactions${buildQueryString(params)}`);
 };
 
 export const fetchAdminPaymentTransaction = async (transactionId) => {
-  return requestRaw(`/admin/payments/transactions/${transactionId}`);
+  return requestPaymentRaw(`/admin/payments/transactions/${transactionId}`);
 };
 
 export const fetchAdminPaymentAuditLogs = async (params = {}) => {
-  return requestRaw(`/admin/payments/audit-logs${buildQueryString(params)}`);
+  return requestPaymentRaw(`/admin/payments/audit-logs${buildQueryString(params)}`);
 };
 
 export const fetchAdminPaymentWebhooks = async (params = {}) => {
-  return requestRaw(`/admin/payments/webhooks${buildQueryString(params)}`);
+  return requestPaymentRaw(`/admin/payments/webhooks${buildQueryString(params)}`);
 };
 
 export const replayAdminPaymentWebhook = async (webhookId) => {
-  return requestRaw(`/admin/payments/webhooks/${webhookId}/replay`, {
+  return requestPaymentRaw(`/admin/payments/webhooks/${webhookId}/replay`, {
     method: 'POST',
     body: {}
   });

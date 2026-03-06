@@ -1669,6 +1669,18 @@ components:
           format: uuid
         status:
           "$ref": "#/components/schemas/OrderStatus"
+        paymentStatus:
+          "$ref": "#/components/schemas/OrderPaymentStatus"
+        latestPaymentId:
+          type: string
+          format: uuid
+        paymentChannel:
+          type: string
+          nullable: true
+        paidAt:
+          type: string
+          format: date-time
+          nullable: true
         address:
           "$ref": "#/components/schemas/Address"
         items:
@@ -1686,8 +1698,16 @@ components:
       required:
       - id
       - status
+      - paymentStatus
       - items
       - createdAt
+    OrderPaymentStatus:
+      type: string
+      enum:
+      - UNPAID
+      - PAY_PENDING
+      - PAID
+      - PAY_FAILED
     PagedOrderList:
       type: object
       properties:

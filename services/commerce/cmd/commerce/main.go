@@ -90,6 +90,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		ProductRequestExport: productRequestExportService,
 		MediaLocalOutputDir:  cfg.MediaLocalOutputDir,
 		MediaPublicBaseURL:   cfg.MediaPublicBaseURL,
+		InternalSyncToken:    cfg.InternalSyncToken,
 		DB:                   pool,
 		Auth:                 auth,
 		Logger:               logger,

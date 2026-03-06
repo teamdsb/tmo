@@ -4,6 +4,9 @@ set -euo pipefail
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 payment_dir="$root_dir/services/payment"
 
+echo "Generating sqlc models..."
+(cd "$payment_dir" && go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0 generate)
+
 mkdir -p "$payment_dir/internal/http/oapi/common"
 
 echo "Generating shared oapi-codegen models..."

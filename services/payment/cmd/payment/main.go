@@ -8,12 +8,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/teamdsb/tmo/packages/go-shared/observability"
 	"github.com/teamdsb/tmo/services/payment/internal/config"
+	"github.com/teamdsb/tmo/services/payment/internal/db"
 	httpserver "github.com/teamdsb/tmo/services/payment/internal/http"
 	"github.com/teamdsb/tmo/services/payment/internal/http/handler"
 	"github.com/teamdsb/tmo/services/payment/internal/http/middleware"
@@ -62,6 +64,20 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		}
 	}()
 
+	pool, err := db.NewPool(ctx, cfg.DBDSN)
+	if err != nil {
+		return fmt.Errorf("database connection failed: %w", err)
+	}
+	defer pool.Close()
+
+	migrationsDir, err := resolveMigrationsDir(cfg.MigrationsDir)
+	if err != nil {
+		return err
+	}
+	if err := db.ApplyMigrations(ctx, pool, migrationsDir); err != nil {
+		return fmt.Errorf("apply migrations failed: %w", err)
+	}
+
 	auth := middleware.NewAuthenticator(cfg.AuthEnabled, cfg.JWTSecret, cfg.JWTIssuer)
 	flagsProvider := handler.NewIdentityFlagsProvider(cfg.IdentityBaseURL, cfg.FeatureFlagsTimeout, handler.FeatureFlags{
 		PaymentEnabled:   cfg.PaymentEnabled,
@@ -70,12 +86,17 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	}, logger)
 
 	apiHandler := &handler.Handler{
-		Logger: logger,
-		Auth:   auth,
-		Flags:  flagsProvider,
+		Logger:       logger,
+		Auth:         auth,
+		Flags:        flagsProvider,
+		Store:        db.New(pool),
+		Commerce:     handler.NewCommerceClient(cfg.CommerceBaseURL, cfg.CommerceSyncToken),
+		ProviderMode: cfg.ProviderMode,
 	}
 
-	router := httpserver.NewRouter(apiHandler, logger, nil)
+	router := httpserver.NewRouter(apiHandler, logger, func(checkCtx context.Context) error {
+		return db.Ready(checkCtx, pool)
+	})
 	server := httpserver.NewServer(cfg.HTTPAddr, router)
 
 	logger.Info("payment service listening", "addr", cfg.HTTPAddr)
@@ -106,4 +127,42 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	}
 
 	return nil
+}
+
+func resolveMigrationsDir(configured string) (string, error) {
+	candidates := []string{}
+	if strings.TrimSpace(configured) != "" {
+		candidates = append(candidates, configured)
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("resolve working dir: %w", err)
+	}
+	candidates = append(candidates,
+		filepath.Join(cwd, "migrations"),
+		filepath.Join(cwd, "services", "payment", "migrations"),
+		filepath.Join(cwd, "..", "migrations"),
+	)
+	for _, candidate := range candidates {
+		if hasSQL(candidate) {
+			return candidate, nil
+		}
+	}
+	return "", fmt.Errorf("payment migrations directory not found")
+}
+
+func hasSQL(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if strings.HasSuffix(entry.Name(), ".sql") {
+			return true
+		}
+	}
+	return false
 }

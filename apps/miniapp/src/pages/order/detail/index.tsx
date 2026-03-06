@@ -10,12 +10,14 @@ import { ROUTES, orderTrackingRoute } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
+import { isPaymentCancelled, paymentServices } from '../../../services/payment'
 
 export default function OrderDetail() {
   const router = useRouter()
   const navbarStyle = getNavbarStyle()
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(false)
+  const [paymentLoading, setPaymentLoading] = useState(false)
 
   const orderId = router.params?.id
 
@@ -23,21 +25,73 @@ export default function OrderDetail() {
     Taro.navigateBack().catch(() => switchTabLike(ROUTES.orders))
   }
 
+  const loadOrder = async (targetOrderId: string) => {
+    setLoading(true)
+    try {
+      const response = await commerceServices.orders.get(targetOrderId)
+      setOrder(response)
+    } catch (error) {
+      console.warn('load order failed', error)
+      await Taro.showToast({ title: '加载订单失败', icon: 'none' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (!orderId || typeof orderId !== 'string') return
-    void (async () => {
-      setLoading(true)
-      try {
-        const response = await commerceServices.orders.get(orderId)
-        setOrder(response)
-      } catch (error) {
-        console.warn('load order failed', error)
-        await Taro.showToast({ title: '加载订单失败', icon: 'none' })
-      } finally {
-        setLoading(false)
-      }
-    })()
+    void loadOrder(orderId)
   }, [orderId])
+
+  const handlePay = async () => {
+    if (!orderId || typeof orderId !== 'string') {
+      return
+    }
+
+    setPaymentLoading(true)
+    try {
+      const payment = await paymentServices.sessions.payForOrder(orderId)
+      const paymentStatus = String(payment.status || '').toUpperCase()
+      await Taro.showToast({
+        title: paymentStatus === 'PAID' ? '支付成功' : '支付结果确认中',
+        icon: paymentStatus === 'PAID' ? 'success' : 'none'
+      })
+    } catch (error) {
+      console.warn('continue pay failed', error)
+      await Taro.showToast({
+        title: isPaymentCancelled(error) ? '支付已取消' : '支付未完成',
+        icon: 'none'
+      })
+    } finally {
+      await loadOrder(orderId)
+      setPaymentLoading(false)
+    }
+  }
+
+  const handleRefreshPayment = async () => {
+    const paymentId = readLatestPaymentId(order)
+    if (!paymentId) {
+      return
+    }
+
+    setPaymentLoading(true)
+    try {
+      const payment = await paymentServices.sessions.recheck(paymentId)
+      const paymentStatus = String(payment.status || '').toUpperCase()
+      await Taro.showToast({
+        title: paymentStatus === 'PAID' ? '支付成功' : '支付状态已刷新',
+        icon: paymentStatus === 'PAID' ? 'success' : 'none'
+      })
+    } catch (error) {
+      console.warn('refresh payment failed', error)
+      await Taro.showToast({ title: '刷新支付状态失败', icon: 'none' })
+    } finally {
+      if (orderId && typeof orderId === 'string') {
+        await loadOrder(orderId)
+      }
+      setPaymentLoading(false)
+    }
+  }
 
   return (
     <View className='page'>
@@ -54,6 +108,7 @@ export default function OrderDetail() {
         <Cell.Group inset>
           <Cell title='创建时间' brief={order ? formatDate(order.createdAt) : '--'} />
           <Cell title='商品' brief={`${orderItemCount(order)} 件`} />
+          <Cell title='支付状态' brief={paymentStatusLabel(order)} />
         </Cell.Group>
 
         <Cell.Group inset className='mt-4'>
@@ -74,7 +129,28 @@ export default function OrderDetail() {
         </Cell.Group>
 
         <View className='placeholder-actions'>
-          <Button block color='primary' onClick={() => order?.id && navigateTo(orderTrackingRoute(order.id))}>
+          {canContinuePay(order) ? (
+            <Button block color='primary' loading={paymentLoading} onClick={handlePay}>
+              继续支付
+            </Button>
+          ) : null}
+          {canRefreshPayment(order) ? (
+            <Button
+              block
+              variant='outlined'
+              className={canContinuePay(order) ? 'mt-3' : ''}
+              loading={paymentLoading}
+              onClick={handleRefreshPayment}
+            >
+              刷新支付状态
+            </Button>
+          ) : null}
+          <Button
+            block
+            color='primary'
+            className={canContinuePay(order) || canRefreshPayment(order) ? 'mt-3' : ''}
+            onClick={() => order?.id && navigateTo(orderTrackingRoute(order.id))}
+          >
             查看物流
           </Button>
         </View>
@@ -139,4 +215,57 @@ const statusTone = (status: OrderStatus): 'info' | 'warning' | 'success' => {
     default:
       return 'info'
   }
+}
+
+const readPaymentStatus = (order: Order | null): string => {
+  if (!order || typeof order !== 'object') {
+    return ''
+  }
+  const value = (order as Order & { paymentStatus?: unknown }).paymentStatus
+  return typeof value === 'string' ? value : ''
+}
+
+const readLatestPaymentId = (order: Order | null): string => {
+  if (!order || typeof order !== 'object') {
+    return ''
+  }
+  const value = (order as Order & { latestPaymentId?: unknown }).latestPaymentId
+  return typeof value === 'string' ? value : ''
+}
+
+const paymentStatusLabel = (order: Order | null): string => {
+  const paymentStatus = readPaymentStatus(order).toUpperCase()
+  if (!paymentStatus) {
+    return order ? statusLabel(order.status) : '--'
+  }
+  switch (paymentStatus) {
+    case 'PAID':
+      return '已支付'
+    case 'PAY_PENDING':
+    case 'PENDING':
+    case 'CREATED':
+      return '待支付'
+    case 'PAY_FAILED':
+    case 'FAILED':
+      return '支付失败'
+    default:
+      return paymentStatus
+  }
+}
+
+const canContinuePay = (order: Order | null): boolean => {
+  if (!order) {
+    return false
+  }
+  if (readPaymentStatus(order).toUpperCase() === 'PAID') {
+    return false
+  }
+  return order.status === 'SUBMITTED' || order.status === 'PAY_PENDING' || order.status === 'PAY_FAILED'
+}
+
+const canRefreshPayment = (order: Order | null): boolean => {
+  if (!order) {
+    return false
+  }
+  return Boolean(readLatestPaymentId(order)) && readPaymentStatus(order).toUpperCase() !== 'PAID'
 }

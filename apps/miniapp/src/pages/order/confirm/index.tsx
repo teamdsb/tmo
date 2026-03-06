@@ -11,6 +11,7 @@ import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { ensureLoggedIn } from '../../../utils/auth'
 import { commerceServices } from '../../../services/commerce'
 import { listUserAddresses } from '../../../services/addresses'
+import { isPaymentCancelled, paymentServices } from '../../../services/payment'
 
 export default function OrderConfirmPage() {
   const navbarStyle = getNavbarStyle()
@@ -67,7 +68,29 @@ export default function OrderConfirmPage() {
           qty: item.qty
         }))
       })
-      await Taro.showToast({ title: '订单已提交', icon: 'success' })
+      let toastTitle = '订单已提交'
+      let toastIcon: 'success' | 'none' = 'success'
+
+      try {
+        const payment = await paymentServices.sessions.payForOrder(order.id)
+        const paymentStatus = String(payment.status || '').toUpperCase()
+        if (paymentStatus === 'PAID') {
+          toastTitle = '支付成功'
+        } else {
+          toastTitle = '订单已提交，支付确认中'
+          toastIcon = 'none'
+        }
+      } catch (paymentError) {
+        console.warn('pay order failed', paymentError)
+        if (isPaymentCancelled(paymentError)) {
+          toastTitle = '订单已提交，支付已取消'
+        } else {
+          toastTitle = '订单已提交，待确认支付'
+        }
+        toastIcon = 'none'
+      }
+
+      await Taro.showToast({ title: toastTitle, icon: toastIcon })
       await navigateTo(orderDetailRoute(order.id))
     } catch (error) {
       console.warn('submit order failed', error)

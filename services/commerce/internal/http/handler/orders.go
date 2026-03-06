@@ -143,6 +143,7 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 			Address:          addressJSON,
 			Remark:           request.Remark,
 			IdempotencyKey:   params.IdempotencyKey,
+			PaymentStatus:    "UNPAID",
 		})
 		if err != nil {
 			return err
@@ -455,17 +456,28 @@ func orderFromModel(order db.Order, items []oapi.OrderItem) (oapi.Order, error) 
 	}
 
 	response := oapi.Order{
-		Id:        order.ID,
-		Status:    oapi.OrderStatus(order.Status),
-		Items:     items,
-		CreatedAt: order.CreatedAt.Time,
-		UpdatedAt: timeFromTimestamptz(order.UpdatedAt),
+		Id:            order.ID,
+		Status:        oapi.OrderStatus(order.Status),
+		PaymentStatus: oapi.OrderPaymentStatus(order.PaymentStatus),
+		Items:         items,
+		CreatedAt:     order.CreatedAt.Time,
+		UpdatedAt:     timeFromTimestamptz(order.UpdatedAt),
 	}
 	if len(order.Address) > 0 {
 		response.Address = &address
 	}
 	if order.Remark != nil {
 		response.Remark = order.Remark
+	}
+	if order.LatestPaymentID.Valid {
+		paymentID := types.UUID(order.LatestPaymentID.Bytes)
+		response.LatestPaymentId = &paymentID
+	}
+	if order.PaymentChannel != nil {
+		response.PaymentChannel = order.PaymentChannel
+	}
+	if order.PaidAt.Valid {
+		response.PaidAt = &order.PaidAt.Time
 	}
 	return response, nil
 }

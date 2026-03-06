@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import react from '@vitejs/plugin-react';
 
 const proxyTarget = process.env.ADMIN_WEB_PROXY_TARGET || 'http://localhost:8080';
+const paymentProxyTarget = process.env.ADMIN_WEB_PAYMENT_PROXY_TARGET || 'http://localhost:8083';
 const workspaceRoot = resolve(__dirname, '../..');
 
 export default defineConfig({
@@ -25,6 +26,12 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/api/, '')
+      },
+      '/payment-api': {
+        target: paymentProxyTarget,
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/payment-api/, '')
       }
     }
   },

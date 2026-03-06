@@ -34,6 +34,7 @@ func NewRouter(handler *handler.Handler, logger *slog.Logger, readyCheck func(co
 	router.GET("/admin/suppliers/:supplierId/scorecards", handler.GetAdminSuppliersSupplierIdScorecards)
 	router.GET("/admin/miniapp/display-categories", handler.GetAdminMiniappDisplayCategories)
 	router.PUT("/admin/miniapp/display-categories", handler.PutAdminMiniappDisplayCategories)
+	router.POST("/internal/orders/:orderId/payment-status", handler.PostInternalOrdersOrderIdPaymentStatus)
 
 	return router
 }

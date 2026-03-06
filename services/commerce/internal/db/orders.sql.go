@@ -41,16 +41,18 @@ INSERT INTO orders (
     owner_sales_user_id,
     address,
     remark,
-    idempotency_key
+    idempotency_key,
+    payment_status
 ) VALUES (
     $1,
     $2,
     $3,
     $4,
     $5,
-    $6
+    $6,
+    $7
 )
-RETURNING id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at
+RETURNING id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at
 `
 
 type CreateOrderParams struct {
@@ -60,6 +62,7 @@ type CreateOrderParams struct {
 	Address          json.RawMessage `db:"address" json:"address"`
 	Remark           *string         `db:"remark" json:"remark"`
 	IdempotencyKey   *string         `db:"idempotency_key" json:"idempotency_key"`
+	PaymentStatus    string          `db:"payment_status" json:"payment_status"`
 }
 
 func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order, error) {
@@ -70,6 +73,7 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		arg.Address,
 		arg.Remark,
 		arg.IdempotencyKey,
+		arg.PaymentStatus,
 	)
 	var i Order
 	err := row.Scan(
@@ -82,6 +86,10 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.IdempotencyKey,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PaymentStatus,
+		&i.LatestPaymentID,
+		&i.PaymentChannel,
+		&i.PaidAt,
 	)
 	return i, err
 }
@@ -129,7 +137,7 @@ func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams
 }
 
 const getOrder = `-- name: GetOrder :one
-SELECT id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at
+SELECT id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at
 FROM orders
 WHERE id = $1
 `
@@ -147,12 +155,16 @@ func (q *Queries) GetOrder(ctx context.Context, id uuid.UUID) (Order, error) {
 		&i.IdempotencyKey,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PaymentStatus,
+		&i.LatestPaymentID,
+		&i.PaymentChannel,
+		&i.PaidAt,
 	)
 	return i, err
 }
 
 const getOrderByIdempotencyKey = `-- name: GetOrderByIdempotencyKey :one
-SELECT id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at
+SELECT id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at
 FROM orders
 WHERE customer_id = $1 AND idempotency_key = $2
 `
@@ -175,6 +187,10 @@ func (q *Queries) GetOrderByIdempotencyKey(ctx context.Context, arg GetOrderById
 		&i.IdempotencyKey,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PaymentStatus,
+		&i.LatestPaymentID,
+		&i.PaymentChannel,
+		&i.PaidAt,
 	)
 	return i, err
 }
@@ -254,7 +270,7 @@ func (q *Queries) ListOrderStatusStats(ctx context.Context, arg ListOrderStatusS
 }
 
 const listOrders = `-- name: ListOrders :many
-SELECT id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at
+SELECT id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at
 FROM orders
 WHERE ($1::uuid IS NULL OR customer_id = $1)
   AND ($2::uuid IS NULL OR owner_sales_user_id = $2)
@@ -296,6 +312,10 @@ func (q *Queries) ListOrders(ctx context.Context, arg ListOrdersParams) ([]Order
 			&i.IdempotencyKey,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PaymentStatus,
+			&i.LatestPaymentID,
+			&i.PaymentChannel,
+			&i.PaidAt,
 		); err != nil {
 			return nil, err
 		}
@@ -305,4 +325,53 @@ func (q *Queries) ListOrders(ctx context.Context, arg ListOrdersParams) ([]Order
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateOrderPaymentSummary = `-- name: UpdateOrderPaymentSummary :one
+UPDATE orders
+SET status = $2,
+    payment_status = $3,
+    latest_payment_id = $4,
+    payment_channel = $5,
+    paid_at = $6,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at
+`
+
+type UpdateOrderPaymentSummaryParams struct {
+	ID              uuid.UUID          `db:"id" json:"id"`
+	Status          string             `db:"status" json:"status"`
+	PaymentStatus   string             `db:"payment_status" json:"payment_status"`
+	LatestPaymentID pgtype.UUID        `db:"latest_payment_id" json:"latest_payment_id"`
+	PaymentChannel  *string            `db:"payment_channel" json:"payment_channel"`
+	PaidAt          pgtype.Timestamptz `db:"paid_at" json:"paid_at"`
+}
+
+func (q *Queries) UpdateOrderPaymentSummary(ctx context.Context, arg UpdateOrderPaymentSummaryParams) (Order, error) {
+	row := q.db.QueryRow(ctx, updateOrderPaymentSummary,
+		arg.ID,
+		arg.Status,
+		arg.PaymentStatus,
+		arg.LatestPaymentID,
+		arg.PaymentChannel,
+		arg.PaidAt,
+	)
+	var i Order
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.CustomerID,
+		&i.OwnerSalesUserID,
+		&i.Address,
+		&i.Remark,
+		&i.IdempotencyKey,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PaymentStatus,
+		&i.LatestPaymentID,
+		&i.PaymentChannel,
+		&i.PaidAt,
+	)
+	return i, err
 }

@@ -16,4 +16,5 @@ type Store interface {
 	GetOrder(ctx context.Context, id uuid.UUID) (db.Order, error)
 	ListOrderItems(ctx context.Context, orderID uuid.UUID) ([]db.OrderItem, error)
 	GetOrderByIdempotencyKey(ctx context.Context, arg db.GetOrderByIdempotencyKeyParams) (db.Order, error)
+	UpdateOrderPaymentSummary(ctx context.Context, arg db.UpdateOrderPaymentSummaryParams) (db.Order, error)
 }

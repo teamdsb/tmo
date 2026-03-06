@@ -36,6 +36,10 @@ export const buildSeedOrders = (): Order[] => {
   return (canonicalOrderFixtures as any[]).map((fixture) => ({
     id: String(fixture?.id || ''),
     status: String(fixture?.status || 'SUBMITTED') as Order['status'],
+    paymentStatus: String(fixture?.paymentStatus || 'UNPAID') as Order['paymentStatus'],
+    latestPaymentId: typeof fixture?.latestPaymentId === 'string' ? fixture.latestPaymentId : undefined,
+    paymentChannel: typeof fixture?.paymentChannel === 'string' ? fixture.paymentChannel : undefined,
+    paidAt: typeof fixture?.paidAt === 'string' ? fixture.paidAt : undefined,
     address: fixture?.address
       ? {
           receiverName: String(fixture.address.receiverName || ''),

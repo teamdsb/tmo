@@ -294,12 +294,29 @@ export interface OrderItem {
 export interface Order {
   id: string;
   status: OrderStatus;
+  paymentStatus: OrderPaymentStatus;
+  latestPaymentId?: string;
+  /** @nullable */
+  paymentChannel?: string | null;
+  /** @nullable */
+  paidAt?: string | null;
   address?: Address;
   items: OrderItem[];
   remark?: string;
   createdAt: string;
   updatedAt?: string;
 }
+
+export type OrderPaymentStatus = typeof OrderPaymentStatus[keyof typeof OrderPaymentStatus];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const OrderPaymentStatus = {
+  UNPAID: 'UNPAID',
+  PAY_PENDING: 'PAY_PENDING',
+  PAID: 'PAID',
+  PAY_FAILED: 'PAY_FAILED',
+} as const;
 
 export interface PagedOrderList {
   items: Order[];
@@ -917,6 +934,8 @@ export interface User {
   userType: UserUserType;
   status?: UserStatus;
   displayName?: string;
+  /** @nullable */
+  avatarUrl?: string | null;
   /** @nullable */
   phone?: string | null;
   /** @nullable */

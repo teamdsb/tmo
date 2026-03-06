@@ -18,6 +18,9 @@ type OrderRow = {
   amount: string;
   statusLabel: string;
   statusTone: 'blue' | 'amber' | 'green' | 'gray';
+  paymentStatusLabel: string;
+  paymentStatusTone: 'blue' | 'amber' | 'green' | 'gray';
+  paymentTransactionId: string;
   isHighlighted?: boolean;
 };
 
@@ -46,6 +49,9 @@ const orderRows: readonly OrderRow[] = [
     amount: '$120.50',
     statusLabel: '运输中',
     statusTone: 'blue',
+    paymentStatusLabel: '已支付',
+    paymentStatusTone: 'green',
+    paymentTransactionId: 'TXN-20260305-001',
     isHighlighted: true
   },
   {
@@ -56,7 +62,10 @@ const orderRows: readonly OrderRow[] = [
     date: '2023-10-23',
     amount: '$45.00',
     statusLabel: '已发出',
-    statusTone: 'amber'
+    statusTone: 'amber',
+    paymentStatusLabel: '支付失败',
+    paymentStatusTone: 'gray',
+    paymentTransactionId: 'TXN-20260305-002'
   },
   {
     id: '#ORD-2023-003',
@@ -66,7 +75,10 @@ const orderRows: readonly OrderRow[] = [
     date: '2023-10-23',
     amount: '$89.99',
     statusLabel: '运输中',
-    statusTone: 'blue'
+    statusTone: 'blue',
+    paymentStatusLabel: '待支付',
+    paymentStatusTone: 'amber',
+    paymentTransactionId: 'TXN-20260305-003'
   },
   {
     id: '#ORD-2023-004',
@@ -76,7 +88,10 @@ const orderRows: readonly OrderRow[] = [
     date: '2023-10-22',
     amount: '$210.00',
     statusLabel: '已送达',
-    statusTone: 'green'
+    statusTone: 'green',
+    paymentStatusLabel: '已支付',
+    paymentStatusTone: 'green',
+    paymentTransactionId: 'TXN-20260305-004'
   },
   {
     id: '#ORD-2023-005',
@@ -86,7 +101,10 @@ const orderRows: readonly OrderRow[] = [
     date: '2023-10-22',
     amount: '$35.50',
     statusLabel: '待处理',
-    statusTone: 'gray'
+    statusTone: 'gray',
+    paymentStatusLabel: '待创建',
+    paymentStatusTone: 'blue',
+    paymentTransactionId: 'TXN-20260305-005'
   }
 ];
 
@@ -163,6 +181,17 @@ const OrderTableRow = ({ row }: OrderTableRowProps) => {
       <td className="px-6 py-4 font-medium text-text-main dark:text-text-main-dark">{row.amount}</td>
       <td className="px-6 py-4">
         <StatusBadge label={row.statusLabel} tone={row.statusTone} />
+      </td>
+      <td className="px-6 py-4">
+        <div className="flex flex-col gap-1">
+          <StatusBadge label={row.paymentStatusLabel} tone={row.paymentStatusTone} />
+          <a
+            className="text-xs font-medium text-primary hover:text-primary-dark"
+            href={`/payments.html?q=${encodeURIComponent(row.paymentTransactionId)}`}
+          >
+            {row.paymentTransactionId}
+          </a>
+        </div>
       </td>
       <td className="px-6 py-4 text-right">
         <button
@@ -296,6 +325,9 @@ export const OrdersPage = () => {
                       </th>
                       <th className="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark" scope="col">
                         状态
+                      </th>
+                      <th className="px-6 py-4 font-semibold text-text-main dark:text-text-main-dark" scope="col">
+                        支付
                       </th>
                       <th className="px-6 py-4 text-right font-semibold text-text-main dark:text-text-main-dark" scope="col">
                         操作

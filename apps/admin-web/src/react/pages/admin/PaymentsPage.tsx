@@ -352,6 +352,22 @@ export const PaymentsPage = () => {
     setErrorMessage('');
     setSuccessMessage('');
 
+    if (isMockMode) {
+      setWebhooks((current) =>
+        current.map((item) =>
+          item.id === webhook.id
+            ? {
+                ...item,
+                replayCount: item.replayCount + 1,
+                lastReplayAt: new Date().toISOString()
+              }
+            : item
+        )
+      );
+      setSuccessMessage(`已提交重放：${webhook.id}`);
+      return;
+    }
+
     try {
       const response = await replayAdminPaymentWebhook(webhook.id);
       if (response.status !== 200) {
