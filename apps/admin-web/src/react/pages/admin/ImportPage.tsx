@@ -1,375 +1,727 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { AdminTopbar } from '../../layout/AdminTopbar';
+import {
+  createAdminProductImportJob,
+  createAdminProductRequestExportJob,
+  createShipmentImportJob,
+  getAdminImportJob,
+  getFeatureFlags,
+  patchFeatureFlags
+} from '../../../lib/api';
+import { ensureProtectedPage } from '../../../lib/guard';
+import { hasPermission, normalizePermissionMap } from '../../../lib/permissions';
+import {
+  getMockProductImportJob,
+  parseMockProductImport,
+  saveMockProductImportJob,
+  upsertImportedMockProducts
+} from '../../../lib/product-import';
 
-type ShipmentStatus = '待发货' | '已发货' | '运输中' | '已送达';
-type FilterStatus = '全部' | ShipmentStatus;
-type RowAction = 'addTracking' | 'menuOnly' | 'quickEdit' | 'updateStatus' | 'viewDetail';
+type PageContext = {
+  mode: 'dev' | 'mock';
+  session?: {
+    permissions?: {
+      items?: Array<{ code?: string; scope?: string }>;
+    };
+  };
+} | null;
 
-type TabItem = {
-  label: FilterStatus;
-  count?: number;
+type ImportJobView = {
+  id: string;
+  type: string;
+  status: string;
+  progress: number;
+  createdAt?: string;
+  resultFileUrl?: string | null;
+  errorReportUrl?: string | null;
+  details?: Record<string, unknown>;
 };
 
-type OrderRow = {
-  orderNo: string;
-  customerName: string;
-  customerEmail: string;
-  customerInitials: string;
-  status: ShipmentStatus;
-  carrier?: string;
-  trackingNo?: string;
-  lastUpdated: string;
-  action: RowAction;
+type FeatureFlagsState = {
+  paymentEnabled: boolean;
+  wechatPayEnabled: boolean;
+  alipayPayEnabled: boolean;
 };
 
-const tabs: readonly TabItem[] = [
-  { label: '全部' },
-  { label: '待发货', count: 12 },
-  { label: '已发货' },
-  { label: '运输中' },
-  { label: '已送达' }
-];
-
-const orders: readonly OrderRow[] = [
-  {
-    orderNo: '#ORD-1001',
-    customerName: 'Alice Smith',
-    customerEmail: 'alice@example.com',
-    customerInitials: 'AS',
-    status: '待发货',
-    lastUpdated: '刚刚',
-    action: 'addTracking'
-  },
-  {
-    orderNo: '#ORD-1005',
-    customerName: 'Eve Davis',
-    customerEmail: 'eve.d@example.com',
-    customerInitials: 'ED',
-    status: '待发货',
-    lastUpdated: '2小时前',
-    action: 'menuOnly'
-  },
-  {
-    orderNo: '#ORD-1002',
-    customerName: 'Bob Jones',
-    customerEmail: 'bob.j@example.com',
-    customerInitials: 'BJ',
-    status: '已发货',
-    carrier: 'FedEx',
-    trackingNo: 'FX-123456789',
-    lastUpdated: '1小时前',
-    action: 'quickEdit'
-  },
-  {
-    orderNo: '#ORD-1003',
-    customerName: 'Charlie Brown',
-    customerEmail: 'charlie@example.com',
-    customerInitials: 'CB',
-    status: '运输中',
-    carrier: 'UPS',
-    trackingNo: '1Z9999999999999999',
-    lastUpdated: '4小时前',
-    action: 'updateStatus'
-  },
-  {
-    orderNo: '#ORD-1004',
-    customerName: 'David Lee',
-    customerEmail: 'david@example.com',
-    customerInitials: 'DL',
-    status: '已送达',
-    carrier: 'USPS',
-    trackingNo: '940010000000000000',
-    lastUpdated: '1天前',
-    action: 'viewDetail'
-  }
-];
-
-const statusStyleMap: Record<ShipmentStatus, { wrapper: string; dot: string }> = {
-  待发货: {
-    wrapper: 'bg-amber-50 text-amber-700 border border-amber-200',
-    dot: 'bg-amber-500'
-  },
-  已发货: {
-    wrapper: 'bg-blue-50 text-blue-700 border border-blue-200',
-    dot: 'bg-blue-500'
-  },
-  运输中: {
-    wrapper: 'bg-purple-50 text-purple-700 border border-purple-200',
-    dot: 'bg-purple-500'
-  },
-  已送达: {
-    wrapper: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-    dot: 'bg-emerald-500'
-  }
+const defaultFlags: FeatureFlagsState = {
+  paymentEnabled: false,
+  wechatPayEnabled: false,
+  alipayPayEnabled: false
 };
 
-// 渲染表格行操作按钮。
-const renderRowAction = (action: RowAction) => {
-  if (action === 'addTracking') {
-    return (
-      <button
-        className="inline-flex items-center justify-center rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
-        type="button"
-      >
-        添加物流
-      </button>
-    );
-  }
-
-  if (action === 'menuOnly') {
-    return (
-      <button
-        className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-        type="button"
-      >
-        <span className="material-symbols-outlined text-xl">more_vert</span>
-      </button>
-    );
-  }
-
-  const label =
-    action === 'quickEdit' ? '快速编辑' :
-    action === 'updateStatus' ? '更新状态' :
-    '查看详情';
-
-  return (
-    <div className="inline-flex items-center justify-end">
-      <button
-        className="mr-3 text-sm font-medium text-slate-400 transition-colors hover:text-primary"
-        type="button"
-      >
-        {label}
-      </button>
-      <button
-        className="rounded-md p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
-        type="button"
-      >
-        <span className="material-symbols-outlined text-xl">more_vert</span>
-      </button>
-    </div>
-  );
+const statusToneClass: Record<string, string> = {
+  PENDING: 'bg-amber-50 text-amber-700 border border-amber-200',
+  RUNNING: 'bg-blue-50 text-blue-700 border border-blue-200',
+  SUCCEEDED: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  FAILED: 'bg-rose-50 text-rose-700 border border-rose-200'
 };
 
-// 物流与发货管理页（当前为前端演示态主导）。
+const formatDateTime = (value?: string) => {
+  if (!value) {
+    return '--';
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN');
+};
+
+const buildMockJobId = (prefix: string) => {
+  return `mock-${prefix}-${Date.now().toString(36)}-${Math.floor(Math.random() * 100000).toString(36)}`;
+};
+
+const renderJson = (value: unknown) => {
+  return JSON.stringify(value, null, 2);
+};
+
 export const ImportPage = () => {
-  const [activeStatus, setActiveStatus] = useState<FilterStatus>('待发货');
+  const [context, setContext] = useState<PageContext>(null);
+  const [ready, setReady] = useState(false);
+  const [productExcelFile, setProductExcelFile] = useState<File | null>(null);
+  const [productImagesZip, setProductImagesZip] = useState<File | null>(null);
+  const [shipmentExcelFile, setShipmentExcelFile] = useState<File | null>(null);
+  const [imageBaseUrl, setImageBaseUrl] = useState('');
+  const [queryJobId, setQueryJobId] = useState('');
+  const [latestJob, setLatestJob] = useState<ImportJobView | null>(null);
+  const [latestResponse, setLatestResponse] = useState<unknown>(null);
+  const [flags, setFlags] = useState<FeatureFlagsState>(defaultFlags);
+  const [flagsLoaded, setFlagsLoaded] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [submittingAction, setSubmittingAction] = useState<string | null>(null);
 
-  const visibleOrders = useMemo(() => {
-    if (activeStatus === '全部') {
-      return orders;
+  useEffect(() => {
+    let cancelled = false;
+    void ensureProtectedPage().then((resolved) => {
+      if (cancelled) {
+        return;
+      }
+      setContext((resolved || null) as PageContext);
+      setReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const permissionMap = useMemo(() => normalizePermissionMap(context?.session?.permissions), [context?.session?.permissions]);
+  const canProductImport = hasPermission(permissionMap, 'import:product', 'SELF');
+  const canShipmentImport = hasPermission(permissionMap, 'import:shipment', 'SELF');
+  const canRequestExport = hasPermission(permissionMap, 'product_request:export', 'SELF');
+  const canManageFlags = hasPermission(permissionMap, 'config:feature_flags', 'ALL');
+
+  useEffect(() => {
+    if (!context || context.mode !== 'dev' || !canManageFlags) {
+      setFlagsLoaded(true);
+      return;
     }
 
-    return orders.filter((row) => row.status === activeStatus);
-  }, [activeStatus]);
+    let cancelled = false;
+    void getFeatureFlags().then((response) => {
+      if (cancelled) {
+        return;
+      }
+      if (response.status === 200 && response.data) {
+        setFlags({
+          paymentEnabled: Boolean((response.data as FeatureFlagsState).paymentEnabled),
+          wechatPayEnabled: Boolean((response.data as FeatureFlagsState).wechatPayEnabled),
+          alipayPayEnabled: Boolean((response.data as FeatureFlagsState).alipayPayEnabled)
+        });
+      }
+      setFlagsLoaded(true);
+    }).catch(() => {
+      if (!cancelled) {
+        setFlagsLoaded(true);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [context, canManageFlags]);
+
+  useEffect(() => {
+    if (!context || context.mode !== 'dev' || !latestJob?.id || !['PENDING', 'RUNNING'].includes(latestJob.status)) {
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setInterval(() => {
+      void getAdminImportJob(latestJob.id).then((response) => {
+        if (cancelled) {
+          return;
+        }
+        if (response.status === 200 && response.data) {
+          setLatestJob(response.data as ImportJobView);
+          setLatestResponse(response.data);
+          const nextStatus = String((response.data as ImportJobView).status || '');
+          if (!['PENDING', 'RUNNING'].includes(nextStatus)) {
+            window.clearInterval(timer);
+          }
+        }
+      }).catch(() => {
+        if (!cancelled) {
+          window.clearInterval(timer);
+        }
+      });
+    }, 1500);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [context, latestJob?.id, latestJob?.status]);
+
+  if (!ready) {
+    return (
+      <main className="flex-1 flex items-center justify-center px-6 py-8">
+        <p className="text-sm text-slate-500">正在加载导入工作台...</p>
+      </main>
+    );
+  }
+
+  if (!context) {
+    return <main className="flex-1" />;
+  }
+
+  const resetMessages = () => {
+    setStatusMessage('');
+    setErrorMessage('');
+  };
+
+  const handleProductImport = async () => {
+    if (!productExcelFile) {
+      setErrorMessage('请选择商品 Excel 文件。');
+      return;
+    }
+    resetMessages();
+    setSubmittingAction('product-import');
+
+    try {
+      if (context.mode === 'mock') {
+        const runningJob: ImportJobView = {
+          id: buildMockJobId('product'),
+          type: 'PRODUCT_IMPORT',
+          status: 'RUNNING',
+          progress: 15,
+          createdAt: new Date().toISOString()
+        };
+        setLatestJob(runningJob);
+        setLatestResponse(runningJob);
+        saveMockProductImportJob(runningJob);
+
+        const parsed = await parseMockProductImport({
+          excelFile: productExcelFile,
+          imagesZipFile: productImagesZip,
+          imageBaseUrl
+        });
+        const persisted = upsertImportedMockProducts(parsed.products);
+        const completedJob: ImportJobView = {
+          ...runningJob,
+          status: 'SUCCEEDED',
+          progress: 100,
+          details: {
+            totalRows: parsed.totalRows,
+            successRows: parsed.successRows,
+            failedRows: parsed.failedCount,
+            importedProducts: parsed.products.map((item) => item.name),
+            persistedProductCount: persisted.length,
+            failedRowsPreview: parsed.failedRows.slice(0, 10)
+          }
+        };
+        setLatestJob(completedJob);
+        setLatestResponse(completedJob);
+        saveMockProductImportJob(completedJob);
+        setStatusMessage(`Mock 导入完成：成功 ${parsed.successRows} 行，失败 ${parsed.failedCount} 行。商品页已写入本地导入结果。`);
+        return;
+      }
+
+      const response = await createAdminProductImportJob(productExcelFile, productImagesZip, imageBaseUrl.trim());
+      setLatestResponse(response.data || response);
+      if (response.status !== 202 || !response.data) {
+        setErrorMessage(`商品导入提交失败（HTTP ${response.status}）。`);
+        return;
+      }
+      setLatestJob(response.data as ImportJobView);
+      setStatusMessage('商品导入任务已创建，页面会自动轮询任务状态。');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSubmittingAction(null);
+    }
+  };
+
+  const handleShipmentImport = async () => {
+    if (!shipmentExcelFile) {
+      setErrorMessage('请选择物流 Excel 文件。');
+      return;
+    }
+    resetMessages();
+    setSubmittingAction('shipment-import');
+    try {
+      if (context.mode === 'mock') {
+        const mockJob: ImportJobView = {
+          id: buildMockJobId('shipment'),
+          type: 'SHIPMENT_IMPORT',
+          status: 'SUCCEEDED',
+          progress: 100,
+          createdAt: new Date().toISOString(),
+          details: {
+            note: 'Mock 模式下仅模拟创建物流导入任务，不会写入真实订单。'
+          }
+        };
+        setLatestJob(mockJob);
+        setLatestResponse(mockJob);
+        saveMockProductImportJob(mockJob);
+        setStatusMessage('Mock 模式已模拟物流导入任务。');
+        return;
+      }
+
+      const response = await createShipmentImportJob(shipmentExcelFile);
+      setLatestResponse(response.data || response);
+      if (response.status !== 202 || !response.data) {
+        setErrorMessage(`物流导入提交失败（HTTP ${response.status}）。`);
+        return;
+      }
+      setLatestJob(response.data as ImportJobView);
+      setStatusMessage('物流导入任务已创建。');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSubmittingAction(null);
+    }
+  };
+
+  const handleRequestExport = async () => {
+    resetMessages();
+    setSubmittingAction('request-export');
+    try {
+      if (context.mode === 'mock') {
+        const mockJob: ImportJobView = {
+          id: buildMockJobId('request-export'),
+          type: 'PRODUCT_REQUEST_EXPORT',
+          status: 'SUCCEEDED',
+          progress: 100,
+          createdAt: new Date().toISOString(),
+          details: {
+            note: 'Mock 模式下仅模拟需求导出任务。'
+          }
+        };
+        setLatestJob(mockJob);
+        setLatestResponse(mockJob);
+        saveMockProductImportJob(mockJob);
+        setStatusMessage('Mock 模式已模拟需求导出任务。');
+        return;
+      }
+
+      const response = await createAdminProductRequestExportJob({});
+      setLatestResponse(response.data || response);
+      if (response.status !== 202 || !response.data) {
+        setErrorMessage(`需求导出提交失败（HTTP ${response.status}）。`);
+        return;
+      }
+      setLatestJob(response.data as ImportJobView);
+      setStatusMessage('需求导出任务已创建。');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSubmittingAction(null);
+    }
+  };
+
+  const handleQueryJob = async () => {
+    if (!queryJobId.trim()) {
+      setErrorMessage('请输入任务 ID。');
+      return;
+    }
+    resetMessages();
+    setSubmittingAction('query-job');
+    try {
+      if (context.mode === 'mock') {
+        const job = getMockProductImportJob(queryJobId.trim());
+        if (!job) {
+          setErrorMessage('未找到该 mock 任务。');
+          return;
+        }
+        setLatestJob(job as ImportJobView);
+        setLatestResponse(job);
+        setStatusMessage('已加载本地 mock 任务。');
+        return;
+      }
+
+      const response = await getAdminImportJob(queryJobId.trim());
+      setLatestResponse(response.data || response);
+      if (response.status !== 200 || !response.data) {
+        setErrorMessage(`查询任务失败（HTTP ${response.status}）。`);
+        return;
+      }
+      setLatestJob(response.data as ImportJobView);
+      setStatusMessage('已刷新导入任务状态。');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSubmittingAction(null);
+    }
+  };
+
+  const handleSaveFlags = async () => {
+    resetMessages();
+    setSubmittingAction('save-flags');
+    try {
+      const response = await patchFeatureFlags(flags);
+      setLatestResponse(response.data || response);
+      if (response.status !== 200) {
+        setErrorMessage(`保存功能开关失败（HTTP ${response.status}）。`);
+        return;
+      }
+      setStatusMessage('功能开关已更新。');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSubmittingAction(null);
+    }
+  };
+
+  const jobToneClass = statusToneClass[String(latestJob?.status || '').toUpperCase()] || 'bg-slate-100 text-slate-700 border border-slate-200';
 
   return (
     <>
       <AdminTopbar
-        searchPlaceholder="搜索订单..."
+        searchPlaceholder="搜索导入任务..."
         leftSlot={
           <div className="flex items-center gap-4 text-slate-900 dark:text-white">
             <div className="size-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-              <svg fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="size-5">
-                <path d="M20 8h-3V4H3v13h2v-2h14v-2h-3v-3h4V8zm-2 2h-2v2h2v-2zm-6-6h-7v9h7V4zM5 10H7v2H5v-2zm2-4H5V4h2v2zM5 6h2v2H5V6zm10 14c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm-10 0c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z"></path>
-              </svg>
+              <span className="material-symbols-outlined text-lg">upload_file</span>
             </div>
-            <h2 className="text-lg font-bold leading-tight tracking-[-0.015em]">电商后台</h2>
+            <h2 className="text-lg font-bold leading-tight tracking-[-0.015em]">导入与导出</h2>
           </div>
         }
       />
 
-      <main className="flex-1 mx-auto w-full max-w-[1440px] px-6 py-8 md:px-10">
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">物流与发货管理</h1>
-            <div className="flex gap-3">
-              <button
-                className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
-                type="button"
-              >
-                <span className="material-symbols-outlined text-lg">download</span>
-                导出列表
-              </button>
-              <button
-                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700"
-                type="button"
-              >
-                <span className="material-symbols-outlined text-lg">add</span>
-                批量更新
-              </button>
-            </div>
-          </div>
-
-          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <div className="flex gap-8 border-b border-slate-200 bg-slate-50/50 px-6 dark:border-slate-700 dark:bg-slate-800/40">
-              {tabs.map((tab) => {
-                const isActive = tab.label === activeStatus;
-
-                return (
-                  <button
-                    className={`border-b-[3px] pb-[13px] pt-4 text-sm leading-normal transition-colors ${
-                      isActive
-                        ? 'border-b-primary text-primary'
-                        : 'border-b-transparent text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
-                    }`}
-                    key={tab.label}
-                    onClick={() => setActiveStatus(tab.label)}
-                    type="button"
-                  >
-                    <span className={isActive ? 'font-bold' : 'font-medium'}>
-                      {tab.label}
-                      {typeof tab.count === 'number' ? (
-                        <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{tab.count}</span>
-                      ) : null}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-white text-xs font-semibold uppercase tracking-wider text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
-                    <th className="w-32 px-6 py-4">订单号</th>
-                    <th className="w-48 px-6 py-4">客户</th>
-                    <th className="w-40 px-6 py-4">订单状态</th>
-                    <th className="w-40 px-6 py-4">物流承运商</th>
-                    <th className="w-48 px-6 py-4">物流单号</th>
-                    <th className="w-40 px-6 py-4">最后更新</th>
-                    <th className="w-32 px-6 py-4 text-right">操作</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-sm dark:divide-slate-800">
-                  {visibleOrders.map((row) => {
-                    const statusStyle = statusStyleMap[row.status];
-
-                    return (
-                      <tr className="group transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60" key={row.orderNo}>
-                        <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{row.orderNo}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="size-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-medium">
-                              {row.customerInitials}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium text-slate-900 dark:text-white">{row.customerName}</p>
-                              <p className="text-xs text-slate-500 dark:text-slate-400">{row.customerEmail}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium ${statusStyle.wrapper}`}>
-                            <span className={`size-1.5 rounded-full ${statusStyle.dot}`}></span>
-                            {row.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-slate-700 dark:text-slate-300">{row.carrier ?? '-'}</td>
-                        <td className="px-6 py-4">
-                          {row.trackingNo ? (
-                            <a
-                              className="inline-flex items-center gap-1 font-mono text-xs text-primary hover:underline"
-                              href="#"
-                            >
-                              {row.trackingNo}
-                              <span className="material-symbols-outlined text-[14px]">open_in_new</span>
-                            </a>
-                          ) : (
-                            <span className="text-slate-400">-</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-slate-500 dark:text-slate-400">{row.lastUpdated}</td>
-                        <td className="px-6 py-4 text-right">{renderRowAction(row.action)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex items-center justify-between border-t border-slate-200 bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
-              <p className="text-sm text-slate-500 dark:text-slate-400">显示 1 至 5 项，共 12 项</p>
-              <div className="flex gap-2">
-                <button
-                  className="cursor-not-allowed rounded border border-slate-200 px-3 py-1 text-sm text-slate-400 dark:border-slate-700"
-                  type="button"
-                >
-                  上一页
-                </button>
-                <button className="rounded bg-primary px-3 py-1 text-sm font-medium text-white" type="button">
-                  1
-                </button>
-                <button
-                  className="rounded border border-slate-200 px-3 py-1 text-sm text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                  type="button"
-                >
-                  2
-                </button>
-                <button
-                  className="rounded border border-slate-200 px-3 py-1 text-sm text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                  type="button"
-                >
-                  3
-                </button>
-                <button
-                  className="rounded border border-slate-200 px-3 py-1 text-sm text-slate-600 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                  type="button"
-                >
-                  下一页
-                </button>
+      <main className="flex-1 mx-auto w-full max-w-[1440px] px-6 py-8 md:px-10" data-testid="import-page">
+        <div className="grid gap-6 xl:grid-cols-[1.35fr_minmax(320px,0.9fr)]">
+          <div className="space-y-6">
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.18em] text-slate-400">Import Jobs</p>
+                  <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">商品 Excel 导入工作台</h1>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
+                    real 模式会真正创建 `/admin/products/import-jobs` 任务并自动轮询状态；mock 模式会在浏览器内解析 Excel 和 ZIP，并把成功导入的商品写入本地存储，随后可在商品页查看。
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-slate-900 px-4 py-3 text-sm text-white">
+                  <div className="text-slate-300">当前模式</div>
+                  <div className="mt-1 text-lg font-semibold">{context.mode === 'dev' ? 'real / dev' : 'mock'}</div>
+                </div>
               </div>
-            </div>
-          </section>
 
-          <section className="mt-4 max-w-4xl rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-            <h2 className="mb-1 text-lg font-bold leading-tight text-slate-900 dark:text-white">快速添加物流</h2>
-            <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">为待处理订单手动输入物流单号。</p>
+              {(statusMessage || errorMessage) ? (
+                <div className="mt-5 space-y-3">
+                  {statusMessage ? (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700" data-testid="import-status-message">
+                      {statusMessage}
+                    </div>
+                  ) : null}
+                  {errorMessage ? (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" data-testid="import-error-message">
+                      {errorMessage}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
 
-            <div className="flex flex-wrap items-end gap-4">
-              <label className="flex min-w-[200px] flex-1 flex-col">
-                <p className="mb-1.5 text-sm font-medium leading-normal text-slate-700 dark:text-slate-300">订单号</p>
-                <select
-                  className="form-select w-full rounded-lg border-slate-300 text-sm text-slate-700 shadow-sm focus:border-primary focus:ring-primary dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
-                  defaultValue="1001"
-                >
-                  <option value="">选择订单</option>
-                  <option value="1001">#ORD-1001 - Alice Smith</option>
-                  <option value="1005">#ORD-1005 - Eve Davis</option>
-                </select>
-              </label>
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">商品导入</h2>
+                  <p className="mt-1 text-sm text-slate-500">模板按“一行一个 SKU”组织；同一 `groupKey` 聚合为一个商品，`skuCode` 命中时执行更新。</p>
+                </div>
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${canProductImport ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                  {canProductImport ? '可执行' : '无权限'}
+                </span>
+              </div>
 
-              <label className="flex min-w-[200px] flex-1 flex-col">
-                <p className="mb-1.5 text-sm font-medium leading-normal text-slate-700 dark:text-slate-300">承运商</p>
-                <select
-                  className="form-select w-full rounded-lg border-slate-300 text-sm text-slate-700 shadow-sm focus:border-primary focus:ring-primary dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
-                  defaultValue=""
-                >
-                  <option value="">选择承运商</option>
-                  <option value="fedex">FedEx</option>
-                  <option value="ups">UPS</option>
-                  <option value="usps">USPS</option>
-                  <option value="dhl">DHL</option>
-                </select>
-              </label>
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-slate-700">商品 Excel</span>
+                  <input
+                    accept=".xls,.xlsx"
+                    className="block w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                    data-testid="product-import-excel"
+                    onChange={(event) => setProductExcelFile(event.target.files?.[0] || null)}
+                    type="file"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-medium text-slate-700">图片 ZIP（可选）</span>
+                  <input
+                    accept=".zip"
+                    className="block w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                    data-testid="product-import-zip"
+                    onChange={(event) => setProductImagesZip(event.target.files?.[0] || null)}
+                    type="file"
+                  />
+                </label>
+              </div>
 
-              <label className="flex min-w-[200px] flex-1 flex-col">
-                <p className="mb-1.5 text-sm font-medium leading-normal text-slate-700 dark:text-slate-300">物流单号</p>
+              <label className="mt-4 block">
+                <span className="mb-2 block text-sm font-medium text-slate-700">Image Base URL（可选）</span>
                 <input
-                  className="form-input w-full rounded-lg border-slate-300 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-primary focus:ring-primary dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-                  placeholder="输入物流单号"
-                  defaultValue=""
+                  className="block w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                  data-testid="product-import-image-base-url"
+                  onChange={(event) => setImageBaseUrl(event.target.value)}
+                  placeholder="https://cdn.example.com/catalog/"
+                  value={imageBaseUrl}
                 />
               </label>
 
-              <button
-                className="mb-px h-[42px] rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700"
-                type="button"
-              >
-                保存
-              </button>
-            </div>
-          </section>
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+                <p className="font-medium text-slate-800">模板字段</p>
+                <p className="mt-2 leading-6">
+                  `groupKey`、`skuCode`、`productName`、`skuName`、`categoryId`、`description`、`coverImage`、`images`、
+                  `tags`、`filterDimensions`、`spec`、`attributes`、`unit`、`isActive`、`priceTiers`。
+                </p>
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button
+                  className="inline-flex items-center justify-center rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  data-testid="product-import-submit"
+                  disabled={!canProductImport || submittingAction === 'product-import'}
+                  onClick={() => {
+                    void handleProductImport();
+                  }}
+                  type="button"
+                >
+                  {submittingAction === 'product-import' ? '提交中...' : '创建商品导入任务'}
+                </button>
+              </div>
+            </section>
+
+            <section className="grid gap-6 lg:grid-cols-2">
+              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-semibold text-slate-900">物流导入</h2>
+                    <p className="mt-1 text-sm text-slate-500">继续保留现有 real 物流导入入口，mock 模式只模拟任务创建。</p>
+                  </div>
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${canShipmentImport ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                    {canShipmentImport ? '可执行' : '无权限'}
+                  </span>
+                </div>
+
+                <label className="mt-5 block">
+                  <span className="mb-2 block text-sm font-medium text-slate-700">物流 Excel</span>
+                  <input
+                    accept=".xls,.xlsx"
+                    className="block w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                    onChange={(event) => setShipmentExcelFile(event.target.files?.[0] || null)}
+                    type="file"
+                  />
+                </label>
+
+                <button
+                  className="mt-5 inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!canShipmentImport || submittingAction === 'shipment-import'}
+                  onClick={() => {
+                    void handleShipmentImport();
+                  }}
+                  type="button"
+                >
+                  {submittingAction === 'shipment-import' ? '提交中...' : '创建物流导入任务'}
+                </button>
+              </div>
+
+              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-xl font-semibold text-slate-900">需求导出</h2>
+                    <p className="mt-1 text-sm text-slate-500">保留真实需求导出任务入口，便于与商品导入页统一查看任务状态。</p>
+                  </div>
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${canRequestExport ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                    {canRequestExport ? '可执行' : '无权限'}
+                  </span>
+                </div>
+
+                <button
+                  className="mt-5 inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!canRequestExport || submittingAction === 'request-export'}
+                  onClick={() => {
+                    void handleRequestExport();
+                  }}
+                  type="button"
+                >
+                  {submittingAction === 'request-export' ? '提交中...' : '创建需求导出任务'}
+                </button>
+
+                <div className="mt-6 border-t border-slate-100 pt-6">
+                  <h3 className="text-sm font-semibold text-slate-900">任务查询</h3>
+                  <div className="mt-3 flex gap-3">
+                    <input
+                      className="flex-1 rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                      data-testid="import-job-query"
+                      onChange={(event) => setQueryJobId(event.target.value)}
+                      placeholder="输入导入任务 ID"
+                      value={queryJobId}
+                    />
+                    <button
+                      className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      data-testid="import-job-query-submit"
+                      disabled={submittingAction === 'query-job'}
+                      onClick={() => {
+                        void handleQueryJob();
+                      }}
+                      type="button"
+                    >
+                      {submittingAction === 'query-job' ? '查询中...' : '查询'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">支付功能开关</h2>
+                  <p className="mt-1 text-sm text-slate-500">沿用原导入页的 feature flags 操作；mock 模式仅展示当前本地状态。</p>
+                </div>
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${canManageFlags ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                  {canManageFlags ? '可管理' : '无权限'}
+                </span>
+              </div>
+
+              <div className="mt-5 grid gap-3 md:grid-cols-3">
+                <label className="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-4 text-sm text-slate-700">
+                  <input
+                    checked={flags.paymentEnabled}
+                    disabled={!canManageFlags || context.mode !== 'dev' || !flagsLoaded}
+                    onChange={(event) => setFlags((current) => ({ ...current, paymentEnabled: event.target.checked }))}
+                    type="checkbox"
+                  />
+                  支付开关
+                </label>
+                <label className="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-4 text-sm text-slate-700">
+                  <input
+                    checked={flags.wechatPayEnabled}
+                    disabled={!canManageFlags || context.mode !== 'dev' || !flagsLoaded}
+                    onChange={(event) => setFlags((current) => ({ ...current, wechatPayEnabled: event.target.checked }))}
+                    type="checkbox"
+                  />
+                  微信支付
+                </label>
+                <label className="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-4 text-sm text-slate-700">
+                  <input
+                    checked={flags.alipayPayEnabled}
+                    disabled={!canManageFlags || context.mode !== 'dev' || !flagsLoaded}
+                    onChange={(event) => setFlags((current) => ({ ...current, alipayPayEnabled: event.target.checked }))}
+                    type="checkbox"
+                  />
+                  支付宝支付
+                </label>
+              </div>
+
+              <div className="mt-5">
+                <button
+                  className="inline-flex items-center justify-center rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!canManageFlags || context.mode !== 'dev' || submittingAction === 'save-flags'}
+                  onClick={() => {
+                    void handleSaveFlags();
+                  }}
+                  type="button"
+                >
+                  {submittingAction === 'save-flags' ? '保存中...' : '保存功能开关'}
+                </button>
+              </div>
+            </section>
+          </div>
+
+          <aside className="space-y-6">
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">最近任务</h2>
+                  <p className="mt-1 text-sm text-slate-500">优先展示最近一次创建或查询的任务。</p>
+                </div>
+                {latestJob ? (
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${jobToneClass}`} data-testid="latest-import-job-status">
+                    {latestJob.status}
+                  </span>
+                ) : null}
+              </div>
+
+              {!latestJob ? (
+                <div className="mt-5 rounded-2xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500" data-testid="latest-import-job-empty">
+                  暂无任务。创建商品导入、物流导入或需求导出后会在这里显示。
+                </div>
+              ) : (
+                <div className="mt-5 space-y-4" data-testid="latest-import-job">
+                  <div className="rounded-2xl bg-slate-50 px-4 py-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{latestJob.type}</div>
+                        <div className="mt-2 break-all text-sm font-semibold text-slate-900" data-testid="latest-import-job-id">{latestJob.id}</div>
+                      </div>
+                      <div className="text-right text-xs text-slate-500">
+                        <div>创建时间</div>
+                        <div className="mt-1">{formatDateTime(latestJob.createdAt)}</div>
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <div className="mb-2 flex items-center justify-between text-xs text-slate-500">
+                        <span>进度</span>
+                        <span>{latestJob.progress}%</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-slate-200">
+                        <div className="h-2 rounded-full bg-primary transition-all" style={{ width: `${Math.max(0, Math.min(100, latestJob.progress))}%` }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {latestJob.resultFileUrl ? (
+                    <a
+                      className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700 transition hover:bg-slate-50"
+                      href={latestJob.resultFileUrl}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      <span>下载结果摘要</span>
+                      <span className="material-symbols-outlined text-lg">download</span>
+                    </a>
+                  ) : null}
+
+                  {latestJob.errorReportUrl ? (
+                    <a
+                      className="flex items-center justify-between rounded-2xl border border-rose-200 px-4 py-3 text-sm text-rose-700 transition hover:bg-rose-50"
+                      href={latestJob.errorReportUrl}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      <span>下载错误报告</span>
+                      <span className="material-symbols-outlined text-lg">download</span>
+                    </a>
+                  ) : null}
+
+                  {latestJob.details ? (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-950 p-4">
+                      <pre className="max-h-[420px] overflow-auto text-xs leading-5 text-slate-100">{renderJson(latestJob.details)}</pre>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-xl font-semibold text-slate-900">调试响应</h2>
+              <p className="mt-1 text-sm text-slate-500">保留原导入工具页的原始响应视角，便于联调和排错。</p>
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-950 p-4">
+                <pre className="max-h-[520px] overflow-auto text-xs leading-5 text-slate-100">
+                  {latestResponse ? renderJson(latestResponse) : '暂无响应数据'}
+                </pre>
+              </div>
+            </section>
+          </aside>
         </div>
       </main>
     </>

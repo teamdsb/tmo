@@ -28,7 +28,7 @@ INSERT INTO import_jobs (
     $5,
     $6
 )
-RETURNING id, type, status, progress, result_file_url, error_report_url, created_by_user_id, created_at
+RETURNING id, type, status, progress, result_file_url, error_report_url, created_by_user_id, created_at, updated_at
 `
 
 type CreateImportJobParams struct {
@@ -59,12 +59,55 @@ func (q *Queries) CreateImportJob(ctx context.Context, arg CreateImportJobParams
 		&i.ErrorReportUrl,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const finalizeImportJob = `-- name: FinalizeImportJob :one
+UPDATE import_jobs
+SET status = $2,
+    progress = $3,
+    result_file_url = $4,
+    error_report_url = $5,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, type, status, progress, result_file_url, error_report_url, created_by_user_id, created_at, updated_at
+`
+
+type FinalizeImportJobParams struct {
+	ID             uuid.UUID `db:"id" json:"id"`
+	Status         string    `db:"status" json:"status"`
+	Progress       int32     `db:"progress" json:"progress"`
+	ResultFileUrl  *string   `db:"result_file_url" json:"result_file_url"`
+	ErrorReportUrl *string   `db:"error_report_url" json:"error_report_url"`
+}
+
+func (q *Queries) FinalizeImportJob(ctx context.Context, arg FinalizeImportJobParams) (ImportJob, error) {
+	row := q.db.QueryRow(ctx, finalizeImportJob,
+		arg.ID,
+		arg.Status,
+		arg.Progress,
+		arg.ResultFileUrl,
+		arg.ErrorReportUrl,
+	)
+	var i ImportJob
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Status,
+		&i.Progress,
+		&i.ResultFileUrl,
+		&i.ErrorReportUrl,
+		&i.CreatedByUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
 
 const getImportJob = `-- name: GetImportJob :one
-SELECT id, type, status, progress, result_file_url, error_report_url, created_by_user_id, created_at
+SELECT id, type, status, progress, result_file_url, error_report_url, created_by_user_id, created_at, updated_at
 FROM import_jobs
 WHERE id = $1
 `
@@ -81,6 +124,39 @@ func (q *Queries) GetImportJob(ctx context.Context, id uuid.UUID) (ImportJob, er
 		&i.ErrorReportUrl,
 		&i.CreatedByUserID,
 		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateImportJobStatus = `-- name: UpdateImportJobStatus :one
+UPDATE import_jobs
+SET status = $2,
+    progress = $3,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, type, status, progress, result_file_url, error_report_url, created_by_user_id, created_at, updated_at
+`
+
+type UpdateImportJobStatusParams struct {
+	ID       uuid.UUID `db:"id" json:"id"`
+	Status   string    `db:"status" json:"status"`
+	Progress int32     `db:"progress" json:"progress"`
+}
+
+func (q *Queries) UpdateImportJobStatus(ctx context.Context, arg UpdateImportJobStatusParams) (ImportJob, error) {
+	row := q.db.QueryRow(ctx, updateImportJobStatus, arg.ID, arg.Status, arg.Progress)
+	var i ImportJob
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Status,
+		&i.Progress,
+		&i.ResultFileUrl,
+		&i.ErrorReportUrl,
+		&i.CreatedByUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

@@ -18,6 +18,18 @@ INSERT INTO catalog_skus (
 )
 RETURNING id, product_id, sku_code, name, spec, attributes, unit, is_active, created_at, updated_at;
 
+-- name: UpdateSku :one
+UPDATE catalog_skus
+SET sku_code = $2,
+    name = $3,
+    spec = $4,
+    attributes = $5,
+    unit = $6,
+    is_active = $7,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, product_id, sku_code, name, spec, attributes, unit, is_active, created_at, updated_at;
+
 -- name: ListSkusByProduct :many
 SELECT id, product_id, sku_code, name, spec, attributes, unit, is_active, created_at, updated_at
 FROM catalog_skus

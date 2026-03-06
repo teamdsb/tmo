@@ -9,6 +9,7 @@ import {
   updateCatalogCategory
 } from './lib/api';
 import { ensureProtectedPage } from './lib/guard';
+import { loadImportedMockProducts } from './lib/product-import';
 import { escape, safeText } from './lib/render';
 import {
   canonicalCategories,
@@ -1133,6 +1134,28 @@ const createMockProducts = (count = 30) => {
         : []
     };
   });
+};
+
+const mergeImportedMockProducts = (baseItems) => {
+  const importedItems = loadImportedMockProducts();
+  if (!Array.isArray(importedItems) || importedItems.length === 0) {
+    return baseItems;
+  }
+
+  const importedModelCodes = new Set();
+  importedItems.forEach((item) => {
+    const models = Array.isArray(item?.models) ? item.models : [];
+    models.forEach((model, index) => {
+      importedModelCodes.add(normalizeModelCode(model?.code, `${item?.id || 'IMPORT'}-${index + 1}`));
+    });
+  });
+
+  const filteredBaseItems = baseItems.filter((item) => {
+    const models = Array.isArray(item?.models) ? item.models : [];
+    return !models.some((model, index) => importedModelCodes.has(normalizeModelCode(model?.code, `${item?.id || 'BASE'}-${index + 1}`)));
+  });
+
+  return [...importedItems, ...filteredBaseItems];
 };
 
 // 组装商品查询参数，保持与后端分页接口一致。
@@ -3075,7 +3098,7 @@ const initProducts = async () => {
   bindFilterActions();
 
   if (context.mode !== 'dev') {
-    const mockItems = createMockProducts(30);
+    const mockItems = mergeImportedMockProducts(createMockProducts(30));
     applyProducts(mockItems, mockItems.length, 1);
     return;
   }

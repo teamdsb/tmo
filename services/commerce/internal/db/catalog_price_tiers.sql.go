@@ -53,6 +53,19 @@ func (q *Queries) CreatePriceTier(ctx context.Context, arg CreatePriceTierParams
 	return i, err
 }
 
+const deletePriceTiersBySku = `-- name: DeletePriceTiersBySku :execrows
+DELETE FROM catalog_price_tiers
+WHERE sku_id = $1
+`
+
+func (q *Queries) DeletePriceTiersBySku(ctx context.Context, skuID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePriceTiersBySku, skuID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const listPriceTiersBySku = `-- name: ListPriceTiersBySku :many
 SELECT id, sku_id, min_qty, max_qty, unit_price_fen, created_at, updated_at
 FROM catalog_price_tiers
