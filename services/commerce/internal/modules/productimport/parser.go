@@ -132,7 +132,7 @@ func parseWorkbookRows(rows [][]string) ([]parsedRowState, error) {
 		}
 		state.Row.IsActive = isActive
 
-		priceTiers, err := parsePriceTiers(excel.CellValue(row, headerIndex, "pricetiers"))
+		priceTiers, err := parsePriceTiers(cellValueAny(row, headerIndex, "pricetiers", "pricetiersfen"))
 		if err != nil {
 			state.Error = err.Error()
 			results = append(results, state)
@@ -162,9 +162,22 @@ func buildMissingHeaderList(missing []string, missingAny [][]string) []string {
 func buildRawValues(row []string, headerIndex map[string]int, spec excel.TemplateSpec) map[string]string {
 	values := make(map[string]string, len(spec.Columns))
 	for _, column := range spec.Columns {
+		if column.Key == "pricetiers" {
+			values[column.Key] = cellValueAny(row, headerIndex, "pricetiers", "pricetiersfen")
+			continue
+		}
 		values[column.Key] = excel.CellValue(row, headerIndex, column.Key)
 	}
 	return values
+}
+
+func cellValueAny(row []string, headerIndex map[string]int, keys ...string) string {
+	for _, key := range keys {
+		if value := excel.CellValue(row, headerIndex, key); value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func isBlankRow(row []string) bool {

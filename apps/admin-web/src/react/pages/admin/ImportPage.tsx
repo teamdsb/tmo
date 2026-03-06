@@ -397,7 +397,7 @@ export const ImportPage = () => {
         }
       />
 
-      <main className="flex-1 mx-auto w-full max-w-[1440px] px-6 py-8 md:px-10">
+      <main className="flex-1 mx-auto w-full max-w-[1440px] px-6 py-8 md:px-10" data-testid="import-page">
         <div className="grid gap-6 xl:grid-cols-[1.35fr_minmax(320px,0.9fr)]">
           <div className="space-y-6">
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -418,12 +418,12 @@ export const ImportPage = () => {
               {(statusMessage || errorMessage) ? (
                 <div className="mt-5 space-y-3">
                   {statusMessage ? (
-                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700" data-testid="import-status-message">
                       {statusMessage}
                     </div>
                   ) : null}
                   {errorMessage ? (
-                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700" data-testid="import-error-message">
                       {errorMessage}
                     </div>
                   ) : null}
@@ -448,6 +448,7 @@ export const ImportPage = () => {
                   <input
                     accept=".xls,.xlsx"
                     className="block w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                    data-testid="product-import-excel"
                     onChange={(event) => setProductExcelFile(event.target.files?.[0] || null)}
                     type="file"
                   />
@@ -457,6 +458,7 @@ export const ImportPage = () => {
                   <input
                     accept=".zip"
                     className="block w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                    data-testid="product-import-zip"
                     onChange={(event) => setProductImagesZip(event.target.files?.[0] || null)}
                     type="file"
                   />
@@ -467,6 +469,7 @@ export const ImportPage = () => {
                 <span className="mb-2 block text-sm font-medium text-slate-700">Image Base URL（可选）</span>
                 <input
                   className="block w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                  data-testid="product-import-image-base-url"
                   onChange={(event) => setImageBaseUrl(event.target.value)}
                   placeholder="https://cdn.example.com/catalog/"
                   value={imageBaseUrl}
@@ -484,6 +487,7 @@ export const ImportPage = () => {
               <div className="mt-5 flex flex-wrap gap-3">
                 <button
                   className="inline-flex items-center justify-center rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  data-testid="product-import-submit"
                   disabled={!canProductImport || submittingAction === 'product-import'}
                   onClick={() => {
                     void handleProductImport();
@@ -556,12 +560,14 @@ export const ImportPage = () => {
                   <div className="mt-3 flex gap-3">
                     <input
                       className="flex-1 rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700"
+                      data-testid="import-job-query"
                       onChange={(event) => setQueryJobId(event.target.value)}
                       placeholder="输入导入任务 ID"
                       value={queryJobId}
                     />
                     <button
                       className="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      data-testid="import-job-query-submit"
                       disabled={submittingAction === 'query-job'}
                       onClick={() => {
                         void handleQueryJob();
@@ -639,23 +645,23 @@ export const ImportPage = () => {
                   <p className="mt-1 text-sm text-slate-500">优先展示最近一次创建或查询的任务。</p>
                 </div>
                 {latestJob ? (
-                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${jobToneClass}`}>
+                  <span className={`rounded-full px-3 py-1 text-xs font-semibold ${jobToneClass}`} data-testid="latest-import-job-status">
                     {latestJob.status}
                   </span>
                 ) : null}
               </div>
 
               {!latestJob ? (
-                <div className="mt-5 rounded-2xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500">
+                <div className="mt-5 rounded-2xl border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500" data-testid="latest-import-job-empty">
                   暂无任务。创建商品导入、物流导入或需求导出后会在这里显示。
                 </div>
               ) : (
-                <div className="mt-5 space-y-4">
+                <div className="mt-5 space-y-4" data-testid="latest-import-job">
                   <div className="rounded-2xl bg-slate-50 px-4 py-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <div className="text-xs uppercase tracking-[0.16em] text-slate-400">{latestJob.type}</div>
-                        <div className="mt-2 break-all text-sm font-semibold text-slate-900">{latestJob.id}</div>
+                        <div className="mt-2 break-all text-sm font-semibold text-slate-900" data-testid="latest-import-job-id">{latestJob.id}</div>
                       </div>
                       <div className="text-right text-xs text-slate-500">
                         <div>创建时间</div>

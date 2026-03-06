@@ -4,7 +4,7 @@ const baseURL = process.env.ADMIN_WEB_BASE_URL || 'http://127.0.0.1:5174';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  testMatch: /.*\.real\.spec\.ts/,
+  testMatch: /.*\.mock\.spec\.ts/,
   timeout: 180000,
   expect: {
     timeout: 15000
@@ -21,7 +21,7 @@ export default defineConfig({
   webServer: process.env.ADMIN_WEB_BASE_URL
     ? undefined
     : {
-        command: 'pnpm dev:real',
+        command: 'pnpm dev:mock',
         url: baseURL,
         reuseExistingServer: true,
         timeout: 180000

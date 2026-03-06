@@ -139,6 +139,22 @@ This document must be maintained in accordance with `docs/execplans/PLANS.md`.
 - 导入执行模块位于 `services/commerce/internal/modules/productimport/`。
 - 前端本地解析与 mock 持久化位于 `apps/admin-web/src/lib/product-import.js`。
 - 测试文件位于 `services/commerce/internal/modules/productimport/service_integration_test.go`，覆盖多规格导入、已有 SKU 更新与部分成功错误报告。
+- 2026-03-06 补充测试增强：
+  - `services/commerce/internal/modules/productimport/parser_test.go`
+  - `services/commerce/internal/modules/productimport/worker_test.go`
+  - `services/commerce/internal/http/handler/admin_product_import_integration_test.go`
+  - `services/commerce/internal/excel/helpers_test.go`
+  - `tools/scripts/commerce-product-import-smoke.sh`
+  - `apps/admin-web/tests/e2e/import.mock.spec.ts`
+  - `apps/admin-web/tests/e2e/import.real.spec.ts`
+
+测试结果补充：
+
+- `COMMERCE_DB_DSN=postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable go test -p 1 ./services/commerce/...`
+- `COMMERCE_API_BASE_URL=http://localhost:18080 bash tools/scripts/commerce-product-import-smoke.sh`
+- `pnpm -C apps/admin-web exec playwright test -c playwright.e2e.real.config.mjs tests/e2e/import.real.spec.ts`
+- `pnpm -C apps/admin-web test:e2e:mock`
+- `pnpm -C apps/admin-web build`
 
 ## Interfaces and Dependencies
 

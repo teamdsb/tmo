@@ -447,6 +447,9 @@ func (s *Service) processGroup(ctx context.Context, group *groupExecution, resol
 	}
 
 	groupHead := group.Rows[0].Parsed
+	normalizedImages := nonNilStrings(imageURLs)
+	normalizedTags := nonNilStrings(groupHead.Tags)
+	normalizedFilterDimensions := nonNilStrings(groupHead.FilterDimensions)
 	var product db.CatalogProduct
 	if len(matchedProductIDs) == 1 {
 		for productID := range matchedProductIDs {
@@ -456,9 +459,9 @@ func (s *Service) processGroup(ctx context.Context, group *groupExecution, resol
 				Description:      groupHead.Description,
 				CategoryID:       groupHead.CategoryID,
 				CoverImageUrl:    coverURL,
-				Images:           imageURLs,
-				Tags:             groupHead.Tags,
-				FilterDimensions: groupHead.FilterDimensions,
+				Images:           normalizedImages,
+				Tags:             normalizedTags,
+				FilterDimensions: normalizedFilterDimensions,
 			})
 		}
 		if err != nil {
@@ -470,9 +473,9 @@ func (s *Service) processGroup(ctx context.Context, group *groupExecution, resol
 			Description:      groupHead.Description,
 			CategoryID:       groupHead.CategoryID,
 			CoverImageUrl:    coverURL,
-			Images:           imageURLs,
-			Tags:             groupHead.Tags,
-			FilterDimensions: groupHead.FilterDimensions,
+			Images:           normalizedImages,
+			Tags:             normalizedTags,
+			FilterDimensions: normalizedFilterDimensions,
 		})
 		if err != nil {
 			return s.markGroupFailed(ctx, group.Rows, fmt.Sprintf("create product: %v", err))
@@ -856,6 +859,13 @@ func intToInt32(value int) int32 {
 		return math.MinInt32
 	}
 	return int32(value)
+}
+
+func nonNilStrings(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+	return values
 }
 
 func claimToProductImportJob(row db.ClaimNextPendingProductImportJobRow) db.ProductImportJob {

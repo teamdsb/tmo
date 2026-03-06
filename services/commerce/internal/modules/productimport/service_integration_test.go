@@ -156,6 +156,64 @@ func TestServiceRunNextCreatesMultiSkuProductWithZipImages(t *testing.T) {
 	}
 }
 
+func TestServiceRunNextStoresEmptyArraysAsEmptySlices(t *testing.T) {
+	pool := openProductImportTestPool(t)
+	resetProductImportTables(t, pool)
+	queries := db.New(pool)
+
+	ctx := context.Background()
+	category, err := queries.CreateCategory(ctx, db.CreateCategoryParams{
+		Name:     "Fasteners",
+		ParentID: pgtype.UUID{},
+		Sort:     1,
+	})
+	if err != nil {
+		t.Fatalf("create category: %v", err)
+	}
+
+	workbook := buildProductWorkbook(t, [][]string{
+		productWorkbookRow(t, map[string]string{
+			"groupkey":    "empty-arrays",
+			"skucode":     "EMPTY-ARRAYS-1",
+			"productname": "Arrayless Product",
+			"skuname":     "Arrayless SKU",
+			"categoryid":  category.ID.String(),
+			"attributes":  "material:steel",
+			"pricetiers":  "1-:1000",
+		}),
+	})
+
+	service := NewService(pool, t.TempDir(), testMediaBaseURL, nil)
+	if _, err := service.Enqueue(ctx, EnqueueInput{
+		CreatedByUserID: pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		ExcelFile:       bytes.NewReader(workbook),
+		ExcelFileName:   "empty-arrays.xlsx",
+	}); err != nil {
+		t.Fatalf("enqueue import: %v", err)
+	}
+
+	if _, err := service.RunNext(ctx); err != nil {
+		t.Fatalf("run next job: %v", err)
+	}
+
+	products, err := queries.ListProducts(ctx, db.ListProductsParams{Offset: 0, Limit: 20})
+	if err != nil {
+		t.Fatalf("list products: %v", err)
+	}
+	if len(products) != 1 {
+		t.Fatalf("expected 1 product, got %d", len(products))
+	}
+	if len(products[0].Images) != 0 {
+		t.Fatalf("expected empty images slice, got %#v", products[0].Images)
+	}
+	if len(products[0].Tags) != 0 {
+		t.Fatalf("expected empty tags slice, got %#v", products[0].Tags)
+	}
+	if len(products[0].FilterDimensions) != 0 {
+		t.Fatalf("expected empty filterDimensions slice, got %#v", products[0].FilterDimensions)
+	}
+}
+
 func TestServiceRunNextUpdatesExistingSkuBySkuCode(t *testing.T) {
 	pool := openProductImportTestPool(t)
 	resetProductImportTables(t, pool)
@@ -277,6 +335,42 @@ func TestServiceRunNextUpdatesExistingSkuBySkuCode(t *testing.T) {
 	}
 	if len(tiers) != 1 || tiers[0].UnitPriceFen != 4500 {
 		t.Fatalf("expected old tiers to be replaced, got %+v", tiers)
+	}
+}
+
+func TestServiceRunNextMarksMalformedWorkbookAsFailed(t *testing.T) {
+	pool := openProductImportTestPool(t)
+	resetProductImportTables(t, pool)
+	queries := db.New(pool)
+
+	ctx := context.Background()
+	service := NewService(pool, t.TempDir(), testMediaBaseURL, nil)
+	job, err := service.Enqueue(ctx, EnqueueInput{
+		CreatedByUserID: pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		ExcelFile:       bytes.NewBufferString("not-an-excel-file"),
+		ExcelFileName:   "broken.xlsx",
+	})
+	if err != nil {
+		t.Fatalf("enqueue malformed workbook: %v", err)
+	}
+
+	processed, err := service.RunNext(ctx)
+	if err != nil {
+		t.Fatalf("run next job: %v", err)
+	}
+	if !processed {
+		t.Fatalf("expected malformed job to be processed")
+	}
+
+	importJob, err := queries.GetImportJob(ctx, job.ID)
+	if err != nil {
+		t.Fatalf("get import job: %v", err)
+	}
+	if importJob.Status != string(oapi.FAILED) {
+		t.Fatalf("expected FAILED status, got %s", importJob.Status)
+	}
+	if importJob.ErrorReportUrl == nil || *importJob.ErrorReportUrl == "" {
+		t.Fatalf("expected fatal errorReportUrl to be set")
 	}
 }
 

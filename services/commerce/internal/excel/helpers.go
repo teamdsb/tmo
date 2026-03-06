@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"strings"
+	"unicode"
 
 	"github.com/xuri/excelize/v2"
 )
@@ -33,8 +34,12 @@ func ReadRows(reader io.Reader) ([][]string, error) {
 
 func NormalizeHeaderKey(value string) string {
 	trimmed := strings.TrimSpace(strings.ToLower(value))
-	replacer := strings.NewReplacer(" ", "", "_", "", "-", "")
-	return replacer.Replace(trimmed)
+	return strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return r
+		}
+		return -1
+	}, trimmed)
 }
 
 func HeaderIndexMap(headers []string) map[string]int {

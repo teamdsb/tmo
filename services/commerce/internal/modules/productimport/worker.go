@@ -9,14 +9,19 @@ import (
 
 const defaultPollInterval = 2 * time.Second
 
+type jobRunner interface {
+	ResetStaleRunning(ctx context.Context) error
+	RunNext(ctx context.Context) (bool, error)
+}
+
 type Worker struct {
-	Service      *Service
+	Runner       jobRunner
 	PollInterval time.Duration
 	Logger       *slog.Logger
 }
 
 func (w *Worker) Start(ctx context.Context) {
-	if w == nil || w.Service == nil {
+	if w == nil || w.Runner == nil {
 		return
 	}
 
@@ -25,7 +30,7 @@ func (w *Worker) Start(ctx context.Context) {
 		pollInterval = defaultPollInterval
 	}
 
-	if err := w.Service.ResetStaleRunning(ctx); err != nil {
+	if err := w.Runner.ResetStaleRunning(ctx); err != nil {
 		w.logError("reset stale product import jobs failed", err)
 	}
 
@@ -37,7 +42,7 @@ func (w *Worker) Start(ctx context.Context) {
 			if ctx.Err() != nil {
 				return
 			}
-			processed, err := w.Service.RunNext(ctx)
+			processed, err := w.Runner.RunNext(ctx)
 			if err != nil && !errors.Is(err, context.Canceled) {
 				w.logError("run product import job failed", err)
 			}

@@ -92,8 +92,8 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		Logger:              logger,
 	}
 	(&productimport.Worker{
-		Service: productImportService,
-		Logger:  logger,
+		Runner: productImportService,
+		Logger: logger,
 	}).Start(ctx)
 
 	router := httpserver.NewRouter(apiHandler, logger, func(checkCtx context.Context) error {
