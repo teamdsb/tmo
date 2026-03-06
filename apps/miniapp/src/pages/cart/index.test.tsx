@@ -24,7 +24,7 @@ describe('ExcelImportConfirmation', () => {
     expect(navbar).not.toBeNull()
 
     expect((await screen.findAllByText('示例螺栓')).length).toBeGreaterThan(0)
-    expect(screen.getByText('数量')).toBeInTheDocument()
+    expect(screen.getByText('采购数量')).toBeInTheDocument()
     expect(screen.getByText('2')).toBeInTheDocument()
   })
 
@@ -40,9 +40,9 @@ describe('ExcelImportConfirmation', () => {
 
     await renderCart()
 
-    expect(screen.getByText('共 0 件')).toBeInTheDocument()
-    expect(screen.getAllByText('购物车为空')).toHaveLength(1)
-    expect(screen.getByText('先去首页挑选商品吧')).toBeInTheDocument()
+    expect(screen.getAllByText('共 0 件')).toHaveLength(2)
+    expect(screen.getByText('购物车还是空的')).toBeInTheDocument()
+    expect(screen.getByText('先去首页挑几件常购商品，结算区会在这里汇总。')).toBeInTheDocument()
   })
 
   it('prefers product name from product detail for cart item title', async () => {
@@ -374,6 +374,6 @@ describe('ExcelImportConfirmation', () => {
     await waitFor(() => {
       expect(removeItemSpy).toHaveBeenCalledWith('cart-1')
     })
-    expect(await screen.findByText('购物车为空')).toBeInTheDocument()
+    expect(await screen.findByText('购物车还是空的')).toBeInTheDocument()
   })
 })
