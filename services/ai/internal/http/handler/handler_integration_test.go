@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -278,6 +279,109 @@ func TestPostAiAfterSalesSuggestionsMapsCommerceUpstreamFailure(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Body.String(), `"code":"commerce_unavailable"`) {
 		t.Fatalf("expected commerce_unavailable, got %s", recorder.Body.String())
+	}
+}
+
+func TestPostAiAfterSalesSuggestionsWithoutLatestMessageIDUsesFullConversation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	ticketID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/after-sales/tickets/" + ticketID.String():
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"id":          ticketID.String(),
+				"status":      "OPEN",
+				"subject":     "发货延迟",
+				"description": "客户催发货",
+			})
+		case "/after-sales/tickets/" + ticketID.String() + "/messages":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"items": []map[string]any{
+					{
+						"id":         "22222222-2222-2222-2222-222222222222",
+						"ticketId":   ticketID.String(),
+						"senderType": "customer",
+						"content":    "什么时候发货",
+						"createdAt":  time.Now().UTC().Format(time.RFC3339),
+					},
+				},
+				"page":     1,
+				"pageSize": 100,
+				"total":    1,
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	router := httpserver.NewRouter(&handler.Handler{
+		Auth:        middleware.NewAuthenticator(true, "dev-secret", "test-issuer"),
+		Commerce:    commerce.NewClient(upstream.URL, time.Second),
+		Knowledge:   staticKnowledge{},
+		Suggestions: staticProvider{suggestions: []string{"建议 1", "建议 2"}},
+	}, nil, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/ai/after-sales/suggestions", strings.NewReader(`{"ticketId":"`+ticketID.String()+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+signToken(t, "dev-secret", "test-issuer", "CUSTOMER"))
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestPostAiAfterSalesSuggestionsReturnsProviderUnavailable(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	ticketID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/after-sales/tickets/" + ticketID.String():
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"id":          ticketID.String(),
+				"status":      "OPEN",
+				"subject":     "责任待确认",
+				"description": "需要进一步确认",
+			})
+		case "/after-sales/tickets/" + ticketID.String() + "/messages":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"items":    []map[string]any{},
+				"page":     1,
+				"pageSize": 100,
+				"total":    0,
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+
+	router := httpserver.NewRouter(&handler.Handler{
+		Auth:        middleware.NewAuthenticator(true, "dev-secret", "test-issuer"),
+		Commerce:    commerce.NewClient(upstream.URL, time.Second),
+		Knowledge:   staticKnowledge{},
+		Suggestions: staticProvider{err: errors.New("provider down")},
+	}, nil, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/ai/after-sales/suggestions", strings.NewReader(`{"ticketId":"`+ticketID.String()+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+signToken(t, "dev-secret", "test-issuer", "CUSTOMER"))
+
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503, got %d body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"code":"ai_provider_unavailable"`) {
+		t.Fatalf("expected ai_provider_unavailable, got %s", recorder.Body.String())
 	}
 }
 

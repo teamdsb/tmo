@@ -65,3 +65,10 @@ func TestMockProviderSuggestsStableRepliesWithProductHint(t *testing.T) {
 		t.Fatalf("expected template name in first suggestion, got %q", suggestions[0])
 	}
 }
+
+func TestNewRejectsUnsupportedProvider(t *testing.T) {
+	_, err := New("unsupported", Config{})
+	if err == nil {
+		t.Fatalf("expected unsupported provider error")
+	}
+}
