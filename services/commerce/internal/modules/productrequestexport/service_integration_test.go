@@ -52,14 +52,18 @@ func TestServiceRunNextWritesWorkbook(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("seed product request: %v", err)
 	}
-	if _, err := queries.CreateProductRequest(ctx, db.CreateProductRequestParams{
+	secondRequest, err := queries.CreateProductRequest(ctx, db.CreateProductRequestParams{
 		CreatedByUserID:    uuid.New(),
 		OwnerSalesUserID:   pgtype.UUID{},
 		Name:               "Need plain part",
 		CategoryID:         pgtype.UUID{},
 		ReferenceImageUrls: []string{},
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("seed second product request: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE product_requests SET created_at = $2, updated_at = $2 WHERE id = $1`, secondRequest.ID, time.Date(2026, 3, 6, 9, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatalf("update second request timestamps: %v", err)
 	}
 
 	mediaDir := t.TempDir()
@@ -106,15 +110,18 @@ func TestServiceRunNextWritesWorkbook(t *testing.T) {
 	if strings.Join(rows[0], ",") != strings.Join(headers, ",") {
 		t.Fatalf("unexpected export headers: %#v", rows[0])
 	}
+	if rows[1][3] != "Need plain part" || rows[2][3] != "Need custom bracket" {
+		t.Fatalf("expected export rows to be ordered by createdAt desc, got %#v and %#v", rows[1], rows[2])
+	}
 	if rows[1][0] == "" || rows[1][3] == "" || rows[1][12] == "" || rows[1][13] == "" {
 		t.Fatalf("expected key exported fields to be populated, got %#v", rows[1])
 	}
-	if rows[1][11] != "https://example.com/a.png | https://example.com/b.png" {
-		t.Fatalf("unexpected referenceImageUrls export cell: %q", rows[1][11])
+	if rows[2][11] != "https://example.com/a.png | https://example.com/b.png" {
+		t.Fatalf("unexpected referenceImageUrls export cell: %q", rows[2][11])
 	}
 }
 
-func TestServiceRunNextAppliesFiltersAndSupportsEmptyWorkbook(t *testing.T) {
+func TestServiceRunNextAppliesInclusiveFiltersAndSupportsEmptyWorkbook(t *testing.T) {
 	pool := openProductRequestExportTestPool(t)
 	resetProductRequestExportTables(t, pool)
 	queries := db.New(pool)
@@ -130,6 +137,16 @@ func TestServiceRunNextAppliesFiltersAndSupportsEmptyWorkbook(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed old request: %v", err)
 	}
+	boundaryRequest, err := queries.CreateProductRequest(ctx, db.CreateProductRequestParams{
+		CreatedByUserID:    uuid.New(),
+		OwnerSalesUserID:   pgtype.UUID{},
+		Name:               "Boundary request",
+		CategoryID:         pgtype.UUID{},
+		ReferenceImageUrls: []string{},
+	})
+	if err != nil {
+		t.Fatalf("seed boundary request: %v", err)
+	}
 	newRequest, err := queries.CreateProductRequest(ctx, db.CreateProductRequestParams{
 		CreatedByUserID:    uuid.New(),
 		OwnerSalesUserID:   pgtype.UUID{},
@@ -142,9 +159,13 @@ func TestServiceRunNextAppliesFiltersAndSupportsEmptyWorkbook(t *testing.T) {
 	}
 
 	oldTime := time.Date(2026, 3, 1, 10, 0, 0, 0, time.UTC)
+	boundaryTime := time.Date(2026, 3, 4, 0, 0, 0, 0, time.UTC)
 	newTime := time.Date(2026, 3, 5, 10, 0, 0, 0, time.UTC)
 	if _, err := pool.Exec(ctx, `UPDATE product_requests SET created_at = $2, updated_at = $2 WHERE id = $1`, oldRequest.ID, oldTime); err != nil {
 		t.Fatalf("update old request time: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE product_requests SET created_at = $2, updated_at = $2 WHERE id = $1`, boundaryRequest.ID, boundaryTime); err != nil {
+		t.Fatalf("update boundary request time: %v", err)
 	}
 	if _, err := pool.Exec(ctx, `UPDATE product_requests SET created_at = $2, updated_at = $2 WHERE id = $1`, newRequest.ID, newTime); err != nil {
 		t.Fatalf("update new request time: %v", err)
@@ -172,11 +193,11 @@ func TestServiceRunNextAppliesFiltersAndSupportsEmptyWorkbook(t *testing.T) {
 		t.Fatalf("get filtered import job: %v", err)
 	}
 	rows := readExportWorkbookRows(t, mediaDir, *importJob.ResultFileUrl)
-	if len(rows) != 2 {
-		t.Fatalf("expected header plus one filtered row, got %d", len(rows))
+	if len(rows) != 3 {
+		t.Fatalf("expected header plus two filtered rows, got %d", len(rows))
 	}
-	if rows[1][3] != "New request" {
-		t.Fatalf("expected only new request to be exported, got %#v", rows[1])
+	if rows[1][3] != "New request" || rows[2][3] != "Boundary request" {
+		t.Fatalf("expected filtered rows to include boundary and new requests, got %#v / %#v", rows[1], rows[2])
 	}
 
 	futureAfter := time.Date(2026, 3, 7, 0, 0, 0, 0, time.UTC)
@@ -198,6 +219,50 @@ func TestServiceRunNextAppliesFiltersAndSupportsEmptyWorkbook(t *testing.T) {
 	emptyRows := readExportWorkbookRows(t, mediaDir, *emptyImportJob.ResultFileUrl)
 	if len(emptyRows) != 1 {
 		t.Fatalf("expected header-only workbook, got %d rows", len(emptyRows))
+	}
+}
+
+func TestServiceRunNextMarksJobFailedWhenMediaConfigMissing(t *testing.T) {
+	pool := openProductRequestExportTestPool(t)
+	resetProductRequestExportTables(t, pool)
+	queries := db.New(pool)
+
+	ctx := context.Background()
+	if _, err := queries.CreateProductRequest(ctx, db.CreateProductRequestParams{
+		CreatedByUserID:    uuid.New(),
+		OwnerSalesUserID:   pgtype.UUID{},
+		Name:               "Need export without media config",
+		CategoryID:         pgtype.UUID{},
+		ReferenceImageUrls: []string{},
+	}); err != nil {
+		t.Fatalf("seed request: %v", err)
+	}
+
+	service := NewService(pool, "", "")
+	job, err := service.Enqueue(ctx, EnqueueInput{
+		CreatedByUserID: pgtype.UUID{Bytes: uuid.New(), Valid: true},
+	})
+	if err != nil {
+		t.Fatalf("enqueue export: %v", err)
+	}
+
+	processed, err := service.RunNext(ctx)
+	if err != nil {
+		t.Fatalf("expected failed job to be swallowed into FAILED status, got err: %v", err)
+	}
+	if !processed {
+		t.Fatalf("expected export job to be claimed")
+	}
+
+	importJob, err := queries.GetImportJob(ctx, job.ID)
+	if err != nil {
+		t.Fatalf("get failed import job: %v", err)
+	}
+	if importJob.Status != string(oapi.FAILED) {
+		t.Fatalf("expected FAILED, got %s", importJob.Status)
+	}
+	if importJob.ResultFileUrl != nil {
+		t.Fatalf("expected empty resultFileUrl, got %q", *importJob.ResultFileUrl)
 	}
 }
 

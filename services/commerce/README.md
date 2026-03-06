@@ -79,7 +79,10 @@ CATALOG_IMAGE_MIGRATE_DRY_RUN=false bash tools/scripts/catalog-image-migrate.sh
 
 ```bash
 COMMERCE_API_BASE_URL="http://localhost:8080" bash tools/scripts/commerce-verify.sh
+COMMERCE_API_BASE_URL="http://localhost:8080" bash tools/scripts/commerce-product-request-export-smoke.sh
 ```
+
+`commerce-product-request-export-smoke.sh` 优先复用 `COMMERCE_PRODUCT_REQUEST_EXPORT_SMOKE_AUTH_TOKEN` / `COMMERCE_SMOKE_AUTH_TOKEN`，未提供时会尝试通过 gateway 的 `admin/admin123` 执行本地 dev 密码登录。
 
 ## Codegen
 

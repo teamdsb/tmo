@@ -44,9 +44,16 @@ test('mock import page advances product-request export jobs to downloadable succ
   await expect(page.getByTestId('import-page')).toBeVisible();
   await page.getByTestId('request-export-submit').click();
 
+  await expect(page.getByTestId('latest-import-job-status')).toContainText('PENDING');
+  await expect(page.getByTestId('latest-import-job-status')).toContainText('RUNNING');
   await expect(page.getByTestId('import-status-message')).toContainText('Mock 需求导出任务已创建');
   await expect(page.getByTestId('latest-import-job-status')).toContainText('SUCCEEDED');
   await expect(page.getByRole('link', { name: '下载导出文件' })).toBeVisible();
+
+  const jobId = ((await page.getByTestId('latest-import-job-id').textContent()) || '').trim();
+  await page.getByTestId('import-job-query').fill(jobId);
+  await page.getByTestId('import-job-query-submit').click();
+  await expect(page.getByTestId('latest-import-job-status')).toContainText('SUCCEEDED');
 
   const persisted = await page.evaluate(() => {
     return JSON.parse(localStorage.getItem('admin-web-mock-import-jobs') || '[]');

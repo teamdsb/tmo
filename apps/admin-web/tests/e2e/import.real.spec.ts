@@ -162,6 +162,8 @@ test('real mode import page creates product-request export job and polls status'
   await page.getByTestId('request-export-submit').click();
 
   await expect(page.getByTestId('import-status-message')).toContainText('需求导出任务已创建');
+  await expect(page.getByTestId('latest-import-job-status')).toContainText('PENDING');
+  await expect(page.getByTestId('latest-import-job-status')).toContainText('RUNNING');
   await expect(page.getByTestId('latest-import-job-status')).toContainText('SUCCEEDED');
   await expect(page.getByRole('link', { name: '下载导出文件' })).toBeVisible();
   await expect.poll(() => pollCount).toBeGreaterThan(1);
