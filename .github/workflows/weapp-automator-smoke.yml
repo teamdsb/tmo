@@ -149,7 +149,7 @@ jobs:
 
       - name: Upload weapp logs
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: weapp-automator-logs-${{ steps.smoke_profile.outputs.quality_profile || 'unknown' }}
           path: apps/miniapp/.logs/weapp
