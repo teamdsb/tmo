@@ -382,6 +382,7 @@ MockNavbar.NavLeft = ({ children, ...props }) => (
     {children ?? '返回'}
   </button>
 );
+MockNavbar.NavRight = ({ children, ...props }) => <span {...stripDomProps(props)}>{children}</span>;
 MockNavbar.Title = ({ children, ...props }) => <span {...stripDomProps(props)}>{children}</span>;
 const MockTag = ({ children, ...props }) => <span {...props}>{children}</span>;
 const MockFlex = mockComponent('div');

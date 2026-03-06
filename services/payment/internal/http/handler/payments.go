@@ -253,7 +253,11 @@ func (h *Handler) createPaymentSession(c *gin.Context, claims middleware.Claims,
 			IdempotencyKey: &trimmedKey,
 		})
 		if err == nil {
-			return createResponseFromPayment(existing)
+			payload, err := createResponseFromPayment(existing)
+			if err != nil {
+				return nil, err
+			}
+			return hydrateCreateResponseIDs(existing.ID, payload), nil
 		}
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return nil, errInternal("check payment idempotency failed")
