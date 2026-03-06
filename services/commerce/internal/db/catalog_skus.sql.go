@@ -260,3 +260,52 @@ func (q *Queries) ListSkusBySkuCode(ctx context.Context, skuCode *string) ([]Cat
 	}
 	return items, nil
 }
+
+const updateSku = `-- name: UpdateSku :one
+UPDATE catalog_skus
+SET sku_code = $2,
+    name = $3,
+    spec = $4,
+    attributes = $5,
+    unit = $6,
+    is_active = $7,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, product_id, sku_code, name, spec, attributes, unit, is_active, created_at, updated_at
+`
+
+type UpdateSkuParams struct {
+	ID         uuid.UUID       `db:"id" json:"id"`
+	SkuCode    *string         `db:"sku_code" json:"sku_code"`
+	Name       string          `db:"name" json:"name"`
+	Spec       *string         `db:"spec" json:"spec"`
+	Attributes json.RawMessage `db:"attributes" json:"attributes"`
+	Unit       *string         `db:"unit" json:"unit"`
+	IsActive   bool            `db:"is_active" json:"is_active"`
+}
+
+func (q *Queries) UpdateSku(ctx context.Context, arg UpdateSkuParams) (CatalogSku, error) {
+	row := q.db.QueryRow(ctx, updateSku,
+		arg.ID,
+		arg.SkuCode,
+		arg.Name,
+		arg.Spec,
+		arg.Attributes,
+		arg.Unit,
+		arg.IsActive,
+	)
+	var i CatalogSku
+	err := row.Scan(
+		&i.ID,
+		&i.ProductID,
+		&i.SkuCode,
+		&i.Name,
+		&i.Spec,
+		&i.Attributes,
+		&i.Unit,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}

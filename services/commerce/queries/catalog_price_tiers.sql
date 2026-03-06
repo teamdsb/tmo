@@ -12,6 +12,10 @@ INSERT INTO catalog_price_tiers (
 )
 RETURNING id, sku_id, min_qty, max_qty, unit_price_fen, created_at, updated_at;
 
+-- name: DeletePriceTiersBySku :execrows
+DELETE FROM catalog_price_tiers
+WHERE sku_id = $1;
+
 -- name: ListPriceTiersBySku :many
 SELECT id, sku_id, min_qty, max_qty, unit_price_fen, created_at, updated_at
 FROM catalog_price_tiers

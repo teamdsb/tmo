@@ -12,6 +12,7 @@ import (
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/catalog"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/inquiry"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/order"
+	"github.com/teamdsb/tmo/services/commerce/internal/modules/productimport"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/productrequest"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/tracking"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/wishlist"
@@ -27,6 +28,7 @@ type Handler struct {
 	ProductRequestStore productrequest.Store
 	AfterSalesStore     aftersales.Store
 	InquiryStore        inquiry.Store
+	ProductImport       *productimport.Service
 	MediaLocalOutputDir string
 	MediaPublicBaseURL  string
 	DB                  *pgxpool.Pool

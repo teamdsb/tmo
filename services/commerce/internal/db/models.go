@@ -11,6 +11,45 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AdminSupplier struct {
+	ID                   uuid.UUID          `db:"id" json:"id"`
+	SupplierCode         string             `db:"supplier_code" json:"supplier_code"`
+	Name                 string             `db:"name" json:"name"`
+	Country              string             `db:"country" json:"country"`
+	City                 string             `db:"city" json:"city"`
+	Categories           []string           `db:"categories" json:"categories"`
+	Status               string             `db:"status" json:"status"`
+	Score                int32              `db:"score" json:"score"`
+	LastQuoteAmountCents *int64             `db:"last_quote_amount_cents" json:"last_quote_amount_cents"`
+	LastQuoteAt          pgtype.Timestamptz `db:"last_quote_at" json:"last_quote_at"`
+	Notes                string             `db:"notes" json:"notes"`
+	CreatedAt            pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type AdminSupplierContact struct {
+	ID         uuid.UUID          `db:"id" json:"id"`
+	SupplierID uuid.UUID          `db:"supplier_id" json:"supplier_id"`
+	Name       string             `db:"name" json:"name"`
+	Title      string             `db:"title" json:"title"`
+	Email      *string            `db:"email" json:"email"`
+	Phone      *string            `db:"phone" json:"phone"`
+	IsPrimary  bool               `db:"is_primary" json:"is_primary"`
+	CreatedAt  pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt  pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type AdminSupplierScorecard struct {
+	ID            uuid.UUID          `db:"id" json:"id"`
+	SupplierID    uuid.UUID          `db:"supplier_id" json:"supplier_id"`
+	Period        string             `db:"period" json:"period"`
+	DeliveryScore int32              `db:"delivery_score" json:"delivery_score"`
+	QualityScore  int32              `db:"quality_score" json:"quality_score"`
+	PriceScore    int32              `db:"price_score" json:"price_score"`
+	RiskLevel     string             `db:"risk_level" json:"risk_level"`
+	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
+}
+
 type AfterSalesMessage struct {
 	ID           uuid.UUID          `db:"id" json:"id"`
 	TicketID     uuid.UUID          `db:"ticket_id" json:"ticket_id"`
@@ -137,6 +176,7 @@ type ImportJob struct {
 	ErrorReportUrl  *string            `db:"error_report_url" json:"error_report_url"`
 	CreatedByUserID pgtype.UUID        `db:"created_by_user_id" json:"created_by_user_id"`
 	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }
 
 type InquiryMessage struct {
@@ -202,6 +242,36 @@ type PriceInquiry struct {
 	ResponseNote        *string            `db:"response_note" json:"response_note"`
 	CreatedAt           pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt           pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type ProductImportJob struct {
+	JobID         uuid.UUID          `db:"job_id" json:"job_id"`
+	ExcelFilePath string             `db:"excel_file_path" json:"excel_file_path"`
+	ExcelFileName string             `db:"excel_file_name" json:"excel_file_name"`
+	ImagesZipPath *string            `db:"images_zip_path" json:"images_zip_path"`
+	ImagesZipName *string            `db:"images_zip_name" json:"images_zip_name"`
+	ImageBaseUrl  *string            `db:"image_base_url" json:"image_base_url"`
+	TotalRows     int32              `db:"total_rows" json:"total_rows"`
+	SuccessRows   int32              `db:"success_rows" json:"success_rows"`
+	FailedRows    int32              `db:"failed_rows" json:"failed_rows"`
+	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type ProductImportRow struct {
+	ID           uuid.UUID          `db:"id" json:"id"`
+	JobID        uuid.UUID          `db:"job_id" json:"job_id"`
+	LineNo       int32              `db:"line_no" json:"line_no"`
+	GroupKey     *string            `db:"group_key" json:"group_key"`
+	SkuCode      *string            `db:"sku_code" json:"sku_code"`
+	ProductName  *string            `db:"product_name" json:"product_name"`
+	RowData      json.RawMessage    `db:"row_data" json:"row_data"`
+	Status       string             `db:"status" json:"status"`
+	ErrorMessage *string            `db:"error_message" json:"error_message"`
+	ProductID    pgtype.UUID        `db:"product_id" json:"product_id"`
+	SkuID        pgtype.UUID        `db:"sku_id" json:"sku_id"`
+	CreatedAt    pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }
 
 type ProductRequest struct {

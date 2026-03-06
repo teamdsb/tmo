@@ -17,6 +17,7 @@ import (
 	httpserver "github.com/teamdsb/tmo/services/commerce/internal/http"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/handler"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/middleware"
+	"github.com/teamdsb/tmo/services/commerce/internal/modules/productimport"
 
 	"github.com/teamdsb/tmo/packages/go-shared/observability"
 )
@@ -72,6 +73,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 
 	store := db.New(pool)
 	auth := middleware.NewAuthenticator(cfg.AuthEnabled, cfg.JWTSecret, cfg.JWTIssuer)
+	productImportService := productimport.NewService(pool, cfg.MediaLocalOutputDir, cfg.MediaPublicBaseURL, logger)
 	apiHandler := &handler.Handler{
 		AddressStore:        store,
 		CatalogStore:        store,
@@ -82,12 +84,17 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		ProductRequestStore: store,
 		AfterSalesStore:     store,
 		InquiryStore:        store,
+		ProductImport:       productImportService,
 		MediaLocalOutputDir: cfg.MediaLocalOutputDir,
 		MediaPublicBaseURL:  cfg.MediaPublicBaseURL,
 		DB:                  pool,
 		Auth:                auth,
 		Logger:              logger,
 	}
+	(&productimport.Worker{
+		Service: productImportService,
+		Logger:  logger,
+	}).Start(ctx)
 
 	router := httpserver.NewRouter(apiHandler, logger, func(checkCtx context.Context) error {
 		return db.Ready(checkCtx, pool)

@@ -45,6 +45,31 @@ func ShipmentImportTemplate() TemplateSpec {
 	}
 }
 
+func ProductImportTemplate() TemplateSpec {
+	return TemplateSpec{
+		Name:      "product_import",
+		SheetName: "Product Import",
+		Columns: []TemplateColumn{
+			{Key: "groupkey", Header: "Group Key"},
+			{Key: "skucode", Header: "SKU Code"},
+			{Key: "productname", Header: "Product Name"},
+			{Key: "skuname", Header: "SKU Name"},
+			{Key: "categoryid", Header: "Category ID"},
+			{Key: "description", Header: "Description"},
+			{Key: "coverimage", Header: "Cover Image"},
+			{Key: "images", Header: "Images"},
+			{Key: "tags", Header: "Tags"},
+			{Key: "filterdimensions", Header: "Filter Dimensions"},
+			{Key: "spec", Header: "Spec"},
+			{Key: "attributes", Header: "Attributes"},
+			{Key: "unit", Header: "Unit"},
+			{Key: "isactive", Header: "Is Active"},
+			{Key: "pricetiers", Header: "Price Tiers (Fen)"},
+		},
+		Required: []string{"groupkey", "productname", "categoryid"},
+	}
+}
+
 func TemplateHeaders(spec TemplateSpec) []string {
 	headers := make([]string, 0, len(spec.Columns))
 	for _, column := range spec.Columns {

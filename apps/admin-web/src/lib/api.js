@@ -210,11 +210,14 @@ export const createShipmentImportJob = async (excelFile) => {
   return postShipmentsImportJobs({ excelFile });
 };
 
-export const createAdminProductImportJob = async (excelFile, imagesZip) => {
+export const createAdminProductImportJob = async (excelFile, imagesZip, imageBaseUrl) => {
   const form = new FormData();
   form.append('excelFile', excelFile);
   if (imagesZip) {
     form.append('imagesZip', imagesZip);
+  }
+  if (imageBaseUrl) {
+    form.append('imageBaseUrl', imageBaseUrl);
   }
   return requestRaw('/admin/products/import-jobs', {
     method: 'POST',
