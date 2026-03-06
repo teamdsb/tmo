@@ -228,6 +228,10 @@
   width: 80rpx
 }
 
+.w-11 {
+  width: 88rpx
+}
+
 .w-12 {
   width: 96rpx
 }
@@ -641,11 +645,6 @@
 .py-5 {
   padding-top: 40rpx;
   padding-bottom: 40rpx
-}
-
-.py-6 {
-  padding-top: 48rpx;
-  padding-bottom: 48rpx
 }
 
 .pb-12 {

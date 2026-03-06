@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { View, Text, Button } from '@tarojs/components'
+import { View, Text, Button, Image } from '@tarojs/components'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import FixedView from '@taroify/core/fixed-view'
@@ -17,6 +17,7 @@ import { commerceServices } from '../../services/commerce'
 import { ROUTES } from '../../routes'
 import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { ensureLoggedIn } from '../../utils/auth'
+import placeholderProductImage from '../../assets/images/placeholder-product.svg'
 
 const MATCH_TYPE_BADGES: Record<string, { label: string; className: string }> = {
   AMBIGUOUS: { label: '匹配不确定', className: 'bg-amber-50 text-amber-600' },
@@ -91,6 +92,7 @@ export default function ExcelImportConfirmation() {
   const [loading, setLoading] = useState(false)
   const [busyItemId, setBusyItemId] = useState<string | null>(null)
   const [productNameBySpuId, setProductNameBySpuId] = useState<Record<string, string>>({})
+  const [productImageBySpuId, setProductImageBySpuId] = useState<Record<string, string>>({})
   const [skuOptionsBySpuId, setSkuOptionsBySpuId] = useState<Record<string, Sku[]>>({})
   const productNameBySpuIdRef = useRef<Record<string, string>>({})
   const skuOptionsBySpuIdRef = useRef<Record<string, Sku[]>>({})
@@ -162,6 +164,16 @@ export default function ExcelImportConfirmation() {
         const next = { ...prev, [spuId]: productName }
         productNameBySpuIdRef.current = next
         return next
+      })
+    }
+
+    const productImage = detail.product?.images?.find((image) => typeof image === 'string' && image.trim())?.trim()
+    if (productImage) {
+      setProductImageBySpuId((prev) => {
+        if (prev[spuId] === productImage) {
+          return prev
+        }
+        return { ...prev, [spuId]: productImage }
       })
     }
 
@@ -283,6 +295,12 @@ export default function ExcelImportConfirmation() {
 
   const actionBase = 'flex-1 h-11 rounded-xl text-sm font-semibold flex items-center justify-center'
   const actionDisabled = loading ? 'opacity-60' : ''
+  const cartTotalItems = cartItems.reduce((sum, item) => sum + item.qty, 0)
+  const cartTotalFen = cartItems.reduce((sum, item) => {
+    const unitPriceFen = item.sku.priceTiers?.[0]?.unitPriceFen
+    return sum + (typeof unitPriceFen === 'number' ? unitPriceFen * item.qty : 0)
+  }, 0)
+
   const handleCheckout = async () => {
     if (!cartItems.length) {
       await Taro.showToast({ title: '购物车为空', icon: 'none' })
@@ -591,44 +609,59 @@ export default function ExcelImportConfirmation() {
                   const title = getCartItemTitle(item, productNameBySpuId)
                   const specLabel = item.sku.spec?.trim() || item.sku.name
                   const priceLabel = formatCartItemPrice(item)
+                  const productImage = item.sku.spuId ? productImageBySpuId[item.sku.spuId] : undefined
                   return (
                     <View
                       key={item.id}
                       className='cart-item-card'
                     >
-                      <View className='cart-item-header'>
+                      <View className='cart-item-top'>
+                        <View className='cart-item-thumb'>
+                          <Image
+                            src={productImage || placeholderProductImage}
+                            mode='aspectFill'
+                            className='cart-item-thumb-image'
+                          />
+                        </View>
                         <View className='cart-item-main'>
-                          <Text className='cart-item-title'>
-                            {title}
-                          </Text>
-                          {meta ? (
-                            <Text className='cart-item-meta'>{meta}</Text>
-                          ) : null}
-                        </View>
-                        <View
-                          className={`cart-item-remove ${isBusy ? 'cart-item-remove--disabled' : ''}`}
-                          onClick={isBusy ? undefined : () => void handleRemoveCartItem(item)}
-                        >
-                          <Text>移除</Text>
-                        </View>
-                      </View>
+                          <View className='cart-item-header'>
+                            <View className='cart-item-title-wrap'>
+                              <Text className='cart-item-title'>
+                                {title}
+                              </Text>
+                              {meta ? (
+                                <Text className='cart-item-meta'>{meta}</Text>
+                              ) : null}
+                            </View>
+                            <View
+                              className={`cart-item-remove ${isBusy ? 'cart-item-remove--disabled' : ''}`}
+                              onClick={isBusy ? undefined : () => void handleRemoveCartItem(item)}
+                            >
+                              <Text>移除</Text>
+                            </View>
+                          </View>
 
-                      <View className='cart-item-middle'>
-                        <View
-                          className={`cart-item-spec-trigger ${isBusy ? 'cart-item-spec-trigger--disabled' : ''}`}
-                          onClick={isBusy ? undefined : () => void handleChangeCartItemSku(item)}
-                        >
-                          <Text className='cart-item-spec-label'>规格</Text>
-                          <Text className='cart-item-spec-value'>{specLabel}</Text>
-                        </View>
-                        <View className='cart-item-price'>
-                          <Text className='cart-item-price-label'>参考单价</Text>
-                          <Text className='cart-item-price-value'>{priceLabel}</Text>
+                          <View className='cart-item-middle'>
+                            <View
+                              className={`cart-item-spec-trigger ${isBusy ? 'cart-item-spec-trigger--disabled' : ''}`}
+                              onClick={isBusy ? undefined : () => void handleChangeCartItemSku(item)}
+                            >
+                              <Text className='cart-item-spec-label'>规格</Text>
+                              <Text className='cart-item-spec-value'>{specLabel}</Text>
+                            </View>
+                            <View className='cart-item-price'>
+                              <Text className='cart-item-price-label'>参考单价</Text>
+                              <Text className='cart-item-price-value'>{priceLabel}</Text>
+                            </View>
+                          </View>
                         </View>
                       </View>
 
                       <View className='cart-item-footer'>
-                        <Text className='cart-item-qty-label'>数量</Text>
+                        <View className='cart-item-summary'>
+                          <Text className='cart-item-qty-label'>采购数量</Text>
+                          <Text className='cart-item-summary-text'>{item.qty} 件</Text>
+                        </View>
                         <View className='cart-item-stepper'>
                           <View
                             className={`cart-item-stepper-btn ${
@@ -665,9 +698,12 @@ export default function ExcelImportConfirmation() {
                 })}
               </View>
             ) : (
-              <View className='py-10 text-center'>
-                <Text className='text-sm font-medium text-slate-500'>购物车为空</Text>
-                <Text className='text-xs text-slate-300 mt-2'>先去首页挑选商品吧</Text>
+              <View className='cart-empty-state'>
+                <View className='cart-empty-icon'>
+                  <AppsOutlined className='text-xl cart-shell-primary' />
+                </View>
+                <Text className='cart-empty-title'>购物车还是空的</Text>
+                <Text className='cart-empty-copy'>先去首页挑几件常购商品，结算区会在这里汇总。</Text>
               </View>
             )}
           </View>
@@ -675,11 +711,20 @@ export default function ExcelImportConfirmation() {
       )}
 
       <FixedView position='bottom' safeArea='bottom' placeholder>
-        <View className='px-5 py-3 bg-white border-t border-slate-100 flex gap-3'>
+        <View className='cart-bottom-bar'>
+          {!importJob ? (
+            <View className='cart-bottom-summary'>
+              <Text className='cart-bottom-summary-label'>{`共 ${cartTotalItems} 件`}</Text>
+              <Text className='cart-bottom-summary-value'>
+                {cartTotalFen > 0 ? formatFen(cartTotalFen) : '待确认报价'}
+              </Text>
+            </View>
+          ) : null}
           <Button
             className={`${actionBase} cart-action-secondary ${actionDisabled}`}
             hoverClass='none'
             disabled={loading}
+            onClick={!importJob ? () => void switchTabLike(ROUTES.home) : undefined}
           >
             {importJob ? '保存草稿' : '继续浏览'}
           </Button>
