@@ -99,14 +99,13 @@ export const toOrderBadge = (count: number): string | undefined => {
 }
 
 export const createMineMenuItems = (setCurrentPage: (page: 'demand' | 'address' | 'orders') => void): MenuItem[] => [
-  SALES_MENU_ITEM,
   { key: 'demand', label: '我的需求', icon: Description, action: () => setCurrentPage('demand') },
-  { key: 'favorites', label: '我的收藏', icon: StarOutlined, route: ROUTES.favorites },
+  { key: 'favorites', label: '收藏', icon: StarOutlined, route: ROUTES.favorites },
   { key: 'address', label: '收货地址', icon: LocationOutlined, action: () => setCurrentPage('address') },
   { key: 'import', label: 'Excel 批量导入', icon: AppsOutlined, route: ROUTES.import },
   {
     key: 'tracking',
-    label: '物流追踪',
+    label: '批量物流',
     icon: BarChartOutlined,
     action: () => setCurrentPage('orders')
   },

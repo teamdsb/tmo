@@ -25,9 +25,15 @@ The user-visible result is that the admin login page and later admin pages conti
 - [x] (2026-03-06 10:02Z) Verified the decomposed `mine` page with `pnpm -C apps/miniapp test -- src/pages/mine/index.test.tsx` and a targeted ESLint run over the changed files.
 - [x] (2026-03-06 10:15Z) Decomposed `apps/miniapp/src/pages/sales/index.tsx` into page-local `types.ts`, `data.ts`, and `views.tsx` modules and added a page-level smoke test that exercises the main tab switches.
 - [x] (2026-03-06 10:15Z) Verified the decomposed `sales` page with `pnpm -C apps/miniapp test -- src/pages/sales/index.test.tsx` and a targeted ESLint run over the changed files.
-- [ ] Migrate the next complex admin pages that still contain real legacy behavior, primarily `orders` and `products`, using the React dashboard migration as the pattern for moving fetch logic and conditional rendering into components.
-- [ ] Decompose the largest Taro miniapp pages (`pages/mine/index.tsx`, `pages/cart/index.tsx`, and `pages/sales/index.tsx`) into smaller sections, reusable components, and page-local hooks without changing route structure.
-- [ ] Retire legacy admin HTML pages and DOM-only scripts once each React replacement is behaviorally verified.
+- [x] (2026-03-06 10:35Z) Decomposed `apps/miniapp/src/pages/cart/index.tsx` into page-local `components.tsx`, `helpers.ts`, `hooks.ts`, and `types.ts` modules so the route file now focuses on loading state, route branching, and cart actions.
+- [x] (2026-03-06 10:35Z) Verified the decomposed `cart` page with a targeted Jest run, then re-ran the combined `cart`, `mine`, and `sales` page tests plus ESLint over all changed miniapp files.
+- [x] (2026-03-06 11:05Z) Migrated `apps/admin-web/src/react/pages/admin/OrdersPage.tsx` from a static React shell into a stateful React page that owns auth bootstrap, mock/dev order loading, tab switching, pagination, side-panel synchronization, and the editable order drawer.
+- [x] (2026-03-06 11:05Z) Removed the legacy `../../orders.js` bootstrap from `apps/admin-web/src/react/entries/orders.tsx` and validated the new React-only orders entry with a targeted TypeScript check.
+- [x] (2026-03-06 11:40Z) Migrated `apps/admin-web/src/react/pages/admin/ProductsPage.tsx` from a static React shell plus legacy bootstrap into a stateful React page that owns product loading, search/filter/pagination, local row selection, create modal, edit drawer, category management, and display-category management.
+- [x] (2026-03-06 11:40Z) Removed the legacy `../../products.js` bootstrap from `apps/admin-web/src/react/entries/products.tsx` and validated the React-only `products` entry with a targeted TypeScript check.
+- [x] (2026-03-06 11:40Z) Retired legacy admin runtime script references by converting `apps/admin-web/legacy/pages/*.html` into static snapshot pages and deleting the now-unreferenced DOM-only scripts under `apps/admin-web/src/*.js`.
+- [x] Decompose the largest Taro miniapp pages (`pages/mine/index.tsx`, `pages/cart/index.tsx`, and `pages/sales/index.tsx`) into smaller sections, reusable components, and page-local hooks without changing route structure.
+- [x] Retire legacy admin HTML pages and DOM-only scripts once each React replacement is behaviorally verified.
 
 ## Surprises & Discoveries
 
@@ -54,6 +60,15 @@ The user-visible result is that the admin login page and later admin pages conti
 
 - Observation: `apps/miniapp/src/pages/sales/index.tsx` followed the same pattern as `mine`, but with static dashboard/customer/order/accounting panels instead of auth state, so the safe split point was extracting fixtures and view components while keeping `activeTab` in the route file.
   Evidence: after decomposition the route file is only responsible for `activeTab` and bottom-nav rendering, while `views.tsx` owns the four tab panels and `data.ts` owns the mock sales fixtures.
+
+- Observation: `apps/miniapp/src/pages/cart/index.tsx` was large for a different reason than `mine` or `sales`: it mixed real async cart behavior with two substantial view trees, so the safe split was to extract route-local presentation and product-detail hydration into page-local modules without changing action handlers or route structure.
+  Evidence: after decomposition the route file dropped from 743 lines to 321 lines, while `components.tsx` now owns the import/cart layouts and `hooks.ts` owns SPU detail hydration and SKU option caching.
+
+- Observation: `orders` could not be cleaned up by deleting `src/orders.js` immediately even after the React entry stopped importing it, because the repository still contains a legacy HTML page that references that script directly.
+  Evidence: `apps/admin-web/legacy/pages/orders.html` still includes `<script type="module" src="/src/orders.js"></script>`, so script deletion belongs to the later legacy-HTML retirement milestone rather than the page-entry migration milestone.
+
+- Observation: After the legacy HTML pages were reduced to static snapshots, the remaining DOM-only runtime scripts were no longer referenced anywhere in `apps/admin-web`.
+  Evidence: after replacing the bottom `<script type="module" src="/src/*.js">` tags in `apps/admin-web/legacy/pages/*.html` with static comments, repository search no longer found references to `src/main.js`, `src/products.js`, `src/orders.js`, `src/import.js`, `src/inquiries.js`, or `src/sidebar-layout.js`.
 
 ## Decision Log
 
@@ -83,13 +98,13 @@ The user-visible result is that the admin login page and later admin pages conti
 
 ## Outcomes & Retrospective
 
-The plan has now completed two meaningful admin migration layers. First, the login route no longer depends on `apps/admin-web/src/main.js`; React owns field state, pending state, inline errors, password visibility, role selection, localization installation, and session-based redirect behavior. Second, a full page with real legacy behavior, `dashboard`, now lives in React instead of a DOM script.
+The plan has now completed four meaningful admin migration layers. First, the login route no longer depends on `apps/admin-web/src/main.js`; React owns field state, pending state, inline errors, password visibility, role selection, localization installation, and session-based redirect behavior. Second, a full page with real legacy behavior, `dashboard`, now lives in React instead of a DOM script. Third, `orders` no longer relies on `src/orders.js` at runtime for the active React entry; the React page now owns auth-aware loading, mock/dev branching, tab/pagination state, logistics-panel syncing, and the editable order drawer. Fourth, `products` no longer relies on `src/products.js`; the React page now owns product loading, filters, pagination, draft editing, category CRUD, and display-category management.
 
-The repository also gained a cleanup win: the trivial legacy admin scripts for `settings`, `profile`, `rbac`, `exports`, `payments`, `quote-workflow`, `suppliers`, `transfer`, and `user-operations` were removed or bypassed because they were only acting as auth guards. This makes the remaining migration surface much clearer.
+The repository also gained a cleanup win: the trivial legacy admin scripts for `settings`, `profile`, `rbac`, `exports`, `payments`, `quote-workflow`, `suppliers`, `transfer`, and `user-operations` were removed or bypassed because they were only acting as auth guards. After `products` was migrated, the remaining legacy HTML pages were converted into static snapshots and the last DOM-only runtime scripts under `apps/admin-web/src/*.js` were deleted. This removes the mixed-mode runtime split that originally motivated the plan.
 
-The plan now has two miniapp decomposition milestones. `apps/miniapp/src/pages/mine/index.tsx` was split into page-local `types.ts`, `data.ts`, and `components.tsx` files so the route component mostly owns auth/bootstrap state, timers, and navigation decisions. `apps/miniapp/src/pages/sales/index.tsx` was likewise split so the route file only owns tab state and bottom-nav wiring.
+The plan now has three miniapp decomposition milestones. `apps/miniapp/src/pages/mine/index.tsx` was split into page-local `types.ts`, `data.ts`, and `components.tsx` files so the route component mostly owns auth/bootstrap state, timers, and navigation decisions. `apps/miniapp/src/pages/sales/index.tsx` was likewise split so the route file only owns tab state and bottom-nav wiring. `apps/miniapp/src/pages/cart/index.tsx` now delegates its two large layouts to `components.tsx` and its product-detail caching logic to `hooks.ts`, leaving the route file primarily responsible for loading branches and cart mutation handlers.
 
-The plan is still incomplete. The truly heavy mixed-mode pages are now concentrated in `orders` and `products`, while the remaining large Taro miniapp page `cart` still needs the same kind of decomposition.
+The plan goals in this document are now complete. The remaining repository-level caveat is still the unrelated `jszip` / `xlsx` build issue attached to product import packaging, which predates the React migration work and affects broad admin-web build validation rather than the completed page migrations themselves.
 
 ## Context and Orientation
 
@@ -236,6 +251,22 @@ Actual evidence captured during this revision:
       apps/admin-web/src/react/pages/admin/DashboardPage.tsx
         now contains both mock-mode static rendering and dev-mode live dashboard fetching logic
 
+    Products migration
+      apps/admin-web/src/react/entries/products.tsx
+        before: imports ../../products.js
+        after: mounts <ProductsPage /> without legacy bootstrap
+      apps/admin-web/src/react/pages/admin/ProductsPage.tsx
+        now contains product loading, search/filter/pagination, create modal, edit drawer, category CRUD, and display-category management
+      apps/admin-web/legacy/pages/products.html
+        now stays as a static snapshot and no longer references /src/products.js
+
+    Legacy runtime retirement
+      apps/admin-web/legacy/pages/*.html
+        before: loaded /src/*.js legacy runtime files
+        after: kept as static snapshot pages only
+      apps/admin-web/src/main.js, src/products.js, src/orders.js, src/import.js, src/inquiries.js, src/profile.js, src/rbac.js, src/settings.js, src/sidebar-layout.js
+        deleted because no active entrypoint references them anymore
+
     Mine page decomposition
       apps/miniapp/src/pages/mine/index.tsx
         before: route file contained mock data, shared types, subview components, and page state/effects
@@ -265,6 +296,33 @@ Actual evidence captured during this revision:
       validation
         pnpm -C apps/miniapp test -- src/pages/sales/index.test.tsx
         pnpm -C apps/miniapp exec eslint src/pages/sales/index.tsx src/pages/sales/views.tsx src/pages/sales/data.ts src/pages/sales/types.ts src/pages/sales/index.test.tsx
+
+    Cart page decomposition
+      apps/miniapp/src/pages/cart/index.tsx
+        before: route file contained import-confirmation layout, cart layout, product-detail cache logic, and cart mutation handlers
+        after: route file mostly contains route branching, loading state, and cart/import action handlers
+      apps/miniapp/src/pages/cart/components.tsx
+        now contains the import-result layout, cart list layout, and bottom action bar
+      apps/miniapp/src/pages/cart/hooks.ts
+        now contains SPU detail hydration and SKU option caching
+      apps/miniapp/src/pages/cart/helpers.ts
+        now contains formatters and UI constants shared by the route-local components
+      apps/miniapp/src/pages/cart/types.ts
+        now contains route-local type aliases for cart item state
+      validation
+        pnpm -C apps/miniapp test -- src/pages/cart/index.test.tsx src/pages/mine/index.test.tsx src/pages/sales/index.test.tsx
+        pnpm -C apps/miniapp exec eslint src/pages/cart/index.tsx src/pages/cart/components.tsx src/pages/cart/helpers.ts src/pages/cart/hooks.ts src/pages/cart/types.ts src/pages/cart/index.test.tsx src/pages/mine/index.tsx src/pages/mine/components.tsx src/pages/mine/data.ts src/pages/mine/types.ts src/pages/sales/index.tsx src/pages/sales/views.tsx src/pages/sales/data.ts src/pages/sales/types.ts src/pages/sales/index.test.tsx
+
+    Orders page migration
+      apps/admin-web/src/react/entries/orders.tsx
+        before: imports ../../orders.js after mounting the React shell
+        after: mounts <OrdersPage /> without the legacy bootstrap
+      apps/admin-web/src/react/pages/admin/OrdersPage.tsx
+        now contains auth bootstrap, mock/dev order loading, tab switching, pagination, logistics/customer panel syncing, and the editable order drawer
+      apps/admin-web/src/react/pages/admin/orders-data.ts
+        now contains order normalization helpers for shared canonical fixtures, fallback mock orders, and dev-mode API payloads
+      validation
+        pnpm -C apps/admin-web exec tsc --noEmit --pretty false --moduleResolution bundler --module esnext --target es2020 --jsx react-jsx --allowJs --lib dom,es2020 src/react/pages/admin/OrdersPage.tsx src/react/pages/admin/orders-data.ts src/react/entries/orders.tsx
 
 At the end of each milestone, add a short note here with the changed files and the command output that proves the milestone worked.
 
@@ -304,3 +362,9 @@ Change note: This document was created on 2026-03-06 to replace an informal migr
 Revision note (2026-03-06 09:37Z): Updated the plan after implementing the login migration, validating the mock-mode redirect in a browser, removing three low-risk legacy admin entry imports, and recording the unrelated repository-wide `jszip` / `xlsx` build issue so future contributors do not misattribute it to this milestone.
 
 Revision note (2026-03-06 09:44Z): Updated the plan after removing six additional trivial admin legacy entry imports, deleting their unreferenced wrapper scripts, migrating `dashboard` into React, and validating the new dashboard route in mock mode.
+
+Revision note (2026-03-06 10:35Z): Updated the plan after decomposing the remaining large miniapp page `cart` into page-local presentation and hydration modules, verifying `cart`, `mine`, and `sales` together in Jest, and confirming the miniapp decomposition milestone is complete.
+
+Revision note (2026-03-06 11:05Z): Updated the plan after migrating `orders` from a static React shell plus legacy bootstrap to a stateful React page, removing the `orders` entry import of `src/orders.js`, and recording that the old script still cannot be deleted until the legacy `orders.html` page is retired.
+
+Revision note (2026-03-06 11:40Z): Updated the plan after migrating `products` into a React-owned page, removing the `products` entry import of `src/products.js`, converting legacy admin pages into static snapshots, deleting the remaining DOM-only runtime scripts under `apps/admin-web/src`, and validating the new products entry with targeted TypeScript checks.

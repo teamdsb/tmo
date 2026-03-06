@@ -82,7 +82,7 @@ describe('PersonalCenter', () => {
 
     expect(screen.getByText('订单跟踪')).toBeInTheDocument()
     expect(screen.getByText('我的需求')).toBeInTheDocument()
-    expect(screen.getByText('我的收藏')).toBeInTheDocument()
+    expect(screen.getByText('收藏')).toBeInTheDocument()
     expect(screen.getByText('系统设置')).toBeInTheDocument()
   })
 })

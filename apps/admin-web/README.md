@@ -36,7 +36,7 @@ pnpm run dev:admin-web:stack
 
 - 页面入口已切换为 React + TypeScript 多入口（仍保持 `*.html` URL 不变）。
 - 原生版本完整快照保留在 `legacy/pages/`，页面 DOM 片段保留在 `legacy/fragments/`。
-- 迁移阶段 React 入口会渲染 legacy 片段并加载原页面脚本，以保证行为一致与可回滚。
+- 当前运行时已不再依赖 `src/*.js` 的 legacy DOM 脚本；`legacy/pages/` 仅保留为静态对照快照。
 
 ## 模式说明
 
@@ -92,4 +92,4 @@ pnpm -C apps/admin-web test:visual
 
 - 除登录页与仪表盘页外，后台页面统一由 React 渲染侧边栏导航（统一菜单、统一样式、统一高亮逻辑）。
 - 统一侧边栏由 `apps/admin-web/src/react/runtime/mountAdminPage.tsx` + `apps/admin-web/src/react/layout/AdminSidebar.tsx` 提供。
-- `apps/admin-web/src/sidebar-layout.js` 仅用于 legacy 快照页面对照，不再作为主入口布局依赖。
+- `legacy/pages/*.html` 不再执行旧脚本，仅用于视觉对照和历史留档。
