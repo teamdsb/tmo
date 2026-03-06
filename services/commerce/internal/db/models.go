@@ -208,6 +208,10 @@ type Order struct {
 	IdempotencyKey   *string            `db:"idempotency_key" json:"idempotency_key"`
 	CreatedAt        pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	PaymentStatus    string             `db:"payment_status" json:"payment_status"`
+	LatestPaymentID  pgtype.UUID        `db:"latest_payment_id" json:"latest_payment_id"`
+	PaymentChannel   *string            `db:"payment_channel" json:"payment_channel"`
+	PaidAt           pgtype.Timestamptz `db:"paid_at" json:"paid_at"`
 }
 
 type OrderItem struct {

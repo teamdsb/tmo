@@ -9,6 +9,10 @@ export const isMockMode = !isDevMode;
 const rawBaseUrl = String(import.meta.env.VITE_ADMIN_WEB_API_BASE_URL || (isDevMode ? '/api' : '')).trim();
 export const apiBaseUrl = rawBaseUrl.replace(/\/+$/, '');
 
+// Payment API 基础路径：dev 默认独立走 /payment-api，未显式配置时不复用 commerce/general API。
+const rawPaymentBaseUrl = String(import.meta.env.VITE_ADMIN_WEB_PAYMENT_API_BASE_URL || (isDevMode ? '/payment-api' : '')).trim();
+export const paymentApiBaseUrl = rawPaymentBaseUrl.replace(/\/+$/, '');
+
 export const routes = {
   login: '/',
   dashboard: '/dashboard.html'

@@ -49,6 +49,8 @@ paths:
                 "$ref": "#/components/schemas/WechatPayCreateResponse"
         '403':
           "$ref": "#/components/responses/Forbidden"
+        '409':
+          "$ref": "#/components/responses/Conflict"
   "/payments/alipay/create":
     post:
       tags:
@@ -81,11 +83,77 @@ paths:
                 "$ref": "#/components/schemas/AlipayPayCreateResponse"
         '403':
           "$ref": "#/components/responses/Forbidden"
+        '409':
+          "$ref": "#/components/responses/Conflict"
+  "/payments/{paymentId}":
+    get:
+      tags:
+      - Payments
+      summary: Get payment detail
+      parameters:
+      - in: path
+        name: paymentId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PaymentDetail"
+        '404':
+          "$ref": "#/components/responses/NotFound"
+  "/payments/{paymentId}/recheck":
+    post:
+      tags:
+      - Payments
+      summary: Recheck payment result after client pay flow
+      parameters:
+      - in: path
+        name: paymentId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/PaymentRecheckRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PaymentDetail"
+        '404':
+          "$ref": "#/components/responses/NotFound"
   "/payments/wechat/notify":
     post:
       tags:
       - Payments
       summary: WeChat pay callback (no auth, signature verified)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: OK
+  "/payments/alipay/notify":
+    post:
+      tags:
+      - Payments
+      summary: Alipay callback (no auth, signature verified)
       security: []
       requestBody:
         required: true
@@ -124,6 +192,12 @@ components:
             "$ref": "#/components/schemas/ErrorResponse"
     Conflict:
       description: Conflict
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Not Found
       content:
         application/json:
           schema:
@@ -1072,35 +1146,147 @@ components:
     WechatPayCreateResponse:
       type: object
       properties:
+        paymentId:
+          type: string
+          format: uuid
         orderId:
           type: string
           format: uuid
+        channel:
+          "$ref": "#/components/schemas/PaymentChannel"
+        status:
+          "$ref": "#/components/schemas/PaymentStatus"
+        expiresAt:
+          type: string
+          format: date-time
         prepayId:
+          type: string
+        package:
           type: string
         nonceStr:
           type: string
         timeStamp:
           type: string
+        signType:
+          type: string
         paySign:
           type: string
       required:
+      - paymentId
       - orderId
+      - channel
+      - status
+      - expiresAt
       - prepayId
+      - package
       - nonceStr
       - timeStamp
+      - signType
       - paySign
     AlipayPayCreateResponse:
       type: object
       properties:
+        paymentId:
+          type: string
+          format: uuid
         orderId:
           type: string
           format: uuid
+        channel:
+          "$ref": "#/components/schemas/PaymentChannel"
+        status:
+          "$ref": "#/components/schemas/PaymentStatus"
+        expiresAt:
+          type: string
+          format: date-time
         tradeNo:
           type: string
         payParams:
           type: object
           additionalProperties: true
       required:
+      - paymentId
       - orderId
+      - channel
+      - status
+      - expiresAt
       - tradeNo
       - payParams
+    PaymentChannel:
+      type: string
+      enum:
+      - WECHAT
+      - ALIPAY
+    PaymentStatus:
+      type: string
+      enum:
+      - PAY_PENDING
+      - PAID
+      - PAY_FAILED
+      - CANCELLED
+    PaymentClientResult:
+      type: string
+      enum:
+      - SUCCESS
+      - FAILED
+      - CANCELLED
+    PaymentDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        payerUserId:
+          type: string
+          format: uuid
+          nullable: true
+        channel:
+          "$ref": "#/components/schemas/PaymentChannel"
+        status:
+          "$ref": "#/components/schemas/PaymentStatus"
+        amountFen:
+          type: integer
+          format: int64
+        currency:
+          type: string
+        providerTradeNo:
+          type: string
+          nullable: true
+        providerPrepayId:
+          type: string
+          nullable: true
+        failureCode:
+          type: string
+          nullable: true
+        failureMessage:
+          type: string
+          nullable: true
+        paidAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - orderId
+      - channel
+      - status
+      - amountFen
+      - currency
+      - createdAt
+      - updatedAt
+    PaymentRecheckRequest:
+      type: object
+      properties:
+        clientResult:
+          "$ref": "#/components/schemas/PaymentClientResult"
+        reason:
+          type: string

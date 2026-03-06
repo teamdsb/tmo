@@ -103,6 +103,12 @@ export const runtimeEnv = Object.freeze({
     readProcessEnv('TARO_APP_IDENTITY_BASE_URL'),
     nonProductionFallbackBaseUrl
   ),
+  paymentBaseUrl: firstNonEmpty(
+    readConst(apiBaseUrlConst),
+    readProcessEnv('TARO_APP_API_BASE_URL'),
+    readProcessEnv('TARO_APP_PAYMENT_BASE_URL'),
+    nonProductionFallbackBaseUrl
+  ),
   gatewayDevToken: optional(firstNonEmpty(
     readConst(gatewayDevTokenConst),
     readProcessEnv('TARO_APP_GATEWAY_DEV_TOKEN'),
@@ -115,6 +121,10 @@ export const runtimeEnv = Object.freeze({
   identityDevToken: optional(firstNonEmpty(
     readConst(identityDevTokenConst),
     readProcessEnv('TARO_APP_IDENTITY_DEV_TOKEN')
+  )),
+  paymentDevToken: optional(firstNonEmpty(
+    readProcessEnv('TARO_APP_PAYMENT_DEV_TOKEN'),
+    readProcessEnv('TARO_APP_COMMERCE_DEV_TOKEN')
   )),
   enableMockLogin: readBoolean(firstNonEmpty(
     readConst(mockLoginEnabledConst),
@@ -164,6 +174,14 @@ export const requireIdentityBaseUrl = (): string => {
   )
 }
 
+export const requirePaymentBaseUrl = (): string => {
+  return requireBaseUrl(
+    'payment',
+    runtimeEnv.paymentBaseUrl,
+    ['TARO_APP_API_BASE_URL', 'TARO_APP_PAYMENT_BASE_URL']
+  )
+}
+
 export const assertRuntimeApiConfig = (): void => {
   if (runtimeEnv.isIsolatedMock) {
     return
@@ -171,4 +189,5 @@ export const assertRuntimeApiConfig = (): void => {
   requireGatewayBaseUrl()
   requireCommerceBaseUrl()
   requireIdentityBaseUrl()
+  requirePaymentBaseUrl()
 }

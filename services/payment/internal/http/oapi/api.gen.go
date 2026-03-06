@@ -6,6 +6,7 @@ package oapi
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/oapi-codegen/runtime"
@@ -17,27 +18,97 @@ const (
 	BearerAuthScopes = "bearerAuth.Scopes"
 )
 
+// Defines values for PaymentChannel.
+const (
+	ALIPAY PaymentChannel = "ALIPAY"
+	WECHAT PaymentChannel = "WECHAT"
+)
+
+// Defines values for PaymentClientResult.
+const (
+	PaymentClientResultCANCELLED PaymentClientResult = "CANCELLED"
+	PaymentClientResultFAILED    PaymentClientResult = "FAILED"
+	PaymentClientResultSUCCESS   PaymentClientResult = "SUCCESS"
+)
+
+// Defines values for PaymentStatus.
+const (
+	PaymentStatusCANCELLED  PaymentStatus = "CANCELLED"
+	PaymentStatusPAID       PaymentStatus = "PAID"
+	PaymentStatusPAYFAILED  PaymentStatus = "PAY_FAILED"
+	PaymentStatusPAYPENDING PaymentStatus = "PAY_PENDING"
+)
+
 // AlipayPayCreateResponse defines model for AlipayPayCreateResponse.
 type AlipayPayCreateResponse struct {
+	Channel   PaymentChannel         `json:"channel"`
+	ExpiresAt time.Time              `json:"expiresAt"`
 	OrderId   openapi_types.UUID     `json:"orderId"`
 	PayParams map[string]interface{} `json:"payParams"`
+	PaymentId openapi_types.UUID     `json:"paymentId"`
+	Status    PaymentStatus          `json:"status"`
 	TradeNo   string                 `json:"tradeNo"`
 }
 
 // ErrorResponse defines model for ErrorResponse.
 type ErrorResponse = externalRef0.ErrorResponse
 
+// PaymentChannel defines model for PaymentChannel.
+type PaymentChannel string
+
+// PaymentClientResult defines model for PaymentClientResult.
+type PaymentClientResult string
+
+// PaymentDetail defines model for PaymentDetail.
+type PaymentDetail struct {
+	AmountFen        int64               `json:"amountFen"`
+	Channel          PaymentChannel      `json:"channel"`
+	CreatedAt        time.Time           `json:"createdAt"`
+	Currency         string              `json:"currency"`
+	FailureCode      *string             `json:"failureCode"`
+	FailureMessage   *string             `json:"failureMessage"`
+	Id               openapi_types.UUID  `json:"id"`
+	OrderId          openapi_types.UUID  `json:"orderId"`
+	PaidAt           *time.Time          `json:"paidAt"`
+	PayerUserId      *openapi_types.UUID `json:"payerUserId"`
+	ProviderPrepayId *string             `json:"providerPrepayId"`
+	ProviderTradeNo  *string             `json:"providerTradeNo"`
+	Status           PaymentStatus       `json:"status"`
+	UpdatedAt        time.Time           `json:"updatedAt"`
+}
+
+// PaymentRecheckRequest defines model for PaymentRecheckRequest.
+type PaymentRecheckRequest struct {
+	ClientResult *PaymentClientResult `json:"clientResult,omitempty"`
+	Reason       *string              `json:"reason,omitempty"`
+}
+
+// PaymentStatus defines model for PaymentStatus.
+type PaymentStatus string
+
 // WechatPayCreateResponse defines model for WechatPayCreateResponse.
 type WechatPayCreateResponse struct {
+	Channel   PaymentChannel     `json:"channel"`
+	ExpiresAt time.Time          `json:"expiresAt"`
 	NonceStr  string             `json:"nonceStr"`
 	OrderId   openapi_types.UUID `json:"orderId"`
+	Package   string             `json:"package"`
 	PaySign   string             `json:"paySign"`
+	PaymentId openapi_types.UUID `json:"paymentId"`
 	PrepayId  string             `json:"prepayId"`
+	SignType  string             `json:"signType"`
+	Status    PaymentStatus      `json:"status"`
 	TimeStamp string             `json:"timeStamp"`
 }
 
+// Conflict defines model for Conflict.
+type Conflict = ErrorResponse
+
 // Forbidden defines model for Forbidden.
 type Forbidden = ErrorResponse
+
+// NotFound defines model for NotFound.
+type NotFound = ErrorResponse
 
 // PostPaymentsAlipayCreateJSONBody defines parameters for PostPaymentsAlipayCreate.
 type PostPaymentsAlipayCreateJSONBody struct {
@@ -48,6 +119,9 @@ type PostPaymentsAlipayCreateJSONBody struct {
 type PostPaymentsAlipayCreateParams struct {
 	IdempotencyKey *string `json:"Idempotency-Key,omitempty"`
 }
+
+// PostPaymentsAlipayNotifyJSONBody defines parameters for PostPaymentsAlipayNotify.
+type PostPaymentsAlipayNotifyJSONBody map[string]interface{}
 
 // PostPaymentsWechatCreateJSONBody defines parameters for PostPaymentsWechatCreate.
 type PostPaymentsWechatCreateJSONBody struct {
@@ -65,23 +139,38 @@ type PostPaymentsWechatNotifyJSONBody map[string]interface{}
 // PostPaymentsAlipayCreateJSONRequestBody defines body for PostPaymentsAlipayCreate for application/json ContentType.
 type PostPaymentsAlipayCreateJSONRequestBody PostPaymentsAlipayCreateJSONBody
 
+// PostPaymentsAlipayNotifyJSONRequestBody defines body for PostPaymentsAlipayNotify for application/json ContentType.
+type PostPaymentsAlipayNotifyJSONRequestBody PostPaymentsAlipayNotifyJSONBody
+
 // PostPaymentsWechatCreateJSONRequestBody defines body for PostPaymentsWechatCreate for application/json ContentType.
 type PostPaymentsWechatCreateJSONRequestBody PostPaymentsWechatCreateJSONBody
 
 // PostPaymentsWechatNotifyJSONRequestBody defines body for PostPaymentsWechatNotify for application/json ContentType.
 type PostPaymentsWechatNotifyJSONRequestBody PostPaymentsWechatNotifyJSONBody
 
+// PostPaymentsPaymentIdRecheckJSONRequestBody defines body for PostPaymentsPaymentIdRecheck for application/json ContentType.
+type PostPaymentsPaymentIdRecheckJSONRequestBody = PaymentRecheckRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Create Alipay payment for an order (reserved, behind feature flag)
 	// (POST /payments/alipay/create)
 	PostPaymentsAlipayCreate(c *gin.Context, params PostPaymentsAlipayCreateParams)
+	// Alipay callback (no auth, signature verified)
+	// (POST /payments/alipay/notify)
+	PostPaymentsAlipayNotify(c *gin.Context)
 	// Create WeChat payment for an order (behind feature flag)
 	// (POST /payments/wechat/create)
 	PostPaymentsWechatCreate(c *gin.Context, params PostPaymentsWechatCreateParams)
 	// WeChat pay callback (no auth, signature verified)
 	// (POST /payments/wechat/notify)
 	PostPaymentsWechatNotify(c *gin.Context)
+	// Get payment detail
+	// (GET /payments/{paymentId})
+	GetPaymentsPaymentId(c *gin.Context, paymentId openapi_types.UUID)
+	// Recheck payment result after client pay flow
+	// (POST /payments/{paymentId}/recheck)
+	PostPaymentsPaymentIdRecheck(c *gin.Context, paymentId openapi_types.UUID)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -132,6 +221,19 @@ func (siw *ServerInterfaceWrapper) PostPaymentsAlipayCreate(c *gin.Context) {
 	}
 
 	siw.Handler.PostPaymentsAlipayCreate(c, params)
+}
+
+// PostPaymentsAlipayNotify operation middleware
+func (siw *ServerInterfaceWrapper) PostPaymentsAlipayNotify(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostPaymentsAlipayNotify(c)
 }
 
 // PostPaymentsWechatCreate operation middleware
@@ -188,6 +290,58 @@ func (siw *ServerInterfaceWrapper) PostPaymentsWechatNotify(c *gin.Context) {
 	siw.Handler.PostPaymentsWechatNotify(c)
 }
 
+// GetPaymentsPaymentId operation middleware
+func (siw *ServerInterfaceWrapper) GetPaymentsPaymentId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "paymentId" -------------
+	var paymentId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "paymentId", c.Param("paymentId"), &paymentId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter paymentId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetPaymentsPaymentId(c, paymentId)
+}
+
+// PostPaymentsPaymentIdRecheck operation middleware
+func (siw *ServerInterfaceWrapper) PostPaymentsPaymentIdRecheck(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "paymentId" -------------
+	var paymentId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "paymentId", c.Param("paymentId"), &paymentId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter paymentId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostPaymentsPaymentIdRecheck(c, paymentId)
+}
+
 // GinServerOptions provides options for the Gin server.
 type GinServerOptions struct {
 	BaseURL      string
@@ -216,6 +370,9 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	}
 
 	router.POST(options.BaseURL+"/payments/alipay/create", wrapper.PostPaymentsAlipayCreate)
+	router.POST(options.BaseURL+"/payments/alipay/notify", wrapper.PostPaymentsAlipayNotify)
 	router.POST(options.BaseURL+"/payments/wechat/create", wrapper.PostPaymentsWechatCreate)
 	router.POST(options.BaseURL+"/payments/wechat/notify", wrapper.PostPaymentsWechatNotify)
+	router.GET(options.BaseURL+"/payments/:paymentId", wrapper.GetPaymentsPaymentId)
+	router.POST(options.BaseURL+"/payments/:paymentId/recheck", wrapper.PostPaymentsPaymentIdRecheck)
 }

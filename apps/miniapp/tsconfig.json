@@ -22,7 +22,17 @@
     ],
     "paths": {
       // TS5090 leading './'
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@tmo/openapi-client": ["../../packages/openapi-client/src/index.ts"],
+      "@tmo/openapi-client/*": ["../../packages/openapi-client/src/*"],
+      "@tmo/platform-adapter": ["../../packages/platform-adapter/src/index.ts"],
+      "@tmo/platform-adapter/*": ["../../packages/platform-adapter/src/*"],
+      "@tmo/payment-api-client": ["../../packages/payment-api-client/src/index.ts"],
+      "@tmo/payment-api-client/*": ["../../packages/payment-api-client/src/*"],
+      "@tmo/payment-services": ["../../packages/payment-services/src/index.ts"],
+      "@tmo/payment-services/*": ["../../packages/payment-services/src/*"],
+      "@tmo/shared": ["../../packages/shared/src/index.ts"],
+      "@tmo/shared/*": ["../../packages/shared/src/*"]
     }
   },
   "include": ["./src", "./types", "./config"],

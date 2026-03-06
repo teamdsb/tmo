@@ -11,8 +11,9 @@ const (
 	defaultMediaLocalOutputDir = "./infra/dev/media"
 	defaultMediaPublicBaseURL  = "http://localhost:8080/assets/media"
 	// #nosec G101 -- local dev JWT defaults are safe for test environments.
-	defaultJWTSecret = "dev-secret"
-	defaultJWTIssuer = ""
+	defaultJWTSecret         = "dev-secret"
+	defaultJWTIssuer         = ""
+	defaultInternalSyncToken = "dev-payment-sync-token"
 )
 
 type Config struct {
@@ -24,6 +25,7 @@ type Config struct {
 	JWTIssuer           string
 	MediaLocalOutputDir string
 	MediaPublicBaseURL  string
+	InternalSyncToken   string
 }
 
 func Load() Config {
@@ -36,5 +38,6 @@ func Load() Config {
 		JWTIssuer:           sharedconfig.String("COMMERCE_JWT_ISSUER", defaultJWTIssuer),
 		MediaLocalOutputDir: sharedconfig.String("MEDIA_LOCAL_OUTPUT_DIR", defaultMediaLocalOutputDir),
 		MediaPublicBaseURL:  sharedconfig.String("MEDIA_PUBLIC_BASE_URL", defaultMediaPublicBaseURL),
+		InternalSyncToken:   sharedconfig.String("COMMERCE_INTERNAL_SYNC_TOKEN", defaultInternalSyncToken),
 	}
 }

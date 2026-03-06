@@ -66,6 +66,14 @@ const (
 	Staff    MessageSenderType = "staff"
 )
 
+// Defines values for OrderPaymentStatus.
+const (
+	OrderPaymentStatusPAID       OrderPaymentStatus = "PAID"
+	OrderPaymentStatusPAYFAILED  OrderPaymentStatus = "PAY_FAILED"
+	OrderPaymentStatusPAYPENDING OrderPaymentStatus = "PAY_PENDING"
+	OrderPaymentStatusUNPAID     OrderPaymentStatus = "UNPAID"
+)
+
 // Defines values for OrderStatus.
 const (
 	OrderStatusCANCELLED  OrderStatus = "CANCELLED"
@@ -103,9 +111,9 @@ const (
 
 // Defines values for GetInquiriesPriceParamsStatus.
 const (
-	CLOSED    GetInquiriesPriceParamsStatus = "CLOSED"
-	OPEN      GetInquiriesPriceParamsStatus = "OPEN"
-	RESPONDED GetInquiriesPriceParamsStatus = "RESPONDED"
+	GetInquiriesPriceParamsStatusCLOSED    GetInquiriesPriceParamsStatus = "CLOSED"
+	GetInquiriesPriceParamsStatusOPEN      GetInquiriesPriceParamsStatus = "OPEN"
+	GetInquiriesPriceParamsStatusRESPONDED GetInquiriesPriceParamsStatus = "RESPONDED"
 )
 
 // AddCartItemRequest defines model for AddCartItemRequest.
@@ -375,13 +383,17 @@ type MessageSenderType string
 
 // Order defines model for Order.
 type Order struct {
-	Address   *Address           `json:"address,omitempty"`
-	CreatedAt time.Time          `json:"createdAt"`
-	Id        openapi_types.UUID `json:"id"`
-	Items     []OrderItem        `json:"items"`
-	Remark    *string            `json:"remark,omitempty"`
-	Status    OrderStatus        `json:"status"`
-	UpdatedAt *time.Time         `json:"updatedAt,omitempty"`
+	Address         *Address            `json:"address,omitempty"`
+	CreatedAt       time.Time           `json:"createdAt"`
+	Id              openapi_types.UUID  `json:"id"`
+	Items           []OrderItem         `json:"items"`
+	LatestPaymentId *openapi_types.UUID `json:"latestPaymentId,omitempty"`
+	PaidAt          *time.Time          `json:"paidAt"`
+	PaymentChannel  *string             `json:"paymentChannel"`
+	PaymentStatus   OrderPaymentStatus  `json:"paymentStatus"`
+	Remark          *string             `json:"remark,omitempty"`
+	Status          OrderStatus         `json:"status"`
+	UpdatedAt       *time.Time          `json:"updatedAt,omitempty"`
 }
 
 // OrderItem defines model for OrderItem.
@@ -392,6 +404,9 @@ type OrderItem struct {
 	// UnitPriceFen Final price per unit at order time, in fen (1/100 yuan), integer only
 	UnitPriceFen int64 `json:"unitPriceFen"`
 }
+
+// OrderPaymentStatus defines model for OrderPaymentStatus.
+type OrderPaymentStatus string
 
 // OrderStatsResponse defines model for OrderStatsResponse.
 type OrderStatsResponse struct {

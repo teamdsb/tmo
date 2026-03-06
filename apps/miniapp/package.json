@@ -102,6 +102,8 @@
     "@tmo/gateway-api-client": "workspace:*",
     "@tmo/gateway-services": "workspace:*",
     "@tmo/identity-services": "workspace:*",
+    "@tmo/payment-api-client": "workspace:*",
+    "@tmo/payment-services": "workspace:*",
     "@tmo/platform-adapter": "workspace:*",
     "expo": "~50.0.2",
     "lucide-react": "^0.469.0",

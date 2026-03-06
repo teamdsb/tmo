@@ -33,6 +33,7 @@ type Handler struct {
 	ProductRequestExport *productrequestexport.Service
 	MediaLocalOutputDir  string
 	MediaPublicBaseURL   string
+	InternalSyncToken    string
 	DB                   *pgxpool.Pool
 	Auth                 *middleware.Authenticator
 	Logger               *slog.Logger

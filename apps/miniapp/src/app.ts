@@ -20,7 +20,8 @@ function App({ children }: PropsWithChildren<any>) {
       console.info('[runtime-env]', {
         gatewayBaseUrl: runtimeEnv.gatewayBaseUrl,
         commerceBaseUrl: runtimeEnv.commerceBaseUrl,
-        identityBaseUrl: runtimeEnv.identityBaseUrl
+        identityBaseUrl: runtimeEnv.identityBaseUrl,
+        paymentBaseUrl: runtimeEnv.paymentBaseUrl
       })
     }
     try {

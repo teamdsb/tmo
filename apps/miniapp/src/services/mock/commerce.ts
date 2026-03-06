@@ -418,6 +418,7 @@ export const createMockCommerceServices = (): CommerceServices => {
       const order: Order = {
         id: `mock-order-${Date.now().toString(36)}`,
         status: OrderStatus.SUBMITTED,
+        paymentStatus: 'UNPAID',
         address: request.address,
         items: request.items.map((item) => {
           const sku = getMockSkuById(item.skuId)
