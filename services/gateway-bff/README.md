@@ -4,26 +4,28 @@ Minimal API gateway that routes identity + commerce behind a single base URL.
 
 ## Quickstart
 
-1) Ensure identity, commerce, and payment are running:
+1) Ensure identity, commerce, payment, and ai are running:
 
    - `cd services/identity && IDENTITY_HTTP_ADDR=":8081" ... go run ./cmd/identity`
    - `cd services/commerce && COMMERCE_HTTP_ADDR=":8082" ... go run ./cmd/commerce`
    - `cd services/payment && PAYMENT_HTTP_ADDR=":8083" ... go run ./cmd/payment`
+   - `cd services/ai && AI_HTTP_ADDR=":8084" ... go run ./cmd/ai`
 
 2) Run the gateway:
 
-   `cd services/gateway-bff && GATEWAY_HTTP_ADDR=":8080" GATEWAY_IDENTITY_BASE_URL="http://localhost:8081" GATEWAY_COMMERCE_BASE_URL="http://localhost:8082" GATEWAY_PAYMENT_BASE_URL="http://localhost:8083" go run ./cmd/gateway-bff`
+   `cd services/gateway-bff && GATEWAY_HTTP_ADDR=":8080" GATEWAY_IDENTITY_BASE_URL="http://localhost:8081" GATEWAY_COMMERCE_BASE_URL="http://localhost:8082" GATEWAY_PAYMENT_BASE_URL="http://localhost:8083" GATEWAY_AI_BASE_URL="http://localhost:8084" go run ./cmd/gateway-bff`
 
 ## Behavior
 
 - `/auth/*` and `/me*` are proxied to identity.
 - All other paths are proxied to commerce.
 - `/health` returns `OK`.
-- `/ready` returns 200 only when identity, commerce, and payment are ready.
+- `/ready` returns 200 only when configured upstreams are ready.
 - `/bff/admin/summary` returns lightweight admin dashboard metrics (products, orders, inquiries, feature flags).
 - `/assets/img?url=<encoded>` proxies allowlisted remote images (for miniapp product images).
 - `/assets/media/*` serves locally migrated media files when `GATEWAY_MEDIA_LOCAL_DIR` is configured.
 - `GET /catalog/products` and `GET /catalog/products/{spuId}` rewrite third-party image URLs to gateway image URLs (`/assets/img`) before returning to clients; URLs already under gateway origin (for example `/assets/media`) are preserved.
+- `/ai/*` proxies to the standalone ai service when `GATEWAY_AI_BASE_URL` is configured; otherwise it returns `501 not_implemented`.
 
 ## Image proxy env
 

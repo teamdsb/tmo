@@ -2,6 +2,7 @@ go 1.25.0
 
 use (
 	./packages/go-shared
+	./services/ai
 	./services/commerce
 	./services/gateway-bff
 	./services/identity

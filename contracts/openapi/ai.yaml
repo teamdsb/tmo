@@ -21,8 +21,8 @@ paths:
     post:
       tags:
       - AI
-      summary: Get AI suggested replies for after-sales (reserved)
-      description: Reserved endpoint for future AI + human support collaboration.
+      summary: Get AI suggested replies for after-sales
+      description: Return draft reply suggestions for after-sales collaboration.
       requestBody:
         required: true
         content:
@@ -36,6 +36,26 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/AIReplySuggestions"
+        '400':
+          "$ref": "#/components/responses/BadRequest"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+        '403':
+          "$ref": "#/components/responses/Forbidden"
+        '404':
+          "$ref": "#/components/responses/NotFound"
+        '502':
+          description: Commerce upstream unavailable
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
+        '503':
+          description: AI provider unavailable
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ErrorResponse"
 components:
   securitySchemes:
     bearerAuth:
@@ -57,6 +77,12 @@ components:
             "$ref": "#/components/schemas/ErrorResponse"
     Forbidden:
       description: Forbidden
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Not Found
       content:
         application/json:
           schema:
