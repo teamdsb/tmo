@@ -4,14 +4,14 @@ const { spawn, spawnSync } = require('node:child_process')
 const { processWeappWxss } = require('./postprocess-weapp')
 const { processWeappProjectConfig } = require('./postprocess-weapp-project')
 const { assertWeappPathsReady } = require('./weapp-paths')
-const { buildModeEnv } = require('./weapp-mode')
+const { buildModeEnv } = require('./miniapp-mode')
 
 const miniappDir = path.resolve(__dirname, '..')
 const rootDir = path.resolve(miniappDir, '..', '..')
 const weappPaths = assertWeappPathsReady(miniappDir)
 const weappDistDir = weappPaths.outputRoot
 const verifyRoutesScript = path.resolve(__dirname, './verify-weapp-routes.js')
-const verifyApiBaseScript = path.resolve(__dirname, './verify-weapp-api-base.js')
+const verifyApiBaseScript = path.resolve(__dirname, './verify-miniapp-api-base.js')
 const preflightScript = path.resolve(__dirname, './preflight-weapp.js')
 const requestedMode = process.argv[2] || 'dev'
 const modeEnv = buildModeEnv(requestedMode)
@@ -67,8 +67,8 @@ function runPostprocess() {
   }
 }
 
-function runNodeScript(scriptPath, extraEnv) {
-  const result = spawnSync(process.execPath, [scriptPath], {
+function runNodeScript(scriptPath, extraEnv, args = []) {
+  const result = spawnSync(process.execPath, [scriptPath, ...args], {
     stdio: 'inherit',
     env: {
       ...process.env,
@@ -83,7 +83,7 @@ function runNodeScript(scriptPath, extraEnv) {
 
 function runBuildVerifications() {
   runNodeScript(verifyRoutesScript)
-  runNodeScript(verifyApiBaseScript)
+  runNodeScript(verifyApiBaseScript, { TARO_ENV: 'weapp' }, ['weapp'])
 }
 
 function runPreflightChecks() {

@@ -37,7 +37,7 @@ function normalizeQuoted(value) {
 
 function parseEnvFile(filePath) {
   if (!fs.existsSync(filePath)) {
-    throw new Error(`[weapp-mode] env file not found: ${path.relative(miniappDir, filePath)}`)
+    throw new Error(`[miniapp-mode] env file not found: ${path.relative(miniappDir, filePath)}`)
   }
 
   const lines = fs.readFileSync(filePath, 'utf8').split(/\r?\n/)
@@ -65,7 +65,7 @@ function parseEnvFile(filePath) {
 function resolveModeConfig(mode) {
   const config = modeMap[mode]
   if (!config) {
-    throw new Error(`[weapp-mode] unsupported mode "${mode}". expected one of: ${Object.keys(modeMap).join(', ')}`)
+    throw new Error(`[miniapp-mode] unsupported mode "${mode}". expected one of: ${Object.keys(modeMap).join(', ')}`)
   }
   return config
 }
