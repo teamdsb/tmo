@@ -19,7 +19,8 @@ const runId = `${Date.now()}-${process.pid}-${Math.random().toString(16).slice(2
 const routeRunId = runId
 let eventSeq = 0
 
-const projectDir = path.resolve(process.env.WEAPP_PROJECT_DIR || path.join(miniappDir, 'dist', 'weapp'))
+const sourceProjectDir = path.resolve(process.env.WEAPP_PROJECT_DIR || path.join(miniappDir, 'dist', 'weapp'))
+let projectDir = sourceProjectDir
 const automatorPort = Number(process.env.WEAPP_AUTOMATOR_PORT || 9527)
 const automatorConnectTimeoutMs = Number(
   process.env.WEAPP_AUTOMATOR_CONNECT_TIMEOUT_MS
@@ -95,6 +96,9 @@ const imageAssertionScope = resolveImageAssertionScope({
 })
 
 const keyEndpoints = ['/bff/bootstrap', '/catalog/categories', '/catalog/products']
+const endpointAliases = new Map([
+  ['/catalog/display-categories', '/catalog/categories']
+])
 const imageEndpoint = '/assets/img'
 const mediaEndpoint = '/assets/media/'
 const endpointState = new Map(
@@ -927,7 +931,7 @@ function runMultiRouteDriver(routeList) {
     const route = routes[index]
     const routeSlug = `${String(index + 1).padStart(2, '0')}-${routeToSlug(route)}`
     const routeDir = path.join(routeLogsRoot, routeSlug)
-    const childAutomatorPort = multiRoutePortBase + index
+    const childAutomatorPort = multiRoutePortBase
     ensureDir(routeDir)
 
     const childEnv = {
@@ -941,6 +945,7 @@ function runMultiRouteDriver(routeList) {
     }
     if (index > 0) {
       childEnv.WEAPP_SKIP_BUILD = 'true'
+      childEnv.WEAPP_SKIP_LAUNCH = 'true'
     }
 
     console.log(`[weapp-cdp-debug] route[${index + 1}/${routes.length}] ${route} (port=${childAutomatorPort})`)
@@ -991,7 +996,7 @@ function runMultiRouteDriver(routeList) {
       assertionFailedCount,
       assertionFailedKeys: assertionFailedKey,
       firstFailMessage: childFirstFail.message || childError,
-      firstFailHint: childFirstFail.hint || (childTimedOut ? 'increase WEAPP_MULTI_ROUTE_CHILD_TIMEOUT_MS if needed' : ''),
+      firstFailHint: childFirstFail.hint || (childAttempt.childTimedOut ? 'increase WEAPP_MULTI_ROUTE_CHILD_TIMEOUT_MS if needed' : ''),
       firstFailEndpointPath: normalizeOptionalText(childFirstEndpoint.path || metrics.firstFailingEndpoint),
       firstFailEndpointStatus: normalizeOptionalNumber(childFirstEndpoint.status || metrics.firstFailingEndpointStatus),
       firstFailEndpointRequestId: normalizeOptionalText(childFirstEndpoint.requestId || metrics.firstFailingEndpointRequestId),
@@ -1205,11 +1210,22 @@ function buildWeappDev() {
     return
   }
 
+  if (!process.env.WEAPP_PROJECT_DIR) {
+    spawnSync('sh', ['-lc', "pkill -f 'wechatwebdevtools.*miniapp' || true"], {
+      cwd: rootDir,
+      stdio: 'ignore'
+    })
+  }
+
   console.log('[weapp-cdp-debug] building weapp development bundle...')
   runCommand('pnpm', ['run', 'build:weapp:dev'], {
     cwd: miniappDir,
     env: { ...process.env, NODE_ENV: 'development' }
   })
+}
+
+function prepareProjectDir() {
+  projectDir = sourceProjectDir
 }
 
 function walkFiles(dirPath, matcher, output = []) {
@@ -1698,7 +1714,8 @@ function parseGatewayLine(line) {
 
 function updateEndpointState(pathValue, status, requestId) {
   for (const endpoint of keyEndpoints) {
-    if (!pathValue.includes(endpoint)) {
+    const alias = endpointAliases.get(pathValue) || ''
+    if (!pathValue.includes(endpoint) && alias !== endpoint) {
       continue
     }
 
@@ -2385,7 +2402,9 @@ async function cleanup() {
     const connectedMiniProgram = miniProgram
     miniProgram = null
     try {
-      if (typeof connectedMiniProgram.close === 'function') {
+      if (multiRouteChild && typeof connectedMiniProgram.disconnect === 'function') {
+        connectedMiniProgram.disconnect()
+      } else if (typeof connectedMiniProgram.close === 'function') {
         await withTimeout(
           connectedMiniProgram.close(),
           miniProgramCloseTimeoutMs,
@@ -2443,6 +2462,7 @@ async function main() {
   try {
     runtimeInfo = assertRuntimeInputs()
     buildWeappDev()
+    prepareProjectDir()
     assertDistArtifacts()
     ensureProjectConfigForLocalDebug()
 

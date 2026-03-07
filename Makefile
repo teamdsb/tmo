@@ -1,4 +1,4 @@
-.PHONY: help docker-build docker-push docker-up docker-down docker-logs docker-clean db-up db-down db-clean dev-stack-up dev-stack-up-air dev-stack-down-air all-up all-down
+.PHONY: help docker-build docker-push docker-up docker-down docker-logs docker-clean db-up db-down db-clean dev-stack-up dev-stack-up-air dev-stack-down-air identity-seed-check identity-repair all-up all-down
 
 IMAGE_REPO ?= tmo
 IMAGE_TAG ?= dev
@@ -6,7 +6,7 @@ PLATFORM ?= linux/amd64
 SERVICES := commerce identity payment gateway-bff
 
 help:
-	@echo "Common targets: db-up, db-down, dev-stack-up, dev-stack-up-air, dev-stack-down-air, docker-build, docker-push, docker-up, docker-down, all-up, all-down"
+	@echo "Common targets: db-up, db-down, dev-stack-up, dev-stack-up-air, dev-stack-down-air, identity-seed-check, identity-repair, docker-build, docker-push, docker-up, docker-down, all-up, all-down"
 
 docker-build: $(SERVICES:%=docker-build-%)
 
@@ -51,3 +51,9 @@ dev-stack-up-air:
 
 dev-stack-down-air:
 	docker compose -f infra/dev/docker-compose.yml -f infra/dev/docker-compose.backend.yml -f infra/dev/docker-compose.dev.yml down
+
+identity-seed-check:
+	bash tools/scripts/identity-seed-check.sh
+
+identity-repair:
+	bash tools/scripts/identity-repair.sh

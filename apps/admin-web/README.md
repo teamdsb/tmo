@@ -22,6 +22,18 @@ pnpm -C apps/admin-web dev:mock
 pnpm -C apps/admin-web dev:real
 ```
 
+如果 real 模式下 `admin/admin123`、`boss/boss123` 等固定账号返回“账号或密码错误”，先在仓库根目录执行：
+
+```bash
+bash tools/scripts/identity-seed-check.sh
+```
+
+若检查失败，再执行：
+
+```bash
+bash tools/scripts/identity-repair.sh
+```
+
 4. 一键启动 backend + admin-web（dev 模式）：
 
 ```bash
@@ -53,6 +65,8 @@ mock/dev 常用账号如下（dev 仅支持 `BOSS/MANAGER/ADMIN/CS` 密码登录
 - username: `cs` / password: `cs123`
 - username: `sales` / password: `sales123`（仅 mock；dev 下不支持密码登录）
 
+这些 dev 账号依赖 identity seed 基线。`dev-stack-up` 现在会在 backend 启动后强制校验这批账号能否真实登录；校验失败时会直接中断，而不是继续让前端连到坏环境。
+
 默认 gateway 基址通过 Vite 代理 `/api -> http://localhost:8080`。
 可通过环境变量 `ADMIN_WEB_PROXY_TARGET` 覆盖代理目标。
 
@@ -76,7 +90,18 @@ pnpm -C apps/admin-web test:e2e:real
 ```
 
 - 默认会连接 `http://127.0.0.1:5174`（`dev:real`）并执行 P0 页面端到端脚本。
+- Playwright 自启 real E2E 默认使用独立端口 `http://127.0.0.1:5175`，避免复用本地已开启的 `5174` mock/dev 服务器。
 - 如已手动启动前端，可设置 `ADMIN_WEB_BASE_URL` 复用现有服务。
+- real 用例要求真实本地后端可用；不应在测试内用 route fulfill 伪造业务 API。
+
+## Fullstack Real Check
+
+```bash
+pnpm run test:fullstack:real
+```
+
+- 会串行执行：`dev-stack-up`、`smoke:admin-web`、`test:e2e:real`、miniapp weapp real build、miniapp auth E2E、miniapp automator smoke。
+- 默认开启 identity 手机号证明模拟（本地 real 联调），并要求本机已安装微信开发者工具 CLI。
 
 ## 视觉回归
 

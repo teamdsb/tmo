@@ -90,6 +90,15 @@ func NewMiniLoginResolver(cfg Config) *MiniLoginResolver {
 	}
 }
 
+func (r *MiniLoginResolver) simulatedWeappIdentity() (LoginIdentity, error) {
+	if !r.SupportsPhoneProofSimulation() {
+		return LoginIdentity{}, errors.New("weapp is not configured")
+	}
+	return LoginIdentity{
+		ProviderUserID: "sim_weapp:" + r.phoneProofSimulationPhone,
+	}, nil
+}
+
 func (r *MiniLoginResolver) Resolve(ctx context.Context, platform, code string) (LoginIdentity, error) {
 	if strings.TrimSpace(code) == "" {
 		return LoginIdentity{}, errors.New("code is required")
@@ -101,7 +110,7 @@ func (r *MiniLoginResolver) Resolve(ctx context.Context, platform, code string) 
 			return LoginIdentity{ProviderUserID: code}, nil
 		}
 		if r.weapp == nil {
-			return LoginIdentity{}, errors.New("weapp is not configured")
+			return r.simulatedWeappIdentity()
 		}
 		return r.weapp.Resolve(ctx, code)
 	case "alipay":

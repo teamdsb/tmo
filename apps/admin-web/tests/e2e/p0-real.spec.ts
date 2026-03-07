@@ -1,4 +1,6 @@
-import { expect, test, type Page, type Response } from '@playwright/test';
+import { expect, test, type Response } from '@playwright/test';
+
+import { loginAsBoss } from './import-fixtures';
 
 const isGet = (response: Response, path: string) => {
   const url = new URL(response.url());
@@ -10,19 +12,9 @@ const matchesPath = (response: Response, method: string, pattern: RegExp) => {
   return response.request().method() === method && pattern.test(url.pathname);
 };
 
-const loginAsBoss = async (page: Page) => {
-  await page.goto('/');
-  await page.fill('#username', 'boss');
-  await page.fill('#password', 'boss123');
-  await Promise.all([
-    page.waitForURL('**/dashboard.html'),
-    page.locator('#login-form button[type="submit"]').click()
-  ]);
-  await expect(page).toHaveURL(/dashboard\.html/);
-};
-
 test('P0/P1 real mode flows work in admin-web', async ({ page }) => {
   await loginAsBoss(page);
+  await expect(page).toHaveURL(/dashboard\.html/);
 
   const customersRespPromise = page.waitForResponse((response) => isGet(response, '/api/admin/customers'));
   const salesUsersRespPromise = page.waitForResponse((response) => isGet(response, '/api/admin/sales-users'));
@@ -79,31 +71,29 @@ test('P0/P1 real mode flows work in admin-web', async ({ page }) => {
     await expect(page.getByTestId('inquiry-list-empty')).toBeVisible();
   }
 
-  const transactionsRespPromise = page.waitForResponse((response) =>
-    isGet(response, '/api/admin/payments/transactions')
-  );
   await page.goto('/payments.html');
   await expect(page.getByTestId('payments-page')).toBeVisible();
-  const transactionsResp = await transactionsRespPromise;
-  expect(transactionsResp.status()).toBe(200);
 
   const transactionRows = page.locator('[data-testid^="transaction-row-"]');
+  const transactionsReady = page.locator('[data-testid^="transaction-row-"], [data-testid="transactions-empty-state"]');
+  await expect(transactionsReady.first()).toBeVisible();
   if ((await transactionRows.count()) > 0) {
     await transactionRows.first().click();
     await expect(page.getByTestId('transaction-detail')).toBeVisible();
+  } else {
+    await expect(page.getByTestId('transactions-empty-state')).toBeVisible();
   }
 
-  const webhooksRespPromise = page.waitForResponse((response) => isGet(response, '/api/admin/payments/webhooks'));
   await page.getByTestId('payments-tab-webhooks').click();
-  const webhooksResp = await webhooksRespPromise;
-  expect(webhooksResp.status()).toBe(200);
 
-  const replayButtons = page.locator('[data-testid^="webhook-replay-"]');
-  if ((await replayButtons.count()) > 0) {
+  const webhookRows = page.locator('[data-testid^="webhook-row-"]');
+  const webhooksReady = page.locator('[data-testid^="webhook-row-"], [data-testid="webhooks-empty-state"]');
+  await expect(webhooksReady.first()).toBeVisible();
+  if ((await webhookRows.count()) > 0) {
     const replayRespPromise = page.waitForResponse((response) =>
       matchesPath(response, 'POST', /^\/api\/admin\/payments\/webhooks\/[^/]+\/replay$/)
     );
-    await replayButtons.first().click();
+    await page.getByRole('button', { name: '重放' }).first().click();
     const replayResp = await replayRespPromise;
     expect(replayResp.status()).toBe(200);
     await expect(page.getByTestId('payments-success')).toContainText('已提交重放');

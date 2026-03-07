@@ -56,6 +56,8 @@ make db-down
 make dev-stack-up
 make dev-stack-up-air
 make dev-stack-down-air
+make identity-seed-check
+make identity-repair
 ```
 
 后端 Air 开发容器：
@@ -72,6 +74,9 @@ make dev-stack-down-air
 - 如需覆盖，可在命令前显式设置（例如恢复官方 proxy）：
   `DEV_STACK_GOPROXY=https://proxy.golang.org,direct DEV_STACK_GOSUMDB=sum.golang.org DEV_STACK_GONOSUMDB= make dev-stack-up`
 - 栈启动后可执行：`bash tools/scripts/dev-stack-health.sh` 验证 `/ready`、`/health` 与网关业务接口联通性。
+- 如需验证或修复 admin-web real 登录基线，可执行：
+  `make identity-seed-check`
+  `make identity-repair`
 - 若构建报 `no space left on device`，先执行 `docker system df` 与 `docker builder prune -f` 再重试。
 
 miniapp 编译产物目录：

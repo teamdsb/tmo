@@ -93,10 +93,12 @@
     pnpm -C apps/miniapp debug:weapp:smoke:standard
     pnpm -C apps/miniapp debug:weapp:smoke:strict
     pnpm -C apps/miniapp debug:weapp:summary
+    pnpm run test:fullstack:real
 
 说明：
 
 - `debug:weapp:auto` 会先执行 `tools/scripts/dev-stack-up.sh`（拉起 postgres + backend 容器、migrate/seed、健康检查），再执行采集脚本。
+- `pnpm run test:fullstack:real` 会把 admin-web real 验收与 miniapp weapp real 验收串起来，默认设置 `TARO_APP_MOCK_MODE=off`、`TARO_APP_ENABLE_MOCK_LOGIN=false`、`TARO_APP_WEAPP_PHONE_PROOF_SIMULATION=true`。
 - `dev-stack-up.sh` 默认不强制重建镜像；如需重建可加 `DEV_STACK_BUILD_IMAGES=true`。
 - `debug:weapp:smoke` 默认执行 4 条核心路由（首页/分类/搜索/商品详情）的 automator 烟测，并把每条路由的日志单独归档到 `apps/miniapp/.logs/weapp/routes/`。
 - 若只想快速验证后端核心接口和图片代理，不启用微信 DevTools，可执行：
@@ -173,6 +175,8 @@
 - 进入登录页，勾选协议并点击“快速登录”。
 - 登录后必须离开 `/pages/auth/login/index`。
 - `tmo:auth:token` 必须写入，`tmo:bootstrap` 必须包含 `me`。
+- `tmo:bootstrap.me.userType` 必须为 `customer`，`roles` 必须包含 `CUSTOMER`。
+- 默认会尝试用 `tmo:bootstrap.me.phone` 做 identity DB 对账，验证该手机号已落到 `users` / `user_roles(CUSTOMER)` / `user_identities(provider=weapp)`。
 - 进入 mine 页点击 `#mine-logout-btn` 后，`tmo:auth:token` 与 `tmo:bootstrap` 必须清空。
 - 控制台不得出现以下错误：`Headers is not defined`、`identity login failed`、`logout failed`，且 runtime exception 必须为 0。
 
@@ -187,11 +191,44 @@
 - `WEAPP_DEVTOOLS_CLI_PATH`：微信开发者工具 CLI 路径（可选）。
 - `WEAPP_AUTOMATOR_PORT`：automator websocket 端口，默认 `9527`。
 - `WEAPP_AUTH_E2E_TIMEOUT_MS`：E2E 执行超时，默认 `90000`。
+- `WEAPP_AUTH_EXPECT_PHONE`：可选；若设置，则要求登录后 `bootstrap.me.phone` 必须等于该手机号。
+- `WEAPP_AUTH_VERIFY_DB`：是否执行 identity DB 对账，默认 `true`。
 
 输出与退出码：
 
 - 成功时输出 `WEAPP_AUTH_E2E:PASS`。
 - 失败时输出 `WEAPP_AUTH_E2E:FAIL`，并返回非 0 退出码（可直接接入本地脚本或 CI 的阻断条件）。
+
+## CUSTOMER 建档证据校验
+
+当你已经在微信或支付宝端手工完成一次 real 登录后，可在仓库根目录执行以下脚本，对指定手机号做“后台接口 + 数据库”双证据校验：
+
+```bash
+MINIAPP_CUSTOMER_EVIDENCE_PROVIDER=weapp \
+MINIAPP_CUSTOMER_EVIDENCE_PHONE=+8613812345678 \
+bash tools/scripts/miniapp-customer-evidence.sh
+```
+
+支付宝同理：
+
+```bash
+MINIAPP_CUSTOMER_EVIDENCE_PROVIDER=alipay \
+MINIAPP_CUSTOMER_EVIDENCE_PHONE=+8613812345678 \
+bash tools/scripts/miniapp-customer-evidence.sh
+```
+
+脚本会：
+
+- 先用 admin 账号登录 gateway。
+- 调用 `/admin/customers?q=<phone>` 查找后台已建的客户记录。
+- 再去 identity DB 校验该手机号对应的 `users.user_type=customer`、`user_roles` 包含 `CUSTOMER`、并且存在对应平台的 `user_identities` 绑定。
+
+可用环境变量：
+
+- `MINIAPP_CUSTOMER_EVIDENCE_PROVIDER`：必填，`weapp` 或 `alipay`
+- `MINIAPP_CUSTOMER_EVIDENCE_PHONE`：必填，登录授权到的手机号
+- `MINIAPP_CUSTOMER_EVIDENCE_GATEWAY_BASE_URL`：默认 `http://localhost:8080`
+- `MINIAPP_CUSTOMER_EVIDENCE_ADMIN_USERNAME` / `MINIAPP_CUSTOMER_EVIDENCE_ADMIN_PASSWORD`：默认 `admin/admin123`
 
 ## 支付宝 Web 调试器 console 采集
 

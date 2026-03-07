@@ -7,6 +7,9 @@ const rootDir = path.resolve(miniappDir, '..', '..')
 const projectPath = path.join(miniappDir, 'dist', 'weapp')
 const port = Number(process.env.WEAPP_AUTOMATOR_PORT || 9527)
 const timeoutMs = Number(process.env.WEAPP_AUTH_E2E_TIMEOUT_MS || 90000)
+const verifyDb = process.env.WEAPP_AUTH_VERIFY_DB !== 'false'
+const expectedPhone = String(process.env.WEAPP_AUTH_EXPECT_PHONE || '').trim()
+const identityDbDsn = process.env.IDENTITY_DB_DSN || 'postgres://commerce:commerce@localhost:5432/identity?sslmode=disable'
 
 const cliCandidates = [
   process.env.WEAPP_DEVTOOLS_CLI_PATH,
@@ -16,6 +19,23 @@ const cliCandidates = [
 ].filter(Boolean)
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const waitFor = async (predicate, options = {}) => {
+  const timeoutMs = Number(options.timeoutMs || 12000)
+  const intervalMs = Number(options.intervalMs || 400)
+  const startAt = Date.now()
+  let lastValue
+
+  while (Date.now() - startAt <= timeoutMs) {
+    lastValue = await predicate()
+    if (lastValue) {
+      return lastValue
+    }
+    await sleep(intervalMs)
+  }
+
+  return lastValue
+}
 
 const normalizePath = (value) => String(value || '').replace(/^\/+/, '')
 
@@ -66,6 +86,27 @@ const extractConsoleText = (payload) => {
   return ''
 }
 
+const parseBootstrap = (value) => {
+  if (!value) {
+    return null
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) {
+      return null
+    }
+    try {
+      return JSON.parse(trimmed)
+    } catch {
+      return null
+    }
+  }
+  if (typeof value === 'object') {
+    return value
+  }
+  return null
+}
+
 const hasBootstrapMe = (value) => {
   if (!value) {
     return false
@@ -85,6 +126,58 @@ const hasBootstrapMe = (value) => {
   }
 
   return typeof value === 'object' && value !== null && 'me' in value && Boolean(value.me)
+}
+
+const includesRole = (roles, target) => {
+  if (!Array.isArray(roles)) {
+    return false
+  }
+  return roles.some((role) => String(role || '').trim().toUpperCase() === target)
+}
+
+const runSql = async (sql) => {
+  const { execFile } = require('child_process')
+  const run = (command, args) =>
+    new Promise((resolve, reject) => {
+      execFile(command, args, { cwd: rootDir }, (error, stdout, stderr) => {
+        if (error) {
+          reject(new Error(stderr || error.message))
+          return
+        }
+        resolve(String(stdout || '').trim())
+      })
+    })
+
+  try {
+    return await run('psql', [identityDbDsn, '-At', '-c', sql])
+  } catch (psqlError) {
+    try {
+      return await run('docker', ['exec', '-i', 'tmo-postgres', 'psql', '-U', 'commerce', '-d', 'identity', '-At', '-c', sql])
+    } catch (dockerError) {
+      throw new Error(`DB verification requires psql or docker. psql=${readErrorText(psqlError)} docker=${readErrorText(dockerError)}`)
+    }
+  }
+}
+
+const verifyCustomerInDb = async (phone, provider) => {
+  const escapedPhone = phone.replace(/'/g, "''")
+  const escapedProvider = provider.replace(/'/g, "''")
+  const sql = `
+SELECT CASE
+  WHEN EXISTS (
+    SELECT 1
+    FROM users u
+    JOIN user_roles ur ON ur.user_id = u.id
+    JOIN user_identities ui ON ui.user_id = u.id
+    WHERE u.phone = '${escapedPhone}'
+      AND lower(u.user_type) = 'customer'
+      AND ur.role = 'CUSTOMER'
+      AND ui.provider = '${escapedProvider}'
+  ) THEN 'ok'
+  ELSE 'missing'
+END;
+`
+  return runSql(sql)
 }
 
 const assertPass = (checks, name, condition, detail) => {
@@ -149,12 +242,34 @@ const run = async () => {
     const loginButton = await page.$('.login-native-button')
     assertPass(checks, 'login.primary.button', Boolean(loginButton), 'login button should be found')
     await loginButton.tap()
-    await sleep(6500)
+    const loginState = await waitFor(async () => {
+      const currentPage = await miniProgram.currentPage()
+      const currentRoute = normalizePath(currentPage?.path)
+      const token = await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
+      const bootstrap = await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
+      if (
+        currentRoute !== 'pages/auth/login/index'
+        && typeof token === 'string'
+        && token.trim().length > 0
+        && hasBootstrapMe(bootstrap)
+      ) {
+        return {
+          page: currentPage,
+          routeAfterLogin: currentRoute,
+          tokenAfterLogin: token,
+          bootstrapAfterLogin: bootstrap
+        }
+      }
+      return null
+    }, { timeoutMs: 15000, intervalMs: 500 })
 
-    page = await miniProgram.currentPage()
-    const routeAfterLogin = normalizePath(page?.path)
-    const tokenAfterLogin = await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
-    const bootstrapAfterLogin = await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
+    page = loginState?.page ?? await miniProgram.currentPage()
+    const routeAfterLogin = loginState?.routeAfterLogin ?? normalizePath(page?.path)
+    const tokenAfterLogin = loginState?.tokenAfterLogin ?? await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
+    const bootstrapAfterLogin = loginState?.bootstrapAfterLogin ?? await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
+    const parsedBootstrap = parseBootstrap(bootstrapAfterLogin)
+    const me = parsedBootstrap?.me || null
+    const resolvedPhone = expectedPhone || String(me?.phone || '').trim()
 
     assertPass(
       checks,
@@ -174,6 +289,45 @@ const run = async () => {
       hasBootstrapMe(bootstrapAfterLogin),
       `bootstrapType=${typeof bootstrapAfterLogin}`
     )
+    assertPass(
+      checks,
+      'login.bootstrap.userType.customer',
+      String(me?.userType || '').trim().toLowerCase() === 'customer',
+      `userType=${String(me?.userType || '')}`
+    )
+    assertPass(
+      checks,
+      'login.bootstrap.roles.customer',
+      includesRole(me?.roles, 'CUSTOMER'),
+      `roles=${JSON.stringify(me?.roles || [])}`
+    )
+    assertPass(
+      checks,
+      'login.bootstrap.phone.exists',
+      Boolean(resolvedPhone),
+      `phone=${resolvedPhone}`
+    )
+
+    if (expectedPhone) {
+      assertPass(
+        checks,
+        'login.bootstrap.phone.matches.expected',
+        resolvedPhone === expectedPhone,
+        `expected=${expectedPhone} actual=${resolvedPhone}`
+      )
+    }
+
+    let dbEvidence = null
+    if (verifyDb && resolvedPhone) {
+      const dbResult = await verifyCustomerInDb(resolvedPhone, 'weapp')
+      dbEvidence = { phone: resolvedPhone, provider: 'weapp', result: dbResult }
+      assertPass(
+        checks,
+        'db.customer.weapp.identity.exists',
+        dbResult === 'ok',
+        `dbResult=${dbResult} phone=${resolvedPhone}`
+      )
+    }
 
     await miniProgram.reLaunch('/pages/mine/index')
     await sleep(2200)
@@ -182,10 +336,20 @@ const run = async () => {
     const logoutButton = await page.$('#mine-logout-btn')
     assertPass(checks, 'logout.button.visible', Boolean(logoutButton), 'logout button should be found by #mine-logout-btn')
     await logoutButton.tap()
-    await sleep(2500)
+    const logoutState = await waitFor(async () => {
+      const token = await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
+      const bootstrap = await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
+      if (
+        (token === '' || token === null || token === undefined)
+        && (bootstrap === '' || bootstrap === null || bootstrap === undefined)
+      ) {
+        return { tokenAfterLogout: token, bootstrapAfterLogout: bootstrap }
+      }
+      return null
+    }, { timeoutMs: 10000, intervalMs: 400 })
 
-    const tokenAfterLogout = await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
-    const bootstrapAfterLogout = await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
+    const tokenAfterLogout = logoutState?.tokenAfterLogout ?? await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
+    const bootstrapAfterLogout = logoutState?.bootstrapAfterLogout ?? await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
 
     assertPass(
       checks,
@@ -233,6 +397,15 @@ const run = async () => {
       status: 'pass',
       checks,
       routeAfterLogin,
+      me: me
+        ? {
+          id: me.id,
+          phone: me.phone,
+          userType: me.userType,
+          roles: me.roles
+        }
+        : null,
+      dbEvidence,
       consoleCount: consoleLogs.length,
       exceptionCount: exceptions.length
     }

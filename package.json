@@ -12,6 +12,8 @@
     "check:mock-sync": "node tools/scripts/check-mock-sync.mjs",
     "test:backend": "bash tools/scripts/test-backend.sh",
     "smoke:admin-web": "bash tools/scripts/admin-web-smoke.sh",
+    "verify:miniapp:customer:evidence": "bash tools/scripts/miniapp-customer-evidence.sh",
+    "test:fullstack:real": "bash tools/scripts/fullstack-real-check.sh",
     "test": "pnpm run test:backend && pnpm -C apps/miniapp test && pnpm -C apps/miniapp test:wxss",
     "format": "echo \"format: not configured\""
   }

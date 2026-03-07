@@ -11,14 +11,17 @@ Bootstrap and local dev scripts.
 - `identity-generate.sh`: regenerate identity sqlc + oapi-codegen outputs.
 - `identity-migrate.sh`: apply identity migrations via Go runner.
 - `identity-seed.sh`: seed identity dev users/roles.
+- `identity-seed-check.sh`: verify identity DB fixtures and, when gateway is reachable, real password-login + bootstrap.
+- `identity-repair.sh`: reset/reseed identity fixtures, then run `identity-seed-check.sh`.
 - `dev-seed.sh`: run commerce + identity seed scripts in one shot.
 - `dev-bootstrap.sh`: start Postgres, run commerce + identity migrations and seed.
-- `dev-stack-up.sh`: start local Docker stack (postgres + backend services), run bootstrap/seed, then wait for readiness (`DEV_STACK_BUILD_IMAGES=true` to force image rebuild; `DEV_STACK_AIR=true` to enable `infra/dev/docker-compose.dev.yml` overlay and run all Go services with Air hot reload). The script now injects stable Go module env by default (`DEV_STACK_GOPROXY=https://goproxy.cn,direct`, `DEV_STACK_GOSUMDB=off`, `DEV_STACK_GONOSUMDB=*`) and you can override them per command.
+- `dev-stack-up.sh`: start local Docker stack (postgres + backend services), run bootstrap/seed, enforce identity seed DB checks before container startup, then wait for readiness and enforce real password-login + bootstrap checks (`DEV_STACK_BUILD_IMAGES=true` to force image rebuild; `DEV_STACK_AIR=true` to enable `infra/dev/docker-compose.dev.yml` overlay and run all Go services with Air hot reload). The script now injects stable Go module env by default (`DEV_STACK_GOPROXY=https://goproxy.cn,direct`, `DEV_STACK_GOSUMDB=off`, `DEV_STACK_GONOSUMDB=*`) and you can override them per command.
 - `infra/dev/docker-compose.dev.yml`: overlay compose file for dev containers (Dockerfile.dev + source mount + Air command + Go cache volumes).
 - `dev-stack-health.sh`: check local identity/commerce/payment/gateway `/ready` and `/health` endpoints, then validate gateway business endpoints (`/bff/bootstrap`, `/catalog/categories`, `/catalog/products`).
 - `dev-diagnose-db.sh`: print DB failure diagnostics from container health/logs (used by stack health and preflight failure paths).
 - `miniapp-http-smoke.sh`: smoke-check miniapp core API paths via gateway (`/bff/bootstrap`, `/catalog/categories`, `/catalog/products`) and validate product images from `/assets/img` or `/assets/media` (`MINIAPP_HTTP_SMOKE_ALLOW_EMPTY_PRODUCTS=true` to skip image-proxy assertion when products are empty; `MINIAPP_HTTP_SMOKE_ALLOW_PROXY_FAILURE=true` to soft-pass remote image proxy failures in unstable networks).
 - `miniapp-smoke.sh`: run multi-route WeChat automator smoke on `apps/miniapp` (`MINIAPP_SMOKE_STACK_UP=true` to auto start backend stack; `WEAPP_SMOKE_PREFLIGHT=true` to run preflight gate first; supports `WEAPP_SMOKE_ASSERT_*` assertion thresholds, default all minimum-count thresholds to `0` to focus on endpoint health first).
+- `miniapp-customer-evidence.sh`: verify CUSTOMER auto-provision evidence for a phone/provider pair by combining admin `/admin/customers` query and identity DB checks.
 - Preflight result file: `apps/miniapp/.logs/preflight/result.json` (machine-readable status for CI and local diagnosis).
 - Automator result file: `apps/miniapp/.logs/weapp/run.json` (machine-readable run summary, first failure, and assertion stats).
 - Troubleshooting runbook: `docs/RUNBOOK/miniapp-white-screen-gate.md`.
