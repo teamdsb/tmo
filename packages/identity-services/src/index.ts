@@ -59,6 +59,7 @@ export interface MiniLoginInput {
   role?: MiniLoginRequestRole
   bindingToken?: string
   phoneProof?: PhoneProofResult
+  codeOverride?: string
 }
 
 export interface PasswordLoginInput {
@@ -97,7 +98,10 @@ export const createIdentityServices = (config: IdentityServicesConfig = {}): Ide
   const auth = {
     miniLogin: async (input: MiniLoginInput): Promise<AuthResponse> => {
       const platform = resolvePlatform(input.platform)
-      const loginResult = await platformLogin()
+      const overriddenCode = String(input.codeOverride || '').trim()
+      const loginResult = overriddenCode
+        ? { code: overriddenCode }
+        : await platformLogin()
       const shouldFetchPhoneProof = !input.phoneProof && !input.role
       const phoneProof = input.phoneProof ?? (shouldFetchPhoneProof ? await platformGetPhoneNumber() : undefined)
       const payload: MiniLoginRequest = {

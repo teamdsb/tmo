@@ -25,6 +25,8 @@ Identity service for authentication, JWT issuing, and sales binding.
 
 说明：
 
+- 本地未配置真实微信/支付宝凭证时，`mock_*` code 会作为本地联调回退入口；这样可以在 `IDENTITY_LOGIN_MODE=real` 下继续跑真实数据库 + 真实后端联调。
+
 - `admin` 与 `boss` 在 admin-web 场景均视为最高层级。
 - admin-web password login role whitelist: `BOSS`, `MANAGER`, `ADMIN`, `CS`.
 - `SALES` 不允许 password login（业务员仅走 miniapp 登录）。

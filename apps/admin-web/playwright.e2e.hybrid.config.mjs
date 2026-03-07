@@ -4,7 +4,7 @@ const baseURL = process.env.ADMIN_WEB_BASE_URL || 'http://127.0.0.1:5174';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  testMatch: /.*(?:\.|-)real\.spec\.ts/,
+  testMatch: /.*(?:\.|-)hybrid\.spec\.ts/,
   timeout: 180000,
   expect: {
     timeout: 15000

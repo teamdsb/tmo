@@ -12,8 +12,10 @@ Bootstrap and local dev scripts.
 - `identity-migrate.sh`: apply identity migrations via Go runner.
 - `identity-seed.sh`: seed identity dev users/roles.
 - `dev-seed.sh`: run commerce + identity seed scripts in one shot.
+- `dev-seed-check.sh`: verify real-data login/catalog/inquiry fixtures before local real e2e. Inquiry seed is mandatory by default; set `DEV_SEED_CHECK_REQUIRE_INQUIRIES=false` only when intentionally debugging pre-seed environments.
 - `dev-bootstrap.sh`: start Postgres, run commerce + identity migrations and seed.
 - `dev-stack-up.sh`: start local Docker stack (postgres + backend services), run bootstrap/seed, then wait for readiness (`DEV_STACK_BUILD_IMAGES=true` to force image rebuild; `DEV_STACK_AIR=true` to enable `infra/dev/docker-compose.dev.yml` overlay and run all Go services with Air hot reload). The script now injects stable Go module env by default (`DEV_STACK_GOPROXY=https://goproxy.cn,direct`, `DEV_STACK_GOSUMDB=off`, `DEV_STACK_GONOSUMDB=*`) and you can override them per command.
+- `e2e-local-stack.sh`: one-shot local orchestration for real-data seed verification, smoke checks, admin-web real e2e, miniapp auth e2e, and miniapp catalog real e2e. It now forces `DEV_STACK_BUILD_IMAGES=true` by default (`E2E_LOCAL_FORCE_BUILD_IMAGES=false` to opt out) so local runs do not accidentally validate stale backend containers, and enables `TARO_APP_WEAPP_PHONE_PROOF_SIMULATION=true` for miniapp local real E2E by default (`E2E_LOCAL_WEAPP_PHONE_SIMULATION=false` to opt out).
 - `infra/dev/docker-compose.dev.yml`: overlay compose file for dev containers (Dockerfile.dev + source mount + Air command + Go cache volumes).
 - `dev-stack-health.sh`: check local identity/commerce/payment/gateway `/ready` and `/health` endpoints, then validate gateway business endpoints (`/bff/bootstrap`, `/catalog/categories`, `/catalog/products`).
 - `dev-diagnose-db.sh`: print DB failure diagnostics from container health/logs (used by stack health and preflight failure paths).

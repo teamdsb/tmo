@@ -1,6 +1,6 @@
 # Miniapp 测试说明
 
-当前 miniapp 使用 Jest 作为单元测试框架，并提供基于 `miniprogram-automator` 的微信端 E2E 脚本（登录/退出主流程）。
+当前 miniapp 使用 Jest 作为单元测试框架，并提供基于 `miniprogram-automator` 的微信端 E2E 脚本（登录/退出主流程、真实 catalog/询价业务链路）。
 
 ## 构建命令
 
@@ -181,6 +181,7 @@
 - 已安装微信开发者工具，且可用 CLI（默认自动探测；必要时设置 `WEAPP_DEVTOOLS_CLI_PATH`）。
 - 本地后端可用（通常为 `http://localhost:8080`），并完成基础 seed。
 - 建议使用 `test:e2e:weapp:auth:dev`，会以 `NODE_ENV=development` 构建，便于审核期模拟手机号链路联调。
+- 本地真实联调建议显式设置 `TARO_APP_WEAPP_PHONE_PROOF_SIMULATION=true`；仓库内统一脚本 `tools/scripts/e2e-local-stack.sh` 已默认带上该变量。
 
 可用环境变量：
 
@@ -192,6 +193,48 @@
 
 - 成功时输出 `WEAPP_AUTH_E2E:PASS`。
 - 失败时输出 `WEAPP_AUTH_E2E:FAIL`，并返回非 0 退出码（可直接接入本地脚本或 CI 的阻断条件）。
+
+## 微信真实 Catalog / Inquiry E2E
+
+该 E2E 用于验证“真实登录后继续读取真实首页/分类/商品详情，并完成一次真实询价动作”主链路，脚本在 `apps/miniapp/scripts/weapp-catalog-real-e2e.js`。
+
+执行方式（在仓库根目录）：
+
+    pnpm -C apps/miniapp test:e2e:weapp:catalog-real:dev
+
+如果你已经提前构建好 `dist/weapp`，可仅执行：
+
+    pnpm -C apps/miniapp test:e2e:weapp:catalog-real
+
+脚本覆盖的断言：
+
+- 复用原生快速登录，确认 token/bootstrap 已写入。
+- 进入首页并验证真实分类、真实商品均非空。
+- 进入分类页并验证分类和商品列表均已从真实后端返回。
+- 进入商品详情页，确认详情已加载，并点击“议价”触发真实询价创建。
+- 通过真实 `/inquiries/price` 接口确认询价列表可读且非空。
+- 控制台不得出现 `Headers is not defined`、`identity login failed`、`load products/categories/product detail failed`、`create inquiry failed`，且 runtime exception 必须为 0。
+
+前置条件：
+
+- 已安装微信开发者工具，且可用 CLI（默认自动探测；必要时设置 `WEAPP_DEVTOOLS_CLI_PATH`）。
+- 本地后端可用（通常为 `http://localhost:8080`），并完成基础 seed。
+- 建议使用 `test:e2e:weapp:catalog-real:dev`，会以 `NODE_ENV=development` 构建，便于本地联调。
+- 本地真实联调建议显式设置 `TARO_APP_WEAPP_PHONE_PROOF_SIMULATION=true`；仓库内统一脚本 `tools/scripts/e2e-local-stack.sh` 已默认带上该变量。
+
+可用环境变量：
+
+- `WEAPP_DEVTOOLS_CLI_PATH`：微信开发者工具 CLI 路径（可选）。
+- `WEAPP_AUTOMATOR_PORT`：automator websocket 端口，默认 `9527`。
+- `WEAPP_CATALOG_E2E_TIMEOUT_MS`：整条业务 E2E 超时，默认 `120000`。
+- `WEAPP_CATALOG_E2E_PAGE_WAIT_MS`：页面数据轮询等待，默认 `8000`。
+- `WEAPP_CATALOG_E2E_API_BASE_URL`：询价 HTTP 校验的 gateway 地址，默认 `http://localhost:8080`。
+
+输出与退出码：
+
+- 成功时输出 `WEAPP_CATALOG_REAL_E2E:PASS`。
+- 失败时输出 `WEAPP_CATALOG_REAL_E2E:FAIL`，并返回非 0 退出码。
+- 注意不要并发运行多个 `miniprogram-automator` E2E；它们默认共用 `WEAPP_AUTOMATOR_PORT=9527`，并发执行会互相抢占 DevTools 连接，导致误判停留在登录页。
 
 ## 支付宝 Web 调试器 console 采集
 
@@ -285,5 +328,6 @@ miniapp 已启用 Tailwind CSS 作为原子 CSS 框架。配置位于 `apps/mini
 
 - 单元测试由 Jest 执行，配置文件在 `apps/miniapp/jest.config.cjs`。
 - 已提供微信登录/退出主流程 E2E（`test:e2e:weapp:auth` / `test:e2e:weapp:auth:dev`），用于回归验证 token/bootstrap 写入与清理。
+- 已提供微信真实业务 E2E（`test:e2e:weapp:catalog-real` / `test:e2e:weapp:catalog-real:dev`），用于验证登录后真实 catalog/商品详情/询价链路。
 - 已提供基于 `miniprogram-automator` 的 WeChat 多路由烟测脚本（`debug:weapp:smoke`），并输出路由级别日志与截图。
 - TypeScript 类型检查已包含在 `pnpm -C apps/miniapp lint` 中，命令为 `tsc -p tsconfig.json --noEmit`。

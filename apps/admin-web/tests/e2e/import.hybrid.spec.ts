@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 import { createImportFixture, seedDevAuthState } from './import-fixtures';
 
-test('real mode import page creates product import job and polls status', async ({ page }, testInfo) => {
+test('hybrid import page creates product import job and polls status', async ({ page }, testInfo) => {
   const productName = `Real Import Product ${Date.now()}`;
   const fixture = await createImportFixture(testInfo, {
     productName,
@@ -94,7 +94,7 @@ test('real mode import page creates product import job and polls status', async 
   expect(createRequestBody).toContain('https://cdn.example.com/catalog');
 });
 
-test('real mode import page creates product-request export job and polls status', async ({ page }) => {
+test('hybrid import page creates product-request export job and polls status', async ({ page }) => {
   await seedDevAuthState(page);
 
   let pollCount = 0;

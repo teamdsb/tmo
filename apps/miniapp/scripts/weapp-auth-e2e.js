@@ -16,6 +16,13 @@ const cliCandidates = [
 ].filter(Boolean)
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+const lastRunDebugState = {
+  routeAfterLogin: '',
+  tokenAfterLogin: null,
+  bootstrapAfterLogin: null,
+  consoleTail: [],
+  exceptionCount: 0
+}
 
 const normalizePath = (value) => String(value || '').replace(/^\/+/, '')
 
@@ -99,7 +106,6 @@ const run = async () => {
   const checks = []
   const consoleLogs = []
   const exceptions = []
-
   const cliPath = cliCandidates.find((candidate) => fs.existsSync(candidate))
   if (!cliPath) {
     throw new Error('wechat devtools cli not found; set WEAPP_DEVTOOLS_CLI_PATH')
@@ -123,12 +129,17 @@ const run = async () => {
       const level = String(payload?.level || payload?.type || 'info').toLowerCase()
       const text = extractConsoleText(payload)
       consoleLogs.push({ level, text })
+      lastRunDebugState.consoleTail = consoleLogs.slice(-10)
     })
 
     miniProgram.on('exception', (payload) => {
       exceptions.push(payload)
+      lastRunDebugState.exceptionCount = exceptions.length
     })
 
+    await miniProgram.callWxMethod('removeStorageSync', 'tmo:auth:token')
+    await miniProgram.callWxMethod('removeStorageSync', 'tmo:bootstrap')
+    await miniProgram.callWxMethod('removeStorageSync', 'tmo:auth:pending-role-selection')
     await miniProgram.reLaunch('/pages/auth/login/index')
     await sleep(1800)
 
@@ -155,6 +166,9 @@ const run = async () => {
     const routeAfterLogin = normalizePath(page?.path)
     const tokenAfterLogin = await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
     const bootstrapAfterLogin = await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
+    lastRunDebugState.routeAfterLogin = routeAfterLogin
+    lastRunDebugState.tokenAfterLogin = tokenAfterLogin
+    lastRunDebugState.bootstrapAfterLogin = bootstrapAfterLogin
 
     assertPass(
       checks,
@@ -253,7 +267,8 @@ run().catch((error) => {
   const summary = {
     status: 'fail',
     error: readErrorText(error),
-    stack: error?.stack || ''
+    stack: error?.stack || '',
+    debugState: lastRunDebugState
   }
   console.error(JSON.stringify(summary, null, 2))
   console.error('WEAPP_AUTH_E2E:FAIL')

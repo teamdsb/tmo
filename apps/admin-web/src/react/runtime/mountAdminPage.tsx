@@ -83,18 +83,18 @@ export const mountAdminPage = async (content: ReactElement, bootstrap: Bootstrap
   const currentPath = normalizePath(window.location.pathname);
   const root = createRoot(rootContainer);
 
-  flushSync(() => {
-    root.render(<AdminPage currentPath={currentPath} content={content} />);
-  });
-
-  applyMainOverflowClass();
-
   try {
     await bootstrap();
   } catch (error) {
     // eslint-disable-next-line no-console
     console.error('Failed to bootstrap admin page module(s):', error);
   }
+
+  flushSync(() => {
+    root.render(<AdminPage currentPath={currentPath} content={content} />);
+  });
+
+  applyMainOverflowClass();
 
   installZhLocalization();
 };

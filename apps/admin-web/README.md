@@ -77,6 +77,16 @@ pnpm -C apps/admin-web test:e2e:real
 
 - 默认会连接 `http://127.0.0.1:5174`（`dev:real`）并执行 P0 页面端到端脚本。
 - 如已手动启动前端，可设置 `ADMIN_WEB_BASE_URL` 复用现有服务。
+- `real` 口径要求真实数据库 + 真实后端 + 不 stub 业务接口。
+
+## Hybrid E2E
+
+```bash
+pnpm -C apps/admin-web test:e2e:hybrid
+```
+
+- `hybrid` 用于真实前端流程但仍需通过 Playwright stub 业务接口的联调补充场景。
+- 当前商品导入/导出轮询类场景归在 `hybrid`，不计入 `real` 联调通过口径。
 
 ## 视觉回归
 

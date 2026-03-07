@@ -161,6 +161,22 @@ if [[ "$http_code" != "200" ]]; then
   exit 1
 fi
 
+echo "[admin-web-smoke] admin list payment transactions..."
+request "GET" "$base_url/admin/payments/transactions?page=1&pageSize=5" "" "$admin_token"
+if [[ "$http_code" != "200" ]]; then
+  echo "payment transactions query failed: $http_code" >&2
+  echo "$http_body" >&2
+  exit 1
+fi
+
+echo "[admin-web-smoke] admin list payment webhooks..."
+request "GET" "$base_url/admin/payments/webhooks?page=1&pageSize=5" "" "$admin_token"
+if [[ "$http_code" != "200" ]]; then
+  echo "payment webhooks query failed: $http_code" >&2
+  echo "$http_body" >&2
+  exit 1
+fi
+
 echo "[admin-web-smoke] admin get feature flags..."
 request "GET" "$base_url/admin/config/feature-flags" "" "$admin_token"
 if [[ "$http_code" != "200" ]]; then

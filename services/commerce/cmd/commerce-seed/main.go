@@ -55,6 +55,8 @@ func run() error {
 	productCount := 0
 	skuCount := 0
 	priceTierCount := 0
+	inquiryCount := 0
+	inquiryMessageCount := 0
 
 	for _, category := range seed.Categories {
 		if err := ensureCategory(ctx, tx, category); err != nil {
@@ -85,16 +87,32 @@ func run() error {
 		}
 	}
 
+	for _, inquiry := range seed.Inquiries {
+		if err := ensurePriceInquiry(ctx, tx, inquiry); err != nil {
+			return err
+		}
+		inquiryCount++
+
+		for _, message := range inquiry.Messages {
+			if err := ensureInquiryMessage(ctx, tx, inquiry.ID, message); err != nil {
+				return err
+			}
+			inquiryMessageCount++
+		}
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit seed: %w", err)
 	}
 
 	fmt.Printf(
-		"seed data applied: %d categories, %d products, %d skus, %d price tiers\n",
+		"seed data applied: %d categories, %d products, %d skus, %d price tiers, %d inquiries, %d inquiry messages\n",
 		categoryCount,
 		productCount,
 		skuCount,
 		priceTierCount,
+		inquiryCount,
+		inquiryMessageCount,
 	)
 	return nil
 }
@@ -102,6 +120,7 @@ func run() error {
 type catalogSeed struct {
 	Categories []categorySeed
 	Products   []productSeed
+	Inquiries  []priceInquirySeed
 }
 
 type categorySeed struct {
@@ -138,6 +157,26 @@ type priceTierSeed struct {
 	MinQty       int32
 	MaxQty       *int32
 	UnitPriceFen int64
+}
+
+type priceInquirySeed struct {
+	ID                  uuid.UUID
+	CreatedByUserID     uuid.UUID
+	OwnerSalesUserID    *uuid.UUID
+	AssignedSalesUserID *uuid.UUID
+	SkuID               *uuid.UUID
+	OrderID             *uuid.UUID
+	Message             string
+	Status              string
+	ResponseNote        *string
+	Messages            []inquiryMessageSeed
+}
+
+type inquiryMessageSeed struct {
+	ID           uuid.UUID
+	SenderType   string
+	SenderUserID *uuid.UUID
+	Content      string
 }
 
 func ensureCategory(ctx context.Context, tx pgx.Tx, seed categorySeed) error {
@@ -275,10 +314,67 @@ VALUES ($1, $2, $3, $4)
 	return nil
 }
 
+func ensurePriceInquiry(ctx context.Context, tx pgx.Tx, seed priceInquirySeed) error {
+	if _, err := tx.Exec(ctx, `
+INSERT INTO price_inquiries (
+  id,
+  created_by_user_id,
+  owner_sales_user_id,
+  assigned_sales_user_id,
+  sku_id,
+  order_id,
+  message,
+  status,
+  response_note
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+ON CONFLICT (id) DO UPDATE
+SET created_by_user_id = EXCLUDED.created_by_user_id,
+    owner_sales_user_id = EXCLUDED.owner_sales_user_id,
+    assigned_sales_user_id = EXCLUDED.assigned_sales_user_id,
+    sku_id = EXCLUDED.sku_id,
+    order_id = EXCLUDED.order_id,
+    message = EXCLUDED.message,
+    status = EXCLUDED.status,
+    response_note = EXCLUDED.response_note,
+    updated_at = now()
+`, seed.ID, seed.CreatedByUserID, seed.OwnerSalesUserID, seed.AssignedSalesUserID, seed.SkuID, seed.OrderID, seed.Message, seed.Status, seed.ResponseNote); err != nil {
+		return fmt.Errorf("seed inquiry %s: %w", seed.ID, err)
+	}
+	return nil
+}
+
+func ensureInquiryMessage(ctx context.Context, tx pgx.Tx, inquiryID uuid.UUID, seed inquiryMessageSeed) error {
+	if _, err := tx.Exec(ctx, `
+INSERT INTO inquiry_messages (
+  id,
+  inquiry_id,
+  sender_type,
+  sender_user_id,
+  content
+)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (id) DO UPDATE
+SET inquiry_id = EXCLUDED.inquiry_id,
+    sender_type = EXCLUDED.sender_type,
+    sender_user_id = EXCLUDED.sender_user_id,
+    content = EXCLUDED.content
+`, seed.ID, inquiryID, seed.SenderType, seed.SenderUserID, seed.Content); err != nil {
+		return fmt.Errorf("seed inquiry message %s: %w", seed.ID, err)
+	}
+	return nil
+}
+
 func buildCatalogSeed() catalogSeed {
 	metalsID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
 	electricalID := uuid.MustParse("55555555-5555-5555-5555-555555555555")
 	safetyID := uuid.MustParse("66666666-6666-6666-6666-666666666666")
+	salesID := uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+	customerID := uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
+	inquiryID := uuid.MustParse("77777777-7777-7777-7777-777777777777")
+	inquiryMessageID := uuid.MustParse("88888888-8888-8888-8888-888888888888")
+	inquirySkuID := uuid.MustParse("33333333-3333-3333-3333-333333333305")
+	inquiryResponseNote := "已安排 Sales Dev 跟进，待客户确认 50 根批量价格。"
 
 	products := []productSeed{
 		{
@@ -458,6 +554,27 @@ func buildCatalogSeed() catalogSeed {
 			{ID: safetyID, Name: "安全防护", ParentID: nil, Sort: 3},
 		},
 		Products: products,
+		Inquiries: []priceInquirySeed{
+			{
+				ID:                  inquiryID,
+				CreatedByUserID:     customerID,
+				OwnerSalesUserID:    &salesID,
+				AssignedSalesUserID: &salesID,
+				SkuID:               &inquirySkuID,
+				OrderID:             nil,
+				Message:             "询价：镀锌槽钢 C100，项目首批需要 50 根，请给到含税到场价和交期。",
+				Status:              "OPEN",
+				ResponseNote:        &inquiryResponseNote,
+				Messages: []inquiryMessageSeed{
+					{
+						ID:           inquiryMessageID,
+						SenderType:   "CUSTOMER",
+						SenderUserID: &customerID,
+						Content:      "项目在杭州临平，优先看 50 根和 100 根两档价格。",
+					},
+				},
+			},
+		},
 	}
 }
 
