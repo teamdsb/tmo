@@ -18,6 +18,7 @@ const asMock = <T extends (...args: any[]) => any>(fn: T) => fn as unknown as je
 
 describe('PersonalCenter', () => {
   beforeEach(() => {
+    asMock(identityServices.tokens.getToken).mockResolvedValue('token-123')
     asMock(gatewayServices.bootstrap.get).mockImplementation(async () => ({
       me: {
         displayName: '张三',
@@ -84,5 +85,15 @@ describe('PersonalCenter', () => {
     expect(screen.getByText('我的需求')).toBeInTheDocument()
     expect(screen.getByText('收藏')).toBeInTheDocument()
     expect(screen.getByText('系统设置')).toBeInTheDocument()
+  })
+
+  it('falls back to guest state without token and does not refresh bootstrap', async () => {
+    asMock(identityServices.tokens.getToken).mockResolvedValue(null)
+
+    await renderPersonalCenter()
+
+    expect(await screen.findByText('未登录')).toBeInTheDocument()
+    expect(gatewayServices.bootstrap.get).not.toHaveBeenCalled()
+    expect(removeStorage).toHaveBeenCalledWith('tmo:bootstrap')
   })
 })

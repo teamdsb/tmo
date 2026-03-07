@@ -10,8 +10,9 @@ import './app.scss'
 
 import { identityServices } from './services/identity'
 import { gatewayServices } from './services/gateway'
-import { saveBootstrap } from './services/bootstrap'
+import { clearBootstrap, saveBootstrap } from './services/bootstrap'
 import { assertRuntimeApiConfig, runtimeEnv } from './config/runtime-env'
+import { clearAuthSession, hasAuthToken, isUnauthorized } from './utils/auth'
 
 function App({ children }: PropsWithChildren<any>) {
   useLaunch(() => {
@@ -39,29 +40,39 @@ function App({ children }: PropsWithChildren<any>) {
 
 export default App
 
-const bootstrapApp = async (): Promise<void> => {
+export const bootstrapApp = async (): Promise<void> => {
+  const hasToken = await hasAuthToken()
+  if (!hasToken) {
+    await clearBootstrap()
+    return
+  }
+
   const bootstrap = await tryBootstrap()
   if (bootstrap?.me) {
+    return
+  }
+  if (!(await hasAuthToken())) {
     return
   }
   await fallbackIdentityBootstrap()
 }
 
-const tryBootstrap = async () => {
+export const tryBootstrap = async () => {
   try {
     const bootstrap = await gatewayServices.bootstrap.get()
     await saveBootstrap(bootstrap)
     return bootstrap
   } catch (error) {
     if (isUnauthorized(error)) {
-      await identityServices.tokens.setToken(null)
+      await clearAuthSession()
+      return null
     }
     console.warn('bootstrap failed', error)
     return null
   }
 }
 
-const fallbackIdentityBootstrap = async (): Promise<void> => {
+export const fallbackIdentityBootstrap = async (): Promise<void> => {
   try {
     const [me, permissions] = await Promise.all([
       identityServices.me.get(),
@@ -77,13 +88,10 @@ const fallbackIdentityBootstrap = async (): Promise<void> => {
       }
     })
   } catch (error) {
+    if (isUnauthorized(error)) {
+      await clearAuthSession()
+      return
+    }
     console.warn('fallback bootstrap failed', error)
   }
-}
-
-const isUnauthorized = (error: unknown): boolean => {
-  return typeof error === 'object'
-    && error !== null
-    && 'statusCode' in error
-    && (error as { statusCode?: number }).statusCode === 401
 }

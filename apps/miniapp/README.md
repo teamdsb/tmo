@@ -62,6 +62,8 @@
 - `TARO_APP_MOCK_MODE=isolated` 会启用“分离 mock 模式”：gateway/identity/commerce 全链路离线，不访问后端，数据本地持久化（支持设置页重置）。
 - `TARO_APP_MOCK_MODE=off`（默认）时走真实后端，不再提供运行时 commerce 自动 fallback 到 mock。
 - `TARO_APP_ENABLE_MOCK_LOGIN` 默认为关闭（`false`）；且仅在 `TARO_APP_MOCK_MODE=isolated` 时才会展示“测试登录”按钮。
+- `TARO_APP_MOCK_MODE=off` 且本地没有 token 时，miniapp 启动会直接进入游客态；不会再主动请求 `/me`、`/me/permissions` 并刷 401。
+- 真实联调若需要直接带登录态，可先完成一次登录，或显式配置 `TARO_APP_IDENTITY_DEV_TOKEN`（gateway 默认也会复用该 token）。
 - 如果使用容器化后端，保持 `TARO_APP_API_BASE_URL=http://localhost:8080` 即可。
 - `make dev-stack-up` 默认注入稳定 Go 模块参数（`DEV_STACK_GOPROXY=https://goproxy.cn,direct`、`DEV_STACK_GOSUMDB=off`、`DEV_STACK_GONOSUMDB=*`），可降低容器内 `go build` 拉包失败概率。
 - 如需覆盖代理策略，可执行：
