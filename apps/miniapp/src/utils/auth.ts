@@ -1,15 +1,30 @@
 import { ROUTES, withQuery } from '../routes'
-import { loadBootstrap } from '../services/bootstrap'
+import { clearBootstrap, loadBootstrap } from '../services/bootstrap'
+import { commerceServices } from '../services/commerce'
+import { gatewayServices } from '../services/gateway'
 import { identityServices } from '../services/identity'
 import { getCurrentPath, navigateTo } from './navigation'
+
+export const hasAuthToken = async (): Promise<boolean> => {
+  const token = await identityServices.tokens.getToken()
+  return Boolean(token)
+}
+
+export const clearAuthSession = async (): Promise<void> => {
+  await Promise.allSettled([
+    gatewayServices.tokens.setToken(null),
+    commerceServices.tokens.setToken(null),
+    identityServices.tokens.setToken(null),
+    clearBootstrap()
+  ])
+}
 
 export const isLoggedIn = async (): Promise<boolean> => {
   const bootstrap = await loadBootstrap()
   if (bootstrap?.me) {
     return true
   }
-  const token = await identityServices.tokens.getToken()
-  return Boolean(token)
+  return hasAuthToken()
 }
 
 export const ensureLoggedIn = async (

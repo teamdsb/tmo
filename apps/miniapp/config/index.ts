@@ -3,6 +3,11 @@ import { defineConfig, type UserConfigExport } from '@tarojs/cli'
 import devConfig from './dev'
 import prodConfig from './prod'
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const path = require('node:path')
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { resolveOutputRootForTaroEnv } = require('../scripts/weapp-paths')
+
 const postcssConfig = {
   pxtransform: {
     enable: true,
@@ -36,7 +41,7 @@ const defineConstants = {
 
 export default defineConfig<'vite'>(async (merge) => {
   const taroEnv = process.env.TARO_ENV || 'weapp'
-  const outputRoot = `dist/${taroEnv}`
+  const outputRoot = resolveOutputRootForTaroEnv(taroEnv, path.resolve(__dirname, '..')).relativeToMiniapp
 
   const baseConfig: UserConfigExport<'vite'> = {
     projectName: 'miniapp',

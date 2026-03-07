@@ -1,7 +1,8 @@
 const fs = require('node:fs')
-const path = require('node:path')
+const { describeWeappPaths } = require('./weapp-paths')
 
-const appWxssPath = path.resolve(__dirname, '../dist/weapp/app-origin.wxss')
+const { outputRoot } = describeWeappPaths()
+const appWxssPath = require('node:path').join(outputRoot, 'app-origin.wxss')
 
 function processWeappWxss() {
   if (!fs.existsSync(appWxssPath)) {

@@ -4,8 +4,9 @@ import Taro from '@tarojs/taro'
 import type { BootstrapResponse } from '@tmo/gateway-api-client'
 import { ROUTES } from '../../routes'
 import { switchTabLike } from '../../utils/navigation'
+import { clearAuthSession, hasAuthToken, isUnauthorized } from '../../utils/auth'
 import { isSalesUser } from '../../utils/authz'
-import { loadBootstrap, saveBootstrap } from '../../services/bootstrap'
+import { clearBootstrap, loadBootstrap, saveBootstrap } from '../../services/bootstrap'
 import { gatewayServices } from '../../services/gateway'
 import SupportCustomerView from './support-customer-view'
 import SupportSalesView from './support-sales-view'
@@ -24,11 +25,24 @@ export default function SupportPage() {
       setBootstrap(cached)
     }
 
+    const tokenExists = await hasAuthToken()
+    if (!tokenExists) {
+      setBootstrap(null)
+      await clearBootstrap()
+      setLoadingBootstrap(false)
+      return
+    }
+
     try {
       const fresh = await gatewayServices.bootstrap.get()
       setBootstrap(fresh)
       await saveBootstrap(fresh)
     } catch (error) {
+      if (isUnauthorized(error)) {
+        setBootstrap(null)
+        await clearAuthSession()
+        return
+      }
       console.warn('support bootstrap refresh failed', error)
     } finally {
       setLoadingBootstrap(false)

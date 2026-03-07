@@ -10,6 +10,7 @@ import {
 } from '@taroify/icons'
 import type { BootstrapResponse } from '@tmo/gateway-api-client'
 import { ROUTES } from '../../routes'
+import { clearAuthSession, hasAuthToken, isUnauthorized } from '../../utils/auth'
 import { getNavbarStyle } from '../../utils/navbar'
 import { navigateTo } from '../../utils/navigation'
 import { gatewayServices } from '../../services/gateway'
@@ -77,8 +78,13 @@ export default function PersonalCenter() {
     if (cached) {
       setBootstrap(cached)
     }
-    const token = await gatewayServices.tokens.getToken()
-    if (!token && runtimeEnv.isIsolatedMock) {
+    const tokenExists = await hasAuthToken()
+    if (!tokenExists) {
+      setBootstrap(null)
+      await clearBootstrap()
+      return
+    }
+    if (runtimeEnv.isIsolatedMock) {
       return
     }
     try {
@@ -86,6 +92,11 @@ export default function PersonalCenter() {
       setBootstrap(fresh)
       await saveBootstrap(fresh)
     } catch (error) {
+      if (isUnauthorized(error)) {
+        setBootstrap(null)
+        await clearAuthSession()
+        return
+      }
       console.warn('bootstrap refresh failed', error)
     }
   }, [])

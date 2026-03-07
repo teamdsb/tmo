@@ -44,5 +44,7 @@ declare namespace NodeJS {
     TARO_APP_WEAPP_PHONE_PROOF_SIMULATION?: string
     TARO_APP_IDENTITY_BASE_URL?: string
     TARO_APP_IDENTITY_DEV_TOKEN?: string
+    TMO_WEAPP_SHARED_OUTPUT_ENABLED?: string
+    TMO_WEAPP_SHARED_OUTPUT_ROOT?: string
   }
 }

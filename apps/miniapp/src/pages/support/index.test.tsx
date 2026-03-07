@@ -2,6 +2,7 @@ import { act, render, screen } from '@testing-library/react'
 import { removeStorage } from '@tmo/platform-adapter'
 import { gatewayServices } from '../../services/gateway'
 import { commerceServices } from '../../services/commerce'
+import { identityServices } from '../../services/identity'
 import SupportPage from './index'
 
 const flushPromises = () => new Promise((resolve) => process.nextTick(resolve))
@@ -18,6 +19,7 @@ const renderSupportPage = async () => {
 describe('SupportPage', () => {
   beforeEach(async () => {
     await removeStorage('tmo:bootstrap')
+    asMock(identityServices.tokens.getToken).mockResolvedValue('token-123')
     asMock(gatewayServices.bootstrap.get).mockClear()
     asMock(commerceServices.afterSales.listTickets).mockClear()
     asMock(commerceServices.inquiries.list).mockClear()
@@ -62,5 +64,14 @@ describe('SupportPage', () => {
     expect(await screen.findByText('客服支持')).toBeInTheDocument()
     expect(commerceServices.afterSales.listTickets).toHaveBeenCalled()
     expect(commerceServices.inquiries.list).toHaveBeenCalled()
+  })
+
+  it('renders guest support without requesting bootstrap when token is missing', async () => {
+    asMock(identityServices.tokens.getToken).mockResolvedValue(null)
+
+    await renderSupportPage()
+
+    expect(await screen.findByText('客服支持')).toBeInTheDocument()
+    expect(gatewayServices.bootstrap.get).not.toHaveBeenCalled()
   })
 })

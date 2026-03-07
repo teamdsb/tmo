@@ -1,7 +1,8 @@
 const fs = require('node:fs')
 const path = require('node:path')
+const { describeWeappPaths } = require('./weapp-paths')
 
-const weappDistDir = path.resolve(__dirname, '../dist/weapp')
+const { outputRoot: weappDistDir } = describeWeappPaths()
 const appJsonPath = path.join(weappDistDir, 'app.json')
 
 const requiredPageExts = ['.json', '.js', '.wxml']

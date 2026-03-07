@@ -1,7 +1,8 @@
 const fs = require('node:fs')
 const path = require('node:path')
+const { describeWeappPaths } = require('./weapp-paths')
 
-const weappDistDir = path.resolve(__dirname, '../dist/weapp')
+const { outputRoot: weappDistDir } = describeWeappPaths()
 const targetFiles = ['common.js', 'app.js', 'vendors.js']
 const placeholderHost = 'api.example.com'
 const expectedDevHost = 'localhost:8080'
@@ -32,7 +33,7 @@ const fail = (message) => {
 const main = () => {
   const bundledSource = readBundledSources()
   if (!bundledSource) {
-    fail('dist/weapp bundle files are missing. run build before verify')
+    fail(`weapp bundle files are missing under ${weappDistDir}. run build before verify`)
   }
 
   const hasPlaceholder = bundledSource.includes(placeholderHost)
