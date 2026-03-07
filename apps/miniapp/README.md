@@ -2,9 +2,16 @@
 
 当前 miniapp 使用 Jest 作为单元测试框架，并提供基于 `miniprogram-automator` 的微信端 E2E 脚本（登录/退出主流程）。
 
+当前默认启用 weapp 共享输出目录：
+
+- 任意 worktree 执行 `build:weapp:dev` / `dev:weapp` 时，产物默认写到主工作树 `/Users/lifuyue/Documents/tmo/apps/miniapp/dist/weapp`
+- 微信 DevTools 固定打开 `/Users/lifuyue/Documents/tmo/apps/miniapp`
+- 同一时间只保留一个 `dev:weapp` watch 进程，避免多个 worktree 同时覆盖共享产物
+- 如需临时回退当前 worktree 自己的 `dist/weapp`，设置 `TMO_WEAPP_SHARED_OUTPUT_ENABLED=false`
+
 ## 构建命令
 
-在仓库根目录执行，构建产物输出到 `apps/miniapp/dist/<platform>`：
+在仓库根目录执行。默认情况下，weapp 构建会输出到主工作树 `/Users/lifuyue/Documents/tmo/apps/miniapp/dist/weapp`；其他平台仍输出到当前工作树 `apps/miniapp/dist/<platform>`：
 
     pnpm -C apps/miniapp build:weapp:dev
     pnpm -C apps/miniapp build:weapp
@@ -20,6 +27,9 @@
 - `build:weapp:dev` 用于本地联调（默认校验 API 基址应指向 `localhost:8080`）。
 - `build:weapp` 用于生产构建，若仍使用占位域名 `api.example.com` 会直接失败。
 - 如需临时允许占位域名（例如演示包），可设置 `MINIAPP_ALLOW_PLACEHOLDER_API=true`。
+- weapp 共享输出可通过以下环境变量控制：
+  `TMO_WEAPP_SHARED_OUTPUT_ENABLED=true|false`
+  `TMO_WEAPP_SHARED_OUTPUT_ROOT=/Users/lifuyue/Documents/tmo/apps/miniapp/dist/weapp`
 
 ## 前后端联调（WeChat/Alipay）
 
@@ -70,6 +80,7 @@
   `DEV_STACK_GOPROXY=https://proxy.golang.org,direct DEV_STACK_GOSUMDB=sum.golang.org DEV_STACK_GONOSUMDB= make dev-stack-up`
 - `preflight:weapp` 会在编译前执行 HTTP 烟测（`/bff/bootstrap`、`/catalog/categories`、`/catalog/products`）；失败时自动输出 DB 诊断日志摘要。
 - `dev:weapp` 默认启用编译前门禁（`WEAPP_PREFLIGHT_HTTP_SMOKE=true`），并在 watch 构建后自动校验页面路由、tabBar 图标与 API 基址，避免旧产物导致 `demand 2`、`__route__`、`api.example.com` 类问题。
+- `dev:weapp` / `build:weapp:dev` 会打印当前源码 worktree 与实际 weapp 输出目录，便于确认是否正在覆盖主工作树产物。
 - 商品接口返回的图片 URL 默认由 gateway 服务端改写为 `${TARO_APP_API_BASE_URL}/assets/img?url=...`；若已迁移到本地媒体目录则会直接返回 `${TARO_APP_API_BASE_URL}/assets/media/...`。前端仅负责渲染与占位兜底。
 - 微信环境建议使用真实 `TARO_APP_ID`；游客模式（`touristappid`）下，微信登录和手机号授权会受限。
 - `IDENTITY_LOGIN_MODE=real` 时，`/auth/mini/login` 必须携带 `phoneProof`，小程序登录会触发手机号授权。
@@ -81,7 +92,7 @@
 
 平台导入目录：
 
-- 微信开发者工具：`apps/miniapp/dist/weapp`
+- 微信开发者工具：固定打开 `/Users/lifuyue/Documents/tmo/apps/miniapp`（其 `miniprogramRoot` 指向 `./dist/weapp`）
 - 支付宝开发者工具：`apps/miniapp/dist/alipay`
 
 ## 微信 DevTools CDP 自动抓包调试
@@ -100,6 +111,7 @@
 说明：
 
 - `debug:weapp:auto` 会先执行 `tools/scripts/dev-stack-up.sh`（拉起 postgres + backend 容器、migrate/seed、健康检查），再执行采集脚本。
+- `debug:weapp:*` 默认也会使用主工作树 `/Users/lifuyue/Documents/tmo/apps/miniapp` 作为微信项目目录，并读取该目录下的共享 `dist/weapp`。
 - `pnpm run test:fullstack:real` 会把 admin-web real 验收与 miniapp weapp real 验收串起来，默认设置 `TARO_APP_MOCK_MODE=off`、`TARO_APP_ENABLE_MOCK_LOGIN=false`、`TARO_APP_WEAPP_PHONE_PROOF_SIMULATION=true`。
 - `dev-stack-up.sh` 默认不强制重建镜像；如需重建可加 `DEV_STACK_BUILD_IMAGES=true`。
 - `debug:weapp:smoke` 默认执行 4 条核心路由（首页/分类/搜索/商品详情）的 automator 烟测，并把每条路由的日志单独归档到 `apps/miniapp/.logs/weapp/routes/`。
@@ -113,6 +125,7 @@
 关键环境变量：
 
 - `WEAPP_DEVTOOLS_CLI_PATH`：微信开发者工具 CLI 路径（可选）。
+- `WEAPP_PROJECT_DIR`：可选；覆盖 automator 打开的微信项目目录。默认使用 `/Users/lifuyue/Documents/tmo/apps/miniapp`。
 - `WEAPP_AUTOMATOR_PORT`：automator websocket 端口，默认 `9527`。
 - `WEAPP_AUTOMATOR_CONNECT_TIMEOUT_MS`：automator 连接等待超时，默认 `45000`（兼容旧变量 `WEAPP_CDP_CONNECT_TIMEOUT_MS`）。
 - `WEAPP_AUTOMATOR_ROUTE`：采集前自动跳转路由，默认 `/pages/index/index`。
@@ -142,7 +155,7 @@
 
 排错：
 
-- 若 `summary.md` 中出现 `request:fail url not in domain list`，脚本会自动把 `dist/weapp/project.config.json` 的 `setting.urlCheck` 置为 `false`；请重跑一次采集并确认微信开发者工具“详情 -> 本地设置 -> 不校验合法域名”也已开启。
+- 若 `summary.md` 中出现 `request:fail url not in domain list`，脚本会自动把当前微信项目目录下 `project.config.json` 的 `setting.urlCheck` 置为 `false`；默认对应主工作树 `/Users/lifuyue/Documents/tmo/apps/miniapp/project.config.json`。请重跑一次采集并确认微信开发者工具“详情 -> 本地设置 -> 不校验合法域名”也已开启。
 - 若 `summary.md` 中出现连接失败，先确认微信开发者工具可执行文件路径正确（`WEAPP_DEVTOOLS_CLI_PATH`），并检查 `WEAPP_AUTOMATOR_PORT` 是否被占用。
 - `summary.md` 会输出首个失败 endpoint、首个 5xx 与 requestId，便于快速回查 gateway/commerce 日志。
 - `run.json` 提供机器可读结果（`firstFail`、`severity`、`assertions`、`gateway capture window`），可直接用于 CI 注释与脚本解析。
@@ -168,7 +181,7 @@
 
     pnpm -C apps/miniapp test:e2e:weapp:auth:dev
 
-如果你已经提前构建好 `dist/weapp`，可仅执行：
+如果你已经提前构建好共享 weapp 产物，可仅执行：
 
     pnpm -C apps/miniapp test:e2e:weapp:auth
 
@@ -264,18 +277,18 @@ bash tools/scripts/miniapp-customer-evidence.sh
 
 排错：
 
-- 不要让微信和支付宝共用同一个导入目录，必须分别导入 `dist/weapp` 与 `dist/alipay`。
+- 不要让微信和支付宝共用同一个导入目录；微信固定导入 `/Users/lifuyue/Documents/tmo/apps/miniapp`，支付宝仍导入当前工作树 `dist/alipay`。
 - 如果微信工具报 `ENOENT ... pages/demand 2/index.wxml` 或 `__route__ is not defined`：
   1) 关闭项目并清除微信开发者工具编译缓存；
   2) 在 `apps/miniapp` 目录重新执行 `pnpm run build:weapp:dev`（已内置清理、路由产物校验、API 基址校验）；
-  3) 重新导入 `apps/miniapp`（不要导入仓库根目录或 `dist/weapp` 本身）。
+  3) 重新打开 `/Users/lifuyue/Documents/tmo/apps/miniapp`（不要导入仓库根目录或 `dist/weapp` 本身）。
 - 如果构建报 `[verify-weapp-api-base] ... api.example.com`：
   - 优先检查 `apps/miniapp/.env.development` 与终端环境变量 `TARO_APP_API_BASE_URL`；
   - 本地联调请使用 `pnpm -C apps/miniapp build:weapp:dev` 或 `pnpm -C apps/miniapp dev:weapp`。
 - 如果 `preflight:weapp` 或 `dev:weapp` 在编译前提示 `/catalog/categories`、`/catalog/products` 为 500：
   - 先执行 `bash tools/scripts/dev-diagnose-db.sh` 查看诊断；
   - 若命中 `No space left on device`，先释放 Docker 磁盘空间（`df -h`、`docker system df`），再重启 `tmo-postgres` 并重试。
-- 如果首页仍显示 mock 商品，先确认 `.env.development` 中 `TARO_APP_MOCK_MODE=off`，然后删除 `apps/miniapp/dist/weapp` 并重新执行 `pnpm -C apps/miniapp dev:weapp` 后重新导入开发者工具。
+- 如果首页仍显示 mock 商品，先确认 `.env.development` 中 `TARO_APP_MOCK_MODE=off`，然后删除 `/Users/lifuyue/Documents/tmo/apps/miniapp/dist/weapp` 并重新执行 `pnpm -C apps/miniapp dev:weapp`，最后回到固定的微信项目目录刷新编译。
 - 若微信端图片显示异常，先检查 gateway 的 `GATEWAY_PUBLIC_BASE_URL` 与 `GATEWAY_IMAGE_PROXY_ALLOWLIST`；默认通过 `/assets/img` 代理时不需要把第三方图床直接加入小程序图片白名单。
 - 如果支付宝开发者工具导入 `apps/miniapp/dist/alipay` 后出现 `ENOENT ... dist/dist/app.json`，请检查 `apps/miniapp/dist/alipay/mini.project.json` 中的 `miniprogramRoot`，应为 `./`。
 - 如果出现 `CE1000.01 cannot resolve module ...*.axml`，先执行 `pnpm -C apps/miniapp build:alipay`，再根据 `verify-alipay-dist` 输出补齐缺失文件后重试导入。

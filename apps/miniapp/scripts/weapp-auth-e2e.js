@@ -1,10 +1,13 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const automator = require('miniprogram-automator')
+const { describeWeappPaths } = require('./weapp-paths')
 
 const miniappDir = path.resolve(__dirname, '..')
 const rootDir = path.resolve(miniappDir, '..', '..')
-const projectPath = path.join(miniappDir, 'dist', 'weapp')
+const weappPaths = describeWeappPaths(miniappDir)
+const projectPath = weappPaths.projectDir
+const artifactPath = weappPaths.outputRoot
 const port = Number(process.env.WEAPP_AUTOMATOR_PORT || 9527)
 const timeoutMs = Number(process.env.WEAPP_AUTH_E2E_TIMEOUT_MS || 90000)
 const verifyDb = process.env.WEAPP_AUTH_VERIFY_DB !== 'false'
@@ -199,7 +202,10 @@ const run = async () => {
   }
 
   if (!fs.existsSync(projectPath)) {
-    throw new Error(`weapp dist not found at ${projectPath}; run build:weapp first`)
+    throw new Error(`weapp project not found at ${projectPath}; run build:weapp first`)
+  }
+  if (!fs.existsSync(artifactPath)) {
+    throw new Error(`weapp artifacts not found at ${artifactPath}; run build:weapp first`)
   }
 
   try {

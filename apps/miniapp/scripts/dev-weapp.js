@@ -3,10 +3,12 @@ const fs = require('node:fs')
 const { spawn, spawnSync } = require('node:child_process')
 const { processWeappWxss } = require('./postprocess-weapp')
 const { processWeappProjectConfig } = require('./postprocess-weapp-project')
+const { assertWeappPathsReady } = require('./weapp-paths')
 
 const miniappDir = path.resolve(__dirname, '..')
 const rootDir = path.resolve(miniappDir, '..', '..')
-const weappDistDir = path.resolve(__dirname, '../dist/weapp')
+const weappPaths = assertWeappPathsReady(miniappDir)
+const weappDistDir = weappPaths.outputRoot
 const verifyRoutesScript = path.resolve(__dirname, './verify-weapp-routes.js')
 const verifyApiBaseScript = path.resolve(__dirname, './verify-weapp-api-base.js')
 const preflightScript = path.resolve(__dirname, './preflight-weapp.js')
@@ -41,6 +43,12 @@ function parsePositiveInt(rawValue, fallback) {
 function cleanWeappDist() {
   fs.rmSync(weappDistDir, { recursive: true, force: true })
   console.log(`[dev-weapp] cleaned ${weappDistDir}`)
+}
+
+function printWeappTarget() {
+  console.log(
+    `[dev-weapp] source=${weappPaths.miniappDir} output=${weappPaths.outputRoot} shared=${String(weappPaths.sharedEnabled)} project=${weappPaths.projectDir}`
+  )
 }
 
 function runPostprocess() {
@@ -150,6 +158,7 @@ function watchBuildArtifacts() {
 }
 
 try {
+  printWeappTarget()
   runPreflightChecks()
 } catch (error) {
   exitWithFailure('preflight check failed', error)

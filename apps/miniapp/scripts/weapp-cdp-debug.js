@@ -1,11 +1,14 @@
 const fs = require('node:fs')
 const path = require('node:path')
 const { spawnSync } = require('node:child_process')
+const { describeWeappPaths } = require('./weapp-paths')
 
 const automator = require('miniprogram-automator')
 
 const miniappDir = path.resolve(__dirname, '..')
 const rootDir = path.resolve(miniappDir, '..', '..')
+const weappPaths = describeWeappPaths(miniappDir)
+const customProjectDir = String(process.env.WEAPP_PROJECT_DIR || '').trim()
 
 const logsDir = path.join(miniappDir, '.logs', 'weapp')
 const consoleLogPath = path.join(logsDir, 'console.jsonl')
@@ -19,8 +22,9 @@ const runId = `${Date.now()}-${process.pid}-${Math.random().toString(16).slice(2
 const routeRunId = runId
 let eventSeq = 0
 
-const sourceProjectDir = path.resolve(process.env.WEAPP_PROJECT_DIR || path.join(miniappDir, 'dist', 'weapp'))
+const sourceProjectDir = path.resolve(customProjectDir || weappPaths.projectDir)
 let projectDir = sourceProjectDir
+let artifactDir = resolveArtifactDir(sourceProjectDir)
 const automatorPort = Number(process.env.WEAPP_AUTOMATOR_PORT || 9527)
 const automatorConnectTimeoutMs = Number(
   process.env.WEAPP_AUTOMATOR_CONNECT_TIMEOUT_MS
@@ -221,6 +225,20 @@ function ensureRoute(value) {
     return '/pages/index/index'
   }
   return trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+}
+
+function resolveArtifactDir(resolvedProjectDir) {
+  const normalizedProjectDir = path.resolve(resolvedProjectDir)
+  if (
+    path.basename(normalizedProjectDir) === 'weapp'
+    && path.basename(path.dirname(normalizedProjectDir)) === 'dist'
+  ) {
+    return normalizedProjectDir
+  }
+  if (customProjectDir) {
+    return path.join(normalizedProjectDir, 'dist', 'weapp')
+  }
+  return weappPaths.outputRoot
 }
 
 function parseRoutes(rawValue) {
@@ -1226,6 +1244,7 @@ function buildWeappDev() {
 
 function prepareProjectDir() {
   projectDir = sourceProjectDir
+  artifactDir = resolveArtifactDir(sourceProjectDir)
 }
 
 function walkFiles(dirPath, matcher, output = []) {
@@ -1247,10 +1266,13 @@ function assertDistArtifacts() {
   if (!fs.existsSync(projectDir)) {
     throw new Error(`project dir not found: ${projectDir}`)
   }
+  if (!fs.existsSync(artifactDir)) {
+    throw new Error(`artifact dir not found: ${artifactDir}`)
+  }
 
-  const jsFiles = walkFiles(projectDir, (filePath) => filePath.endsWith('.js'))
+  const jsFiles = walkFiles(artifactDir, (filePath) => filePath.endsWith('.js'))
   if (jsFiles.length === 0) {
-    throw new Error(`no js artifacts found under ${projectDir}`)
+    throw new Error(`no js artifacts found under ${artifactDir}`)
   }
 
   const blockedHostHits = []
@@ -2157,6 +2179,7 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     `- automatorConnectTimeoutMs: ${automatorConnectTimeoutMs}`,
     `- timeoutMs: ${captureTimeoutMs}`,
     `- projectDir: ${projectDir}`,
+    `- artifactDir: ${artifactDir}`,
     `- expectedBaseUrl: ${expectedBaseUrl}`,
     `- taroAppApiBaseUrl: ${runtimeInfo.apiBaseUrl}`,
     `- taroAppEnableMockLogin: ${runtimeInfo.enableMockLogin}`,

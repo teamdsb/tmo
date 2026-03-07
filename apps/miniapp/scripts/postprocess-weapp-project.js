@@ -1,7 +1,9 @@
 const fs = require('node:fs')
 const path = require('node:path')
+const { describeWeappPaths } = require('./weapp-paths')
 
-const projectConfigPath = path.resolve(__dirname, '../dist/weapp/project.config.json')
+const { outputRoot } = describeWeappPaths()
+const projectConfigPath = path.join(outputRoot, 'project.config.json')
 const envMode = process.env.NODE_ENV === 'production' ? 'production' : 'development'
 const envFileCandidates = [
   path.resolve(__dirname, `../.env.${envMode}`),
