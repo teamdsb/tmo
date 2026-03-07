@@ -1,7 +1,6 @@
 const path = require('node:path')
 const fs = require('node:fs')
 const { spawn, spawnSync } = require('node:child_process')
-const { processWeappWxss } = require('./postprocess-weapp')
 const { processWeappProjectConfig } = require('./postprocess-weapp-project')
 const { assertWeappPathsReady } = require('./weapp-paths')
 const { buildModeEnv } = require('./miniapp-mode')
@@ -55,12 +54,6 @@ function printWeappTarget() {
 }
 
 function runPostprocess() {
-  const wxssResult = processWeappWxss()
-  if (wxssResult.status === 'updated') {
-    console.log(
-      `[dev-weapp] postprocessed app-origin.wxss, removed ${wxssResult.removed} rule(s)`
-    )
-  }
   const projectResult = processWeappProjectConfig()
   if (projectResult.status === 'updated') {
     console.log(`[dev-weapp] set appid to ${projectResult.appId}`)

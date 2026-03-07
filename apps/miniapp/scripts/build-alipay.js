@@ -8,7 +8,7 @@ const miniappDir = path.resolve(__dirname, '..')
 const envFile = mode === 'mock' ? '.env.mock' : mode === 'prod' ? '.env.production' : '.env.development'
 
 const steps = [
-  { name: 'build:tailwind', cmd: 'npm', args: ['run', 'build:tailwind'] },
+  { name: 'build:tailwind', cmd: 'pnpm', args: ['run', 'build:tailwind'] },
   { name: 'taro build', cmd: 'taro', args: ['build', '--type', 'alipay', '--no-check'] },
   { name: 'postprocess-alipay', cmd: process.execPath, args: [path.join(__dirname, 'postprocess-alipay.js')] },
   { name: 'verify-alipay-dist', cmd: process.execPath, args: [path.join(__dirname, 'verify-alipay-dist.js')] },

@@ -8,10 +8,9 @@ const miniappDir = path.resolve(__dirname, '..')
 const envFile = mode === 'mock' ? '.env.mock' : mode === 'prod' ? '.env.production' : '.env.development'
 
 const steps = [
-  { name: 'build:tailwind', cmd: 'npm', args: ['run', 'build:tailwind'] },
+  { name: 'build:tailwind', cmd: 'pnpm', args: ['run', 'build:tailwind'] },
   { name: 'clean:weapp', cmd: 'pnpm', args: ['run', 'clean:weapp'] },
   { name: 'taro build', cmd: 'taro', args: ['build', '--type', 'weapp', '--no-check'] },
-  { name: 'postprocess-weapp', cmd: process.execPath, args: [path.join(__dirname, 'postprocess-weapp.js')] },
   { name: 'postprocess-weapp-project', cmd: process.execPath, args: [path.join(__dirname, 'postprocess-weapp-project.js')] },
   { name: 'verify-weapp-routes', cmd: process.execPath, args: [path.join(__dirname, 'verify-weapp-routes.js')] },
   { name: 'verify-miniapp-api-base', cmd: process.execPath, args: [path.join(__dirname, 'verify-miniapp-api-base.js'), 'weapp'] }
