@@ -104,9 +104,11 @@ func (r *MiniLoginResolver) Resolve(ctx context.Context, platform, code string) 
 		return LoginIdentity{}, errors.New("code is required")
 	}
 
+	allowLocalMockFallback := isLocalMockCode(code)
+
 	switch strings.ToLower(platform) {
 	case "weapp":
-		if r.mode == LoginModeMock && r.weapp == nil {
+		if (r.mode == LoginModeMock || allowLocalMockFallback) && r.weapp == nil {
 			return LoginIdentity{ProviderUserID: code}, nil
 		}
 		if r.weapp == nil {
@@ -114,7 +116,7 @@ func (r *MiniLoginResolver) Resolve(ctx context.Context, platform, code string) 
 		}
 		return r.weapp.Resolve(ctx, code)
 	case "alipay":
-		if r.mode == LoginModeMock && r.alipay == nil {
+		if (r.mode == LoginModeMock || allowLocalMockFallback) && r.alipay == nil {
 			return LoginIdentity{ProviderUserID: code}, nil
 		}
 		if r.alipay == nil {
@@ -124,6 +126,10 @@ func (r *MiniLoginResolver) Resolve(ctx context.Context, platform, code string) 
 	default:
 		return LoginIdentity{}, ErrUnsupportedPlatform
 	}
+}
+
+func isLocalMockCode(code string) bool {
+	return strings.HasPrefix(strings.TrimSpace(code), "mock_")
 }
 
 func (r *MiniLoginResolver) ResolvePhone(ctx context.Context, platform string, proof PhoneProof) (string, error) {

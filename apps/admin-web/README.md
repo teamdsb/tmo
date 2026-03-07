@@ -92,7 +92,7 @@ pnpm -C apps/admin-web test:e2e:real
 - 默认会连接 `http://127.0.0.1:5174`（`dev:real`）并执行 P0 页面端到端脚本。
 - Playwright 自启 real E2E 默认使用独立端口 `http://127.0.0.1:5175`，避免复用本地已开启的 `5174` mock/dev 服务器。
 - 如已手动启动前端，可设置 `ADMIN_WEB_BASE_URL` 复用现有服务。
-- real 用例要求真实本地后端可用；不应在测试内用 route fulfill 伪造业务 API。
+- `real` 口径要求真实数据库 + 真实后端 + 不 stub 业务接口。
 
 ## Fullstack Real Check
 
@@ -102,6 +102,15 @@ pnpm run test:fullstack:real
 
 - 会串行执行：`dev-stack-up`、`smoke:admin-web`、`test:e2e:real`、miniapp weapp real build、miniapp auth E2E、miniapp automator smoke。
 - 默认开启 identity 手机号证明模拟（本地 real 联调），并要求本机已安装微信开发者工具 CLI。
+
+## Hybrid E2E
+
+```bash
+pnpm -C apps/admin-web test:e2e:hybrid
+```
+
+- `hybrid` 用于真实前端流程但仍需通过 Playwright stub 业务接口的联调补充场景。
+- 当前商品导入/导出轮询类场景归在 `hybrid`，不计入 `real` 联调通过口径。
 
 ## 视觉回归
 

@@ -50,6 +50,82 @@ export const INITIAL_ORDERS_DATA: MockOrder[] = [
       latest: '[上海市] 派送中：快递员小王正在为您派送',
       time: '10分钟前'
     }
+  },
+  {
+    id: 'ORD-20240518-42',
+    status: '待处理',
+    date: '2024-05-18 09:20',
+    totalPrice: 4680,
+    items: [
+      {
+        name: '工业级温湿度传感器',
+        specs: '标准版 / RS485',
+        price: 780,
+        count: 6,
+        image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=100&h=100'
+      }
+    ],
+    tracking: {
+      latest: '订单已提交，等待商家确认与发货安排',
+      time: '2小时前'
+    }
+  },
+  {
+    id: 'ORD-20240515-17',
+    status: '已发货',
+    date: '2024-05-15 16:40',
+    totalPrice: 3250,
+    items: [
+      {
+        name: '企业级路由交换一体机',
+        specs: '16口 / 千兆',
+        price: 3250,
+        count: 1,
+        image: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&q=80&w=100&h=100'
+      }
+    ],
+    tracking: {
+      latest: '[苏州市] 包裹已离开发货仓，正在运输途中',
+      time: '昨天 18:20'
+    }
+  },
+  {
+    id: 'ORD-20240510-08',
+    status: '已送达',
+    date: '2024-05-10 11:05',
+    totalPrice: 1980,
+    items: [
+      {
+        name: '高精度电子秤',
+        specs: '桌面型 / 30kg',
+        price: 990,
+        count: 2,
+        image: 'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?auto=format&fit=crop&q=80&w=100&h=100'
+      }
+    ],
+    tracking: {
+      latest: '快件已由前台签收，如有问题请在 7 天内发起售后',
+      time: '05-11 09:10'
+    }
+  },
+  {
+    id: 'ORD-20240506-03',
+    status: '退换货',
+    date: '2024-05-06 14:18',
+    totalPrice: 860,
+    items: [
+      {
+        name: '便携式扫码枪',
+        specs: '无线版 / 黑色',
+        price: 430,
+        count: 2,
+        image: 'https://images.unsplash.com/photo-1580894732444-8ecded7900cd?auto=format&fit=crop&q=80&w=100&h=100'
+      }
+    ],
+    tracking: {
+      latest: '退货申请已提交，等待售后审核',
+      time: '05-06 17:32'
+    }
   }
 ]
 

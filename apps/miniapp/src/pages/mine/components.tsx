@@ -1,11 +1,12 @@
 import { Button as NativeButton, Image, Input, Text, View } from '@tarojs/components'
+import { useMemo, useState } from 'react'
 import {
   AddOutlined,
   ArrowLeft,
   ArrowRight,
   ChatOutlined,
-  HomeOutlined,
   MoreOutlined,
+  RecordsOutlined,
   Revoke,
   ShieldOutlined
 } from '@taroify/icons'
@@ -214,30 +215,77 @@ type OrderManagementViewProps = {
 }
 
 export function OrderManagementView({ orders, initialTab, onBack }: OrderManagementViewProps) {
+  const [activeTab, setActiveTab] = useState(initialTab)
+  const orderTabs = ['全部', '待处理', '已发货', '已送达', '退换货']
+  const filteredOrders = useMemo(() => {
+    if (activeTab === '全部') {
+      return orders
+    }
+    if (activeTab === '待处理') {
+      return orders.filter((order) => order.status === '待处理' || order.status === '待收货')
+    }
+    return orders.filter((order) => order.status === activeTab)
+  }, [activeTab, orders])
+
   return (
     <View className='mine-modern-subview'>
-      <SubviewHeader title={`订单列表 - ${initialTab}`} onBack={onBack} />
+      <SubviewHeader title='订单列表' onBack={onBack} />
       <View className='mine-modern-subview-scroll no-scrollbar'>
-        {orders.map((order) => (
-          <View key={order.id} className='mine-modern-card mb-3 rounded-2xl p-4'>
-            <Text className='mb-2 block text-xs mine-modern-subtle'>单号: {order.id}</Text>
+        <View className='mine-order-tabs mb-4'>
+          {orderTabs.map((tab) => (
+            <View
+              key={tab}
+              className={`mine-order-tab ${activeTab === tab ? 'mine-order-tab--active' : ''}`}
+              onClick={() => setActiveTab(tab)}
+            >
+              <Text className={`mine-order-tab-text ${activeTab === tab ? 'mine-order-tab-text--active' : ''}`}>{tab}</Text>
+            </View>
+          ))}
+        </View>
+
+        {filteredOrders.length > 0 ? filteredOrders.map((order) => (
+          <View key={order.id} className='mine-order-card mb-3 rounded-3xl p-4'>
+            <View className='mb-3 flex items-start justify-between gap-3'>
+              <View className='min-w-0 flex-1'>
+                <Text className='mine-order-id block text-sm font-bold'>{order.id}</Text>
+                <Text className='mine-order-date mt-1 block text-xs'>{order.date}</Text>
+              </View>
+              <View className='mine-order-status'>
+                <Text className='mine-order-status-text'>{order.status}</Text>
+              </View>
+            </View>
             {order.items.map((item, index) => (
-              <View key={`${order.id}-${index}`} className='mb-2 flex gap-3'>
-                <View className='mine-modern-order-thumb h-16 w-16 overflow-hidden rounded-lg'>
+              <View key={`${order.id}-${index}`} className='mine-order-row mb-3 flex gap-3'>
+                <View className='mine-modern-order-thumb mine-order-thumb h-16 w-16 overflow-hidden rounded-2xl'>
                   <Image src={item.image} mode='aspectFill' className='h-full w-full' />
                 </View>
-                <View className='flex-1 min-w-0'>
-                  <Text className='block truncate text-sm font-bold mine-modern-text'>{item.name}</Text>
-                  <Text className='mt-1 block text-xs mine-modern-subtle'>{item.specs}</Text>
-                  <Text className='mt-1 block text-xs mine-modern-muted'>
+                <View className='min-w-0 flex-1'>
+                  <Text className='mine-order-name block truncate text-sm font-bold'>{item.name}</Text>
+                  <Text className='mine-order-spec mt-1 block text-xs'>{item.specs}</Text>
+                  <Text className='mine-order-price mt-2 block text-xs'>
                     ￥{item.price.toFixed(2)} × {item.count}
                   </Text>
                 </View>
               </View>
             ))}
-            <Text className='mt-2 block text-xs mine-modern-subtle'>{order.tracking.latest}</Text>
+            <View className='mine-order-footer mt-2 flex items-end justify-between gap-3'>
+              <View className='min-w-0 flex-1'>
+                <Text className='mine-order-track-label block text-xs'>物流进度</Text>
+                <Text className='mine-order-track mt-1 block text-xs'>{order.tracking.latest}</Text>
+              </View>
+              <View className='text-right'>
+                <Text className='mine-order-total-label block text-xs'>订单金额</Text>
+                <Text className='mine-order-total mt-1 block text-base font-bold'>￥{order.totalPrice.toFixed(2)}</Text>
+              </View>
+            </View>
           </View>
-        ))}
+        )) : (
+          <View className='mine-order-empty rounded-3xl p-6 text-center'>
+            <RecordsOutlined className='mine-order-empty-icon text-2xl' />
+            <Text className='mine-order-empty-title mt-3 block text-sm font-semibold'>当前状态下暂无订单</Text>
+            <Text className='mine-order-empty-copy mt-1 block text-xs'>切换其他状态或返回首页继续浏览商品</Text>
+          </View>
+        )}
       </View>
     </View>
   )
@@ -277,20 +325,14 @@ export function MineProfileView({
   return (
     <View className='mine-modern-main mine-lite-main'>
       <View className='mine-modern-main-content mine-lite-content'>
-        <View className='mine-lite-entry flex items-center justify-start'>
-          <View className='mine-lite-entry-icon flex h-7 w-7 items-center justify-center rounded-full'>
-            <HomeOutlined className='text-sm mine-lite-icon' />
-          </View>
-        </View>
-
         <View className='mine-lite-profile flex items-center gap-3'>
-          <View className='mine-lite-profile-icon flex h-10 w-10 items-center justify-center rounded-full'>
+          <View className='mine-lite-profile-icon flex h-11 w-11 items-center justify-center rounded-full'>
             {isLoggedIn ? (
-              <View className='mine-modern-avatar-wrap mine-lite-avatar-wrap h-10 w-10 overflow-hidden rounded-full'>
+              <View className='mine-modern-avatar-wrap mine-lite-avatar-wrap h-11 w-11 overflow-hidden rounded-full'>
                 <Image src={avatarFallback} mode='aspectFill' className='h-full w-full' />
               </View>
             ) : (
-              <UserOutlined className='text-lg mine-lite-icon' />
+              <UserOutlined className='text-xl mine-lite-icon' />
             )}
           </View>
           <View className='min-w-0 flex-1'>
@@ -298,8 +340,8 @@ export function MineProfileView({
               <Text className='mine-lite-profile-name truncate text-xl font-bold'>
                 {isLoggedIn ? displayName : '未登录'}
               </Text>
-              {!isLoggedIn ? <Text className='mine-lite-profile-copy text-sm'>请先登录以查看账号信息</Text> : null}
             </View>
+            {!isLoggedIn ? <Text className='mine-lite-profile-copy mine-lite-profile-copy--hero text-sm'>请先登录以查看账号信息</Text> : null}
             {isLoggedIn ? (
               <View className='mt-1 flex items-center gap-1.5'>
                 <ShieldOutlined className='text-base text-green-500' />
@@ -388,22 +430,22 @@ export function MineProfileView({
           ))}
         </View>
 
-        <View className='mt-4'>
-          <NativeButton
-            id='mine-logout-btn'
-            className='mine-lite-logout-btn flex w-full items-center justify-center gap-2 rounded-2xl border py-3'
-            onClick={onAuthAction}
-            disabled={loggingOut}
-          >
-            <Revoke className='text-lg mine-lite-profile-copy' />
-            <Text className='text-sm font-bold mine-lite-profile-copy'>
-              {isLoggedIn ? '切换账号或退出登录' : '立即登录'}
+        {isLoggedIn ? (
+          <View className='mt-4'>
+            <NativeButton
+              id='mine-logout-btn'
+              className='mine-lite-logout-btn flex w-full items-center justify-center gap-2 rounded-2xl border py-3'
+              onClick={onAuthAction}
+              disabled={loggingOut}
+            >
+              <Revoke className='text-lg mine-lite-profile-copy' />
+              <Text className='text-sm font-bold mine-lite-profile-copy'>切换账号或退出登录</Text>
+            </NativeButton>
+            <Text className='mine-modern-version mt-5 block text-center text-10 font-medium uppercase tracking-widest'>
+              B2B Portal v2.4.0
             </Text>
-          </NativeButton>
-          <Text className='mine-modern-version mt-5 block text-center text-10 font-medium uppercase tracking-widest'>
-            B2B Portal v2.4.0
-          </Text>
-        </View>
+          </View>
+        ) : null}
       </View>
     </View>
   )

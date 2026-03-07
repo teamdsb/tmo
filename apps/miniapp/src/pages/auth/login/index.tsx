@@ -126,7 +126,8 @@ export default function LoginPage() {
       await identityServices.auth.miniLogin({
         scene: launchContext.scene,
         bindingToken: launchContext.bindingToken,
-        phoneProof
+        phoneProof,
+        codeOverride: platform === 'weapp' && enableWeappPhoneProofSimulation ? 'mock_customer_001' : undefined
       })
       const bootstrap = await gatewayServices.bootstrap.get()
       await saveBootstrap(bootstrap)

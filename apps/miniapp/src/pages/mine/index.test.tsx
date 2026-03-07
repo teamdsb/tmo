@@ -99,4 +99,25 @@ describe('PersonalCenter', () => {
     expect(gatewayServices.bootstrap.get).not.toHaveBeenCalled()
     expect(removeStorage).toHaveBeenCalledWith('tmo:bootstrap')
   })
+
+  it('filters orders by selected tracking status', async () => {
+    await renderPersonalCenter()
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('已发货'))
+      await flushPromises()
+    })
+
+    expect(await screen.findByText('订单列表')).toBeInTheDocument()
+    expect(screen.getByText('ORD-20240515-17')).toBeInTheDocument()
+    expect(screen.queryByText('ORD-20240510-08')).not.toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('退换货'))
+      await flushPromises()
+    })
+
+    expect(screen.getByText('ORD-20240506-03')).toBeInTheDocument()
+    expect(screen.queryByText('ORD-20240515-17')).not.toBeInTheDocument()
+  })
 })

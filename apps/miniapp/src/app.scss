@@ -2114,25 +2114,16 @@
 }
 
 .mine-lite-content {
-  padding-top: 10px;
-}
-
-.mine-lite-entry {
-  margin-bottom: 18px;
-}
-
-.mine-lite-entry-icon {
-  background: #fff;
-  border: 1px solid #eef1f5;
-  box-shadow: 0 1px 2px rgb(15 23 42 / 3%);
+  padding-top: 18px;
 }
 
 .mine-lite-profile {
-  padding: 4px 2px 8px;
+  padding: 4px 6px 6px;
 }
 
 .mine-lite-profile-icon {
-  background: transparent;
+  background: #fff;
+  border: 1px solid #edf1f4;
 }
 
 .mine-lite-avatar-wrap {
@@ -2147,6 +2138,12 @@
 
 .mine-lite-profile-copy {
   color: #8b93a1;
+}
+
+.mine-lite-profile-copy--hero {
+  display: block;
+  margin-top: 4px;
+  line-height: 1.35;
 }
 
 .mine-lite-section-head {
@@ -2164,7 +2161,7 @@
 .mine-lite-panel {
   background: #fff;
   border: 1px solid #edf1f5;
-  box-shadow: 0 8px 18px rgb(15 23 42 / 5%);
+  box-shadow: 0 6px 16px rgb(15 23 42 / 4%);
 }
 
 .mine-lite-order-item {
@@ -2172,8 +2169,10 @@
 }
 
 .mine-lite-order-icon {
-  background: #f1f5fb;
-  border: 0;
+  width: 46px;
+  height: 46px;
+  background: #eef4fb;
+  border: 1px solid #d7e5f7;
 }
 
 .mine-lite-order-label {
@@ -2182,6 +2181,7 @@
 
 .mine-lite-menu-row {
   background: #fff;
+  min-height: 72px;
 }
 
 .mine-lite-menu-icon {
@@ -2415,6 +2415,104 @@
 .mine-modern-order-thumb {
   background: var(--mine-modern-bg);
   border: 1px solid var(--mine-modern-border);
+}
+
+.mine-order-tabs {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.mine-order-tab {
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: #eef2f6;
+  padding: 8px 14px;
+}
+
+.mine-order-tab--active {
+  background: #dcecff;
+  box-shadow: inset 0 0 0 1px rgb(19 127 236 / 18%);
+}
+
+.mine-order-tab-text {
+  color: #667085;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mine-order-tab-text--active {
+  color: #137fec;
+}
+
+.mine-order-card {
+  background: #fff;
+  border: 1px solid #e8eef5;
+  box-shadow: 0 8px 18px rgb(15 23 42 / 5%);
+}
+
+.mine-order-id {
+  color: #1f2937;
+}
+
+.mine-order-date,
+.mine-order-spec,
+.mine-order-track-label {
+  color: #8a94a6;
+}
+
+.mine-order-name,
+.mine-order-price {
+  color: #2b3441;
+}
+
+.mine-order-status {
+  border-radius: 999px;
+  background: #e8f1ff;
+  padding: 6px 10px;
+}
+
+.mine-order-status-text {
+  color: #137fec;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mine-order-row:last-of-type {
+  margin-bottom: 0;
+}
+
+.mine-order-thumb {
+  background: #f4f7fb;
+  border-color: #e4ebf4;
+}
+
+.mine-order-track {
+  color: #586273;
+  line-height: 1.45;
+}
+
+.mine-order-total-label {
+  color: #8a94a6;
+}
+
+.mine-order-total {
+  color: #137fec;
+}
+
+.mine-order-empty {
+  background: #fff;
+  border: 1px dashed #d9e3ef;
+}
+
+.mine-order-empty-icon,
+.mine-order-empty-copy {
+  color: #94a3b8;
+}
+
+.mine-order-empty-title {
+  color: #334155;
 }
 
 .mine-modern-online-dot {
