@@ -1,12 +1,7 @@
 import { PropsWithChildren } from 'react'
 import { useLaunch } from '@tarojs/taro'
 
-/* #ifdef rn */
-import './app.rn.scss'
-/* #endif */
-/* #ifndef rn */
 import './app.scss'
-/* #endif */
 
 import { identityServices } from './services/identity'
 import { gatewayServices } from './services/gateway'
