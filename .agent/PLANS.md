@@ -86,7 +86,7 @@ This document must be maintained in accordance with `docs/execplans/plans.md`.
 
 ## Concrete Steps
 
-在仓库根目录 `/Users/lifuyue/Documents/tmo` 工作。
+在仓库根目录工作。
 
 1. 编辑后端迁移、SQL 与处理代码，然后执行：
 

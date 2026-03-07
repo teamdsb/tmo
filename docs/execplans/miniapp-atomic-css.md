@@ -29,7 +29,7 @@ After this change, the miniapp can use an atomic CSS framework (Tailwind CSS) by
 - Observation: `pnpm add` could not reach the registry and also reported a store-location mismatch.
   Evidence: `ERR_PNPM_UNEXPECTED_STORE` and `getaddrinfo ENOTFOUND registry.npmjs.org`.
 - Observation: writing a global pnpm config failed due to permissions.
-  Evidence: `EPERM: operation not permitted, mkdir '/Users/asimov3059/Library/Preferences/pnpm'`.
+  Evidence: `EPERM: operation not permitted, mkdir '<user-home>/Library/Preferences/pnpm'`.
 - Observation: `taro build --type weapp` panicked in a Rust dependency.
   Evidence: `system-configuration-0.5.1 ... Attempted to create a NULL object.`
 - Observation: WeChat devtools reported a WXSS parse error because `@tailwind` directives leaked into `app-origin.wxss`.

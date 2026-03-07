@@ -83,20 +83,20 @@ Commerce 现状仅覆盖 Catalog 的最小部分：`GET /catalog/products`（支
 
     go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0
     go install github.com/pressly/goose/v3/cmd/goose@v3.26.0
-    cd /Users/asimov3059/工作代码/tmall/tmo/services/commerce
+    cd services/commerce
     # 新增 migrations/00002_create_catalog_categories.sql、00003_create_catalog_skus.sql、00004_create_cart_orders.sql、00005_create_cart_import_jobs.sql、00006_create_tracking_shipments.sql 等迁移文件
     sqlc generate
 
 应用迁移并重新生成 OpenAPI 代码（仅包含 Catalog、Cart、Orders）：
 
     export COMMERCE_DB_DSN="postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable"
-    cd /Users/asimov3059/工作代码/tmall/tmo/services/commerce
+    cd services/commerce
     goose -dir ./migrations postgres "$COMMERCE_DB_DSN" up
     go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen -generate types,gin -package oapi -o internal/http/oapi/api.gen.go -include-tags Catalog,Cart,Orders,Tracking ../../contracts/openapi/commerce.yaml
 
 运行测试：
 
-    cd /Users/asimov3059/工作代码/tmall/tmo/services/commerce
+    cd services/commerce
     go test ./...
 
 启动服务并准备验证：

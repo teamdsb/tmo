@@ -139,7 +139,7 @@ Milestone 4 will clean up `apps/miniapp` by decomposing the largest Taro pages. 
 
 ## Concrete Steps
 
-Run all commands from the repository root at `/Users/asimov3059/工作代码/tmall/tmo` unless a different working directory is stated.
+Run all commands from the repository root unless a different working directory is stated.
 
 1. Inspect the current admin login flow before editing.
 

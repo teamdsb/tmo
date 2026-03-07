@@ -72,7 +72,7 @@ This document must be maintained in accordance with `docs/execplans/plans.md`.
 
 ## Concrete Steps
 
-在仓库根目录 `/Users/asimov3059/工作代码/tmall/tmo` 工作。若要理解当前实现，请按下面顺序阅读和验证。
+在仓库根目录工作。若要理解当前实现，请按下面顺序阅读和验证。
 
 1. 阅读全局安全区与导航变量定义：
 
