@@ -2,7 +2,7 @@
 
 This ExecPlan is a living document. The sections `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
-This plan follows `docs/execplans/PLANS.md` from the repository root and must be maintained in accordance with that file.
+This plan follows `docs/execplans/plans.md` from the repository root and must be maintained in accordance with that file.
 
 ## Purpose / Big Picture
 
@@ -12,7 +12,7 @@ The user-visible result is that the admin login page and later admin pages conti
 
 ## Progress
 
-- [x] (2026-03-06 09:30Z) Read `docs/execplans/PLANS.md`, inspected the current frontend structure, and confirmed the split: `apps/miniapp` is already Taro React, while `apps/admin-web` still mixes React shells with legacy DOM scripts.
+- [x] (2026-03-06 09:30Z) Read `docs/execplans/plans.md`, inspected the current frontend structure, and confirmed the split: `apps/miniapp` is already Taro React, while `apps/admin-web` still mixes React shells with legacy DOM scripts.
 - [x] (2026-03-06 09:30Z) Chose the first implementation milestone: migrate the admin login flow from legacy DOM control in `apps/admin-web/src/main.js` into React state while preserving existing selectors used by end-to-end tests.
 - [x] (2026-03-06 09:37Z) Implemented Milestone 1 by converting `apps/admin-web/src/react/pages/LoginPage.tsx` into a self-contained React login page, preserving existing DOM IDs, and removing the `../../main.js` bootstrap from `apps/admin-web/src/react/entries/index.tsx`.
 - [x] (2026-03-06 09:37Z) Validated the migrated login flow in mock mode by starting `pnpm -C apps/admin-web dev:mock`, opening `http://localhost:5174/`, logging in as `boss / boss123`, and observing a redirect to `/dashboard.html`.
@@ -139,7 +139,7 @@ Milestone 4 will clean up `apps/miniapp` by decomposing the largest Taro pages. 
 
 ## Concrete Steps
 
-Run all commands from the repository root at `/Users/asimov3059/工作代码/tmall/tmo` unless a different working directory is stated.
+Run all commands from the repository root unless a different working directory is stated.
 
 1. Inspect the current admin login flow before editing.
 

@@ -2,7 +2,7 @@
 
 本 ExecPlan 是一个持续更新的文档。`Progress`、`Surprises & Discoveries`、`Decision Log`、`Outcomes & Retrospective` 这些部分在工作推进时必须同步更新。
 
-本计划必须遵守仓库根目录的 `docs/execplans/PLANS.md`。
+本计划必须遵守仓库根目录的 `docs/execplans/plans.md`。
 
 ## Purpose / Big Picture
 
@@ -55,11 +55,11 @@
 
 ## Context and Orientation
 
-该仓库为单体仓库，commerce 服务位于 `services/commerce`。HTTP 接入基于 Gin，OpenAPI 由 oapi-codegen 生成，生成文件是 `services/commerce/internal/http/oapi/api.gen.go`（不可手改），处理器位于 `services/commerce/internal/http/handler/`。数据库迁移在 `services/commerce/migrations/`，sqlc 查询在 `services/commerce/queries/` 并生成到 `services/commerce/internal/db/`。合约位于 `contracts/openapi/commerce.yaml`，服务边界约定在 `contracts/README.md`。已有的启动与工具链基础在 `docs/execplans/commerce初始化.md` 中建立，本计划在其基础上继续。
+该仓库为单体仓库，commerce 服务位于 `services/commerce`。HTTP 接入基于 Gin，OpenAPI 由 oapi-codegen 生成，生成文件是 `services/commerce/internal/http/oapi/api.gen.go`（不可手改），处理器位于 `services/commerce/internal/http/handler/`。数据库迁移在 `services/commerce/migrations/`，sqlc 查询在 `services/commerce/queries/` 并生成到 `services/commerce/internal/db/`。合约位于 `contracts/openapi/commerce.yaml`，服务边界约定在 `contracts/README.md`。已有的启动与工具链基础在 `docs/execplans/commerce-bootstrap.md` 中建立，本计划在其基础上继续。
 
 Commerce 现状仅覆盖 Catalog 的最小部分：`GET /catalog/products`（支持 `q` 模糊搜、`categoryId` 过滤、分页）、`POST /catalog/products`（创建 SPU）、`GET /catalog/products/{spuId}`（详情，但 `skus` 为空）、`GET /catalog/categories`（目前直接返回空列表）。实现位于 `services/commerce/internal/http/handler/catalog.go` 与 `services/commerce/internal/http/oapi/api.gen.go`。数据层只有 `catalog_products` 表，迁移为 `services/commerce/migrations/00001_create_catalog_products.sql`，查询为 `services/commerce/queries/catalog.sql`，没有类目、SKU、价格阶梯、购物车、订单、售后、追踪等表。`services/commerce/internal/modules/*` 仍为占位目录。
 
-覆盖 `docs/需求文档.md` 的情况为：模块一“商品与下单”仅覆盖商品菜单与搜索/详情的最小后端雏形（类目空实现，详情无 SKU/价格），未覆盖购物车、地址、意向订单、收藏；模块二“需求收集 & Excel”、模块三“业务员绑定/客户归属”、模块四“售后 + AI 预留”、模块五“价格体系/议价”、模块六“支付”均未覆盖；新增的订单追踪/运单号回传与 Excel 批量加购亦未覆盖。
+覆盖 `docs/context/product-requirements.md` 的情况为：模块一“商品与下单”仅覆盖商品菜单与搜索/详情的最小后端雏形（类目空实现，详情无 SKU/价格），未覆盖购物车、地址、意向订单、收藏；模块二“需求收集 & Excel”、模块三“业务员绑定/客户归属”、模块四“售后 + AI 预留”、模块五“价格体系/议价”、模块六“支付”均未覆盖；新增的订单追踪/运单号回传与 Excel 批量加购亦未覆盖。
 
 契约边界总体契合 `contracts/README.md`：commerce 目前只做 catalog 数据读写，没有揉进身份或支付。但契约大量接口默认 `bearerAuth`，目前没有 gateway-bff/identity 鉴权链路；同时 `contracts/openapi/commerce.yaml` 中 `POST /catalog/products` 仍是 `security: []`（公开），本计划暂不收紧。
 
@@ -83,20 +83,20 @@ Commerce 现状仅覆盖 Catalog 的最小部分：`GET /catalog/products`（支
 
     go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0
     go install github.com/pressly/goose/v3/cmd/goose@v3.26.0
-    cd /Users/asimov3059/工作代码/tmall/tmo/services/commerce
+    cd services/commerce
     # 新增 migrations/00002_create_catalog_categories.sql、00003_create_catalog_skus.sql、00004_create_cart_orders.sql、00005_create_cart_import_jobs.sql、00006_create_tracking_shipments.sql 等迁移文件
     sqlc generate
 
 应用迁移并重新生成 OpenAPI 代码（仅包含 Catalog、Cart、Orders）：
 
     export COMMERCE_DB_DSN="postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable"
-    cd /Users/asimov3059/工作代码/tmall/tmo/services/commerce
+    cd services/commerce
     goose -dir ./migrations postgres "$COMMERCE_DB_DSN" up
     go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen -generate types,gin -package oapi -o internal/http/oapi/api.gen.go -include-tags Catalog,Cart,Orders,Tracking ../../contracts/openapi/commerce.yaml
 
 运行测试：
 
-    cd /Users/asimov3059/工作代码/tmall/tmo/services/commerce
+    cd services/commerce
     go test ./...
 
 启动服务并准备验证：

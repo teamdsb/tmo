@@ -2,7 +2,7 @@
 
 本 ExecPlan 是一个持续更新的文档。`Progress`、`Surprises & Discoveries`、`Decision Log`、`Outcomes & Retrospective` 这些部分在工作推进时必须同步更新。
 
-本计划必须遵守仓库根目录的 `docs/execplans/PLANS.md`。
+本计划必须遵守仓库根目录的 `docs/execplans/plans.md`。
 
 ## Purpose / Big Picture（目标/概览）
 

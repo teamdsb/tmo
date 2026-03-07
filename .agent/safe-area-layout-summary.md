@@ -2,7 +2,7 @@
 
 This ExecPlan is a living document. The sections `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
-This document must be maintained in accordance with `docs/execplans/PLANS.md`.
+This document must be maintained in accordance with `docs/execplans/plans.md`.
 
 ## Purpose / Big Picture
 
@@ -12,7 +12,7 @@ This document must be maintained in accordance with `docs/execplans/PLANS.md`.
 
 ## Progress
 
-- [x] (2026-03-06 18:55Z) 阅读 `docs/execplans/PLANS.md`，确认本文必须使用完整 ExecPlan 结构，而不是普通说明文。
+- [x] (2026-03-06 18:55Z) 阅读 `docs/execplans/plans.md`，确认本文必须使用完整 ExecPlan 结构，而不是普通说明文。
 - [x] (2026-03-06 18:58Z) 盘点 `apps/miniapp` 当前安全区实现，确认全局 CSS 变量、顶部导航高度计算、tabbar 占位、业务员页自定义底栏等入口位置。
 - [x] (2026-03-06 19:03Z) 编写本文，整理当前仓库内安全区与页面排布规则、验证方法、恢复方式和后续维护要求。
 - [ ] 后续如新增新的页面壳子或导航模型，必须同步更新本文对应章节与 Decision Log。
@@ -72,7 +72,7 @@ This document must be maintained in accordance with `docs/execplans/PLANS.md`.
 
 ## Concrete Steps
 
-在仓库根目录 `/Users/asimov3059/工作代码/tmall/tmo` 工作。若要理解当前实现，请按下面顺序阅读和验证。
+在仓库根目录工作。若要理解当前实现，请按下面顺序阅读和验证。
 
 1. 阅读全局安全区与导航变量定义：
 

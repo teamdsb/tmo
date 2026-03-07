@@ -2,7 +2,7 @@
 
 本 ExecPlan 是一个持续更新的文档。`Progress`、`Surprises & Discoveries`、`Decision Log`、`Outcomes & Retrospective` 这四个部分在工作推进时必须同步更新。
 
-本计划必须遵守仓库根目录的 `docs/execplans/PLANS.md`。
+本计划必须遵守仓库根目录的 `docs/execplans/plans.md`。
 
 ## Purpose / Big Picture
 
@@ -12,7 +12,7 @@
 
 ## Progress
 
-- [x] (2026-01-22 17:05Z) 对齐 `docs/需求文档.md` 的关键开放问题，并锁定 v0/v1 边界与交互决策（v0=目录读+购物车+意向订单+追踪/回传；v1=其余）。
+- [x] (2026-01-22 17:05Z) 对齐 `docs/context/product-requirements.md` 的关键开放问题，并锁定 v0/v1 边界与交互决策（v0=目录读+购物车+意向订单+追踪/回传；v1=其余）。
 - [x] (2026-01-22 17:58Z) 补充 v0/v1 的前端 TS 业务逻辑与交互设计规划（miniapp 视角，不涉及组件实现），并明确 `/packages` 的地基拆包方案与 v0 鉴权策略。
 - [x] (2026-01-23 08:09Z) 修复当前 `services/commerce` 无法编译的问题并对齐生成物/错误结构；补充 sqlc/oapi-codegen 固化脚本，`go test ./...` 通过。
 - [x] (2026-01-23 08:09Z) 落地 v0 行为：下单清购物车（同 SKU）、Idempotency-Key 冲突 409（含 orderId details）、追踪写入不改订单状态、Excel 解析与错误提示完善，并补齐集成测。
@@ -162,7 +162,7 @@
 
 ## V1 Backlog (Not in v0)
 
-v1 预期覆盖 `docs/需求文档.md` 的剩余模块：找不到商品（ProductRequests）+ 导出；收藏/常用清单（Wishlist）；议价入口（Inquiries + messages）并接入微信/支付宝客服聊天；售后（AfterSales + messages）并预留 AI 建议；客户归属/转移（Customers + transfer audit）；商品 Excel 导入（含图片/多规格）；支付（paymentEnabled 开关 + 真正跑通微信/支付宝支付与回调）；以及订单状态机（CONFIRMED/SHIPPED/DELIVERED 等）与更完善的运维审计。
+v1 预期覆盖 `docs/context/product-requirements.md` 的剩余模块：找不到商品（ProductRequests）+ 导出；收藏/常用清单（Wishlist）；议价入口（Inquiries + messages）并接入微信/支付宝客服聊天；售后（AfterSales + messages）并预留 AI 建议；客户归属/转移（Customers + transfer audit）；商品 Excel 导入（含图片/多规格）；支付（paymentEnabled 开关 + 真正跑通微信/支付宝支付与回调）；以及订单状态机（CONFIRMED/SHIPPED/DELIVERED 等）与更完善的运维审计。
 
 为了让 v0 的数据/命名不阻塞 v1，前端侧在 v1 需要优先明确三条“主交互链”的 TS 业务逻辑与状态机：
 

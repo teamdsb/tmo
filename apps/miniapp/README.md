@@ -162,7 +162,7 @@
 - `summary.md` 会输出 `P0/P1/P2` 分级：`P0`（启动/请求阻断）必失败，`P1`（核心流程失败）默认阻断，`P2`（平台告警/弃用提示）仅告警。
 - 若页面运行时数据在当前 Taro 版本下不可直接被 automator 读取（常见 `dataKeys=root`），脚本会降级为网络断言优先，不再误报渲染数量断言失败。
 - `preflight:weapp` 会写入结构化结果：`apps/miniapp/.logs/preflight/result.json`（包含 `failedEndpoint`、`statusCode`、`requestId`、`diagnoseSummary`）。
-- 推荐按 `docs/RUNBOOK/miniapp-white-screen-gate.md` 排障流程执行，避免重复手工排查。
+- 推荐按 `docs/runbooks/miniapp-white-screen-gate.md` 排障流程执行，避免重复手工排查。
 
 产物：
 

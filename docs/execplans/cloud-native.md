@@ -2,7 +2,7 @@
 
 这是一个活文档。`Progress`、`Surprises & Discoveries`、`Decision Log`、`Outcomes & Retrospective` 这四个部分在实施过程中必须持续更新。
 
-本计划必须遵循仓库内 `docs/execplans/PLANS.md` 的要求和格式。
+本计划必须遵循仓库内 `docs/execplans/plans.md` 的要求和格式。
 
 ## Purpose / Big Picture / 目的与总览
 

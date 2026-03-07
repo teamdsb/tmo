@@ -8,7 +8,7 @@
 - `packages/shared/`、`packages/openapi-client/`、`packages/platform-adapter/` 为 TypeScript 工作区包（DTO、OpenAPI 工具、平台适配）。
 - `contracts/openapi/` 存放 OpenAPI 规范；`contracts/openapi/openapi.yaml` 聚合各服务规范；`contracts/events/` 存放事件负载 Schema。
 - `infra/dev/docker-compose.yml` 提供本地 Postgres；`infra/docker/` 与 `infra/nginx/` 为占位。
-- `docs/` 包含产品、RBAC 与 ExecPlan 文档（`docs/需求文档.md`、`docs/rbac.md`、`docs/execplans/`）。
+- `docs/` 采用 agent-first 结构：`docs/context/` 存放稳定背景，`docs/runbooks/` 存放排障与联调手册，`docs/decisions/` 存放仓库级决策与规则变化，`docs/execplans/` 存放 ExecPlan；总入口是 `docs/README.md`。
 - `tools/scripts/test-backend.sh` 会遍历 `services/*` 与 `packages/*` 执行 Go 测试。
 
 ## 构建、测试与开发命令
@@ -47,7 +47,9 @@
 
 ## 文档与 API 更新
 - 功能变更需同步更新 `contracts/openapi/openapi.yaml` 与对应服务规范。
-- 产品变更更新 `docs/需求文档.md`；角色/权限变更更新 `docs/rbac.md`。
+- 更新文档前先查看 `docs/README.md` 的分类规则，并优先维护对应职责下的 canonical 文档。
+- 产品变更更新 `docs/context/product-requirements.md`；角色/权限变更更新 `docs/context/rbac.md`。
+- 运行、排障、联调步骤更新 `docs/runbooks/`；仓库级规则或长期约定变化更新 `docs/decisions/README.md`；影响后续 agent 判断的重要近期变化追加到 `docs/CHANGELOG.md`。
 - OpenAPI 约定（见 `contracts/openapi/openapi.yaml`）：JSON 使用 camelCase、时间为 RFC3339、ID 为 UUID、鉴权为 Bearer JWT、下单与创建支付需 `Idempotency-Key`。
 
 ## 代码生成与生成文件
@@ -60,5 +62,5 @@
 - 新增或调整通用能力时，先更新 `packages/` 中对应包，再在服务/应用侧引用；避免在业务代码中重复实现。
 
 ## ExecPlans
-- ExecPlan 规范在 `docs/execplans/PLANS.md`；当前执行中的计划在 `.agent/PLANS.md`，必须符合该规范。
+- ExecPlan 规范在 `docs/execplans/plans.md`；当前执行中的计划在 `.agent/PLANS.md`，必须符合该规范。
 - 复杂功能或重大重构需使用 ExecPlan。
