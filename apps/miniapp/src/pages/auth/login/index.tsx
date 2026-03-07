@@ -28,6 +28,7 @@ const simulatedWeappPhoneProof: PhoneProofResult = Object.freeze({
   code: 'simulated_weapp_phone_proof'
 })
 const weappSimulationMismatchMessage = '开发环境模拟登录配置不一致，请开启 IDENTITY_ENABLE_PHONE_PROOF_SIMULATION 后重试'
+const weappSimulationIdentityBoundMessage = '本地模拟账号与 seed 绑定冲突，请重启 identity 容器或更新后端后重试'
 
 const readLaunchContext = (): LaunchContext => {
   const options = Taro.getLaunchOptionsSync?.()
@@ -158,6 +159,13 @@ export default function LoginPage() {
       if (isPhoneAuthorizationError(error) || isPhoneProofApiError(error)) {
         await Taro.showToast({
           title: '请先授权手机号',
+          icon: 'none'
+        })
+        return
+      }
+      if (isWeappSimulationIdentityConflict(error, enableWeappPhoneProofSimulation)) {
+        await Taro.showToast({
+          title: weappSimulationIdentityBoundMessage,
           icon: 'none'
         })
         return
@@ -349,4 +357,14 @@ const isWeappSimulationConfigError = (
   }
   return error.code === 'invalid_request'
     && error.message.trim().toLowerCase() === 'invalid login code'
+}
+
+const isWeappSimulationIdentityConflict = (
+  error: unknown,
+  enableWeappPhoneProofSimulation: boolean
+): boolean => {
+  return enableWeappPhoneProofSimulation &&
+    isApiError(error) &&
+    error.code === 'conflict' &&
+    error.message.trim().toLowerCase() === 'identity already bound'
 }

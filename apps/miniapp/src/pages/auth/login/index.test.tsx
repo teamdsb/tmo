@@ -153,4 +153,29 @@ describe('LoginPage', () => {
       icon: 'none'
     })
   })
+
+  it('shows explicit simulated identity conflict toast before backend fix is live', async () => {
+    const { LoginPage, identityServices, gatewayServices, ApiError } = loadLoginModule()
+    asMock(identityServices.auth.miniLogin).mockRejectedValue(
+      new ApiError('identity already bound', 409, { code: 'conflict' })
+    )
+    asMock(gatewayServices.bootstrap.get).mockResolvedValue({
+      me: { id: 'u-1', roles: ['CUSTOMER'] },
+      permissions: { items: [] },
+      featureFlags: {}
+    })
+
+    await renderLoginPage(LoginPage)
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('我已阅读并同意隐私政策与服务条款。'))
+      fireEvent.click(screen.getByText('快速登录'))
+      await flushPromises()
+    })
+
+    expect(Taro.showToast).toHaveBeenCalledWith({
+      title: '本地模拟账号与 seed 绑定冲突，请重启 identity 容器或更新后端后重试',
+      icon: 'none'
+    })
+  })
 })

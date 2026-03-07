@@ -82,6 +82,7 @@ Identity service for authentication, JWT issuing, and sales binding.
 
 - 小程序审核未通过期间，可开启 `IDENTITY_ENABLE_PHONE_PROOF_SIMULATION=true`，后端在手机号证明校验失败时回退到模拟手机号。
 - 过审后建议关闭模拟开关，并确保支付宝公钥与 AES Key 配置正确，即可直接切换生产。
+- 本地 dev seed 默认已存在 `mock_customer_001 -> +15550000003 -> weapp`。当未配置真实 WeChat 凭证且开启 weapp 手机号模拟时，mini login 需要复用该 customer 已有的 weapp provider 绑定，不能再为同一个 user 新建第二条 weapp identity。
 
 ## Scripts
 

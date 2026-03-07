@@ -8,8 +8,11 @@ services:
         GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"
         GONOSUMDB: "${DEV_STACK_GONOSUMDB:-*}"
     working_dir: /workspace
-    command: >
-      sh -c "go run ./services/identity/cmd/identity-migrate && air -c services/identity/.air.toml"
+    entrypoint: []
+    command:
+      - /go/bin/air
+      - -c
+      - services/identity/.air.toml
     environment:
       GOPROXY: "${DEV_STACK_GOPROXY:-https://goproxy.cn,direct}"
       GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"
@@ -28,8 +31,11 @@ services:
         GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"
         GONOSUMDB: "${DEV_STACK_GONOSUMDB:-*}"
     working_dir: /workspace
-    command: >
-      sh -c "go run ./services/commerce/cmd/commerce-migrate && air -c services/commerce/.air.toml"
+    entrypoint: []
+    command:
+      - /go/bin/air
+      - -c
+      - services/commerce/.air.toml
     environment:
       GOPROXY: "${DEV_STACK_GOPROXY:-https://goproxy.cn,direct}"
       GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"
@@ -48,8 +54,11 @@ services:
         GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"
         GONOSUMDB: "${DEV_STACK_GONOSUMDB:-*}"
     working_dir: /workspace
-    command: >
-      sh -c "air -c services/payment/.air.toml"
+    entrypoint: []
+    command:
+      - /go/bin/air
+      - -c
+      - services/payment/.air.toml
     environment:
       GOPROXY: "${DEV_STACK_GOPROXY:-https://goproxy.cn,direct}"
       GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"
@@ -68,8 +77,11 @@ services:
         GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"
         GONOSUMDB: "${DEV_STACK_GONOSUMDB:-*}"
     working_dir: /workspace
-    command: >
-      sh -c "air -c services/ai/.air.toml"
+    entrypoint: []
+    command:
+      - /go/bin/air
+      - -c
+      - services/ai/.air.toml
     environment:
       GOPROXY: "${DEV_STACK_GOPROXY:-https://goproxy.cn,direct}"
       GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"
@@ -88,8 +100,11 @@ services:
         GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"
         GONOSUMDB: "${DEV_STACK_GONOSUMDB:-*}"
     working_dir: /workspace
-    command: >
-      sh -c "air -c services/gateway-bff/.air.toml"
+    entrypoint: []
+    command:
+      - /go/bin/air
+      - -c
+      - services/gateway-bff/.air.toml
     environment:
       GOPROXY: "${DEV_STACK_GOPROXY:-https://goproxy.cn,direct}"
       GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"

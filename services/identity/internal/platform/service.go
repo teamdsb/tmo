@@ -180,6 +180,12 @@ func (r *MiniLoginResolver) SupportsPhoneProofSimulation() bool {
 	return r.enablePhoneProofSimulation && strings.TrimSpace(r.phoneProofSimulationPhone) != ""
 }
 
+func (r *MiniLoginResolver) UsesSimulatedWeappIdentity(identity LoginIdentity) bool {
+	return r.weapp == nil &&
+		r.SupportsPhoneProofSimulation() &&
+		strings.HasPrefix(strings.TrimSpace(identity.ProviderUserID), "sim_weapp:")
+}
+
 func (r *MiniLoginResolver) GenerateSalesQRCode(ctx context.Context, platform, scene string) (string, error) {
 	switch strings.ToLower(platform) {
 	case "weapp":
