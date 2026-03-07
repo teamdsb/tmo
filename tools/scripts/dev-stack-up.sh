@@ -12,17 +12,17 @@ use_air="${DEV_STACK_AIR:-false}"
 use_air_lower="$(printf '%s' "$use_air" | tr '[:upper:]' '[:lower:]')"
 build_images_set="${DEV_STACK_BUILD_IMAGES+x}"
 build_images="${DEV_STACK_BUILD_IMAGES:-false}"
-if [[ "$use_air_lower" == "true" && -z "$build_images_set" ]]; then
-  build_images="true"
-fi
 build_images_lower="$(printf '%s' "$build_images" | tr '[:upper:]' '[:lower:]')"
 dev_stack_goproxy="${DEV_STACK_GOPROXY:-https://goproxy.cn,direct}"
 dev_stack_gosumdb="${DEV_STACK_GOSUMDB:-off}"
 dev_stack_gonosumdb="${DEV_STACK_GONOSUMDB:-*}"
+active_worktree="${TMO_ACTIVE_WORKTREE:-$root_dir}"
+active_worktree="$(cd "$active_worktree" && pwd)"
 
 export DEV_STACK_GOPROXY="$dev_stack_goproxy"
 export DEV_STACK_GOSUMDB="$dev_stack_gosumdb"
 export DEV_STACK_GONOSUMDB="$dev_stack_gonosumdb"
+export TMO_ACTIVE_WORKTREE="$active_worktree"
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "docker is required." >&2
@@ -53,6 +53,7 @@ echo "[dev-stack-up] using Go module proxy settings:"
 echo "  - DEV_STACK_GOPROXY=${DEV_STACK_GOPROXY}"
 echo "  - DEV_STACK_GOSUMDB=${DEV_STACK_GOSUMDB}"
 echo "  - DEV_STACK_GONOSUMDB=${DEV_STACK_GONOSUMDB}"
+echo "  - TMO_ACTIVE_WORKTREE=${TMO_ACTIVE_WORKTREE}"
 if [[ "$DEV_STACK_GOSUMDB" == "off" ]]; then
   echo "[dev-stack-up] note: DEV_STACK_GOSUMDB=off prioritizes local build stability for dev containers."
 fi
@@ -92,16 +93,13 @@ compose_args=(
 if [[ "$use_air_lower" == "true" ]]; then
   compose_args+=(-f "$compose_dev")
   echo "[dev-stack-up] DEV_STACK_AIR=true, enabling Air hot reload overlay."
+  echo "[dev-stack-up] Air containers will mount worktree: $TMO_ACTIVE_WORKTREE"
 fi
 compose_args+=(up -d)
 
 if [[ "$build_images_lower" == "true" ]]; then
   compose_args+=(--build)
-  if [[ "$use_air_lower" == "true" && -z "$build_images_set" ]]; then
-    echo "[dev-stack-up] DEV_STACK_AIR=true and DEV_STACK_BUILD_IMAGES unset, defaulting to --build."
-  else
-    echo "[dev-stack-up] DEV_STACK_BUILD_IMAGES=true, forcing image rebuild."
-  fi
+  echo "[dev-stack-up] DEV_STACK_BUILD_IMAGES=true, forcing image rebuild."
 fi
 
 if ! docker compose "${compose_args[@]}"; then

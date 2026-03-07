@@ -64,8 +64,11 @@ make identity-repair
 后端 Air 开发容器：
 - `make dev-stack-up-air`：启动 Postgres + backend 全栈，Go 服务运行在容器内并由 Air 托管热更新。
 - `make dev-stack-down-air`：关闭 Air 开发容器栈。
+- `bash tools/scripts/dev-air-switch.sh /absolute/path/to/worktree`：把 Air 开发容器整栈切换到指定 git worktree，只会 `force-recreate` 容器，不会重建 image。
+- 对协作者与 agents 的约定：当目标是“切到另一个 worktree/分支继续 Air 热更新”时，优先使用 `dev-air-switch.sh`；不要默认执行 `DEV_STACK_BUILD_IMAGES=true make dev-stack-up-air`，除非确实需要重建 image。
 - 若需查看 Air 重编译日志，可执行：
   `docker compose -f infra/dev/docker-compose.yml -f infra/dev/docker-compose.backend.yml -f infra/dev/docker-compose.dev.yml logs -f identity commerce payment gateway-bff`
+- 当前方案仅支持“整栈一起切到同一个 worktree”；不支持每个服务绑定不同 worktree。
 
 稳定 Docker 联调（推荐）：
 - `make dev-stack-up` 默认会为容器构建与 Air 运行时注入稳定的 Go 模块参数：

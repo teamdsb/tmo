@@ -45,6 +45,18 @@ make dev-stack-up-air
 - 所有 Go 服务运行在开发专用容器内。
 - `commerce` 与 `identity` 启动前自动执行 migrate，然后由 Air 托管进程。
 - 修改 `services/commerce` 或 `packages/go-shared` 下的 Go 文件后，Air 会自动重新编译并重启服务。
+- 默认不会强制重建 image；如需重建，显式执行 `DEV_STACK_BUILD_IMAGES=true make dev-stack-up-air`。
+
+切换到另一个 git worktree 而不重建 image：
+
+```bash
+bash tools/scripts/dev-air-switch.sh /absolute/path/to/other/worktree
+```
+
+说明：
+- 该脚本会强制重建 Air 容器，但不会传 `--build`。
+- Air 会改为监听目标 worktree 的 `/workspace` 挂载。
+- 当前仅支持整栈一起切到同一个 worktree。
 
 查看 Air 日志：
 

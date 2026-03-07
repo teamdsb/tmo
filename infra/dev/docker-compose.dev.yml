@@ -15,7 +15,7 @@ services:
       GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"
       GONOSUMDB: "${DEV_STACK_GONOSUMDB:-*}"
     volumes:
-      - ../..:/workspace
+      - ${TMO_ACTIVE_WORKTREE:-../..}:/workspace
       - tmo-go-mod-cache:/go/pkg/mod
       - tmo-go-build-cache:/root/.cache/go-build
 
@@ -35,7 +35,7 @@ services:
       GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"
       GONOSUMDB: "${DEV_STACK_GONOSUMDB:-*}"
     volumes:
-      - ../..:/workspace
+      - ${TMO_ACTIVE_WORKTREE:-../..}:/workspace
       - tmo-go-mod-cache:/go/pkg/mod
       - tmo-go-build-cache:/root/.cache/go-build
 
@@ -55,7 +55,7 @@ services:
       GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"
       GONOSUMDB: "${DEV_STACK_GONOSUMDB:-*}"
     volumes:
-      - ../..:/workspace
+      - ${TMO_ACTIVE_WORKTREE:-../..}:/workspace
       - tmo-go-mod-cache:/go/pkg/mod
       - tmo-go-build-cache:/root/.cache/go-build
 
@@ -75,7 +75,7 @@ services:
       GOSUMDB: "${DEV_STACK_GOSUMDB:-off}"
       GONOSUMDB: "${DEV_STACK_GONOSUMDB:-*}"
     volumes:
-      - ../..:/workspace
+      - ${TMO_ACTIVE_WORKTREE:-../..}:/workspace
       - tmo-go-mod-cache:/go/pkg/mod
       - tmo-go-build-cache:/root/.cache/go-build
 
@@ -96,7 +96,7 @@ services:
       GONOSUMDB: "${DEV_STACK_GONOSUMDB:-*}"
     volumes:
       - ./media:/data/media
-      - ../..:/workspace
+      - ${TMO_ACTIVE_WORKTREE:-../..}:/workspace
       - tmo-go-mod-cache:/go/pkg/mod
       - tmo-go-build-cache:/root/.cache/go-build
 
