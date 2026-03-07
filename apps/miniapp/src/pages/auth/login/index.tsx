@@ -27,6 +27,7 @@ type MiniPlatform = 'weapp' | 'alipay' | 'unknown'
 const simulatedWeappPhoneProof: PhoneProofResult = Object.freeze({
   code: 'simulated_weapp_phone_proof'
 })
+const weappSimulationMismatchMessage = '开发环境模拟登录配置不一致，请开启 IDENTITY_ENABLE_PHONE_PROOF_SIMULATION 后重试'
 
 const readLaunchContext = (): LaunchContext => {
   const options = Taro.getLaunchOptionsSync?.()
@@ -143,6 +144,13 @@ export default function LoginPage() {
       if (isTouristModeUnsupportedError(error)) {
         await Taro.showToast({
           title: '请先配置 TARO_APP_ID',
+          icon: 'none'
+        })
+        return
+      }
+      if (isWeappSimulationConfigError(error, enableWeappPhoneProofSimulation)) {
+        await Taro.showToast({
+          title: weappSimulationMismatchMessage,
           icon: 'none'
         })
         return
@@ -327,4 +335,18 @@ const isPhoneAuthorizationError = (error: unknown): boolean => {
 const isPhoneProofApiError = (error: unknown): boolean => {
   return isApiError(error)
     && ['phone_required', 'invalid_phone_proof', 'invalid_phone'].includes(error.code ?? '')
+}
+
+const isWeappSimulationConfigError = (
+  error: unknown,
+  enableWeappPhoneProofSimulation: boolean
+): boolean => {
+  if (!enableWeappPhoneProofSimulation || !isApiError(error)) {
+    return false
+  }
+  if (error.code === 'phone_required') {
+    return true
+  }
+  return error.code === 'invalid_request'
+    && error.message.trim().toLowerCase() === 'invalid login code'
 }
