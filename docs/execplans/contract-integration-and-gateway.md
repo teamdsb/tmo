@@ -2,7 +2,7 @@
 
 本计划要把 `apps/miniapp` 从“页面 demo + mock 数据”推进为严格遵循 OpenAPI 契约的可用业务闭环，并让单一小程序覆盖 CUSTOMER/SALES/PROCUREMENT/CS 四类角色的核心流程。完成后，开发者只需配置网关 baseUrl 即可登录并完成浏览、下单、售后、询价、物流与批量导入等流程，同时 `services/gateway-bff` 具备 `/bff/bootstrap` 聚合、`/admin/*` 编排以及多上游路由能力。验证方式是访问 `GET /health`、`GET /ready`、`GET /bff/bootstrap` 并完成典型业务调用来观察可运行行为。
 
-本 ExecPlan 是一个持续更新的文档。推进时必须同步更新 `Progress`、`Surprises & Discoveries`、`Decision Log`、`Outcomes & Retrospective` 这四个部分。本计划必须遵守 `docs/execplans/PLANS.md`。目标分支为 `feat-miniapp-v0`，所有执行与提交以该分支为准。
+本 ExecPlan 是一个持续更新的文档。推进时必须同步更新 `Progress`、`Surprises & Discoveries`、`Decision Log`、`Outcomes & Retrospective` 这四个部分。本计划必须遵守 `docs/execplans/plans.md`。目标分支为 `feat-miniapp-v0`，所有执行与提交以该分支为准。
 
 ## Progress
 
@@ -313,4 +313,4 @@
 
 ## 变更说明
 
-2026-01-24：根据用户“/v1 改根路径、网关优先、匿名 bootstrap、feature flags 存储、fail-closed 鉴权缓存”等决策重写 ExecPlan，补齐术语定义、命令工作目录与测试验证要求，并扩展 gateway 路由与 AI 处理策略说明以满足 `docs/execplans/PLANS.md` 的 self-contained 要求。
+2026-01-24：根据用户“/v1 改根路径、网关优先、匿名 bootstrap、feature flags 存储、fail-closed 鉴权缓存”等决策重写 ExecPlan，补齐术语定义、命令工作目录与测试验证要求，并扩展 gateway 路由与 AI 处理策略说明以满足 `docs/execplans/plans.md` 的 self-contained 要求。

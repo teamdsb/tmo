@@ -126,4 +126,4 @@ Requests always include an `X-Request-ID` header in the response.
 
 ## Conventions
 
-See `docs/commerce-conventions.md` for pricing units, SKU spec rules, and order transaction/idempotency expectations.
+See `docs/context/commerce-conventions.md` for pricing units, SKU spec rules, and order transaction/idempotency expectations.

@@ -24,7 +24,7 @@ Bootstrap and local dev scripts.
 - `miniapp-customer-evidence.sh`: verify CUSTOMER auto-provision evidence for a phone/provider pair by combining admin `/admin/customers` query and identity DB checks.
 - Preflight result file: `apps/miniapp/.logs/preflight/result.json` (machine-readable status for CI and local diagnosis).
 - Automator result file: `apps/miniapp/.logs/weapp/run.json` (machine-readable run summary, first failure, and assertion stats).
-- Troubleshooting runbook: `docs/RUNBOOK/miniapp-white-screen-gate.md`.
+- Troubleshooting runbook: `docs/runbooks/miniapp-white-screen-gate.md`.
 - `catalog-image-audit.sh`: audit `catalog_products` image refs and print domain distribution.
 - `catalog-image-migrate.sh`: migrate external catalog images into local media output and rewrite DB URLs.
 - `gateway-verify.sh`: smoke-check gateway health/ready and auth flows.

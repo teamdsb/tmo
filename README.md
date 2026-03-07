@@ -11,7 +11,7 @@
 - `apps/admin-web/`：后台管理控制台（预留）
 - `services/`：后端服务（Go）
 - `contracts/openapi/`：API 合约（OpenAPI）
-- `docs/`：产品与权限文档
+- `docs/`：agent-first 文档入口，按 `context/`、`runbooks/`、`decisions/`、`execplans/` 分层（见 `docs/README.md`）
 - `infra/`：本地基础设施与环境
 
 ## 工具链总览（按 commerce 服务对齐）
@@ -38,6 +38,7 @@
 - 新增/替换工具链需先与负责人确认，并更新本 README。
 - 需求不明确时，Agent 先使用 `ask-questions-if-underspecified` 澄清，再开始实现。
 - 生成目录与迁移文件按工具规范维护（sqlc/goose/oapi-codegen）。
+- 涉及仓库文档时，先从 `docs/README.md` 进入，再按文档职责选择维护位置，避免继续向 `docs/` 根目录堆放散文件。
 
 ## 常用命令
 ```bash

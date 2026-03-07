@@ -1,6 +1,6 @@
 # Complete miniapp routing and navigation loop
 
-This ExecPlan is a living document. The sections Progress, Surprises & Discoveries, Decision Log, and Outcomes & Retrospective must be kept up to date as work proceeds, and it must follow docs/execplans/PLANS.md.
+This ExecPlan is a living document. The sections Progress, Surprises & Discoveries, Decision Log, and Outcomes & Retrospective must be kept up to date as work proceeds, and it must follow docs/execplans/plans.md.
 
 ## Purpose / Big Picture
 

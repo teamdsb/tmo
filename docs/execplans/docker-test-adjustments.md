@@ -2,7 +2,7 @@
 
 本 ExecPlan 是一个持续更新文档。`Progress`、`Surprises & Discoveries`、`Decision Log`、`Outcomes & Retrospective` 四个章节需要在后续迭代中继续维护。
 
-本文件遵循仓库规范文档 [docs/execplans/PLANS.md](/Users/asimov3059/工作代码/tmall/tmo/docs/execplans/PLANS.md) 的约束，目标是让任何第一次接触仓库的同学，仅凭本文件即可复现本次 Docker 联调整改结果。
+本文件遵循仓库规范文档 [docs/execplans/plans.md](/Users/asimov3059/工作代码/tmall/tmo/docs/execplans/plans.md) 的约束，目标是让任何第一次接触仓库的同学，仅凭本文件即可复现本次 Docker 联调整改结果。
 
 ## Purpose / Big Picture
 
