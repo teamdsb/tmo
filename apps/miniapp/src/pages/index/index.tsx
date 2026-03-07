@@ -193,7 +193,7 @@ export default function ProductCatalogApp() {
           </Text>
         ) : null}
 
-        <Grid columns={2} gutter={12} className='page-grid'>
+        <Grid columns={2} gutter={12} className='page-grid product-grid'>
           {products.map((product) => (
             <Grid.Item key={product.id}>
               <ProductCard data={product} />
@@ -302,7 +302,7 @@ function ProductCard({ data }: { data: ProductSummary }) {
     <View className='product-card' onClick={() => navigateTo(goodsDetailRoute(data.id))}>
       <SafeImage className='product-card-image' src={data.coverImageUrl} width='100%' height={198} mode='aspectFill' />
       <View className='product-card-body'>
-        <Text className='product-card-title'>{data.name}</Text>
+        <Text className='product-card-title u-safe-title-2'>{data.name}</Text>
         <Text className='product-card-price'>价格详见详情</Text>
         <Flex justify='space-between' align='center' className='product-card-footer'>
           <View className='product-card-tag'>
