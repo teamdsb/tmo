@@ -1,7 +1,25 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import Taro from '@tarojs/taro';
 import SearchEmptyState from './index';
 import { commerceServices } from '../../../services/commerce';
+
+
+const longTitleProducts = [
+  {
+    id: 'search-long-1',
+    name: 'Search Result Product ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890无空格超长标题用于验证双列推荐卡布局稳定性',
+    coverImageUrl: '',
+    tags: ['推荐']
+  },
+  {
+    id: 'search-long-2',
+    name: 'Second Search Result Product ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890无空格超长标题用于验证双列推荐卡布局稳定性',
+    coverImageUrl: '',
+    tags: ['推荐']
+  }
+];
 
 const runDebounce = async () => {
   await act(async () => {
@@ -27,6 +45,34 @@ describe('SearchEmptyState', () => {
 
     expect(screen.getByText(/未找到与/)).toBeInTheDocument();
     expect(screen.getByText('为你推荐')).toBeInTheDocument();
+  });
+
+
+  it('keeps recommendation and result cards rendered for long titles', async () => {
+    (commerceServices.catalog.listProducts as jest.Mock).mockImplementation(async ({ q } = {}) => ({
+      items: q ? longTitleProducts : longTitleProducts,
+      total: longTitleProducts.length
+    }));
+
+    render(<SearchEmptyState />);
+
+    await runDebounce();
+    expect(screen.getAllByText('在详情中查看价格')).toHaveLength(2);
+    expect(document.querySelectorAll('.recommend-card')).toHaveLength(2);
+
+    const input = screen.getByPlaceholderText('搜索商品...');
+    fireEvent.change(input, { target: { value: 'long' } });
+    await runDebounce();
+
+    expect(screen.getAllByText('在详情中查看价格')).toHaveLength(2);
+    expect(document.querySelectorAll('.recommend-card')).toHaveLength(2);
+  });
+
+  it('keeps shared long-text styles for recommendation titles', () => {
+    const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../../app.scss'), 'utf8');
+
+    expect(stylesheet).toContain('.u-safe-title-2');
+    expect(stylesheet).toContain('.recommend-card-title');
   });
 
   it('updates and clears the search input', () => {

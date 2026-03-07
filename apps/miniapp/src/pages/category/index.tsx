@@ -177,7 +177,7 @@ export default function CategoryPage() {
                         mode='aspectFill'
                       />
                       <View className='category-product-body'>
-                        <Text className='category-product-title'>{item.name}</Text>
+                        <Text className='category-product-title u-safe-title-2'>{item.name}</Text>
                         <View className='category-product-footer'>
                           <Text className='category-product-tag'>{item.tags?.[0] ?? activeCategory?.name ?? '商品'}</Text>
                           <Button size='mini' color='primary'>查看</Button>

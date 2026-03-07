@@ -116,7 +116,7 @@ export function OrdersView() {
               <View key={order.id} className='sales-order-card'>
                 <View className='sales-order-card-head'>
                   <View className='sales-order-card-head-main'>
-                    <Text className='sales-order-company'>{order.company}</Text>
+                    <Text className='sales-order-company u-safe-title-2'>{order.company}</Text>
                     <Text className='sales-order-code'>订单号 #{order.id} • {order.date}</Text>
                   </View>
                   <View className={`sales-order-badge ${tone.bg}`}>
@@ -133,7 +133,7 @@ export function OrdersView() {
                         className='sales-order-item-image'
                       />
                       <View className='sales-order-item-main'>
-                        <Text className='sales-order-item-name'>{product.name}</Text>
+                        <Text className='sales-order-item-name u-safe-title-2'>{product.name}</Text>
                         <Text className='sales-order-item-spec'>
                           型号: {product.model}, 规格: {product.size}
                         </Text>

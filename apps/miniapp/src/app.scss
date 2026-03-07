@@ -326,6 +326,29 @@
   margin-top: 12px;
 }
 
+.u-shrinkable {
+  min-width: 0;
+}
+
+.u-safe-title-2 {
+  display: -webkit-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.u-safe-text-1 {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .product-grid .taroify-grid-item,
 .product-grid .taroify-grid-item__content,
 .page-grid .taroify-grid-item,
@@ -949,6 +972,8 @@
 
 .product-title {
   font-size: calc(17px * var(--font-size-scale, 1));
+  overflow-wrap: anywhere;
+  word-break: break-word;
   font-weight: 700;
   line-height: 1.4;
   color: #111418;
@@ -1035,6 +1060,11 @@
   margin-top: 10px;
 }
 
+.product-tier-grid .taroify-grid-item,
+.product-tier-grid .taroify-grid-item__content {
+  min-width: 0;
+}
+
 .product-tier-grid .taroify-grid-item__content {
   padding: 0;
   background: transparent;
@@ -1051,6 +1081,7 @@
 
 .tier-card {
   width: 100%;
+  min-width: 0;
   height: 100%;
   background: #f6f9fc;
   border-radius: 10px;
@@ -1075,10 +1106,17 @@
 }
 
 .tier-card-range {
-  display: block;
+  display: -webkit-box;
   margin-bottom: 4px;
   font-size: calc(12px * var(--font-size-scale, 1));
   color: #617589;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .tier-card-price {
@@ -1598,10 +1636,17 @@
 }
 
 .sales-order-company {
-  display: block;
+  display: -webkit-box;
   font-size: 17px;
   font-weight: 800;
   color: #1f2937;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .sales-order-code {
@@ -1675,10 +1720,17 @@
 }
 
 .sales-order-item-name {
-  display: block;
+  display: -webkit-box;
   font-size: 16px;
   font-weight: 800;
   color: #1f2937;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .sales-order-item-spec {

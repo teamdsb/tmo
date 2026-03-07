@@ -109,7 +109,7 @@ export default function SearchEmptyState() {
                       <View className='recommend-card' onClick={() => navigateTo(goodsDetailRoute(item.id))}>
                         <SafeImage width='100%' height={140} src={item.coverImageUrl} mode='aspectFill' />
                         <View className='recommend-card-body'>
-                          <Text className='recommend-card-title'>{item.name}</Text>
+                          <Text className='recommend-card-title u-safe-title-2'>{item.name}</Text>
                           <Text className='recommend-card-price'>在详情中查看价格</Text>
                           <Tag size='small' color='primary'>
                             {item.tags?.[0] ?? '分类'}
@@ -134,7 +134,7 @@ export default function SearchEmptyState() {
                   <View className='recommend-card' onClick={() => navigateTo(goodsDetailRoute(item.id))}>
                     <SafeImage width='100%' height={140} src={item.coverImageUrl} mode='aspectFill' />
                     <View className='recommend-card-body'>
-                      <Text className='recommend-card-title'>{item.name}</Text>
+                      <Text className='recommend-card-title u-safe-title-2'>{item.name}</Text>
                       <Text className='recommend-card-price'>在详情中查看价格</Text>
                       <Tag size='small' color='primary'>
                         {item.tags?.[0] ?? '分类'}

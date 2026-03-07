@@ -190,8 +190,8 @@ export default function ProductDetail() {
           </Tag>
         </View>
 
-        <View className='product-header'>
-          <Text className='product-title'>{detail?.product?.name ?? '加载中...'}</Text>
+        <View className='product-header u-shrinkable'>
+          <Text className='product-title u-safe-title-2'>{detail?.product?.name ?? '加载中...'}</Text>
           <View className='product-price-row'>
             <View className='product-price'>
               <Text className='product-price-value'>
@@ -357,7 +357,7 @@ const renderPriceTiers = (tiers: PriceTier[] | undefined, qty: number) => {
     return (
       <Grid.Item>
         <View className='tier-card'>
-          <Text className='tier-card-range'>暂无阶梯价</Text>
+          <Text className='tier-card-range u-safe-title-2'>暂无阶梯价</Text>
           <Text className='tier-card-price'>联系销售</Text>
         </View>
       </Grid.Item>
@@ -369,7 +369,7 @@ const renderPriceTiers = (tiers: PriceTier[] | undefined, qty: number) => {
   return visibleTiers.map((tier, index) => (
     <Grid.Item key={`${tier.minQty}-${tier.maxQty ?? 'max'}`}>
       <View className={`tier-card ${matchedTierIndex === index ? 'tier-card-highlight' : ''}`}>
-        <Text className='tier-card-range'>{formatPriceTierRange(tier)}</Text>
+        <Text className='tier-card-range u-safe-title-2'>{formatPriceTierRange(tier)}</Text>
         <Text className='tier-card-price'>{formatFen(tier.unitPriceFen)}</Text>
       </View>
     </Grid.Item>

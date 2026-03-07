@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import ProductDetail from './index'
 import { commerceServices } from '../../../services/commerce'
@@ -31,6 +33,46 @@ describe('ProductDetail', () => {
     expect(screen.getByText('标准配送')).toBeInTheDocument()
     expect(screen.getByText('采购量越高单价越低')).toBeInTheDocument()
     expect(screen.getByText('购买数量')).toBeInTheDocument()
+  })
+
+
+  it('applies shared long-text protection to detail title and tier cards', async () => {
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValueOnce({
+      product: {
+        id: 'spu-long',
+        name: 'Detail Product ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890无空格超长标题用于验证详情页标题换行稳定性',
+        categoryId: 'industrial',
+        images: [],
+        description: 'test'
+      },
+      skus: [
+        {
+          id: 'sku-long',
+          spuId: 'spu-long',
+          name: '默认规格',
+          spec: '默认规格',
+          isActive: true,
+          priceTiers: [{ minQty: 123456789, maxQty: null, unitPriceFen: 20000 }]
+        }
+      ]
+    } as any)
+
+    render(<ProductDetail />)
+
+    const title = (await screen.findAllByText(/Detail Product ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890/)).find((element) => element.className.includes('product-title'))
+    const tierRange = await screen.findByText('123456789+')
+
+    expect(title).toBeDefined()
+    expect(title).toHaveClass('u-safe-title-2')
+    expect(tierRange).toHaveClass('u-safe-title-2')
+  })
+
+  it('keeps shared long-text utility definitions in app stylesheet', () => {
+    const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../../app.scss'), 'utf8')
+
+    expect(stylesheet).toContain('.u-safe-title-2')
+    expect(stylesheet).toContain('.tier-card-range')
+    expect(stylesheet).toContain('.product-title')
   })
 
   it('updates sku selection and price', async () => {
