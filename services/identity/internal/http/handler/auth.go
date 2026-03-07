@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"sort"
@@ -265,6 +266,8 @@ func (h *Handler) findOrCreateMiniLoginCustomer(
 	identity platform.LoginIdentity,
 	phone string,
 ) (db.User, []string, error) {
+	reuseExistingProviderIdentity := platformName == "weapp" && h.Platform.UsesSimulatedWeappIdentity(identity)
+
 	if strings.TrimSpace(phone) != "" {
 		phoneParam := phone
 		existing, err := h.Store.GetUserByPhone(c.Request.Context(), &phoneParam)
@@ -281,6 +284,21 @@ func (h *Handler) findOrCreateMiniLoginCustomer(
 				return db.User{}, nil, err
 			}
 			roles = normalizeRoles(roles)
+
+			if reuseExistingProviderIdentity {
+				hasProviderIdentity, err := h.userHasProviderIdentity(c.Request.Context(), existing.ID, platformName)
+				if err != nil {
+					h.logError("lookup existing provider identity failed", err)
+					h.writeError(c, http.StatusInternalServerError, "internal_error", "login failed")
+					return db.User{}, nil, err
+				}
+				if hasProviderIdentity {
+					if !containsRole(roles, "CUSTOMER") {
+						roles = append(roles, "CUSTOMER")
+					}
+					return existing, normalizeRoles(roles), nil
+				}
+			}
 
 			var unionID *string
 			if strings.TrimSpace(identity.UnionID) != "" {
@@ -380,6 +398,23 @@ func (h *Handler) findOrCreateMiniLoginCustomer(
 		return db.User{}, nil, err
 	}
 	return createdUser, []string{"CUSTOMER"}, nil
+}
+
+func (h *Handler) userHasProviderIdentity(ctx context.Context, userID uuid.UUID, provider string) (bool, error) {
+	var providerUserID string
+	err := h.DB.QueryRow(ctx, `
+SELECT provider_user_id
+FROM user_identities
+WHERE user_id = $1 AND provider = $2
+LIMIT 1
+`, userID, provider).Scan(&providerUserID)
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	return false, err
 }
 
 func (h *Handler) bindMiniLoginPhone(c *gin.Context, user *db.User, phone string) error {

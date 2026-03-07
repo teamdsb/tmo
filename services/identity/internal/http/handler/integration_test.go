@@ -156,6 +156,64 @@ func TestMiniLoginUsesWeappSimulationInRealModeWithoutWeappConfig(t *testing.T) 
 	}
 }
 
+func TestMiniLoginReusesExistingWeappIdentityForSimulatedPhone(t *testing.T) {
+	router, pool := setupTestRouterWithPlatformConfig(t, platform.Config{
+		Mode:                       platform.LoginModeReal,
+		EnablePhoneProofSimulation: true,
+		PhoneProofSimulationPhone:  "+15550000003",
+		WeappSalesPage:             "pages/index/index",
+		WeappQRWidth:               256,
+		AlipaySalesPage:            "pages/index/index",
+	})
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+
+	customerID := uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
+	if err := seedCustomer(ctx, pool, customerID, "Customer Dev", nil); err != nil {
+		t.Fatalf("seed customer: %v", err)
+	}
+	if err := seedCustomerPhone(ctx, pool, customerID, "+15550000003"); err != nil {
+		t.Fatalf("seed customer phone: %v", err)
+	}
+	if err := seedIdentity(ctx, pool, customerID, "mock_customer_001"); err != nil {
+		t.Fatalf("seed customer identity: %v", err)
+	}
+
+	resp := doJSON(t, router, http.MethodPost, "/auth/mini/login", map[string]interface{}{
+		"platform": "weapp",
+		"code":     "wx-simulated-code",
+		"phoneProof": map[string]interface{}{
+			"code": "simulated_weapp_phone_proof",
+		},
+	}, "")
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected login 200, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	var authResponse oapi.AuthResponse
+	if err := json.NewDecoder(resp.Body).Decode(&authResponse); err != nil {
+		t.Fatalf("decode auth response: %v", err)
+	}
+	if authResponse.User.UserType != oapi.UserUserTypeCustomer {
+		t.Fatalf("expected userType customer, got %s", authResponse.User.UserType)
+	}
+
+	var identityCount int
+	if err := pool.QueryRow(ctx, `
+SELECT count(*)
+FROM user_identities
+WHERE user_id = $1 AND provider = 'weapp'
+`, customerID).Scan(&identityCount); err != nil {
+		t.Fatalf("count customer identities: %v", err)
+	}
+	if identityCount != 1 {
+		t.Fatalf("expected existing weapp identity to be reused, got %d identities", identityCount)
+	}
+}
+
 func TestPasswordLoginAdmin(t *testing.T) {
 	router, pool := setupTestRouter(t)
 	ctx := context.Background()
@@ -1274,6 +1332,16 @@ INSERT INTO user_identities (id, provider, provider_user_id, user_id)
 VALUES ($1, $2, $3, $4)
 ON CONFLICT (provider, provider_user_id) DO NOTHING
 `, uuid.New(), "weapp", providerUserID, userID)
+	return err
+}
+
+func seedCustomerPhone(ctx context.Context, pool *pgxpool.Pool, userID uuid.UUID, phone string) error {
+	_, err := pool.Exec(ctx, `
+UPDATE users
+SET phone = $2,
+    updated_at = now()
+WHERE id = $1
+`, userID, phone)
 	return err
 }
 

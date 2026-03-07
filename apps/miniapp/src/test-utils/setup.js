@@ -344,6 +344,18 @@ jest.mock('@tmo/gateway-services', () => {
 });
 
 jest.mock('@tmo/identity-services', () => {
+  class ApiError extends Error {
+    constructor(message, statusCode, options = {}) {
+      super(message);
+      this.name = 'ApiError';
+      this.statusCode = statusCode;
+      this.code = options.code;
+      this.requestId = options.requestId;
+      this.details = options.details;
+      this.raw = options.raw;
+    }
+  }
+
   return {
     __esModule: true,
     createIdentityServices: () => ({
@@ -359,6 +371,8 @@ jest.mock('@tmo/identity-services', () => {
         getPermissions: jest.fn(async () => ({}))
       }
     }),
+    ApiError,
+    isApiError: (error) => error instanceof ApiError,
     RoleSelectionRequiredError: class RoleSelectionRequiredError extends Error {
       constructor() {
         super('Role selection required');
