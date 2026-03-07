@@ -1,0 +1,10 @@
+[backend-coverage] coverage artifacts written to /Users/asimov3059/工作代码/tmall/tmo/.logs/backend-coverage
+
+ai total:										(statements)			69.8%
+commerce total:													(statements)					11.1%
+gateway-bff total:											(statements)			42.3%
+identity total:											(statements)					0.5%
+payment total:											(statements)				28.1%
+go-shared total:									(statements)		0.0%
+
+combined total:													(statements)					13.4%

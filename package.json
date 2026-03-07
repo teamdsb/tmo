@@ -12,6 +12,7 @@
     "check:mock-sync": "node tools/scripts/check-mock-sync.mjs",
     "e2e:local": "bash tools/scripts/e2e-local-stack.sh",
     "test:backend": "bash tools/scripts/test-backend.sh",
+    "test:backend:coverage": "bash tools/scripts/test-backend-coverage.sh",
     "smoke:admin-web": "bash tools/scripts/admin-web-smoke.sh",
     "test": "pnpm run test:backend && pnpm -C apps/miniapp test && pnpm -C apps/miniapp test:wxss",
     "format": "echo \"format: not configured\""
