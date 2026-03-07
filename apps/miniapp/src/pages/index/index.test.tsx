@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Taro from '@tarojs/taro';
 import ProductCatalogApp from './index';
@@ -8,6 +10,21 @@ const defaultProducts = [
   { id: 'prod-1002', name: '钢制螺栓套装', coverImageUrl: '', tags: ['工业'] },
   { id: 'prod-1003', name: '控制阀套件', coverImageUrl: '', tags: ['工业'] },
   { id: 'prod-1004', name: '封箱胶带', coverImageUrl: '', tags: ['办公'] }
+];
+
+const longTitleProducts = [
+  {
+    id: 'prod-long-1',
+    name: 'Real Import Product 1772794846257 超长商品描述ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890无空格连续文本用于验证双列布局稳定性',
+    coverImageUrl: '',
+    tags: ['smoke']
+  },
+  {
+    id: 'prod-long-2',
+    name: 'Real Import Product 1772794337333 第二个超长商品名称ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890无空格连续文本用于验证双列布局稳定性',
+    coverImageUrl: '',
+    tags: ['smoke']
+  }
 ];
 
 const renderCatalog = async () => {
@@ -56,6 +73,35 @@ describe('ProductCatalogApp', () => {
     });
 
     expect(await screen.findAllByText('价格详见详情')).toHaveLength(4);
+  });
+
+
+  it('keeps rendering product cards for long unbroken titles', async () => {
+    (commerceServices.catalog.listProducts as jest.Mock).mockResolvedValue({
+      items: longTitleProducts,
+      total: longTitleProducts.length
+    });
+
+    await renderCatalog();
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+      await Promise.resolve();
+    });
+
+    expect(screen.getAllByText('价格详见详情')).toHaveLength(2);
+    expect(screen.getByText(/Real Import Product 1772794846257/)).toBeInTheDocument();
+    expect(screen.getByText(/Real Import Product 1772794337333/)).toBeInTheDocument();
+    expect(document.querySelectorAll('.product-card')).toHaveLength(2);
+  });
+
+
+  it('uses multiline wrapping styles for product card titles', () => {
+    const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../app.scss'), 'utf8');
+
+    expect(stylesheet).toContain('.product-card-title');
+    expect(stylesheet).toContain('-webkit-line-clamp: 2;');
+    expect(stylesheet).toContain('overflow-wrap: anywhere;');
+    expect(stylesheet).toContain('word-break: break-word;');
   });
 
   it('updates search input value', async () => {

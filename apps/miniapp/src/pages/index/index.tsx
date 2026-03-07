@@ -193,7 +193,7 @@ export default function ProductCatalogApp() {
           </Text>
         ) : null}
 
-        <Grid columns={2} gutter={12} className='page-grid'>
+        <Grid columns={2} gutter={12} className='page-grid product-grid'>
           {products.map((product) => (
             <Grid.Item key={product.id}>
               <ProductCard data={product} />

@@ -103,7 +103,7 @@ export default function SearchEmptyState() {
                 <Flex justify='space-between' align='center' className='section-header'>
                   <Text className='section-title'>为你推荐</Text>
                 </Flex>
-                <Grid columns={2} gutter={12}>
+                <Grid columns={2} gutter={12} className='product-grid'>
                   {recommended.map((item) => (
                     <Grid.Item key={item.id}>
                       <View className='recommend-card' onClick={() => navigateTo(goodsDetailRoute(item.id))}>
@@ -128,7 +128,7 @@ export default function SearchEmptyState() {
               <Text className='section-title'>搜索结果</Text>
               <Text className='section-subtitle'>{results.length} 件</Text>
             </Flex>
-            <Grid columns={2} gutter={12}>
+            <Grid columns={2} gutter={12} className='product-grid'>
               {results.map((item) => (
                 <Grid.Item key={item.id}>
                   <View className='recommend-card' onClick={() => navigateTo(goodsDetailRoute(item.id))}>
