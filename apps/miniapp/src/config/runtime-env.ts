@@ -36,9 +36,6 @@ const parseMockMode = (raw: string): 'off' | 'isolated' => {
   return 'off'
 }
 
-const nodeEnv = readProcessEnv('NODE_ENV')
-const nonProductionFallbackBaseUrl = nodeEnv === 'production' ? '' : 'http://localhost:8080'
-
 const apiBaseUrlConst = typeof __TMO_API_BASE_URL__ !== 'undefined'
   ? __TMO_API_BASE_URL__
   : ''
@@ -78,6 +75,9 @@ const mockMode = parseMockMode(firstNonEmpty(
   readProcessEnv('TARO_APP_MOCK_MODE')
 ))
 const isIsolatedMock = mockMode === 'isolated'
+const nodeEnv = readProcessEnv('NODE_ENV')
+const nonProductionFallbackBaseUrl =
+  nodeEnv === 'production' || isIsolatedMock ? '' : 'http://localhost:8080'
 
 export const runtimeEnv = Object.freeze({
   mockMode,

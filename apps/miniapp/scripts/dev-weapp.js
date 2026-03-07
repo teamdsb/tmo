@@ -1,19 +1,21 @@
 const path = require('node:path')
 const fs = require('node:fs')
 const { spawn, spawnSync } = require('node:child_process')
-const { processWeappWxss } = require('./postprocess-weapp')
 const { processWeappProjectConfig } = require('./postprocess-weapp-project')
 const { assertWeappPathsReady } = require('./weapp-paths')
+const { buildModeEnv } = require('./miniapp-mode')
 
 const miniappDir = path.resolve(__dirname, '..')
 const rootDir = path.resolve(miniappDir, '..', '..')
 const weappPaths = assertWeappPathsReady(miniappDir)
 const weappDistDir = weappPaths.outputRoot
 const verifyRoutesScript = path.resolve(__dirname, './verify-weapp-routes.js')
-const verifyApiBaseScript = path.resolve(__dirname, './verify-weapp-api-base.js')
+const verifyApiBaseScript = path.resolve(__dirname, './verify-miniapp-api-base.js')
 const preflightScript = path.resolve(__dirname, './preflight-weapp.js')
-const preflightEnabled = readBool(process.env.WEAPP_PREFLIGHT_HTTP_SMOKE, true)
-const preflightTimeoutMs = parsePositiveInt(process.env.WEAPP_PREFLIGHT_TIMEOUT_MS, 120000)
+const requestedMode = process.argv[2] || 'dev'
+const modeEnv = buildModeEnv(requestedMode)
+const preflightEnabled = readBool(modeEnv.WEAPP_PREFLIGHT_HTTP_SMOKE, true)
+const preflightTimeoutMs = parsePositiveInt(modeEnv.WEAPP_PREFLIGHT_TIMEOUT_MS, 120000)
 
 let lastWxssMtimeMs = -1
 let lastAppJsonMtimeMs = -1
@@ -47,25 +49,19 @@ function cleanWeappDist() {
 
 function printWeappTarget() {
   console.log(
-    `[dev-weapp] source=${weappPaths.miniappDir} output=${weappPaths.outputRoot} shared=${String(weappPaths.sharedEnabled)} project=${weappPaths.projectDir}`
+    `[dev-weapp] mode=${requestedMode} source=${weappPaths.miniappDir} output=${weappPaths.outputRoot} shared=${String(weappPaths.sharedEnabled)} project=${weappPaths.projectDir}`
   )
 }
 
 function runPostprocess() {
-  const wxssResult = processWeappWxss()
-  if (wxssResult.status === 'updated') {
-    console.log(
-      `[dev-weapp] postprocessed app-origin.wxss, removed ${wxssResult.removed} rule(s)`
-    )
-  }
   const projectResult = processWeappProjectConfig()
   if (projectResult.status === 'updated') {
     console.log(`[dev-weapp] set appid to ${projectResult.appId}`)
   }
 }
 
-function runNodeScript(scriptPath, extraEnv) {
-  const result = spawnSync(process.execPath, [scriptPath], {
+function runNodeScript(scriptPath, extraEnv, args = []) {
+  const result = spawnSync(process.execPath, [scriptPath, ...args], {
     stdio: 'inherit',
     env: {
       ...process.env,
@@ -80,7 +76,7 @@ function runNodeScript(scriptPath, extraEnv) {
 
 function runBuildVerifications() {
   runNodeScript(verifyRoutesScript)
-  runNodeScript(verifyApiBaseScript, { NODE_ENV: 'development' })
+  runNodeScript(verifyApiBaseScript, { TARO_ENV: 'weapp' }, ['weapp'])
 }
 
 function runPreflightChecks() {
@@ -96,7 +92,7 @@ function runPreflightChecks() {
   const result = spawnSync(process.execPath, [preflightScript], {
     cwd: miniappDir,
     stdio: 'inherit',
-    env: process.env,
+    env: modeEnv,
     timeout: preflightTimeoutMs
   })
 
@@ -158,6 +154,7 @@ function watchBuildArtifacts() {
 }
 
 try {
+  Object.assign(process.env, modeEnv)
   printWeappTarget()
   runPreflightChecks()
 } catch (error) {
@@ -173,10 +170,7 @@ child = spawn(
   ['build', '--type', 'weapp', '--no-check', '--watch'],
   {
     stdio: 'inherit',
-    env: {
-      ...process.env,
-      NODE_ENV: 'development'
-    }
+    env: modeEnv
   }
 )
 

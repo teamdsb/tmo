@@ -4,7 +4,7 @@
 
 当前默认启用 weapp 共享输出目录：
 
-- 任意 worktree 执行 `build:weapp:dev` / `dev:weapp` 时，产物默认写到主工作树 `/Users/lifuyue/Documents/tmo/apps/miniapp/dist/weapp`
+- 任意 worktree 执行 `build:weapp:*` / `dev:weapp*` 时，产物默认写到主工作树 `/Users/lifuyue/Documents/tmo/apps/miniapp/dist/weapp`
 - 微信 DevTools 固定打开 `/Users/lifuyue/Documents/tmo/apps/miniapp`
 - 同一时间只保留一个 `dev:weapp` watch 进程，避免多个 worktree 同时覆盖共享产物
 - 如需临时回退当前 worktree 自己的 `dist/weapp`，设置 `TMO_WEAPP_SHARED_OUTPUT_ENABLED=false`
@@ -14,7 +14,12 @@
 在仓库根目录执行。默认情况下，weapp 构建会输出到主工作树 `/Users/lifuyue/Documents/tmo/apps/miniapp/dist/weapp`；其他平台仍输出到当前工作树 `apps/miniapp/dist/<platform>`：
 
     pnpm -C apps/miniapp build:weapp:dev
+    pnpm -C apps/miniapp build:weapp:mock
+    pnpm -C apps/miniapp build:weapp:prod
     pnpm -C apps/miniapp build:weapp
+    pnpm -C apps/miniapp build:alipay:mock
+    pnpm -C apps/miniapp build:alipay:dev
+    pnpm -C apps/miniapp build:alipay:prod
     pnpm -C apps/miniapp build:alipay
     pnpm -C apps/miniapp build:tt
     pnpm -C apps/miniapp build:swan
@@ -24,21 +29,37 @@
 
 说明：
 
-- `build:weapp:dev` 用于本地联调（默认校验 API 基址应指向 `localhost:8080`）。
-- `build:weapp` 用于生产构建，若仍使用占位域名 `api.example.com` 会直接失败。
-- 如需临时允许占位域名（例如演示包），可设置 `MINIAPP_ALLOW_PLACEHOLDER_API=true`。
+- `build:weapp:mock` / `build:alipay:mock` 用于纯模拟模式，读取 `apps/miniapp/.env.mock`，不访问后端。
+- `build:weapp:dev` / `build:alipay:dev` 用于本地联调，读取 `apps/miniapp/.env.development`，默认校验 API 基址应指向 `http://localhost:8080`。
+- `build:weapp:prod` / `build:alipay:prod` 用于生产配置构建，读取 `apps/miniapp/.env.production`。
+- `build:weapp` 是 `build:weapp:prod` 的别名。
+- `build:alipay` 是 `build:alipay:prod` 的别名。
+- `dev:weapp` 是 `dev:weapp:dev` 的别名；另提供 `dev:weapp:mock` 用于 mock watch 模式。
+- `dev:alipay` 是 `build:alipay:dev` 的别名；另提供 `dev:alipay:mock` 用于 mock 单次构建。
+- 当前 `prod` 允许保留占位域名 `api.example.com` 产出占坑包，但正式发版前必须替换为真实域名。
 - weapp 共享输出可通过以下环境变量控制：
   `TMO_WEAPP_SHARED_OUTPUT_ENABLED=true|false`
   `TMO_WEAPP_SHARED_OUTPUT_ROOT=/Users/lifuyue/Documents/tmo/apps/miniapp/dist/weapp`
 
 ## 前后端联调（WeChat/Alipay）
 
-默认通过 gateway-bff 访问 identity + commerce。建议在 `apps/miniapp/.env.development` 配置：
+默认通过 gateway-bff 访问 identity + commerce。建议按模式配置：
 
-    TARO_APP_ID=wx8e8831fc456f019b
+    # .env.mock
+    TARO_APP_MOCK_MODE=isolated
+    TARO_APP_ENABLE_MOCK_LOGIN=true
+    TARO_APP_API_BASE_URL=
+
+    # .env.development
     TARO_APP_MOCK_MODE=off
     TARO_APP_API_BASE_URL=http://localhost:8080
     TARO_APP_ENABLE_MOCK_LOGIN=false
+
+    # .env.production
+    TARO_APP_MOCK_MODE=off
+    TARO_APP_API_BASE_URL=https://api.example.com
+
+其中 `development` 固定走你的 Docker 网关 `http://localhost:8080`，`mock` 为完全离线，`production` 当前保留占位域名。
 
 启动后端（本地）：
 
@@ -79,16 +100,18 @@
 - 如需覆盖代理策略，可执行：
   `DEV_STACK_GOPROXY=https://proxy.golang.org,direct DEV_STACK_GOSUMDB=sum.golang.org DEV_STACK_GONOSUMDB= make dev-stack-up`
 - `preflight:weapp` 会在编译前执行 HTTP 烟测（`/bff/bootstrap`、`/catalog/categories`、`/catalog/products`）；失败时自动输出 DB 诊断日志摘要。
-- `dev:weapp` 默认启用编译前门禁（`WEAPP_PREFLIGHT_HTTP_SMOKE=true`），并在 watch 构建后自动校验页面路由、tabBar 图标与 API 基址，避免旧产物导致 `demand 2`、`__route__`、`api.example.com` 类问题。
-- `dev:weapp` / `build:weapp:dev` 会打印当前源码 worktree 与实际 weapp 输出目录，便于确认是否正在覆盖主工作树产物。
+- `dev:weapp:dev` 默认启用编译前门禁（`WEAPP_PREFLIGHT_HTTP_SMOKE=true`），并在 watch 构建后自动校验页面路由、tabBar 图标与 API 基址，避免旧产物导致 `demand 2`、`__route__`、`api.example.com` 类问题。
+- `dev:weapp` / `dev:weapp:dev` / `dev:weapp:mock` / `build:weapp:*` 会打印当前模式、源码 worktree 与实际 weapp 输出目录，便于确认是否正在覆盖主工作树产物。
 - 商品接口返回的图片 URL 默认由 gateway 服务端改写为 `${TARO_APP_API_BASE_URL}/assets/img?url=...`；若已迁移到本地媒体目录则会直接返回 `${TARO_APP_API_BASE_URL}/assets/media/...`。前端仅负责渲染与占位兜底。
 - 微信环境建议使用真实 `TARO_APP_ID`；游客模式（`touristappid`）下，微信登录和手机号授权会受限。
 - `IDENTITY_LOGIN_MODE=real` 时，`/auth/mini/login` 必须携带 `phoneProof`，小程序登录会触发手机号授权。
 
 支付宝稳定模式：
 
-- `pnpm -C apps/miniapp build:alipay` 会执行构建、后处理与产物完整性校验。
-- `pnpm -C apps/miniapp dev:alipay` 为稳定模式入口，等价于执行一次 `build:alipay`（不提供实时 watch 发布）。
+- `pnpm -C apps/miniapp build:alipay:mock` / `build:alipay:dev` / `build:alipay:prod` 与 weapp 共用同一套 `.env.mock` / `.env.development` / `.env.production` 模式语义。
+- `pnpm -C apps/miniapp build:alipay` 等价于 `build:alipay:prod`，会执行构建、后处理、产物完整性校验与 API 基址校验。
+- `pnpm -C apps/miniapp dev:alipay` 等价于 `build:alipay:dev`，保持单次构建入口，不提供实时 watch 发布。
+- `pnpm -C apps/miniapp dev:alipay:mock` 提供 mock 单次构建入口。
 
 平台导入目录：
 
@@ -282,7 +305,7 @@ bash tools/scripts/miniapp-customer-evidence.sh
   1) 关闭项目并清除微信开发者工具编译缓存；
   2) 在 `apps/miniapp` 目录重新执行 `pnpm run build:weapp:dev`（已内置清理、路由产物校验、API 基址校验）；
   3) 重新打开 `/Users/lifuyue/Documents/tmo/apps/miniapp`（不要导入仓库根目录或 `dist/weapp` 本身）。
-- 如果构建报 `[verify-weapp-api-base] ... api.example.com`：
+- 如果构建报 `[verify-miniapp-api-base] ... api.example.com`：
   - 优先检查 `apps/miniapp/.env.development` 与终端环境变量 `TARO_APP_API_BASE_URL`；
   - 本地联调请使用 `pnpm -C apps/miniapp build:weapp:dev` 或 `pnpm -C apps/miniapp dev:weapp`。
 - 如果 `preflight:weapp` 或 `dev:weapp` 在编译前提示 `/catalog/categories`、`/catalog/products` 为 500：
