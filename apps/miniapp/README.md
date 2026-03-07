@@ -4,7 +4,7 @@
 
 当前默认启用 weapp 共享输出目录：
 
-- 任意 worktree 执行 `build:weapp:dev` / `dev:weapp` 时，产物默认写到主工作树 `/Users/lifuyue/Documents/tmo/apps/miniapp/dist/weapp`
+- 任意 worktree 执行 `build:weapp:*` / `dev:weapp*` 时，产物默认写到主工作树 `/Users/lifuyue/Documents/tmo/apps/miniapp/dist/weapp`
 - 微信 DevTools 固定打开 `/Users/lifuyue/Documents/tmo/apps/miniapp`
 - 同一时间只保留一个 `dev:weapp` watch 进程，避免多个 worktree 同时覆盖共享产物
 - 如需临时回退当前 worktree 自己的 `dist/weapp`，设置 `TMO_WEAPP_SHARED_OUTPUT_ENABLED=false`
@@ -14,6 +14,8 @@
 在仓库根目录执行。默认情况下，weapp 构建会输出到主工作树 `/Users/lifuyue/Documents/tmo/apps/miniapp/dist/weapp`；其他平台仍输出到当前工作树 `apps/miniapp/dist/<platform>`：
 
     pnpm -C apps/miniapp build:weapp:dev
+    pnpm -C apps/miniapp build:weapp:mock
+    pnpm -C apps/miniapp build:weapp:prod
     pnpm -C apps/miniapp build:weapp
     pnpm -C apps/miniapp build:alipay
     pnpm -C apps/miniapp build:tt
@@ -24,21 +26,35 @@
 
 说明：
 
-- `build:weapp:dev` 用于本地联调（默认校验 API 基址应指向 `localhost:8080`）。
-- `build:weapp` 用于生产构建，若仍使用占位域名 `api.example.com` 会直接失败。
-- 如需临时允许占位域名（例如演示包），可设置 `MINIAPP_ALLOW_PLACEHOLDER_API=true`。
+- `build:weapp:mock` 用于纯模拟模式，读取 `apps/miniapp/.env.mock`，不访问后端。
+- `build:weapp:dev` 用于本地联调，读取 `apps/miniapp/.env.development`，默认校验 API 基址应指向 `http://localhost:8080`。
+- `build:weapp:prod` 用于生产配置构建，读取 `apps/miniapp/.env.production`。
+- `build:weapp` 是 `build:weapp:prod` 的别名。
+- `dev:weapp` 是 `dev:weapp:dev` 的别名；另提供 `dev:weapp:mock` 用于 mock watch 模式。
+- 当前 `prod` 允许保留占位域名 `api.example.com` 产出占坑包，但正式发版前必须替换为真实域名。
 - weapp 共享输出可通过以下环境变量控制：
   `TMO_WEAPP_SHARED_OUTPUT_ENABLED=true|false`
   `TMO_WEAPP_SHARED_OUTPUT_ROOT=/Users/lifuyue/Documents/tmo/apps/miniapp/dist/weapp`
 
 ## 前后端联调（WeChat/Alipay）
 
-默认通过 gateway-bff 访问 identity + commerce。建议在 `apps/miniapp/.env.development` 配置：
+默认通过 gateway-bff 访问 identity + commerce。建议按模式配置：
 
-    TARO_APP_ID=wx8e8831fc456f019b
+    # .env.mock
+    TARO_APP_MOCK_MODE=isolated
+    TARO_APP_ENABLE_MOCK_LOGIN=true
+    TARO_APP_API_BASE_URL=
+
+    # .env.development
     TARO_APP_MOCK_MODE=off
     TARO_APP_API_BASE_URL=http://localhost:8080
     TARO_APP_ENABLE_MOCK_LOGIN=false
+
+    # .env.production
+    TARO_APP_MOCK_MODE=off
+    TARO_APP_API_BASE_URL=https://api.example.com
+
+其中 `development` 固定走你的 Docker 网关 `http://localhost:8080`，`mock` 为完全离线，`production` 当前保留占位域名。
 
 启动后端（本地）：
 
@@ -79,8 +95,8 @@
 - 如需覆盖代理策略，可执行：
   `DEV_STACK_GOPROXY=https://proxy.golang.org,direct DEV_STACK_GOSUMDB=sum.golang.org DEV_STACK_GONOSUMDB= make dev-stack-up`
 - `preflight:weapp` 会在编译前执行 HTTP 烟测（`/bff/bootstrap`、`/catalog/categories`、`/catalog/products`）；失败时自动输出 DB 诊断日志摘要。
-- `dev:weapp` 默认启用编译前门禁（`WEAPP_PREFLIGHT_HTTP_SMOKE=true`），并在 watch 构建后自动校验页面路由、tabBar 图标与 API 基址，避免旧产物导致 `demand 2`、`__route__`、`api.example.com` 类问题。
-- `dev:weapp` / `build:weapp:dev` 会打印当前源码 worktree 与实际 weapp 输出目录，便于确认是否正在覆盖主工作树产物。
+- `dev:weapp:dev` 默认启用编译前门禁（`WEAPP_PREFLIGHT_HTTP_SMOKE=true`），并在 watch 构建后自动校验页面路由、tabBar 图标与 API 基址，避免旧产物导致 `demand 2`、`__route__`、`api.example.com` 类问题。
+- `dev:weapp` / `dev:weapp:dev` / `dev:weapp:mock` / `build:weapp:*` 会打印当前模式、源码 worktree 与实际 weapp 输出目录，便于确认是否正在覆盖主工作树产物。
 - 商品接口返回的图片 URL 默认由 gateway 服务端改写为 `${TARO_APP_API_BASE_URL}/assets/img?url=...`；若已迁移到本地媒体目录则会直接返回 `${TARO_APP_API_BASE_URL}/assets/media/...`。前端仅负责渲染与占位兜底。
 - 微信环境建议使用真实 `TARO_APP_ID`；游客模式（`touristappid`）下，微信登录和手机号授权会受限。
 - `IDENTITY_LOGIN_MODE=real` 时，`/auth/mini/login` 必须携带 `phoneProof`，小程序登录会触发手机号授权。

@@ -1,5 +1,3 @@
-const DEFAULT_API_BASE_URL = 'http://localhost:8080'
-
 declare const process: { env?: Record<string, string | undefined> } | undefined
 
 const firstNonEmpty = (...values: Array<string | undefined>): string => {
@@ -14,24 +12,32 @@ const firstNonEmpty = (...values: Array<string | undefined>): string => {
 
 const normalizeBaseUrl = (value: string): string => value.replace(/\/+$/, '')
 
-const readEnvBaseUrl = (): string => {
+const readEnv = (name: string): string => {
   if (typeof process === 'undefined' || !process?.env) {
     return ''
   }
+  return process.env[name]?.trim() ?? ''
+}
+
+const isIsolatedMockMode = (): boolean => readEnv('TARO_APP_MOCK_MODE').toLowerCase() === 'isolated'
+
+const readEnvBaseUrl = (): string => {
   return firstNonEmpty(
-    process.env.TARO_APP_API_BASE_URL,
-    process.env.TARO_APP_GATEWAY_BASE_URL,
-    process.env.TARO_APP_COMMERCE_BASE_URL,
-    process.env.TARO_APP_IDENTITY_BASE_URL
+    readEnv('TARO_APP_API_BASE_URL'),
+    readEnv('TARO_APP_GATEWAY_BASE_URL'),
+    readEnv('TARO_APP_COMMERCE_BASE_URL'),
+    readEnv('TARO_APP_IDENTITY_BASE_URL')
   )
 }
+
+const resolveDefaultApiBaseUrl = (): string => (isIsolatedMockMode() ? '' : 'http://localhost:8080')
 
 export const resolveApiBaseUrl = (): string => {
   const fromEnv = readEnvBaseUrl()
   if (fromEnv) {
     return normalizeBaseUrl(fromEnv)
   }
-  return DEFAULT_API_BASE_URL
+  return resolveDefaultApiBaseUrl()
 }
 
-export const defaultApiBaseUrl = DEFAULT_API_BASE_URL
+export const defaultApiBaseUrl = resolveDefaultApiBaseUrl()

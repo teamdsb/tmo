@@ -6,16 +6,7 @@ const { outputRoot: weappDistDir } = describeWeappPaths()
 const targetFiles = ['common.js', 'app.js', 'vendors.js']
 const placeholderHost = 'api.example.com'
 const expectedDevHost = 'localhost:8080'
-
-const isTrue = (raw) => {
-  if (typeof raw !== 'string') {
-    return false
-  }
-  return ['1', 'true', 'yes', 'on'].includes(raw.trim().toLowerCase())
-}
-
-const mode = process.env.NODE_ENV === 'development' ? 'development' : 'production'
-const allowPlaceholder = isTrue(process.env.MINIAPP_ALLOW_PLACEHOLDER_API)
+const mode = process.env.TMO_WEAPP_BUILD_MODE || (process.env.NODE_ENV === 'development' ? 'development' : 'production')
 
 const readBundledSources = () => {
   return targetFiles
@@ -39,8 +30,8 @@ const main = () => {
   const hasPlaceholder = bundledSource.includes(placeholderHost)
   const hasLocalhost = bundledSource.includes(expectedDevHost)
 
-  if (mode === 'development') {
-    if (hasPlaceholder && !allowPlaceholder) {
+  if (mode === 'development' || mode === 'dev') {
+    if (hasPlaceholder) {
       fail(
         `development build contains placeholder host "${placeholderHost}". ` +
         'check .env.development and TARO_APP_* env overrides'
@@ -54,22 +45,29 @@ const main = () => {
     }
   }
 
-  if (mode === 'production' && hasPlaceholder && !allowPlaceholder) {
-    fail(
-      `production build still uses placeholder host "${placeholderHost}". ` +
-      'set real TARO_APP_API_BASE_URL or export MINIAPP_ALLOW_PLACEHOLDER_API=true to bypass'
-    )
+  if (mode === 'mock') {
+    if (hasPlaceholder) {
+      fail(
+        `mock build should not bundle "${placeholderHost}". ` +
+        'check .env.mock and TARO_APP_* env overrides'
+      )
+    }
+
+    console.log('[verify-weapp-api-base] ok (mock): isolated mock build is using local-only runtime data')
+    return
   }
 
-  const summary = hasPlaceholder
-    ? placeholderHost
-    : hasLocalhost
-      ? expectedDevHost
-      : 'custom host'
-  console.log(
-    `[verify-weapp-api-base] ok (${mode}): api base references "${summary}"` +
-    (allowPlaceholder ? ' (placeholder allowed)' : '')
-  )
+  if (mode === 'production' || mode === 'prod') {
+    if (hasPlaceholder) {
+      console.log(
+        `[verify-weapp-api-base] ok (${mode}): api base references "${placeholderHost}" (production placeholder retained)`
+      )
+      return
+    }
+  }
+
+  const summary = hasPlaceholder ? placeholderHost : hasLocalhost ? expectedDevHost : 'custom host'
+  console.log(`[verify-weapp-api-base] ok (${mode}): api base references "${summary}"`)
 }
 
 main()
