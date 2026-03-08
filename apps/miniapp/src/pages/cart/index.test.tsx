@@ -31,6 +31,7 @@ describe('ExcelImportConfirmation', () => {
   it('shows the cart action buttons', async () => {
     await renderCart()
 
+    expect(screen.getByText(/合计/)).toBeInTheDocument()
     expect(screen.getByText('继续浏览')).toBeInTheDocument()
     expect(screen.getByText('去结算')).toBeInTheDocument()
   })
@@ -40,7 +41,8 @@ describe('ExcelImportConfirmation', () => {
 
     await renderCart()
 
-    expect(screen.getAllByText('共 0 件')).toHaveLength(2)
+    expect(screen.getByText('共 0 件')).toBeInTheDocument()
+    expect(screen.getByText('合计 · 0 件')).toBeInTheDocument()
     expect(screen.getByText('购物车还是空的')).toBeInTheDocument()
     expect(screen.getByText('先去首页挑几件常购商品，结算区会在这里汇总。')).toBeInTheDocument()
   })

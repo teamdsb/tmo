@@ -188,41 +188,42 @@ export function CartListView({
 
   return (
     <View className='flex-1 flex flex-col bg-gray-50'>
-      <View className='px-6 pt-3 pb-3 bg-white'>
+      <View className='px-6 pt-4 pb-4 bg-white'>
         <View className='flex items-center justify-between gap-4'>
           <View className='min-w-0'>
-            <Text className='text-lg font-semibold text-slate-900'>购物车</Text>
+            <Text className='text-xl font-semibold text-slate-900'>购物车</Text>
           </View>
         </View>
       </View>
 
-      <View className='px-4 py-3 flex justify-between items-center bg-gray-50'>
-        <Text className='text-xs text-slate-500 font-medium'>
+      <View className='px-5 py-4 flex justify-between items-center bg-gray-50'>
+        <Text className='text-sm text-slate-500 font-medium'>
           {`共 ${cartItems.length} 件`}
         </Text>
         <View className='flex gap-2'>
           <View className='p-2 bg-white rounded-md shadow-sm border border-gray-200 text-slate-400'>
-            <FilterOutlined className='text-sm' />
+            <FilterOutlined className='text-base' />
           </View>
           <View className='p-2 bg-white rounded-md shadow-sm border border-gray-200 text-slate-400'>
-            <AppsOutlined className='text-sm' />
+            <AppsOutlined className='text-base' />
           </View>
         </View>
       </View>
 
-      <View className='flex-1 px-4 pb-40 bg-gray-50 pt-2'>
+      <View className='cart-list-body'>
         {!isCartEmpty ? (
-          <View className='grid grid-cols-1 gap-4'>
-            {cartItems.map((item) => {
+          <View className='cart-list-panel'>
+            {cartItems.map((item, index) => {
               const meta = formatCartItemMeta(item)
               const isBusy = busyItemId === item.id
               const title = getCartItemTitle(item, productNameBySpuId)
               const specLabel = item.sku.spec?.trim() || item.sku.name
               const priceLabel = formatCartItemPrice(item)
               const productImage = item.sku.spuId ? productImageBySpuId[item.sku.spuId] : undefined
+              const itemClassName = `cart-item-card${index === cartItems.length - 1 ? ' cart-item-card--last' : ''}`
 
               return (
-                <View key={item.id} className='cart-item-card'>
+                <View key={item.id} className={itemClassName}>
                   <View className='cart-item-top'>
                     <View className='cart-item-thumb'>
                       <Image
@@ -338,15 +339,15 @@ export function CartBottomBar({
   onConfirmImport,
   onContinueBrowse
 }: CartBottomBarProps) {
-  const actionBase = 'flex-1 h-11 rounded-xl text-sm font-semibold flex items-center justify-center'
+  const actionBase = 'flex-1 h-12 rounded-xl text-base font-semibold flex items-center justify-center'
   const actionDisabled = loading ? 'opacity-60' : ''
 
   return (
-    <FixedView position='bottom' safeArea='bottom' placeholder>
+    <FixedView position='bottom' placeholder>
       <View className='cart-bottom-bar'>
         {!importJob ? (
           <View className='cart-bottom-summary'>
-            <Text className='cart-bottom-summary-label'>{`共 ${cartTotalItems} 件`}</Text>
+            <Text className='cart-bottom-summary-label'>{`合计 · ${cartTotalItems} 件`}</Text>
             <Text className='cart-bottom-summary-value'>
               {cartTotalFen > 0 ? formatFen(cartTotalFen) : '待确认报价'}
             </Text>
