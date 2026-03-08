@@ -98,7 +98,7 @@
 .login-ghost {
   height: 44px;
   border-radius: 14px;
-  font-size: calc(15px + var(--font-size-step, 0px));
+  font-size: calc(30rpx + var(--font-size-step-rpx, 0rpx));
   font-weight: 600;
 }
 
@@ -196,7 +196,7 @@
 
 .login-agreement-text {
   flex: 1;
-  font-size: calc(11px + var(--font-size-step, 0px));
+  font-size: calc(22rpx + var(--font-size-step-rpx, 0rpx));
   line-height: 1.5;
   color: #64748b;
 }
@@ -210,7 +210,7 @@
 .login-footer {
   margin-top: auto;
   text-align: center;
-  font-size: calc(11px + var(--font-size-step, 0px));
+  font-size: calc(22rpx + var(--font-size-step-rpx, 0rpx));
   line-height: 1.4;
   color: #94a3b8;
 }

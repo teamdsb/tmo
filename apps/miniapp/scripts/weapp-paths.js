@@ -1,7 +1,7 @@
 const path = require('node:path')
 const fs = require('node:fs')
 
-const defaultSharedWeappOutputRoot = '/Users/lifuyue/Documents/tmo/apps/miniapp/dist/weapp'
+const legacySharedWeappOutputRoot = '/Users/lifuyue/Documents/tmo/apps/miniapp/dist/weapp'
 
 function readBool(rawValue, defaultValue) {
   if (typeof rawValue !== 'string' || rawValue.trim() === '') {
@@ -23,8 +23,23 @@ function resolveMiniappDir(customMiniappDir) {
     : path.resolve(__dirname, '..')
 }
 
-function resolveWeappSharedEnabled() {
-  return readBool(process.env.TMO_WEAPP_SHARED_OUTPUT_ENABLED, true)
+function resolveDefaultSharedWeappOutputRoot(miniappDir) {
+  const currentMiniappDir = resolveMiniappDir(miniappDir)
+  const legacyProjectDir = path.resolve(legacySharedWeappOutputRoot, '..', '..')
+  if (!fs.existsSync(legacyProjectDir)) {
+    return null
+  }
+  if (legacyProjectDir === currentMiniappDir) {
+    return null
+  }
+  return legacySharedWeappOutputRoot
+}
+
+function resolveWeappSharedEnabled(miniappDir) {
+  if (typeof process.env.TMO_WEAPP_SHARED_OUTPUT_ENABLED === 'string') {
+    return readBool(process.env.TMO_WEAPP_SHARED_OUTPUT_ENABLED, true)
+  }
+  return resolveDefaultSharedWeappOutputRoot(miniappDir) !== null
 }
 
 function resolveWeappSharedOutputRoot(miniappDir) {
@@ -33,7 +48,11 @@ function resolveWeappSharedOutputRoot(miniappDir) {
     ? process.env.TMO_WEAPP_SHARED_OUTPUT_ROOT.trim()
     : ''
   if (!configured) {
-    return defaultSharedWeappOutputRoot
+    const fallback = resolveDefaultSharedWeappOutputRoot(baseDir)
+    if (!fallback) {
+      return path.resolve(baseDir, 'dist', 'weapp')
+    }
+    return fallback
   }
   return path.resolve(baseDir, configured)
 }
@@ -53,7 +72,7 @@ function resolveOutputRootForTaroEnv(taroEnv, miniappDir) {
     }
   }
 
-  if (!resolveWeappSharedEnabled()) {
+  if (!resolveWeappSharedEnabled(currentMiniappDir)) {
     return {
       taroEnv: env,
       shared: false,
@@ -116,7 +135,8 @@ function assertWeappPathsReady(miniappDir) {
 }
 
 module.exports = {
-  defaultSharedWeappOutputRoot,
+  legacySharedWeappOutputRoot,
+  resolveDefaultSharedWeappOutputRoot,
   resolveMiniappDir,
   resolveWeappSharedEnabled,
   resolveWeappSharedOutputRoot,
