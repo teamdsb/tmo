@@ -43,6 +43,7 @@ services:
     environment:
       COMMERCE_HTTP_ADDR: ":8082"
       COMMERCE_DB_DSN: "postgres://commerce:commerce@postgres:5432/commerce?sslmode=disable"
+      COMMERCE_INTERNAL_SYNC_TOKEN: "${COMMERCE_INTERNAL_SYNC_TOKEN:-dev-payment-sync-token}"
       MEDIA_LOCAL_OUTPUT_DIR: "${MEDIA_LOCAL_OUTPUT_DIR:-/data/media}"
       MEDIA_PUBLIC_BASE_URL: "${MEDIA_PUBLIC_BASE_URL:-http://localhost:8080/assets/media}"
     ports:
@@ -63,7 +64,11 @@ services:
         GONOSUMDB: "${DEV_STACK_GONOSUMDB:-*}"
     environment:
       PAYMENT_HTTP_ADDR: ":8083"
+      PAYMENT_DB_DSN: "${PAYMENT_DB_DSN:-postgres://commerce:commerce@postgres:5432/payment?sslmode=disable}"
       PAYMENT_IDENTITY_BASE_URL: "http://identity:8081"
+      PAYMENT_COMMERCE_BASE_URL: "${PAYMENT_COMMERCE_BASE_URL:-http://commerce:8082}"
+      PAYMENT_COMMERCE_SYNC_TOKEN: "${PAYMENT_COMMERCE_SYNC_TOKEN:-dev-payment-sync-token}"
+      PAYMENT_PROVIDER_MODE: "${PAYMENT_PROVIDER_MODE:-mock}"
     ports:
       - "8083:8083"
     depends_on:

@@ -134,6 +134,9 @@ export default function PersonalCenter() {
   const displayName = bootstrap?.me?.displayName?.trim() || (isLoggedIn ? '企业用户' : '未登录')
   const roleLabel = bootstrap?.me?.roles?.find((role) => typeof role === 'string' && role.trim())?.trim() || '高级 B2B 客户经理'
   const ownerSalesDisplayName = bootstrap?.me?.ownerSalesDisplayName?.trim() || '暂未分配专属顾问'
+  const advisorFollowUpCopy = isLoggedIn
+    ? '下单后由专属顾问继续报价、确认货源与同步发货进度。'
+    : '登录后可绑定专属顾问，后续订单统一由固定联系人跟进。'
 
   const orderItems: OrderItem[] = [
     {
@@ -278,6 +281,7 @@ export default function PersonalCenter() {
       {currentPage === 'profile' ? (
         <MineProfileView
           avatarFallback={avatarFallback}
+          advisorFollowUpCopy={advisorFollowUpCopy}
           displayName={displayName}
           isLoggedIn={isLoggedIn}
           roleLabel={roleLabel}

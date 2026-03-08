@@ -41,7 +41,9 @@ describe('PersonalCenter', () => {
 
     expect(await screen.findByText('张三')).toBeInTheDocument()
     expect(screen.getByText('客户经理')).toBeInTheDocument()
-    expect(screen.getByText(/李经理/)).toBeInTheDocument()
+    expect(screen.getAllByText(/李经理/)).toHaveLength(2)
+    expect(screen.getByText('专属顾问')).toBeInTheDocument()
+    expect(screen.getByText('下单后由专属顾问继续报价、确认货源与同步发货进度。')).toBeInTheDocument()
   })
 
   it('hides manager card when not logged in', async () => {
@@ -84,6 +86,7 @@ describe('PersonalCenter', () => {
     expect(screen.getByText('订单跟踪')).toBeInTheDocument()
     expect(screen.getByText('我的需求')).toBeInTheDocument()
     expect(screen.getByText('收藏')).toBeInTheDocument()
+    expect(screen.getByText('物流跟踪')).toBeInTheDocument()
     expect(screen.getByText('系统设置')).toBeInTheDocument()
   })
 

@@ -105,7 +105,7 @@ export const createMineMenuItems = (setCurrentPage: (page: 'demand' | 'address' 
   { key: 'import', label: 'Excel 批量导入', icon: AppsOutlined, route: ROUTES.import },
   {
     key: 'tracking',
-    label: '批量物流',
+    label: '物流跟踪',
     icon: BarChartOutlined,
     action: () => setCurrentPage('orders')
   },

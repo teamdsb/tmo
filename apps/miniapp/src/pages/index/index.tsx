@@ -23,6 +23,16 @@ type QuickCategoryItem = {
   targetRoute?: string
 }
 
+type ShowcaseItem = {
+  key: string
+  eyebrow: string
+  title: string
+  copy: string
+  actionLabel: string
+  tone: 'catalog' | 'demand' | 'import'
+  onClick: () => void
+}
+
 const QUICK_CATEGORY_CAPACITY = 8
 
 const isCategoryIconKey = (value: string): value is CategoryIconKey => {
@@ -263,7 +273,35 @@ function HomeCategoryQuickGrid({ items, loading, onTap }: HomeCategoryQuickGridP
 }
 
 function HomeShowcase() {
-  const showcasePages = 3
+  const showcaseItems: ShowcaseItem[] = [
+    {
+      key: 'catalog',
+      eyebrow: 'V1 主链路',
+      title: '目录采购更快开始',
+      copy: '从分类找货到提交意向订单，先把客户最常走的采购路径做顺。',
+      actionLabel: '去找商品',
+      tone: 'catalog',
+      onClick: () => void switchTabLike(ROUTES.category)
+    },
+    {
+      key: 'demand',
+      eyebrow: '找不到也能继续',
+      title: '缺货或规格不清就提需求',
+      copy: '客户不用离开小程序，直接把名称、规格和数量交给寻源团队跟进。',
+      actionLabel: '发布需求',
+      tone: 'demand',
+      onClick: () => void navigateTo(ROUTES.demandCreate)
+    },
+    {
+      key: 'import',
+      eyebrow: '工业采购效率入口',
+      title: 'Excel 一次导入整单',
+      copy: '适合一口气采购几十个物料，能自动识别的直接加购，其他项再确认。',
+      actionLabel: '批量导入',
+      tone: 'import',
+      onClick: () => void navigateTo(ROUTES.import)
+    }
+  ]
   const [activePage, setActivePage] = useState(0)
 
   return (
@@ -277,17 +315,24 @@ function HomeShowcase() {
         duration={480}
         onChange={(event) => setActivePage(event.detail.current)}
       >
-        {Array.from({ length: showcasePages }).map((_, index) => (
-          <SwiperItem key={index}>
-            <View className='home-showcase-empty' data-testid='home-showcase-empty' />
+        {showcaseItems.map((item) => (
+          <SwiperItem key={item.key}>
+            <View className={`home-showcase-card home-showcase-card--${item.tone}`} data-testid='home-showcase-card'>
+              <Text className='home-showcase-eyebrow'>{item.eyebrow}</Text>
+              <Text className='home-showcase-title'>{item.title}</Text>
+              <Text className='home-showcase-copy'>{item.copy}</Text>
+              <View className='home-showcase-action' role='button' onClick={item.onClick}>
+                <Text>{item.actionLabel}</Text>
+              </View>
+            </View>
           </SwiperItem>
         ))}
       </Swiper>
 
       <View className='home-showcase-dots' data-testid='home-showcase-dots'>
-        {Array.from({ length: showcasePages }).map((_, index) => (
+        {showcaseItems.map((item, index) => (
           <View
-            key={index}
+            key={item.key}
             className={`home-showcase-dot ${index === activePage ? 'is-active' : ''}`}
           />
         ))}
