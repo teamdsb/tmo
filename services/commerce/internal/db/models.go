@@ -215,13 +215,14 @@ type Order struct {
 }
 
 type OrderItem struct {
-	ID           uuid.UUID          `db:"id" json:"id"`
-	OrderID      uuid.UUID          `db:"order_id" json:"order_id"`
-	SkuID        uuid.UUID          `db:"sku_id" json:"sku_id"`
-	Qty          int32              `db:"qty" json:"qty"`
-	UnitPriceFen int64              `db:"unit_price_fen" json:"unit_price_fen"`
-	CreatedAt    pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	ID               uuid.UUID          `db:"id" json:"id"`
+	OrderID          uuid.UUID          `db:"order_id" json:"order_id"`
+	SkuID            uuid.UUID          `db:"sku_id" json:"sku_id"`
+	Qty              int32              `db:"qty" json:"qty"`
+	UnitPriceFen     int64              `db:"unit_price_fen" json:"unit_price_fen"`
+	CreatedAt        pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	SourceCartItemID pgtype.UUID        `db:"source_cart_item_id" json:"source_cart_item_id"`
 }
 
 type OrderTrackingShipment struct {

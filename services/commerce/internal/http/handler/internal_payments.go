@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/subtle"
 	"net/http"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	shareddb "github.com/teamdsb/tmo/packages/go-shared/db"
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
 )
 
@@ -58,7 +60,7 @@ func (h *Handler) PostInternalOrdersOrderIdPaymentStatus(c *gin.Context) {
 		paidAt = pgtype.Timestamptz{Time: request.PaidAt.UTC(), Valid: true}
 	}
 
-	order, err := h.OrderStore.UpdateOrderPaymentSummary(c.Request.Context(), db.UpdateOrderPaymentSummaryParams{
+	order, err := h.syncOrderPaymentSummary(c.Request.Context(), orderID, db.UpdateOrderPaymentSummaryParams{
 		ID:              orderID,
 		Status:          orderStatus,
 		PaymentStatus:   strings.ToUpper(strings.TrimSpace(request.Status)),
@@ -108,6 +110,100 @@ func (h *Handler) PostInternalOrdersOrderIdPaymentStatus(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+func (h *Handler) syncOrderPaymentSummary(ctx context.Context, orderID uuid.UUID, update db.UpdateOrderPaymentSummaryParams) (db.Order, error) {
+	if h.DB == nil {
+		return h.OrderStore.UpdateOrderPaymentSummary(ctx, update)
+	}
+
+	var order db.Order
+	err := shareddb.WithTx(ctx, h.DB, func(tx pgx.Tx) error {
+		q := db.New(tx)
+
+		current, err := q.GetOrderForUpdate(ctx, orderID)
+		if err != nil {
+			return err
+		}
+
+		if strings.EqualFold(current.PaymentStatus, "PAID") || strings.EqualFold(current.Status, "PAID") {
+			order = current
+			return nil
+		}
+
+		order, err = q.UpdateOrderPaymentSummary(ctx, update)
+		if err != nil {
+			return err
+		}
+		if !strings.EqualFold(update.PaymentStatus, "PAID") {
+			return nil
+		}
+
+		orderItems, err := q.ListOrderItems(ctx, orderID)
+		if err != nil {
+			return err
+		}
+
+		sourceIDs := make([]uuid.UUID, 0, len(orderItems))
+		for _, item := range orderItems {
+			if item.SourceCartItemID.Valid {
+				sourceIDs = append(sourceIDs, item.SourceCartItemID.Bytes)
+			}
+		}
+		if len(sourceIDs) == 0 {
+			return nil
+		}
+
+		cartItems, err := q.ListCartItemsByIDsForUpdate(ctx, db.ListCartItemsByIDsForUpdateParams{
+			OwnerUserID: order.CustomerID,
+			Ids:         uniqueUUIDs(sourceIDs),
+		})
+		if err != nil {
+			return err
+		}
+
+		cartByID := make(map[uuid.UUID]db.CartItem, len(cartItems))
+		for _, item := range cartItems {
+			cartByID[item.ID] = item
+		}
+
+		for _, item := range orderItems {
+			if !item.SourceCartItemID.Valid {
+				continue
+			}
+			cartItem, ok := cartByID[item.SourceCartItemID.Bytes]
+			if !ok || cartItem.SkuID != item.SkuID {
+				continue
+			}
+
+			nextQty := cartItem.Qty - item.Qty
+			if nextQty > 0 {
+				updatedCartItem, err := q.UpdateCartItemQty(ctx, db.UpdateCartItemQtyParams{
+					ID:          cartItem.ID,
+					Qty:         nextQty,
+					OwnerUserID: order.CustomerID,
+				})
+				if err != nil {
+					return err
+				}
+				cartByID[updatedCartItem.ID] = updatedCartItem
+				continue
+			}
+			if err := q.DeleteCartItem(ctx, db.DeleteCartItemParams{
+				ID:          cartItem.ID,
+				OwnerUserID: order.CustomerID,
+			}); err != nil {
+				return err
+			}
+			delete(cartByID, cartItem.ID)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return db.Order{}, err
+	}
+	return order, nil
 }
 
 func (h *Handler) authorizeInternalSync(c *gin.Context) bool {

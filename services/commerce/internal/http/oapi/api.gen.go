@@ -270,8 +270,9 @@ type CreateInquiryMessage struct {
 type CreateOrderRequest struct {
 	Address Address `json:"address"`
 	Items   []struct {
-		Qty   int                `json:"qty"`
-		SkuId openapi_types.UUID `json:"skuId"`
+		CartItemId openapi_types.UUID `json:"cartItemId"`
+		Qty        int                `json:"qty"`
+		SkuId      openapi_types.UUID `json:"skuId"`
 	} `json:"items"`
 	Remark *string `json:"remark,omitempty"`
 }

@@ -1621,6 +1621,9 @@ components:
           items:
             type: object
             properties:
+              cartItemId:
+                type: string
+                format: uuid
               skuId:
                 type: string
                 format: uuid
@@ -1628,6 +1631,7 @@ components:
                 type: integer
                 minimum: 1
             required:
+            - cartItemId
             - skuId
             - qty
       required:

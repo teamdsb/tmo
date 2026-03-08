@@ -64,6 +64,7 @@ export default function OrderConfirmPage() {
         },
         remark: remark.trim() || undefined,
         items: cartItems.map((item) => ({
+          cartItemId: item.id,
           skuId: item.sku.id,
           qty: item.qty
         }))

@@ -79,6 +79,15 @@ describe('OrderConfirmPage', () => {
     })
 
     expect(commerceServices.orders.submit).toHaveBeenCalled()
+    expect(commerceServices.orders.submit).toHaveBeenCalledWith(expect.objectContaining({
+      items: [
+        expect.objectContaining({
+          cartItemId: 'cart-1',
+          skuId: 'sku-1',
+          qty: 2
+        })
+      ]
+    }))
     expect(paymentServices.sessions.payForOrder).toHaveBeenCalledWith('order-1001')
     expect(Taro.showToast).toHaveBeenCalledWith({ title: '支付成功', icon: 'success' })
     expect(navigateTo).toHaveBeenCalledWith('/pages/order/detail/index?id=order-1001')

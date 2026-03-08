@@ -224,7 +224,7 @@ jest.mock('@tmo/commerce-services', () => {
       {
         id: 'cart-1',
         qty: 2,
-        sku: { name: '示例螺栓' }
+        sku: { id: 'sku-1', name: '示例螺栓' }
       }
     ]
   };
