@@ -34,7 +34,7 @@ function scaleTypography(css) {
 
 function normalizeTailwindColorSyntax(css) {
   const normalizedOpacityVar = css
-    .replace(/^\s*--tw-(bg|text|border)-opacity:\s*[^;]+;\s*$/gm, '')
+    .replace(/--tw-(bg|text|border)-opacity:\s*[^;]+;/g, '')
     .replace(
       /rgb\(([^()]+?)\s*\/\s*var\(--tw-(?:bg|text|border)-opacity(?:,\s*[^)]+)?\)\)/g,
       'rgb($1)'
