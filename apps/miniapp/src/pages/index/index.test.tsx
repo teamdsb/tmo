@@ -117,6 +117,17 @@ describe('ProductCatalogApp', () => {
     expect(stylesheet).toContain('word-break: break-word;');
   });
 
+  it('uses a safe showcase height and clamps slide copy for miniapp', () => {
+    const stylesheet = fs.readFileSync(path.resolve(__dirname, './index.scss'), 'utf8');
+
+    expect(stylesheet).toContain('.home-showcase-swiper');
+    expect(stylesheet).toContain('height: 224px;');
+    expect(stylesheet).toContain('.home-showcase-title');
+    expect(stylesheet).toContain('.home-showcase-copy');
+    expect(stylesheet).toContain('box-sizing: border-box;');
+    expect(stylesheet).toContain('-webkit-line-clamp: 2;');
+  });
+
   it('updates search input value', async () => {
     await renderCatalog();
 

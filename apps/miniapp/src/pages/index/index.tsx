@@ -318,11 +318,15 @@ function HomeShowcase() {
         {showcaseItems.map((item) => (
           <SwiperItem key={item.key}>
             <View className={`home-showcase-card home-showcase-card--${item.tone}`} data-testid='home-showcase-card'>
-              <Text className='home-showcase-eyebrow'>{item.eyebrow}</Text>
-              <Text className='home-showcase-title'>{item.title}</Text>
-              <Text className='home-showcase-copy'>{item.copy}</Text>
-              <View className='home-showcase-action' role='button' onClick={item.onClick}>
-                <Text>{item.actionLabel}</Text>
+              <View className='home-showcase-body'>
+                <Text className='home-showcase-eyebrow'>{item.eyebrow}</Text>
+                <Text className='home-showcase-title'>{item.title}</Text>
+                <Text className='home-showcase-copy'>{item.copy}</Text>
+              </View>
+              <View className='home-showcase-footer'>
+                <View className='home-showcase-action' role='button' onClick={item.onClick}>
+                  <Text>{item.actionLabel}</Text>
+                </View>
               </View>
             </View>
           </SwiperItem>

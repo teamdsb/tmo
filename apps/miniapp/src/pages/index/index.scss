@@ -7,17 +7,22 @@
 }
 
 .home-showcase-swiper {
-  height: 178px;
+  height: 224px;
 }
 
 .home-showcase-card {
   height: 100%;
   border-radius: 18px;
-  padding: 18px 18px 16px;
+  box-sizing: border-box;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   color: #0f172a;
+}
+
+.home-showcase-body {
+  min-height: 0;
 }
 
 .home-showcase-card--catalog {
@@ -53,23 +58,38 @@
 
 .home-showcase-title {
   display: block;
-  margin-top: 14px;
-  font-size: calc(23px + var(--font-size-step, 0px));
+  margin-top: 12px;
+  font-size: calc(21px + var(--font-size-step, 0px));
   line-height: 1.2;
   font-weight: 700;
   color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .home-showcase-copy {
   display: block;
-  margin-top: 8px;
+  margin-top: 6px;
   font-size: calc(13px + var(--font-size-step, 0px));
-  line-height: 1.5;
+  line-height: 1.45;
   color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.home-showcase-footer {
+  padding-top: 14px;
 }
 
 .home-showcase-action {
-  margin-top: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
