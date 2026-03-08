@@ -29,7 +29,7 @@ const longTitleProducts = [
 
 const renderCatalog = async () => {
   render(<ProductCatalogApp />);
-  await screen.findByText('办公用品');
+  await screen.findByText('紧固件');
 };
 
 const runSearchDebounce = async () => {
@@ -67,8 +67,9 @@ describe('ProductCatalogApp', () => {
     expect(screen.getByText('缺货或规格不清就提需求')).toBeInTheDocument();
     expect(screen.getByText('Excel 一次导入整单')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('按 SKU 或名称搜索...')).toBeInTheDocument();
-    expect(await screen.findByText('办公用品')).toBeInTheDocument();
-    expect(screen.getAllByTestId('home-category-item')).toHaveLength(2);
+    expect(await screen.findByText('紧固件')).toBeInTheDocument();
+    expect(screen.getAllByTestId('home-category-item')).toHaveLength(8);
+    expect(screen.getAllByText('敬请期待')).toHaveLength(6);
     expect(screen.queryByText('更多')).not.toBeInTheDocument();
 
     await act(async () => {
@@ -140,11 +141,39 @@ describe('ProductCatalogApp', () => {
   it('switches to category tab when clicking quick category', async () => {
     await renderCatalog();
 
-    fireEvent.click(await screen.findByText('办公用品'));
+    fireEvent.click(await screen.findByText('紧固件'));
 
     await waitFor(() => {
       expect(Taro.switchTab).toHaveBeenCalledWith({ url: '/pages/category/index' });
     });
+  });
+
+  it('does not navigate when clicking placeholder quick category', async () => {
+    await renderCatalog();
+
+    fireEvent.click(screen.getAllByText('敬请期待')[0]!);
+
+    expect(Taro.switchTab).not.toHaveBeenCalled();
+  });
+
+  it('renders eight real quick categories without placeholders when backend returns enough items', async () => {
+    (commerceServices.catalog.listDisplayCategories as jest.Mock).mockResolvedValue({
+      items: [
+        { id: 'fasteners', name: '紧固件', iconKey: 'setting', sort: 1, enabled: true },
+        { id: 'electrical', name: '电气', iconKey: 'desktop', sort: 2, enabled: true },
+        { id: 'safety', name: '安全防护', iconKey: 'shield', sort: 3, enabled: true },
+        { id: 'tools', name: '工具', iconKey: 'setting', sort: 4, enabled: true },
+        { id: 'instrumentation', name: '仪器仪表', iconKey: 'apps', sort: 5, enabled: true },
+        { id: 'janitorial', name: '劳保清洁', iconKey: 'brush', sort: 6, enabled: true },
+        { id: 'office', name: '办公文具', iconKey: 'notes', sort: 7, enabled: true },
+        { id: 'packaging', name: '包装耗材', iconKey: 'apps', sort: 8, enabled: true }
+      ]
+    });
+
+    await renderCatalog();
+
+    expect(screen.getAllByTestId('home-category-item')).toHaveLength(8);
+    expect(screen.queryByText('敬请期待')).not.toBeInTheDocument();
   });
 
   it('shows demand hint when home search has no result and navigates to demand create', async () => {

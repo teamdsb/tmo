@@ -52,6 +52,7 @@ func run() error {
 	seed := buildCatalogSeed()
 
 	categoryCount := 0
+	displayCategoryCount := 0
 	productCount := 0
 	skuCount := 0
 	priceTierCount := 0
@@ -63,6 +64,13 @@ func run() error {
 			return err
 		}
 		categoryCount++
+	}
+
+	for _, category := range seed.DisplayCategories {
+		if err := ensureDisplayCategory(ctx, tx, category); err != nil {
+			return err
+		}
+		displayCategoryCount++
 	}
 
 	for _, product := range seed.Products {
@@ -106,8 +114,9 @@ func run() error {
 	}
 
 	fmt.Printf(
-		"seed data applied: %d categories, %d products, %d skus, %d price tiers, %d inquiries, %d inquiry messages\n",
+		"seed data applied: %d categories, %d display categories, %d products, %d skus, %d price tiers, %d inquiries, %d inquiry messages\n",
 		categoryCount,
+		displayCategoryCount,
 		productCount,
 		skuCount,
 		priceTierCount,
@@ -118,9 +127,10 @@ func run() error {
 }
 
 type catalogSeed struct {
-	Categories []categorySeed
-	Products   []productSeed
-	Inquiries  []priceInquirySeed
+	Categories        []categorySeed
+	DisplayCategories []displayCategorySeed
+	Products          []productSeed
+	Inquiries         []priceInquirySeed
 }
 
 type categorySeed struct {
@@ -128,6 +138,14 @@ type categorySeed struct {
 	Name     string
 	ParentID *uuid.UUID
 	Sort     int32
+}
+
+type displayCategorySeed struct {
+	ID      string
+	Name    string
+	IconKey string
+	Sort    int32
+	Enabled bool
 }
 
 type productSeed struct {
@@ -190,6 +208,22 @@ SET name = EXCLUDED.name,
     updated_at = now()
 `, seed.ID, seed.Name, seed.ParentID, seed.Sort); err != nil {
 		return fmt.Errorf("seed category %s: %w", seed.Name, err)
+	}
+	return nil
+}
+
+func ensureDisplayCategory(ctx context.Context, tx pgx.Tx, seed displayCategorySeed) error {
+	if _, err := tx.Exec(ctx, `
+INSERT INTO miniapp_display_categories (id, name, icon_key, sort, enabled)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (id) DO UPDATE
+SET name = EXCLUDED.name,
+    icon_key = EXCLUDED.icon_key,
+    sort = EXCLUDED.sort,
+    enabled = EXCLUDED.enabled,
+    updated_at = now()
+`, seed.ID, seed.Name, seed.IconKey, seed.Sort, seed.Enabled); err != nil {
+		return fmt.Errorf("seed display category %s: %w", seed.Name, err)
 	}
 	return nil
 }
@@ -366,9 +400,14 @@ SET inquiry_id = EXCLUDED.inquiry_id,
 }
 
 func buildCatalogSeed() catalogSeed {
-	metalsID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+	fastenersID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
 	electricalID := uuid.MustParse("55555555-5555-5555-5555-555555555555")
 	safetyID := uuid.MustParse("66666666-6666-6666-6666-666666666666")
+	toolsID := uuid.MustParse("12121212-1212-1212-1212-121212121212")
+	instrumentationID := uuid.MustParse("13131313-1313-1313-1313-131313131313")
+	janitorialID := uuid.MustParse("14141414-1414-1414-1414-141414141414")
+	officeID := uuid.MustParse("15151515-1515-1515-1515-151515151515")
+	packagingID := uuid.MustParse("16161616-1616-1616-1616-161616161616")
 	salesID := uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
 	customerID := uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
 	inquiryID := uuid.MustParse("77777777-7777-7777-7777-777777777777")
@@ -381,7 +420,7 @@ func buildCatalogSeed() catalogSeed {
 			ID:               uuid.MustParse("22222222-2222-2222-2222-222222222222"),
 			Name:             "Q235 焊接钢管",
 			Description:      "结构支撑常用焊接钢管，适配土建与机电安装场景。",
-			CategoryID:       metalsID,
+			CategoryID:       fastenersID,
 			CoverImageURL:    "https://images.unsplash.com/photo-1545239351-1141bd82e8a6",
 			Images:           []string{"https://images.unsplash.com/photo-1545239351-1141bd82e8a6"},
 			Tags:             []string{"钢材", "结构件"},
@@ -395,7 +434,7 @@ func buildCatalogSeed() catalogSeed {
 			ID:               uuid.MustParse("22222222-2222-2222-2222-222222222223"),
 			Name:             "304 不锈钢角钢",
 			Description:      "室内外通用耐腐角钢，适合设备框架和支架制作。",
-			CategoryID:       metalsID,
+			CategoryID:       fastenersID,
 			CoverImageURL:    "https://images.unsplash.com/photo-1517048676732-d65bc937f952",
 			Images:           []string{"https://images.unsplash.com/photo-1517048676732-d65bc937f952"},
 			Tags:             []string{"不锈钢", "角钢"},
@@ -409,7 +448,7 @@ func buildCatalogSeed() catalogSeed {
 			ID:               uuid.MustParse("22222222-2222-2222-2222-222222222224"),
 			Name:             "镀锌槽钢 C100",
 			Description:      "高强度镀锌槽钢，适合综合管廊和电缆桥架主梁。",
-			CategoryID:       metalsID,
+			CategoryID:       fastenersID,
 			CoverImageURL:    "https://images.unsplash.com/photo-1545239351-1141bd82e8a6",
 			Images:           []string{"https://images.unsplash.com/photo-1545239351-1141bd82e8a6"},
 			Tags:             []string{"镀锌", "槽钢"},
@@ -549,9 +588,24 @@ func buildCatalogSeed() catalogSeed {
 
 	return catalogSeed{
 		Categories: []categorySeed{
-			{ID: metalsID, Name: "金属材料", ParentID: nil, Sort: 1},
-			{ID: electricalID, Name: "电气电工", ParentID: nil, Sort: 2},
+			{ID: fastenersID, Name: "紧固件", ParentID: nil, Sort: 1},
+			{ID: electricalID, Name: "电气", ParentID: nil, Sort: 2},
 			{ID: safetyID, Name: "安全防护", ParentID: nil, Sort: 3},
+			{ID: toolsID, Name: "工具", ParentID: nil, Sort: 4},
+			{ID: instrumentationID, Name: "仪器仪表", ParentID: nil, Sort: 5},
+			{ID: janitorialID, Name: "劳保清洁", ParentID: nil, Sort: 6},
+			{ID: officeID, Name: "办公文具", ParentID: nil, Sort: 7},
+			{ID: packagingID, Name: "包装耗材", ParentID: nil, Sort: 8},
+		},
+		DisplayCategories: []displayCategorySeed{
+			{ID: "cat-fasteners", Name: "紧固件", IconKey: "setting", Sort: 1, Enabled: true},
+			{ID: "cat-electrical", Name: "电气", IconKey: "desktop", Sort: 2, Enabled: true},
+			{ID: "cat-ppe", Name: "安全防护", IconKey: "shield", Sort: 3, Enabled: true},
+			{ID: "cat-tools", Name: "工具", IconKey: "setting", Sort: 4, Enabled: true},
+			{ID: "cat-instrumentation", Name: "仪器仪表", IconKey: "apps", Sort: 5, Enabled: true},
+			{ID: "cat-janitorial", Name: "劳保清洁", IconKey: "brush", Sort: 6, Enabled: true},
+			{ID: "cat-office", Name: "办公文具", IconKey: "notes", Sort: 7, Enabled: true},
+			{ID: "cat-packaging", Name: "包装耗材", IconKey: "apps", Sort: 8, Enabled: true},
 		},
 		Products: products,
 		Inquiries: []priceInquirySeed{

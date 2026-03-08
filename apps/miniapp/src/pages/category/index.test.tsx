@@ -24,8 +24,8 @@ describe('CategoryPage', () => {
     expect(navbar).not.toBeNull();
     expect(screen.getByPlaceholderText('搜索 SKU 或商品...')).toBeInTheDocument();
 
-    expect((await screen.findAllByText('办公用品')).length).toBeGreaterThan(0);
-    expect((await screen.findAllByText('工业')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('紧固件')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('电气')).length).toBeGreaterThan(0);
     expect(await screen.findByText('A4 办公用纸')).toBeInTheDocument();
   });
 
@@ -56,10 +56,10 @@ describe('CategoryPage', () => {
   it('switches active category from sidebar', async () => {
     render(<CategoryPage />);
 
-    const industrialEntry = await screen.findByText('工业');
-    fireEvent.click(industrialEntry);
+    const electricalEntry = await screen.findByText('电气');
+    fireEvent.click(electricalEntry);
 
-    const sidebarItem = industrialEntry.closest('.category-sidebar-item');
+    const sidebarItem = electricalEntry.closest('.category-sidebar-item');
     expect(sidebarItem).not.toBeNull();
     if (!sidebarItem) {
       throw new Error('Expected category sidebar item');

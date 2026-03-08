@@ -74,11 +74,14 @@ export const DISPLAY_CATEGORY_ICON_ITEMS: ReadonlyArray<{ label: string; symbol:
 ];
 
 export const CATEGORY_BADGE_CLASS: Record<string, string> = {
-  服饰: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-  电子产品: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-  配件: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
-  家居装饰: 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
-  鞋履: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+  紧固件: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  电气: 'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+  安全防护: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  工具: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+  仪器仪表: 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
+  劳保清洁: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
+  办公文具: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  包装耗材: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
   无: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
   未分类: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
 };

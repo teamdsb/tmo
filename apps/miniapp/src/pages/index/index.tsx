@@ -34,6 +34,7 @@ type ShowcaseItem = {
 }
 
 const QUICK_CATEGORY_CAPACITY = 8
+const QUICK_CATEGORY_PLACEHOLDER_NAME = '敬请期待'
 
 const isCategoryIconKey = (value: string): value is CategoryIconKey => {
   return ['notes', 'setting', 'desktop', 'shield', 'brush', 'hot', 'apps'].includes(value)
@@ -66,7 +67,7 @@ const toDisplayCategoriesFromCatalog = (categories: Category[]): DisplayCategory
 }
 
 const buildQuickCategories = (categories: DisplayCategory[]): QuickCategoryItem[] => {
-  return sortDisplayCategories(categories)
+  const enabledItems = sortDisplayCategories(categories)
     .filter((item) => item.enabled !== false && Boolean(item.id) && Boolean(item.name))
     .map((item, index) => ({
       id: String(item.id),
@@ -75,6 +76,16 @@ const buildQuickCategories = (categories: DisplayCategory[]): QuickCategoryItem[
       isPlaceholder: false,
       targetRoute: ROUTES.category
     }))
+    .slice(0, QUICK_CATEGORY_CAPACITY)
+
+  const placeholders = Array.from({ length: Math.max(0, QUICK_CATEGORY_CAPACITY - enabledItems.length) }, (_, index) => ({
+    id: `quick-category-placeholder-${index + 1}`,
+    name: QUICK_CATEGORY_PLACEHOLDER_NAME,
+    iconKey: 'apps' as CategoryIconKey,
+    isPlaceholder: true
+  }))
+
+  return [...enabledItems, ...placeholders]
 }
 
 export default function ProductCatalogApp() {
@@ -232,16 +243,6 @@ function HomeCategoryQuickGrid({ items, loading, onTap }: HomeCategoryQuickGridP
               <View className='home-category-label home-category-label--skeleton' />
             </View>
           ))}
-        </View>
-      </View>
-    )
-  }
-
-  if (items.length === 0) {
-    return (
-      <View className='home-category-panel' data-testid='home-category-panel'>
-        <View className='home-category-empty'>
-          <Text className='home-category-empty-text'>暂无分类</Text>
         </View>
       </View>
     )
