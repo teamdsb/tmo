@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import Taro from '@tarojs/taro'
 import ExcelImportConfirmation from './index'
 import { commerceServices } from '../../services/commerce'
@@ -13,6 +13,7 @@ const renderCart = async () => {
 }
 
 afterEach(() => {
+  cleanup()
   jest.restoreAllMocks()
 })
 
@@ -260,6 +261,103 @@ describe('ExcelImportConfirmation', () => {
       expect(showToastMock).toHaveBeenCalledWith({ title: '商品详情暂不可用', icon: 'none' })
     })
     expect(navigateToMock).not.toHaveBeenCalled()
+  })
+
+  it('switches unit price and cart total when qty enters a new price tier', async () => {
+    jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 2,
+          sku: {
+            id: 'sku-tiered',
+            spuId: 'spu-tiered',
+            name: '默认规格',
+            spec: '默认规格',
+            priceTiers: [
+              { minQty: 1, maxQty: 2, unitPriceFen: 20000 },
+              { minQty: 3, maxQty: 5, unitPriceFen: 18000 },
+              { minQty: 6, maxQty: null, unitPriceFen: 16000 }
+            ]
+          }
+        }
+      ]
+    } as any)
+    jest.spyOn(commerceServices.cart, 'updateItemQty').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 3,
+          sku: {
+            id: 'sku-tiered',
+            spuId: 'spu-tiered',
+            name: '默认规格',
+            spec: '默认规格',
+            priceTiers: [
+              { minQty: 1, maxQty: 2, unitPriceFen: 20000 },
+              { minQty: 3, maxQty: 5, unitPriceFen: 18000 },
+              { minQty: 6, maxQty: null, unitPriceFen: 16000 }
+            ]
+          }
+        }
+      ]
+    } as any)
+
+    await renderCart()
+    expect(screen.getByText('¥200.00')).toBeInTheDocument()
+    expect(screen.getByText('¥400.00')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('+'))
+
+    expect(await screen.findByText('¥180.00')).toBeInTheDocument()
+    expect(screen.getByText('¥540.00')).toBeInTheDocument()
+  })
+
+  it('shows pending quote when qty does not match any price tier', async () => {
+    jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 1,
+          sku: {
+            id: 'sku-tier-gap',
+            spuId: 'spu-tier-gap',
+            name: '默认规格',
+            spec: '默认规格',
+            priceTiers: [
+              { minQty: 1, maxQty: 1, unitPriceFen: 20000 },
+              { minQty: 3, maxQty: null, unitPriceFen: 16000 }
+            ]
+          }
+        }
+      ]
+    } as any)
+    jest.spyOn(commerceServices.cart, 'updateItemQty').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 2,
+          sku: {
+            id: 'sku-tier-gap',
+            spuId: 'spu-tier-gap',
+            name: '默认规格',
+            spec: '默认规格',
+            priceTiers: [
+              { minQty: 1, maxQty: 1, unitPriceFen: 20000 },
+              { minQty: 3, maxQty: null, unitPriceFen: 16000 }
+            ]
+          }
+        }
+      ]
+    } as any)
+
+    await renderCart()
+    expect(screen.getAllByText('¥200.00')).toHaveLength(2)
+
+    fireEvent.click(screen.getByText('+'))
+
+    expect(await screen.findByText('询价')).toBeInTheDocument()
+    expect(screen.getByText('待确认报价')).toBeInTheDocument()
   })
 
   it('updates cart item qty when click plus', async () => {

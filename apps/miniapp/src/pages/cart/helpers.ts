@@ -1,4 +1,5 @@
 import type { CartImportPendingItem, Sku } from '@tmo/api-client'
+import { matchPriceTier } from '../../utils/price-tier'
 import type { CartItem, MatchTypeBadge, ProductNameMap } from './types'
 
 export const MATCH_TYPE_BADGES: Record<string, MatchTypeBadge> = {
@@ -27,12 +28,17 @@ export const formatCartItemMeta = (item: CartItem) => {
 
 export const formatFen = (fen: number): string => `¥${(fen / 100).toFixed(2)}`
 
+export const getCartItemUnitPriceFen = (item: CartItem): number | null => {
+  const tier = matchPriceTier(item.sku.priceTiers, item.qty)
+  return typeof tier?.unitPriceFen === 'number' ? tier.unitPriceFen : null
+}
+
 export const formatCartItemPrice = (item: CartItem): string => {
-  const tier = item.sku.priceTiers?.[0]
-  if (!tier) {
+  const unitPriceFen = getCartItemUnitPriceFen(item)
+  if (unitPriceFen === null) {
     return '询价'
   }
-  return formatFen(tier.unitPriceFen)
+  return formatFen(unitPriceFen)
 }
 
 export const normalizeSpuId = (value: unknown): string => {

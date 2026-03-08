@@ -345,6 +345,7 @@ export function CartListView({
 }
 
 type CartBottomBarProps = {
+  cartHasPendingPrice: boolean
   cartTotalFen: number
   cartTotalItems: number
   importJob: CartImportJob | null
@@ -355,6 +356,7 @@ type CartBottomBarProps = {
 }
 
 export function CartBottomBar({
+  cartHasPendingPrice,
   cartTotalFen,
   cartTotalItems,
   importJob,
@@ -373,7 +375,7 @@ export function CartBottomBar({
           <View className='cart-bottom-summary'>
             <Text className='cart-bottom-summary-label'>{`合计 · ${cartTotalItems} 件`}</Text>
             <Text className='cart-bottom-summary-value'>
-              {cartTotalFen > 0 ? formatFen(cartTotalFen) : '待确认报价'}
+              {!cartHasPendingPrice && cartTotalFen > 0 ? formatFen(cartTotalFen) : '待确认报价'}
             </Text>
           </View>
         ) : null}

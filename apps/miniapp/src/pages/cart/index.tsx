@@ -9,7 +9,7 @@ import { ensureLoggedIn } from '../../utils/auth'
 import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { getNavbarStyle } from '../../utils/navbar'
 import { CartBottomBar, CartListView, ImportResultView } from './components'
-import { getSkuLabel, normalizeSpuId, QUICK_CART_QTY_OPTIONS } from './helpers'
+import { getCartItemUnitPriceFen, getSkuLabel, normalizeSpuId, QUICK_CART_QTY_OPTIONS } from './helpers'
 import { useCartProductDetails } from './hooks'
 import type { CartItem, ImportTab, SelectionMap } from './types'
 
@@ -276,10 +276,19 @@ export default function ExcelImportConfirmation() {
   }
 
   const cartTotalItems = cartItems.reduce((sum, item) => sum + item.qty, 0)
-  const cartTotalFen = cartItems.reduce((sum, item) => {
-    const unitPriceFen = item.sku.priceTiers?.[0]?.unitPriceFen
-    return sum + (typeof unitPriceFen === 'number' ? unitPriceFen * item.qty : 0)
-  }, 0)
+  const pricingSummary = cartItems.reduce((summary, item) => {
+    const unitPriceFen = getCartItemUnitPriceFen(item)
+    if (unitPriceFen === null) {
+      return {
+        totalFen: summary.totalFen,
+        hasPendingPrice: true
+      }
+    }
+    return {
+      totalFen: summary.totalFen + (unitPriceFen * item.qty),
+      hasPendingPrice: summary.hasPendingPrice
+    }
+  }, { totalFen: 0, hasPendingPrice: false })
 
   return (
     <View className='page page-compact-navbar flex flex-col' style={isH5 ? navbarStyle : undefined}>
@@ -318,7 +327,8 @@ export default function ExcelImportConfirmation() {
       )}
 
       <CartBottomBar
-        cartTotalFen={cartTotalFen}
+        cartHasPendingPrice={pricingSummary.hasPendingPrice}
+        cartTotalFen={pricingSummary.totalFen}
         cartTotalItems={cartTotalItems}
         importJob={importJob}
         loading={loading}

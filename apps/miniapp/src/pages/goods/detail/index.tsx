@@ -16,6 +16,7 @@ import type { PriceTier, ProductDetail, Sku } from '@tmo/api-client'
 import { ROUTES, goodsDetailRoute } from '../../../routes'
 import SafeImage from '../../../components/safe-image'
 import { getNavbarStyle } from '../../../utils/navbar'
+import { matchPriceTier } from '../../../utils/price-tier'
 import { ensureLoggedIn, isUnauthorized } from '../../../utils/auth'
 import { switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
@@ -331,25 +332,11 @@ const formatFen = (fen: number) => {
 }
 
 const formatSkuPrice = (sku: Sku) => {
-  const tier = sku.priceTiers?.[0]
+  const tier = matchPriceTier(sku.priceTiers, MIN_PURCHASE_QTY)
   if (!tier) {
     return '询价'
   }
   return formatFen(tier.unitPriceFen)
-}
-
-const isMatchedTier = (tier: PriceTier, qty: number) => {
-  if (!Number.isFinite(qty)) {
-    return false
-  }
-  const safeQty = Math.floor(qty)
-  if (safeQty < tier.minQty) {
-    return false
-  }
-  if (tier.maxQty === null || tier.maxQty === undefined) {
-    return true
-  }
-  return safeQty <= tier.maxQty
 }
 
 const renderPriceTiers = (tiers: PriceTier[] | undefined, qty: number) => {
@@ -364,7 +351,8 @@ const renderPriceTiers = (tiers: PriceTier[] | undefined, qty: number) => {
     )
   }
   const visibleTiers = tiers.slice(0, 3)
-  const matchedTierIndex = visibleTiers.findIndex((tier) => isMatchedTier(tier, qty))
+  const matchedTier = matchPriceTier(visibleTiers, qty)
+  const matchedTierIndex = matchedTier ? visibleTiers.findIndex((tier) => tier === matchedTier) : -1
 
   return visibleTiers.map((tier, index) => (
     <Grid.Item key={`${tier.minQty}-${tier.maxQty ?? 'max'}`}>
