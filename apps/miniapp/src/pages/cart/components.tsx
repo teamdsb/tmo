@@ -6,9 +6,11 @@ import placeholderProductImage from '../../assets/images/placeholder-product.svg
 import { formatCartItemMeta, formatCartItemPrice, formatFen, formatPendingMeta, getCartItemTitle, MATCH_TYPE_BADGES } from './helpers'
 import type { CartItem, ImportTab, ProductImageMap, ProductNameMap, SelectionMap } from './types'
 
+type AutoAddedItem = NonNullable<CartImportJob['result']>['autoAddedItems'][number]
+
 type ImportResultViewProps = {
   activeTab: ImportTab
-  autoAddedItems: CartImportJob['result']['autoAddedItems']
+  autoAddedItems: AutoAddedItem[]
   handleBack: () => void
   handleSelectSpec: (item: CartImportPendingItem) => Promise<void>
   identifiedCount: number

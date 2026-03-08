@@ -61,8 +61,11 @@ describe('ProductCatalogApp', () => {
     const pageRoot = document.querySelector('.page.page-home');
     expect(pageRoot).not.toBeNull();
 
-    expect(screen.getAllByTestId('home-showcase-empty')).toHaveLength(3);
+    expect(screen.getAllByTestId('home-showcase-card')).toHaveLength(3);
     expect(screen.getByTestId('home-showcase-dots')).toBeInTheDocument();
+    expect(screen.getByText('目录采购更快开始')).toBeInTheDocument();
+    expect(screen.getByText('缺货或规格不清就提需求')).toBeInTheDocument();
+    expect(screen.getByText('Excel 一次导入整单')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('按 SKU 或名称搜索...')).toBeInTheDocument();
     expect(await screen.findByText('办公用品')).toBeInTheDocument();
     expect(screen.getAllByTestId('home-category-item')).toHaveLength(2);
@@ -73,6 +76,16 @@ describe('ProductCatalogApp', () => {
     });
 
     expect(await screen.findAllByText('价格详见详情')).toHaveLength(4);
+  });
+
+  it('opens v1 rescue actions from showcase cards', async () => {
+    await renderCatalog();
+
+    fireEvent.click(screen.getByText('发布需求'));
+    expect(Taro.navigateTo).toHaveBeenCalledWith({ url: '/pages/demand/create/index' });
+
+    fireEvent.click(screen.getByText('批量导入'));
+    expect(Taro.navigateTo).toHaveBeenCalledWith({ url: '/pages/import/index' });
   });
 
 
@@ -102,6 +115,17 @@ describe('ProductCatalogApp', () => {
     expect(stylesheet).toContain('-webkit-line-clamp: 2;');
     expect(stylesheet).toContain('overflow-wrap: anywhere;');
     expect(stylesheet).toContain('word-break: break-word;');
+  });
+
+  it('uses a safe showcase height and clamps slide copy for miniapp', () => {
+    const stylesheet = fs.readFileSync(path.resolve(__dirname, './index.scss'), 'utf8');
+
+    expect(stylesheet).toContain('.home-showcase-swiper');
+    expect(stylesheet).toContain('height: 224px;');
+    expect(stylesheet).toContain('.home-showcase-title');
+    expect(stylesheet).toContain('.home-showcase-copy');
+    expect(stylesheet).toContain('box-sizing: border-box;');
+    expect(stylesheet).toContain('-webkit-line-clamp: 2;');
   });
 
   it('updates search input value', async () => {

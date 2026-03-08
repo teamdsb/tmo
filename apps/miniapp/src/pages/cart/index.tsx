@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View } from '@tarojs/components'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
-import type { Cart, CartImportJob, CartImportPendingItem } from '@tmo/api-client'
+import type { Cart, CartImportJob, CartImportPendingItem, Sku } from '@tmo/api-client'
 import { commerceServices } from '../../services/commerce'
 import { ROUTES } from '../../routes'
 import { ensureLoggedIn } from '../../utils/auth'
@@ -181,7 +181,7 @@ export default function ExcelImportConfirmation() {
       return
     }
 
-    let options = []
+    let options: Sku[] = []
     try {
       options = await loadSkuOptions(spuId)
     } catch (error) {

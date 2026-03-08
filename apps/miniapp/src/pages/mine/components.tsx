@@ -245,6 +245,7 @@ export function OrderManagementView({ orders, initialTab, onBack }: OrderManagem
 
 type MineProfileViewProps = {
   avatarFallback: string
+  advisorFollowUpCopy: string
   displayName: string
   isLoggedIn: boolean
   roleLabel: string
@@ -260,6 +261,7 @@ type MineProfileViewProps = {
 
 export function MineProfileView({
   avatarFallback,
+  advisorFollowUpCopy,
   displayName,
   isLoggedIn,
   roleLabel,
@@ -313,6 +315,31 @@ export function MineProfileView({
             ) : null}
           </View>
         </View>
+
+        {isLoggedIn ? (
+          <View
+            onClick={onOpenChat}
+            className='mine-lite-panel mb-5 rounded-3xl px-5 py-4'
+          >
+            <View className='flex items-start justify-between gap-4'>
+              <View className='min-w-0 flex-1'>
+                <Text className='block text-xs font-semibold uppercase tracking-widest mine-lite-profile-copy'>
+                  专属顾问
+                </Text>
+                <Text className='mt-2 block text-base font-bold mine-lite-text'>
+                  {ownerSalesDisplayName}
+                </Text>
+                <Text className='mt-1 block text-sm mine-lite-profile-copy'>
+                  {advisorFollowUpCopy}
+                </Text>
+              </View>
+              <View className='flex items-center gap-2'>
+                <View className='mine-modern-online-dot h-1.5 w-1.5 rounded-full'></View>
+                <Text className='text-xs font-semibold mine-lite-section-link'>立即沟通</Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
 
         <View className='mine-lite-section-head mb-3 mt-6 flex items-center justify-between'>
           <Text className='mine-lite-section-title text-base font-bold'>订单跟踪</Text>

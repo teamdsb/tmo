@@ -7,13 +7,104 @@
 }
 
 .home-showcase-swiper {
-  height: 178px;
+  height: 224px;
 }
 
-.home-showcase-empty {
+.home-showcase-card {
   height: 100%;
-  border-radius: 12px;
-  background: #fff;
+  border-radius: 18px;
+  box-sizing: border-box;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: #0f172a;
+}
+
+.home-showcase-body {
+  min-height: 0;
+}
+
+.home-showcase-card--catalog {
+  background:
+    radial-gradient(circle at top right, rgb(255 255 255 / 52%), transparent 42%),
+    linear-gradient(135deg, #dbeafe, #eff6ff 60%, #f8fafc);
+}
+
+.home-showcase-card--demand {
+  background:
+    radial-gradient(circle at top right, rgb(255 255 255 / 45%), transparent 40%),
+    linear-gradient(135deg, #dcfce7, #f0fdf4 60%, #f8fafc);
+}
+
+.home-showcase-card--import {
+  background:
+    radial-gradient(circle at top right, rgb(255 255 255 / 45%), transparent 40%),
+    linear-gradient(135deg, #fef3c7, #fffbeb 60%, #fff7ed);
+}
+
+.home-showcase-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: calc(11px + var(--font-size-step, 0px));
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #1d4ed8;
+  background: rgb(255 255 255 / 75%);
+}
+
+.home-showcase-title {
+  display: block;
+  margin-top: 12px;
+  font-size: calc(21px + var(--font-size-step, 0px));
+  line-height: 1.2;
+  font-weight: 700;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.home-showcase-copy {
+  display: block;
+  margin-top: 6px;
+  font-size: calc(13px + var(--font-size-step, 0px));
+  line-height: 1.45;
+  color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.home-showcase-footer {
+  padding-top: 14px;
+}
+
+.home-showcase-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #fff;
+  font-size: calc(13px + var(--font-size-step, 0px));
+  font-weight: 600;
+}
+
+.home-showcase-action:active {
+  opacity: 0.78;
 }
 
 .home-showcase-dots {
