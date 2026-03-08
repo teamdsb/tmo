@@ -118,7 +118,7 @@ export default function AddressList() {
             <View className='bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto address-empty-icon'>
               <LocationOutlined className='text-2xl text-slate-500' />
             </View>
-            <Text className='text-sm text-slate-500'>暂无地址</Text>
+            <Text className='text-slate-500 address-empty-text'>暂无地址</Text>
           </View>
         ) : (
           sortedAddresses.map((addr) => (
@@ -126,28 +126,28 @@ export default function AddressList() {
               key={addr.id}
               className='bg-white rounded-2xl border border-slate-100 p-5 shadow-sm transition-all address-card'
             >
-              <View className='flex justify-between items-start mb-2'>
+              <View className='flex justify-between items-start mb-2 address-card-head'>
                 <View className='flex flex-wrap items-center gap-2'>
-                  <Text className='text-base font-semibold text-slate-900'>{addr.name}</Text>
-                  <Text className='text-sm text-slate-500'>{addr.phone}</Text>
+                  <Text className='font-semibold text-slate-900 address-name'>{addr.name}</Text>
+                  <Text className='text-slate-500 address-phone'>{addr.phone}</Text>
                   {addr.isDefault ? (
-                    <Text className='px-2 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-full border border-blue-100 uppercase tracking-wide address-default-badge'>
+                    <Text className='px-2 py-1 bg-blue-50 text-blue-600 font-bold rounded-full border border-blue-100 uppercase tracking-wide address-default-badge'>
                       默认
                     </Text>
                   ) : null}
                 </View>
               </View>
-              <Text className='text-sm text-slate-600 leading-relaxed'>{addr.address}</Text>
+              <Text className='text-slate-600 address-detail'>{addr.address}</Text>
 
-              <View className='mt-4 pt-4 border-t border-slate-50 flex justify-end gap-5'>
+              <View className='mt-4 pt-4 border-t border-slate-50 flex justify-end gap-5 address-actions-row'>
                 <View
-                  className='flex items-center gap-2 text-xs text-slate-400 transition-colors address-action address-action-edit'
+                  className='flex items-center gap-2 text-slate-400 transition-colors address-action address-action-edit'
                   onClick={() => openEdit(addr)}
                 >
                   <Text>编辑</Text>
                 </View>
                 <View
-                  className='flex items-center gap-2 text-xs text-slate-400 transition-colors address-action address-action-delete'
+                  className='flex items-center gap-2 text-slate-400 transition-colors address-action address-action-delete'
                   onClick={() => void handleDelete(addr.id)}
                 >
                   <Text>删除</Text>
@@ -164,8 +164,8 @@ export default function AddressList() {
             className='w-full h-14 bg-blue-600 text-white rounded-2xl font-semibold shadow-lg transition-all flex items-center justify-center gap-2 address-fab address-pressable'
             onClick={openAdd}
           >
-            <Plus className='text-lg' />
-            <Text>新增地址</Text>
+            <Plus className='text-lg address-fab-icon' />
+            <Text className='address-fab-text'>新增地址</Text>
           </View>
         </View>
       ) : null}
@@ -174,14 +174,14 @@ export default function AddressList() {
         <View className='fixed inset-0 z-50 flex items-end justify-center px-4 address-overlay'>
           <View className='bg-white w-full max-w-md rounded-t-3xl p-6 shadow-2xl address-sheet'>
             <View className='flex justify-between items-center mb-6 address-sheet-header'>
-              <Text className='text-lg font-bold address-sheet-title'>
+              <Text className='font-bold address-sheet-title'>
                 {editingAddress ? '编辑地址' : '新增地址'}
               </Text>
               <View
                 className='p-2 rounded-full transition-colors address-close'
                 onClick={() => setIsFormOpen(false)}
               >
-                <Text className='text-base'>X</Text>
+                <Text className='address-close-text'>X</Text>
               </View>
             </View>
 
@@ -249,9 +249,10 @@ function AddressForm({ initialData, onSubmit, onCancel }: AddressFormProps) {
   return (
     <View className='address-form'>
       <View className='address-field'>
-        <Text className='text-xs font-medium text-slate-500 ml-1'>联系人</Text>
+        <Text className='font-medium text-slate-500 ml-1 address-field-label'>联系人</Text>
         <Input
           className='w-full h-12 rounded-xl bg-slate-50 border-none transition-all address-input'
+          placeholderClass='address-input-placeholder'
           placeholder='例如：张三'
           value={formData.name}
           onInput={(event) => setFormData({ ...formData, name: event.detail.value })}
@@ -259,9 +260,10 @@ function AddressForm({ initialData, onSubmit, onCancel }: AddressFormProps) {
       </View>
 
       <View className='address-field'>
-        <Text className='text-xs font-medium text-slate-500 ml-1'>手机号</Text>
+        <Text className='font-medium text-slate-500 ml-1 address-field-label'>手机号</Text>
         <Input
           className='w-full h-12 rounded-xl bg-slate-50 border-none transition-all address-input'
+          placeholderClass='address-input-placeholder'
           placeholder='例如：138-1234-5678'
           value={formData.phone}
           onInput={(event) => setFormData({ ...formData, phone: event.detail.value })}
@@ -269,17 +271,18 @@ function AddressForm({ initialData, onSubmit, onCancel }: AddressFormProps) {
       </View>
 
       <View className='address-field'>
-        <Text className='text-xs font-medium text-slate-500 ml-1'>详细地址</Text>
+        <Text className='font-medium text-slate-500 ml-1 address-field-label'>详细地址</Text>
         <Textarea
           className='w-full rounded-xl bg-slate-50 border-none transition-all address-input address-textarea'
+          placeholderClass='address-input-placeholder'
           placeholder='请输入完整收货地址...'
           value={formData.address}
           onInput={(event) => setFormData({ ...formData, address: event.detail.value })}
         />
       </View>
 
-      <View className='flex items-center justify-between p-1'>
-        <Text className='text-sm font-medium'>设为默认地址</Text>
+      <View className='flex items-center justify-between p-1 address-switch-row'>
+        <Text className='font-medium address-switch-label'>设为默认地址</Text>
         <View
           className={`w-12 h-6 rounded-full transition-colors relative flex items-center px-1 ${
             formData.isDefault ? 'bg-blue-600' : 'bg-slate-200'
@@ -299,13 +302,13 @@ function AddressForm({ initialData, onSubmit, onCancel }: AddressFormProps) {
           className='flex-1 h-12 rounded-xl font-medium border border-slate-100 transition-colors flex items-center justify-center address-cancel'
           onClick={onCancel}
         >
-          <Text>取消</Text>
+          <Text className='address-button-text'>取消</Text>
         </View>
         <View
           className='flex-1 h-12 rounded-xl bg-blue-600 text-white font-semibold transition-all shadow-md flex items-center justify-center address-pressable address-save'
           onClick={handleSubmit}
         >
-          <Text>保存</Text>
+          <Text className='address-button-text'>保存</Text>
         </View>
       </View>
     </View>
