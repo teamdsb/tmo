@@ -374,9 +374,9 @@ jest.mock('@tmo/identity-services', () => {
     ApiError,
     isApiError: (error) => error instanceof ApiError,
     RoleSelectionRequiredError: class RoleSelectionRequiredError extends Error {
-      constructor() {
+      constructor(roles = []) {
         super('Role selection required');
-        this.availableRoles = [];
+        this.availableRoles = roles;
       }
     }
   };

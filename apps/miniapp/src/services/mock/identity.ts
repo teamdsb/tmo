@@ -1,5 +1,6 @@
 import { login as platformLogin } from '@tmo/platform-adapter'
 import {
+  ApiError,
   RoleSelectionRequiredError,
   type IdentityServices,
   type MiniLoginInput
@@ -20,6 +21,10 @@ const createUnauthorizedError = (): Error & { statusCode: number; code: string }
   return Object.assign(error, { statusCode: 401, code: 'unauthorized' })
 }
 
+const createPhoneRequiredError = (): ApiError => {
+  return new ApiError('phone proof is required', 400, { code: 'phone_required' })
+}
+
 const buildAuthResponse = (
   token: string,
   context: ReturnType<typeof buildMockAuthContext>
@@ -32,13 +37,9 @@ const buildAuthResponse = (
 }
 
 const resolveMockLoginCode = async (): Promise<string> => {
-  try {
-    const result = await platformLogin()
-    const code = typeof result?.code === 'string' ? result.code.trim() : ''
-    return code || 'mock_customer_001'
-  } catch {
-    return 'mock_customer_001'
-  }
+  const result = await platformLogin()
+  const code = typeof result?.code === 'string' ? result.code.trim() : ''
+  return code || 'mock_customer_001'
 }
 
 const resolveSelectedRole = (roles: string[], requested?: string): 'CUSTOMER' | 'SALES' => {
@@ -70,7 +71,10 @@ export const createMockIdentityServices = (): IdentityServices => {
   return {
     auth: {
       miniLogin: async (input: MiniLoginInput) => {
-        const code = await resolveMockLoginCode()
+        const code = String(input?.codeOverride || '').trim() || await resolveMockLoginCode()
+        if (!input?.role && !input?.phoneProof) {
+          throw createPhoneRequiredError()
+        }
         const preliminaryContext = buildMockAuthContext(code)
         const selectedRole = resolveSelectedRole(preliminaryContext.roles, input?.role)
         const context = buildMockAuthContext(code, selectedRole)

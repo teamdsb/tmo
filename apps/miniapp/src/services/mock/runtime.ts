@@ -10,6 +10,7 @@ import type {
   UserAddress
 } from '@tmo/api-client'
 import type { BootstrapResponse, PermissionList } from '@tmo/gateway-api-client'
+import type { PaymentChannel, PaymentSession } from '@tmo/payment-services'
 import { getStorage, removeStorage, setStorage } from '@tmo/platform-adapter'
 import { buildPermissionListForRole, resolveMiniMockIdentityFixture } from '../../../../../packages/shared/src/mock-data/auth.js'
 import { buildSeedOrders, buildSeedTrackingByOrderId } from '../mocks/orders'
@@ -38,11 +39,17 @@ export type MockCartEntry = {
   qty: number
 }
 
+export type MockPaymentSession = PaymentSession & {
+  orderId: string
+  channel: PaymentChannel
+}
+
 export type IsolatedMockState = {
   wishlistSkuIds: string[]
   cartEntries: MockCartEntry[]
   addresses: UserAddress[]
   orders: Order[]
+  paymentSessionsByOrderId: Record<string, MockPaymentSession>
   trackingByOrderId: Record<string, TrackingInfo>
   productRequests: ProductRequest[]
   afterSalesTickets: AfterSalesTicket[]
@@ -123,6 +130,7 @@ const createDefaultState = (): IsolatedMockState => ({
   cartEntries: [],
   addresses: [],
   orders: buildSeedOrders(),
+  paymentSessionsByOrderId: {},
   trackingByOrderId: buildSeedTrackingByOrderId(),
   productRequests: [],
   afterSalesTickets: [],
@@ -150,6 +158,9 @@ const normalizeState = (value: unknown): IsolatedMockState => {
     cartEntries: normalizeCartEntries(state.cartEntries),
     addresses: Array.isArray(state.addresses) ? state.addresses : [],
     orders: normalizedOrders,
+    paymentSessionsByOrderId: isRecord(state.paymentSessionsByOrderId)
+      ? (state.paymentSessionsByOrderId as Record<string, MockPaymentSession>)
+      : {},
     trackingByOrderId: normalizedTrackingByOrderId,
     productRequests: Array.isArray(state.productRequests) ? state.productRequests : [],
     afterSalesTickets: Array.isArray(state.afterSalesTickets) ? state.afterSalesTickets : [],
@@ -345,9 +356,9 @@ export const buildIsolatedMockBootstrap = async (token: string | null): Promise<
     me: token && context ? getMockUser(context) : undefined,
     permissions: context ? getMockPermissions(context) : { items: [] },
     featureFlags: {
-      paymentEnabled: false,
-      wechatPayEnabled: false,
-      alipayPayEnabled: false
+      paymentEnabled: true,
+      wechatPayEnabled: true,
+      alipayPayEnabled: true
     }
   }
 }
@@ -394,4 +405,82 @@ export const resetIsolatedMockState = async (): Promise<void> => {
   }
   setLocalStorage(isolatedMockAuthContextStorageKey, null)
   await setIsolatedMockToken(null)
+}
+
+export const buildMockPaymentSession = (
+  orderId: string,
+  options?: {
+    paymentId?: string
+    channel?: PaymentChannel
+    status?: PaymentSession['status']
+    paidAt?: string | null
+    createdAt?: string
+    updatedAt?: string
+  }
+): MockPaymentSession => {
+  const createdAt = options?.createdAt ?? nowIso()
+  const updatedAt = options?.updatedAt ?? createdAt
+  const status = options?.status ?? 'PAY_PENDING'
+  const paidAt = options?.paidAt === undefined
+    ? (status === 'PAID' ? updatedAt : null)
+    : options.paidAt
+
+  return {
+    id: options?.paymentId ?? `pay_mock_${orderId}`,
+    orderId,
+    channel: options?.channel ?? 'wechat',
+    status,
+    amountFen: 0,
+    currency: 'CNY',
+    createdAt,
+    updatedAt,
+    paidAt
+  }
+}
+
+const paymentStatusToOrderStatus = (status: string): Order['status'] => {
+  switch (String(status).toUpperCase()) {
+    case 'PAID':
+      return 'PAID'
+    case 'PAY_FAILED':
+    case 'FAILED':
+      return 'PAY_FAILED'
+    case 'CREATED':
+    case 'PENDING':
+    case 'PAY_PENDING':
+      return 'PAY_PENDING'
+    default:
+      return 'SUBMITTED'
+  }
+}
+
+const normalizeOrderPaymentStatus = (status: string): Order['paymentStatus'] => {
+  switch (String(status).toUpperCase()) {
+    case 'PAID':
+      return 'PAID'
+    case 'PAY_FAILED':
+    case 'FAILED':
+      return 'PAY_FAILED'
+    case 'CREATED':
+    case 'PENDING':
+    case 'PAY_PENDING':
+      return 'PAY_PENDING'
+    default:
+      return 'UNPAID'
+  }
+}
+
+export const applyPaymentSessionToOrder = (order: Order, session: MockPaymentSession): Order => {
+  const paymentStatus = normalizeOrderPaymentStatus(session.status)
+  const nextStatus = paymentStatus === 'UNPAID' ? order.status : paymentStatusToOrderStatus(session.status)
+
+  return {
+    ...order,
+    status: nextStatus,
+    paymentStatus,
+    latestPaymentId: session.id,
+    paymentChannel: session.channel,
+    paidAt: session.paidAt ?? undefined,
+    updatedAt: session.updatedAt ?? nowIso()
+  } as Order
 }

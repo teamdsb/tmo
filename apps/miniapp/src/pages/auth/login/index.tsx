@@ -9,7 +9,6 @@ import { RoleSelectionRequiredError, isApiError } from '@tmo/identity-services'
 import { identityServices } from '../../../services/identity'
 import { gatewayServices } from '../../../services/gateway'
 import { saveBootstrap, savePendingRoleSelection } from '../../../services/bootstrap'
-import { applyMockLogin } from '../../../services/mock-auth'
 import { ROUTES } from '../../../routes'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { runtimeEnv } from '../../../config/runtime-env'
@@ -93,10 +92,6 @@ export default function LoginPage() {
   const [agreed, setAgreed] = useState(false)
   const [loading, setLoading] = useState(false)
   const launchContext = useMemo(readLaunchContext, [])
-  const enableMockLogin = useMemo(
-    () => runtimeEnv.isIsolatedMock && runtimeEnv.enableMockLogin,
-    []
-  )
   const enableWeappPhoneProofSimulation = useMemo(() => runtimeEnv.weappPhoneProofSimulation, [])
   const platform = useMemo(() => getPlatform() as MiniPlatform, [])
   const redirect = (() => {
@@ -215,18 +210,6 @@ export default function LoginPage() {
     }
   }
 
-  const handleMockLogin = async () => {
-    try {
-      await applyMockLogin()
-      await switchTabLike(redirect || ROUTES.home)
-    } catch (error) {
-      const message = error instanceof Error && error.message
-        ? error.message
-        : '测试登录不可用'
-      await Taro.showToast({ title: message, icon: 'none' })
-    }
-  }
-
   return (
     <View className='page login-page px-6 pt-16 pb-12 flex flex-col min-h-screen'>
       <View className='flex-1 flex flex-col justify-center'>
@@ -290,16 +273,6 @@ export default function LoginPage() {
             </Button>
           ) : null}
 
-          {enableMockLogin ? (
-            <Button
-              variant='outlined'
-              block
-              onClick={handleMockLogin}
-              className='login-secondary'
-            >
-              测试登录
-            </Button>
-          ) : null}
           <Button
             variant='outlined'
             block
