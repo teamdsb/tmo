@@ -29,6 +29,7 @@ describe('isolated mock mode', () => {
     const { gatewayServices } = require('./gateway') as typeof import('./gateway')
     const { identityServices } = require('./identity') as typeof import('./identity')
     const { commerceServices } = require('./commerce') as typeof import('./commerce')
+    const { paymentServices } = require('./payment') as typeof import('./payment')
 
     expect(gatewaySpy).not.toHaveBeenCalled()
     expect(identitySpy).not.toHaveBeenCalled()
@@ -37,7 +38,7 @@ describe('isolated mock mode', () => {
     const beforeLogin = await gatewayServices.bootstrap.get()
     expect(beforeLogin.me).toBeUndefined()
 
-    await identityServices.auth.miniLogin({})
+    await identityServices.auth.miniLogin({ phoneProof: { code: 'mock-phone-proof' } })
     const afterLogin = await gatewayServices.bootstrap.get()
     expect(afterLogin.me?.id).toBe('dddddddd-dddd-dddd-dddd-dddddddddddd')
 
@@ -51,6 +52,26 @@ describe('isolated mock mode', () => {
     const cart = await commerceServices.cart.addItem('sku-bolt-a2-m8', 2)
     expect(cart.items).toHaveLength(1)
     expect(cart.items[0].qty).toBe(2)
+
+    const createdOrder = await commerceServices.orders.submit({
+      address: {
+        receiverName: '张三',
+        receiverPhone: '13800000000',
+        detail: '上海市浦东新区世纪大道 1 号'
+      },
+      items: [{ skuId: 'sku-bolt-a2-m8', qty: 2 }]
+    })
+
+    expect(createdOrder.latestPaymentId).toBeTruthy()
+    expect(createdOrder.paymentStatus).toBe('PAY_PENDING')
+
+    const payment = await paymentServices.sessions.payForOrder(createdOrder.id)
+    expect(payment.status).toBe('PAID')
+
+    const paidOrder = await commerceServices.orders.get(createdOrder.id)
+    expect(paidOrder.paymentStatus).toBe('PAID')
+    expect(paidOrder.status).toBe('PAID')
+    expect(paidOrder.latestPaymentId).toBe(payment.id)
   })
 
   it('resets isolated mock persisted state', async () => {
@@ -59,7 +80,7 @@ describe('isolated mock mode', () => {
     const { gatewayServices } = require('./gateway') as typeof import('./gateway')
     const { resetIsolatedMockState } = require('./mock/runtime') as typeof import('./mock/runtime')
 
-    await identityServices.auth.miniLogin({})
+    await identityServices.auth.miniLogin({ phoneProof: { code: 'mock-phone-proof' } })
     await commerceServices.wishlist.add('sku-bolt-a2-m8')
     await commerceServices.cart.addItem('sku-bolt-a2-m8', 1)
 
@@ -76,5 +97,17 @@ describe('isolated mock mode', () => {
 
     const bootstrap = await gatewayServices.bootstrap.get()
     expect(bootstrap.me).toBeUndefined()
+  })
+
+  it('keeps the same role-selection contract as dev login', async () => {
+    const platformAdapter = require('@tmo/platform-adapter') as typeof import('@tmo/platform-adapter')
+    const identityServicesModule = require('@tmo/identity-services') as typeof import('@tmo/identity-services')
+    const { identityServices } = require('./identity') as typeof import('./identity')
+
+    jest.spyOn(platformAdapter, 'login').mockResolvedValue({ code: 'mock_multi_001' })
+
+    await expect(identityServices.auth.miniLogin({
+      phoneProof: { code: 'mock-phone-proof' }
+    })).rejects.toBeInstanceOf(identityServicesModule.RoleSelectionRequiredError)
   })
 })
