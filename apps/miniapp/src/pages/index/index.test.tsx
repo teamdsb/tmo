@@ -71,6 +71,7 @@ describe('ProductCatalogApp', () => {
     expect(screen.getAllByTestId('home-category-item')).toHaveLength(8);
     expect(screen.getAllByText('敬请期待')).toHaveLength(6);
     expect(screen.queryByText('更多')).not.toBeInTheDocument();
+    expect(screen.getByTestId('home-product-matrix')).toBeInTheDocument();
 
     await act(async () => {
       jest.advanceTimersByTime(300);
@@ -113,6 +114,7 @@ describe('ProductCatalogApp', () => {
     const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../app.scss'), 'utf8');
 
     expect(stylesheet).toContain('.product-card-title');
+    expect(stylesheet).toContain('.product-card--home');
     expect(stylesheet).toContain('-webkit-line-clamp: 2;');
     expect(stylesheet).toContain('overflow-wrap: anywhere;');
     expect(stylesheet).toContain('word-break: break-word;');
@@ -127,6 +129,9 @@ describe('ProductCatalogApp', () => {
     expect(stylesheet).toContain('.home-showcase-copy');
     expect(stylesheet).toContain('box-sizing: border-box;');
     expect(stylesheet).toContain('-webkit-line-clamp: 2;');
+    expect(stylesheet).toContain('.home-product-matrix');
+    expect(stylesheet).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
+    expect(stylesheet).toContain('.home-product-cell:nth-child(2n)::after');
   });
 
   it('updates search input value', async () => {

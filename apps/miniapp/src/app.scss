@@ -775,9 +775,20 @@
   box-shadow: 0 3px 10px rgb(15 23 42 / 8%);
 }
 
+.product-card--home {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
 .product-card-image {
   display: block;
   width: 100%;
+}
+
+.product-card--home .product-card-image {
+  background: #f8fafc;
 }
 
 .product-card-body {
@@ -831,6 +842,38 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.product-card--home .product-card-body {
+  min-height: 0;
+  padding: 14px 12px 16px;
+}
+
+.product-card--home .product-card-title {
+  font-size: calc(20px * var(--font-size-scale, 1));
+  margin-bottom: 6px;
+}
+
+.product-card--home .product-card-price {
+  font-size: calc(17px * var(--font-size-scale, 1));
+  margin-bottom: 10px;
+  color: #64748b;
+}
+
+.product-card--home .product-card-footer {
+  min-height: 28px;
+}
+
+.product-card--home .product-card-tag {
+  max-width: 132px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid #d7dde5;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: calc(12px * var(--font-size-scale, 1));
+  line-height: 28px;
 }
 
 .page-grid .taroify-grid-item__content {

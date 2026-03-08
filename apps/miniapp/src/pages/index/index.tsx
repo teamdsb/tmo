@@ -3,7 +3,6 @@ import { View, Text, Swiper, SwiperItem } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Search from '@taroify/core/search'
-import Grid from '@taroify/core/grid'
 import Flex from '@taroify/core/flex'
 import SearchIcon from '@taroify/icons/Search'
 import type { Category, DisplayCategory, ProductSummary } from '@tmo/api-client'
@@ -214,13 +213,13 @@ export default function ProductCatalogApp() {
           </Text>
         ) : null}
 
-        <Grid columns={2} gutter={12} className='page-grid product-grid'>
+        <View className='home-product-matrix' data-testid='home-product-matrix'>
           {products.map((product) => (
-            <Grid.Item key={product.id}>
+            <View key={product.id} className='home-product-cell'>
               <ProductCard data={product} />
-            </Grid.Item>
+            </View>
           ))}
-        </Grid>
+        </View>
       </View>
     </View>
   )
@@ -349,7 +348,7 @@ function HomeShowcase() {
 function ProductCard({ data }: { data: ProductSummary }) {
   const tagLabel = data.tags?.[0] ?? '分类'
   return (
-    <View className='product-card' onClick={() => navigateTo(goodsDetailRoute(data.id))}>
+    <View className='product-card product-card--home' onClick={() => navigateTo(goodsDetailRoute(data.id))}>
       <SafeImage className='product-card-image' src={data.coverImageUrl} width='100%' height={198} mode='aspectFill' />
       <View className='product-card-body'>
         <Text className='product-card-title u-safe-title-2'>{data.name}</Text>
