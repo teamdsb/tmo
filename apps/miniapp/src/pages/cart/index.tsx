@@ -4,7 +4,7 @@ import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import type { Cart, CartImportJob, CartImportPendingItem, Sku } from '@tmo/api-client'
 import { commerceServices } from '../../services/commerce'
-import { ROUTES } from '../../routes'
+import { ROUTES, goodsDetailRoute } from '../../routes'
 import { ensureLoggedIn } from '../../utils/auth'
 import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { getNavbarStyle } from '../../utils/navbar'
@@ -146,6 +146,15 @@ export default function ExcelImportConfirmation() {
       return
     }
     await navigateTo(ROUTES.orderConfirm)
+  }
+
+  const handleOpenCartItemDetail = async (item: CartItem) => {
+    const spuId = normalizeSpuId(item.sku.spuId)
+    if (!spuId) {
+      await Taro.showToast({ title: '商品详情暂不可用', icon: 'none' })
+      return
+    }
+    await navigateTo(goodsDetailRoute(spuId))
   }
 
   const handleChangeCartItemQty = async (item: CartItem, nextQty: number) => {
@@ -298,6 +307,7 @@ export default function ExcelImportConfirmation() {
         <CartListView
           busyItemId={busyItemId}
           cartItems={cartItems}
+          onOpenCartItemDetail={handleOpenCartItemDetail}
           productImageBySpuId={productImageBySpuId}
           productNameBySpuId={productNameBySpuId}
           onChangeCartItemQty={handleChangeCartItemQty}

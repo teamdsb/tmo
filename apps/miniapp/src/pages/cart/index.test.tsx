@@ -147,6 +147,121 @@ describe('ExcelImportConfirmation', () => {
     expect(requestedSpuIds.every((spuId) => spuId === 'spu-bolt-a2')).toBe(true)
   })
 
+  it('navigates to product detail when clicking cart item content', async () => {
+    jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 2,
+          sku: {
+            id: 'sku-bolt-a2-m8',
+            spuId: 'spu-bolt-a2',
+            name: 'M8 x 30',
+            spec: 'M8 x 30',
+            skuCode: 'BOLT-M8-30'
+          }
+        }
+      ]
+    } as any)
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValueOnce({
+      product: {
+        id: 'spu-bolt-a2',
+        name: '不锈钢六角螺栓 A2',
+        categoryId: 'cat-fasteners'
+      },
+      skus: []
+    } as any)
+    const navigateToMock = Taro.navigateTo as jest.Mock
+    navigateToMock.mockClear()
+
+    await renderCart()
+    fireEvent.click(await screen.findByText('不锈钢六角螺栓 A2'))
+
+    expect(navigateToMock).toHaveBeenCalledWith({ url: '/pages/goods/detail/index?id=spu-bolt-a2' })
+  })
+
+  it('does not navigate when clicking cart item controls', async () => {
+    jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 2,
+          sku: {
+            id: 'sku-bolt-a2-m8',
+            spuId: 'spu-bolt-a2',
+            name: 'M8 x 30',
+            spec: 'M8 x 30',
+            skuCode: 'BOLT-M8-30'
+          }
+        }
+      ]
+    } as any)
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValue({
+      product: {
+        id: 'spu-bolt-a2',
+        name: '不锈钢六角螺栓 A2',
+        categoryId: 'cat-fasteners'
+      },
+      skus: [
+        { id: 'sku-bolt-a2-m8', spuId: 'spu-bolt-a2', name: 'M8 x 30', spec: 'M8 x 30', isActive: true },
+        { id: 'sku-bolt-a2-m10', spuId: 'spu-bolt-a2', name: 'M10 x 40', spec: 'M10 x 40', isActive: true }
+      ]
+    } as any)
+    jest.spyOn(commerceServices.cart, 'updateItemQty').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 3,
+          sku: {
+            id: 'sku-bolt-a2-m8',
+            spuId: 'spu-bolt-a2',
+            name: 'M8 x 30',
+            spec: 'M8 x 30',
+            skuCode: 'BOLT-M8-30'
+          }
+        }
+      ]
+    } as any)
+    const navigateToMock = Taro.navigateTo as jest.Mock
+    navigateToMock.mockClear()
+
+    await renderCart()
+    fireEvent.click(screen.getByText('+'))
+
+    await waitFor(() => {
+      expect(navigateToMock).not.toHaveBeenCalled()
+    })
+  })
+
+  it('shows toast instead of navigating when cart item has no spuId', async () => {
+    jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 2,
+          sku: {
+            id: 'sku-bolt-a2-m8',
+            name: 'M8 x 30',
+            spec: 'M8 x 30',
+            skuCode: 'BOLT-M8-30'
+          }
+        }
+      ]
+    } as any)
+    const navigateToMock = Taro.navigateTo as jest.Mock
+    const showToastMock = Taro.showToast as jest.Mock
+    navigateToMock.mockClear()
+    showToastMock.mockClear()
+
+    await renderCart()
+    fireEvent.click(screen.getAllByText('M8 x 30')[0])
+
+    await waitFor(() => {
+      expect(showToastMock).toHaveBeenCalledWith({ title: '商品详情暂不可用', icon: 'none' })
+    })
+    expect(navigateToMock).not.toHaveBeenCalled()
+  })
+
   it('updates cart item qty when click plus', async () => {
     const updateItemQtySpy = jest
       .spyOn(commerceServices.cart, 'updateItemQty')

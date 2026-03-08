@@ -166,6 +166,7 @@ export function ImportResultView({
 type CartListViewProps = {
   busyItemId: string | null
   cartItems: CartItem[]
+  onOpenCartItemDetail: (item: CartItem) => Promise<void>
   productImageBySpuId: ProductImageMap
   productNameBySpuId: ProductNameMap
   onChangeCartItemQty: (item: CartItem, nextQty: number) => Promise<void>
@@ -177,6 +178,7 @@ type CartListViewProps = {
 export function CartListView({
   busyItemId,
   cartItems,
+  onOpenCartItemDetail,
   productImageBySpuId,
   productNameBySpuId,
   onChangeCartItemQty,
@@ -221,9 +223,16 @@ export function CartListView({
               const priceLabel = formatCartItemPrice(item)
               const productImage = item.sku.spuId ? productImageBySpuId[item.sku.spuId] : undefined
               const itemClassName = `cart-item-card${index === cartItems.length - 1 ? ' cart-item-card--last' : ''}`
+              const stopPropagation = (event: { stopPropagation?: () => void }) => {
+                event.stopPropagation?.()
+              }
 
               return (
-                <View key={item.id} className={itemClassName}>
+                <View
+                  key={item.id}
+                  className={itemClassName}
+                  onClick={() => void onOpenCartItemDetail(item)}
+                >
                   <View className='cart-item-top'>
                     <View className='cart-item-thumb'>
                       <Image
@@ -244,7 +253,10 @@ export function CartListView({
                         </View>
                         <View
                           className={`cart-item-remove ${isBusy ? 'cart-item-remove--disabled' : ''}`}
-                          onClick={isBusy ? undefined : () => void onRemoveCartItem(item)}
+                          onClick={isBusy ? undefined : (event) => {
+                            stopPropagation(event)
+                            void onRemoveCartItem(item)
+                          }}
                         >
                           <Text>移除</Text>
                         </View>
@@ -253,7 +265,10 @@ export function CartListView({
                       <View className='cart-item-middle'>
                         <View
                           className={`cart-item-spec-trigger ${isBusy ? 'cart-item-spec-trigger--disabled' : ''}`}
-                          onClick={isBusy ? undefined : () => void onChangeCartItemSku(item)}
+                          onClick={isBusy ? undefined : (event) => {
+                            stopPropagation(event)
+                            void onChangeCartItemSku(item)
+                          }}
                         >
                           <Text className='cart-item-spec-label'>规格</Text>
                           <Text className='cart-item-spec-value'>{specLabel}</Text>
@@ -279,14 +294,20 @@ export function CartListView({
                         onClick={
                           item.qty <= 1 || isBusy
                             ? undefined
-                            : () => void onChangeCartItemQty(item, item.qty - 1)
+                            : (event) => {
+                              stopPropagation(event)
+                              void onChangeCartItemQty(item, item.qty - 1)
+                            }
                         }
                       >
                         <Text className='leading-none'>-</Text>
                       </View>
                       <View
                         className={`cart-item-stepper-value ${isBusy ? 'cart-item-stepper-value--disabled' : ''}`}
-                        onClick={isBusy ? undefined : () => void onQuickChangeCartItemQty(item)}
+                        onClick={isBusy ? undefined : (event) => {
+                          stopPropagation(event)
+                          void onQuickChangeCartItemQty(item)
+                        }}
                       >
                         <Text>{item.qty}</Text>
                       </View>
@@ -295,7 +316,10 @@ export function CartListView({
                         onClick={
                           isBusy
                             ? undefined
-                            : () => void onChangeCartItemQty(item, item.qty + 1)
+                            : (event) => {
+                              stopPropagation(event)
+                              void onChangeCartItemQty(item, item.qty + 1)
+                            }
                         }
                       >
                         <Text className='leading-none'>+</Text>
