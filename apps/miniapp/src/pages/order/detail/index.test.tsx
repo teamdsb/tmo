@@ -1,4 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import Taro from '@tarojs/taro'
+import { removeStorage } from '@tmo/platform-adapter'
 
 import OrderDetailPage from './index'
 import { commerceServices } from '../../../services/commerce'
@@ -21,9 +23,10 @@ const setRouterParams = (params: Record<string, string>) => {
 }
 
 describe('OrderDetailPage', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks()
     setRouterParams({ id: 'order-2001' })
+    await removeStorage('tmo:payment:dev-overrides')
   })
 
   afterEach(() => {
@@ -94,6 +97,59 @@ describe('OrderDetailPage', () => {
     })
 
     expect(paymentServices.sessions.recheck).toHaveBeenCalledWith('pay-2001')
+  })
+
+  it('keeps order paid locally after fake payment succeeds', async () => {
+    ;(commerceServices.orders.get as jest.Mock).mockResolvedValue({
+      id: 'order-2001',
+      status: 'PAY_PENDING',
+      paymentStatus: 'PAY_PENDING',
+      latestPaymentId: 'pay-2001',
+      address: {
+        receiverName: '李四',
+        receiverPhone: '13900000000',
+        detail: '杭州市西湖区文三路 1 号'
+      },
+      items: [],
+      createdAt: '2026-03-06T00:00:00Z',
+      updatedAt: '2026-03-06T00:00:00Z'
+    })
+    ;(paymentServices.sessions.payForOrder as jest.Mock).mockResolvedValue({
+      id: 'pay_dev_fake_order-2001',
+      orderId: 'order-2001',
+      channel: 'wechat',
+      status: 'PAID',
+      paidAt: '2026-03-06T10:00:00Z',
+      updatedAt: '2026-03-06T10:00:00Z'
+    })
+
+    const view = render(<OrderDetailPage />)
+    await act(async () => {
+      await flushPromises()
+    })
+
+    fireEvent.click(await screen.findByText('继续支付'))
+    await act(async () => {
+      await flushPromises()
+    })
+
+    expect(await screen.findByText('支付状态')).toBeInTheDocument()
+    expect(screen.getAllByText('已支付').length).toBeGreaterThan(0)
+    expect(screen.queryByText('继续支付')).toBeNull()
+    expect(screen.queryByText('刷新支付状态')).toBeNull()
+    expect(Taro.showToast).toHaveBeenCalledWith(expect.objectContaining({
+      title: '支付成功',
+      icon: 'success'
+    }))
+
+    view.unmount()
+    render(<OrderDetailPage />)
+    await act(async () => {
+      await flushPromises()
+    })
+
+    expect(screen.getAllByText('已支付').length).toBeGreaterThan(0)
+    expect(screen.queryByText('继续支付')).toBeNull()
   })
 
   it('hides continue pay action for already paid orders', async () => {

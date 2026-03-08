@@ -10,6 +10,13 @@ import { ROUTES, orderTrackingRoute } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
+import {
+  clearDevFakePaymentOverride,
+  createDevFakePaymentOverride,
+  loadDevFakePaymentOverride,
+  saveDevFakePaymentOverride,
+  type DevFakePaymentOverride
+} from '../../../services/payment-dev-overrides'
 import { isPaymentCancelled, paymentServices } from '../../../services/payment'
 
 export default function OrderDetail() {
@@ -29,7 +36,7 @@ export default function OrderDetail() {
     setLoading(true)
     try {
       const response = await commerceServices.orders.get(targetOrderId)
-      setOrder(response)
+      setOrder(await applyPaymentOverride(response))
     } catch (error) {
       console.warn('load order failed', error)
       await Taro.showToast({ title: '加载订单失败', icon: 'none' })
@@ -51,6 +58,10 @@ export default function OrderDetail() {
     setPaymentLoading(true)
     try {
       const payment = await paymentServices.sessions.payForOrder(orderId)
+      await saveDevFakePaymentOverride(createDevFakePaymentOverride(
+        orderId,
+        payment.paidAt ?? payment.updatedAt ?? new Date().toISOString()
+      ))
       const paymentStatus = String(payment.status || '').toUpperCase()
       await Taro.showToast({
         title: paymentStatus === 'PAID' ? '支付成功' : '支付结果确认中',
@@ -268,4 +279,30 @@ const canRefreshPayment = (order: Order | null): boolean => {
     return false
   }
   return Boolean(readLatestPaymentId(order)) && readPaymentStatus(order).toUpperCase() !== 'PAID'
+}
+
+const applyPaymentOverride = async (order: Order): Promise<Order> => {
+  const paymentStatus = readPaymentStatus(order).toUpperCase()
+  if (paymentStatus === 'PAID') {
+    await clearDevFakePaymentOverride(order.id)
+    return order
+  }
+
+  const override = await loadDevFakePaymentOverride(order.id)
+  if (!override) {
+    return order
+  }
+
+  return mergeOrderWithPaymentOverride(order, override)
+}
+
+const mergeOrderWithPaymentOverride = (order: Order, override: DevFakePaymentOverride): Order => {
+  return {
+    ...order,
+    status: override.status,
+    paymentStatus: override.paymentStatus,
+    latestPaymentId: override.latestPaymentId,
+    paidAt: override.paidAt,
+    updatedAt: override.updatedAt
+  } as Order
 }
