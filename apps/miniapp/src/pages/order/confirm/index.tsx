@@ -22,6 +22,7 @@ export default function OrderConfirmPage() {
   const [productImageBySpuId, setProductImageBySpuId] = useState<Record<string, string>>({})
   const [productNameBySpuId, setProductNameBySpuId] = useState<Record<string, string>>({})
   const [remark, setRemark] = useState('')
+  const [remarkExpanded, setRemarkExpanded] = useState(false)
   const [loadingData, setLoadingData] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -126,6 +127,7 @@ export default function OrderConfirmPage() {
   }, [cartItems, productImageBySpuId, productNameBySpuId])
 
   const hasPendingPrice = orderItems.some((item) => item.unitPriceFen === null)
+  const totalQty = orderItems.reduce((sum, item) => sum + item.qty, 0)
   const totalFen = hasPendingPrice
     ? 0
     : orderItems.reduce((sum, item) => sum + (item.subtotalFen ?? 0), 0)
@@ -203,9 +205,6 @@ export default function OrderConfirmPage() {
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
         <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.cart))} />
         <Navbar.Title>确认订单</Navbar.Title>
-        <Navbar.NavRight>
-          <Text className='text-sm text-slate-400'>{cartItems.length} 件</Text>
-        </Navbar.NavRight>
       </Navbar>
 
       <View className='page-content order-confirm-content'>
@@ -241,7 +240,7 @@ export default function OrderConfirmPage() {
         <View className='order-confirm-card order-confirm-goods-card'>
           <View className='order-confirm-card-head'>
             <Text className='order-confirm-card-title'>商品</Text>
-            <Text className='order-confirm-card-hint'>{cartItems.length} 件</Text>
+            <Text className='order-confirm-card-hint'>{`共 ${totalQty} 件`}</Text>
           </View>
           {loadingData && cart === null ? (
             <View className='order-confirm-loading-list'>
@@ -286,21 +285,39 @@ export default function OrderConfirmPage() {
           )}
         </View>
 
+        <View className='order-confirm-card order-confirm-price-card'>
+          <View className='order-confirm-price-row'>
+            <Text className='order-confirm-price-label'>商品总额</Text>
+            <Text className='order-confirm-price-text'>{hasPendingPrice ? '待确认报价' : formatFen(totalFen)}</Text>
+          </View>
+          <View className='order-confirm-price-row order-confirm-price-row--total'>
+            <Text className='order-confirm-price-label'>应付合计</Text>
+            <Text className='order-confirm-price-total'>{hasPendingPrice ? '待确认报价' : formatFen(totalFen)}</Text>
+          </View>
+        </View>
+
         <View className='order-confirm-card order-confirm-remark-card'>
-          <Text className='order-confirm-card-title'>备注</Text>
-          <Textarea
-            className='order-confirm-remark-input'
-            placeholder='添加订单备注...'
-            value={remark}
-            onInput={(event) => setRemark(event.detail.value)}
-          />
+          <View className='order-confirm-card-head order-confirm-card-head--compact' onClick={() => setRemarkExpanded((value) => !value)}>
+            <Text className='order-confirm-card-title'>订单备注</Text>
+            <Text className='order-confirm-card-link'>
+              {remark.trim() ? summarizeRemark(remark) : '选填'}
+            </Text>
+          </View>
+          {remarkExpanded ? (
+            <Textarea
+              className='order-confirm-remark-input'
+              placeholder='添加订单备注...'
+              value={remark}
+              onInput={(event) => setRemark(event.detail.value)}
+            />
+          ) : null}
         </View>
       </View>
 
       <FixedView position='bottom' placeholder>
         <View className='order-confirm-bottom-bar'>
           <View className='order-confirm-bottom-summary'>
-            <Text className='order-confirm-bottom-label'>{`合计 · ${cartItems.length} 件`}</Text>
+            <Text className='order-confirm-bottom-label'>{`合计 · 共 ${totalQty} 件`}</Text>
             <Text className='order-confirm-bottom-value'>{hasPendingPrice ? '待确认报价' : formatFen(totalFen)}</Text>
           </View>
           <Button
@@ -310,7 +327,7 @@ export default function OrderConfirmPage() {
             loading={submitting}
             onClick={handleSubmit}
           >
-            提交意向订单
+            提交订单
           </Button>
         </View>
       </FixedView>
@@ -326,3 +343,11 @@ const normalizeSpuId = (value: unknown): string => {
 }
 
 const formatFen = (fen: number): string => `¥${(fen / 100).toFixed(2)}`
+
+const summarizeRemark = (value: string): string => {
+  const normalized = value.trim()
+  if (!normalized) {
+    return '选填'
+  }
+  return normalized.length > 10 ? `${normalized.slice(0, 10)}...` : normalized
+}

@@ -974,6 +974,10 @@
   margin-bottom: 14px;
 }
 
+.order-confirm-card-head--compact {
+  margin-bottom: 0;
+}
+
 .order-confirm-card-title {
   font-size: calc(16px * var(--font-size-scale, 1));
   font-weight: 700;
@@ -1019,6 +1023,41 @@
 
 .order-confirm-goods-card {
   padding-bottom: 8px;
+}
+
+.order-confirm-price-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.order-confirm-price-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.order-confirm-price-row--total {
+  padding-top: 14px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.order-confirm-price-label {
+  font-size: calc(14px * var(--font-size-scale, 1));
+  color: #475569;
+}
+
+.order-confirm-price-text {
+  font-size: calc(14px * var(--font-size-scale, 1));
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.order-confirm-price-total {
+  font-size: calc(20px * var(--font-size-scale, 1));
+  font-weight: 700;
+  color: #e11d48;
 }
 
 .order-confirm-item {
@@ -1117,11 +1156,13 @@
 
 .order-confirm-remark-card {
   margin-bottom: 0;
+  cursor: pointer;
 }
 
 .order-confirm-remark-input {
+  margin-top: 14px;
   width: 100%;
-  min-height: 124px;
+  min-height: 88px;
   padding: 14px 16px;
   border-radius: 18px;
   background: #f8fafc;

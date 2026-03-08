@@ -95,9 +95,26 @@ describe('OrderConfirmPage', () => {
     expect(screen.getByText('张三 · 13800000000')).toBeInTheDocument()
     expect(screen.getByText('上海市浦东新区世纪大道 1 号')).toBeInTheDocument()
     expect(screen.getByText('单价 ¥32.00')).toBeInTheDocument()
-    expect(screen.getAllByText('¥64.00')).toHaveLength(2)
-    expect(screen.getByText('合计 · 1 件')).toBeInTheDocument()
+    expect(screen.getByText('商品总额')).toBeInTheDocument()
+    expect(screen.getByText('应付合计')).toBeInTheDocument()
+    expect(screen.getByText('合计 · 共 2 件')).toBeInTheDocument()
+    expect(document.querySelector('.order-confirm-item-subtotal')?.textContent).toBe('¥64.00')
+    expect(document.querySelector('.order-confirm-price-total')?.textContent).toBe('¥64.00')
+    expect(document.querySelector('.order-confirm-bottom-value')?.textContent).toBe('¥64.00')
     expect(document.querySelector('.order-confirm-item-image')).not.toBeNull()
+  })
+
+  it('keeps remark collapsed by default and expands on click', async () => {
+    render(<OrderConfirmPage />)
+    await act(async () => {
+      await flushPromises()
+    })
+
+    expect(screen.queryByPlaceholderText('添加订单备注...')).toBeNull()
+
+    fireEvent.click(screen.getByText('订单备注'))
+
+    expect(screen.getByPlaceholderText('添加订单备注...')).toBeInTheDocument()
   })
 
   it('navigates to goods detail when clicking order item row', async () => {
@@ -136,7 +153,7 @@ describe('OrderConfirmPage', () => {
       await flushPromises()
     })
 
-    fireEvent.click(screen.getByText('提交意向订单'))
+    fireEvent.click(screen.getByText('提交订单'))
     await act(async () => {
       await flushPromises()
     })
@@ -158,7 +175,7 @@ describe('OrderConfirmPage', () => {
       await flushPromises()
     })
 
-    fireEvent.click(screen.getByText('提交意向订单'))
+    fireEvent.click(screen.getByText('提交订单'))
     await act(async () => {
       await flushPromises()
     })
@@ -187,7 +204,7 @@ describe('OrderConfirmPage', () => {
       await flushPromises()
     })
 
-    fireEvent.click(screen.getByText('提交意向订单'))
+    fireEvent.click(screen.getByText('提交订单'))
     await act(async () => {
       await flushPromises()
     })
@@ -205,7 +222,7 @@ describe('OrderConfirmPage', () => {
       await flushPromises()
     })
 
-    fireEvent.click(screen.getByText('提交意向订单'))
+    fireEvent.click(screen.getByText('提交订单'))
     await act(async () => {
       await flushPromises()
     })
