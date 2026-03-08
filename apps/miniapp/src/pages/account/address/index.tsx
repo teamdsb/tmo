@@ -171,7 +171,7 @@ export default function AddressList() {
       ) : null}
 
       {isFormOpen ? (
-        <View className='fixed inset-0 z-50 bg-black bg-opacity-40 flex items-end justify-center px-4 address-overlay'>
+        <View className='fixed inset-0 z-50 flex items-end justify-center px-4 address-overlay'>
           <View className='bg-white w-full max-w-md rounded-t-3xl p-6 shadow-2xl address-sheet'>
             <View className='flex justify-between items-center mb-6 address-sheet-header'>
               <Text className='text-lg font-bold address-sheet-title'>
@@ -251,7 +251,7 @@ function AddressForm({ initialData, onSubmit, onCancel }: AddressFormProps) {
       <View className='address-field'>
         <Text className='text-xs font-medium text-slate-500 ml-1'>联系人</Text>
         <Input
-          className='w-full h-12 px-4 rounded-xl bg-slate-50 border-none transition-all'
+          className='w-full h-12 rounded-xl bg-slate-50 border-none transition-all address-input'
           placeholder='例如：张三'
           value={formData.name}
           onInput={(event) => setFormData({ ...formData, name: event.detail.value })}
@@ -261,7 +261,7 @@ function AddressForm({ initialData, onSubmit, onCancel }: AddressFormProps) {
       <View className='address-field'>
         <Text className='text-xs font-medium text-slate-500 ml-1'>手机号</Text>
         <Input
-          className='w-full h-12 px-4 rounded-xl bg-slate-50 border-none transition-all'
+          className='w-full h-12 rounded-xl bg-slate-50 border-none transition-all address-input'
           placeholder='例如：138-1234-5678'
           value={formData.phone}
           onInput={(event) => setFormData({ ...formData, phone: event.detail.value })}
@@ -271,7 +271,7 @@ function AddressForm({ initialData, onSubmit, onCancel }: AddressFormProps) {
       <View className='address-field'>
         <Text className='text-xs font-medium text-slate-500 ml-1'>详细地址</Text>
         <Textarea
-          className='w-full px-4 py-3 rounded-xl bg-slate-50 border-none transition-all address-textarea'
+          className='w-full rounded-xl bg-slate-50 border-none transition-all address-input address-textarea'
           placeholder='请输入完整收货地址...'
           value={formData.address}
           onInput={(event) => setFormData({ ...formData, address: event.detail.value })}
