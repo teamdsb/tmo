@@ -53,6 +53,7 @@
     # .env.development
     TARO_APP_MOCK_MODE=off
     TARO_APP_API_BASE_URL=http://localhost:8080
+    TARO_APP_DEV_FAKE_PAYMENT=true
     TARO_APP_WEAPP_PHONE_PROOF_SIMULATION=true
     TARO_APP_ENABLE_MOCK_LOGIN=false
 
@@ -93,6 +94,7 @@
 
 - `TARO_APP_MOCK_MODE=isolated` 会启用“分离 mock 模式”：gateway/identity/commerce 全链路离线，不访问后端，数据本地持久化（支持设置页重置）。
 - `TARO_APP_MOCK_MODE=off`（默认）时走真实后端，不再提供运行时 commerce 自动 fallback 到 mock。
+- `TARO_APP_DEV_FAKE_PAYMENT` 仅影响 miniapp 前端；在 `development + TARO_APP_MOCK_MODE=off` 下默认开启，可让订单详情页“继续支付”直接走本地假支付成功并把该订单在当前小程序内标记为已支付，便于联调后续流程；显式设为 `false` 可恢复真实 payment 调用。
 - `TARO_APP_ENABLE_MOCK_LOGIN` 默认为关闭（`false`）；且仅在 `TARO_APP_MOCK_MODE=isolated` 时才会展示“测试登录”按钮。
 - weapp dev 联调若使用“快速登录”模拟手机号按钮，需要前端 `TARO_APP_WEAPP_PHONE_PROOF_SIMULATION=true`，并且 identity 后端同时开启 `IDENTITY_ENABLE_PHONE_PROOF_SIMULATION=true`。
 - `TARO_APP_MOCK_MODE=off` 且本地没有 token 时，miniapp 启动会直接进入游客态；不会再主动请求 `/me`、`/me/permissions` 并刷 401。

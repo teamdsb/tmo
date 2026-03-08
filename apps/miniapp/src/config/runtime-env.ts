@@ -65,6 +65,9 @@ const mockModeConst = typeof __TMO_MOCK_MODE__ !== 'undefined'
 const mockLoginEnabledConst = typeof __TMO_ENABLE_MOCK_LOGIN__ !== 'undefined'
   ? __TMO_ENABLE_MOCK_LOGIN__
   : ''
+const devFakePaymentConst = typeof __TMO_DEV_FAKE_PAYMENT__ !== 'undefined'
+  ? __TMO_DEV_FAKE_PAYMENT__
+  : ''
 const weappPhoneProofSimulationConst = typeof __TMO_WEAPP_PHONE_PROOF_SIMULATION__ !== 'undefined'
   ? __TMO_WEAPP_PHONE_PROOF_SIMULATION__
   : ''
@@ -76,12 +79,22 @@ const mockMode = parseMockMode(firstNonEmpty(
 ))
 const isIsolatedMock = mockMode === 'isolated'
 const nodeEnv = readProcessEnv('NODE_ENV')
+const devFakePaymentRaw = firstNonEmpty(
+  readConst(devFakePaymentConst),
+  readProcessEnv('TARO_APP_DEV_FAKE_PAYMENT')
+)
+const devFakePaymentEnabled = isIsolatedMock
+  ? false
+  : devFakePaymentRaw
+    ? readBoolean(devFakePaymentRaw)
+    : nodeEnv !== 'production'
 const nonProductionFallbackBaseUrl =
   nodeEnv === 'production' || isIsolatedMock ? '' : 'http://localhost:8080'
 
 export const runtimeEnv = Object.freeze({
   mockMode,
   isIsolatedMock,
+  devFakePaymentEnabled,
   gatewayBaseUrl: firstNonEmpty(
     readConst(apiBaseUrlConst),
     readConst(gatewayBaseUrlConst),
