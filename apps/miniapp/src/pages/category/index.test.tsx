@@ -27,6 +27,7 @@ describe('CategoryPage', () => {
     expect((await screen.findAllByText('紧固件')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('电气')).length).toBeGreaterThan(0);
     expect(await screen.findByText('A4 办公用纸')).toBeInTheDocument();
+    expect(await screen.findAllByText('¥185.00 起')).toHaveLength(4);
   });
 
 

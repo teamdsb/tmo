@@ -26,13 +26,45 @@ describe('ProductDetail', () => {
   })
 
   it('renders product information and shipping', async () => {
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValueOnce({
+      product: {
+        id: 'spu-1',
+        name: '高精度工业控制阀',
+        categoryId: 'industrial',
+        images: [],
+        description: '高精度工业控制阀专为复杂工况设计，支持稳定调节与长期运行。'
+      },
+      skus: [
+        {
+          id: 'sku-carbon',
+          spuId: 'spu-1',
+          name: '碳钢',
+          spec: '碳钢',
+          isActive: true,
+          priceTiers: []
+        },
+        {
+          id: 'sku-75mm',
+          spuId: 'spu-1',
+          name: '75mm',
+          spec: '75mm',
+          isActive: true,
+          priceTiers: []
+        }
+      ]
+    } as any)
+
     render(<ProductDetail />)
 
     expect((await screen.findAllByText('高精度工业控制阀')).length).toBeGreaterThan(0)
-    expect(screen.getByText('请选择规格')).toBeInTheDocument()
+    expect(screen.getByText('询价')).toBeInTheDocument()
+    expect(screen.getByText('最低起订单价')).toBeInTheDocument()
     expect(screen.getByText('标准配送')).toBeInTheDocument()
     expect(screen.getByText('采购量越高单价越低')).toBeInTheDocument()
     expect(screen.getByText('购买数量')).toBeInTheDocument()
+    expect(screen.getByText('简介')).toBeInTheDocument()
+    expect(screen.getByText(/高精度工业控制阀专为复杂工况设计/i)).toBeInTheDocument()
+    expect(screen.queryByText('属性')).not.toBeInTheDocument()
   })
 
 
@@ -75,7 +107,14 @@ describe('ProductDetail', () => {
     expect(stylesheet).toContain('.product-title')
   })
 
-  it('updates sku selection and price', async () => {
+  it('shows the lowest starting price in the header', async () => {
+    render(<ProductDetail />)
+
+    expect(await screen.findByText('¥185.00 起')).toBeInTheDocument()
+    expect(screen.getByText('最低起订单价')).toBeInTheDocument()
+  })
+
+  it('updates sku selection and preserves header starting price', async () => {
     render(<ProductDetail />)
 
     const sizeLabel = await screen.findByText('75mm')
@@ -87,7 +126,7 @@ describe('ProductDetail', () => {
     }
     fireEvent.click(sizeButton)
 
-    expect(screen.getAllByText('¥200.00').length).toBeGreaterThan(0)
+    expect(screen.getByText('¥185.00 起')).toBeInTheDocument()
     expect(sizeButton).toHaveClass('bg-[#137fec]')
   })
 

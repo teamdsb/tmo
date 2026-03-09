@@ -659,10 +659,6 @@
   text-transform: uppercase
 }
 
-.leading-none {
-  line-height: 1
-}
-
 .leading-snug {
   line-height: 1.375
 }

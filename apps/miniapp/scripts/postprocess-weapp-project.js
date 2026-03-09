@@ -126,6 +126,11 @@ function processWeappProjectConfig() {
     changed = true
   }
 
+  if (config.setting.compileHotReLoad !== true) {
+    config.setting.compileHotReLoad = true
+    changed = true
+  }
+
   if (!Array.isArray(config.setting.packNpmRelationList) || config.setting.packNpmRelationList.length > 0) {
     config.setting.packNpmRelationList = []
     changed = true

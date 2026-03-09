@@ -89,6 +89,8 @@ export default function ProductDetail() {
   const selectedSku = skus.find((sku) => sku.id === selectedSkuId) ?? null
   const favoriteIdSet = useMemo(() => new Set(favoriteSkuIds), [favoriteSkuIds])
   const isFavorite = selectedSku ? favoriteIdSet.has(selectedSku.id) : false
+  const productDescription = detail?.product?.description?.trim() ?? ''
+  const displayPrice = useMemo(() => formatStartingPrice(skus), [skus])
 
   const normalizePurchaseQty = (value: number): number => {
     if (!Number.isFinite(value)) {
@@ -225,10 +227,8 @@ export default function ProductDetail() {
           <Text className='product-title u-safe-title-2'>{detail?.product?.name ?? '加载中...'}</Text>
           <View className='product-price-row'>
             <View className='product-price'>
-              <Text className='product-price-value'>
-                {selectedSku ? formatSkuPrice(selectedSku) : '请选择规格'}
-              </Text>
-              <Text className='product-price-note'>单件参考价</Text>
+              <Text className='product-price-value'>{displayPrice}</Text>
+              <Text className='product-price-note'>最低起订单价</Text>
             </View>
             <View className='product-price-actions'>
               <TaroifyButton
@@ -317,16 +317,10 @@ export default function ProductDetail() {
           </View>
         </View>
 
-        {selectedSku?.attributes ? (
+        {productDescription ? (
           <View className='product-section'>
-            <Text className='product-section-title'>属性</Text>
-            <Flex wrap='wrap' gutter={8}>
-              {Object.entries(selectedSku.attributes).map(([key, value]) => (
-                <Tag key={key} size='small' variant='outlined'>
-                  {key}: {String(value)}
-                </Tag>
-              ))}
-            </Flex>
+            <Text className='product-section-title'>简介</Text>
+            <Text className='product-description-text'>{productDescription}</Text>
           </View>
         ) : null}
 
@@ -372,12 +366,36 @@ const formatFen = (fen: number) => {
   return `¥${(fen / 100).toFixed(2)}`
 }
 
-const formatSkuPrice = (sku: Sku) => {
-  const tier = matchPriceTier(sku.priceTiers, MIN_PURCHASE_QTY)
-  if (!tier) {
+const formatStartingPrice = (skus: Sku[]) => {
+  const minPriceFen = skus.reduce<number | null>((currentMin, sku) => {
+    if (!Array.isArray(sku.priceTiers) || sku.priceTiers.length === 0) {
+      return currentMin
+    }
+
+    const skuMin = sku.priceTiers.reduce<number | null>((tierMin, tier) => {
+      if (!Number.isFinite(tier.unitPriceFen)) {
+        return tierMin
+      }
+      if (tierMin === null) {
+        return tier.unitPriceFen
+      }
+      return Math.min(tierMin, tier.unitPriceFen)
+    }, null)
+
+    if (skuMin === null) {
+      return currentMin
+    }
+    if (currentMin === null) {
+      return skuMin
+    }
+    return Math.min(currentMin, skuMin)
+  }, null)
+
+  if (minPriceFen === null) {
     return '询价'
   }
-  return formatFen(tier.unitPriceFen)
+
+  return `${formatFen(minPriceFen)} 起`
 }
 
 const renderPriceTiers = (tiers: PriceTier[] | undefined, qty: number) => {

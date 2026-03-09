@@ -7,6 +7,7 @@ import Button from '@taroify/core/button'
 import SearchIcon from '@taroify/icons/Search'
 import type { Category, ProductSummary } from '@tmo/api-client'
 import SafeImage from '../../components/safe-image'
+import { useProductStartingPrices } from '../../hooks/use-product-starting-prices'
 import { goodsDetailRoute } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
 import { renderCategoryIcon, resolveCategoryIconKey } from '../../utils/category-icons'
@@ -31,6 +32,7 @@ export default function CategoryPage() {
   const [query, setQuery] = useState('')
   const [products, setProducts] = useState<ProductSummary[]>([])
   const [productsLoading, setProductsLoading] = useState(false)
+  const productStartingPrices = useProductStartingPrices(products)
 
   const sortedCategories = useMemo(() => sortCategories(categories), [categories])
 
@@ -178,6 +180,7 @@ export default function CategoryPage() {
                       />
                       <View className='category-product-body'>
                         <Text className='category-product-title u-safe-title-2'>{item.name}</Text>
+                        <Text className='category-product-price'>{productStartingPrices[item.id] ?? '询价'}</Text>
                         <View className='category-product-footer'>
                           <Text className='category-product-tag'>{item.tags?.[0] ?? activeCategory?.name ?? '商品'}</Text>
                           <Button size='mini' color='primary'>查看</Button>
