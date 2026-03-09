@@ -75,7 +75,7 @@ describe('ProductCatalogApp', () => {
       jest.advanceTimersByTime(300);
     });
 
-    expect(await screen.findAllByText('价格详见详情')).toHaveLength(4);
+    expect(await screen.findAllByText('¥185.00 起')).toHaveLength(4);
   });
 
   it('opens v1 rescue actions from showcase cards', async () => {
@@ -101,7 +101,7 @@ describe('ProductCatalogApp', () => {
       await Promise.resolve();
     });
 
-    expect(screen.getAllByText('价格详见详情')).toHaveLength(2);
+    expect(screen.getAllByText('¥185.00 起')).toHaveLength(2);
     expect(screen.getByText(/Real Import Product 1772794846257/)).toBeInTheDocument();
     expect(screen.getByText(/Real Import Product 1772794337333/)).toBeInTheDocument();
     expect(document.querySelectorAll('.product-card')).toHaveLength(2);

@@ -57,14 +57,14 @@ describe('SearchEmptyState', () => {
     render(<SearchEmptyState />);
 
     await runDebounce();
-    expect(screen.getAllByText('在详情中查看价格')).toHaveLength(2);
+    expect(screen.getAllByText('¥185.00 起')).toHaveLength(2);
     expect(document.querySelectorAll('.recommend-card')).toHaveLength(2);
 
     const input = screen.getByPlaceholderText('搜索商品...');
     fireEvent.change(input, { target: { value: 'long' } });
     await runDebounce();
 
-    expect(screen.getAllByText('在详情中查看价格')).toHaveLength(2);
+    expect(screen.getAllByText('¥185.00 起')).toHaveLength(2);
     expect(document.querySelectorAll('.recommend-card')).toHaveLength(2);
   });
 

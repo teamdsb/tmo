@@ -1294,6 +1294,16 @@
   border: 1px solid #e8edf3;
 }
 
+.product-description-text {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 27rpx;
+  line-height: 1.7;
+  color: #4a5d72;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .product-logistics.taroify-cell::after {
   display: none;
 }

@@ -8,7 +8,7 @@
     "urlCheck": false,
     "es6": false,
     "enhance": false,
-    "compileHotReLoad": false,
+    "compileHotReLoad": true,
     "postcss": false,
     "minified": false,
     "packNpmManually": false,

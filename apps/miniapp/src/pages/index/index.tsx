@@ -8,6 +8,7 @@ import Flex from '@taroify/core/flex'
 import SearchIcon from '@taroify/icons/Search'
 import type { Category, DisplayCategory, ProductSummary } from '@tmo/api-client'
 import SafeImage from '../../components/safe-image'
+import { useProductStartingPrices } from '../../hooks/use-product-starting-prices'
 import { ROUTES, goodsDetailRoute, withQuery } from '../../routes'
 import { type CategoryIconKey, renderCategoryIcon, resolveCategoryIconKey } from '../../utils/category-icons'
 import { navigateTo, switchTabLike } from '../../utils/navigation'
@@ -86,6 +87,7 @@ export default function ProductCatalogApp() {
   const isH5 = process.env.TARO_ENV === 'h5'
   const navbarStyle = getNavbarStyle()
   const quickCategories = useMemo(() => buildQuickCategories(categories), [categories])
+  const productStartingPrices = useProductStartingPrices(products)
   const trimmedSearchQuery = searchQuery.trim()
   const showEmptyDemandHint = !productsLoading && trimmedSearchQuery.length > 0 && products.length === 0
 
@@ -206,7 +208,7 @@ export default function ProductCatalogApp() {
         <Grid columns={2} gutter={12} className='page-grid product-grid'>
           {products.map((product) => (
             <Grid.Item key={product.id}>
-              <ProductCard data={product} />
+              <ProductCard data={product} priceLabel={productStartingPrices[product.id] ?? '询价'} />
             </Grid.Item>
           ))}
         </Grid>
@@ -345,14 +347,14 @@ function HomeShowcase() {
   )
 }
 
-function ProductCard({ data }: { data: ProductSummary }) {
+function ProductCard({ data, priceLabel }: { data: ProductSummary; priceLabel: string }) {
   const tagLabel = data.tags?.[0] ?? '分类'
   return (
     <View className='product-card' onClick={() => navigateTo(goodsDetailRoute(data.id))}>
       <SafeImage className='product-card-image' src={data.coverImageUrl} width='100%' height={198} mode='aspectFill' />
       <View className='product-card-body'>
         <Text className='product-card-title u-safe-title-2'>{data.name}</Text>
-        <Text className='product-card-price'>价格详见详情</Text>
+        <Text className='product-card-price'>{priceLabel}</Text>
         <Flex justify='space-between' align='center' className='product-card-footer'>
           <View className='product-card-tag'>
             <Text>{tagLabel}</Text>

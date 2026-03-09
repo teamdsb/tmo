@@ -314,11 +314,12 @@ const CreateProductModal = ({ categories, onClose, onSubmit, open }: CreateProdu
             />
           </label>
           <label className="block space-y-1 text-sm text-slate-700">
-            <span>商品描述</span>
+            <span>商品简介</span>
             <textarea
               className="w-full rounded-lg border-slate-300 focus:border-primary focus:ring-primary"
               name="description"
               onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
+              placeholder="填写商品简介，前台商品详情页会展示这里的内容。"
               rows={3}
               value={draft.description}
             />
@@ -761,11 +762,12 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
           </label>
 
           <label className="block space-y-1 text-sm text-slate-700">
-            <span>商品描述</span>
+            <span>商品简介</span>
             <textarea
               className="w-full rounded-lg border-slate-300 focus:border-primary focus:ring-primary"
               name="description"
               onChange={(event) => setDraft((current) => current ? { ...current, description: event.target.value } : current)}
+              placeholder="填写商品简介，前台商品详情页会展示这里的内容。"
               rows={4}
               value={draft.description}
             />
