@@ -235,14 +235,14 @@ jest.mock('@tmo/commerce-services', () => {
       catalog: {
         listCategories: jest.fn(async () => ({
           items: [
-            { id: 'office', name: '办公用品' },
-            { id: 'industrial', name: '工业' }
+            { id: 'fasteners', name: '紧固件' },
+            { id: 'electrical', name: '电气' }
           ]
         })),
         listDisplayCategories: jest.fn(async () => ({
           items: [
-            { id: 'office', name: '办公用品', iconKey: 'notes', sort: 1, enabled: true },
-            { id: 'industrial', name: '工业', iconKey: 'setting', sort: 2, enabled: true }
+            { id: 'fasteners', name: '紧固件', iconKey: 'setting', sort: 1, enabled: true },
+            { id: 'electrical', name: '电气', iconKey: 'desktop', sort: 2, enabled: true }
           ]
         })),
         listProducts: jest.fn(async () => ({

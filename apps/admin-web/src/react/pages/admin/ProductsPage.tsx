@@ -1,4 +1,4 @@
-import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   createCatalogCategory,
@@ -1058,7 +1058,10 @@ type DisplayCategoryManagerModalProps = {
 const DisplayCategoryManagerModal = ({ items, onClose, onSaveAll, open }: DisplayCategoryManagerModalProps) => {
   const [rows, setRows] = useState<DisplayCategoryItem[]>([]);
   const [createDraft, setCreateDraft] = useState({ name: '', iconKey: 'apps', sort: 100, enabled: true });
+  const [createFeedback, setCreateFeedback] = useState<{ message: string; tone: 'error' | 'success' } | null>(null);
+  const [lastAddedRowId, setLastAddedRowId] = useState('');
   const [saving, setSaving] = useState(false);
+  const rowNameInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     if (!open) {
@@ -1066,14 +1069,31 @@ const DisplayCategoryManagerModal = ({ items, onClose, onSaveAll, open }: Displa
     }
     setRows(items.map((item) => ({ ...item })));
     setCreateDraft({ name: '', iconKey: 'apps', sort: 100, enabled: true });
+    setCreateFeedback(null);
+    setLastAddedRowId('');
     setSaving(false);
   }, [items, open]);
+
+  useEffect(() => {
+    if (!open || !lastAddedRowId) {
+      return;
+    }
+    const target = rowNameInputRefs.current[lastAddedRowId];
+    if (!target) {
+      return;
+    }
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.focus();
+    target.select();
+    setLastAddedRowId('');
+  }, [lastAddedRowId, open, rows]);
 
   if (!open) {
     return null;
   }
 
   const enabledItems = rows.filter((item) => item.enabled);
+  const canCreateDisplayCategory = createDraft.name.trim().length > 0;
 
   return (
     <div
@@ -1089,7 +1109,7 @@ const DisplayCategoryManagerModal = ({ items, onClose, onSaveAll, open }: Displa
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <div>
             <h3 className="text-lg font-bold text-slate-900">展示类目管理</h3>
-            <p className="text-xs text-slate-500">管理小程序首页/分类页的展示类目（Admin 改动会同步到小程序）。</p>
+            <p className="text-xs text-slate-500">管理小程序首页的展示类目（Admin 改动会同步到小程序首页）。</p>
           </div>
           <button
             className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
@@ -1106,15 +1126,18 @@ const DisplayCategoryManagerModal = ({ items, onClose, onSaveAll, open }: Displa
             data-role="create-display-category-form"
             onSubmit={(event) => {
               event.preventDefault();
-              if (!createDraft.name.trim()) {
+              const trimmedName = createDraft.name.trim();
+              if (!trimmedName) {
+                setCreateFeedback({ message: '请先填写展示类目名称。', tone: 'error' });
                 return;
               }
+              const nextId = `display-cat-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
               setRows((current) => sortDisplayCategories([
                 ...current,
                 normalizeDisplayCategoryItem(
                   {
-                    id: `display-cat-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                    name: createDraft.name.trim(),
+                    id: nextId,
+                    name: trimmedName,
                     iconKey: createDraft.iconKey,
                     sort: createDraft.sort,
                     enabled: createDraft.enabled
@@ -1123,12 +1146,20 @@ const DisplayCategoryManagerModal = ({ items, onClose, onSaveAll, open }: Displa
                 )
               ]));
               setCreateDraft({ name: '', iconKey: 'apps', sort: 100, enabled: true });
+              setCreateFeedback({ message: '已加入列表，记得点击“保存全部变更”。', tone: 'success' });
+              setLastAddedRowId(nextId);
             }}
           >
             <input
               className="rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary"
               name="name"
-              onChange={(event) => setCreateDraft((current) => ({ ...current, name: event.target.value }))}
+              onChange={(event) => {
+                const value = event.target.value;
+                setCreateDraft((current) => ({ ...current, name: value }));
+                if (createFeedback) {
+                  setCreateFeedback(null);
+                }
+              }}
               placeholder="新增展示类目名称"
               type="text"
               value={createDraft.name}
@@ -1162,10 +1193,26 @@ const DisplayCategoryManagerModal = ({ items, onClose, onSaveAll, open }: Displa
               />
               <span>启用</span>
             </label>
-            <button className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark" type="submit">
+            <button
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={!canCreateDisplayCategory}
+              type="submit"
+            >
               新增类目
             </button>
           </form>
+
+          {createFeedback ? (
+            <div
+              className={`rounded-lg border px-3 py-2 text-sm ${
+                createFeedback.tone === 'error'
+                  ? 'border-red-200 bg-red-50 text-red-600'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              }`}
+            >
+              {createFeedback.message}
+            </div>
+          ) : null}
 
           <div className="space-y-2">
             <h4 className="text-sm font-semibold text-slate-700">小程序展示预览（仅展示启用项）</h4>
@@ -1213,6 +1260,9 @@ const DisplayCategoryManagerModal = ({ items, onClose, onSaveAll, open }: Displa
                         <input
                           className="w-full rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary"
                           data-role="display-category-name"
+                          ref={(node) => {
+                            rowNameInputRefs.current[row.id] = node;
+                          }}
                           onChange={(event) => {
                             const value = event.target.value;
                             setRows((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, name: value } : item)));
