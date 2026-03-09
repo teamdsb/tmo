@@ -23,6 +23,7 @@ tags:
 - name: AfterSales
   description: Owned by commerce service.
 - name: Inquiries
+- name: Support
 security:
 - bearerAuth: []
 paths:
@@ -1070,6 +1071,245 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/InquiryMessage"
+  "/support/conversations/current":
+    get:
+      tags:
+      - Support
+      summary: Get or create the current customer's active support conversation
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SupportConversation"
+  "/support/conversations/{conversationId}/messages":
+    get:
+      tags:
+      - Support
+      summary: List support messages for a conversation
+      parameters:
+      - in: path
+        name: conversationId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 50
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PagedSupportMessageList"
+    post:
+      tags:
+      - Support
+      summary: Send a support message (customer or CS)
+      parameters:
+      - in: path
+        name: conversationId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CreateSupportMessageRequest"
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SupportMessage"
+  "/support/conversations/{conversationId}/messages/image":
+    post:
+      tags:
+      - Support
+      summary: Upload a support chat image asset
+      parameters:
+      - in: path
+        name: conversationId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+              - file
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SupportMessageAsset"
+  "/support/conversations/{conversationId}/read":
+    post:
+      tags:
+      - Support
+      summary: Mark a support conversation as read for the current actor
+      parameters:
+      - in: path
+        name: conversationId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SupportConversation"
+  "/admin/support/conversations":
+    get:
+      tags:
+      - Support
+      summary: List support conversations for admin-web staff queues
+      description: Only admin-web staff roles may access this list. Customer conversation handling is owned by CS; SALES remains miniapp-only.
+      parameters:
+      - in: query
+        name: scope
+        schema:
+          type: string
+          enum:
+          - mine
+          - unassigned
+          - unread
+      - in: query
+        name: status
+        schema:
+          "$ref": "#/components/schemas/SupportConversationStatus"
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PagedSupportConversationList"
+  "/admin/support/conversations/{conversationId}":
+    get:
+      tags:
+      - Support
+      summary: Get support conversation detail with context
+      parameters:
+      - in: path
+        name: conversationId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SupportConversationDetail"
+  "/admin/support/conversations/{conversationId}/claim":
+    post:
+      tags:
+      - Support
+      summary: Claim a support conversation
+      parameters:
+      - in: path
+        name: conversationId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SupportConversation"
+  "/admin/support/conversations/{conversationId}/release":
+    post:
+      tags:
+      - Support
+      summary: Release a support conversation back to the queue
+      parameters:
+      - in: path
+        name: conversationId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SupportConversation"
+  "/admin/support/conversations/{conversationId}/transfer":
+    post:
+      tags:
+      - Support
+      summary: Transfer a support conversation to another CS user
+      parameters:
+      - in: path
+        name: conversationId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/TransferSupportConversationRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SupportConversation"
   "/shipments/import-jobs":
     post:
       tags:
@@ -2251,6 +2491,318 @@ components:
       - page
       - pageSize
       - total
+    SupportConversationStatus:
+      type: string
+      enum:
+      - OPEN_UNASSIGNED
+      - OPEN_ASSIGNED
+      - CLOSED
+    SupportMessageType:
+      type: string
+      enum:
+      - TEXT
+      - IMAGE
+      - ORDER_CARD
+      - PRODUCT_CARD
+      - SYSTEM
+    SupportSenderType:
+      type: string
+      enum:
+      - CUSTOMER
+      - STAFF
+      - SYSTEM
+    SupportMessageAsset:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        contentType:
+          type: string
+        fileName:
+          type: string
+        fileSize:
+          type: integer
+        url:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - contentType
+      - fileName
+      - fileSize
+      - url
+      - createdAt
+    SupportMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        conversationId:
+          type: string
+          format: uuid
+        senderType:
+          "$ref": "#/components/schemas/SupportSenderType"
+        senderUserId:
+          type: string
+          format: uuid
+          nullable: true
+        senderRole:
+          type: string
+          nullable: true
+        messageType:
+          "$ref": "#/components/schemas/SupportMessageType"
+        textContent:
+          type: string
+          nullable: true
+        asset:
+          allOf:
+          - "$ref": "#/components/schemas/SupportMessageAsset"
+          nullable: true
+        cardPayload:
+          type: object
+          nullable: true
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - conversationId
+      - senderType
+      - messageType
+      - createdAt
+    SupportConversation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerUserId:
+          type: string
+          format: uuid
+        ownerSalesUserId:
+          type: string
+          format: uuid
+          nullable: true
+        assigneeUserId:
+          type: string
+          format: uuid
+          nullable: true
+        assigneeRole:
+          type: string
+          nullable: true
+        status:
+          "$ref": "#/components/schemas/SupportConversationStatus"
+        lastMessageType:
+          "$ref": "#/components/schemas/SupportMessageType"
+          nullable: true
+        lastMessagePreview:
+          type: string
+          nullable: true
+        lastMessageAt:
+          type: string
+          format: date-time
+        customerUnreadCount:
+          type: integer
+        staffUnreadCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - id
+      - customerUserId
+      - status
+      - lastMessageAt
+      - customerUnreadCount
+      - staffUnreadCount
+      - createdAt
+      - updatedAt
+    PagedSupportConversationList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/SupportConversation"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required:
+      - items
+      - page
+      - pageSize
+      - total
+    PagedSupportMessageList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/SupportMessage"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required:
+      - items
+      - page
+      - pageSize
+      - total
+    CreateSupportMessageRequest:
+      type: object
+      properties:
+        messageType:
+          "$ref": "#/components/schemas/SupportMessageType"
+        text:
+          type: string
+          nullable: true
+        assetId:
+          type: string
+          format: uuid
+          nullable: true
+        cardPayload:
+          type: object
+          nullable: true
+          additionalProperties: true
+      required:
+      - messageType
+      additionalProperties: false
+    SupportOrderSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        remark:
+          type: string
+          nullable: true
+        firstItem:
+          type: string
+          nullable: true
+        totalItems:
+          type: integer
+      required:
+      - id
+      - status
+      - createdAt
+      - totalItems
+    SupportInquirySummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        message:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - status
+      - message
+      - createdAt
+    SupportAfterSalesSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        subject:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - status
+      - subject
+      - createdAt
+    SupportConversationContext:
+      type: object
+      properties:
+        customerUserId:
+          type: string
+          format: uuid
+        ownerSalesUserId:
+          type: string
+          format: uuid
+          nullable: true
+        recentOrders:
+          type: array
+          items:
+            "$ref": "#/components/schemas/SupportOrderSummary"
+        recentInquiries:
+          type: array
+          items:
+            "$ref": "#/components/schemas/SupportInquirySummary"
+        recentTickets:
+          type: array
+          items:
+            "$ref": "#/components/schemas/SupportAfterSalesSummary"
+      required:
+      - customerUserId
+      - recentOrders
+      - recentInquiries
+      - recentTickets
+    SupportConversationDetail:
+      type: object
+      properties:
+        conversation:
+          "$ref": "#/components/schemas/SupportConversation"
+        messages:
+          type: array
+          items:
+            "$ref": "#/components/schemas/SupportMessage"
+        context:
+          "$ref": "#/components/schemas/SupportConversationContext"
+      required:
+      - conversation
+      - messages
+      - context
+    TransferSupportConversationRequest:
+      type: object
+      properties:
+        toUserId:
+          type: string
+          format: uuid
+        toRole:
+          type: string
+          enum:
+          - CS
+        note:
+          type: string
+          nullable: true
+      required:
+      - toUserId
+      - toRole
+      additionalProperties: false
     AIReplySuggestionRequest:
       type: object
       properties:

@@ -15,6 +15,7 @@ import (
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/productimport"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/productrequest"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/productrequestexport"
+	"github.com/teamdsb/tmo/services/commerce/internal/modules/support"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/tracking"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/wishlist"
 )
@@ -29,8 +30,10 @@ type Handler struct {
 	ProductRequestStore  productrequest.Store
 	AfterSalesStore      aftersales.Store
 	InquiryStore         inquiry.Store
+	SupportStore         support.Store
 	ProductImport        *productimport.Service
 	ProductRequestExport *productrequestexport.Service
+	SupportHub           *SupportHub
 	MediaLocalOutputDir  string
 	MediaPublicBaseURL   string
 	InternalSyncToken    string

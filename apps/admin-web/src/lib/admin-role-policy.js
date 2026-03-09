@@ -1,4 +1,4 @@
-export const ALLOWED_ADMIN_WEB_ROLES = ['ADMIN', 'BOSS', 'CS'];
+export const ALLOWED_ADMIN_WEB_ROLES = ['ADMIN', 'BOSS', 'CS', 'MANAGER'];
 
 export const normalizeRole = (role) => {
   return String(role || '').trim().toUpperCase();

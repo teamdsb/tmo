@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
@@ -21,14 +21,13 @@ import { runtimeEnv } from '../../config/runtime-env'
 import {
   INITIAL_ADDRESSES_DATA,
   INITIAL_DEMANDS_DATA,
-  INITIAL_MESSAGES,
   INITIAL_ORDERS_DATA,
   PENDING_ORDER_STATUSES,
   createMineMenuItems,
   toOrderBadge
 } from './data'
-import { AddressView, ChatView, DemandView, MineProfileView, OrderManagementView } from './components'
-import type { ChatMessage, MenuItem, MineSubview, OrderBadges, OrderItem } from './types'
+import { AddressView, DemandView, MineProfileView, OrderManagementView } from './components'
+import type { MenuItem, MineSubview, OrderBadges, OrderItem } from './types'
 
 export default function PersonalCenter() {
   const navbarStyle = getNavbarStyle()
@@ -39,13 +38,6 @@ export default function PersonalCenter() {
   const [loggingOut, setLoggingOut] = useState(false)
   const [currentPage, setCurrentPage] = useState<MineSubview>('profile')
   const [initialOrderTab, setInitialOrderTab] = useState('全部')
-
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES)
-  const [chatInputValue, setChatInputValue] = useState('')
-  const [chatInputFocusKey, setChatInputFocusKey] = useState(0)
-  const [isTyping, setIsTyping] = useState(false)
-  const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const replyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const avatarFallback = placeholderProductImage
 
@@ -118,17 +110,6 @@ export default function PersonalCenter() {
     }
     void refreshOrderBadges()
   }, [bootstrap?.me?.id, refreshOrderBadges])
-
-  useEffect(() => {
-    return () => {
-      if (typingTimerRef.current) {
-        clearTimeout(typingTimerRef.current)
-      }
-      if (replyTimerRef.current) {
-        clearTimeout(replyTimerRef.current)
-      }
-    }
-  }, [])
 
   const isLoggedIn = Boolean(bootstrap?.me)
   const displayName = bootstrap?.me?.displayName?.trim() || (isLoggedIn ? '企业用户' : '未登录')
@@ -212,50 +193,9 @@ export default function PersonalCenter() {
     }
   }
 
-  const handleSendChat = () => {
-    const trimmed = chatInputValue.trim()
-    if (!trimmed) {
-      return
-    }
-
-    setChatMessages((prev) => [...prev, { id: Date.now(), sender: 'user', text: trimmed, time: '14:35' }])
-    setChatInputValue('')
-    setChatInputFocusKey((prev) => prev + 1)
-
-    if (typingTimerRef.current) {
-      clearTimeout(typingTimerRef.current)
-    }
-    if (replyTimerRef.current) {
-      clearTimeout(replyTimerRef.current)
-    }
-
-    typingTimerRef.current = setTimeout(() => {
-      setIsTyping(true)
-      replyTimerRef.current = setTimeout(() => {
-        setIsTyping(false)
-        setChatMessages((prev) => [
-          ...prev,
-          { id: Date.now() + 1, sender: 'agent', text: '已收到，我马上为您核实。', time: '14:36' }
-        ])
-      }, 1200)
-    }, 600)
-  }
-
   return (
     <View className='page font-sans mine-modern' style={isH5 ? navbarStyle : undefined}>
       {isH5 ? <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'></Navbar> : null}
-
-      {currentPage === 'chat' ? (
-        <ChatView
-          messages={chatMessages}
-          isTyping={isTyping}
-          inputValue={chatInputValue}
-          inputFocusKey={chatInputFocusKey}
-          onInput={setChatInputValue}
-          onSend={handleSendChat}
-          onBack={() => setCurrentPage('profile')}
-        />
-      ) : null}
 
       {currentPage === 'orders' ? (
         <OrderManagementView
@@ -289,8 +229,7 @@ export default function PersonalCenter() {
             setCurrentPage('orders')
           }}
           onOpenChat={() => {
-            setChatInputFocusKey((prev) => prev + 1)
-            setCurrentPage('chat')
+            void navigateTo(ROUTES.supportChat)
           }}
           onMenuItemClick={(item) => {
             if (typeof item.action === 'function') {

@@ -76,6 +76,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	auth := middleware.NewAuthenticator(cfg.AuthEnabled, cfg.JWTSecret, cfg.JWTIssuer)
 	productImportService := productimport.NewService(pool, cfg.MediaLocalOutputDir, cfg.MediaPublicBaseURL, logger)
 	productRequestExportService := productrequestexport.NewService(pool, cfg.MediaLocalOutputDir, cfg.MediaPublicBaseURL)
+	supportHub := handler.NewSupportHub()
 	apiHandler := &handler.Handler{
 		AddressStore:         store,
 		CatalogStore:         store,
@@ -86,8 +87,10 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		ProductRequestStore:  store,
 		AfterSalesStore:      store,
 		InquiryStore:         store,
+		SupportStore:         store,
 		ProductImport:        productImportService,
 		ProductRequestExport: productRequestExportService,
+		SupportHub:           supportHub,
 		MediaLocalOutputDir:  cfg.MediaLocalOutputDir,
 		MediaPublicBaseURL:   cfg.MediaPublicBaseURL,
 		InternalSyncToken:    cfg.InternalSyncToken,

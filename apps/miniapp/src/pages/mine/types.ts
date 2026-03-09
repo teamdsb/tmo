@@ -18,15 +18,7 @@ export type OrderItem = {
   onClick: () => void
 }
 
-export type MineSubview = 'profile' | 'chat' | 'orders' | 'address' | 'demand'
-
-export type ChatMessage = {
-  id: number
-  sender: 'agent' | 'user'
-  text: string
-  time: string
-  hasActions?: boolean
-}
+export type MineSubview = 'profile' | 'orders' | 'address' | 'demand'
 
 export type MockOrderItem = {
   name: string
