@@ -121,6 +121,12 @@ type pagedAdminUsersResponse struct {
 	Total    int                `json:"total"`
 }
 
+type updateAdminUserRequest struct {
+	Roles          *[]string `json:"roles,omitempty"`
+	Status         *string   `json:"status,omitempty"`
+	DisabledReason *string   `json:"disabledReason,omitempty"`
+}
+
 type customerTagResponse struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`
@@ -185,6 +191,19 @@ type promoteCustomerToSalesResponse struct {
 	Promoted  bool     `json:"promoted"`
 	CreatedAt string   `json:"createdAt"`
 	UpdatedAt string   `json:"updatedAt"`
+}
+
+func adminUserSummaryFromModel(user db.User, roles []string) adminUserSummary {
+	return adminUserSummary{
+		ID:          user.ID.String(),
+		DisplayName: safeString(user.DisplayName, "未命名用户"),
+		Phone:       user.Phone,
+		UserType:    strings.ToLower(strings.TrimSpace(user.UserType)),
+		Status:      strings.ToLower(strings.TrimSpace(user.Status)),
+		Roles:       normalizeAdminRoles(roles),
+		CreatedAt:   user.CreatedAt.Time.Format(time.RFC3339),
+		UpdatedAt:   user.UpdatedAt.Time.Format(time.RFC3339),
+	}
 }
 
 func (h *Handler) GetAdminConfigFeatureFlags(c *gin.Context) {
@@ -347,16 +366,7 @@ func (h *Handler) GetAdminUsers(c *gin.Context) {
 			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to list admin users")
 			return
 		}
-		items = append(items, adminUserSummary{
-			ID:          user.ID.String(),
-			DisplayName: safeString(user.DisplayName, "未命名用户"),
-			Phone:       user.Phone,
-			UserType:    strings.ToLower(strings.TrimSpace(user.UserType)),
-			Status:      strings.ToLower(strings.TrimSpace(user.Status)),
-			Roles:       normalizeRoles(roles),
-			CreatedAt:   user.CreatedAt.Time.Format(time.RFC3339),
-			UpdatedAt:   user.UpdatedAt.Time.Format(time.RFC3339),
-		})
+		items = append(items, adminUserSummaryFromModel(user, roles))
 	}
 
 	c.JSON(http.StatusOK, pagedAdminUsersResponse{
@@ -365,6 +375,143 @@ func (h *Handler) GetAdminUsers(c *gin.Context) {
 		PageSize: pageSize,
 		Total:    int(total),
 	})
+}
+
+func (h *Handler) PatchAdminUsersUserId(c *gin.Context) {
+	claims, _, ok := h.requirePermission(c, "rbac:manage", "ALL")
+	if !ok {
+		return
+	}
+
+	userID, err := uuid.Parse(strings.TrimSpace(c.Param("userId")))
+	if err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid userId")
+		return
+	}
+
+	var request updateAdminUserRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
+		return
+	}
+	if request.Roles == nil && request.Status == nil && request.DisabledReason == nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "at least one field is required")
+		return
+	}
+
+	user, err := h.Store.GetUserByID(c.Request.Context(), userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			h.writeError(c, http.StatusNotFound, "not_found", "admin user not found")
+			return
+		}
+		h.logError("get admin user failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update admin user")
+		return
+	}
+	if strings.ToLower(strings.TrimSpace(user.UserType)) != "admin" {
+		h.writeError(c, http.StatusNotFound, "not_found", "admin user not found")
+		return
+	}
+
+	currentRoles, err := h.Store.ListUserRoles(c.Request.Context(), user.ID)
+	if err != nil {
+		h.logError("list admin user roles failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update admin user")
+		return
+	}
+	currentRoles = normalizeAdminRoles(currentRoles)
+
+	nextRoles := currentRoles
+	if request.Roles != nil {
+		nextRoles = normalizeAdminRoles(*request.Roles)
+		if len(nextRoles) == 0 {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "roles is required")
+			return
+		}
+		for _, role := range nextRoles {
+			if !isAdminRole(role) {
+				h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid admin role")
+				return
+			}
+		}
+	}
+
+	status := ""
+	var disabledAt pgtype.Timestamptz
+	var disabledReason *string
+	if request.Status != nil {
+		status = strings.ToLower(strings.TrimSpace(*request.Status))
+		switch status {
+		case "active":
+			disabledAt = pgtype.Timestamptz{}
+			disabledReason = nil
+		case "disabled":
+			if containsRole(nextRoles, "BOSS") {
+				h.writeError(c, http.StatusBadRequest, "invalid_request", "boss account cannot be disabled")
+				return
+			}
+			disabledAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+			disabledReason = request.DisabledReason
+		default:
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid status")
+			return
+		}
+	}
+
+	err = shareddb.WithTx(c.Request.Context(), h.DB, func(tx pgx.Tx) error {
+		q := h.Store.WithTx(tx)
+		if request.Roles != nil {
+			if err := q.DeleteUserRoles(c.Request.Context(), user.ID); err != nil {
+				return err
+			}
+			for _, role := range nextRoles {
+				if err := q.AddUserRole(c.Request.Context(), db.AddUserRoleParams{
+					UserID: user.ID,
+					Role:   role,
+				}); err != nil {
+					return err
+				}
+			}
+		}
+		if status != "" {
+			if _, err := q.UpdateUserStatus(c.Request.Context(), db.UpdateUserStatusParams{
+				ID:             user.ID,
+				Status:         status,
+				DisabledAt:     disabledAt,
+				DisabledReason: disabledReason,
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		h.logError("update admin user failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update admin user")
+		return
+	}
+
+	updated, err := h.Store.GetUserByID(c.Request.Context(), user.ID)
+	if err != nil {
+		h.logError("reload admin user failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update admin user")
+		return
+	}
+	updatedRoles, err := h.Store.ListUserRoles(c.Request.Context(), updated.ID)
+	if err != nil {
+		h.logError("list updated admin user roles failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update admin user")
+		return
+	}
+	updatedRoles = normalizeAdminRoles(updatedRoles)
+
+	h.recordAudit(c, &claims.UserID, "admin_user.update", "admin_user", &updated.ID, map[string]interface{}{
+		"roles":  updatedRoles,
+		"status": updated.Status,
+	})
+
+	c.JSON(http.StatusOK, adminUserSummaryFromModel(updated, updatedRoles))
 }
 
 func (h *Handler) PostAdminCustomersCustomerIdPromoteToSales(c *gin.Context) {

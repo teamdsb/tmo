@@ -217,12 +217,12 @@ WHERE user_id = $1 AND provider = 'weapp'
 
 func TestAuthMiniCapabilitiesShowsMissingWeappConfig(t *testing.T) {
 	router, pool := setupTestRouterWithPlatformConfig(t, platform.Config{
-		Mode:                        platform.LoginModeReal,
-		EnablePhoneProofSimulation:  false,
-		PhoneProofSimulationPhone:   "+15550000003",
-		WeappSalesPage:              "pages/index/index",
-		WeappQRWidth:                256,
-		AlipaySalesPage:             "pages/index/index",
+		Mode:                       platform.LoginModeReal,
+		EnablePhoneProofSimulation: false,
+		PhoneProofSimulationPhone:  "+15550000003",
+		WeappSalesPage:             "pages/index/index",
+		WeappQRWidth:               256,
+		AlipaySalesPage:            "pages/index/index",
 	})
 	ctx := context.Background()
 
@@ -996,6 +996,14 @@ func TestAdminUsersList(t *testing.T) {
 		t.Fatalf("seed manager role: %v", err)
 	}
 
+	bossID := uuid.New()
+	if err := seedUser(ctx, pool, bossID, "Boss", "admin"); err != nil {
+		t.Fatalf("seed boss user: %v", err)
+	}
+	if err := seedRole(ctx, pool, bossID, "BOSS"); err != nil {
+		t.Fatalf("seed boss role: %v", err)
+	}
+
 	adminLogin := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
 		"username": adminUsername,
 		"password": adminPassword,
@@ -1025,6 +1033,18 @@ func TestAdminUsersList(t *testing.T) {
 	if listPayload.Total < 2 {
 		t.Fatalf("expected at least 2 admin users, got %d", listPayload.Total)
 	}
+	foundBoss := false
+	for _, item := range listPayload.Items {
+		if containsRole(item.Roles, "BOSS") {
+			foundBoss = true
+			if !containsRole(item.Roles, "ADMIN") {
+				t.Fatalf("expected BOSS user to include normalized ADMIN role, got %#v", item.Roles)
+			}
+		}
+	}
+	if !foundBoss {
+		t.Fatalf("expected boss user in admin users list")
+	}
 
 	filteredResp := doJSON(t, router, http.MethodGet, "/admin/users?page=1&pageSize=20&role=ADMIN", nil, adminAuth.AccessToken)
 	if filteredResp.Code != http.StatusOK {
@@ -1047,6 +1067,109 @@ func TestAdminUsersList(t *testing.T) {
 		if !containsRole(item.Roles, "ADMIN") {
 			t.Fatalf("expected ADMIN role in filtered result, got %#v", item.Roles)
 		}
+	}
+}
+
+func TestPatchAdminUserNormalizesBossRoleAndSupportsDemotion(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedAdmin(ctx, pool); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+
+	targetID := uuid.New()
+	if err := seedUser(ctx, pool, targetID, "Target Admin", "admin"); err != nil {
+		t.Fatalf("seed target admin: %v", err)
+	}
+	if err := seedRole(ctx, pool, targetID, "ADMIN"); err != nil {
+		t.Fatalf("seed target admin role: %v", err)
+	}
+
+	adminLogin := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": adminUsername,
+		"password": adminPassword,
+	}, "")
+	if adminLogin.Code != http.StatusOK {
+		t.Fatalf("expected admin login 200, got %d: %s", adminLogin.Code, adminLogin.Body.String())
+	}
+	var adminAuth oapi.AuthResponse
+	if err := json.NewDecoder(adminLogin.Body).Decode(&adminAuth); err != nil {
+		t.Fatalf("decode admin auth: %v", err)
+	}
+
+	promoteResp := doJSON(t, router, http.MethodPatch, "/admin/users/"+targetID.String(), map[string]interface{}{
+		"roles": []string{"BOSS"},
+	}, adminAuth.AccessToken)
+	if promoteResp.Code != http.StatusOK {
+		t.Fatalf("expected promote boss 200, got %d: %s", promoteResp.Code, promoteResp.Body.String())
+	}
+	var promotePayload struct {
+		Roles []string `json:"roles"`
+	}
+	if err := json.NewDecoder(promoteResp.Body).Decode(&promotePayload); err != nil {
+		t.Fatalf("decode promote payload: %v", err)
+	}
+	if !containsRole(promotePayload.Roles, "ADMIN") || !containsRole(promotePayload.Roles, "BOSS") {
+		t.Fatalf("expected normalized admin+boss roles, got %#v", promotePayload.Roles)
+	}
+
+	demoteResp := doJSON(t, router, http.MethodPatch, "/admin/users/"+targetID.String(), map[string]interface{}{
+		"roles": []string{"ADMIN"},
+	}, adminAuth.AccessToken)
+	if demoteResp.Code != http.StatusOK {
+		t.Fatalf("expected demote boss 200, got %d: %s", demoteResp.Code, demoteResp.Body.String())
+	}
+	var demotePayload struct {
+		Roles []string `json:"roles"`
+	}
+	if err := json.NewDecoder(demoteResp.Body).Decode(&demotePayload); err != nil {
+		t.Fatalf("decode demote payload: %v", err)
+	}
+	if !containsRole(demotePayload.Roles, "ADMIN") || containsRole(demotePayload.Roles, "BOSS") {
+		t.Fatalf("expected demoted admin-only roles, got %#v", demotePayload.Roles)
+	}
+}
+
+func TestPatchAdminUserRejectsDisablingBossAccount(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedAdmin(ctx, pool); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+
+	targetID := uuid.New()
+	if err := seedUser(ctx, pool, targetID, "Boss Target", "admin"); err != nil {
+		t.Fatalf("seed boss target: %v", err)
+	}
+	if err := seedRole(ctx, pool, targetID, "BOSS"); err != nil {
+		t.Fatalf("seed boss role: %v", err)
+	}
+
+	adminLogin := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": adminUsername,
+		"password": adminPassword,
+	}, "")
+	if adminLogin.Code != http.StatusOK {
+		t.Fatalf("expected admin login 200, got %d: %s", adminLogin.Code, adminLogin.Body.String())
+	}
+	var adminAuth oapi.AuthResponse
+	if err := json.NewDecoder(adminLogin.Body).Decode(&adminAuth); err != nil {
+		t.Fatalf("decode admin auth: %v", err)
+	}
+
+	disableResp := doJSON(t, router, http.MethodPatch, "/admin/users/"+targetID.String(), map[string]interface{}{
+		"status": "disabled",
+	}, adminAuth.AccessToken)
+	if disableResp.Code != http.StatusBadRequest {
+		t.Fatalf("expected disable boss 400, got %d: %s", disableResp.Code, disableResp.Body.String())
 	}
 }
 

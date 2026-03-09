@@ -337,6 +337,13 @@ export const fetchAdminUsers = async (params = {}) => {
   return requestRaw(`/admin/users${buildQueryString(params)}`);
 };
 
+export const patchAdminUser = async (userId, payload) => {
+  return requestRaw(`/admin/users/${userId}`, {
+    method: 'PATCH',
+    body: payload
+  });
+};
+
 export const fetchAdminCustomers = async (params = {}) => {
   return requestRaw(`/admin/customers${buildQueryString(params)}`);
 };

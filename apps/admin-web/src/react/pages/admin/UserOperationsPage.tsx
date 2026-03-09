@@ -6,12 +6,15 @@ import {
   fetchAdminSalesUsers,
   fetchAdminUsers,
   fetchStaffUsers,
+  patchAdminUser,
   patchStaffRoles,
   patchStaffStatus,
   promoteAdminCustomerToSales
 } from '../../../lib/api';
+import { getCurrentSession } from '../../../lib/auth';
 import { isMockMode } from '../../../lib/env';
 import { listMockAccounts } from '../../../lib/mock-accounts';
+import { hasPermission, normalizePermissionMap } from '../../../lib/permissions';
 import { AdminTopbar } from '../../layout/AdminTopbar';
 
 type UserOperationsTab = 'customers' | 'staff' | 'admins';
@@ -71,6 +74,20 @@ type AdminUser = {
 
 const DEFAULT_TAG_COLOR = '#64748B';
 const SALES_ROLE = 'SALES';
+const CS_ROLE = 'CS';
+const MANAGER_ROLE = 'MANAGER';
+const ADMIN_ROLE = 'ADMIN';
+const BOSS_ROLE = 'BOSS';
+const STAFF_ROLE_BLOCKS = [SALES_ROLE, CS_ROLE, MANAGER_ROLE] as const;
+const ADMIN_ROLE_BLOCKS = [ADMIN_ROLE, BOSS_ROLE] as const;
+
+const ROLE_LABELS: Record<string, string> = {
+  [SALES_ROLE]: '小程序业务员',
+  [CS_ROLE]: '客服',
+  [MANAGER_ROLE]: '经理',
+  [ADMIN_ROLE]: '管理员',
+  [BOSS_ROLE]: '老板'
+};
 
 const mockSalesSeed: SalesUser[] = [
   {
@@ -192,6 +209,34 @@ const normalizeRoleList = (roles: unknown): string[] => {
     return [];
   }
   return roles.filter((role): role is string => typeof role === 'string');
+};
+
+const normalizeAdminRoles = (roles: string[]) => {
+  const normalized = normalizeRoleList(roles).map((role) => role.toUpperCase());
+  if (normalized.includes(BOSS_ROLE) && !normalized.includes(ADMIN_ROLE)) {
+    normalized.push(ADMIN_ROLE);
+  }
+  return Array.from(new Set(normalized)).sort();
+};
+
+const appendAdminRole = (roles: string[], role: string) => {
+  const nextRoles = appendRole(roles, role);
+  if (String(role || '').toUpperCase() === BOSS_ROLE) {
+    return normalizeAdminRoles(appendRole(nextRoles, ADMIN_ROLE));
+  }
+  return normalizeAdminRoles(nextRoles);
+};
+
+const removeAdminRole = (roles: string[], role: string) => {
+  const target = String(role || '').toUpperCase();
+  if (target === BOSS_ROLE) {
+    return normalizeAdminRoles([ADMIN_ROLE]);
+  }
+  return normalizeAdminRoles(removeRole(roles, target));
+};
+
+const getRoleLabel = (role: string) => {
+  return ROLE_LABELS[String(role || '').toUpperCase()] || role;
 };
 
 const normalizeSalesUsers = (data: unknown): SalesUser[] => {
@@ -367,7 +412,7 @@ const normalizeAdminUsers = (data: unknown): { items: AdminUser[]; total: number
         return {
           id: record.id,
           displayName: safeText(record.displayName, '未命名管理员'),
-          roles,
+          roles: normalizeAdminRoles(roles),
           status: safeText(record.status, 'active').toLowerCase(),
           userType: safeText(record.userType, 'admin').toLowerCase(),
           createdAt: safeText(record.createdAt, ''),
@@ -389,6 +434,21 @@ const buildMockStaffSeed = (): StaffUser[] => {
       phone: account.phone || '-',
       roles: account.role ? [String(account.role).toUpperCase()] : [],
       status: 'active',
+      createdAt: now,
+      updatedAt: now
+    }));
+};
+
+const buildMockAdminSeed = (): AdminUser[] => {
+  const now = new Date().toISOString();
+  return listMockAccounts()
+    .filter((account) => account.userType === 'admin')
+    .map((account) => ({
+      id: account.userId,
+      displayName: account.displayName || account.username,
+      roles: normalizeAdminRoles(account.role ? [String(account.role).toUpperCase()] : [ADMIN_ROLE]),
+      status: 'active',
+      userType: 'admin',
       createdAt: now,
       updatedAt: now
     }));
@@ -440,7 +500,7 @@ const CustomerRow = memo(({ customer, isPending, isSales, onPromoteToSales }: Cu
           onClick={() => onPromoteToSales(customer)}
           type="button"
         >
-          {isSales ? '已是业务员' : isPending ? '处理中...' : '设为业务员'}
+          {isSales ? '已是小程序业务员' : isPending ? '处理中...' : '设为小程序业务员'}
         </button>
       </td>
     </tr>
@@ -452,15 +512,87 @@ CustomerRow.displayName = 'CustomerRow';
 type StaffRowProps = {
   staff: StaffUser;
   isPending: boolean;
-  onGrantSales: (staff: StaffUser) => void;
-  onRevokeSales: (staff: StaffUser) => void;
+  canManageRoles: boolean;
+  canToggleStatus: boolean;
+  onGrantRole: (staff: StaffUser, role: string) => void;
+  onRevokeRole: (staff: StaffUser, role: string) => void;
   onToggleStatus: (staff: StaffUser) => void;
 };
 
-const StaffRow = memo(({ staff, isPending, onGrantSales, onRevokeSales, onToggleStatus }: StaffRowProps) => {
-  const includesSalesRole = hasRole(staff.roles, SALES_ROLE);
-  const canRevokeSalesRole = includesSalesRole && staff.roles.length > 1;
+type RoleActionBlockProps = {
+  role: string;
+  hasRoleAssigned: boolean;
+  canGrant: boolean;
+  canRemove: boolean;
+  canToggleStatus: boolean;
+  isPending: boolean;
+  statusLabel: string;
+  onGrant: () => void;
+  onRemove: () => void;
+  onToggleStatus: () => void;
+  removeTitle?: string;
+  toggleTitle?: string;
+};
+
+const RoleActionBlock = ({
+  role,
+  hasRoleAssigned,
+  canGrant,
+  canRemove,
+  canToggleStatus,
+  isPending,
+  statusLabel,
+  onGrant,
+  onRemove,
+  onToggleStatus,
+  removeTitle,
+  toggleTitle
+}: RoleActionBlockProps) => {
+  const roleLabel = getRoleLabel(role);
+
+  return (
+    <div className="min-w-[220px] rounded-lg border border-border-light bg-white p-3 dark:border-border-dark dark:bg-slate-900/40">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold text-text-primary-light dark:text-text-primary-dark">{roleLabel}</span>
+        <span className={`rounded px-2 py-0.5 text-[11px] font-medium ${hasRoleAssigned ? 'bg-blue-100 text-primary dark:bg-blue-900/30 dark:text-blue-300' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>
+          {hasRoleAssigned ? '已拥有' : '未拥有'}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          className="rounded border border-primary px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400 dark:disabled:border-slate-700 dark:disabled:text-slate-500"
+          disabled={isPending || !canGrant}
+          onClick={onGrant}
+          type="button"
+        >
+          {hasRoleAssigned ? `已是${roleLabel}` : isPending ? '处理中...' : `给予${roleLabel}`}
+        </button>
+        <button
+          className="rounded border border-orange-500 px-2 py-1 text-xs font-semibold text-orange-600 transition-colors hover:bg-orange-100/80 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400 dark:hover:bg-orange-900/30 dark:disabled:border-slate-700 dark:disabled:text-slate-500"
+          disabled={isPending || !canRemove}
+          onClick={onRemove}
+          title={removeTitle}
+          type="button"
+        >
+          移除
+        </button>
+        <button
+          className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+          disabled={isPending || !canToggleStatus}
+          onClick={onToggleStatus}
+          title={toggleTitle}
+          type="button"
+        >
+          {statusLabel}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const StaffRow = memo(({ staff, isPending, canManageRoles, canToggleStatus, onGrantRole, onRevokeRole, onToggleStatus }: StaffRowProps) => {
   const isActive = staff.status === 'active';
+  const disableLabel = isActive ? '禁用账号' : '启用账号';
 
   return (
     <tr className="border-b border-border-light transition-colors hover:bg-gray-50 dark:border-border-dark dark:hover:bg-gray-800/40">
@@ -478,7 +610,7 @@ const StaffRow = memo(({ staff, isPending, onGrantSales, onRevokeSales, onToggle
                 key={`${staff.id}-${role}`}
                 className="rounded bg-blue-100 px-2 py-0.5 text-xs font-semibold text-primary dark:bg-blue-900/30 dark:text-blue-300"
               >
-                {role}
+                {getRoleLabel(role)}
               </span>
             ))
           ) : (
@@ -489,32 +621,31 @@ const StaffRow = memo(({ staff, isPending, onGrantSales, onRevokeSales, onToggle
       <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{staff.status}</td>
       <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{formatDateTime(staff.updatedAt || staff.createdAt)}</td>
       <td className="px-4 py-3">
-        <div className="flex flex-wrap gap-1.5">
-          <button
-            className="rounded border border-primary px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400 dark:disabled:border-slate-700 dark:disabled:text-slate-500"
-            disabled={isPending || includesSalesRole}
-            onClick={() => onGrantSales(staff)}
-            type="button"
-          >
-            {includesSalesRole ? '已是业务员' : isPending ? '处理中...' : '授予业务员'}
-          </button>
-          <button
-            className="rounded border border-orange-500 px-2 py-1 text-xs font-semibold text-orange-600 transition-colors hover:bg-orange-100/80 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400 dark:hover:bg-orange-900/30 dark:disabled:border-slate-700 dark:disabled:text-slate-500"
-            disabled={isPending || !canRevokeSalesRole}
-            onClick={() => onRevokeSales(staff)}
-            type="button"
-            title={!canRevokeSalesRole && includesSalesRole ? '该员工仅剩 SALES 角色，无法直接移除' : undefined}
-          >
-            移除业务员
-          </button>
-          <button
-            className="rounded border border-slate-300 px-2 py-1 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
-            disabled={isPending}
-            onClick={() => onToggleStatus(staff)}
-            type="button"
-          >
-            {isActive ? '禁用账号' : '启用账号'}
-          </button>
+        <div className="flex flex-wrap gap-2">
+          {STAFF_ROLE_BLOCKS.map((role) => {
+            const assigned = hasRole(staff.roles, role);
+            const canRemove = canManageRoles && assigned && staff.roles.length > 1;
+            const removeTitle = assigned && staff.roles.length <= 1
+              ? '该账号仅剩一个角色，无法直接移除'
+              : undefined;
+
+            return (
+              <RoleActionBlock
+                canGrant={canManageRoles && !assigned}
+                canRemove={canRemove}
+                canToggleStatus={canToggleStatus}
+                hasRoleAssigned={assigned}
+                isPending={isPending}
+                key={`${staff.id}-${role}-block`}
+                onGrant={() => onGrantRole(staff, role)}
+                onRemove={() => onRevokeRole(staff, role)}
+                onToggleStatus={() => onToggleStatus(staff)}
+                removeTitle={removeTitle}
+                role={role}
+                statusLabel={disableLabel}
+              />
+            );
+          })}
         </div>
       </td>
     </tr>
@@ -522,6 +653,77 @@ const StaffRow = memo(({ staff, isPending, onGrantSales, onRevokeSales, onToggle
 });
 
 StaffRow.displayName = 'StaffRow';
+
+type AdminRowProps = {
+  admin: AdminUser;
+  isPending: boolean;
+  canManageRoles: boolean;
+  onGrantRole: (admin: AdminUser, role: string) => void;
+  onRevokeRole: (admin: AdminUser, role: string) => void;
+  onToggleStatus: (admin: AdminUser) => void;
+};
+
+const AdminRow = memo(({ admin, isPending, canManageRoles, onGrantRole, onRevokeRole, onToggleStatus }: AdminRowProps) => {
+  const effectiveRoles = normalizeAdminRoles(admin.roles);
+  const isActive = admin.status === 'active';
+  const isBossAccount = hasRole(effectiveRoles, BOSS_ROLE);
+  const disableLabel = isActive ? '禁用账号' : '启用账号';
+
+  return (
+    <tr className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30">
+      <td className="px-4 py-3">
+        <p className="font-medium text-text-primary-light dark:text-text-primary-dark">{admin.displayName}</p>
+        <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{admin.id}</p>
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex flex-wrap gap-1">
+          {effectiveRoles.length > 0 ? effectiveRoles.map((role) => (
+            <span
+              className="rounded bg-blue-100 px-2 py-0.5 text-xs font-semibold text-primary dark:bg-blue-900/30 dark:text-blue-300"
+              key={`${admin.id}-${role}`}
+            >
+              {getRoleLabel(role)}
+            </span>
+          )) : <span className="text-xs text-text-secondary-light dark:text-text-secondary-dark">未设置</span>}
+        </div>
+      </td>
+      <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{admin.status}</td>
+      <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{formatDateTime(admin.updatedAt || admin.createdAt)}</td>
+      <td className="px-4 py-3">
+        <div className="flex flex-wrap gap-2">
+          {ADMIN_ROLE_BLOCKS.map((role) => {
+            const assigned = hasRole(effectiveRoles, role);
+            const canGrant = canManageRoles && !assigned;
+            const canRemove = role === BOSS_ROLE && canManageRoles && assigned;
+            const removeTitle = role === ADMIN_ROLE ? '管理员是基础角色，不能直接移除' : undefined;
+            const canToggle = canManageRoles && !isBossAccount;
+            const toggleTitle = isBossAccount ? '老板账号不可禁用' : undefined;
+
+            return (
+              <RoleActionBlock
+                canGrant={canGrant}
+                canRemove={canRemove}
+                canToggleStatus={canToggle}
+                hasRoleAssigned={assigned}
+                isPending={isPending}
+                key={`${admin.id}-${role}-block`}
+                onGrant={() => onGrantRole(admin, role)}
+                onRemove={() => onRevokeRole(admin, role)}
+                onToggleStatus={() => onToggleStatus(admin)}
+                removeTitle={removeTitle}
+                role={role}
+                statusLabel={disableLabel}
+                toggleTitle={toggleTitle}
+              />
+            );
+          })}
+        </div>
+      </td>
+    </tr>
+  );
+});
+
+AdminRow.displayName = 'AdminRow';
 
 type TableSkeletonBodyProps = {
   cols: number;
@@ -577,6 +779,7 @@ export const UserOperationsPage = () => {
   const [mockCustomers] = useState<AdminCustomer[]>(mockCustomerSeed);
   const [mockSalesUsers, setMockSalesUsers] = useState<SalesUser[]>(mockSalesSeed);
   const [mockStaffUsers, setMockStaffUsers] = useState<StaffUser[]>(buildMockStaffSeed);
+  const [mockAdminUsers, setMockAdminUsers] = useState<AdminUser[]>(buildMockAdminSeed);
 
   const [salesLoading, setSalesLoading] = useState(false);
   const [tagsLoading, setTagsLoading] = useState(false);
@@ -591,6 +794,7 @@ export const UserOperationsPage = () => {
   });
   const [pendingCustomerActions, setPendingCustomerActions] = useState<Record<string, boolean>>({});
   const [pendingStaffActions, setPendingStaffActions] = useState<Record<string, boolean>>({});
+  const [pendingAdminActions, setPendingAdminActions] = useState<Record<string, boolean>>({});
   const salesRequestVersion = useRef(0);
   const tagsRequestVersion = useRef(0);
   const customersRequestVersion = useRef(0);
@@ -599,6 +803,10 @@ export const UserOperationsPage = () => {
   const customerTagFilterRef = useRef<HTMLDivElement | null>(null);
 
   const activeTags = useMemo(() => tags.filter((tag) => tag.active), [tags]);
+  const currentSession = getCurrentSession();
+  const permissionMap = normalizePermissionMap(currentSession?.permissions);
+  const canManageRoles = hasPermission(permissionMap, 'rbac:manage', 'ALL');
+  const canManageStaffStatus = hasPermission(permissionMap, 'staff:status_manage', 'ALL') || canManageRoles;
   const selectedCustomerTags = useMemo(
     () => tags.filter((tag) => customerTagFilters.includes(tag.id)),
     [customerTagFilters, tags]
@@ -626,8 +834,8 @@ export const UserOperationsPage = () => {
     if (!isMockMode) {
       return null;
     }
-    return listMockAccounts().filter((account) => account.userType === 'admin').length;
-  }, []);
+    return mockAdminUsers.length;
+  }, [mockAdminUsers]);
 
   const clearTabMessage = useCallback((tab: UserOperationsTab) => {
     setTabMessages((current) => ({
@@ -683,7 +891,7 @@ export const UserOperationsPage = () => {
       }
       if (response.status !== 200) {
         setSalesUsers([]);
-        setTabError('customers', '加载业务员列表失败，请稍后重试。');
+        setTabError('customers', '加载小程序业务员列表失败，请稍后重试。');
         return;
       }
       setSalesUsers(normalizeSalesUsers(response.data));
@@ -692,7 +900,7 @@ export const UserOperationsPage = () => {
         return;
       }
       setSalesUsers([]);
-      setTabError('customers', '加载业务员列表失败，请稍后重试。');
+      setTabError('customers', '加载小程序业务员列表失败，请稍后重试。');
     } finally {
       if (requestVersion === salesRequestVersion.current) {
         setSalesLoading(false);
@@ -857,7 +1065,7 @@ export const UserOperationsPage = () => {
       if (response.status !== 200) {
         setStaffUsers([]);
         setStaffTotal(0);
-        setTabError('staff', '加载业务员权限列表失败，请稍后重试。');
+        setTabError('staff', '加载员工角色列表失败，请稍后重试。');
         return;
       }
       const normalized = normalizeStaffUsers(response.data);
@@ -869,7 +1077,7 @@ export const UserOperationsPage = () => {
       }
       setStaffUsers([]);
       setStaffTotal(0);
-      setTabError('staff', '加载业务员权限列表失败，请稍后重试。');
+      setTabError('staff', '加载员工角色列表失败，请稍后重试。');
     } finally {
       if (requestVersion === staffRequestVersion.current) {
         setStaffLoading(false);
@@ -881,35 +1089,29 @@ export const UserOperationsPage = () => {
     const requestVersion = ++adminRequestVersion.current;
     setAdminLoading(true);
     try {
+      if (!isMockMode && !canManageRoles) {
+        if (requestVersion !== adminRequestVersion.current) {
+          return;
+        }
+        setAdminUsers([]);
+        setAdminTotal(0);
+        return;
+      }
+
       if (isMockMode) {
-        const mockAdmins = listMockAccounts()
-          .filter((account) => account.userType === 'admin')
-          .map((account) => {
-            const now = new Date().toISOString();
-            return {
-              id: account.userId,
-              displayName: account.displayName || account.username,
-              roles: account.role ? [String(account.role).toUpperCase()] : ['ADMIN'],
-              status: 'active',
-              userType: 'admin',
-              createdAt: now,
-              updatedAt: now
-            } as AdminUser;
-          });
         const start = (adminPage - 1) * adminPageSize;
         const end = start + adminPageSize;
         if (requestVersion !== adminRequestVersion.current) {
           return;
         }
-        setAdminUsers(mockAdmins.slice(start, end));
-        setAdminTotal(mockAdmins.length);
+        setAdminUsers(mockAdminUsers.slice(start, end));
+        setAdminTotal(mockAdminUsers.length);
         return;
       }
 
       const response = await fetchAdminUsers({
         page: adminPage,
-        pageSize: adminPageSize,
-        role: 'ADMIN'
+        pageSize: adminPageSize
       });
       if (requestVersion !== adminRequestVersion.current) {
         return;
@@ -935,7 +1137,7 @@ export const UserOperationsPage = () => {
         setAdminLoading(false);
       }
     }
-  }, [adminPage, adminPageSize]);
+  }, [adminPage, adminPageSize, canManageRoles, mockAdminUsers]);
 
   useEffect(() => {
     // Parallel requests avoid lookup waterfall on first load.
@@ -981,6 +1183,12 @@ export const UserOperationsPage = () => {
       setCustomerTagFilterOpen(false);
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'admins' && !canManageRoles) {
+      setActiveTab('staff');
+    }
+  }, [activeTab, canManageRoles]);
 
   useEffect(() => {
     if (!customerTagFilterOpen) {
@@ -1033,6 +1241,20 @@ export const UserOperationsPage = () => {
     });
   }, []);
 
+  const setAdminPending = useCallback((adminId: string, pending: boolean) => {
+    setPendingAdminActions((current) => {
+      if (pending) {
+        return {
+          ...current,
+          [adminId]: true
+        };
+      }
+      const next = { ...current };
+      delete next[adminId];
+      return next;
+    });
+  }, []);
+
   const handlePromoteCustomerToSales = useCallback(async (customer: AdminCustomer) => {
     clearTabMessage('customers');
     setCustomerPending(customer.id, true);
@@ -1063,6 +1285,7 @@ export const UserOperationsPage = () => {
             {
               id: customer.id,
               displayName: customer.displayName,
+              phone: customer.phone || '-',
               roles: ['CUSTOMER', SALES_ROLE],
               status: 'active',
               createdAt: now,
@@ -1100,7 +1323,7 @@ export const UserOperationsPage = () => {
           ];
         });
 
-        setTabSuccess('customers', `已将「${customer.displayName}」设置为业务员（mock）。`);
+        setTabSuccess('customers', `已将「${customer.displayName}」设置为小程序业务员（mock）。`);
         return;
       }
 
@@ -1157,7 +1380,7 @@ export const UserOperationsPage = () => {
         if (previousStaff) {
           setStaffUsers((current) => current.map((item) => (item.id === customer.id ? previousStaff : item)));
         }
-        setTabError('customers', '设置业务员权限失败，请稍后重试。');
+        setTabError('customers', '设置小程序业务员权限失败，请稍后重试。');
         return;
       }
 
@@ -1212,7 +1435,7 @@ export const UserOperationsPage = () => {
         };
       }));
 
-      setTabSuccess('customers', `已将「${customer.displayName}」设置为业务员。`);
+      setTabSuccess('customers', `已将「${customer.displayName}」设置为小程序业务员。`);
       if (payload.promoted) {
         void refreshStaffUsers();
       }
@@ -1227,106 +1450,116 @@ export const UserOperationsPage = () => {
       if (previousStaff) {
         setStaffUsers((current) => current.map((item) => (item.id === customer.id ? previousStaff : item)));
       }
-      setTabError('customers', '设置业务员权限失败，请稍后重试。');
+      setTabError('customers', '设置小程序业务员权限失败，请稍后重试。');
     } finally {
       setCustomerPending(customer.id, false);
     }
   }, [clearTabMessage, refreshStaffUsers, salesUsers, setCustomerPending, setMockSalesUsers, setMockStaffUsers, setTabError, setTabSuccess, staffUsers]);
 
-  const handleGrantSalesRole = useCallback(async (staff: StaffUser) => {
-    if (hasRole(staff.roles, SALES_ROLE)) {
+  const handleGrantStaffRole = useCallback(async (staff: StaffUser, role: string) => {
+    if (hasRole(staff.roles, role)) {
       return;
     }
 
     clearTabMessage('staff');
     setStaffPending(staff.id, true);
     const previousSales = salesUsers.find((item) => item.id === staff.id);
+    const roleLabel = getRoleLabel(role);
+    const nextRoles = appendRole(staff.roles, role);
 
     try {
-      const nextRoles = appendRole(staff.roles, SALES_ROLE);
       if (isMockMode) {
         const now = new Date().toISOString();
-        setMockStaffUsers((current) => current.map((item) => {
-          if (item.id !== staff.id) {
-            return item;
-          }
-          return {
-            ...item,
-            roles: nextRoles,
-            updatedAt: now
-          };
-        }));
-        setMockSalesUsers((current) => {
-          const found = current.find((item) => item.id === staff.id);
-          if (found) {
-            return current.map((item) => {
-              if (item.id !== staff.id) {
-                return item;
-              }
-              return {
-                ...item,
-                displayName: staff.displayName || item.displayName,
-                status: 'active',
-                roles: appendRole(item.roles, SALES_ROLE)
-              };
-            });
-          }
-          return [
-            {
+        setMockStaffUsers((current) => current.map((item) => (
+          item.id === staff.id
+            ? { ...item, roles: nextRoles, updatedAt: now }
+            : item
+        )));
+        if (role === SALES_ROLE) {
+          setMockSalesUsers((current) => {
+            const found = current.find((item) => item.id === staff.id);
+            if (found) {
+              return current.map((item) => (
+                item.id === staff.id
+                  ? { ...item, displayName: staff.displayName || item.displayName, status: 'active', roles: appendRole(item.roles, SALES_ROLE) }
+                  : item
+              ));
+            }
+            return [{
               id: staff.id,
               displayName: staff.displayName,
-              phone: '-',
+              phone: staff.phone || '-',
               status: 'active',
               roles: [SALES_ROLE]
-            },
-            ...current
-          ];
-        });
-        setTabSuccess('staff', `已授予「${staff.displayName}」业务员权限（mock）。`);
+            }, ...current];
+          });
+        }
+        setTabSuccess('staff', `已授予「${staff.displayName}」${roleLabel}权限（mock）。`);
         return;
       }
 
       const optimisticUpdatedAt = new Date().toISOString();
-      setStaffUsers((current) => current.map((item) => {
-        if (item.id !== staff.id) {
-          return item;
-        }
-        return {
-          ...item,
-          roles: nextRoles,
-          updatedAt: optimisticUpdatedAt
-        };
-      }));
-      setSalesUsers((current) => {
-        const found = current.find((item) => item.id === staff.id);
-        if (found) {
-          return current.map((item) => {
-            if (item.id !== staff.id) {
-              return item;
-            }
-            return {
-              ...item,
-              displayName: staff.displayName || item.displayName,
-              status: staff.status,
-              roles: appendRole(item.roles, SALES_ROLE)
-            };
-          });
-        }
-        return [
-          {
+      setStaffUsers((current) => current.map((item) => (
+        item.id === staff.id ? { ...item, roles: nextRoles, updatedAt: optimisticUpdatedAt } : item
+      )));
+      if (role === SALES_ROLE) {
+        setSalesUsers((current) => {
+          const found = current.find((item) => item.id === staff.id);
+          if (found) {
+            return current.map((item) => (
+              item.id === staff.id
+                ? { ...item, displayName: staff.displayName || item.displayName, phone: staff.phone || item.phone, status: staff.status, roles: appendRole(item.roles, SALES_ROLE) }
+                : item
+            ));
+          }
+          return [{
             id: staff.id,
             displayName: staff.displayName,
-            phone: '-',
+            phone: staff.phone || '-',
             status: staff.status,
             roles: [SALES_ROLE]
-          },
-          ...current
-        ];
-      });
+          }, ...current];
+        });
+      }
 
       const response = await patchStaffRoles(staff.id, nextRoles);
       if (response.status !== 200) {
         setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
+        if (role === SALES_ROLE) {
+          setSalesUsers((current) => {
+            const filtered = current.filter((item) => item.id !== staff.id);
+            if (!previousSales) {
+              return filtered;
+            }
+            return [previousSales, ...filtered];
+          });
+        }
+        setTabError('staff', `授予${roleLabel}权限失败，请稍后重试。`);
+        return;
+      }
+
+      const payload = (response.data || {}) as { status?: string; roles?: unknown; updatedAt?: string };
+      const resolvedRoles = normalizeRoleList(payload.roles);
+      const resolvedStatus = safeText(payload.status, staff.status).toLowerCase();
+      const resolvedUpdatedAt = safeText(payload.updatedAt, optimisticUpdatedAt);
+      setStaffUsers((current) => current.map((item) => (
+        item.id === staff.id
+          ? { ...item, roles: resolvedRoles.length > 0 ? resolvedRoles : nextRoles, status: resolvedStatus, updatedAt: resolvedUpdatedAt }
+          : item
+      )));
+
+      if (role === SALES_ROLE) {
+        setSalesUsers((current) => current.map((item) => (
+          item.id === staff.id
+            ? { ...item, displayName: staff.displayName || item.displayName, status: resolvedStatus, roles: resolvedRoles.length > 0 ? resolvedRoles : appendRole(item.roles, SALES_ROLE) }
+            : item
+        )));
+      }
+
+      setTabSuccess('staff', `已授予「${staff.displayName}」${roleLabel}权限。`);
+    } catch {
+      setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
+      if (role === SALES_ROLE) {
         setSalesUsers((current) => {
           const filtered = current.filter((item) => item.id !== staff.id);
           if (!previousSales) {
@@ -1334,149 +1567,89 @@ export const UserOperationsPage = () => {
           }
           return [previousSales, ...filtered];
         });
-        setTabError('staff', '授予业务员权限失败，请稍后重试。');
-        return;
       }
-
-      const payload = (response.data || {}) as {
-        status?: string;
-        roles?: unknown;
-        updatedAt?: string;
-      };
-      const resolvedRoles = normalizeRoleList(payload.roles);
-      const resolvedStatus = safeText(payload.status, staff.status).toLowerCase();
-      const resolvedUpdatedAt = safeText(payload.updatedAt, optimisticUpdatedAt);
-
-      setStaffUsers((current) => current.map((item) => {
-        if (item.id !== staff.id) {
-          return item;
-        }
-        return {
-          ...item,
-          roles: resolvedRoles.length > 0 ? resolvedRoles : nextRoles,
-          status: resolvedStatus,
-          updatedAt: resolvedUpdatedAt
-        };
-      }));
-
-      setSalesUsers((current) => current.map((item) => {
-        if (item.id !== staff.id) {
-          return item;
-        }
-        return {
-          ...item,
-          displayName: staff.displayName || item.displayName,
-          status: resolvedStatus,
-          roles: resolvedRoles.length > 0 ? resolvedRoles : appendRole(item.roles, SALES_ROLE)
-        };
-      }));
-
-      setTabSuccess('staff', `已授予「${staff.displayName}」业务员权限。`);
-    } catch {
-      setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
-      setSalesUsers((current) => {
-        const filtered = current.filter((item) => item.id !== staff.id);
-        if (!previousSales) {
-          return filtered;
-        }
-        return [previousSales, ...filtered];
-      });
-      setTabError('staff', '授予业务员权限失败，请稍后重试。');
+      setTabError('staff', `授予${roleLabel}权限失败，请稍后重试。`);
     } finally {
       setStaffPending(staff.id, false);
     }
   }, [clearTabMessage, salesUsers, setMockSalesUsers, setMockStaffUsers, setStaffPending, setTabError, setTabSuccess]);
 
-  const handleRevokeSalesRole = useCallback(async (staff: StaffUser) => {
-    if (!hasRole(staff.roles, SALES_ROLE)) {
+  const handleRevokeStaffRole = useCallback(async (staff: StaffUser, role: string) => {
+    if (!hasRole(staff.roles, role)) {
       return;
     }
     if (staff.roles.length <= 1) {
-      setTabError('staff', '该账号仅剩一个角色，无法直接移除业务员角色。');
+      setTabError('staff', `该账号仅剩一个角色，无法直接移除${getRoleLabel(role)}。`);
       return;
     }
 
     clearTabMessage('staff');
     setStaffPending(staff.id, true);
     const previousSales = salesUsers.find((item) => item.id === staff.id);
+    const roleLabel = getRoleLabel(role);
+    const nextRoles = removeRole(staff.roles, role);
 
     try {
-      const nextRoles = removeRole(staff.roles, SALES_ROLE);
       if (isMockMode) {
         const now = new Date().toISOString();
-        setMockStaffUsers((current) => current.map((item) => {
-          if (item.id !== staff.id) {
-            return item;
-          }
-          return {
-            ...item,
-            roles: nextRoles,
-            updatedAt: now
-          };
-        }));
-        setMockSalesUsers((current) => current.filter((item) => item.id !== staff.id));
-        setTabSuccess('staff', `已移除「${staff.displayName}」业务员权限（mock）。`);
+        setMockStaffUsers((current) => current.map((item) => (
+          item.id === staff.id
+            ? { ...item, roles: nextRoles, updatedAt: now }
+            : item
+        )));
+        if (role === SALES_ROLE) {
+          setMockSalesUsers((current) => current.filter((item) => item.id !== staff.id));
+        }
+        setTabSuccess('staff', `已移除「${staff.displayName}」${roleLabel}权限（mock）。`);
         return;
       }
 
       const optimisticUpdatedAt = new Date().toISOString();
-      setStaffUsers((current) => current.map((item) => {
-        if (item.id !== staff.id) {
-          return item;
-        }
-        return {
-          ...item,
-          roles: nextRoles,
-          updatedAt: optimisticUpdatedAt
-        };
-      }));
-      setSalesUsers((current) => current.filter((item) => item.id !== staff.id));
+      setStaffUsers((current) => current.map((item) => (
+        item.id === staff.id ? { ...item, roles: nextRoles, updatedAt: optimisticUpdatedAt } : item
+      )));
+      if (role === SALES_ROLE) {
+        setSalesUsers((current) => current.filter((item) => item.id !== staff.id));
+      }
 
       const response = await patchStaffRoles(staff.id, nextRoles);
       if (response.status !== 200) {
         setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
-        setSalesUsers((current) => {
-          if (!previousSales) {
-            return current;
-          }
-          const filtered = current.filter((item) => item.id !== staff.id);
-          return [previousSales, ...filtered];
-        });
-        setTabError('staff', '移除业务员权限失败，请稍后重试。');
+        if (role === SALES_ROLE) {
+          setSalesUsers((current) => {
+            const filtered = current.filter((item) => item.id !== staff.id);
+            if (!previousSales) {
+              return filtered;
+            }
+            return [previousSales, ...filtered];
+          });
+        }
+        setTabError('staff', `移除${roleLabel}权限失败，请稍后重试。`);
         return;
       }
 
-      const payload = (response.data || {}) as {
-        status?: string;
-        roles?: unknown;
-        updatedAt?: string;
-      };
+      const payload = (response.data || {}) as { status?: string; roles?: unknown; updatedAt?: string };
       const resolvedRoles = normalizeRoleList(payload.roles);
       const resolvedStatus = safeText(payload.status, staff.status).toLowerCase();
       const resolvedUpdatedAt = safeText(payload.updatedAt, optimisticUpdatedAt);
-      setStaffUsers((current) => current.map((item) => {
-        if (item.id !== staff.id) {
-          return item;
-        }
-        return {
-          ...item,
-          roles: resolvedRoles.length > 0 ? resolvedRoles : nextRoles,
-          status: resolvedStatus,
-          updatedAt: resolvedUpdatedAt
-        };
-      }));
-
-      setTabSuccess('staff', `已移除「${staff.displayName}」业务员权限。`);
+      setStaffUsers((current) => current.map((item) => (
+        item.id === staff.id
+          ? { ...item, roles: resolvedRoles.length > 0 ? resolvedRoles : nextRoles, status: resolvedStatus, updatedAt: resolvedUpdatedAt }
+          : item
+      )));
+      setTabSuccess('staff', `已移除「${staff.displayName}」${roleLabel}权限。`);
     } catch {
       setStaffUsers((current) => current.map((item) => (item.id === staff.id ? staff : item)));
-      setSalesUsers((current) => {
-        const filtered = current.filter((item) => item.id !== staff.id);
-        if (!previousSales) {
-          return filtered;
-        }
-        return [previousSales, ...filtered];
-      });
-      setTabError('staff', '移除业务员权限失败，请稍后重试。');
+      if (role === SALES_ROLE) {
+        setSalesUsers((current) => {
+          const filtered = current.filter((item) => item.id !== staff.id);
+          if (!previousSales) {
+            return filtered;
+          }
+          return [previousSales, ...filtered];
+        });
+      }
+      setTabError('staff', `移除${roleLabel}权限失败，请稍后重试。`);
     } finally {
       setStaffPending(staff.id, false);
     }
@@ -1605,6 +1778,155 @@ export const UserOperationsPage = () => {
     }
   }, [clearTabMessage, setMockSalesUsers, setMockStaffUsers, setStaffPending, setTabError, setTabSuccess]);
 
+  const handleGrantAdminRole = useCallback(async (admin: AdminUser, role: string) => {
+    if (hasRole(admin.roles, role)) {
+      return;
+    }
+
+    clearTabMessage('admins');
+    setAdminPending(admin.id, true);
+    const roleLabel = getRoleLabel(role);
+    const nextRoles = appendAdminRole(admin.roles, role);
+
+    try {
+      if (isMockMode) {
+        const now = new Date().toISOString();
+        setMockAdminUsers((current) => current.map((item) => (
+          item.id === admin.id ? { ...item, roles: nextRoles, updatedAt: now } : item
+        )));
+        setTabSuccess('admins', `已授予「${admin.displayName}」${roleLabel}权限（mock）。`);
+        return;
+      }
+
+      const optimisticUpdatedAt = new Date().toISOString();
+      setAdminUsers((current) => current.map((item) => (
+        item.id === admin.id ? { ...item, roles: nextRoles, updatedAt: optimisticUpdatedAt } : item
+      )));
+      const response = await patchAdminUser(admin.id, { roles: nextRoles });
+      if (response.status !== 200) {
+        setAdminUsers((current) => current.map((item) => (item.id === admin.id ? admin : item)));
+        setTabError('admins', `授予${roleLabel}权限失败，请稍后重试。`);
+        return;
+      }
+
+      const payload = (response.data || {}) as { status?: string; roles?: unknown; updatedAt?: string };
+      const resolvedRoles = normalizeAdminRoles(normalizeRoleList(payload.roles).length > 0 ? normalizeRoleList(payload.roles) : nextRoles);
+      const resolvedStatus = safeText(payload.status, admin.status).toLowerCase();
+      const resolvedUpdatedAt = safeText(payload.updatedAt, optimisticUpdatedAt);
+      setAdminUsers((current) => current.map((item) => (
+        item.id === admin.id
+          ? { ...item, roles: resolvedRoles, status: resolvedStatus, updatedAt: resolvedUpdatedAt }
+          : item
+      )));
+      setTabSuccess('admins', `已授予「${admin.displayName}」${roleLabel}权限。`);
+    } catch {
+      setAdminUsers((current) => current.map((item) => (item.id === admin.id ? admin : item)));
+      setTabError('admins', `授予${roleLabel}权限失败，请稍后重试。`);
+    } finally {
+      setAdminPending(admin.id, false);
+    }
+  }, [clearTabMessage, setAdminPending, setTabError, setTabSuccess]);
+
+  const handleRevokeAdminRole = useCallback(async (admin: AdminUser, role: string) => {
+    if (!hasRole(admin.roles, role)) {
+      return;
+    }
+
+    clearTabMessage('admins');
+    setAdminPending(admin.id, true);
+    const roleLabel = getRoleLabel(role);
+    const nextRoles = removeAdminRole(admin.roles, role);
+
+    try {
+      if (isMockMode) {
+        const now = new Date().toISOString();
+        setMockAdminUsers((current) => current.map((item) => (
+          item.id === admin.id ? { ...item, roles: nextRoles, updatedAt: now } : item
+        )));
+        setTabSuccess('admins', `已移除「${admin.displayName}」${roleLabel}权限（mock）。`);
+        return;
+      }
+
+      const optimisticUpdatedAt = new Date().toISOString();
+      setAdminUsers((current) => current.map((item) => (
+        item.id === admin.id ? { ...item, roles: nextRoles, updatedAt: optimisticUpdatedAt } : item
+      )));
+      const response = await patchAdminUser(admin.id, { roles: nextRoles });
+      if (response.status !== 200) {
+        setAdminUsers((current) => current.map((item) => (item.id === admin.id ? admin : item)));
+        setTabError('admins', `移除${roleLabel}权限失败，请稍后重试。`);
+        return;
+      }
+
+      const payload = (response.data || {}) as { status?: string; roles?: unknown; updatedAt?: string };
+      const resolvedRoles = normalizeAdminRoles(normalizeRoleList(payload.roles).length > 0 ? normalizeRoleList(payload.roles) : nextRoles);
+      const resolvedStatus = safeText(payload.status, admin.status).toLowerCase();
+      const resolvedUpdatedAt = safeText(payload.updatedAt, optimisticUpdatedAt);
+      setAdminUsers((current) => current.map((item) => (
+        item.id === admin.id
+          ? { ...item, roles: resolvedRoles, status: resolvedStatus, updatedAt: resolvedUpdatedAt }
+          : item
+      )));
+      setTabSuccess('admins', `已移除「${admin.displayName}」${roleLabel}权限。`);
+    } catch {
+      setAdminUsers((current) => current.map((item) => (item.id === admin.id ? admin : item)));
+      setTabError('admins', `移除${roleLabel}权限失败，请稍后重试。`);
+    } finally {
+      setAdminPending(admin.id, false);
+    }
+  }, [clearTabMessage, setAdminPending, setTabError, setTabSuccess]);
+
+  const handleToggleAdminStatus = useCallback(async (admin: AdminUser) => {
+    clearTabMessage('admins');
+    setAdminPending(admin.id, true);
+
+    try {
+      const nextStatus = admin.status === 'active' ? 'disabled' : 'active';
+      if (isMockMode) {
+        if (hasRole(admin.roles, BOSS_ROLE)) {
+          setTabError('admins', '老板账号不可禁用。');
+          return;
+        }
+        const now = new Date().toISOString();
+        setMockAdminUsers((current) => current.map((item) => (
+          item.id === admin.id ? { ...item, status: nextStatus, updatedAt: now } : item
+        )));
+        setTabSuccess('admins', nextStatus === 'active' ? `已启用「${admin.displayName}」账号（mock）。` : `已禁用「${admin.displayName}」账号（mock）。`);
+        return;
+      }
+
+      const optimisticUpdatedAt = new Date().toISOString();
+      setAdminUsers((current) => current.map((item) => (
+        item.id === admin.id ? { ...item, status: nextStatus, updatedAt: optimisticUpdatedAt } : item
+      )));
+      const response = await patchAdminUser(admin.id, {
+        status: nextStatus,
+        disabledReason: nextStatus === 'disabled' ? '由用户运营中心禁用' : null
+      });
+      if (response.status !== 200) {
+        setAdminUsers((current) => current.map((item) => (item.id === admin.id ? admin : item)));
+        setTabError('admins', '更新管理员账号状态失败，请稍后重试。');
+        return;
+      }
+
+      const payload = (response.data || {}) as { status?: string; roles?: unknown; updatedAt?: string };
+      const resolvedStatus = safeText(payload.status, nextStatus).toLowerCase();
+      const resolvedRoles = normalizeAdminRoles(normalizeRoleList(payload.roles).length > 0 ? normalizeRoleList(payload.roles) : admin.roles);
+      const resolvedUpdatedAt = safeText(payload.updatedAt, optimisticUpdatedAt);
+      setAdminUsers((current) => current.map((item) => (
+        item.id === admin.id
+          ? { ...item, status: resolvedStatus, roles: resolvedRoles, updatedAt: resolvedUpdatedAt }
+          : item
+      )));
+      setTabSuccess('admins', nextStatus === 'active' ? `已启用「${admin.displayName}」账号。` : `已禁用「${admin.displayName}」账号。`);
+    } catch {
+      setAdminUsers((current) => current.map((item) => (item.id === admin.id ? admin : item)));
+      setTabError('admins', '更新管理员账号状态失败，请稍后重试。');
+    } finally {
+      setAdminPending(admin.id, false);
+    }
+  }, [clearTabMessage, setAdminPending, setTabError, setTabSuccess]);
+
   const customersMessage = tabMessages.customers;
   const staffMessage = tabMessages.staff;
   const adminsMessage = tabMessages.admins;
@@ -1627,7 +1949,7 @@ export const UserOperationsPage = () => {
             }}
             value={ownerSalesFilter}
           >
-            <option value="">全部业务员</option>
+            <option value="">全部小程序业务员</option>
             {salesUsers.map((sales) => (
               <option key={sales.id} value={sales.id}>{sales.displayName}</option>
             ))}
@@ -1736,7 +2058,7 @@ export const UserOperationsPage = () => {
               <thead className="border-b border-border-light bg-gray-50 text-xs font-semibold text-text-secondary-light dark:border-border-dark dark:bg-gray-800/60 dark:text-text-secondary-dark">
                 <tr>
                   <th className="px-4 py-3">客户</th>
-                  <th className="px-4 py-3">归属业务员</th>
+                  <th className="px-4 py-3">归属小程序业务员</th>
                   <th className="px-4 py-3">标签</th>
                   <th className="px-4 py-3">创建时间</th>
                   <th className="px-4 py-3">操作</th>
@@ -1799,7 +2121,7 @@ export const UserOperationsPage = () => {
           <input
             className="h-11 rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
             onChange={(event) => setStaffQueryInput(event.currentTarget.value)}
-            placeholder="搜索业务员姓名、手机号、ID 或角色"
+            placeholder="搜索员工姓名、手机号、ID 或角色"
             value={staffQueryInput}
           />
           <button
@@ -1817,7 +2139,7 @@ export const UserOperationsPage = () => {
         <section className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
           <div className="flex items-center justify-between border-b border-border-light px-4 py-3 dark:border-border-dark">
             <div>
-              <p className="text-sm font-semibold text-text-primary-light dark:text-text-primary-dark">业务员与员工信息</p>
+              <p className="text-sm font-semibold text-text-primary-light dark:text-text-primary-dark">员工角色与账号信息</p>
               <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">共 {staffTotal} 位员工</p>
             </div>
             <div className="flex items-center gap-2">
@@ -1842,10 +2164,12 @@ export const UserOperationsPage = () => {
               <tbody>
                 {staffInitialLoading ? <TableSkeletonBody cols={5} /> : staffUsers.map((staff) => (
                   <StaffRow
+                    canManageRoles={canManageRoles}
+                    canToggleStatus={canManageStaffStatus}
                     isPending={Boolean(pendingStaffActions[staff.id])}
                     key={staff.id}
-                    onGrantSales={handleGrantSalesRole}
-                    onRevokeSales={handleRevokeSalesRole}
+                    onGrantRole={handleGrantStaffRole}
+                    onRevokeRole={handleRevokeStaffRole}
                     onToggleStatus={handleToggleStaffStatus}
                     staff={staff}
                   />
@@ -1853,7 +2177,7 @@ export const UserOperationsPage = () => {
                 {!staffInitialLoading && !staffLoading && staffUsers.length === 0 ? (
                   <tr>
                     <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={5}>
-                      暂无业务员数据
+                      暂无员工数据
                     </td>
                   </tr>
                 ) : null}
@@ -1910,41 +2234,31 @@ export const UserOperationsPage = () => {
           </div>
 
         <div className="overflow-x-auto" style={{ contentVisibility: 'auto' }}>
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className="w-full min-w-[980px] text-left text-sm">
             <thead className="border-b border-border-light bg-gray-50 text-xs font-semibold text-text-secondary-light dark:border-border-dark dark:bg-gray-800/60 dark:text-text-secondary-dark">
               <tr>
                 <th className="px-4 py-3">管理员</th>
                 <th className="px-4 py-3">角色</th>
                 <th className="px-4 py-3">状态</th>
                 <th className="px-4 py-3">更新时间</th>
+                <th className="px-4 py-3">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-light dark:divide-border-dark">
-              {adminInitialLoading ? <TableSkeletonBody cols={4} /> : adminUsers.map((admin) => (
-                <tr className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30" key={admin.id}>
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-text-primary-light dark:text-text-primary-dark">{admin.displayName}</p>
-                    <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{admin.id}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {admin.roles.length > 0 ? admin.roles.map((role) => (
-                        <span
-                          className="rounded bg-blue-100 px-2 py-0.5 text-xs font-semibold text-primary dark:bg-blue-900/30 dark:text-blue-300"
-                          key={`${admin.id}-${role}`}
-                        >
-                          {role}
-                        </span>
-                      )) : <span className="text-xs text-text-secondary-light dark:text-text-secondary-dark">未设置</span>}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{admin.status}</td>
-                  <td className="px-4 py-3 text-xs text-text-secondary-light dark:text-text-secondary-dark">{formatDateTime(admin.updatedAt || admin.createdAt)}</td>
-                </tr>
+              {adminInitialLoading ? <TableSkeletonBody cols={5} /> : adminUsers.map((admin) => (
+                <AdminRow
+                  admin={admin}
+                  canManageRoles={canManageRoles}
+                  isPending={Boolean(pendingAdminActions[admin.id])}
+                  key={admin.id}
+                  onGrantRole={handleGrantAdminRole}
+                  onRevokeRole={handleRevokeAdminRole}
+                  onToggleStatus={handleToggleAdminStatus}
+                />
               ))}
               {!adminInitialLoading && !adminLoading && adminUsers.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={4}>
+                  <td className="px-4 py-8 text-center text-sm text-text-secondary-light dark:text-text-secondary-dark" colSpan={5}>
                     暂无管理员数据
                   </td>
                 </tr>
@@ -1983,21 +2297,21 @@ export const UserOperationsPage = () => {
 
   return (
     <main className="flex h-screen flex-1 flex-col overflow-hidden bg-background-light dark:bg-background-dark" data-testid="user-operations-page">
-      <AdminTopbar
+              <AdminTopbar
         leftSlot={(
           <div className="min-w-0">
             <h1 className="text-lg font-bold text-text-primary-light dark:text-text-primary-dark">用户运营中心</h1>
             <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">
-              支持客户提权为业务员，并支持业务员角色与状态管理
+              支持客户提权为小程序业务员，并支持员工角色与管理员能力管理
             </p>
           </div>
         )}
-        searchPlaceholder="搜索客户或业务员"
+        searchPlaceholder="搜索客户或员工"
       />
 
       <div className="flex-1 overflow-y-auto p-6">
         <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-200">
-          可在客户页将客户设置为业务员；在业务员页可授予/移除业务员角色并启用或禁用账号。
+          可在客户页将客户设置为小程序业务员；在员工角色页统一授予/移除 SALES、CS、MANAGER；在管理员页管理 ADMIN 与 BOSS。带有 BOSS 的账号不可禁用。
         </div>
 
         <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -2006,7 +2320,7 @@ export const UserOperationsPage = () => {
             <p className="mt-1 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark">{customerTotal}</p>
           </div>
           <div className="rounded-lg border border-border-light bg-surface-light p-3 text-sm dark:border-border-dark dark:bg-surface-dark">
-            <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">业务员/员工总量</p>
+            <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">员工总量</p>
             <p className="mt-1 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark">{staffTotal}</p>
           </div>
           <div className="rounded-lg border border-border-light bg-surface-light p-3 text-sm dark:border-border-dark dark:bg-surface-dark">
@@ -2030,16 +2344,18 @@ export const UserOperationsPage = () => {
             onClick={() => setActiveTab('staff')}
             type="button"
           >
-            业务员
+            员工角色
           </button>
-          <button
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'admins' ? 'bg-primary text-white' : 'text-text-secondary-light hover:bg-gray-100 dark:text-text-secondary-dark dark:hover:bg-gray-800'}`}
-            data-testid="tab-admins"
-            onClick={() => setActiveTab('admins')}
-            type="button"
-          >
-            管理员
-          </button>
+          {canManageRoles ? (
+            <button
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'admins' ? 'bg-primary text-white' : 'text-text-secondary-light hover:bg-gray-100 dark:text-text-secondary-dark dark:hover:bg-gray-800'}`}
+              data-testid="tab-admins"
+              onClick={() => setActiveTab('admins')}
+              type="button"
+            >
+              管理员
+            </button>
+          ) : null}
         </div>
 
         {activeTab === 'customers'

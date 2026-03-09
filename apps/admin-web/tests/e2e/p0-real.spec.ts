@@ -34,9 +34,19 @@ test('P0/P1 real mode flows work in admin-web', async ({ page }) => {
 
   await page.getByTestId('tab-staff').click();
   const salesStaffRow = page.locator('tr', { hasText: 'Sales Dev' });
-  await expect(salesStaffRow.getByRole('button', { name: '已是业务员' })).toBeDisabled();
+  await expect(salesStaffRow.getByRole('button', { name: '已是小程序业务员' })).toBeDisabled();
   const csStaffRow = page.locator('tr', { hasText: 'CS Dev' });
-  await expect(csStaffRow.getByRole('button', { name: '授予业务员' })).toBeEnabled();
+  await expect(csStaffRow.getByRole('button', { name: '已是客服' })).toBeDisabled();
+  await expect(csStaffRow.getByRole('button', { name: '给予小程序业务员' })).toBeEnabled();
+  const managerStaffRow = page.locator('tr', { hasText: 'Manager' });
+  await expect(managerStaffRow.getByRole('button', { name: '已是经理' })).toBeDisabled();
+
+  await page.getByTestId('tab-admins').click();
+  const bossAdminRow = page.locator('tr').filter({ hasText: 'Boss' });
+  await expect(bossAdminRow.getByRole('button', { name: '已是老板' })).toBeDisabled();
+  await expect(bossAdminRow.getByRole('button', { name: '禁用账号' }).first()).toBeDisabled();
+  const adminRow = page.locator('tr').filter({ hasText: 'Admin' });
+  await expect(adminRow.getByRole('button', { name: '给予老板' })).toBeEnabled();
   await page.getByTestId('tab-customers').click();
 
   const promoteButtons = page.locator('[data-testid^="promote-to-sales-"]');
@@ -46,10 +56,10 @@ test('P0/P1 real mode flows work in admin-web', async ({ page }) => {
     const label = ((await firstButton.textContent()) || '').trim();
     const disabled = await firstButton.isDisabled();
 
-    if (!disabled && label.includes('设为业务员')) {
-      await expect(firstButton).toContainText('设为业务员');
+    if (!disabled && label.includes('设为小程序业务员')) {
+      await expect(firstButton).toContainText('设为小程序业务员');
     } else {
-      await expect(firstButton).toContainText(/已是业务员|处理中/);
+      await expect(firstButton).toContainText(/已是小程序业务员|处理中/);
     }
   } else {
     await expect(page.getByTestId('customers-empty-state')).toBeVisible();
@@ -136,4 +146,10 @@ test('manager can login in real mode and access manager pages', async ({ page })
   await expect(page.getByTestId('user-operations-page')).toBeVisible();
   const salesUsersResp = await salesUsersRespPromise;
   expect(salesUsersResp.status()).toBe(200);
+  await expect(page.getByTestId('tab-admins')).toHaveCount(0);
+
+  await page.getByTestId('tab-staff').click();
+  const csStaffRow = page.locator('tr', { hasText: 'CS Dev' });
+  await expect(csStaffRow.getByRole('button', { name: '给予小程序业务员' })).toBeDisabled();
+  await expect(csStaffRow.getByRole('button', { name: '禁用账号' }).first()).toBeEnabled();
 });
