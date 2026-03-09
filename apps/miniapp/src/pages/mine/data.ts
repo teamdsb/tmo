@@ -177,7 +177,7 @@ export const toOrderBadge = (count: number): string | undefined => {
 export const createMineMenuItems = (setCurrentPage: (page: 'demand' | 'address' | 'orders') => void): MenuItem[] => [
   { key: 'demand', label: '我的需求', icon: Description, action: () => setCurrentPage('demand') },
   { key: 'favorites', label: '收藏', icon: StarOutlined, route: ROUTES.favorites },
-  { key: 'address', label: '收货地址', icon: LocationOutlined, action: () => setCurrentPage('address') },
+  { key: 'address', label: '收货地址', icon: LocationOutlined, route: ROUTES.addressList },
   { key: 'import', label: 'Excel 批量导入', icon: AppsOutlined, route: ROUTES.import },
   {
     key: 'tracking',

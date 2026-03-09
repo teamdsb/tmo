@@ -96,12 +96,13 @@ type ChatViewProps = {
   messages: ChatMessage[]
   isTyping: boolean
   inputValue: string
+  inputFocusKey: number
   onInput: (value: string) => void
   onSend: () => void
   onBack: () => void
 }
 
-export function ChatView({ messages, isTyping, inputValue, onInput, onSend, onBack }: ChatViewProps) {
+export function ChatView({ messages, isTyping, inputValue, inputFocusKey, onInput, onSend, onBack }: ChatViewProps) {
   return (
     <View className='mine-modern-subview'>
       <SubviewHeader title='联系经理' onBack={onBack} />
@@ -138,11 +139,13 @@ export function ChatView({ messages, isTyping, inputValue, onInput, onSend, onBa
             <AddOutlined className='text-base mine-modern-muted' />
           </View>
           <Input
+            key={`chat-input-${inputFocusKey}`}
             value={inputValue}
             onInput={(event: { detail: { value: string } }) => onInput(event.detail.value)}
             onConfirm={onSend}
             className='mine-modern-chat-input h-10 flex-1 rounded-xl px-3 text-sm'
             placeholder='请输入...'
+            autoFocus
             confirmType='send'
           />
           <View className='mine-modern-chat-send-btn flex h-10 w-10 items-center justify-center rounded-xl' onClick={onSend}>

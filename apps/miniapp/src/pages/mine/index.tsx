@@ -43,6 +43,7 @@ export default function PersonalCenter() {
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES)
   const [chatInputValue, setChatInputValue] = useState('')
+  const [chatInputFocusKey, setChatInputFocusKey] = useState(0)
   const [isTyping, setIsTyping] = useState(false)
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const replyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -227,6 +228,7 @@ export default function PersonalCenter() {
 
     setChatMessages((prev) => [...prev, { id: Date.now(), sender: 'user', text: trimmed, time: '14:35' }])
     setChatInputValue('')
+    setChatInputFocusKey((prev) => prev + 1)
 
     if (typingTimerRef.current) {
       clearTimeout(typingTimerRef.current)
@@ -256,6 +258,7 @@ export default function PersonalCenter() {
           messages={chatMessages}
           isTyping={isTyping}
           inputValue={chatInputValue}
+          inputFocusKey={chatInputFocusKey}
           onInput={setChatInputValue}
           onSend={handleSendChat}
           onBack={() => setCurrentPage('profile')}
@@ -293,7 +296,10 @@ export default function PersonalCenter() {
             setInitialOrderTab(tab)
             setCurrentPage('orders')
           }}
-          onOpenChat={() => setCurrentPage('chat')}
+          onOpenChat={() => {
+            setChatInputFocusKey((prev) => prev + 1)
+            setCurrentPage('chat')
+          }}
           onMenuItemClick={(item) => {
             if (typeof item.action === 'function') {
               item.action()

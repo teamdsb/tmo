@@ -90,6 +90,24 @@ describe('PersonalCenter', () => {
     expect(screen.getByText('系统设置')).toBeInTheDocument()
   })
 
+  it('opens manager chat and sends a message', async () => {
+    await renderPersonalCenter()
+
+    fireEvent.click(screen.getByText('立即沟通'))
+
+    expect(await screen.findByText('联系经理')).toBeInTheDocument()
+
+    const input = screen.getByPlaceholderText('请输入...')
+    fireEvent.change(input, { target: { value: '在吗' } })
+    expect(input).toHaveValue('在吗')
+
+    fireEvent.click(document.querySelector('.mine-modern-chat-send-btn') as Element)
+
+    await waitFor(() => {
+      expect(screen.getByText('在吗')).toBeInTheDocument()
+    })
+  })
+
   it('falls back to guest state without token and does not refresh bootstrap', async () => {
     asMock(identityServices.tokens.getToken).mockResolvedValue(null)
 
