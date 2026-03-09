@@ -83,7 +83,7 @@ const renderLoginPage = async (LoginPage: typeof import('./index').default) => {
 }
 
 const agreeToTerms = async () => {
-  const agreement = screen.getByText('我已阅读并同意隐私政策与服务条款。').parentElement
+  const agreement = screen.getByText('隐私政策').closest('.login-agreement')
   if (!agreement) {
     throw new Error('agreement toggle not found')
   }
@@ -106,7 +106,7 @@ describe('LoginPage', () => {
     await renderLoginPage(LoginPage)
 
     expect(screen.getByText('批发合作伙伴')).toBeInTheDocument()
-    expect(screen.getByText('登录后可查看专属价格。')).toBeInTheDocument()
+    expect(screen.getByText('登录后可查看账号信息、专属价格与履约进度。')).toBeInTheDocument()
     expect(screen.getByText('快速登录').closest('button')).toHaveClass('login-primary')
     expect(screen.getByText('暂不登录').closest('button')).toHaveClass('login-secondary')
     expect(screen.queryByText('测试登录')).not.toBeInTheDocument()

@@ -304,95 +304,130 @@ export default function LoginPage() {
   }
 
   return (
-    <View className='page login-page px-6 pt-16 pb-12 flex flex-col min-h-screen'>
-      <View className='flex-1 flex flex-col justify-center'>
-        <View className='flex flex-col items-center text-center gap-3'>
-          <View className='login-logo shadow-md'>
-            <AppsOutlined className='text-white text-2xl' />
-          </View>
-          <View>
-            <Text className='text-xl font-semibold text-slate-900'>批发合作伙伴</Text>
-            <Text className='block text-xs text-slate-500 mt-2'>登录后可查看专属价格。</Text>
-          </View>
-        </View>
+    <View className='page login-page'>
+      <View className='login-shell'>
+        <View className='login-backdrop login-backdrop--top' />
+        <View className='login-backdrop login-backdrop--bottom' />
 
-        <View className='mt-10 flex flex-col gap-4'>
-          {isWeappLoginBlocked ? (
-            <View className='rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3'>
-              <Text className='block text-xs leading-6 text-amber-700'>
-                {blockedWeappLoginMessage}
+        <View className='login-content'>
+          <View className='login-hero'>
+            <View className='login-logo-frame'>
+              <View className='login-logo'>
+                <AppsOutlined className='login-logo-icon' />
+              </View>
+            </View>
+            <View className='login-copy'>
+              <Text className='login-eyebrow'>企业采购小程序</Text>
+              <Text className='login-title'>批发合作伙伴</Text>
+              <Text className='login-subtitle'>登录后可查看账号信息、专属价格与履约进度。</Text>
+            </View>
+          </View>
+
+          <View className='login-panel'>
+            <View className='login-panel-head'>
+              <Text className='login-panel-title'>手机号登录</Text>
+              <Text className='login-panel-caption'>使用微信授权手机号完成身份识别</Text>
+            </View>
+
+            <View className='login-status-strip'>
+              <View className='login-status-dot' />
+              <Text className='login-status-copy'>
+                {platform === 'weapp'
+                  ? '微信环境将直接调起手机号授权。'
+                  : platform === 'alipay'
+                    ? '支付宝环境将使用平台手机号授权。'
+                    : '当前环境将按调试登录逻辑执行。'}
               </Text>
             </View>
-          ) : null}
 
-          {platform === 'weapp' && enableWeappPhoneProofSimulation ? (
-            <NativeButton
-              className='login-primary login-native-button'
-              disabled={!agreed || loading}
-              loading={loading}
-              onClick={handleWeappSimulatedLogin}
+            {isWeappLoginBlocked ? (
+              <View className='login-alert'>
+                <Text className='login-alert-text'>
+                  {blockedWeappLoginMessage}
+                </Text>
+              </View>
+            ) : null}
+
+            <View className='login-actions'>
+              {platform === 'weapp' && enableWeappPhoneProofSimulation ? (
+                <NativeButton
+                  className='login-primary login-native-button'
+                  disabled={!agreed || loading}
+                  loading={loading}
+                  onClick={handleWeappSimulatedLogin}
+                >
+                  快速登录
+                </NativeButton>
+              ) : null}
+
+              {platform === 'weapp' && !enableWeappPhoneProofSimulation ? (
+                <NativeButton
+                  className='login-primary login-native-button'
+                  disabled={!agreed || loading || isWeappLoginBlocked}
+                  loading={loading}
+                  openType='getPhoneNumber'
+                  onGetPhoneNumber={handleWeappGetPhoneNumber}
+                >
+                  快速登录
+                </NativeButton>
+              ) : null}
+
+              {platform === 'alipay' ? (
+                <NativeButton
+                  className='login-primary login-native-button'
+                  disabled={!agreed || loading}
+                  loading={loading}
+                  openType='getAuthorize'
+                  scope='phoneNumber'
+                  onGetAuthorize={handleAlipayGetAuthorize}
+                  onError={handleAlipayAuthorizeError}
+                >
+                  快速登录
+                </NativeButton>
+              ) : null}
+
+              {platform === 'unknown' ? (
+                <Button
+                  color='primary'
+                  block
+                  loading={loading}
+                  onClick={() => handleLoginFlow()}
+                  className='login-primary'
+                >
+                  快速登录
+                </Button>
+              ) : null}
+
+              <Button
+                variant='outlined'
+                block
+                onClick={handleAltLogin}
+                className='login-secondary'
+              >
+                暂不登录
+              </Button>
+            </View>
+
+            <View
+              className='login-agreement'
+              onClick={() => setAgreed((prev) => !prev)}
             >
-              快速登录
-            </NativeButton>
-          ) : null}
+              <View className={`login-checkbox ${agreed ? 'login-checkbox--checked' : ''}`} />
+              <Text className='login-agreement-text'>
+                我已阅读并同意
+                <Text className='login-agreement-link'>隐私政策</Text>
+                与
+                <Text className='login-agreement-link'>服务条款</Text>
+                。
+              </Text>
+            </View>
+          </View>
 
-          {platform === 'weapp' && !enableWeappPhoneProofSimulation ? (
-            <NativeButton
-              className='login-primary login-native-button'
-              disabled={!agreed || loading || isWeappLoginBlocked}
-              loading={loading}
-              openType='getPhoneNumber'
-              onGetPhoneNumber={handleWeappGetPhoneNumber}
-            >
-              快速登录
-            </NativeButton>
-          ) : null}
-
-          {platform === 'alipay' ? (
-            <NativeButton
-              className='login-primary login-native-button'
-              disabled={!agreed || loading}
-              loading={loading}
-              openType='getAuthorize'
-              scope='phoneNumber'
-              onGetAuthorize={handleAlipayGetAuthorize}
-              onError={handleAlipayAuthorizeError}
-            >
-              快速登录
-            </NativeButton>
-          ) : null}
-
-          {platform === 'unknown' ? (
-            <Button
-              color='primary'
-              block
-              loading={loading}
-              onClick={() => handleLoginFlow()}
-              className='login-primary'
-            >
-              快速登录
-            </Button>
-          ) : null}
-
-          <Button
-            variant='outlined'
-            block
-            onClick={handleAltLogin}
-            className='login-secondary'
-          >
-            暂不登录
-          </Button>
-        </View>
-
-        <View className='login-agreement-toggle mt-5 flex items-start gap-3' onClick={() => setAgreed((prev) => !prev)}>
-          <View className={`login-checkbox ${agreed ? 'login-checkbox--checked' : ''}`} />
-          <Text className='text-10 text-slate-500 leading-snug'>
-            我已阅读并同意隐私政策与服务条款。
-          </Text>
+          <View className='login-footer'>
+            <Text className='login-footer-text'>需要帮助？请联系你的客户经理。</Text>
+          </View>
         </View>
       </View>
-
-      <View className='mt-auto text-center text-10 text-slate-400'>需要帮助？请联系你的客户经理。</View>
     </View>
   )
 }

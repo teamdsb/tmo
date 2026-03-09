@@ -316,6 +316,7 @@ type MineProfileViewProps = {
   onOpenChat: () => void
   onMenuItemClick: (item: MenuItem) => void
   onAuthAction: () => void
+  onOpenAuth: () => void
 }
 
 export function MineProfileView({
@@ -331,12 +332,16 @@ export function MineProfileView({
   onOpenOrders,
   onOpenChat,
   onMenuItemClick,
-  onAuthAction
+  onAuthAction,
+  onOpenAuth
 }: MineProfileViewProps) {
   return (
     <View className='mine-modern-main mine-lite-main'>
       <View className='mine-modern-main-content mine-lite-content'>
-        <View className='mine-lite-profile flex items-center gap-3'>
+        <View
+          className='mine-lite-profile flex items-center gap-3'
+          onClick={!isLoggedIn ? onOpenAuth : undefined}
+        >
           <View className='mine-lite-profile-icon flex h-11 w-11 items-center justify-center rounded-full'>
             {isLoggedIn ? (
               <View className='mine-modern-avatar-wrap mine-lite-avatar-wrap h-11 w-11 overflow-hidden rounded-full'>
@@ -353,6 +358,7 @@ export function MineProfileView({
               </Text>
             </View>
             {!isLoggedIn ? <Text className='mine-lite-profile-copy mine-lite-profile-copy--hero text-sm'>请先登录以查看账号信息</Text> : null}
+            {!isLoggedIn ? <Text className='mine-lite-profile-copy mt-1 block text-xs'>点击此处登录</Text> : null}
             {isLoggedIn ? (
               <View className='mt-1 flex items-center gap-1.5'>
                 <ShieldOutlined className='text-base text-green-500' />

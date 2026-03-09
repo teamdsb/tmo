@@ -93,10 +93,6 @@
   margin-top: 8rpx
 }
 
-.mt-10 {
-  margin-top: 80rpx
-}
-
 .mt-2 {
   margin-top: 16rpx
 }
@@ -115,10 +111,6 @@
 
 .mt-6 {
   margin-top: 48rpx
-}
-
-.mt-auto {
-  margin-top: auto
 }
 
 .block {
@@ -557,10 +549,6 @@
   padding-bottom: 40rpx
 }
 
-.pb-12 {
-  padding-bottom: 96rpx
-}
-
 .pb-2 {
   padding-bottom: 16rpx
 }
@@ -579,10 +567,6 @@
 
 .pb-40 {
   padding-bottom: 320rpx
-}
-
-.pt-16 {
-  padding-top: 128rpx
 }
 
 .pt-2 {
@@ -657,10 +641,6 @@
 
 .uppercase {
   text-transform: uppercase
-}
-
-.leading-snug {
-  line-height: 1.375
 }
 
 .leading-tight {

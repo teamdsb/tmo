@@ -302,6 +302,7 @@ export default function PersonalCenter() {
             }
           }}
           onAuthAction={isLoggedIn ? handleLogout : () => navigateTo(ROUTES.authLogin)}
+          onOpenAuth={() => navigateTo(ROUTES.authLogin)}
         />
       ) : null}
     </View>

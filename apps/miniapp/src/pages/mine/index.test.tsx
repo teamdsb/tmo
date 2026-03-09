@@ -122,6 +122,20 @@ describe('PersonalCenter', () => {
     expect(removeStorage).toHaveBeenCalledWith('tmo:bootstrap')
   })
 
+  it('opens login page when tapping guest profile header', async () => {
+    asMock(identityServices.tokens.getToken).mockResolvedValue(null)
+
+    await renderPersonalCenter()
+
+    fireEvent.click(screen.getByText('未登录'))
+
+    await waitFor(() => {
+      expect(Taro.navigateTo).toHaveBeenCalledWith({
+        url: '/pages/auth/login/index'
+      })
+    })
+  })
+
   it('filters orders by selected tracking status', async () => {
     await renderPersonalCenter()
 
