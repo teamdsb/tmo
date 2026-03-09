@@ -281,7 +281,7 @@ export function CartListView({
                             : () => void onChangeCartItemQty(item, item.qty - 1)
                         }
                       >
-                        <Text className='leading-none'>-</Text>
+                        <Text className='cart-item-stepper-btn-icon'>-</Text>
                       </View>
                       <View
                         className={`cart-item-stepper-value ${isBusy ? 'cart-item-stepper-value--disabled' : ''}`}
@@ -297,7 +297,7 @@ export function CartListView({
                             : () => void onChangeCartItemQty(item, item.qty + 1)
                         }
                       >
-                        <Text className='leading-none'>+</Text>
+                        <Text className='cart-item-stepper-btn-icon'>+</Text>
                       </View>
                     </View>
                   </View>
@@ -346,28 +346,31 @@ export function CartBottomBar({
       <View className='cart-bottom-bar'>
         {!importJob ? (
           <View className='cart-bottom-summary'>
-            <Text className='cart-bottom-summary-label'>{`共 ${cartTotalItems} 件`}</Text>
+            <Text className='cart-bottom-summary-label'>预估合计</Text>
             <Text className='cart-bottom-summary-value'>
               {cartTotalFen > 0 ? formatFen(cartTotalFen) : '待确认报价'}
             </Text>
+            <Text className='cart-bottom-summary-meta'>{`共 ${cartTotalItems} 件`}</Text>
           </View>
         ) : null}
-        <Button
-          className={`${actionBase} cart-action-secondary ${actionDisabled}`}
-          hoverClass='none'
-          disabled={loading}
-          onClick={!importJob ? onContinueBrowse : undefined}
-        >
-          {importJob ? '保存草稿' : '继续浏览'}
-        </Button>
-        <Button
-          className={`${actionBase} cart-action-primary ${actionDisabled}`}
-          hoverClass='none'
-          disabled={loading}
-          onClick={() => void (importJob ? onConfirmImport() : onCheckout())}
-        >
-          {importJob ? '确认并加入购物车' : '去结算'}
-        </Button>
+        <View className='cart-bottom-actions'>
+          <Button
+            className={`${actionBase} cart-action-secondary ${actionDisabled}`}
+            hoverClass='none'
+            disabled={loading}
+            onClick={!importJob ? onContinueBrowse : undefined}
+          >
+            {importJob ? '保存草稿' : '继续浏览'}
+          </Button>
+          <Button
+            className={`${actionBase} cart-action-primary ${actionDisabled}`}
+            hoverClass='none'
+            disabled={loading}
+            onClick={() => void (importJob ? onConfirmImport() : onCheckout())}
+          >
+            {importJob ? '确认并加入购物车' : '去结算'}
+          </Button>
+        </View>
       </View>
     </FixedView>
   )

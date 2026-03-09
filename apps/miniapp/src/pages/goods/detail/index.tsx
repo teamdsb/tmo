@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { View, Text, Button as TaroButton } from '@tarojs/components'
+import { View, Text, Input, Button as TaroButton } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Tag from '@taroify/core/tag'
@@ -29,6 +29,7 @@ export default function ProductDetail() {
   const [detail, setDetail] = useState<ProductDetail | null>(null)
   const [selectedSkuId, setSelectedSkuId] = useState<string | null>(null)
   const [purchaseQty, setPurchaseQty] = useState(MIN_PURCHASE_QTY)
+  const [purchaseQtyInput, setPurchaseQtyInput] = useState(String(MIN_PURCHASE_QTY))
   const [favoriteSkuIds, setFavoriteSkuIds] = useState<string[]>([])
   const [favoriteLoading, setFavoriteLoading] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -72,6 +73,10 @@ export default function ProductDetail() {
     })()
   }, [])
 
+  useEffect(() => {
+    setPurchaseQtyInput(String(purchaseQty))
+  }, [purchaseQty])
+
   const images = useMemo(() => {
     if (!detail?.product?.images || detail.product.images.length === 0) {
       return [placeholderProductImage]
@@ -99,11 +104,36 @@ export default function ProductDetail() {
   }
 
   const handleDecreasePurchaseQty = () => {
-    setPurchaseQty((prev) => normalizePurchaseQty(prev - 1))
+    setPurchaseQty((prev) => {
+      const nextQty = normalizePurchaseQty(prev - 1)
+      setPurchaseQtyInput(String(nextQty))
+      return nextQty
+    })
   }
 
   const handleIncreasePurchaseQty = () => {
-    setPurchaseQty((prev) => normalizePurchaseQty(prev + 1))
+    setPurchaseQty((prev) => {
+      const nextQty = normalizePurchaseQty(prev + 1)
+      setPurchaseQtyInput(String(nextQty))
+      return nextQty
+    })
+  }
+
+  const handlePurchaseQtyInput = (value: string) => {
+    const digitsOnly = value.replace(/\D/g, '').slice(0, String(MAX_PURCHASE_QTY).length)
+    setPurchaseQtyInput(digitsOnly)
+
+    if (!digitsOnly) {
+      return
+    }
+
+    setPurchaseQty(normalizePurchaseQty(Number(digitsOnly)))
+  }
+
+  const commitPurchaseQtyInput = () => {
+    const nextQty = normalizePurchaseQty(Number(purchaseQtyInput || MIN_PURCHASE_QTY))
+    setPurchaseQty(nextQty)
+    setPurchaseQtyInput(String(nextQty))
   }
 
   const handleToggleFavorite = async () => {
@@ -256,21 +286,32 @@ export default function ProductDetail() {
           </Flex>
           <View className='product-qty-picker'>
             <TaroButton
-              className='product-qty-button'
+              className={`product-qty-button ${
+                purchaseQty <= MIN_PURCHASE_QTY ? 'product-qty-button--disabled' : ''
+              }`}
               hoverClass='none'
               onClick={handleDecreasePurchaseQty}
               disabled={purchaseQty <= MIN_PURCHASE_QTY}
             >
-              -
+              <Text className='product-qty-button-icon'>-</Text>
             </TaroButton>
-            <Text className='product-qty-value'>{purchaseQty}</Text>
+            <Input
+              className='product-qty-value'
+              type='number'
+              inputMode='numeric'
+              value={purchaseQtyInput}
+              onInput={(event) => handlePurchaseQtyInput(event.detail.value)}
+              onBlur={commitPurchaseQtyInput}
+            />
             <TaroButton
-              className='product-qty-button'
+              className={`product-qty-button ${
+                purchaseQty >= MAX_PURCHASE_QTY ? 'product-qty-button--disabled' : ''
+              }`}
               hoverClass='none'
               onClick={handleIncreasePurchaseQty}
               disabled={purchaseQty >= MAX_PURCHASE_QTY}
             >
-              +
+              <Text className='product-qty-button-icon'>+</Text>
             </TaroButton>
           </View>
         </View>
