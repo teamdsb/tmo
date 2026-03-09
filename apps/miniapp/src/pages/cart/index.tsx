@@ -4,12 +4,12 @@ import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import type { Cart, CartImportJob, CartImportPendingItem, Sku } from '@tmo/api-client'
 import { commerceServices } from '../../services/commerce'
-import { ROUTES } from '../../routes'
+import { ROUTES, goodsDetailRoute } from '../../routes'
 import { ensureLoggedIn } from '../../utils/auth'
 import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { getNavbarStyle } from '../../utils/navbar'
 import { CartBottomBar, CartListView, ImportResultView } from './components'
-import { getSkuLabel, normalizeSpuId, QUICK_CART_QTY_OPTIONS } from './helpers'
+import { getCartItemUnitPriceFen, getSkuLabel, normalizeSpuId, QUICK_CART_QTY_OPTIONS } from './helpers'
 import { useCartProductDetails } from './hooks'
 import type { CartItem, ImportTab, SelectionMap } from './types'
 
@@ -148,6 +148,15 @@ export default function ExcelImportConfirmation() {
     await navigateTo(ROUTES.orderConfirm)
   }
 
+  const handleOpenCartItemDetail = async (item: CartItem) => {
+    const spuId = normalizeSpuId(item.sku.spuId)
+    if (!spuId) {
+      await Taro.showToast({ title: '商品详情暂不可用', icon: 'none' })
+      return
+    }
+    await navigateTo(goodsDetailRoute(spuId))
+  }
+
   const handleChangeCartItemQty = async (item: CartItem, nextQty: number) => {
     if (nextQty < 1 || busyItemId === item.id) {
       return
@@ -267,10 +276,19 @@ export default function ExcelImportConfirmation() {
   }
 
   const cartTotalItems = cartItems.reduce((sum, item) => sum + item.qty, 0)
-  const cartTotalFen = cartItems.reduce((sum, item) => {
-    const unitPriceFen = item.sku.priceTiers?.[0]?.unitPriceFen
-    return sum + (typeof unitPriceFen === 'number' ? unitPriceFen * item.qty : 0)
-  }, 0)
+  const pricingSummary = cartItems.reduce((summary, item) => {
+    const unitPriceFen = getCartItemUnitPriceFen(item)
+    if (unitPriceFen === null) {
+      return {
+        totalFen: summary.totalFen,
+        hasPendingPrice: true
+      }
+    }
+    return {
+      totalFen: summary.totalFen + (unitPriceFen * item.qty),
+      hasPendingPrice: summary.hasPendingPrice
+    }
+  }, { totalFen: 0, hasPendingPrice: false })
 
   return (
     <View className='page page-compact-navbar flex flex-col' style={isH5 ? navbarStyle : undefined}>
@@ -298,6 +316,7 @@ export default function ExcelImportConfirmation() {
         <CartListView
           busyItemId={busyItemId}
           cartItems={cartItems}
+          onOpenCartItemDetail={handleOpenCartItemDetail}
           productImageBySpuId={productImageBySpuId}
           productNameBySpuId={productNameBySpuId}
           onChangeCartItemQty={handleChangeCartItemQty}
@@ -308,7 +327,8 @@ export default function ExcelImportConfirmation() {
       )}
 
       <CartBottomBar
-        cartTotalFen={cartTotalFen}
+        cartHasPendingPrice={pricingSummary.hasPendingPrice}
+        cartTotalFen={pricingSummary.totalFen}
         cartTotalItems={cartTotalItems}
         importJob={importJob}
         loading={loading}

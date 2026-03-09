@@ -166,6 +166,7 @@ export function ImportResultView({
 type CartListViewProps = {
   busyItemId: string | null
   cartItems: CartItem[]
+  onOpenCartItemDetail: (item: CartItem) => Promise<void>
   productImageBySpuId: ProductImageMap
   productNameBySpuId: ProductNameMap
   onChangeCartItemQty: (item: CartItem, nextQty: number) => Promise<void>
@@ -177,6 +178,7 @@ type CartListViewProps = {
 export function CartListView({
   busyItemId,
   cartItems,
+  onOpenCartItemDetail,
   productImageBySpuId,
   productNameBySpuId,
   onChangeCartItemQty,
@@ -188,41 +190,49 @@ export function CartListView({
 
   return (
     <View className='flex-1 flex flex-col bg-gray-50'>
-      <View className='px-6 pt-3 pb-3 bg-white'>
+      <View className='px-6 pt-4 pb-4 bg-white'>
         <View className='flex items-center justify-between gap-4'>
           <View className='min-w-0'>
-            <Text className='text-lg font-semibold text-slate-900'>购物车</Text>
+            <Text className='text-xl font-semibold text-slate-900'>购物车</Text>
           </View>
         </View>
       </View>
 
-      <View className='px-4 py-3 flex justify-between items-center bg-gray-50'>
-        <Text className='text-xs text-slate-500 font-medium'>
+      <View className='px-5 py-4 flex justify-between items-center bg-gray-50'>
+        <Text className='text-sm text-slate-500 font-medium'>
           {`共 ${cartItems.length} 件`}
         </Text>
         <View className='flex gap-2'>
           <View className='p-2 bg-white rounded-md shadow-sm border border-gray-200 text-slate-400'>
-            <FilterOutlined className='text-sm' />
+            <FilterOutlined className='text-base' />
           </View>
           <View className='p-2 bg-white rounded-md shadow-sm border border-gray-200 text-slate-400'>
-            <AppsOutlined className='text-sm' />
+            <AppsOutlined className='text-base' />
           </View>
         </View>
       </View>
 
-      <View className='flex-1 px-4 pb-40 bg-gray-50 pt-2'>
+      <View className='cart-list-body'>
         {!isCartEmpty ? (
-          <View className='grid grid-cols-1 gap-4'>
-            {cartItems.map((item) => {
+          <View className='cart-list-panel'>
+            {cartItems.map((item, index) => {
               const meta = formatCartItemMeta(item)
               const isBusy = busyItemId === item.id
               const title = getCartItemTitle(item, productNameBySpuId)
               const specLabel = item.sku.spec?.trim() || item.sku.name
               const priceLabel = formatCartItemPrice(item)
               const productImage = item.sku.spuId ? productImageBySpuId[item.sku.spuId] : undefined
+              const itemClassName = `cart-item-card${index === cartItems.length - 1 ? ' cart-item-card--last' : ''}`
+              const stopPropagation = (event: { stopPropagation?: () => void }) => {
+                event.stopPropagation?.()
+              }
 
               return (
-                <View key={item.id} className='cart-item-card'>
+                <View
+                  key={item.id}
+                  className={itemClassName}
+                  onClick={() => void onOpenCartItemDetail(item)}
+                >
                   <View className='cart-item-top'>
                     <View className='cart-item-thumb'>
                       <Image
@@ -243,7 +253,10 @@ export function CartListView({
                         </View>
                         <View
                           className={`cart-item-remove ${isBusy ? 'cart-item-remove--disabled' : ''}`}
-                          onClick={isBusy ? undefined : () => void onRemoveCartItem(item)}
+                          onClick={isBusy ? undefined : (event) => {
+                            stopPropagation(event)
+                            void onRemoveCartItem(item)
+                          }}
                         >
                           <Text>移除</Text>
                         </View>
@@ -252,7 +265,10 @@ export function CartListView({
                       <View className='cart-item-middle'>
                         <View
                           className={`cart-item-spec-trigger ${isBusy ? 'cart-item-spec-trigger--disabled' : ''}`}
-                          onClick={isBusy ? undefined : () => void onChangeCartItemSku(item)}
+                          onClick={isBusy ? undefined : (event) => {
+                            stopPropagation(event)
+                            void onChangeCartItemSku(item)
+                          }}
                         >
                           <Text className='cart-item-spec-label'>规格</Text>
                           <Text className='cart-item-spec-value'>{specLabel}</Text>
@@ -278,14 +294,20 @@ export function CartListView({
                         onClick={
                           item.qty <= 1 || isBusy
                             ? undefined
-                            : () => void onChangeCartItemQty(item, item.qty - 1)
+                            : (event) => {
+                              stopPropagation(event)
+                              void onChangeCartItemQty(item, item.qty - 1)
+                            }
                         }
                       >
                         <Text className='leading-none'>-</Text>
                       </View>
                       <View
                         className={`cart-item-stepper-value ${isBusy ? 'cart-item-stepper-value--disabled' : ''}`}
-                        onClick={isBusy ? undefined : () => void onQuickChangeCartItemQty(item)}
+                        onClick={isBusy ? undefined : (event) => {
+                          stopPropagation(event)
+                          void onQuickChangeCartItemQty(item)
+                        }}
                       >
                         <Text>{item.qty}</Text>
                       </View>
@@ -294,7 +316,10 @@ export function CartListView({
                         onClick={
                           isBusy
                             ? undefined
-                            : () => void onChangeCartItemQty(item, item.qty + 1)
+                            : (event) => {
+                              stopPropagation(event)
+                              void onChangeCartItemQty(item, item.qty + 1)
+                            }
                         }
                       >
                         <Text className='leading-none'>+</Text>
@@ -320,6 +345,7 @@ export function CartListView({
 }
 
 type CartBottomBarProps = {
+  cartHasPendingPrice: boolean
   cartTotalFen: number
   cartTotalItems: number
   importJob: CartImportJob | null
@@ -330,6 +356,7 @@ type CartBottomBarProps = {
 }
 
 export function CartBottomBar({
+  cartHasPendingPrice,
   cartTotalFen,
   cartTotalItems,
   importJob,
@@ -338,17 +365,17 @@ export function CartBottomBar({
   onConfirmImport,
   onContinueBrowse
 }: CartBottomBarProps) {
-  const actionBase = 'flex-1 h-11 rounded-xl text-sm font-semibold flex items-center justify-center'
+  const actionBase = 'flex-1 h-12 rounded-xl text-base font-semibold flex items-center justify-center'
   const actionDisabled = loading ? 'opacity-60' : ''
 
   return (
-    <FixedView position='bottom' safeArea='bottom' placeholder>
+    <FixedView position='bottom' placeholder>
       <View className='cart-bottom-bar'>
         {!importJob ? (
           <View className='cart-bottom-summary'>
-            <Text className='cart-bottom-summary-label'>{`共 ${cartTotalItems} 件`}</Text>
+            <Text className='cart-bottom-summary-label'>{`合计 · ${cartTotalItems} 件`}</Text>
             <Text className='cart-bottom-summary-value'>
-              {cartTotalFen > 0 ? formatFen(cartTotalFen) : '待确认报价'}
+              {!cartHasPendingPrice && cartTotalFen > 0 ? formatFen(cartTotalFen) : '待确认报价'}
             </Text>
           </View>
         ) : null}

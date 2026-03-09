@@ -21,6 +21,7 @@ const stripDomProps = (props) => {
     loading,
     hoverClass,
     hoverStyle,
+    isLink,
     rightIcon,
     leftIcon,
     variant,
@@ -109,6 +110,7 @@ const setTaroRouterParams = (params = {}) => {
 globalThis.__setTaroRouterParams = setTaroRouterParams;
 
 jest.mock('@tarojs/taro', () => {
+  const storage = new Map();
   const Taro = {
     showToast: jest.fn(() => Promise.resolve()),
     showActionSheet: jest.fn(() => Promise.resolve({ tapIndex: 0 })),
@@ -137,7 +139,11 @@ jest.mock('@tarojs/taro', () => {
       height: 32,
       width: 87
     })),
-    getLaunchOptionsSync: jest.fn(() => ({ query: {} }))
+    getLaunchOptionsSync: jest.fn(() => ({ query: {} })),
+    getStorageSync: jest.fn((key) => storage.get(key)),
+    setStorageSync: jest.fn((key, value) => {
+      storage.set(key, value);
+    })
   };
 
   return {
@@ -224,7 +230,7 @@ jest.mock('@tmo/commerce-services', () => {
       {
         id: 'cart-1',
         qty: 2,
-        sku: { name: '示例螺栓' }
+        sku: { id: 'sku-1', name: '示例螺栓' }
       }
     ]
   };
@@ -506,6 +512,16 @@ const MockSearch = ({ value, placeholder, onChange, clearable, ...props }) => (
   </div>
 );
 
+const MockSwitch = ({ checked, onChange, ...props }) => (
+  <button
+    type='button'
+    role='switch'
+    aria-checked={checked ? 'true' : 'false'}
+    onClick={() => onChange?.(!checked)}
+    {...stripDomProps(props)}
+  />
+);
+
 const MockEmpty = ({ children, ...props }) => <div {...stripDomProps(props)}>{children}</div>;
 MockEmpty.Image = ({ src, ...props }) => <img src={src} alt='' {...props} />;
 MockEmpty.Description = ({ children, ...props }) => <div {...props}>{children}</div>;
@@ -522,6 +538,7 @@ jest.mock('@taroify/core/grid', () => ({ __esModule: true, default: MockGrid }))
 jest.mock('@taroify/core/tabs', () => ({ __esModule: true, default: MockTabs }));
 jest.mock('@taroify/core/tabbar', () => ({ __esModule: true, default: MockTabbar }));
 jest.mock('@taroify/core/search', () => ({ __esModule: true, default: MockSearch }));
+jest.mock('@taroify/core/switch', () => ({ __esModule: true, default: MockSwitch }));
 jest.mock('@taroify/core/empty', () => ({ __esModule: true, default: MockEmpty }));
 
 jest.mock('lucide-react', () =>

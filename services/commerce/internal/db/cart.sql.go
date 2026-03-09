@@ -76,6 +76,46 @@ func (q *Queries) ListCartItems(ctx context.Context, ownerUserID uuid.UUID) ([]C
 	return items, nil
 }
 
+const listCartItemsByIDsForUpdate = `-- name: ListCartItemsByIDsForUpdate :many
+SELECT id, owner_user_id, sku_id, qty, created_at, updated_at
+FROM cart_items
+WHERE owner_user_id = $1
+  AND id = ANY($2::uuid[])
+FOR UPDATE
+`
+
+type ListCartItemsByIDsForUpdateParams struct {
+	OwnerUserID uuid.UUID   `db:"owner_user_id" json:"owner_user_id"`
+	Ids         []uuid.UUID `db:"ids" json:"ids"`
+}
+
+func (q *Queries) ListCartItemsByIDsForUpdate(ctx context.Context, arg ListCartItemsByIDsForUpdateParams) ([]CartItem, error) {
+	rows, err := q.db.Query(ctx, listCartItemsByIDsForUpdate, arg.OwnerUserID, arg.Ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CartItem
+	for rows.Next() {
+		var i CartItem
+		if err := rows.Scan(
+			&i.ID,
+			&i.OwnerUserID,
+			&i.SkuID,
+			&i.Qty,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateCartItemQty = `-- name: UpdateCartItemQty :one
 UPDATE cart_items
 SET qty = $2, updated_at = now()

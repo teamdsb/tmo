@@ -18,6 +18,166 @@ import (
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 )
 
+func TestPostInternalOrdersOrderIdPaymentStatusKeepsCartUntilPaid(t *testing.T) {
+	pool := openHandlerTestPool(t)
+	resetCommerceTables(t, pool)
+
+	queries := db.New(pool)
+	skuA, _ := seedCatalog(t, queries)
+
+	ctx := context.Background()
+	customerID := uuid.Nil
+	cartItem, err := queries.UpsertCartItem(ctx, db.UpsertCartItemParams{
+		OwnerUserID: customerID,
+		SkuID:       skuA.ID,
+		Qty:         2,
+	})
+	if err != nil {
+		t.Fatalf("seed cart item: %v", err)
+	}
+
+	address, _ := json.Marshal(oapi.Address{ReceiverName: "A", ReceiverPhone: "1", Detail: "X"})
+	order, err := queries.CreateOrder(ctx, db.CreateOrderParams{
+		Status:           string(oapi.OrderStatusSUBMITTED),
+		CustomerID:       customerID,
+		OwnerSalesUserID: pgtype.UUID{},
+		Address:          address,
+		PaymentStatus:    "UNPAID",
+	})
+	if err != nil {
+		t.Fatalf("create order: %v", err)
+	}
+	if _, err := queries.CreateOrderItem(ctx, db.CreateOrderItemParams{
+		OrderID:          order.ID,
+		SkuID:            skuA.ID,
+		SourceCartItemID: pgtype.UUID{Bytes: cartItem.ID, Valid: true},
+		Qty:              2,
+		UnitPriceFen:     12000,
+	}); err != nil {
+		t.Fatalf("create order item: %v", err)
+	}
+
+	handler := &Handler{
+		OrderStore:        queries,
+		CatalogStore:      queries,
+		CartStore:         queries,
+		DB:                pool,
+		InternalSyncToken: "sync-token",
+	}
+	router := gin.New()
+	router.POST("/internal/orders/:orderId/payment-status", handler.PostInternalOrdersOrderIdPaymentStatus)
+
+	for _, status := range []string{"PAY_PENDING", "PAY_FAILED", "CANCELLED"} {
+		body := `{"paymentId":"` + uuid.NewString() + `","channel":"WECHAT","status":"` + status + `"}`
+		req := httptest.NewRequest(http.MethodPost, "/internal/orders/"+order.ID.String()+"/payment-status", bytes.NewBufferString(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Internal-Token", "sync-token")
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status %s: expected 200, got %d: %s", status, rec.Code, rec.Body.String())
+		}
+		items, err := queries.ListCartItems(ctx, customerID)
+		if err != nil {
+			t.Fatalf("status %s: list cart items: %v", status, err)
+		}
+		if len(items) != 1 || items[0].ID != cartItem.ID || items[0].Qty != 2 {
+			t.Fatalf("status %s: expected cart item unchanged, got %#v", status, items)
+		}
+	}
+
+	paidAt := time.Now().UTC().Format(time.RFC3339)
+	body := `{"paymentId":"` + uuid.NewString() + `","channel":"WECHAT","status":"PAID","paidAt":"` + paidAt + `"}`
+	req := httptest.NewRequest(http.MethodPost, "/internal/orders/"+order.ID.String()+"/payment-status", bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Internal-Token", "sync-token")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("paid status: expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	items, err := queries.ListCartItems(ctx, customerID)
+	if err != nil {
+		t.Fatalf("paid status: list cart items: %v", err)
+	}
+	if len(items) != 0 {
+		t.Fatalf("expected cart item to be removed after paid, got %#v", items)
+	}
+}
+
+func TestPostInternalOrdersOrderIdPaymentStatusDoesNotDoubleClearCartOnRepeatedPaid(t *testing.T) {
+	pool := openHandlerTestPool(t)
+	resetCommerceTables(t, pool)
+
+	queries := db.New(pool)
+	skuA, _ := seedCatalog(t, queries)
+
+	ctx := context.Background()
+	customerID := uuid.Nil
+	cartItem, err := queries.UpsertCartItem(ctx, db.UpsertCartItemParams{
+		OwnerUserID: customerID,
+		SkuID:       skuA.ID,
+		Qty:         3,
+	})
+	if err != nil {
+		t.Fatalf("seed cart item: %v", err)
+	}
+
+	address, _ := json.Marshal(oapi.Address{ReceiverName: "A", ReceiverPhone: "1", Detail: "X"})
+	order, err := queries.CreateOrder(ctx, db.CreateOrderParams{
+		Status:           string(oapi.OrderStatusSUBMITTED),
+		CustomerID:       customerID,
+		OwnerSalesUserID: pgtype.UUID{},
+		Address:          address,
+		PaymentStatus:    "UNPAID",
+	})
+	if err != nil {
+		t.Fatalf("create order: %v", err)
+	}
+	if _, err := queries.CreateOrderItem(ctx, db.CreateOrderItemParams{
+		OrderID:          order.ID,
+		SkuID:            skuA.ID,
+		SourceCartItemID: pgtype.UUID{Bytes: cartItem.ID, Valid: true},
+		Qty:              2,
+		UnitPriceFen:     12000,
+	}); err != nil {
+		t.Fatalf("create order item: %v", err)
+	}
+
+	handler := &Handler{
+		OrderStore:        queries,
+		CatalogStore:      queries,
+		CartStore:         queries,
+		DB:                pool,
+		InternalSyncToken: "sync-token",
+	}
+	router := gin.New()
+	router.POST("/internal/orders/:orderId/payment-status", handler.PostInternalOrdersOrderIdPaymentStatus)
+
+	for _, paymentID := range []string{uuid.NewString(), uuid.NewString()} {
+		body := `{"paymentId":"` + paymentID + `","channel":"WECHAT","status":"PAID","paidAt":"2026-03-06T08:00:00Z"}`
+		req := httptest.NewRequest(http.MethodPost, "/internal/orders/"+order.ID.String()+"/payment-status", bytes.NewBufferString(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Internal-Token", "sync-token")
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("payment %s: expected 200, got %d: %s", paymentID, rec.Code, rec.Body.String())
+		}
+	}
+
+	items, err := queries.ListCartItems(ctx, customerID)
+	if err != nil {
+		t.Fatalf("list cart items: %v", err)
+	}
+	if len(items) != 1 || items[0].Qty != 1 {
+		t.Fatalf("expected one cart item with qty 1 remaining, got %#v", items)
+	}
+}
+
 func TestPostInternalOrdersOrderIdPaymentStatusMapsStatuses(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

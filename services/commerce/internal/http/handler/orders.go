@@ -18,6 +18,14 @@ import (
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 )
 
+type orderRequestValidationError struct {
+	message string
+}
+
+func (e orderRequestValidationError) Error() string {
+	return e.message
+}
+
 func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 	claims, ok := h.requireUser(c)
 	if !ok {
@@ -53,16 +61,36 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 		}
 	}
 
+	type requestedOrderItem struct {
+		cartItemID uuid.UUID
+		skuID      uuid.UUID
+		qty        int32
+	}
+
+	requestedItems := make([]requestedOrderItem, 0, len(request.Items))
 	skuIDs := make([]uuid.UUID, 0, len(request.Items))
 	qtyBySku := make(map[uuid.UUID]int32, len(request.Items))
+	seenCartItemIDs := make(map[uuid.UUID]struct{}, len(request.Items))
 	for _, item := range request.Items {
 		if item.Qty < 1 {
 			h.writeError(c, http.StatusBadRequest, "invalid_request", "qty must be >= 1")
 			return
 		}
+		cartItemID := uuid.UUID(item.CartItemId)
+		if _, exists := seenCartItemIDs[cartItemID]; exists {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "duplicate cartItemId")
+			return
+		}
+		seenCartItemIDs[cartItemID] = struct{}{}
 		skuID := uuid.UUID(item.SkuId)
+		qty := clampInt32(item.Qty)
+		requestedItems = append(requestedItems, requestedOrderItem{
+			cartItemID: cartItemID,
+			skuID:      skuID,
+			qty:        qty,
+		})
 		skuIDs = append(skuIDs, skuID)
-		qtyBySku[skuID] += clampInt32(item.Qty)
+		qtyBySku[skuID] += qty
 	}
 
 	uniqueSkuIDs := uniqueUUIDs(skuIDs)
@@ -89,12 +117,19 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 		tiersBySku[tier.SkuID] = append(tiersBySku[tier.SkuID], tier)
 	}
 
-	orderItems := make([]struct {
-		sku          db.CatalogSku
-		qty          int32
-		unitPriceFen sharedmoney.Fen
-	}, 0, len(skus))
+	skuByID := make(map[uuid.UUID]db.CatalogSku, len(skus))
 	for _, sku := range skus {
+		skuByID[sku.ID] = sku
+	}
+
+	orderItems := make([]struct {
+		sourceCartItemID uuid.UUID
+		sku              db.CatalogSku
+		qty              int32
+		unitPriceFen     sharedmoney.Fen
+	}, 0, len(requestedItems))
+	for _, item := range requestedItems {
+		sku := skuByID[item.skuID]
 		qty := qtyBySku[sku.ID]
 		if !sku.IsActive {
 			h.writeError(c, http.StatusBadRequest, "invalid_request", "sku is inactive")
@@ -106,13 +141,15 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 			return
 		}
 		orderItems = append(orderItems, struct {
-			sku          db.CatalogSku
-			qty          int32
-			unitPriceFen sharedmoney.Fen
+			sourceCartItemID uuid.UUID
+			sku              db.CatalogSku
+			qty              int32
+			unitPriceFen     sharedmoney.Fen
 		}{
-			sku:          sku,
-			qty:          qty,
-			unitPriceFen: priceFen,
+			sourceCartItemID: item.cartItemID,
+			sku:              sku,
+			qty:              item.qty,
+			unitPriceFen:     priceFen,
 		})
 	}
 
@@ -135,7 +172,27 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 	}
 	err = shareddb.WithTx(ctx, h.DB, func(tx pgx.Tx) error {
 		q := db.New(tx)
-		var err error
+		cartItems, err := q.ListCartItems(ctx, claims.UserID)
+		if err != nil {
+			return err
+		}
+		cartByID := make(map[uuid.UUID]db.CartItem, len(cartItems))
+		for _, item := range cartItems {
+			cartByID[item.ID] = item
+		}
+		for _, item := range orderItems {
+			cartItem, ok := cartByID[item.sourceCartItemID]
+			if !ok {
+				return orderRequestValidationError{message: "invalid cartItemId"}
+			}
+			if cartItem.SkuID != item.sku.ID {
+				return orderRequestValidationError{message: "cart item sku does not match"}
+			}
+			if cartItem.Qty < item.qty {
+				return orderRequestValidationError{message: "qty exceeds cart item quantity"}
+			}
+		}
+
 		order, err = q.CreateOrder(ctx, db.CreateOrderParams{
 			Status:           string(oapi.OrderStatusSUBMITTED),
 			CustomerID:       claims.UserID,
@@ -150,23 +207,23 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 		}
 		for _, item := range orderItems {
 			if _, err := q.CreateOrderItem(ctx, db.CreateOrderItemParams{
-				OrderID:      order.ID,
-				SkuID:        item.sku.ID,
-				Qty:          item.qty,
-				UnitPriceFen: item.unitPriceFen.Int64(),
+				OrderID:          order.ID,
+				SkuID:            item.sku.ID,
+				SourceCartItemID: pgtype.UUID{Bytes: item.sourceCartItemID, Valid: true},
+				Qty:              item.qty,
+				UnitPriceFen:     item.unitPriceFen.Int64(),
 			}); err != nil {
 				return err
 			}
 		}
-		if err := q.DeleteCartItemsBySkuIDs(ctx, db.DeleteCartItemsBySkuIDsParams{
-			OwnerUserID: claims.UserID,
-			SkuIds:      uniqueSkuIDs,
-		}); err != nil {
-			return err
-		}
 		return nil
 	})
 	if err != nil {
+		var validationErr orderRequestValidationError
+		if errors.As(err, &validationErr) {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", validationErr.message)
+			return
+		}
 		if shareddb.IsUniqueViolation(err) && params.IdempotencyKey != nil {
 			h.logError("idempotency key conflict", err)
 			var details map[string]interface{}

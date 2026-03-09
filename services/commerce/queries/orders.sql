@@ -22,15 +22,17 @@ RETURNING *;
 INSERT INTO order_items (
     order_id,
     sku_id,
+    source_cart_item_id,
     qty,
     unit_price_fen
 ) VALUES (
     $1,
     $2,
     $3,
-    $4
+    $4,
+    $5
 )
-RETURNING id, order_id, sku_id, qty, unit_price_fen, created_at, updated_at;
+RETURNING *;
 
 -- name: ListOrders :many
 SELECT *
@@ -61,8 +63,14 @@ SELECT *
 FROM orders
 WHERE id = $1;
 
+-- name: GetOrderForUpdate :one
+SELECT *
+FROM orders
+WHERE id = $1
+FOR UPDATE;
+
 -- name: ListOrderItems :many
-SELECT id, order_id, sku_id, qty, unit_price_fen, created_at, updated_at
+SELECT *
 FROM order_items
 WHERE order_id = $1
 ORDER BY created_at ASC;

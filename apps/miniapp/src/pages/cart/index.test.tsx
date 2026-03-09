@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import Taro from '@tarojs/taro'
 import ExcelImportConfirmation from './index'
 import { commerceServices } from '../../services/commerce'
@@ -13,6 +13,7 @@ const renderCart = async () => {
 }
 
 afterEach(() => {
+  cleanup()
   jest.restoreAllMocks()
 })
 
@@ -31,6 +32,7 @@ describe('ExcelImportConfirmation', () => {
   it('shows the cart action buttons', async () => {
     await renderCart()
 
+    expect(screen.getByText(/合计/)).toBeInTheDocument()
     expect(screen.getByText('继续浏览')).toBeInTheDocument()
     expect(screen.getByText('去结算')).toBeInTheDocument()
   })
@@ -40,7 +42,8 @@ describe('ExcelImportConfirmation', () => {
 
     await renderCart()
 
-    expect(screen.getAllByText('共 0 件')).toHaveLength(2)
+    expect(screen.getByText('共 0 件')).toBeInTheDocument()
+    expect(screen.getByText('合计 · 0 件')).toBeInTheDocument()
     expect(screen.getByText('购物车还是空的')).toBeInTheDocument()
     expect(screen.getByText('先去首页挑几件常购商品，结算区会在这里汇总。')).toBeInTheDocument()
   })
@@ -143,6 +146,218 @@ describe('ExcelImportConfirmation', () => {
     })
     const requestedSpuIds = getProductDetailSpy.mock.calls.map((call) => call[0])
     expect(requestedSpuIds.every((spuId) => spuId === 'spu-bolt-a2')).toBe(true)
+  })
+
+  it('navigates to product detail when clicking cart item content', async () => {
+    jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 2,
+          sku: {
+            id: 'sku-bolt-a2-m8',
+            spuId: 'spu-bolt-a2',
+            name: 'M8 x 30',
+            spec: 'M8 x 30',
+            skuCode: 'BOLT-M8-30'
+          }
+        }
+      ]
+    } as any)
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValueOnce({
+      product: {
+        id: 'spu-bolt-a2',
+        name: '不锈钢六角螺栓 A2',
+        categoryId: 'cat-fasteners'
+      },
+      skus: []
+    } as any)
+    const navigateToMock = Taro.navigateTo as jest.Mock
+    navigateToMock.mockClear()
+
+    await renderCart()
+    fireEvent.click(await screen.findByText('不锈钢六角螺栓 A2'))
+
+    expect(navigateToMock).toHaveBeenCalledWith({ url: '/pages/goods/detail/index?id=spu-bolt-a2' })
+  })
+
+  it('does not navigate when clicking cart item controls', async () => {
+    jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 2,
+          sku: {
+            id: 'sku-bolt-a2-m8',
+            spuId: 'spu-bolt-a2',
+            name: 'M8 x 30',
+            spec: 'M8 x 30',
+            skuCode: 'BOLT-M8-30'
+          }
+        }
+      ]
+    } as any)
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValue({
+      product: {
+        id: 'spu-bolt-a2',
+        name: '不锈钢六角螺栓 A2',
+        categoryId: 'cat-fasteners'
+      },
+      skus: [
+        { id: 'sku-bolt-a2-m8', spuId: 'spu-bolt-a2', name: 'M8 x 30', spec: 'M8 x 30', isActive: true },
+        { id: 'sku-bolt-a2-m10', spuId: 'spu-bolt-a2', name: 'M10 x 40', spec: 'M10 x 40', isActive: true }
+      ]
+    } as any)
+    jest.spyOn(commerceServices.cart, 'updateItemQty').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 3,
+          sku: {
+            id: 'sku-bolt-a2-m8',
+            spuId: 'spu-bolt-a2',
+            name: 'M8 x 30',
+            spec: 'M8 x 30',
+            skuCode: 'BOLT-M8-30'
+          }
+        }
+      ]
+    } as any)
+    const navigateToMock = Taro.navigateTo as jest.Mock
+    navigateToMock.mockClear()
+
+    await renderCart()
+    fireEvent.click(screen.getByText('+'))
+
+    await waitFor(() => {
+      expect(navigateToMock).not.toHaveBeenCalled()
+    })
+  })
+
+  it('shows toast instead of navigating when cart item has no spuId', async () => {
+    jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 2,
+          sku: {
+            id: 'sku-bolt-a2-m8',
+            name: 'M8 x 30',
+            spec: 'M8 x 30',
+            skuCode: 'BOLT-M8-30'
+          }
+        }
+      ]
+    } as any)
+    const navigateToMock = Taro.navigateTo as jest.Mock
+    const showToastMock = Taro.showToast as jest.Mock
+    navigateToMock.mockClear()
+    showToastMock.mockClear()
+
+    await renderCart()
+    fireEvent.click(screen.getAllByText('M8 x 30')[0])
+
+    await waitFor(() => {
+      expect(showToastMock).toHaveBeenCalledWith({ title: '商品详情暂不可用', icon: 'none' })
+    })
+    expect(navigateToMock).not.toHaveBeenCalled()
+  })
+
+  it('switches unit price and cart total when qty enters a new price tier', async () => {
+    jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 2,
+          sku: {
+            id: 'sku-tiered',
+            spuId: 'spu-tiered',
+            name: '默认规格',
+            spec: '默认规格',
+            priceTiers: [
+              { minQty: 1, maxQty: 2, unitPriceFen: 20000 },
+              { minQty: 3, maxQty: 5, unitPriceFen: 18000 },
+              { minQty: 6, maxQty: null, unitPriceFen: 16000 }
+            ]
+          }
+        }
+      ]
+    } as any)
+    jest.spyOn(commerceServices.cart, 'updateItemQty').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 3,
+          sku: {
+            id: 'sku-tiered',
+            spuId: 'spu-tiered',
+            name: '默认规格',
+            spec: '默认规格',
+            priceTiers: [
+              { minQty: 1, maxQty: 2, unitPriceFen: 20000 },
+              { minQty: 3, maxQty: 5, unitPriceFen: 18000 },
+              { minQty: 6, maxQty: null, unitPriceFen: 16000 }
+            ]
+          }
+        }
+      ]
+    } as any)
+
+    await renderCart()
+    expect(screen.getByText('¥200.00')).toBeInTheDocument()
+    expect(screen.getByText('¥400.00')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('+'))
+
+    expect(await screen.findByText('¥180.00')).toBeInTheDocument()
+    expect(screen.getByText('¥540.00')).toBeInTheDocument()
+  })
+
+  it('shows pending quote when qty does not match any price tier', async () => {
+    jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 1,
+          sku: {
+            id: 'sku-tier-gap',
+            spuId: 'spu-tier-gap',
+            name: '默认规格',
+            spec: '默认规格',
+            priceTiers: [
+              { minQty: 1, maxQty: 1, unitPriceFen: 20000 },
+              { minQty: 3, maxQty: null, unitPriceFen: 16000 }
+            ]
+          }
+        }
+      ]
+    } as any)
+    jest.spyOn(commerceServices.cart, 'updateItemQty').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 2,
+          sku: {
+            id: 'sku-tier-gap',
+            spuId: 'spu-tier-gap',
+            name: '默认规格',
+            spec: '默认规格',
+            priceTiers: [
+              { minQty: 1, maxQty: 1, unitPriceFen: 20000 },
+              { minQty: 3, maxQty: null, unitPriceFen: 16000 }
+            ]
+          }
+        }
+      ]
+    } as any)
+
+    await renderCart()
+    expect(screen.getAllByText('¥200.00')).toHaveLength(2)
+
+    fireEvent.click(screen.getByText('+'))
+
+    expect(await screen.findByText('询价')).toBeInTheDocument()
+    expect(screen.getByText('待确认报价')).toBeInTheDocument()
   })
 
   it('updates cart item qty when click plus', async () => {

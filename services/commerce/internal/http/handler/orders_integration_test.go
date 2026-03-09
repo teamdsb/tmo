@@ -24,7 +24,7 @@ import (
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 )
 
-func TestPostOrdersClearsCartItems(t *testing.T) {
+func TestPostOrdersKeepsCartItemsUntilPaymentSucceeds(t *testing.T) {
 	pool := openHandlerTestPool(t)
 	resetCommerceTables(t, pool)
 
@@ -33,23 +33,25 @@ func TestPostOrdersClearsCartItems(t *testing.T) {
 
 	ctx := context.Background()
 	customerID := uuid.Nil
-	if _, err := queries.UpsertCartItem(ctx, db.UpsertCartItemParams{
+	cartItemA, err := queries.UpsertCartItem(ctx, db.UpsertCartItemParams{
 		OwnerUserID: customerID,
 		SkuID:       skuA.ID,
 		Qty:         2,
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("seed cart item A: %v", err)
 	}
-	if _, err := queries.UpsertCartItem(ctx, db.UpsertCartItemParams{
+	cartItemB, err := queries.UpsertCartItem(ctx, db.UpsertCartItemParams{
 		OwnerUserID: customerID,
 		SkuID:       skuB.ID,
 		Qty:         1,
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("seed cart item B: %v", err)
 	}
 
 	router := newIntegrationRouter(pool, queries)
-	body := fmt.Sprintf(`{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"items":[{"skuId":"%s","qty":2}]}`, skuA.ID.String())
+	body := fmt.Sprintf(`{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"items":[{"cartItemId":"%s","skuId":"%s","qty":2}]}`, cartItemA.ID.String(), skuA.ID.String())
 	req := httptest.NewRequest(http.MethodPost, "/orders", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
@@ -63,11 +65,11 @@ func TestPostOrdersClearsCartItems(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list cart items: %v", err)
 	}
-	if len(items) != 1 {
-		t.Fatalf("expected 1 cart item remaining, got %d", len(items))
+	if len(items) != 2 {
+		t.Fatalf("expected 2 cart items remaining, got %d", len(items))
 	}
-	if items[0].SkuID != skuB.ID {
-		t.Fatalf("expected remaining sku %s, got %s", skuB.ID, items[0].SkuID)
+	if items[0].ID != cartItemA.ID || items[1].ID != cartItemB.ID {
+		t.Fatalf("expected original cart items to remain, got %#v", items)
 	}
 }
 
@@ -77,9 +79,17 @@ func TestPostOrdersIdempotencyConflict(t *testing.T) {
 
 	queries := db.New(pool)
 	skuA, _ := seedCatalog(t, queries)
+	cartItem, err := queries.UpsertCartItem(context.Background(), db.UpsertCartItemParams{
+		OwnerUserID: uuid.Nil,
+		SkuID:       skuA.ID,
+		Qty:         2,
+	})
+	if err != nil {
+		t.Fatalf("seed cart item: %v", err)
+	}
 
 	router := newIntegrationRouter(pool, queries)
-	body := fmt.Sprintf(`{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"items":[{"skuId":"%s","qty":2}]}`, skuA.ID.String())
+	body := fmt.Sprintf(`{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"items":[{"cartItemId":"%s","skuId":"%s","qty":2}]}`, cartItem.ID.String(), skuA.ID.String())
 	idempotencyKey := "order-dup-001"
 
 	req := httptest.NewRequest(http.MethodPost, "/orders", bytes.NewBufferString(body))
@@ -130,9 +140,17 @@ func TestPostOrdersStoresOwnerSalesUserID(t *testing.T) {
 
 	customerID := uuid.New()
 	ownerSalesID := uuid.New()
+	cartItem, err := queries.UpsertCartItem(context.Background(), db.UpsertCartItemParams{
+		OwnerUserID: customerID,
+		SkuID:       skuA.ID,
+		Qty:         2,
+	})
+	if err != nil {
+		t.Fatalf("seed cart item: %v", err)
+	}
 
 	router := newAuthIntegrationRouter(pool, queries)
-	body := fmt.Sprintf(`{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"items":[{"skuId":"%s","qty":2}]}`, skuA.ID.String())
+	body := fmt.Sprintf(`{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"items":[{"cartItemId":"%s","skuId":"%s","qty":2}]}`, cartItem.ID.String(), skuA.ID.String())
 	req := httptest.NewRequest(http.MethodPost, "/orders", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, customerID, "CUSTOMER", &ownerSalesID))
@@ -154,6 +172,52 @@ func TestPostOrdersStoresOwnerSalesUserID(t *testing.T) {
 	}
 	if !fetched.OwnerSalesUserID.Valid || fetched.OwnerSalesUserID.Bytes != ownerSalesID {
 		t.Fatalf("expected owner sales id %s, got %v", ownerSalesID, fetched.OwnerSalesUserID)
+	}
+}
+
+func TestPostOrdersRejectsInvalidCartItemSelection(t *testing.T) {
+	pool := openHandlerTestPool(t)
+	resetCommerceTables(t, pool)
+
+	queries := db.New(pool)
+	skuA, skuB := seedCatalog(t, queries)
+
+	ctx := context.Background()
+	cartItem, err := queries.UpsertCartItem(ctx, db.UpsertCartItemParams{
+		OwnerUserID: uuid.Nil,
+		SkuID:       skuA.ID,
+		Qty:         2,
+	})
+	if err != nil {
+		t.Fatalf("seed cart item: %v", err)
+	}
+
+	router := newIntegrationRouter(pool, queries)
+	cases := []struct {
+		name string
+		body string
+	}{
+		{
+			name: "sku mismatch",
+			body: fmt.Sprintf(`{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"items":[{"cartItemId":"%s","skuId":"%s","qty":1}]}`, cartItem.ID.String(), skuB.ID.String()),
+		},
+		{
+			name: "qty exceeds cart quantity",
+			body: fmt.Sprintf(`{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"items":[{"cartItemId":"%s","skuId":"%s","qty":3}]}`, cartItem.ID.String(), skuA.ID.String()),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/orders", bytes.NewBufferString(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, req)
+
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("expected status 400, got %d: %s", recorder.Code, recorder.Body.String())
+			}
+		})
 	}
 }
 

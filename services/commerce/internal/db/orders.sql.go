@@ -98,28 +98,32 @@ const createOrderItem = `-- name: CreateOrderItem :one
 INSERT INTO order_items (
     order_id,
     sku_id,
+    source_cart_item_id,
     qty,
     unit_price_fen
 ) VALUES (
     $1,
     $2,
     $3,
-    $4
+    $4,
+    $5
 )
-RETURNING id, order_id, sku_id, qty, unit_price_fen, created_at, updated_at
+RETURNING id, order_id, sku_id, qty, unit_price_fen, created_at, updated_at, source_cart_item_id
 `
 
 type CreateOrderItemParams struct {
-	OrderID      uuid.UUID `db:"order_id" json:"order_id"`
-	SkuID        uuid.UUID `db:"sku_id" json:"sku_id"`
-	Qty          int32     `db:"qty" json:"qty"`
-	UnitPriceFen int64     `db:"unit_price_fen" json:"unit_price_fen"`
+	OrderID          uuid.UUID   `db:"order_id" json:"order_id"`
+	SkuID            uuid.UUID   `db:"sku_id" json:"sku_id"`
+	SourceCartItemID pgtype.UUID `db:"source_cart_item_id" json:"source_cart_item_id"`
+	Qty              int32       `db:"qty" json:"qty"`
+	UnitPriceFen     int64       `db:"unit_price_fen" json:"unit_price_fen"`
 }
 
 func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams) (OrderItem, error) {
 	row := q.db.QueryRow(ctx, createOrderItem,
 		arg.OrderID,
 		arg.SkuID,
+		arg.SourceCartItemID,
 		arg.Qty,
 		arg.UnitPriceFen,
 	)
@@ -132,6 +136,7 @@ func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams
 		&i.UnitPriceFen,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SourceCartItemID,
 	)
 	return i, err
 }
@@ -195,8 +200,36 @@ func (q *Queries) GetOrderByIdempotencyKey(ctx context.Context, arg GetOrderById
 	return i, err
 }
 
+const getOrderForUpdate = `-- name: GetOrderForUpdate :one
+SELECT id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at
+FROM orders
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) GetOrderForUpdate(ctx context.Context, id uuid.UUID) (Order, error) {
+	row := q.db.QueryRow(ctx, getOrderForUpdate, id)
+	var i Order
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.CustomerID,
+		&i.OwnerSalesUserID,
+		&i.Address,
+		&i.Remark,
+		&i.IdempotencyKey,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PaymentStatus,
+		&i.LatestPaymentID,
+		&i.PaymentChannel,
+		&i.PaidAt,
+	)
+	return i, err
+}
+
 const listOrderItems = `-- name: ListOrderItems :many
-SELECT id, order_id, sku_id, qty, unit_price_fen, created_at, updated_at
+SELECT id, order_id, sku_id, qty, unit_price_fen, created_at, updated_at, source_cart_item_id
 FROM order_items
 WHERE order_id = $1
 ORDER BY created_at ASC
@@ -219,6 +252,7 @@ func (q *Queries) ListOrderItems(ctx context.Context, orderID uuid.UUID) ([]Orde
 			&i.UnitPriceFen,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.SourceCartItemID,
 		); err != nil {
 			return nil, err
 		}

@@ -256,6 +256,7 @@ export interface Address {
 }
 
 export type CreateOrderRequestItemsItem = {
+  cartItemId: string;
   skuId: string;
   /** @minimum 1 */
   qty: number;
