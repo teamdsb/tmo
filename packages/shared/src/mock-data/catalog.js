@@ -1,9 +1,12 @@
 const categoryNameById = {
-  apparel: '服饰',
-  electronics: '电子产品',
-  accessories: '配件',
-  'home-decor': '家居装饰',
-  footwear: '鞋履'
+  fasteners: '紧固件',
+  electrical: '电气',
+  safety: '安全防护',
+  tools: '工具',
+  instrumentation: '仪器仪表',
+  janitorial: '劳保清洁',
+  office: '办公文具',
+  packaging: '包装耗材'
 };
 
 const toFen = (amount) => {
@@ -71,26 +74,32 @@ const buildSkuId = (spuId, code) => {
 };
 
 export const canonicalCategories = [
-  { id: 'apparel', name: '服饰', sort: 10, parentId: null },
-  { id: 'electronics', name: '电子产品', sort: 20, parentId: null },
-  { id: 'accessories', name: '配件', sort: 30, parentId: null },
-  { id: 'home-decor', name: '家居装饰', sort: 40, parentId: null },
-  { id: 'footwear', name: '鞋履', sort: 50, parentId: null }
+  { id: 'fasteners', name: '紧固件', sort: 10, parentId: null },
+  { id: 'electrical', name: '电气', sort: 20, parentId: null },
+  { id: 'safety', name: '安全防护', sort: 30, parentId: null },
+  { id: 'tools', name: '工具', sort: 40, parentId: null },
+  { id: 'instrumentation', name: '仪器仪表', sort: 50, parentId: null },
+  { id: 'janitorial', name: '劳保清洁', sort: 60, parentId: null },
+  { id: 'office', name: '办公文具', sort: 70, parentId: null },
+  { id: 'packaging', name: '包装耗材', sort: 80, parentId: null }
 ];
 
 export const canonicalDisplayCategories = [
-  { id: 'apparel', name: '服饰', iconKey: 'notes', sort: 1, enabled: true },
-  { id: 'electronics', name: '电子产品', iconKey: 'desktop', sort: 2, enabled: true },
-  { id: 'accessories', name: '配件', iconKey: 'apps', sort: 3, enabled: true },
-  { id: 'home-decor', name: '家居装饰', iconKey: 'brush', sort: 4, enabled: true },
-  { id: 'footwear', name: '鞋履', iconKey: 'hot', sort: 5, enabled: true }
+  { id: 'fasteners', name: '紧固件', iconKey: 'setting', sort: 1, enabled: true },
+  { id: 'electrical', name: '电气', iconKey: 'desktop', sort: 2, enabled: true },
+  { id: 'safety', name: '安全防护', iconKey: 'shield', sort: 3, enabled: true },
+  { id: 'tools', name: '工具', iconKey: 'setting', sort: 4, enabled: true },
+  { id: 'instrumentation', name: '仪器仪表', iconKey: 'apps', sort: 5, enabled: true },
+  { id: 'janitorial', name: '劳保清洁', iconKey: 'brush', sort: 6, enabled: true },
+  { id: 'office', name: '办公文具', iconKey: 'notes', sort: 7, enabled: true },
+  { id: 'packaging', name: '包装耗材', iconKey: 'apps', sort: 8, enabled: true }
 ];
 
 const productTemplates = [
   {
     id: 'spu-tee-classic',
     name: '经典纯棉 T 恤',
-    categoryId: 'apparel',
+    categoryId: 'office',
     coverImageUrl:
       'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab',
     description: '柔软透气的日常基础款，适合批量团购。',
@@ -106,7 +115,7 @@ const productTemplates = [
   {
     id: 'spu-earbuds-pro',
     name: '无线耳机 Pro',
-    categoryId: 'electronics',
+    categoryId: 'electrical',
     coverImageUrl:
       'https://images.unsplash.com/photo-1505740420928-5e560c06d30e',
     description: '低延迟主动降噪，适合办公与通勤。',
@@ -125,7 +134,7 @@ const productTemplates = [
   {
     id: 'spu-wallet-slim',
     name: '真皮轻薄钱包',
-    categoryId: 'accessories',
+    categoryId: 'tools',
     coverImageUrl:
       'https://images.unsplash.com/photo-1627123424574-724758594e93',
     description: '头层牛皮材质，轻薄多卡位设计。',
@@ -138,7 +147,7 @@ const productTemplates = [
   {
     id: 'spu-vase-minimal',
     name: '极简陶瓷花瓶',
-    categoryId: 'home-decor',
+    categoryId: 'office',
     coverImageUrl:
       'https://images.unsplash.com/photo-1612196808214-b40f97f0c6ec',
     description: '哑光釉面，适配现代风格办公与家居空间。',
@@ -151,7 +160,7 @@ const productTemplates = [
   {
     id: 'spu-running-shoes',
     name: '性能跑鞋',
-    categoryId: 'footwear',
+    categoryId: 'safety',
     coverImageUrl:
       'https://images.unsplash.com/photo-1542291026-7eec264c27ff',
     description: '缓震中底与透气鞋面，适合城市慢跑。',
@@ -170,7 +179,7 @@ const productTemplates = [
   {
     id: 'spu-backpack-business',
     name: '商务双肩包',
-    categoryId: 'accessories',
+    categoryId: 'office',
     coverImageUrl:
       'https://images.unsplash.com/photo-1553062407-98eeb64c6a62',
     description: '多仓位分区，支持 15 英寸笔记本。',
@@ -183,7 +192,7 @@ const productTemplates = [
   {
     id: 'spu-watch-smart-s',
     name: '智能手表 S',
-    categoryId: 'electronics',
+    categoryId: 'instrumentation',
     coverImageUrl:
       'https://images.unsplash.com/photo-1523275335684-37898b6baf30',
     description: '全天候心率监测与多运动模式。',
@@ -199,7 +208,7 @@ const productTemplates = [
   {
     id: 'spu-linen-shirt',
     name: '亚麻衬衫',
-    categoryId: 'apparel',
+    categoryId: 'janitorial',
     coverImageUrl:
       'https://images.unsplash.com/photo-1603252109303-2751441dd157',
     description: '轻薄透气面料，夏季商务休闲两用。',
@@ -215,7 +224,7 @@ const productTemplates = [
   {
     id: 'spu-keyboard-k87',
     name: '电竞键盘 K87',
-    categoryId: 'electronics',
+    categoryId: 'electrical',
     coverImageUrl:
       'https://images.unsplash.com/photo-1511467687858-23d96c32e4ae',
     description: '87 键紧凑布局，支持热插拔轴体。',
@@ -234,7 +243,7 @@ const productTemplates = [
   {
     id: 'spu-running-bottle',
     name: '跑步水壶',
-    categoryId: 'accessories',
+    categoryId: 'packaging',
     coverImageUrl:
       'https://images.unsplash.com/photo-1602143407151-7111542de6e8',
     description: '食品级 Tritan 材质，防漏便携。',

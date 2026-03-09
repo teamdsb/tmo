@@ -17,7 +17,12 @@ INSERT INTO miniapp_display_categories (id, name, icon_key, sort, enabled)
 VALUES
     ('cat-fasteners', '紧固件', 'setting', 1, true),
     ('cat-electrical', '电气', 'desktop', 2, true),
-    ('cat-ppe', '安全防护', 'shield', 3, true)
+    ('cat-ppe', '安全防护', 'shield', 3, true),
+    ('cat-tools', '工具', 'setting', 4, true),
+    ('cat-instrumentation', '仪器仪表', 'apps', 5, true),
+    ('cat-janitorial', '劳保清洁', 'brush', 6, true),
+    ('cat-office', '办公文具', 'notes', 7, true),
+    ('cat-packaging', '包装耗材', 'apps', 8, true)
 ON CONFLICT (id) DO UPDATE
 SET
     name = EXCLUDED.name,

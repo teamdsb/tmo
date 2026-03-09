@@ -36,7 +36,9 @@ import {
   mockProducts
 } from '../mocks/catalog'
 import {
+  applyPaymentSessionToOrder,
   buildMockAuthContext,
+  buildMockPaymentSession,
   createIsolatedTokenStore,
   getMockUser,
   loadIsolatedMockAuthContext,
@@ -415,8 +417,14 @@ export const createMockCommerceServices = (): CommerceServices => {
   const orders: CommerceServices['orders'] = {
     submit: async (request) => {
       const createdAt = nowIso()
-      const order: Order = {
-        id: `mock-order-${Date.now().toString(36)}`,
+      const orderId = `mock-order-${Date.now().toString(36)}`
+      const initialPayment = buildMockPaymentSession(orderId, {
+        status: 'PAY_PENDING',
+        createdAt,
+        updatedAt: createdAt
+      })
+      const order = applyPaymentSessionToOrder({
+        id: orderId,
         status: OrderStatus.SUBMITTED,
         paymentStatus: 'UNPAID',
         address: request.address,
@@ -431,11 +439,15 @@ export const createMockCommerceServices = (): CommerceServices => {
         remark: request.remark,
         createdAt,
         updatedAt: createdAt
-      }
+      } as Order, initialPayment)
 
       await updateIsolatedMockState((state) => ({
         ...state,
         orders: [order, ...state.orders],
+        paymentSessionsByOrderId: {
+          ...state.paymentSessionsByOrderId,
+          [order.id]: initialPayment
+        },
         trackingByOrderId: {
           ...state.trackingByOrderId,
           [order.id]: {
@@ -452,7 +464,8 @@ export const createMockCommerceServices = (): CommerceServices => {
       const filtered = params?.status
         ? state.orders.filter((order) => order.status === params.status)
         : state.orders
-      return paginate(filtered, params?.page, params?.pageSize)
+      const sorted = [...filtered].sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
+      return paginate(sorted, params?.page, params?.pageSize)
     },
     stats: async () => {
       const state = await loadIsolatedMockState()

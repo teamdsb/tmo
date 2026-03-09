@@ -8,6 +8,7 @@ import { ROUTES } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { clearBootstrap } from '../../services/bootstrap'
+import { applyMockLogin } from '../../services/mock-auth'
 import { resetIsolatedMockState } from '../../services/mock/runtime'
 import { runtimeEnv } from '../../config/runtime-env'
 
@@ -28,6 +29,7 @@ export default function SettingsPage() {
   const navbarStyle = getNavbarStyle()
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS)
   const [resettingMock, setResettingMock] = useState(false)
+  const [mockLoggingIn, setMockLoggingIn] = useState(false)
 
   useEffect(() => {
     const stored = Taro.getStorageSync(STORAGE_KEY)
@@ -64,6 +66,31 @@ export default function SettingsPage() {
       })
     } finally {
       setResettingMock(false)
+    }
+  }
+
+  const handleMockLogin = async () => {
+    if (!runtimeEnv.isIsolatedMock || mockLoggingIn) {
+      return
+    }
+    setMockLoggingIn(true)
+    try {
+      await applyMockLogin()
+      await Taro.showToast({
+        title: '已切换到测试业务员',
+        icon: 'none'
+      })
+      await switchTabLike(ROUTES.home)
+    } catch (error) {
+      const message = error instanceof Error && error.message
+        ? error.message
+        : '测试登录不可用'
+      await Taro.showToast({
+        title: message,
+        icon: 'none'
+      })
+    } finally {
+      setMockLoggingIn(false)
     }
   }
 
@@ -122,10 +149,17 @@ export default function SettingsPage() {
 
         {runtimeEnv.isIsolatedMock ? (
           <View className='mt-6 bg-white rounded-2xl border border-slate-100 p-4'>
-            <Text className='text-xs uppercase tracking-wide text-slate-400'>Mock</Text>
+            <Text className='text-xs uppercase tracking-wide text-slate-400'>开发调试</Text>
             <Text className='text-sm text-slate-600 mt-2'>
-              当前为离线 Mock 模式，可重置本地购物车、收藏与订单等数据。
+              当前为离线 Mock 模式。这里保留调试专用入口，不影响默认交互评审路径。
             </Text>
+            <NativeButton
+              className='mt-3 rounded-xl border border-slate-200 py-2 text-sm text-slate-700'
+              disabled={mockLoggingIn}
+              onClick={handleMockLogin}
+            >
+              {mockLoggingIn ? '切换中...' : '测试登录（业务员）'}
+            </NativeButton>
             <NativeButton
               className='mt-3 rounded-xl border border-slate-200 py-2 text-sm text-slate-700'
               disabled={resettingMock}

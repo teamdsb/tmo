@@ -39,6 +39,11 @@ var defaultMiniappDisplayCategories = []miniappDisplayCategory{
 	{Id: "cat-fasteners", Name: "紧固件", IconKey: "setting", Sort: 1, Enabled: true},
 	{Id: "cat-electrical", Name: "电气", IconKey: "desktop", Sort: 2, Enabled: true},
 	{Id: "cat-ppe", Name: "安全防护", IconKey: "shield", Sort: 3, Enabled: true},
+	{Id: "cat-tools", Name: "工具", IconKey: "setting", Sort: 4, Enabled: true},
+	{Id: "cat-instrumentation", Name: "仪器仪表", IconKey: "apps", Sort: 5, Enabled: true},
+	{Id: "cat-janitorial", Name: "劳保清洁", IconKey: "brush", Sort: 6, Enabled: true},
+	{Id: "cat-office", Name: "办公文具", IconKey: "notes", Sort: 7, Enabled: true},
+	{Id: "cat-packaging", Name: "包装耗材", IconKey: "apps", Sort: 8, Enabled: true},
 }
 
 var displayCategoryIconRules = []struct {
@@ -49,7 +54,9 @@ var displayCategoryIconRules = []struct {
 	{pattern: regexp.MustCompile(`紧固|五金|工业|工具|fasten|bolt|hardware`), iconKey: "setting"},
 	{pattern: regexp.MustCompile(`电|电子|electronics?|cable`), iconKey: "desktop"},
 	{pattern: regexp.MustCompile(`安防|防护|安全|ppe|safety`), iconKey: "shield"},
+	{pattern: regexp.MustCompile(`仪器|仪表|meter|gauge|sensor|instrument`), iconKey: "apps"},
 	{pattern: regexp.MustCompile(`清洁|保洁|janitorial`), iconKey: "brush"},
+	{pattern: regexp.MustCompile(`包装|胶带|wrap|pack`), iconKey: "apps"},
 	{pattern: regexp.MustCompile(`茶|休闲|食品|餐|breakroom|food`), iconKey: "hot"},
 }
 
