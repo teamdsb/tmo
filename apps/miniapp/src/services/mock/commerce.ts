@@ -216,6 +216,12 @@ const getFileNameFromPath = (filePath: string): string => {
   return segments[segments.length - 1]
 }
 
+const toSortableTimestamp = (order: Order) => {
+  const candidate = order.updatedAt ?? order.createdAt
+  const timestamp = Date.parse(candidate)
+  return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
 const buildOrderStats = (orders: Order[]): OrderStatsResponse => {
   const countByStatus = new Map<string, number>()
   for (const order of orders) {
@@ -464,7 +470,7 @@ export const createMockCommerceServices = (): CommerceServices => {
       const filtered = params?.status
         ? state.orders.filter((order) => order.status === params.status)
         : state.orders
-      const sorted = [...filtered].sort((left, right) => Date.parse(right.updatedAt) - Date.parse(left.updatedAt))
+      const sorted = [...filtered].sort((left, right) => toSortableTimestamp(right) - toSortableTimestamp(left))
       return paginate(sorted, params?.page, params?.pageSize)
     },
     stats: async () => {

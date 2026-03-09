@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import Taro from '@tarojs/taro'
 import { removeStorage } from '@tmo/platform-adapter'
 import { gatewayServices } from '../../services/gateway'
 import { commerceServices } from '../../services/commerce'
@@ -30,6 +31,7 @@ describe('PersonalCenter', () => {
     asMock(gatewayServices.tokens.setToken).mockClear()
     asMock(commerceServices.tokens.setToken).mockClear()
     asMock(identityServices.tokens.setToken).mockClear()
+    asMock(Taro.navigateTo).mockClear()
     asMock(removeStorage).mockClear()
   })
 
@@ -137,5 +139,22 @@ describe('PersonalCenter', () => {
 
     expect(screen.getByText('ORD-20240506-03')).toBeInTheDocument()
     expect(screen.queryByText('ORD-20240515-17')).not.toBeInTheDocument()
+  })
+
+  it('opens logistics page when clicking an order card', async () => {
+    await renderPersonalCenter()
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('已发货'))
+      await flushPromises()
+    })
+
+    fireEvent.click(screen.getByTestId('mine-order-card-ORD-20240515-17'))
+
+    await waitFor(() => {
+      expect(Taro.navigateTo).toHaveBeenCalledWith({
+        url: '/pages/order/tracking/index?id=ORD-20240515-17'
+      })
+    })
   })
 })

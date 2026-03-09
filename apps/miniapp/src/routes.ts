@@ -9,6 +9,7 @@ export const ROUTES = {
   favorites: '/pages/favorites/index',
   orderDetail: '/pages/order/detail/index',
   orderTracking: '/pages/order/tracking/index',
+  shipmentTrackingDetail: '/pages/order/tracking/detail/index',
   orderConfirm: '/pages/order/confirm/index',
   category: '/pages/category/index',
   demandList: '/pages/demand/list/index',
@@ -48,4 +49,12 @@ export const orderDetailRoute = (id: string | number) => {
 
 export const orderTrackingRoute = (id: string | number) => {
   return withQuery(ROUTES.orderTracking, { id })
+}
+
+export const shipmentTrackingDetailRoute = (
+  orderId: string | number,
+  waybillNo?: string,
+  shipmentIndex?: number
+) => {
+  return withQuery(ROUTES.shipmentTrackingDetail, { orderId, waybillNo, shipmentIndex })
 }
