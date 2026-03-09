@@ -9,6 +9,7 @@ import { resolveMockAccount } from '../../lib/mock-accounts';
 const ROLE_LABELS: Record<string, string> = {
   BOSS: '老板',
   ADMIN: '管理员',
+  MANAGER: '经理',
   CS: '客服'
 };
 
@@ -105,7 +106,7 @@ export const LoginPage = () => {
       if (firstAttempt?.status === 409) {
         const availableRoles = normalizeRoles(firstAttempt?.data?.details?.availableRoles);
         if (availableRoles.length === 0) {
-          setErrorMessage('该账号角色不受 admin-web 支持（仅支持 ADMIN / BOSS / CS）。');
+          setErrorMessage('该账号角色不受 admin-web 支持（仅支持 ADMIN / BOSS / MANAGER / CS）。');
           closeRoleModal();
           return;
         }

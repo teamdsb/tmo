@@ -236,7 +236,7 @@ const RAW_REPLACEMENTS = [
   ['Please input a job id.', '请输入任务 ID。'],
   ['Login failed', '登录失败'],
   ['Please enter username and password.', '请输入用户名和密码。'],
-  ['Dev mode currently supports Administrator login only.', 'Dev 模式当前仅支持管理员登录。'],
+  ['Dev mode currently supports Administrator login only.', 'Dev 模式当前支持老板、经理、管理员和客服登录。'],
   ['Failed to load', '加载失败'],
   ['updated:', '更新时间：'],
   ['Warnings', '告警'],

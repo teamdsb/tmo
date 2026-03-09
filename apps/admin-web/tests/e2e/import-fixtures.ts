@@ -33,6 +33,17 @@ export const loginAsBoss = async (page: Page) => {
   await page.waitForURL(/dashboard\.html/);
 };
 
+export const loginAsManager = async (page: Page) => {
+  await page.goto('/');
+  await page.fill('#username', 'manager');
+  await page.fill('#password', 'manager123');
+  await Promise.all([
+    page.waitForURL('**/dashboard.html'),
+    page.locator('#login-form button[type="submit"]').click()
+  ]);
+  await page.waitForURL(/dashboard\.html/);
+};
+
 export const createImportFixture = async (
   testInfo: TestInfo,
   options: {

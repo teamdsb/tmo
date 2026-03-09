@@ -1,6 +1,6 @@
 import { expect, test, type Response } from '@playwright/test';
 
-import { loginAsBoss } from './import-fixtures';
+import { loginAsBoss, loginAsManager } from './import-fixtures';
 
 const isGet = (response: Response, path: string) => {
   const url = new URL(response.url());
@@ -31,6 +31,13 @@ test('P0/P1 real mode flows work in admin-web', async ({ page }) => {
   expect(customersResp.status()).toBe(200);
   expect(salesUsersResp.status()).toBe(200);
   expect(adminsResp.status()).toBe(200);
+
+  await page.getByTestId('tab-staff').click();
+  const salesStaffRow = page.locator('tr', { hasText: 'Sales Dev' });
+  await expect(salesStaffRow.getByRole('button', { name: '已是业务员' })).toBeDisabled();
+  const csStaffRow = page.locator('tr', { hasText: 'CS Dev' });
+  await expect(csStaffRow.getByRole('button', { name: '授予业务员' })).toBeEnabled();
+  await page.getByTestId('tab-customers').click();
 
   const promoteButtons = page.locator('[data-testid^="promote-to-sales-"]');
   const promoteCount = await promoteButtons.count();
@@ -117,4 +124,16 @@ test('P0/P1 real mode flows work in admin-web', async ({ page }) => {
   } else {
     await expect(page.getByTestId('suppliers-empty-state')).toBeVisible();
   }
+});
+
+test('manager can login in real mode and access manager pages', async ({ page }) => {
+  await loginAsManager(page);
+  await expect(page).toHaveURL(/dashboard\.html/);
+  await expect(page.locator('#user-role').first()).toContainText('经理');
+
+  const salesUsersRespPromise = page.waitForResponse((response) => isGet(response, '/api/admin/sales-users'));
+  await page.goto('/user-operations.html');
+  await expect(page.getByTestId('user-operations-page')).toBeVisible();
+  const salesUsersResp = await salesUsersRespPromise;
+  expect(salesUsersResp.status()).toBe(200);
 });

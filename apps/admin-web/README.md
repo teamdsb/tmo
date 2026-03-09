@@ -57,7 +57,7 @@ pnpm run dev:admin-web:stack
   - 不展示固定示例数字/示例记录；没有后端数据时展示空态。
   - 暂未接入的 dashboard 扩展区块会明确标记为不可用，而不是展示 mock 卡片。
 
-mock/dev 常用账号如下（dev 仅支持 `BOSS/MANAGER/ADMIN/CS` 密码登录）：
+mock/dev 常用账号如下（dev 支持 `BOSS/MANAGER/ADMIN/CS` 密码登录）：
 
 - username: `admin` / password: `admin123`（最高权限，兼容）
 - username: `boss` / password: `boss123`（最高权限）

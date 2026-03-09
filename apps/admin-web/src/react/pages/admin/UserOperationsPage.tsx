@@ -496,7 +496,7 @@ const StaffRow = memo(({ staff, isPending, onGrantSales, onRevokeSales, onToggle
             onClick={() => onGrantSales(staff)}
             type="button"
           >
-            授予业务员
+            {includesSalesRole ? '已是业务员' : isPending ? '处理中...' : '授予业务员'}
           </button>
           <button
             className="rounded border border-orange-500 px-2 py-1 text-xs font-semibold text-orange-600 transition-colors hover:bg-orange-100/80 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400 dark:hover:bg-orange-900/30 dark:disabled:border-slate-700 dark:disabled:text-slate-500"
