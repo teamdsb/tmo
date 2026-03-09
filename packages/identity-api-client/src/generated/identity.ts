@@ -263,6 +263,8 @@ export interface AuthorizeResponse {
 export interface StaffUser {
   id: string;
   displayName?: string;
+  /** @nullable */
+  phone?: string | null;
   roles: string[];
   status: UserStatus;
   /** @nullable */
@@ -271,6 +273,17 @@ export interface StaffUser {
   disabledReason?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface MiniLoginPlatformCapabilities {
+  realPhoneLoginReady: boolean;
+  phoneProofSimulationEnabled: boolean;
+  missing: string[];
+}
+
+export interface MiniLoginCapabilities {
+  loginMode: string;
+  weapp: MiniLoginPlatformCapabilities;
 }
 
 export interface CreateStaffRequest {
@@ -963,6 +976,42 @@ export const postAuthMiniLogin = async (miniLoginRequest: MiniLoginRequest, opti
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
       miniLoginRequest,)
+  }
+);}
+
+
+
+/**
+ * @summary Get current mini login capability flags for local app gating
+ */
+export type getAuthMiniCapabilitiesResponse200 = {
+  data: MiniLoginCapabilities
+  status: 200
+}
+    
+export type getAuthMiniCapabilitiesResponseSuccess = (getAuthMiniCapabilitiesResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getAuthMiniCapabilitiesResponse = (getAuthMiniCapabilitiesResponseSuccess)
+
+export const getGetAuthMiniCapabilitiesUrl = () => {
+
+
+  
+
+  return `/auth/mini/capabilities`
+}
+
+export const getAuthMiniCapabilities = async ( options?: RequestInit): Promise<getAuthMiniCapabilitiesResponse> => {
+  
+  return apiMutator<getAuthMiniCapabilitiesResponse>(getGetAuthMiniCapabilitiesUrl(),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
   }
 );}
 

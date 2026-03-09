@@ -21,6 +21,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/teamdsb/tmo/services/identity/internal/auth"
+	"github.com/teamdsb/tmo/services/identity/internal/config"
 	"github.com/teamdsb/tmo/services/identity/internal/db"
 	httpserver "github.com/teamdsb/tmo/services/identity/internal/http"
 	"github.com/teamdsb/tmo/services/identity/internal/http/handler"
@@ -211,6 +212,88 @@ WHERE user_id = $1 AND provider = 'weapp'
 	}
 	if identityCount != 1 {
 		t.Fatalf("expected existing weapp identity to be reused, got %d identities", identityCount)
+	}
+}
+
+func TestAuthMiniCapabilitiesShowsMissingWeappConfig(t *testing.T) {
+	router, pool := setupTestRouterWithPlatformConfig(t, platform.Config{
+		Mode:                        platform.LoginModeReal,
+		EnablePhoneProofSimulation:  false,
+		PhoneProofSimulationPhone:   "+15550000003",
+		WeappSalesPage:              "pages/index/index",
+		WeappQRWidth:                256,
+		AlipaySalesPage:             "pages/index/index",
+	})
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+
+	resp := doJSON(t, router, http.MethodGet, "/auth/mini/capabilities", nil, "")
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	var payload map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode capabilities: %v", err)
+	}
+
+	weapp, ok := payload["weapp"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected weapp payload, got %#v", payload["weapp"])
+	}
+	if payload["loginMode"] != "real" {
+		t.Fatalf("expected loginMode real, got %#v", payload["loginMode"])
+	}
+	if weapp["realPhoneLoginReady"] != false {
+		t.Fatalf("expected realPhoneLoginReady false, got %#v", weapp["realPhoneLoginReady"])
+	}
+}
+
+func TestGetStaffSupportsPhoneQuery(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedAdmin(ctx, pool); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+	if err := seedSales(ctx, pool); err != nil {
+		t.Fatalf("seed sales: %v", err)
+	}
+	if err := seedCustomerPhone(ctx, pool, salesID, "+15550000002"); err != nil {
+		t.Fatalf("seed sales phone: %v", err)
+	}
+
+	loginResp := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": adminUsername,
+		"password": adminPassword,
+	}, "")
+	if loginResp.Code != http.StatusOK {
+		t.Fatalf("expected password login 200, got %d: %s", loginResp.Code, loginResp.Body.String())
+	}
+	var adminAuth oapi.AuthResponse
+	if err := json.NewDecoder(loginResp.Body).Decode(&adminAuth); err != nil {
+		t.Fatalf("decode auth response: %v", err)
+	}
+	resp := doJSON(t, router, http.MethodGet, "/staff?page=1&pageSize=20&q=%2B15550000002", nil, adminAuth.AccessToken)
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	var payload oapi.PagedStaffList
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode staff list: %v", err)
+	}
+	if payload.Total != 1 || len(payload.Items) != 1 {
+		t.Fatalf("expected 1 staff result, got total=%d items=%d", payload.Total, len(payload.Items))
+	}
+	if payload.Items[0].Phone == nil || *payload.Items[0].Phone != "+15550000002" {
+		t.Fatalf("expected returned phone, got %#v", payload.Items[0].Phone)
 	}
 }
 
@@ -1208,6 +1291,12 @@ func setupTestRouterWithPlatformConfig(t *testing.T, resolverConfig platform.Con
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	store := db.New(pool)
 	apiHandler := &handler.Handler{
+		Config: config.Config{
+			LoginMode:                  string(resolverConfig.Mode),
+			WeappAppID:                 resolverConfig.WeappAppID,
+			WeappAppSecret:             resolverConfig.WeappAppSecret,
+			EnablePhoneProofSimulation: resolverConfig.EnablePhoneProofSimulation,
+		},
 		DB:       pool,
 		Logger:   logger,
 		Auth:     auth.NewTokenManager("test-secret", "test-issuer", 2*time.Hour),

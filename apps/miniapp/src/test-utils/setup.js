@@ -115,6 +115,7 @@ jest.mock('@tarojs/taro', () => {
     showToast: jest.fn(() => Promise.resolve()),
     showActionSheet: jest.fn(() => Promise.resolve({ tapIndex: 0 })),
     chooseImage: jest.fn(() => Promise.resolve({ tempFilePaths: ['/tmp/mock.png'] })),
+    request: jest.fn(() => Promise.resolve({ statusCode: 200, data: {} })),
     navigateTo: jest.fn(() => Promise.resolve()),
     reLaunch: jest.fn(() => Promise.resolve()),
     switchTab: jest.fn(() => Promise.resolve()),

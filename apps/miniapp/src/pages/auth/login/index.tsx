@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button as NativeButton, Text, View } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import Button from '@taroify/core/button'
@@ -7,9 +7,11 @@ import { getPhoneNumber as platformGetPhoneNumber, getPlatform, type PhoneProofR
 import { RoleSelectionRequiredError, isApiError } from '@tmo/identity-services'
 
 import { identityServices } from '../../../services/identity'
+import { fetchMiniLoginCapabilities, type MiniLoginCapabilities } from '../../../services/auth-capabilities'
 import { gatewayServices } from '../../../services/gateway'
 import { saveBootstrap, savePendingRoleSelection } from '../../../services/bootstrap'
 import { ROUTES } from '../../../routes'
+import { clearAuthSession } from '../../../utils/auth'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { runtimeEnv } from '../../../config/runtime-env'
 
@@ -28,6 +30,8 @@ const simulatedWeappPhoneProof: PhoneProofResult = Object.freeze({
 })
 const weappSimulationMismatchMessage = '开发环境模拟登录配置不一致，请开启 IDENTITY_ENABLE_PHONE_PROOF_SIMULATION 后重试'
 const weappSimulationIdentityBoundMessage = '本地模拟账号与 seed 绑定冲突，请重启 identity 容器或更新后端后重试'
+const realWeappConfigCheckMessage = '当前真实微信登录配置不完整，请补齐前后端 AppID/AppSecret 配置后重试'
+const realWeappCapabilityCheckMessage = '无法确认后端真实微信登录配置，请检查 gateway / identity 是否在线'
 
 const readLaunchContext = (): LaunchContext => {
   const options = Taro.getLaunchOptionsSync?.()
@@ -91,6 +95,9 @@ export default function LoginPage() {
   const router = useRouter()
   const [agreed, setAgreed] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [miniLoginCapabilities, setMiniLoginCapabilities] = useState<MiniLoginCapabilities | null>(null)
+  const [capabilitiesLoading, setCapabilitiesLoading] = useState(false)
+  const [capabilitiesError, setCapabilitiesError] = useState('')
   const launchContext = useMemo(readLaunchContext, [])
   const enableWeappPhoneProofSimulation = useMemo(() => runtimeEnv.weappPhoneProofSimulation, [])
   const platform = useMemo(() => getPlatform() as MiniPlatform, [])
@@ -104,11 +111,97 @@ export default function LoginPage() {
       return router.params.redirect
     }
   })()
+  const hasRealWeappAppId = useMemo(() => hasConfiguredWeappAppId(runtimeEnv.weappAppId), [])
+  const shouldCheckRealWeappCapabilities = platform === 'weapp'
+    && !runtimeEnv.isIsolatedMock
+    && !enableWeappPhoneProofSimulation
+
+  useEffect(() => {
+    if (!shouldCheckRealWeappCapabilities) {
+      setMiniLoginCapabilities(null)
+      setCapabilitiesError('')
+      setCapabilitiesLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setCapabilitiesLoading(true)
+    setCapabilitiesError('')
+
+    void (async () => {
+      try {
+        const next = await fetchMiniLoginCapabilities()
+        if (!cancelled) {
+          setMiniLoginCapabilities(next)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.warn('load mini login capabilities failed', error)
+          setCapabilitiesError(realWeappCapabilityCheckMessage)
+        }
+      } finally {
+        if (!cancelled) {
+          setCapabilitiesLoading(false)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [shouldCheckRealWeappCapabilities])
+
+  const blockedWeappLoginMessage = useMemo(() => {
+    if (!shouldCheckRealWeappCapabilities) {
+      return ''
+    }
+    if (!hasRealWeappAppId) {
+      return '当前未配置真实微信 AppID，请先设置 TARO_APP_ID。'
+    }
+    if (capabilitiesError) {
+      return capabilitiesError
+    }
+    if (capabilitiesLoading) {
+      return '正在校验真实微信登录配置...'
+    }
+    if (!miniLoginCapabilities) {
+      return realWeappCapabilityCheckMessage
+    }
+    if (String(miniLoginCapabilities.loginMode).trim().toLowerCase() !== 'real') {
+      return 'identity 当前未开启真实登录模式，请先设置 IDENTITY_LOGIN_MODE=real。'
+    }
+    if (miniLoginCapabilities.weapp.phoneProofSimulationEnabled) {
+      return 'identity 当前仍开启手机号证明模拟，请先关闭 IDENTITY_ENABLE_PHONE_PROOF_SIMULATION。'
+    }
+    if (!miniLoginCapabilities.weapp.realPhoneLoginReady) {
+      const missing = Array.isArray(miniLoginCapabilities.weapp.missing)
+        ? miniLoginCapabilities.weapp.missing.filter(Boolean).join(' / ')
+        : ''
+      return missing
+        ? `identity 缺少真实微信配置：${missing}`
+        : realWeappConfigCheckMessage
+    }
+    return ''
+  }, [
+    capabilitiesError,
+    capabilitiesLoading,
+    hasRealWeappAppId,
+    miniLoginCapabilities,
+    shouldCheckRealWeappCapabilities
+  ])
+  const isWeappLoginBlocked = blockedWeappLoginMessage.length > 0
 
   const handleLoginFlow = async (resolvePhoneProof?: () => Promise<PhoneProofResult | undefined>) => {
     if (!agreed) {
       await Taro.showToast({
         title: '请先同意条款。',
+        icon: 'none'
+      })
+      return
+    }
+    if (platform === 'weapp' && isWeappLoginBlocked) {
+      await Taro.showToast({
+        title: blockedWeappLoginMessage,
         icon: 'none'
       })
       return
@@ -198,7 +291,7 @@ export default function LoginPage() {
   }
 
   const handleAltLogin = async () => {
-    await identityServices.tokens.setToken(null)
+    await clearAuthSession()
     if (redirect) {
       await switchTabLike(redirect)
       return
@@ -224,6 +317,14 @@ export default function LoginPage() {
         </View>
 
         <View className='mt-10 flex flex-col gap-4'>
+          {isWeappLoginBlocked ? (
+            <View className='rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3'>
+              <Text className='block text-xs leading-6 text-amber-700'>
+                {blockedWeappLoginMessage}
+              </Text>
+            </View>
+          ) : null}
+
           {platform === 'weapp' && enableWeappPhoneProofSimulation ? (
             <NativeButton
               className='login-primary login-native-button'
@@ -238,7 +339,7 @@ export default function LoginPage() {
           {platform === 'weapp' && !enableWeappPhoneProofSimulation ? (
             <NativeButton
               className='login-primary login-native-button'
-              disabled={!agreed || loading}
+              disabled={!agreed || loading || isWeappLoginBlocked}
               loading={loading}
               openType='getPhoneNumber'
               onGetPhoneNumber={handleWeappGetPhoneNumber}
@@ -341,4 +442,12 @@ const isWeappSimulationIdentityConflict = (
     isApiError(error) &&
     error.code === 'conflict' &&
     error.message.trim().toLowerCase() === 'identity already bound'
+}
+
+const hasConfiguredWeappAppId = (value?: string | null): boolean => {
+  const trimmed = String(value || '').trim()
+  if (!trimmed) {
+    return false
+  }
+  return trimmed.toLowerCase() !== 'touristappid'
 }

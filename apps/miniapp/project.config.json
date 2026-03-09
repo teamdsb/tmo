@@ -14,7 +14,8 @@
     "packNpmManually": false,
     "packNpmRelationList": [],
     "ignoreDevUnusedFiles": true,
-    "ignoreUploadUnusedFiles": true
+    "ignoreUploadUnusedFiles": true,
+    "minifyWXML": true
   },
   "compileType": "miniprogram"
 }

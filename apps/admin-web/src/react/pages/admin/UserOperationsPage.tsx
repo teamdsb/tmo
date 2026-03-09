@@ -52,6 +52,7 @@ type AdminCustomer = {
 type StaffUser = {
   id: string;
   displayName: string;
+  phone: string;
   roles: string[];
   status: string;
   createdAt: string;
@@ -308,6 +309,7 @@ const normalizeStaffUsers = (data: unknown): { items: StaffUser[]; total: number
       const record = item as {
         id?: string;
         displayName?: string;
+        phone?: string | null;
         roles?: unknown[];
         status?: string;
         createdAt?: string;
@@ -325,6 +327,7 @@ const normalizeStaffUsers = (data: unknown): { items: StaffUser[]; total: number
       return {
         id: record.id,
         displayName: safeText(record.displayName, '未命名员工'),
+        phone: safeText(record.phone, '-'),
         roles,
         status: safeText(record.status, 'active').toLowerCase(),
         createdAt: safeText(record.createdAt, ''),
@@ -383,6 +386,7 @@ const buildMockStaffSeed = (): StaffUser[] => {
     .map((account) => ({
       id: account.userId,
       displayName: account.displayName || account.username,
+      phone: account.phone || '-',
       roles: account.role ? [String(account.role).toUpperCase()] : [],
       status: 'active',
       createdAt: now,
@@ -403,6 +407,8 @@ const CustomerRow = memo(({ customer, isPending, isSales, onPromoteToSales }: Cu
       <td className="px-4 py-3">
         <p className="font-medium text-text-primary-light dark:text-text-primary-dark">{customer.displayName}</p>
         <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{customer.phone || '-'}</p>
+        <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{customer.id}</p>
+        <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">customer · CUSTOMER</p>
       </td>
       <td className="px-4 py-3">
         <p className="text-text-primary-light dark:text-text-primary-dark">{customer.ownerSales?.displayName || '未分配'}</p>
@@ -460,7 +466,9 @@ const StaffRow = memo(({ staff, isPending, onGrantSales, onRevokeSales, onToggle
     <tr className="border-b border-border-light transition-colors hover:bg-gray-50 dark:border-border-dark dark:hover:bg-gray-800/40">
       <td className="px-4 py-3">
         <p className="font-medium text-text-primary-light dark:text-text-primary-dark">{staff.displayName}</p>
+        <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{staff.phone || '-'}</p>
         <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{staff.id}</p>
+        <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">staff</p>
       </td>
       <td className="px-4 py-3">
         <div className="flex flex-wrap gap-1">
@@ -1791,7 +1799,7 @@ export const UserOperationsPage = () => {
           <input
             className="h-11 rounded-lg border-border-light bg-background-light text-sm text-text-primary-light focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark dark:text-text-primary-dark"
             onChange={(event) => setStaffQueryInput(event.currentTarget.value)}
-            placeholder="搜索业务员姓名、ID 或角色"
+            placeholder="搜索业务员姓名、手机号、ID 或角色"
             value={staffQueryInput}
           />
           <button

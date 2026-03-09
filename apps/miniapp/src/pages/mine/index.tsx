@@ -12,10 +12,9 @@ import type { BootstrapResponse } from '@tmo/gateway-api-client'
 import { ROUTES } from '../../routes'
 import { clearAuthSession, hasAuthToken, isUnauthorized } from '../../utils/auth'
 import { getNavbarStyle } from '../../utils/navbar'
-import { navigateTo } from '../../utils/navigation'
+import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { gatewayServices } from '../../services/gateway'
 import { commerceServices } from '../../services/commerce'
-import { identityServices } from '../../services/identity'
 import { clearBootstrap, loadBootstrap, saveBootstrap } from '../../services/bootstrap'
 import placeholderProductImage from '../../assets/images/placeholder-product.svg'
 import { runtimeEnv } from '../../config/runtime-env'
@@ -200,18 +199,11 @@ export default function PersonalCenter() {
 
     setLoggingOut(true)
     try {
-      const results = await Promise.allSettled([
-        gatewayServices.tokens.setToken(null),
-        commerceServices.tokens.setToken(null),
-        identityServices.tokens.setToken(null),
-        clearBootstrap()
-      ])
-      const hasFailedTask = results.some((item) => item.status === 'rejected')
-      if (hasFailedTask) {
-        throw new Error('logout cleanup failed')
-      }
+      await clearAuthSession()
       setBootstrap(null)
+      setCurrentPage('profile')
       await Taro.showToast({ title: '已退出登录', icon: 'none' })
+      await switchTabLike(ROUTES.authLogin)
     } catch (error) {
       console.warn('logout failed', error)
       await Taro.showToast({ title: '退出失败，请重试', icon: 'none' })
