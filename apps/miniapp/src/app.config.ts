@@ -16,6 +16,7 @@ export default defineAppConfig({
     'pages/order/confirm/index',
     'pages/order/detail/index',
     'pages/order/tracking/index',
+    'pages/order/tracking/detail/index',
     'pages/account/address/index',
     'pages/import/index',
     'pages/tracking/batch/index',

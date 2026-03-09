@@ -11,6 +11,8 @@ import {
   ShieldOutlined
 } from '@taroify/icons'
 import UserOutlined from '@taroify/icons/UserOutlined'
+import { orderTrackingRoute } from '../../routes'
+import { navigateTo } from '../../utils/navigation'
 import type {
   ChatMessage,
   IconComponent,
@@ -247,7 +249,12 @@ export function OrderManagementView({ orders, initialTab, onBack }: OrderManagem
         </View>
 
         {filteredOrders.length > 0 ? filteredOrders.map((order) => (
-          <View key={order.id} className='mine-order-card mb-3 rounded-3xl p-4'>
+          <View
+            key={order.id}
+            className='mine-order-card mb-3 rounded-3xl p-4'
+            data-testid={`mine-order-card-${order.id}`}
+            onClick={() => navigateTo(orderTrackingRoute(order.id))}
+          >
             <View className='mb-3 flex items-start justify-between gap-3'>
               <View className='min-w-0 flex-1'>
                 <Text className='mine-order-id block text-sm font-bold'>{order.id}</Text>
@@ -279,6 +286,7 @@ export function OrderManagementView({ orders, initialTab, onBack }: OrderManagem
               <View className='text-right'>
                 <Text className='mine-order-total-label block text-xs'>订单金额</Text>
                 <Text className='mine-order-total mt-1 block text-base font-bold'>￥{order.totalPrice.toFixed(2)}</Text>
+                <Text className='block mt-2 text-xs mine-modern-primary'>点击查看物流</Text>
               </View>
             </View>
           </View>

@@ -4,11 +4,13 @@ import Taro, { useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Cell from '@taroify/core/cell'
 import Tag from '@taroify/core/tag'
+import Button from '@taroify/core/button'
 import type { TrackingInfoShipmentsItem } from '@tmo/api-client'
-import { ROUTES } from '../../../routes'
+import { ROUTES, shipmentTrackingDetailRoute } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
-import { switchTabLike } from '../../../utils/navigation'
+import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
+import { formatTrackingDate, trackingCarrierLabel, trackingStatusLabel } from './shared'
 
 export default function OrderTracking() {
   const router = useRouter()
@@ -49,13 +51,45 @@ export default function OrderTracking() {
       </Navbar>
       <View className='page-content'>
         <Cell.Group inset>
-          {shipments.map((shipment) => (
-            <Cell
-              key={`${shipment.waybillNo}-${shipment.shippedAt ?? ''}`}
-              title={shipment.waybillNo}
-              brief={`承运商：${shipment.carrier ?? '未知'}`}
-              rightIcon={<Text>{shipment.shippedAt ? formatDate(shipment.shippedAt) : '待处理'}</Text>}
-            />
+          {shipments.map((shipment, index) => (
+            <View
+              key={`${shipment.waybillNo}-${shipment.shippedAt ?? ''}-${index}`}
+              className='bg-white rounded-2xl border border-slate-100 p-4 mb-3'
+            >
+              <View className='flex items-start justify-between gap-3'>
+                <View className='min-w-0 flex-1'>
+                  <Text className='block text-sm font-semibold text-slate-900'>
+                    {shipment.waybillNo || `运单 ${index + 1}`}
+                  </Text>
+                  <Text className='block mt-1 text-xs text-slate-500'>
+                    承运商：{trackingCarrierLabel(shipment)}
+                  </Text>
+                </View>
+                <Tag size='small' color={shipment.shippedAt ? 'success' : 'warning'}>
+                  {trackingStatusLabel(shipment)}
+                </Tag>
+              </View>
+
+              <Text className='block mt-3 text-xs text-slate-500'>
+                发货时间：{formatTrackingDate(shipment.shippedAt)}
+              </Text>
+
+              <View className='mt-4'>
+                <Button
+                  block
+                  color='primary'
+                  variant='outlined'
+                  onClick={() => {
+                    if (!orderId || typeof orderId !== 'string') {
+                      return
+                    }
+                    return navigateTo(shipmentTrackingDetailRoute(orderId, shipment.waybillNo, index))
+                  }}
+                >
+                  查看详情
+                </Button>
+              </View>
+            </View>
           ))}
           {shipments.length === 0 ? (
             <Cell title={loading ? '正在加载物流...' : '暂无物流信息'} />
@@ -64,12 +98,4 @@ export default function OrderTracking() {
       </View>
     </View>
   )
-}
-
-const formatDate = (value: string) => {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-  return date.toLocaleDateString()
 }

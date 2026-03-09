@@ -118,6 +118,7 @@ jest.mock('@tarojs/taro', () => {
     navigateTo: jest.fn(() => Promise.resolve()),
     reLaunch: jest.fn(() => Promise.resolve()),
     switchTab: jest.fn(() => Promise.resolve()),
+    setClipboardData: jest.fn(() => Promise.resolve()),
     getCurrentPages: jest.fn(() => []),
     getSystemInfoSync: jest.fn(() => ({
       statusBarHeight: 20,

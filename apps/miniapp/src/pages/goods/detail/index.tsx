@@ -299,7 +299,6 @@ export default function ProductDetail() {
             <Input
               className='product-qty-value'
               type='number'
-              inputMode='numeric'
               value={purchaseQtyInput}
               onInput={(event) => handlePurchaseQtyInput(event.detail.value)}
               onBlur={commitPurchaseQtyInput}
