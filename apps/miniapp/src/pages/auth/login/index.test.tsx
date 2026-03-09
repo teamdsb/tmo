@@ -1,5 +1,4 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
-
 const flushPromises = () => new Promise((resolve) => process.nextTick(resolve))
 const asMock = <T extends (...args: any[]) => any>(fn: T) => fn as unknown as jest.Mock
 const actualReact = jest.requireActual('react')
@@ -9,6 +8,7 @@ type LoadedLoginModule = {
   LoginPage: typeof import('./index').default
   identityServices: typeof import('../../../services/identity').identityServices
   gatewayServices: typeof import('../../../services/gateway').gatewayServices
+  commerceServices: typeof import('../../../services/commerce').commerceServices
   ApiError: typeof import('@tmo/identity-services').ApiError
   Taro: typeof import('@tarojs/taro')
 }
@@ -16,6 +16,7 @@ type LoadedLoginModule = {
 type LoadLoginModuleOptions = {
   platform?: 'weapp' | 'unknown'
   weappPhoneProofSimulation?: boolean
+  weappAppId?: string
 }
 
 const setRouterParams = (params: Record<string, string> = {}) => {
@@ -25,7 +26,8 @@ const setRouterParams = (params: Record<string, string> = {}) => {
 const loadLoginModule = (options: LoadLoginModuleOptions = {}) => {
   const {
     platform = 'weapp',
-    weappPhoneProofSimulation = true
+    weappPhoneProofSimulation = true,
+    weappAppId = ''
   } = options
   let moduleValue: LoadedLoginModule | undefined
 
@@ -37,16 +39,19 @@ const loadLoginModule = (options: LoadLoginModuleOptions = {}) => {
         isIsolatedMock: false,
         enableMockLogin: false,
         weappPhoneProofSimulation,
+        weappAppId,
         identityDevToken: undefined,
         gatewayDevToken: undefined
       },
       requireIdentityBaseUrl: () => 'http://localhost:8080',
+      requireCommerceBaseUrl: () => 'http://localhost:8080',
       requireGatewayBaseUrl: () => 'http://localhost:8080'
     }))
 
     const pageModule = require('./index')
     const identityModule = require('../../../services/identity')
     const gatewayModule = require('../../../services/gateway')
+    const commerceModule = require('../../../services/commerce')
     const identityServicesModule = require('@tmo/identity-services')
     const taroModule = require('@tarojs/taro')
     const platformAdapterModule = require('@tmo/platform-adapter')
@@ -57,6 +62,7 @@ const loadLoginModule = (options: LoadLoginModuleOptions = {}) => {
       LoginPage: pageModule.default,
       identityServices: identityModule.identityServices,
       gatewayServices: gatewayModule.gatewayServices,
+      commerceServices: commerceModule.commerceServices,
       ApiError: identityServicesModule.ApiError,
       Taro: taroModule.default
     }
@@ -77,7 +83,7 @@ const renderLoginPage = async (LoginPage: typeof import('./index').default) => {
 }
 
 const agreeToTerms = async () => {
-  const agreement = screen.getByText('我已阅读并同意隐私政策与服务条款。').parentElement
+  const agreement = screen.getByText('隐私政策').closest('.login-agreement')
   if (!agreement) {
     throw new Error('agreement toggle not found')
   }
@@ -100,14 +106,14 @@ describe('LoginPage', () => {
     await renderLoginPage(LoginPage)
 
     expect(screen.getByText('批发合作伙伴')).toBeInTheDocument()
-    expect(screen.getByText('登录后可查看专属价格。')).toBeInTheDocument()
+    expect(screen.getByText('登录后可查看账号信息、专属价格与履约进度。')).toBeInTheDocument()
     expect(screen.getByText('快速登录').closest('button')).toHaveClass('login-primary')
     expect(screen.getByText('暂不登录').closest('button')).toHaveClass('login-secondary')
     expect(screen.queryByText('测试登录')).not.toBeInTheDocument()
   })
 
   it('supports alt login action', async () => {
-    const { LoginPage, identityServices, Taro: runtimeTaro } = loadLoginModule()
+    const { LoginPage, identityServices, gatewayServices, commerceServices, Taro: runtimeTaro } = loadLoginModule()
     await renderLoginPage(LoginPage)
 
     ;(runtimeTaro as unknown as { navigateBack?: jest.Mock }).navigateBack = jest.fn(() => Promise.resolve())
@@ -118,7 +124,36 @@ describe('LoginPage', () => {
     })
 
     expect(identityServices.tokens.setToken).toHaveBeenCalledWith(null)
+    expect(gatewayServices.tokens.setToken).toHaveBeenCalledWith(null)
+    expect(commerceServices.tokens.setToken).toHaveBeenCalledWith(null)
     expect(runtimeTaro.navigateBack).toHaveBeenCalled()
+  })
+
+  it('blocks real weapp login when TARO_APP_ID is missing', async () => {
+    const { LoginPage } = loadLoginModule({
+      platform: 'weapp',
+      weappPhoneProofSimulation: false,
+      weappAppId: ''
+    })
+
+    await renderLoginPage(LoginPage)
+
+    expect(await screen.findByText('当前未配置真实微信 AppID，请先设置 TARO_APP_ID。')).toBeInTheDocument()
+    expect(screen.getByText('快速登录').closest('button')).toBeDisabled()
+  })
+
+  it('blocks real weapp login when backend capability check fails', async () => {
+    const { LoginPage, Taro: runtimeTaro } = loadLoginModule({
+      platform: 'weapp',
+      weappPhoneProofSimulation: false,
+      weappAppId: 'wx-real-appid'
+    })
+    asMock(runtimeTaro.request).mockRejectedValue(new Error('network down'))
+
+    await renderLoginPage(LoginPage)
+
+    expect(await screen.findByText('无法确认后端真实微信登录配置，请检查 gateway / identity 是否在线')).toBeInTheDocument()
+    expect(screen.getByText('快速登录').closest('button')).toBeDisabled()
   })
 
   it('shows explicit dev mismatch toast when simulated proof hits invalid login code', async () => {

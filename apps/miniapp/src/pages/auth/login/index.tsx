@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button as NativeButton, Text, View } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import Button from '@taroify/core/button'
@@ -7,9 +7,11 @@ import { getPhoneNumber as platformGetPhoneNumber, getPlatform, type PhoneProofR
 import { RoleSelectionRequiredError, isApiError } from '@tmo/identity-services'
 
 import { identityServices } from '../../../services/identity'
+import { fetchMiniLoginCapabilities, type MiniLoginCapabilities } from '../../../services/auth-capabilities'
 import { gatewayServices } from '../../../services/gateway'
 import { saveBootstrap, savePendingRoleSelection } from '../../../services/bootstrap'
 import { ROUTES } from '../../../routes'
+import { clearAuthSession } from '../../../utils/auth'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { runtimeEnv } from '../../../config/runtime-env'
 
@@ -28,6 +30,8 @@ const simulatedWeappPhoneProof: PhoneProofResult = Object.freeze({
 })
 const weappSimulationMismatchMessage = '开发环境模拟登录配置不一致，请开启 IDENTITY_ENABLE_PHONE_PROOF_SIMULATION 后重试'
 const weappSimulationIdentityBoundMessage = '本地模拟账号与 seed 绑定冲突，请重启 identity 容器或更新后端后重试'
+const realWeappConfigCheckMessage = '当前真实微信登录配置不完整，请补齐前后端 AppID/AppSecret 配置后重试'
+const realWeappCapabilityCheckMessage = '无法确认后端真实微信登录配置，请检查 gateway / identity 是否在线'
 
 const readLaunchContext = (): LaunchContext => {
   const options = Taro.getLaunchOptionsSync?.()
@@ -91,6 +95,9 @@ export default function LoginPage() {
   const router = useRouter()
   const [agreed, setAgreed] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [miniLoginCapabilities, setMiniLoginCapabilities] = useState<MiniLoginCapabilities | null>(null)
+  const [capabilitiesLoading, setCapabilitiesLoading] = useState(false)
+  const [capabilitiesError, setCapabilitiesError] = useState('')
   const launchContext = useMemo(readLaunchContext, [])
   const enableWeappPhoneProofSimulation = useMemo(() => runtimeEnv.weappPhoneProofSimulation, [])
   const platform = useMemo(() => getPlatform() as MiniPlatform, [])
@@ -104,11 +111,97 @@ export default function LoginPage() {
       return router.params.redirect
     }
   })()
+  const hasRealWeappAppId = useMemo(() => hasConfiguredWeappAppId(runtimeEnv.weappAppId), [])
+  const shouldCheckRealWeappCapabilities = platform === 'weapp'
+    && !runtimeEnv.isIsolatedMock
+    && !enableWeappPhoneProofSimulation
+
+  useEffect(() => {
+    if (!shouldCheckRealWeappCapabilities) {
+      setMiniLoginCapabilities(null)
+      setCapabilitiesError('')
+      setCapabilitiesLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setCapabilitiesLoading(true)
+    setCapabilitiesError('')
+
+    void (async () => {
+      try {
+        const next = await fetchMiniLoginCapabilities()
+        if (!cancelled) {
+          setMiniLoginCapabilities(next)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.warn('load mini login capabilities failed', error)
+          setCapabilitiesError(realWeappCapabilityCheckMessage)
+        }
+      } finally {
+        if (!cancelled) {
+          setCapabilitiesLoading(false)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [shouldCheckRealWeappCapabilities])
+
+  const blockedWeappLoginMessage = useMemo(() => {
+    if (!shouldCheckRealWeappCapabilities) {
+      return ''
+    }
+    if (!hasRealWeappAppId) {
+      return '当前未配置真实微信 AppID，请先设置 TARO_APP_ID。'
+    }
+    if (capabilitiesError) {
+      return capabilitiesError
+    }
+    if (capabilitiesLoading) {
+      return '正在校验真实微信登录配置...'
+    }
+    if (!miniLoginCapabilities) {
+      return realWeappCapabilityCheckMessage
+    }
+    if (String(miniLoginCapabilities.loginMode).trim().toLowerCase() !== 'real') {
+      return 'identity 当前未开启真实登录模式，请先设置 IDENTITY_LOGIN_MODE=real。'
+    }
+    if (miniLoginCapabilities.weapp.phoneProofSimulationEnabled) {
+      return 'identity 当前仍开启手机号证明模拟，请先关闭 IDENTITY_ENABLE_PHONE_PROOF_SIMULATION。'
+    }
+    if (!miniLoginCapabilities.weapp.realPhoneLoginReady) {
+      const missing = Array.isArray(miniLoginCapabilities.weapp.missing)
+        ? miniLoginCapabilities.weapp.missing.filter(Boolean).join(' / ')
+        : ''
+      return missing
+        ? `identity 缺少真实微信配置：${missing}`
+        : realWeappConfigCheckMessage
+    }
+    return ''
+  }, [
+    capabilitiesError,
+    capabilitiesLoading,
+    hasRealWeappAppId,
+    miniLoginCapabilities,
+    shouldCheckRealWeappCapabilities
+  ])
+  const isWeappLoginBlocked = blockedWeappLoginMessage.length > 0
 
   const handleLoginFlow = async (resolvePhoneProof?: () => Promise<PhoneProofResult | undefined>) => {
     if (!agreed) {
       await Taro.showToast({
         title: '请先同意条款。',
+        icon: 'none'
+      })
+      return
+    }
+    if (platform === 'weapp' && isWeappLoginBlocked) {
+      await Taro.showToast({
+        title: blockedWeappLoginMessage,
         icon: 'none'
       })
       return
@@ -198,7 +291,7 @@ export default function LoginPage() {
   }
 
   const handleAltLogin = async () => {
-    await identityServices.tokens.setToken(null)
+    await clearAuthSession()
     if (redirect) {
       await switchTabLike(redirect)
       return
@@ -211,87 +304,130 @@ export default function LoginPage() {
   }
 
   return (
-    <View className='page login-page px-6 pt-16 pb-12 flex flex-col min-h-screen'>
-      <View className='flex-1 flex flex-col justify-center'>
-        <View className='flex flex-col items-center text-center gap-3'>
-          <View className='login-logo shadow-md'>
-            <AppsOutlined className='text-white text-2xl' />
+    <View className='page login-page'>
+      <View className='login-shell'>
+        <View className='login-backdrop login-backdrop--top' />
+        <View className='login-backdrop login-backdrop--bottom' />
+
+        <View className='login-content'>
+          <View className='login-hero'>
+            <View className='login-logo-frame'>
+              <View className='login-logo'>
+                <AppsOutlined className='login-logo-icon' />
+              </View>
+            </View>
+            <View className='login-copy'>
+              <Text className='login-eyebrow'>企业采购小程序</Text>
+              <Text className='login-title'>批发合作伙伴</Text>
+              <Text className='login-subtitle'>登录后可查看账号信息、专属价格与履约进度。</Text>
+            </View>
           </View>
-          <View>
-            <Text className='text-xl font-semibold text-slate-900'>批发合作伙伴</Text>
-            <Text className='block text-xs text-slate-500 mt-2'>登录后可查看专属价格。</Text>
+
+          <View className='login-panel'>
+            <View className='login-panel-head'>
+              <Text className='login-panel-title'>手机号登录</Text>
+              <Text className='login-panel-caption'>使用微信授权手机号完成身份识别</Text>
+            </View>
+
+            <View className='login-status-strip'>
+              <View className='login-status-dot' />
+              <Text className='login-status-copy'>
+                {platform === 'weapp'
+                  ? '微信环境将直接调起手机号授权。'
+                  : platform === 'alipay'
+                    ? '支付宝环境将使用平台手机号授权。'
+                    : '当前环境将按调试登录逻辑执行。'}
+              </Text>
+            </View>
+
+            {isWeappLoginBlocked ? (
+              <View className='login-alert'>
+                <Text className='login-alert-text'>
+                  {blockedWeappLoginMessage}
+                </Text>
+              </View>
+            ) : null}
+
+            <View className='login-actions'>
+              {platform === 'weapp' && enableWeappPhoneProofSimulation ? (
+                <NativeButton
+                  className='login-primary login-native-button'
+                  disabled={!agreed || loading}
+                  loading={loading}
+                  onClick={handleWeappSimulatedLogin}
+                >
+                  快速登录
+                </NativeButton>
+              ) : null}
+
+              {platform === 'weapp' && !enableWeappPhoneProofSimulation ? (
+                <NativeButton
+                  className='login-primary login-native-button'
+                  disabled={!agreed || loading || isWeappLoginBlocked}
+                  loading={loading}
+                  openType='getPhoneNumber'
+                  onGetPhoneNumber={handleWeappGetPhoneNumber}
+                >
+                  快速登录
+                </NativeButton>
+              ) : null}
+
+              {platform === 'alipay' ? (
+                <NativeButton
+                  className='login-primary login-native-button'
+                  disabled={!agreed || loading}
+                  loading={loading}
+                  openType='getAuthorize'
+                  scope='phoneNumber'
+                  onGetAuthorize={handleAlipayGetAuthorize}
+                  onError={handleAlipayAuthorizeError}
+                >
+                  快速登录
+                </NativeButton>
+              ) : null}
+
+              {platform === 'unknown' ? (
+                <Button
+                  color='primary'
+                  block
+                  loading={loading}
+                  onClick={() => handleLoginFlow()}
+                  className='login-primary'
+                >
+                  快速登录
+                </Button>
+              ) : null}
+
+              <Button
+                variant='outlined'
+                block
+                onClick={handleAltLogin}
+                className='login-secondary'
+              >
+                暂不登录
+              </Button>
+            </View>
+
+            <View
+              className='login-agreement'
+              onClick={() => setAgreed((prev) => !prev)}
+            >
+              <View className={`login-checkbox ${agreed ? 'login-checkbox--checked' : ''}`} />
+              <Text className='login-agreement-text'>
+                我已阅读并同意
+                <Text className='login-agreement-link'>隐私政策</Text>
+                与
+                <Text className='login-agreement-link'>服务条款</Text>
+                。
+              </Text>
+            </View>
           </View>
-        </View>
 
-        <View className='mt-10 flex flex-col gap-4'>
-          {platform === 'weapp' && enableWeappPhoneProofSimulation ? (
-            <NativeButton
-              className='login-primary login-native-button'
-              disabled={!agreed || loading}
-              loading={loading}
-              onClick={handleWeappSimulatedLogin}
-            >
-              快速登录
-            </NativeButton>
-          ) : null}
-
-          {platform === 'weapp' && !enableWeappPhoneProofSimulation ? (
-            <NativeButton
-              className='login-primary login-native-button'
-              disabled={!agreed || loading}
-              loading={loading}
-              openType='getPhoneNumber'
-              onGetPhoneNumber={handleWeappGetPhoneNumber}
-            >
-              快速登录
-            </NativeButton>
-          ) : null}
-
-          {platform === 'alipay' ? (
-            <NativeButton
-              className='login-primary login-native-button'
-              disabled={!agreed || loading}
-              loading={loading}
-              openType='getAuthorize'
-              scope='phoneNumber'
-              onGetAuthorize={handleAlipayGetAuthorize}
-              onError={handleAlipayAuthorizeError}
-            >
-              快速登录
-            </NativeButton>
-          ) : null}
-
-          {platform === 'unknown' ? (
-            <Button
-              color='primary'
-              block
-              loading={loading}
-              onClick={() => handleLoginFlow()}
-              className='login-primary'
-            >
-              快速登录
-            </Button>
-          ) : null}
-
-          <Button
-            variant='outlined'
-            block
-            onClick={handleAltLogin}
-            className='login-secondary'
-          >
-            暂不登录
-          </Button>
-        </View>
-
-        <View className='login-agreement-toggle mt-5 flex items-start gap-3' onClick={() => setAgreed((prev) => !prev)}>
-          <View className={`login-checkbox ${agreed ? 'login-checkbox--checked' : ''}`} />
-          <Text className='text-10 text-slate-500 leading-snug'>
-            我已阅读并同意隐私政策与服务条款。
-          </Text>
+          <View className='login-footer'>
+            <Text className='login-footer-text'>需要帮助？请联系你的客户经理。</Text>
+          </View>
         </View>
       </View>
-
-      <View className='mt-auto text-center text-10 text-slate-400'>需要帮助？请联系你的客户经理。</View>
     </View>
   )
 }
@@ -341,4 +477,12 @@ const isWeappSimulationIdentityConflict = (
     isApiError(error) &&
     error.code === 'conflict' &&
     error.message.trim().toLowerCase() === 'identity already bound'
+}
+
+const hasConfiguredWeappAppId = (value?: string | null): boolean => {
+  const trimmed = String(value || '').trim()
+  if (!trimmed) {
+    return false
+  }
+  return trimmed.toLowerCase() !== 'touristappid'
 }

@@ -95,6 +95,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	})
 
 	apiHandler := &handler.Handler{
+		Config:   cfg,
 		DB:       pool,
 		Logger:   logger,
 		Auth:     authManager,

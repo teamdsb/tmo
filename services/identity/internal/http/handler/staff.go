@@ -394,6 +394,9 @@ func staffFromModel(user db.User, roles []string) oapi.StaffUser {
 	if user.DisplayName != nil {
 		response.DisplayName = user.DisplayName
 	}
+	if user.Phone != nil {
+		response.Phone = user.Phone
+	}
 	if user.DisabledAt.Valid {
 		disabledAt := user.DisabledAt.Time
 		response.DisabledAt = &disabledAt

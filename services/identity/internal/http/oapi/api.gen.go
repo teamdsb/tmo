@@ -106,6 +106,19 @@ type EffectivePermission struct {
 // ErrorResponse defines model for ErrorResponse.
 type ErrorResponse = externalRef0.ErrorResponse
 
+// MiniLoginCapabilities defines model for MiniLoginCapabilities.
+type MiniLoginCapabilities struct {
+	LoginMode string                        `json:"loginMode"`
+	Weapp     MiniLoginPlatformCapabilities `json:"weapp"`
+}
+
+// MiniLoginPlatformCapabilities defines model for MiniLoginPlatformCapabilities.
+type MiniLoginPlatformCapabilities struct {
+	Missing                     []string `json:"missing"`
+	PhoneProofSimulationEnabled bool     `json:"phoneProofSimulationEnabled"`
+	RealPhoneLoginReady         bool     `json:"realPhoneLoginReady"`
+}
+
 // MiniLoginRequest defines model for MiniLoginRequest.
 type MiniLoginRequest = externalRef0.MiniLoginRequest
 
@@ -204,6 +217,7 @@ type StaffUser struct {
 	DisabledReason *string                 `json:"disabledReason"`
 	DisplayName    *string                 `json:"displayName,omitempty"`
 	Id             openapi_types.UUID      `json:"id"`
+	Phone          *string                 `json:"phone"`
 	Roles          []string                `json:"roles"`
 	Status         externalRef0.UserStatus `json:"status"`
 	UpdatedAt      time.Time               `json:"updatedAt"`
@@ -296,6 +310,9 @@ type ServerInterface interface {
 	// List audit logs
 	// (GET /audit-logs)
 	GetAuditLogs(c *gin.Context, params GetAuditLogsParams)
+	// Get current mini login capability flags for local app gating
+	// (GET /auth/mini/capabilities)
+	GetAuthMiniCapabilities(c *gin.Context)
 	// Mini program login (customer/sales, WeChat/Alipay)
 	// (POST /auth/mini/login)
 	PostAuthMiniLogin(c *gin.Context)
@@ -416,6 +433,19 @@ func (siw *ServerInterfaceWrapper) GetAuditLogs(c *gin.Context) {
 	}
 
 	siw.Handler.GetAuditLogs(c, params)
+}
+
+// GetAuthMiniCapabilities operation middleware
+func (siw *ServerInterfaceWrapper) GetAuthMiniCapabilities(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAuthMiniCapabilities(c)
 }
 
 // PostAuthMiniLogin operation middleware
@@ -831,6 +861,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	}
 
 	router.GET(options.BaseURL+"/audit-logs", wrapper.GetAuditLogs)
+	router.GET(options.BaseURL+"/auth/mini/capabilities", wrapper.GetAuthMiniCapabilities)
 	router.POST(options.BaseURL+"/auth/mini/login", wrapper.PostAuthMiniLogin)
 	router.POST(options.BaseURL+"/auth/password/login", wrapper.PostAuthPasswordLogin)
 	router.GET(options.BaseURL+"/customers", wrapper.GetCustomers)

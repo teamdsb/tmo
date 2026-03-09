@@ -27,6 +27,7 @@ const postcssConfig = {
 }
 
 const defineConstants = {
+  __TMO_WEAPP_APP_ID__: JSON.stringify(process.env.TARO_APP_ID ?? ''),
   __TMO_API_BASE_URL__: JSON.stringify(process.env.TARO_APP_API_BASE_URL ?? ''),
   __TMO_GATEWAY_BASE_URL__: JSON.stringify(process.env.TARO_APP_GATEWAY_BASE_URL ?? ''),
   __TMO_COMMERCE_BASE_URL__: JSON.stringify(process.env.TARO_APP_COMMERCE_BASE_URL ?? ''),

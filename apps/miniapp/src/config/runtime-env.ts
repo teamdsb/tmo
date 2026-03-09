@@ -71,6 +71,9 @@ const devFakePaymentConst = typeof __TMO_DEV_FAKE_PAYMENT__ !== 'undefined'
 const weappPhoneProofSimulationConst = typeof __TMO_WEAPP_PHONE_PROOF_SIMULATION__ !== 'undefined'
   ? __TMO_WEAPP_PHONE_PROOF_SIMULATION__
   : ''
+const weappAppIdConst = typeof __TMO_WEAPP_APP_ID__ !== 'undefined'
+  ? __TMO_WEAPP_APP_ID__
+  : ''
 
 const optional = (value: string): string | undefined => value || undefined
 const mockMode = parseMockMode(firstNonEmpty(
@@ -142,6 +145,10 @@ export const runtimeEnv = Object.freeze({
   enableMockLogin: readBoolean(firstNonEmpty(
     readConst(mockLoginEnabledConst),
     readProcessEnv('TARO_APP_ENABLE_MOCK_LOGIN')
+  )),
+  weappAppId: optional(firstNonEmpty(
+    readConst(weappAppIdConst),
+    readProcessEnv('TARO_APP_ID')
   )),
   weappPhoneProofSimulation: readBoolean(firstNonEmpty(
     readConst(weappPhoneProofSimulationConst),

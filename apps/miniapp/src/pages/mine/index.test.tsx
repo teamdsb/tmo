@@ -76,6 +76,8 @@ describe('PersonalCenter', () => {
     expect(commerceServices.tokens.setToken).toHaveBeenCalledWith(null)
     expect(identityServices.tokens.setToken).toHaveBeenCalledWith(null)
     expect(removeStorage).toHaveBeenCalledWith('tmo:bootstrap')
+    expect(removeStorage).toHaveBeenCalledWith('tmo:auth:role-selection')
+    expect(Taro.reLaunch).toHaveBeenCalledWith({ url: '/pages/auth/login/index' })
 
     await waitFor(() => {
       expect(screen.getByText('未登录')).toBeInTheDocument()
@@ -118,6 +120,20 @@ describe('PersonalCenter', () => {
     expect(await screen.findByText('未登录')).toBeInTheDocument()
     expect(gatewayServices.bootstrap.get).not.toHaveBeenCalled()
     expect(removeStorage).toHaveBeenCalledWith('tmo:bootstrap')
+  })
+
+  it('opens login page when tapping guest profile header', async () => {
+    asMock(identityServices.tokens.getToken).mockResolvedValue(null)
+
+    await renderPersonalCenter()
+
+    fireEvent.click(screen.getByText('未登录'))
+
+    await waitFor(() => {
+      expect(Taro.navigateTo).toHaveBeenCalledWith({
+        url: '/pages/auth/login/index'
+      })
+    })
   })
 
   it('filters orders by selected tracking status', async () => {

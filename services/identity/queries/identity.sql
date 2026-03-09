@@ -58,6 +58,7 @@ WHERE user_type = 'staff'
   AND (
     sqlc.narg('q')::text IS NULL
     OR COALESCE(display_name, '') ILIKE '%' || sqlc.narg('q') || '%'
+    OR COALESCE(phone, '') ILIKE '%' || sqlc.narg('q') || '%'
     OR id::text ILIKE '%' || sqlc.narg('q') || '%'
     OR EXISTS (
       SELECT 1
@@ -76,6 +77,7 @@ WHERE user_type = 'staff'
   AND (
     sqlc.narg('q')::text IS NULL
     OR COALESCE(display_name, '') ILIKE '%' || sqlc.narg('q') || '%'
+    OR COALESCE(phone, '') ILIKE '%' || sqlc.narg('q') || '%'
     OR id::text ILIKE '%' || sqlc.narg('q') || '%'
     OR EXISTS (
       SELECT 1

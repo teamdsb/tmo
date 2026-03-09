@@ -45,6 +45,19 @@ paths:
           "$ref": "#/components/responses/BadRequest"
         '409':
           "$ref": "#/components/responses/Conflict"
+  "/auth/mini/capabilities":
+    get:
+      tags:
+      - Auth
+      summary: Get current mini login capability flags for local app gating
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/MiniLoginCapabilities"
   "/auth/password/login":
     post:
       tags:
@@ -689,6 +702,9 @@ components:
           format: uuid
         displayName:
           type: string
+        phone:
+          type: string
+          nullable: true
         roles:
           type: array
           items:
@@ -714,6 +730,31 @@ components:
       - status
       - createdAt
       - updatedAt
+    MiniLoginPlatformCapabilities:
+      type: object
+      properties:
+        realPhoneLoginReady:
+          type: boolean
+        phoneProofSimulationEnabled:
+          type: boolean
+        missing:
+          type: array
+          items:
+            type: string
+      required:
+      - realPhoneLoginReady
+      - phoneProofSimulationEnabled
+      - missing
+    MiniLoginCapabilities:
+      type: object
+      properties:
+        loginMode:
+          type: string
+        weapp:
+          "$ref": "#/components/schemas/MiniLoginPlatformCapabilities"
+      required:
+      - loginMode
+      - weapp
     CreateStaffRequest:
       type: object
       properties:

@@ -320,6 +320,7 @@ WHERE user_type = 'staff'
   AND (
     $1::text IS NULL
     OR COALESCE(display_name, '') ILIKE '%' || $1 || '%'
+    OR COALESCE(phone, '') ILIKE '%' || $1 || '%'
     OR id::text ILIKE '%' || $1 || '%'
     OR EXISTS (
       SELECT 1
@@ -1066,7 +1067,7 @@ func (q *Queries) ListAdminCustomers(ctx context.Context, arg ListAdminCustomers
 }
 
 const listAdminUsers = `-- name: ListAdminUsers :many
-SELECT DISTINCT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone, u.payment_term_remark, u.payment_term_type, u.payment_term_days, u.payment_term_custom_label
+SELECT DISTINCT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone, u.payment_term_remark, u.payment_term_type, u.payment_term_days, u.payment_term_custom_label, u.avatar_url
 FROM users u
 JOIN user_roles ur ON ur.user_id = u.id
 WHERE u.user_type IN ('admin', 'staff')
@@ -1120,6 +1121,7 @@ func (q *Queries) ListAdminUsers(ctx context.Context, arg ListAdminUsersParams) 
 			&i.PaymentTermType,
 			&i.PaymentTermDays,
 			&i.PaymentTermCustomLabel,
+			&i.AvatarUrl,
 		); err != nil {
 			return nil, err
 		}
@@ -1503,6 +1505,7 @@ WHERE user_type = 'staff'
   AND (
     $1::text IS NULL
     OR COALESCE(display_name, '') ILIKE '%' || $1 || '%'
+    OR COALESCE(phone, '') ILIKE '%' || $1 || '%'
     OR id::text ILIKE '%' || $1 || '%'
     OR EXISTS (
       SELECT 1
@@ -1643,7 +1646,7 @@ SET user_type = 'staff',
     disabled_reason = NULL,
     updated_at = now()
 WHERE id = $1 AND user_type = 'customer'
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url
 `
 
 func (q *Queries) PromoteCustomerToStaff(ctx context.Context, id uuid.UUID) (User, error) {
@@ -1664,6 +1667,7 @@ func (q *Queries) PromoteCustomerToStaff(ctx context.Context, id uuid.UUID) (Use
 		&i.PaymentTermType,
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
+		&i.AvatarUrl,
 	)
 	return i, err
 }
