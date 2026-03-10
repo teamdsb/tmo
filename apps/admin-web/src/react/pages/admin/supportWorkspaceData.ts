@@ -1,6 +1,8 @@
 export type SupportConversationSummary = {
   id: string;
   customerUserId: string;
+  customerDisplayName: string;
+  customerPhone: string;
   ownerSalesUserId: string;
   assigneeUserId: string;
   assigneeRole: string;
@@ -133,6 +135,8 @@ export const normalizeSupportConversation = (input: unknown): SupportConversatio
   return {
     id,
     customerUserId: safeText(item?.customerUserId),
+    customerDisplayName: safeText(item?.customerDisplayName, `客户 ${id.slice(0, 8)}`),
+    customerPhone: safeText(item?.customerPhone, '-'),
     ownerSalesUserId: safeText(item?.ownerSalesUserId),
     assigneeUserId: safeText(item?.assigneeUserId),
     assigneeRole: safeText(item?.assigneeRole),

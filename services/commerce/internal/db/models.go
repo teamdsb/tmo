@@ -320,6 +320,8 @@ type SupportConversation struct {
 	CreatedAt           pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt           pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 	ClosedAt            pgtype.Timestamptz `db:"closed_at" json:"closed_at"`
+	CustomerDisplayName *string            `db:"customer_display_name" json:"customer_display_name"`
+	CustomerPhone       *string            `db:"customer_phone" json:"customer_phone"`
 }
 
 type SupportConversationTransfer struct {

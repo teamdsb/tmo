@@ -76,6 +76,16 @@ const roleCanRelease = (conversation) => {
   return conversation.assigneeUserId && conversation.assigneeUserId === String(getCurrentSession()?.user?.id || '');
 };
 
+const customerDisplayLabel = (conversation) => {
+  if (!conversation) return '请选择会话';
+  return conversation.customerDisplayName || conversation.customerUserId.slice(0, 8);
+};
+
+const customerPhoneLabel = (conversation) => {
+  if (!conversation) return '-';
+  return conversation.customerPhone || '-';
+};
+
 const MessageBubble = ({ message }) => {
   const isCustomer = message.senderType === 'CUSTOMER';
   const isSystem = message.senderType === 'SYSTEM';
@@ -469,9 +479,10 @@ export const SupportWorkspacePage = () => {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-sm font-semibold text-slate-900">{conversation.customerUserId.slice(0, 8)}</p>
+                    <p className="truncate text-sm font-semibold text-slate-900">{customerDisplayLabel(conversation)}</p>
                     <span className="text-[11px] text-slate-400">{formatSupportRelativeTime(conversation.lastMessageAt)}</span>
                   </div>
+                  <p className="mt-1 truncate text-xs text-slate-500">{customerPhoneLabel(conversation)}</p>
                   <p className="mt-1 truncate text-xs text-slate-500">{conversation.lastMessagePreview || '暂无消息'}</p>
                   <div className="mt-2 flex items-center gap-2">
                     <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${getSupportConversationStatusClass(conversation.status)}`}>
@@ -492,9 +503,9 @@ export const SupportWorkspacePage = () => {
         <section className="col-span-6 flex min-h-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
             <div>
-              <p className="text-base font-semibold text-slate-900">{activeConversation ? `会话 ${activeConversation.customerUserId.slice(0, 8)}` : '请选择会话'}</p>
+              <p className="text-base font-semibold text-slate-900">{activeConversation ? customerDisplayLabel(activeConversation) : '请选择会话'}</p>
               <p className="mt-1 text-xs text-slate-500">
-                {activeConversation?.assigneeRole ? `当前坐席：${activeConversation.assigneeRole}` : '当前未分配坐席'}
+                {activeConversation ? `${customerPhoneLabel(activeConversation)} · ${activeConversation?.assigneeRole ? `当前坐席：${activeConversation.assigneeRole}` : '当前未分配坐席'}` : '当前未分配坐席'}
               </p>
             </div>
             <div className="flex items-center gap-2">

@@ -12,6 +12,7 @@ type Store interface {
 	CreateSupportConversation(ctx context.Context, arg db.CreateSupportConversationParams) (db.SupportConversation, error)
 	GetActiveSupportConversationByCustomer(ctx context.Context, customerUserID uuid.UUID) (db.SupportConversation, error)
 	GetSupportConversation(ctx context.Context, id uuid.UUID) (db.SupportConversation, error)
+	UpdateSupportConversationCustomerSnapshot(ctx context.Context, arg db.UpdateSupportConversationCustomerSnapshotParams) (db.SupportConversation, error)
 	ListSupportConversations(ctx context.Context, arg db.ListSupportConversationsParams) ([]db.SupportConversation, error)
 	CountSupportConversations(ctx context.Context, arg db.CountSupportConversationsParams) (int64, error)
 	ClaimSupportConversation(ctx context.Context, arg db.ClaimSupportConversationParams) (db.SupportConversation, error)

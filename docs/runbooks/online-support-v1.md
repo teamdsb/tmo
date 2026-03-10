@@ -43,6 +43,9 @@
 - `SALES` 不进入 admin-web 客服工作台，聊天上下文中的归属销售仅用于展示客户背景。
 
 ## Dev Notes
+- miniapp 只有在进入“在线客服聊天页”后才会调用 `GET /support/conversations/current` 并创建会话；停留在“客服支持”入口页不会自动建会话。
+- identity mini login 会在取到手机号后复用或创建 `CUSTOMER` 用户；commerce 在建会话时会把当前客户 `displayName`、`phone` 作为会话快照写入，供 admin-web 展示来源。
+- admin-web 联调客服工作台时必须使用 `pnpm -C apps/admin-web dev:real`；默认 `dev` 仍会进入 mock 模式，不能作为真实链路验收依据。
 - miniapp 可通过平台 socket 能力附带 Bearer token，优先使用 WebSocket 实时收消息。
 - admin-web 浏览器原生 `WebSocket` 不能稳定附带 Bearer header；当前实现以轮询兜底刷新会话与详情，后续如接入网关 token 桥接，再恢复纯实时模式。
 - 图片上传限制为 `jpg/png/webp`，大小上限 `5MB`，文件落在媒体目录 `support/`。

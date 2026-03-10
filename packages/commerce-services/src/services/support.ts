@@ -6,6 +6,8 @@ import type { UploadClient } from '../uploads'
 export interface SupportConversation {
   id: string
   customerUserId: string
+  customerDisplayName?: string
+  customerPhone?: string
   ownerSalesUserId?: string
   assigneeUserId?: string
   assigneeRole?: string

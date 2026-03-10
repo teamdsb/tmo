@@ -22,6 +22,8 @@ type Claims struct {
 	Roles            []string
 	UserType         string
 	OwnerSalesUserID *uuid.UUID
+	DisplayName      *string
+	Phone            *string
 	ExpiresAt        time.Time
 }
 
@@ -39,7 +41,7 @@ func NewTokenManager(secret, issuer string, ttl time.Duration) *TokenManager {
 	}
 }
 
-func (m *TokenManager) Issue(userID uuid.UUID, role string, roles []string, userType string, ownerSalesUserID *uuid.UUID) (string, time.Time, error) {
+func (m *TokenManager) Issue(userID uuid.UUID, role string, roles []string, userType string, ownerSalesUserID *uuid.UUID, displayName *string, phone *string) (string, time.Time, error) {
 	now := time.Now()
 	expiresAt := now.Add(m.ttl)
 
@@ -60,6 +62,12 @@ func (m *TokenManager) Issue(userID uuid.UUID, role string, roles []string, user
 	}
 	if ownerSalesUserID != nil && *ownerSalesUserID != uuid.Nil {
 		claims["ownerSalesUserId"] = ownerSalesUserID.String()
+	}
+	if displayName != nil && strings.TrimSpace(*displayName) != "" {
+		claims["displayName"] = strings.TrimSpace(*displayName)
+	}
+	if phone != nil && strings.TrimSpace(*phone) != "" {
+		claims["phone"] = strings.TrimSpace(*phone)
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -145,6 +153,18 @@ func (m *TokenManager) Parse(raw string) (Claims, error) {
 			return Claims{}, ErrInvalidToken
 		}
 		claims.OwnerSalesUserID = &ownerID
+	}
+	if displayName, ok := mapClaims["displayName"].(string); ok {
+		displayName = strings.TrimSpace(displayName)
+		if displayName != "" {
+			claims.DisplayName = &displayName
+		}
+	}
+	if phone, ok := mapClaims["phone"].(string); ok {
+		phone = strings.TrimSpace(phone)
+		if phone != "" {
+			claims.Phone = &phone
+		}
 	}
 
 	if expRaw, ok := mapClaims["exp"].(float64); ok {

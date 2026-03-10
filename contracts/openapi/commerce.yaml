@@ -2584,6 +2584,12 @@ components:
         customerUserId:
           type: string
           format: uuid
+        customerDisplayName:
+          type: string
+          nullable: true
+        customerPhone:
+          type: string
+          nullable: true
         ownerSalesUserId:
           type: string
           format: uuid

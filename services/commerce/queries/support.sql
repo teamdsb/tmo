@@ -1,6 +1,8 @@
 -- name: CreateSupportConversation :one
 INSERT INTO support_conversations (
     customer_user_id,
+    customer_display_name,
+    customer_phone,
     owner_sales_user_id,
     assignee_user_id,
     assignee_role,
@@ -16,7 +18,9 @@ INSERT INTO support_conversations (
     $5,
     $6,
     $7,
-    COALESCE($8, now())
+    $8,
+    $9,
+    COALESCE($10, now())
 )
 RETURNING *;
 
@@ -32,6 +36,14 @@ LIMIT 1;
 SELECT *
 FROM support_conversations
 WHERE id = $1;
+
+-- name: UpdateSupportConversationCustomerSnapshot :one
+UPDATE support_conversations
+SET customer_display_name = COALESCE(sqlc.narg('customer_display_name')::text, customer_display_name),
+    customer_phone = COALESCE(sqlc.narg('customer_phone')::text, customer_phone),
+    updated_at = now()
+WHERE id = sqlc.arg('id')
+RETURNING *;
 
 -- name: ListSupportConversations :many
 SELECT *

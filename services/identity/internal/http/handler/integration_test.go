@@ -82,6 +82,40 @@ func TestMiniLoginCreatesCustomer(t *testing.T) {
 	}
 }
 
+func TestMiniLoginTokenIncludesCustomerProfileClaims(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+
+	resp := doJSON(t, router, http.MethodPost, "/auth/mini/login", map[string]interface{}{
+		"platform": "weapp",
+		"code":     "mock_customer_001",
+	}, "")
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
+	}
+
+	var authResponse oapi.AuthResponse
+	if err := json.NewDecoder(resp.Body).Decode(&authResponse); err != nil {
+		t.Fatalf("decode auth response: %v", err)
+	}
+
+	manager := auth.NewTokenManager("test-secret", "test-issuer", 24*time.Hour)
+	claims, err := manager.Parse(authResponse.AccessToken)
+	if err != nil {
+		t.Fatalf("parse token: %v", err)
+	}
+	if claims.DisplayName == nil || *claims.DisplayName == "" {
+		t.Fatalf("expected displayName claim, got %#v", claims.DisplayName)
+	}
+	if claims.Phone == nil || *claims.Phone != "+15550000003" {
+		t.Fatalf("expected phone claim +15550000003, got %#v", claims.Phone)
+	}
+}
+
 func TestMiniLoginRequiresPhoneProofInRealMode(t *testing.T) {
 	router, pool := setupTestRouterWithMode(t, platform.LoginModeReal)
 	ctx := context.Background()

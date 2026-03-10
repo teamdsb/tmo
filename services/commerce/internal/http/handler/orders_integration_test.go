@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -432,6 +433,12 @@ func resetCommerceTables(t *testing.T, pool *pgxpool.Pool) {
 TRUNCATE order_tracking_shipments,
 import_jobs,
 product_requests,
+support_conversation_transfers,
+support_messages,
+support_message_assets,
+support_conversations,
+price_inquiries,
+after_sales_tickets,
 order_items,
 orders,
 cart_items,
@@ -533,6 +540,9 @@ func newIntegrationRouter(pool *pgxpool.Pool, store *db.Queries) *gin.Engine {
 		OrderStore:          store,
 		TrackingStore:       store,
 		ProductRequestStore: store,
+		AfterSalesStore:     store,
+		InquiryStore:        store,
+		SupportStore:        store,
 		DB:                  pool,
 	})
 	return router
@@ -548,6 +558,9 @@ func newAuthIntegrationRouter(pool *pgxpool.Pool, store *db.Queries) *gin.Engine
 		OrderStore:          store,
 		TrackingStore:       store,
 		ProductRequestStore: store,
+		AfterSalesStore:     store,
+		InquiryStore:        store,
+		SupportStore:        store,
 		DB:                  pool,
 		Auth:                authenticator,
 	})
@@ -598,6 +611,11 @@ const (
 
 func makeAuthToken(t *testing.T, userID uuid.UUID, role string, ownerSalesUserID *uuid.UUID) string {
 	t.Helper()
+	return makeAuthTokenWithProfile(t, userID, role, ownerSalesUserID, "", "")
+}
+
+func makeAuthTokenWithProfile(t *testing.T, userID uuid.UUID, role string, ownerSalesUserID *uuid.UUID, displayName string, phone string) string {
+	t.Helper()
 
 	claims := jwt.MapClaims{
 		"sub":  userID.String(),
@@ -606,6 +624,12 @@ func makeAuthToken(t *testing.T, userID uuid.UUID, role string, ownerSalesUserID
 	}
 	if ownerSalesUserID != nil && *ownerSalesUserID != uuid.Nil {
 		claims["ownerSalesUserId"] = ownerSalesUserID.String()
+	}
+	if strings.TrimSpace(displayName) != "" {
+		claims["displayName"] = strings.TrimSpace(displayName)
+	}
+	if strings.TrimSpace(phone) != "" {
+		claims["phone"] = strings.TrimSpace(phone)
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signed, err := token.SignedString([]byte(testJWTSecret))
