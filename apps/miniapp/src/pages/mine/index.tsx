@@ -229,7 +229,7 @@ export default function PersonalCenter() {
             setCurrentPage('orders')
           }}
           onOpenChat={() => {
-            void navigateTo(ROUTES.supportChat)
+            void navigateTo(ROUTES.support)
           }}
           onMenuItemClick={(item) => {
             if (typeof item.action === 'function') {

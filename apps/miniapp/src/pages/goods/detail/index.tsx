@@ -18,9 +18,10 @@ import SafeImage from '../../../components/safe-image'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { matchPriceTier } from '../../../utils/price-tier'
 import { ensureLoggedIn, isUnauthorized } from '../../../utils/auth'
-import { switchTabLike } from '../../../utils/navigation'
+import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
 import placeholderProductImage from '../../../assets/images/placeholder-product.svg'
+import { saveSupportComposeIntent } from '../../support/chat/compose-intent'
 
 const MIN_PURCHASE_QTY = 1
 const MAX_PURCHASE_QTY = 999
@@ -189,15 +190,21 @@ export default function ProductDetail() {
     if (!selectedSku || !detail?.product) {
       return
     }
+    const redirectTo = typeof spuId === 'string' ? goodsDetailRoute(spuId) : undefined
+    const allowed = await ensureLoggedIn({ redirect: true, redirectTo })
+    if (!allowed) return
     try {
-      await commerceServices.inquiries.create({
-        skuId: selectedSku.id,
+      await saveSupportComposeIntent({
+        kind: 'product_inquiry',
+        productId: detail.product.id,
+        productName: detail.product.name,
+        productImageUrl: detail.product.images?.[0] || undefined,
         message: `咨询报价：${detail.product.name}`
       })
-      await Taro.showToast({ title: '已发送询价', icon: 'success' })
+      await navigateTo(ROUTES.supportChat)
     } catch (error) {
-      console.warn('create inquiry failed', error)
-      await Taro.showToast({ title: '发送询价失败', icon: 'none' })
+      console.warn('prepare support inquiry failed', error)
+      await Taro.showToast({ title: '打开在线客服失败', icon: 'none' })
     }
   }
 
