@@ -25,6 +25,7 @@
 ## Work Surface (主要工作端)
 - miniapp: `CUSTOMER`, `SALES`
 - admin-web: `BOSS`, `MANAGER`, `ADMIN`, `CS`
+- 在线客服会话：客户侧由 `CUSTOMER` 发起，后台由 `CS` 负责沟通；`SALES` 仅作为客户归属/上下文，不进入客服工作台。
 
 ## Login Role Rules
 - `POST /auth/mini/login` only supports role selection: `CUSTOMER`, `SALES`

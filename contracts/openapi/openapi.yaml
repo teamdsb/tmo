@@ -131,6 +131,14 @@ paths:
     $ref: "./ai.yaml#/paths/~1ai~1after-sales~1suggestions"
   /inquiries/price/{inquiryId}/messages:
     $ref: "./commerce.yaml#/paths/~1inquiries~1price~1{inquiryId}~1messages"
+  /support/conversations/current:
+    $ref: "./commerce.yaml#/paths/~1support~1conversations~1current"
+  /support/conversations/{conversationId}/messages:
+    $ref: "./commerce.yaml#/paths/~1support~1conversations~1{conversationId}~1messages"
+  /support/conversations/{conversationId}/messages/image:
+    $ref: "./commerce.yaml#/paths/~1support~1conversations~1{conversationId}~1messages~1image"
+  /support/conversations/{conversationId}/read:
+    $ref: "./commerce.yaml#/paths/~1support~1conversations~1{conversationId}~1read"
   /payments/wechat/create:
     $ref: "./payment.yaml#/paths/~1payments~1wechat~1create"
   /payments/alipay/create:
@@ -193,6 +201,16 @@ paths:
     $ref: "./admin.yaml#/paths/~1admin~1miniapp~1display-categories"
   /admin/config/feature-flags:
     $ref: "./admin.yaml#/paths/~1admin~1config~1feature-flags"
+  /admin/support/conversations:
+    $ref: "./commerce.yaml#/paths/~1admin~1support~1conversations"
+  /admin/support/conversations/{conversationId}:
+    $ref: "./commerce.yaml#/paths/~1admin~1support~1conversations~1{conversationId}"
+  /admin/support/conversations/{conversationId}/claim:
+    $ref: "./commerce.yaml#/paths/~1admin~1support~1conversations~1{conversationId}~1claim"
+  /admin/support/conversations/{conversationId}/release:
+    $ref: "./commerce.yaml#/paths/~1admin~1support~1conversations~1{conversationId}~1release"
+  /admin/support/conversations/{conversationId}/transfer:
+    $ref: "./commerce.yaml#/paths/~1admin~1support~1conversations~1{conversationId}~1transfer"
 
 components:
   securitySchemes:

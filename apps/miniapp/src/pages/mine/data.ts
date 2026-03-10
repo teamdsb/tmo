@@ -8,7 +8,7 @@ import {
   StarOutlined
 } from '@taroify/icons'
 import { ROUTES } from '../../routes'
-import type { ChatMessage, MenuItem, MockAddress, MockDemand, MockOrder } from './types'
+import type { MenuItem, MockAddress, MockDemand, MockOrder } from './types'
 
 export const SALES_MENU_ITEM: MenuItem = {
   key: 'sales-workbench',
@@ -18,18 +18,6 @@ export const SALES_MENU_ITEM: MenuItem = {
 }
 
 export const PENDING_ORDER_STATUSES = ['SUBMITTED', 'CONFIRMED', 'PAY_PENDING', 'PAID', 'PAY_FAILED']
-
-export const INITIAL_MESSAGES: ChatMessage[] = [
-  { id: 1, sender: 'agent', text: '您好！我是您的专属客户经理。今天有什么可以帮您的吗？', time: '09:41' },
-  { id: 2, sender: 'user', text: '我想咨询一下最近那批电子元件订单的批量价格。', time: '09:42' },
-  {
-    id: 3,
-    sender: 'agent',
-    text: '好的，没问题。请问您是指哪个订单或者哪款产品？您可以直接发送链接给我。',
-    time: '09:42',
-    hasActions: true
-  }
-]
 
 export const INITIAL_ORDERS_DATA: MockOrder[] = [
   {

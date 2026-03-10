@@ -305,6 +305,59 @@ type ProductRequestExportJob struct {
 	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }
 
+type SupportConversation struct {
+	ID                  uuid.UUID          `db:"id" json:"id"`
+	CustomerUserID      uuid.UUID          `db:"customer_user_id" json:"customer_user_id"`
+	OwnerSalesUserID    pgtype.UUID        `db:"owner_sales_user_id" json:"owner_sales_user_id"`
+	AssigneeUserID      pgtype.UUID        `db:"assignee_user_id" json:"assignee_user_id"`
+	AssigneeRole        *string            `db:"assignee_role" json:"assignee_role"`
+	Status              string             `db:"status" json:"status"`
+	LastMessageType     *string            `db:"last_message_type" json:"last_message_type"`
+	LastMessagePreview  *string            `db:"last_message_preview" json:"last_message_preview"`
+	LastMessageAt       pgtype.Timestamptz `db:"last_message_at" json:"last_message_at"`
+	CustomerUnreadCount int32              `db:"customer_unread_count" json:"customer_unread_count"`
+	StaffUnreadCount    int32              `db:"staff_unread_count" json:"staff_unread_count"`
+	CreatedAt           pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	ClosedAt            pgtype.Timestamptz `db:"closed_at" json:"closed_at"`
+}
+
+type SupportConversationTransfer struct {
+	ID              uuid.UUID          `db:"id" json:"id"`
+	ConversationID  uuid.UUID          `db:"conversation_id" json:"conversation_id"`
+	FromUserID      pgtype.UUID        `db:"from_user_id" json:"from_user_id"`
+	FromRole        *string            `db:"from_role" json:"from_role"`
+	ToUserID        uuid.UUID          `db:"to_user_id" json:"to_user_id"`
+	ToRole          string             `db:"to_role" json:"to_role"`
+	Note            *string            `db:"note" json:"note"`
+	CreatedByUserID uuid.UUID          `db:"created_by_user_id" json:"created_by_user_id"`
+	CreatedAt       pgtype.Timestamptz `db:"created_at" json:"created_at"`
+}
+
+type SupportMessage struct {
+	ID             uuid.UUID          `db:"id" json:"id"`
+	ConversationID uuid.UUID          `db:"conversation_id" json:"conversation_id"`
+	SenderType     string             `db:"sender_type" json:"sender_type"`
+	SenderUserID   pgtype.UUID        `db:"sender_user_id" json:"sender_user_id"`
+	SenderRole     *string            `db:"sender_role" json:"sender_role"`
+	MessageType    string             `db:"message_type" json:"message_type"`
+	TextContent    *string            `db:"text_content" json:"text_content"`
+	AssetID        pgtype.UUID        `db:"asset_id" json:"asset_id"`
+	CardPayload    []byte             `db:"card_payload" json:"card_payload"`
+	CreatedAt      pgtype.Timestamptz `db:"created_at" json:"created_at"`
+}
+
+type SupportMessageAsset struct {
+	ID               uuid.UUID          `db:"id" json:"id"`
+	ConversationID   uuid.UUID          `db:"conversation_id" json:"conversation_id"`
+	UploadedByUserID uuid.UUID          `db:"uploaded_by_user_id" json:"uploaded_by_user_id"`
+	ContentType      string             `db:"content_type" json:"content_type"`
+	FileName         string             `db:"file_name" json:"file_name"`
+	FileSize         int64              `db:"file_size" json:"file_size"`
+	Url              string             `db:"url" json:"url"`
+	CreatedAt        pgtype.Timestamptz `db:"created_at" json:"created_at"`
+}
+
 type UserAddress struct {
 	ID            uuid.UUID          `db:"id" json:"id"`
 	UserID        uuid.UUID          `db:"user_id" json:"user_id"`

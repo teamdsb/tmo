@@ -23,6 +23,7 @@ export default defineAppConfig({
     'pages/settings/index',
     'pages/sales/index',
     'pages/support/index',
+    'pages/support/chat/index',
     'pages/support/create/index'
   ],
   window: {

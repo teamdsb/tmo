@@ -456,3 +456,48 @@ export const replayAdminPaymentWebhook = async (webhookId) => {
     body: {}
   });
 };
+
+export const fetchAdminSupportConversations = async (params = {}) => {
+  return requestRaw(`/admin/support/conversations${buildQueryString(params)}`);
+};
+
+export const fetchAdminSupportConversation = async (conversationId) => {
+  return requestRaw(`/admin/support/conversations/${conversationId}`);
+};
+
+export const claimAdminSupportConversation = async (conversationId) => {
+  return requestRaw(`/admin/support/conversations/${conversationId}/claim`, {
+    method: 'POST',
+    body: {}
+  });
+};
+
+export const releaseAdminSupportConversation = async (conversationId) => {
+  return requestRaw(`/admin/support/conversations/${conversationId}/release`, {
+    method: 'POST',
+    body: {}
+  });
+};
+
+export const transferAdminSupportConversation = async (conversationId, payload) => {
+  return requestRaw(`/admin/support/conversations/${conversationId}/transfer`, {
+    method: 'POST',
+    body: payload
+  });
+};
+
+export const sendSupportConversationMessage = async (conversationId, payload) => {
+  return requestRaw(`/support/conversations/${conversationId}/messages`, {
+    method: 'POST',
+    body: payload
+  });
+};
+
+export const uploadSupportConversationImage = async (conversationId, file) => {
+  const form = new FormData();
+  form.append('file', file);
+  return requestRaw(`/support/conversations/${conversationId}/messages/image`, {
+    method: 'POST',
+    body: form
+  });
+};

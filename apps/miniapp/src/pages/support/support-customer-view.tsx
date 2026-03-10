@@ -49,9 +49,14 @@ export default function SupportCustomerView({ onBack }: SupportCustomerViewProps
       </Navbar>
       <View className='page-content'>
         <Text className='section-subtitle'>跟踪售后工单与询价。</Text>
-        <Text className='text-xs text-blue-600' onClick={() => navigateTo(ROUTES.supportCreate)}>
-          新建工单
-        </Text>
+        <View className='flex items-center gap-3'>
+          <Text className='text-xs text-blue-600' onClick={() => navigateTo(ROUTES.supportChat)}>
+            在线客服
+          </Text>
+          <Text className='text-xs text-blue-600' onClick={() => navigateTo(ROUTES.supportCreate)}>
+            新建工单
+          </Text>
+        </View>
       </View>
       <Tabs value={activeTab} onChange={(value) => setActiveTab(String(value))}>
         <Tabs.TabPane value='after-sales' title='售后'>

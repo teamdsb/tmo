@@ -14,6 +14,7 @@ import { createProductRequestService, type ProductRequestService } from './servi
 import { createAfterSalesService, type AfterSalesService } from './services/after-sales'
 import { createInquiryService, type InquiryService } from './services/inquiries'
 import { createTrackingService, type TrackingService } from './services/tracking'
+import { createSupportService, type SupportService } from './services/support'
 
 export interface CommerceServices {
   catalog: CatalogService
@@ -25,6 +26,7 @@ export interface CommerceServices {
   productRequests: ProductRequestService
   afterSales: AfterSalesService
   inquiries: InquiryService
+  support: SupportService
   tokens: TokenStore
   files: {
     chooseExcelFile: typeof chooseExcelFile
@@ -83,6 +85,7 @@ export const createCommerceServices = (config: CommerceServicesConfig = {}): Com
     productRequests: createProductRequestService(uploadClient),
     afterSales: createAfterSalesService(),
     inquiries: createInquiryService(),
+    support: createSupportService(uploadClient),
     tokens,
     files: {
       chooseExcelFile
