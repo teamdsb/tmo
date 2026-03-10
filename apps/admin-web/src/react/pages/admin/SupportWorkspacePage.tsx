@@ -70,6 +70,21 @@ const getCurrentRole = () => {
   return String(getCurrentSession()?.currentRole || '').trim().toUpperCase();
 };
 
+const SUPPORT_SCOPE_OPTIONS = [
+  { value: 'all', label: '全部' },
+  { value: 'mine', label: '我的会话' },
+  { value: 'unassigned', label: '待领取' },
+  { value: 'unread', label: '未读' }
+];
+
+const getDefaultSupportScope = () => {
+  const currentRole = getCurrentRole();
+  if (currentRole === 'CS') {
+    return 'unassigned';
+  }
+  return 'all';
+};
+
 const roleCanRelease = (conversation) => {
   const currentRole = getCurrentRole();
   if (!conversation) return false;
@@ -136,7 +151,7 @@ const MessageBubble = ({ message }) => {
 
 export const SupportWorkspacePage = () => {
   const mockSeed = useMemo(() => (isMockMode ? createMockSupportData() : null), []);
-  const [scope, setScope] = useState('mine');
+  const [scope, setScope] = useState(getDefaultSupportScope);
   const [conversations, setConversations] = useState<SupportConversationSummary[]>(mockSeed?.conversations || []);
   const [activeConversationId, setActiveConversationId] = useState(mockSeed?.conversations[0]?.id || '');
   const [conversationDetail, setConversationDetail] = useState<SupportConversationDetail | null>(mockSeed?.details?.[mockSeed.conversations[0]?.id || ''] || null);
@@ -166,7 +181,11 @@ export const SupportWorkspacePage = () => {
     if (isMockMode) {
       return;
     }
-    const response = await fetchAdminSupportConversations({ page: 1, pageSize: 50, scope });
+    const response = await fetchAdminSupportConversations({
+      page: 1,
+      pageSize: 50,
+      scope: scope === 'all' ? undefined : scope
+    });
     if (response.status !== 200) {
       throw new Error(response?.data?.message || '加载会话失败');
     }
@@ -478,14 +497,14 @@ export const SupportWorkspacePage = () => {
               <Headphones className="h-5 w-5 text-slate-400" />
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
-              {['mine', 'unassigned', 'unread'].map((item) => (
+              {SUPPORT_SCOPE_OPTIONS.map((item) => (
                 <button
-                  key={item}
+                  key={item.value}
                   type="button"
-                  onClick={() => setScope(item)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold ${scope === item ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}
+                  onClick={() => setScope(item.value)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold ${scope === item.value ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`}
                 >
-                  {item === 'mine' ? '我的会话' : item === 'unassigned' ? '待领取' : '未读'}
+                  {item.label}
                 </button>
               ))}
             </div>
