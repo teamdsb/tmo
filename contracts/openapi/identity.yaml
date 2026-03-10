@@ -382,6 +382,82 @@ paths:
           "$ref": "#/components/responses/Forbidden"
         '404':
           "$ref": "#/components/responses/NotFound"
+  "/admin/users":
+    get:
+      tags:
+      - RBAC
+      summary: List admin web users
+      parameters:
+      - in: query
+        name: q
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          "$ref": "./common.yaml#/components/schemas/UserStatus"
+      - in: query
+        name: role
+        schema:
+          type: string
+          enum:
+          - ADMIN
+          - BOSS
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/PagedAdminUserList"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+        '403':
+          "$ref": "#/components/responses/Forbidden"
+  "/admin/users/{userId}":
+    patch:
+      tags:
+      - RBAC
+      summary: Update admin web user roles or status
+      parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UpdateAdminUserRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminUser"
+        '400':
+          "$ref": "#/components/responses/BadRequest"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+        '403':
+          "$ref": "#/components/responses/Forbidden"
+        '404':
+          "$ref": "#/components/responses/NotFound"
   "/audit-logs":
     get:
       tags:
@@ -775,6 +851,73 @@ components:
           type: array
           items:
             type: string
+        status:
+          "$ref": "./common.yaml#/components/schemas/UserStatus"
+        disabledReason:
+          type: string
+          nullable: true
+    AdminUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        userType:
+          type: string
+          enum:
+          - admin
+        roles:
+          type: array
+          items:
+            type: string
+        status:
+          "$ref": "./common.yaml#/components/schemas/UserStatus"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - userType
+      - roles
+      - status
+      - createdAt
+      - updatedAt
+    PagedAdminUserList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/AdminUser"
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+      required:
+      - items
+      - page
+      - pageSize
+      - total
+    UpdateAdminUserRequest:
+      type: object
+      properties:
+        roles:
+          type: array
+          items:
+            type: string
+            enum:
+            - ADMIN
+            - BOSS
         status:
           "$ref": "./common.yaml#/components/schemas/UserStatus"
         disabledReason:

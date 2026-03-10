@@ -32,6 +32,14 @@
 - `POST /auth/password/login` role whitelist: `BOSS`, `MANAGER`, `ADMIN`, `CS`
 - `SALES` does not use password login (miniapp only)
 
+## Admin-Web User Operations Rules
+- `user-operations` 中的 `SALES` 指“小程序业务员”，不是泛指所有业务岗位
+- 员工账号统一管理 `SALES`、`CS`、`MANAGER`
+- 管理员账号统一管理 `ADMIN`、`BOSS`
+- `BOSS` 视为建立在 `ADMIN` 之上的增强能力；授予 `BOSS` 时应同时具备 `ADMIN`
+- 移除 `BOSS` 后账号应降级为 `ADMIN`
+- 只要账号具备 `BOSS`，整账号都不可禁用
+
 ## Scope Rules
 - SELF（本人）: only the authenticated user's own resources (e.g., my orders)
 - OWNED（我负责/被分配）: resources owned/assigned to the user (e.g., customers bound to a sales)

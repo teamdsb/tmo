@@ -505,7 +505,7 @@ export const RbacPage = () => {
 
           {!loading && roles.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border-light bg-white p-8 text-center text-sm text-text-secondary shadow-sm dark:border-border-dark dark:bg-surface-dark">
-              当前平台无可管理角色（仅支持 ADMIN / BOSS / CS）。
+              当前平台无可管理角色（仅支持 ADMIN / BOSS / MANAGER / CS）。
             </div>
           ) : null}
 

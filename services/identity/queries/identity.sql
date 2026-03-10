@@ -394,10 +394,22 @@ SET user_type = 'staff',
 WHERE id = $1 AND user_type = 'customer'
 RETURNING *;
 
+-- name: DemoteStaffToCustomer :one
+UPDATE users
+SET user_type = 'customer',
+    status = 'active',
+    disabled_at = NULL,
+    disabled_reason = NULL,
+    updated_at = now()
+WHERE id = $1 AND user_type = 'staff'
+RETURNING *;
+
 -- name: ListAdminCustomers :many
 SELECT u.*
 FROM users u
-WHERE u.user_type = 'customer'
+JOIN user_roles ur ON ur.user_id = u.id
+WHERE ur.role = 'CUSTOMER'
+  AND u.user_type <> 'admin'
   AND (
     sqlc.narg('q')::text IS NULL
     OR COALESCE(u.display_name, '') ILIKE '%' || sqlc.narg('q') || '%'
@@ -418,8 +430,12 @@ LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
 -- name: CountAdminCustomers :one
 SELECT count(*)
-FROM users u
-WHERE u.user_type = 'customer'
+FROM (
+  SELECT u.id
+  FROM users u
+  JOIN user_roles ur ON ur.user_id = u.id
+  WHERE ur.role = 'CUSTOMER'
+    AND u.user_type <> 'admin'
   AND (
     sqlc.narg('q')::text IS NULL
     OR COALESCE(u.display_name, '') ILIKE '%' || sqlc.narg('q') || '%'
@@ -434,7 +450,9 @@ WHERE u.user_type = 'customer'
       WHERE ctb.customer_id = u.id
         AND ctb.tag_id = ANY(sqlc.arg('tag_ids')::uuid[])
     )
-  );
+  )
+  GROUP BY u.id
+) AS filtered_admin_customers;
 
 -- name: ListUsersByIDs :many
 SELECT *

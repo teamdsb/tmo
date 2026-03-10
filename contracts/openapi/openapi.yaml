@@ -153,6 +153,8 @@ paths:
     $ref: "./admin.yaml#/paths/~1admin~1users"
   /admin/customers:
     $ref: "./admin.yaml#/paths/~1admin~1customers"
+  /admin/customers/{customerId}/role:
+    $ref: "./admin.yaml#/paths/~1admin~1customers~1{customerId}~1role"
   /admin/customers/{customerId}/promote-to-sales:
     $ref: "./admin.yaml#/paths/~1admin~1customers~1{customerId}~1promote-to-sales"
   /admin/customers/transfer:

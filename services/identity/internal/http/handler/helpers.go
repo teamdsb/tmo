@@ -82,6 +82,24 @@ func containsRole(roles []string, role string) bool {
 	return false
 }
 
+func isAdminRole(role string) bool {
+	switch strings.ToUpper(strings.TrimSpace(role)) {
+	case "ADMIN", "BOSS":
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeAdminRoles(roles []string) []string {
+	normalized := normalizeRoles(roles)
+	if containsRole(normalized, "BOSS") && !containsRole(normalized, "ADMIN") {
+		normalized = append(normalized, "ADMIN")
+		normalized = normalizeRoles(normalized)
+	}
+	return normalized
+}
+
 func userTypeFromRole(role string) (oapi.UserUserType, bool) {
 	switch strings.ToUpper(role) {
 	case "CUSTOMER":

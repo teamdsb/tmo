@@ -20,7 +20,9 @@ RUN cd services/payment && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 FROM gcr.io/distroless/base-debian12:nonroot
 
 COPY --from=build /out/payment /app/payment
+COPY --from=build /workspace/services/payment/migrations /app/migrations
 
 USER nonroot:nonroot
 EXPOSE 8083
+WORKDIR /app
 ENTRYPOINT ["/app/payment"]
