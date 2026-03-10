@@ -348,6 +348,13 @@ export const fetchAdminCustomers = async (params = {}) => {
   return requestRaw(`/admin/customers${buildQueryString(params)}`);
 };
 
+export const patchAdminCustomerRole = async (customerId, role) => {
+  return requestRaw(`/admin/customers/${customerId}/role`, {
+    method: 'PATCH',
+    body: { role }
+  });
+};
+
 export const promoteAdminCustomerToSales = async (customerId) => {
   return requestRaw(`/admin/customers/${customerId}/promote-to-sales`, {
     method: 'POST',

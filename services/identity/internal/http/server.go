@@ -28,6 +28,7 @@ func NewRouter(handler *handler.Handler, logger *slog.Logger, readyCheck func(co
 	router.GET("/admin/users", handler.GetAdminUsers)
 	router.PATCH("/admin/users/:userId", handler.PatchAdminUsersUserId)
 	router.GET("/admin/customers", handler.GetAdminCustomers)
+	router.PATCH("/admin/customers/:customerId/role", handler.PatchAdminCustomersCustomerIdRole)
 	router.POST("/admin/customers/:customerId/promote-to-sales", handler.PostAdminCustomersCustomerIdPromoteToSales)
 	router.POST("/admin/customers/transfer", handler.PostAdminCustomersTransfer)
 	router.POST("/admin/customers/:customerId/transfer", handler.PostAdminCustomersCustomerIdTransfer)

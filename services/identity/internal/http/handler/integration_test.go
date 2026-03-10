@@ -1247,6 +1247,111 @@ func TestPromoteCustomerToSalesIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestAdminCustomerRolePatchAndList(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedAdmin(ctx, pool); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+
+	customerID := uuid.New()
+	if err := seedCustomer(ctx, pool, customerID, "待切换角色客户", nil); err != nil {
+		t.Fatalf("seed customer: %v", err)
+	}
+
+	adminLogin := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": adminUsername,
+		"password": adminPassword,
+	}, "")
+	if adminLogin.Code != http.StatusOK {
+		t.Fatalf("expected admin login 200, got %d: %s", adminLogin.Code, adminLogin.Body.String())
+	}
+	var adminAuth oapi.AuthResponse
+	if err := json.NewDecoder(adminLogin.Body).Decode(&adminAuth); err != nil {
+		t.Fatalf("decode admin auth: %v", err)
+	}
+
+	listPath := "/admin/customers?page=1&pageSize=10"
+	initialList := doJSON(t, router, http.MethodGet, listPath, nil, adminAuth.AccessToken)
+	if initialList.Code != http.StatusOK {
+		t.Fatalf("expected initial customer list 200, got %d: %s", initialList.Code, initialList.Body.String())
+	}
+	var initialPayload struct {
+		Items []struct {
+			ID    string   `json:"id"`
+			Roles []string `json:"roles"`
+		} `json:"items"`
+	}
+	if err := json.NewDecoder(initialList.Body).Decode(&initialPayload); err != nil {
+		t.Fatalf("decode initial list: %v", err)
+	}
+	if len(initialPayload.Items) != 1 || !containsRole(initialPayload.Items[0].Roles, "CUSTOMER") {
+		t.Fatalf("expected initial list to include CUSTOMER role, got %#v", initialPayload.Items)
+	}
+
+	patchPath := "/admin/customers/" + customerID.String() + "/role"
+	promote := doJSON(t, router, http.MethodPatch, patchPath, map[string]interface{}{
+		"role": "SALES",
+	}, adminAuth.AccessToken)
+	if promote.Code != http.StatusOK {
+		t.Fatalf("expected promote patch 200, got %d: %s", promote.Code, promote.Body.String())
+	}
+	var promotePayload struct {
+		UserType string   `json:"userType"`
+		Roles    []string `json:"roles"`
+	}
+	if err := json.NewDecoder(promote.Body).Decode(&promotePayload); err != nil {
+		t.Fatalf("decode promote patch: %v", err)
+	}
+	if promotePayload.UserType != "staff" {
+		t.Fatalf("expected promoted userType staff, got %s", promotePayload.UserType)
+	}
+	if !containsRole(promotePayload.Roles, "CUSTOMER") || !containsRole(promotePayload.Roles, "SALES") {
+		t.Fatalf("expected promoted roles CUSTOMER+SALES, got %#v", promotePayload.Roles)
+	}
+
+	promotedList := doJSON(t, router, http.MethodGet, listPath, nil, adminAuth.AccessToken)
+	if promotedList.Code != http.StatusOK {
+		t.Fatalf("expected promoted customer list 200, got %d: %s", promotedList.Code, promotedList.Body.String())
+	}
+	var promotedListPayload struct {
+		Items []struct {
+			ID    string   `json:"id"`
+			Roles []string `json:"roles"`
+		} `json:"items"`
+	}
+	if err := json.NewDecoder(promotedList.Body).Decode(&promotedListPayload); err != nil {
+		t.Fatalf("decode promoted list: %v", err)
+	}
+	if len(promotedListPayload.Items) != 1 || !containsRole(promotedListPayload.Items[0].Roles, "SALES") {
+		t.Fatalf("expected promoted customer to remain listed with SALES, got %#v", promotedListPayload.Items)
+	}
+
+	demote := doJSON(t, router, http.MethodPatch, patchPath, map[string]interface{}{
+		"role": "CUSTOMER",
+	}, adminAuth.AccessToken)
+	if demote.Code != http.StatusOK {
+		t.Fatalf("expected demote patch 200, got %d: %s", demote.Code, demote.Body.String())
+	}
+	var demotePayload struct {
+		UserType string   `json:"userType"`
+		Roles    []string `json:"roles"`
+	}
+	if err := json.NewDecoder(demote.Body).Decode(&demotePayload); err != nil {
+		t.Fatalf("decode demote patch: %v", err)
+	}
+	if demotePayload.UserType != "customer" {
+		t.Fatalf("expected demoted userType customer, got %s", demotePayload.UserType)
+	}
+	if len(demotePayload.Roles) != 1 || demotePayload.Roles[0] != "CUSTOMER" {
+		t.Fatalf("expected demoted roles [CUSTOMER], got %#v", demotePayload.Roles)
+	}
+}
+
 func TestAdminCustomerTagsAndBatchUpdate(t *testing.T) {
 	router, pool := setupTestRouter(t)
 	ctx := context.Background()

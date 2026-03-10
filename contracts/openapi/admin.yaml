@@ -187,6 +187,31 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/PromoteCustomerToSalesResponse"
+  "/admin/customers/{customerId}/role":
+    patch:
+      tags:
+      - Admin
+      summary: Update customer role
+      parameters:
+      - in: path
+        name: customerId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UpdateCustomerRoleRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/UpdateCustomerRoleResponse"
   "/admin/customer-tags":
     get:
       tags:
@@ -1005,6 +1030,10 @@ components:
         ownerSales:
           "$ref": "#/components/schemas/AdminCustomerOwner"
           nullable: true
+        roles:
+          type: array
+          items:
+            type: string
         tags:
           type: array
           items:
@@ -1015,8 +1044,46 @@ components:
       required:
       - id
       - displayName
+      - roles
       - tags
       - createdAt
+    UpdateCustomerRoleRequest:
+      type: object
+      properties:
+        role:
+          type: string
+          enum:
+          - CUSTOMER
+          - SALES
+      required:
+      - role
+    UpdateCustomerRoleResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userType:
+          type: string
+        status:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - userType
+      - status
+      - roles
+      - createdAt
+      - updatedAt
     PagedAdminCustomerList:
       type: object
       properties:
