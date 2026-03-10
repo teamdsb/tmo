@@ -114,6 +114,29 @@ func TestRequireUserInvalidOwnerSalesUserID(test *testing.T) {
 	}
 }
 
+func TestRequireUserParsesCustomerProfile(test *testing.T) {
+	authenticator := NewAuthenticator(true, "secret", "issuer")
+	userID := uuid.New()
+	token := makeTokenWithProfile(test, "secret", "issuer", userID, "customer", "用户0003", "+15550000003")
+
+	context, recorder := newTestContext()
+	context.Request.Header.Set("Authorization", "Bearer "+token)
+
+	claims, ok := authenticator.RequireUser(context)
+	if !ok {
+		test.Fatal("expected authentication to succeed")
+	}
+	if claims.DisplayName != "用户0003" {
+		test.Fatalf("expected displayName 用户0003, got %q", claims.DisplayName)
+	}
+	if claims.Phone != "+15550000003" {
+		test.Fatalf("expected phone +15550000003, got %q", claims.Phone)
+	}
+	if recorder.Code != http.StatusOK {
+		test.Fatalf("expected status OK, got %d", recorder.Code)
+	}
+}
+
 func newTestContext() (*gin.Context, *httptest.ResponseRecorder) {
 	gin.SetMode(gin.TestMode)
 	recorder := httptest.NewRecorder()
@@ -143,6 +166,22 @@ func makeTokenWithOwner(test *testing.T, secret, issuer string, userID uuid.UUID
 		"role":             role,
 		"iss":              issuer,
 		"ownerSalesUserId": ownerSalesUserID,
+	})
+	signed, err := token.SignedString([]byte(secret))
+	if err != nil {
+		test.Fatalf("sign token: %v", err)
+	}
+	return signed
+}
+
+func makeTokenWithProfile(test *testing.T, secret, issuer string, userID uuid.UUID, role string, displayName string, phone string) string {
+	test.Helper()
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub":         userID.String(),
+		"role":        role,
+		"iss":         issuer,
+		"displayName": displayName,
+		"phone":       phone,
 	})
 	signed, err := token.SignedString([]byte(secret))
 	if err != nil {

@@ -16,6 +16,8 @@ type Claims struct {
 	UserID           uuid.UUID
 	Role             string
 	OwnerSalesUserID uuid.UUID
+	DisplayName      string
+	Phone            string
 }
 
 type Authenticator struct {
@@ -115,7 +117,15 @@ func (a *Authenticator) parseClaims(c *gin.Context) (Claims, bool) {
 		}
 		ownerSalesUserID = parsed
 	}
-	return Claims{UserID: userID, Role: role, OwnerSalesUserID: ownerSalesUserID}, true
+	displayName, _ := mapClaims["displayName"].(string)
+	phone, _ := mapClaims["phone"].(string)
+	return Claims{
+		UserID:           userID,
+		Role:             role,
+		OwnerSalesUserID: ownerSalesUserID,
+		DisplayName:      strings.TrimSpace(displayName),
+		Phone:            strings.TrimSpace(phone),
+	}, true
 }
 
 func writeError(c *gin.Context, status int, code, message string) {

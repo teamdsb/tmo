@@ -65,6 +65,8 @@ type supportMessageListResponse struct {
 type supportConversationView struct {
 	ID                  uuid.UUID  `json:"id"`
 	CustomerUserID      uuid.UUID  `json:"customerUserId"`
+	CustomerDisplayName *string    `json:"customerDisplayName,omitempty"`
+	CustomerPhone       *string    `json:"customerPhone,omitempty"`
 	OwnerSalesUserID    *uuid.UUID `json:"ownerSalesUserId,omitempty"`
 	AssigneeUserID      *uuid.UUID `json:"assigneeUserId,omitempty"`
 	AssigneeRole        *string    `json:"assigneeRole,omitempty"`
@@ -504,7 +506,10 @@ func (h *Handler) ensureActiveSupportConversation(ctx context.Context, claims mi
 	}
 	conversation, err := h.SupportStore.GetActiveSupportConversationByCustomer(ctx, claims.UserID)
 	if err == nil {
-		return conversation, nil
+		if !supportConversationSnapshotNeedsRepair(conversation, claims) {
+			return conversation, nil
+		}
+		return h.updateSupportConversationSnapshot(ctx, conversation, claims)
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return db.SupportConversation{}, err
@@ -527,10 +532,12 @@ func (h *Handler) ensureActiveSupportConversation(ctx context.Context, claims mi
 			ownerSales = pgtype.UUID{Bytes: claims.OwnerSalesUserID, Valid: true}
 		}
 		record, createErr := queries.CreateSupportConversation(ctx, db.CreateSupportConversationParams{
-			CustomerUserID:   claims.UserID,
-			OwnerSalesUserID: ownerSales,
-			Status:           supportConversationStatusOpenUnassigned,
-			Column8:          nil,
+			CustomerUserID:      claims.UserID,
+			CustomerDisplayName: nullableTrimmedString(claims.DisplayName),
+			CustomerPhone:       nullableTrimmedString(claims.Phone),
+			OwnerSalesUserID:    ownerSales,
+			Status:              supportConversationStatusOpenUnassigned,
+			Column10:            nil,
 		})
 		if createErr != nil {
 			var pgErr *pgconn.PgError
@@ -551,6 +558,17 @@ func (h *Handler) ensureActiveSupportConversation(ctx context.Context, claims mi
 		return nil
 	})
 	return created, err
+}
+
+func (h *Handler) updateSupportConversationSnapshot(ctx context.Context, conversation db.SupportConversation, claims middleware.Claims) (db.SupportConversation, error) {
+	if h.SupportStore == nil {
+		return db.SupportConversation{}, errors.New("support store is nil")
+	}
+	return h.SupportStore.UpdateSupportConversationCustomerSnapshot(ctx, db.UpdateSupportConversationCustomerSnapshotParams{
+		ID:                  conversation.ID,
+		CustomerDisplayName: nullableTrimmedString(claims.DisplayName),
+		CustomerPhone:       nullableTrimmedString(claims.Phone),
+	})
 }
 
 func (h *Handler) createSupportMessage(ctx context.Context, claims middleware.Claims, conversation db.SupportConversation, request createSupportMessageRequest) (db.SupportMessage, db.SupportConversation, error) {
@@ -979,6 +997,8 @@ func supportConversationFromModel(model db.SupportConversation) supportConversat
 	return supportConversationView{
 		ID:                  model.ID,
 		CustomerUserID:      model.CustomerUserID,
+		CustomerDisplayName: model.CustomerDisplayName,
+		CustomerPhone:       model.CustomerPhone,
 		OwnerSalesUserID:    uuidPtrFromPgtype(model.OwnerSalesUserID),
 		AssigneeUserID:      uuidPtrFromPgtype(model.AssigneeUserID),
 		AssigneeRole:        model.AssigneeRole,
@@ -992,6 +1012,31 @@ func supportConversationFromModel(model db.SupportConversation) supportConversat
 		UpdatedAt:           model.UpdatedAt.Time,
 		ClosedAt:            timePtrFromPg(model.ClosedAt),
 	}
+}
+
+func supportConversationSnapshotNeedsRepair(conversation db.SupportConversation, claims middleware.Claims) bool {
+	if claims.DisplayName != "" && trimmedPtrValue(conversation.CustomerDisplayName) != claims.DisplayName {
+		return true
+	}
+	if claims.Phone != "" && trimmedPtrValue(conversation.CustomerPhone) != claims.Phone {
+		return true
+	}
+	return false
+}
+
+func trimmedPtrValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return strings.TrimSpace(*value)
+}
+
+func nullableTrimmedString(value string) *string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	return &value
 }
 
 func supportMessageAssetFromModel(model db.SupportMessageAsset) supportMessageAssetView {
