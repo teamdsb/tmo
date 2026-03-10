@@ -33,6 +33,10 @@ export const loginAsBoss = async (page: Page) => {
   await page.waitForURL(/dashboard\.html/);
 };
 
+export const loginMockBoss = async (page: Page) => {
+  await loginAsBoss(page);
+};
+
 export const loginAsManager = async (page: Page) => {
   await page.goto('/');
   await page.fill('#username', 'manager');

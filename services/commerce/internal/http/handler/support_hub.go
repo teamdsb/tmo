@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -167,6 +168,7 @@ func supportHubClientCanAccessConversation(client *supportHubClient, conversatio
 }
 
 func (h *Handler) GetSupportWebSocket(c *gin.Context) {
+	applySupportWebSocketAuthorization(c)
 	claims, ok := h.requireUser(c)
 	if !ok {
 		return
@@ -176,6 +178,20 @@ func (h *Handler) GetSupportWebSocket(c *gin.Context) {
 		return
 	}
 	h.SupportHub.ServeWS(c, claims)
+}
+
+func applySupportWebSocketAuthorization(c *gin.Context) {
+	if c == nil || c.Request == nil {
+		return
+	}
+	if strings.TrimSpace(c.GetHeader("Authorization")) != "" {
+		return
+	}
+	token := strings.TrimSpace(c.Query("token"))
+	if token == "" {
+		return
+	}
+	c.Request.Header.Set("Authorization", "Bearer "+token)
 }
 
 func publishSupportEvent(hub *SupportHub, eventType string, conversation db.SupportConversation, data interface{}) {

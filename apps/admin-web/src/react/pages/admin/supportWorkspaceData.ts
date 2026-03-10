@@ -371,6 +371,8 @@ export const createMockSupportData = (): { conversations: SupportConversationSum
   const conversation: SupportConversationSummary = {
     id: '5dcb2d0d-a284-4538-a395-02a7a9025a10',
     customerUserId: '1dcb2d0d-a284-4538-a395-02a7a9025a11',
+    customerDisplayName: '宁波远航供应链',
+    customerPhone: '13700137000',
     ownerSalesUserId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
     assigneeUserId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
     assigneeRole: 'CS',
@@ -437,6 +439,12 @@ export const createMockSupportData = (): { conversations: SupportConversationSum
       }
     },
     staff: [
+      {
+        id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+        displayName: '张销售',
+        roles: ['SALES'],
+        status: 'active'
+      },
       {
         id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
         displayName: '客服小刘',
