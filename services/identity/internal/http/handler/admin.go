@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -37,9 +38,13 @@ const (
 	paymentTermTypeCash    = "CASH"
 	paymentTermTypeMonthly = "MONTHLY"
 	paymentTermTypeCustom  = "CUSTOM"
+	customerRoleCustomer   = "CUSTOMER"
+	customerRoleSales      = "SALES"
 )
 
 var hexColorPattern = regexp.MustCompile(`^#[0-9A-F]{6}$`)
+
+var errInvalidCustomerRoleRequest = errors.New("invalid customer role request")
 
 type featureFlagsResponse struct {
 	PaymentEnabled   bool `json:"paymentEnabled"`
@@ -62,6 +67,10 @@ type batchTransferCustomersRequest struct {
 	CustomerIDs   []string `json:"customerIds"`
 	ToSalesUserID string   `json:"toSalesUserId"`
 	Reason        *string  `json:"reason,omitempty"`
+}
+
+type updateCustomerRoleRequest struct {
+	Role string `json:"role"`
 }
 
 type batchTransferResult struct {
@@ -121,6 +130,12 @@ type pagedAdminUsersResponse struct {
 	Total    int                `json:"total"`
 }
 
+type updateAdminUserRequest struct {
+	Roles          *[]string `json:"roles,omitempty"`
+	Status         *string   `json:"status,omitempty"`
+	DisabledReason *string   `json:"disabledReason,omitempty"`
+}
+
 type customerTagResponse struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`
@@ -141,6 +156,7 @@ type adminCustomerResponse struct {
 	Phone            *string                     `json:"phone"`
 	OwnerSalesUserID *string                     `json:"ownerSalesUserId"`
 	OwnerSales       *adminCustomerOwnerResponse `json:"ownerSales"`
+	Roles            []string                    `json:"roles"`
 	Tags             []customerTagResponse       `json:"tags"`
 	CreatedAt        string                      `json:"createdAt"`
 }
@@ -185,6 +201,28 @@ type promoteCustomerToSalesResponse struct {
 	Promoted  bool     `json:"promoted"`
 	CreatedAt string   `json:"createdAt"`
 	UpdatedAt string   `json:"updatedAt"`
+}
+
+type updateCustomerRoleResponse struct {
+	ID        string   `json:"id"`
+	UserType  string   `json:"userType"`
+	Status    string   `json:"status"`
+	Roles     []string `json:"roles"`
+	CreatedAt string   `json:"createdAt"`
+	UpdatedAt string   `json:"updatedAt"`
+}
+
+func adminUserSummaryFromModel(user db.User, roles []string) adminUserSummary {
+	return adminUserSummary{
+		ID:          user.ID.String(),
+		DisplayName: safeString(user.DisplayName, "未命名用户"),
+		Phone:       user.Phone,
+		UserType:    strings.ToLower(strings.TrimSpace(user.UserType)),
+		Status:      strings.ToLower(strings.TrimSpace(user.Status)),
+		Roles:       normalizeAdminRoles(roles),
+		CreatedAt:   user.CreatedAt.Time.Format(time.RFC3339),
+		UpdatedAt:   user.UpdatedAt.Time.Format(time.RFC3339),
+	}
 }
 
 func (h *Handler) GetAdminConfigFeatureFlags(c *gin.Context) {
@@ -347,16 +385,7 @@ func (h *Handler) GetAdminUsers(c *gin.Context) {
 			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to list admin users")
 			return
 		}
-		items = append(items, adminUserSummary{
-			ID:          user.ID.String(),
-			DisplayName: safeString(user.DisplayName, "未命名用户"),
-			Phone:       user.Phone,
-			UserType:    strings.ToLower(strings.TrimSpace(user.UserType)),
-			Status:      strings.ToLower(strings.TrimSpace(user.Status)),
-			Roles:       normalizeRoles(roles),
-			CreatedAt:   user.CreatedAt.Time.Format(time.RFC3339),
-			UpdatedAt:   user.UpdatedAt.Time.Format(time.RFC3339),
-		})
+		items = append(items, adminUserSummaryFromModel(user, roles))
 	}
 
 	c.JSON(http.StatusOK, pagedAdminUsersResponse{
@@ -365,6 +394,143 @@ func (h *Handler) GetAdminUsers(c *gin.Context) {
 		PageSize: pageSize,
 		Total:    int(total),
 	})
+}
+
+func (h *Handler) PatchAdminUsersUserId(c *gin.Context) {
+	claims, _, ok := h.requirePermission(c, "rbac:manage", "ALL")
+	if !ok {
+		return
+	}
+
+	userID, err := uuid.Parse(strings.TrimSpace(c.Param("userId")))
+	if err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid userId")
+		return
+	}
+
+	var request updateAdminUserRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
+		return
+	}
+	if request.Roles == nil && request.Status == nil && request.DisabledReason == nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "at least one field is required")
+		return
+	}
+
+	user, err := h.Store.GetUserByID(c.Request.Context(), userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			h.writeError(c, http.StatusNotFound, "not_found", "admin user not found")
+			return
+		}
+		h.logError("get admin user failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update admin user")
+		return
+	}
+	if strings.ToLower(strings.TrimSpace(user.UserType)) != "admin" {
+		h.writeError(c, http.StatusNotFound, "not_found", "admin user not found")
+		return
+	}
+
+	currentRoles, err := h.Store.ListUserRoles(c.Request.Context(), user.ID)
+	if err != nil {
+		h.logError("list admin user roles failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update admin user")
+		return
+	}
+	currentRoles = normalizeAdminRoles(currentRoles)
+
+	nextRoles := currentRoles
+	if request.Roles != nil {
+		nextRoles = normalizeAdminRoles(*request.Roles)
+		if len(nextRoles) == 0 {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "roles is required")
+			return
+		}
+		for _, role := range nextRoles {
+			if !isAdminRole(role) {
+				h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid admin role")
+				return
+			}
+		}
+	}
+
+	status := ""
+	var disabledAt pgtype.Timestamptz
+	var disabledReason *string
+	if request.Status != nil {
+		status = strings.ToLower(strings.TrimSpace(*request.Status))
+		switch status {
+		case "active":
+			disabledAt = pgtype.Timestamptz{}
+			disabledReason = nil
+		case "disabled":
+			if containsRole(nextRoles, "BOSS") {
+				h.writeError(c, http.StatusBadRequest, "invalid_request", "boss account cannot be disabled")
+				return
+			}
+			disabledAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+			disabledReason = request.DisabledReason
+		default:
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid status")
+			return
+		}
+	}
+
+	err = shareddb.WithTx(c.Request.Context(), h.DB, func(tx pgx.Tx) error {
+		q := h.Store.WithTx(tx)
+		if request.Roles != nil {
+			if err := q.DeleteUserRoles(c.Request.Context(), user.ID); err != nil {
+				return err
+			}
+			for _, role := range nextRoles {
+				if err := q.AddUserRole(c.Request.Context(), db.AddUserRoleParams{
+					UserID: user.ID,
+					Role:   role,
+				}); err != nil {
+					return err
+				}
+			}
+		}
+		if status != "" {
+			if _, err := q.UpdateUserStatus(c.Request.Context(), db.UpdateUserStatusParams{
+				ID:             user.ID,
+				Status:         status,
+				DisabledAt:     disabledAt,
+				DisabledReason: disabledReason,
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		h.logError("update admin user failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update admin user")
+		return
+	}
+
+	updated, err := h.Store.GetUserByID(c.Request.Context(), user.ID)
+	if err != nil {
+		h.logError("reload admin user failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update admin user")
+		return
+	}
+	updatedRoles, err := h.Store.ListUserRoles(c.Request.Context(), updated.ID)
+	if err != nil {
+		h.logError("list updated admin user roles failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update admin user")
+		return
+	}
+	updatedRoles = normalizeAdminRoles(updatedRoles)
+
+	h.recordAudit(c, &claims.UserID, "admin_user.update", "admin_user", &updated.ID, map[string]interface{}{
+		"roles":  updatedRoles,
+		"status": updated.Status,
+	})
+
+	c.JSON(http.StatusOK, adminUserSummaryFromModel(updated, updatedRoles))
 }
 
 func (h *Handler) PostAdminCustomersCustomerIdPromoteToSales(c *gin.Context) {
@@ -379,82 +545,165 @@ func (h *Handler) PostAdminCustomersCustomerIdPromoteToSales(c *gin.Context) {
 		return
 	}
 
-	user, err := h.Store.GetUserByID(c.Request.Context(), customerID)
+	user, roles, promoted, err := h.updateCustomerRole(c.Request.Context(), customerID, customerRoleSales)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
 			h.writeError(c, http.StatusNotFound, "not_found", "customer not found")
-			return
-		}
-		h.logError("get customer failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to promote customer")
-		return
-	}
-
-	promoted := false
-	switch strings.ToLower(strings.TrimSpace(user.UserType)) {
-	case "customer":
-		promotedUser, err := h.Store.PromoteCustomerToStaff(c.Request.Context(), customerID)
-		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				h.writeError(c, http.StatusNotFound, "not_found", "customer not found")
-				return
-			}
-			h.logError("promote customer to staff failed", err)
+		case errors.Is(err, errInvalidCustomerRoleRequest):
+			h.writeError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		default:
+			h.logError("promote customer failed", err)
 			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to promote customer")
-			return
 		}
-		user = promotedUser
-		promoted = true
-	case "staff":
-		// Already staff, only ensure SALES role.
-	case "admin":
-		h.writeError(c, http.StatusBadRequest, "invalid_request", "admin user cannot be promoted")
-		return
-	default:
-		h.writeError(c, http.StatusBadRequest, "invalid_request", "unsupported user type")
-		return
-	}
-
-	if err := h.Store.AddUserRole(c.Request.Context(), db.AddUserRoleParams{
-		UserID: user.ID,
-		Role:   "SALES",
-	}); err != nil {
-		h.logError("add sales role failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to promote customer")
-		return
-	}
-
-	if err := h.Store.AddUserRole(c.Request.Context(), db.AddUserRoleParams{
-		UserID: user.ID,
-		Role:   "CUSTOMER",
-	}); err != nil {
-		h.logError("keep customer role failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to promote customer")
-		return
-	}
-
-	roles, err := h.Store.ListUserRoles(c.Request.Context(), user.ID)
-	if err != nil {
-		h.logError("list promoted user roles failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to promote customer")
 		return
 	}
 
 	h.recordAudit(c, &claims.UserID, "customer.promote_to_sales", "customer", &user.ID, map[string]interface{}{
 		"customerId": user.ID.String(),
 		"promoted":   promoted,
-		"roles":      normalizeRoles(roles),
+		"roles":      roles,
 	})
 
 	c.JSON(http.StatusOK, promoteCustomerToSalesResponse{
 		ID:        user.ID.String(),
 		UserType:  strings.ToLower(strings.TrimSpace(user.UserType)),
 		Status:    strings.ToLower(strings.TrimSpace(user.Status)),
-		Roles:     normalizeRoles(roles),
+		Roles:     roles,
 		Promoted:  promoted,
 		CreatedAt: user.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt: user.UpdatedAt.Time.Format(time.RFC3339),
 	})
+}
+
+func (h *Handler) PatchAdminCustomersCustomerIdRole(c *gin.Context) {
+	claims, _, ok := h.requirePermission(c, "customer:transfer", "ALL")
+	if !ok {
+		return
+	}
+
+	customerID, err := uuid.Parse(strings.TrimSpace(c.Param("customerId")))
+	if err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid customerId")
+		return
+	}
+
+	var request updateCustomerRoleRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
+		return
+	}
+
+	role, err := normalizeCustomerRole(request.Role)
+	if err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+
+	user, roles, _, err := h.updateCustomerRole(c.Request.Context(), customerID, role)
+	if err != nil {
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			h.writeError(c, http.StatusNotFound, "not_found", "customer not found")
+		case errors.Is(err, errInvalidCustomerRoleRequest):
+			h.writeError(c, http.StatusBadRequest, "invalid_request", err.Error())
+		default:
+			h.logError("update customer role failed", err)
+			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update customer role")
+		}
+		return
+	}
+
+	h.recordAudit(c, &claims.UserID, "customer.role_update", "customer", &user.ID, map[string]interface{}{
+		"customerId": user.ID.String(),
+		"role":       role,
+		"roles":      roles,
+		"userType":   strings.ToLower(strings.TrimSpace(user.UserType)),
+	})
+
+	c.JSON(http.StatusOK, updateCustomerRoleResponse{
+		ID:        user.ID.String(),
+		UserType:  strings.ToLower(strings.TrimSpace(user.UserType)),
+		Status:    strings.ToLower(strings.TrimSpace(user.Status)),
+		Roles:     roles,
+		CreatedAt: user.CreatedAt.Time.Format(time.RFC3339),
+		UpdatedAt: user.UpdatedAt.Time.Format(time.RFC3339),
+	})
+}
+
+func (h *Handler) updateCustomerRole(ctx context.Context, customerID uuid.UUID, targetRole string) (db.User, []string, bool, error) {
+	role, err := normalizeCustomerRole(targetRole)
+	if err != nil {
+		return db.User{}, nil, false, err
+	}
+
+	user, err := h.Store.GetUserByID(ctx, customerID)
+	if err != nil {
+		return db.User{}, nil, false, err
+	}
+	if strings.EqualFold(strings.TrimSpace(user.UserType), "admin") {
+		return db.User{}, nil, false, errors.Join(errInvalidCustomerRoleRequest, errors.New("admin user cannot be updated as customer"))
+	}
+
+	currentRoles, err := h.Store.ListUserRoles(ctx, customerID)
+	if err != nil {
+		return db.User{}, nil, false, err
+	}
+	currentRoles = normalizeRoles(currentRoles)
+	if hasUnsupportedCustomerRoles(currentRoles) {
+		return db.User{}, nil, false, errors.Join(errInvalidCustomerRoleRequest, errors.New("customer has unsupported role combination"))
+	}
+
+	promoted := false
+	if err := shareddb.WithTx(ctx, h.DB, func(tx pgx.Tx) error {
+		q := h.Store.WithTx(tx)
+		currentUser := user
+		switch role {
+		case customerRoleSales:
+			if strings.EqualFold(strings.TrimSpace(currentUser.UserType), "customer") {
+				nextUser, err := q.PromoteCustomerToStaff(ctx, customerID)
+				if err != nil {
+					return err
+				}
+				currentUser = nextUser
+				promoted = true
+			}
+		case customerRoleCustomer:
+			if strings.EqualFold(strings.TrimSpace(currentUser.UserType), "staff") {
+				nextUser, err := q.DemoteStaffToCustomer(ctx, customerID)
+				if err != nil {
+					return err
+				}
+				currentUser = nextUser
+			}
+		}
+
+		if err := q.DeleteUserRoles(ctx, customerID); err != nil {
+			return err
+		}
+		for _, nextRole := range desiredCustomerRoles(role) {
+			if err := q.AddUserRole(ctx, db.AddUserRoleParams{
+				UserID: customerID,
+				Role:   nextRole,
+			}); err != nil {
+				return err
+			}
+		}
+		user = currentUser
+		return nil
+	}); err != nil {
+		return db.User{}, nil, false, err
+	}
+
+	updatedUser, err := h.Store.GetUserByID(ctx, customerID)
+	if err != nil {
+		return db.User{}, nil, false, err
+	}
+	roles, err := h.Store.ListUserRoles(ctx, customerID)
+	if err != nil {
+		return db.User{}, nil, false, err
+	}
+	return updatedUser, normalizeRoles(roles), promoted, nil
 }
 
 func (h *Handler) GetAdminCustomers(c *gin.Context) {
@@ -568,12 +817,19 @@ func (h *Handler) GetAdminCustomers(c *gin.Context) {
 				ownerSales = &ownerCopy
 			}
 		}
+		roles, err := h.Store.ListUserRoles(c.Request.Context(), customer.ID)
+		if err != nil {
+			h.logError("list customer roles failed", err)
+			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to list customers")
+			return
+		}
 		items = append(items, adminCustomerResponse{
 			ID:               customer.ID.String(),
 			DisplayName:      safeDisplayName(customer.DisplayName),
 			Phone:            customer.Phone,
 			OwnerSalesUserID: ownerSalesUserID,
 			OwnerSales:       ownerSales,
+			Roles:            normalizeRoles(roles),
 			Tags:             tagsByCustomerID[customer.ID],
 			CreatedAt:        customer.CreatedAt.Time.Format(time.RFC3339),
 		})
@@ -1359,6 +1615,33 @@ func validateTransferInput(toSalesUserID string, reason *string) (uuid.UUID, str
 	}
 
 	return toSalesID, trimmedReason, nil
+}
+
+func normalizeCustomerRole(raw string) (string, error) {
+	switch strings.ToUpper(strings.TrimSpace(raw)) {
+	case customerRoleCustomer:
+		return customerRoleCustomer, nil
+	case customerRoleSales:
+		return customerRoleSales, nil
+	default:
+		return "", errors.Join(errInvalidCustomerRoleRequest, errors.New("invalid customer role"))
+	}
+}
+
+func desiredCustomerRoles(role string) []string {
+	if role == customerRoleSales {
+		return []string{customerRoleCustomer, customerRoleSales}
+	}
+	return []string{customerRoleCustomer}
+}
+
+func hasUnsupportedCustomerRoles(roles []string) bool {
+	for _, role := range normalizeRoles(roles) {
+		if role != customerRoleCustomer && role != customerRoleSales {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeTagName(raw string) (string, error) {

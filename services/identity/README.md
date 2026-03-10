@@ -31,7 +31,7 @@ Identity service for authentication, JWT issuing, and sales binding.
 - 本地未配置真实微信/支付宝凭证时，`mock_*` code 会作为本地联调回退入口；这样可以在 `IDENTITY_LOGIN_MODE=real` 下继续跑真实数据库 + 真实后端联调。
 
 - `admin` 与 `boss` 在 admin-web 场景均视为最高层级。
-- admin-web password login role whitelist: `BOSS`, `MANAGER`, `ADMIN`, `CS`.
+- admin-web password login role whitelist: `BOSS`, `MANAGER`, `ADMIN`, `CS`；当前前端实现与此保持一致。
 - `SALES` 不允许 password login（业务员仅走 miniapp 登录）。
 - `tools/scripts/identity-seed.sh` 反复执行会收敛固定账号角色（删除历史多余角色并补齐缺失角色），避免本地脏数据导致角色漂移。
 - `tools/scripts/identity-seed-check.sh` 会校验固定账号、密码、角色、mock 绑定和手机号白名单；若 gateway 可达，还会进一步校验 real password login 与 `/bff/bootstrap`。

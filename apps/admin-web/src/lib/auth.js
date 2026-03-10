@@ -14,6 +14,7 @@ import {
 const roleLabels = {
   admin: '管理员',
   boss: '老板',
+  manager: '经理',
   cs: '客服'
 };
 
@@ -141,7 +142,7 @@ const inferCurrentRole = (user, explicitRole) => {
   if (roles.length === 1) {
     return roles[0];
   }
-  const priority = ['BOSS', 'ADMIN', 'CS'];
+  const priority = ['BOSS', 'MANAGER', 'ADMIN', 'CS'];
   for (const role of priority) {
     if (roles.includes(role)) {
       return role;
@@ -163,7 +164,7 @@ export const loginDev = async (username, password, role) => {
 
   const currentRole = inferCurrentRole(response.data.user, role);
   if (!currentRole) {
-    throw new Error('该账号角色不受 admin-web 支持（仅支持 ADMIN / BOSS / CS）。');
+    throw new Error('该账号角色不受 admin-web 支持（仅支持 ADMIN / BOSS / MANAGER / CS）。');
   }
   saveAuthState({
     mode: 'dev',

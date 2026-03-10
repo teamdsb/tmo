@@ -69,7 +69,7 @@ const notifyLegacyMockSession = () => {
   } catch {
     // ignore storage read/write errors
   }
-  window.alert('检测到旧版 mock 会话，权限分级尚未生效。请重新登录以启用 ADMIN / BOSS / CS 分级权限。');
+  window.alert('检测到旧版 mock 会话，权限分级尚未生效。请重新登录以启用 ADMIN / BOSS / MANAGER / CS 分级权限。');
 };
 
 const notifyUnsupportedRoleSession = () => {
@@ -81,7 +81,7 @@ const notifyUnsupportedRoleSession = () => {
   } catch {
     // ignore storage read/write errors
   }
-  window.alert('该账号角色不受 admin-web 支持（仅支持 ADMIN / BOSS / CS）。');
+  window.alert('该账号角色不受 admin-web 支持（仅支持 ADMIN / BOSS / MANAGER / CS）。');
 };
 
 // 页面守卫：校验登录态、刷新 bootstrap、执行路径级权限拦截。
