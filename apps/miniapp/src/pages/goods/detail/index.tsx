@@ -201,7 +201,7 @@ export default function ProductDetail() {
         productImageUrl: detail.product.images?.[0] || undefined,
         message: `咨询报价：${detail.product.name}`
       })
-      await navigateTo(ROUTES.supportChat)
+      await navigateTo(ROUTES.support)
     } catch (error) {
       console.warn('prepare support inquiry failed', error)
       await Taro.showToast({ title: '打开在线客服失败', icon: 'none' })
