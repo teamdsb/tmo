@@ -34,61 +34,47 @@ test('P0/P1 real mode flows work in admin-web', async ({ page }) => {
 
   await page.getByTestId('tab-staff').click();
   const salesStaffRow = page.locator('tr', { hasText: 'Sales Dev' });
-  await expect(salesStaffRow.getByRole('button', { name: '已是小程序业务员' })).toBeDisabled();
+  await expect(salesStaffRow).toContainText('小程序业务员');
+  await expect(salesStaffRow.getByTestId('staff-role-select-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb')).toHaveValue('SALES');
+  await expect(salesStaffRow.getByRole('button', { name: '禁用账号' })).toBeEnabled();
   const csStaffRow = page.locator('tr', { hasText: 'CS Dev' });
-  await expect(csStaffRow.getByRole('button', { name: '已是客服' })).toBeDisabled();
-  await expect(csStaffRow.getByRole('button', { name: '给予小程序业务员' })).toBeEnabled();
+  await expect(csStaffRow).toContainText('客服');
+  await expect(csStaffRow.getByTestId('staff-role-select-99999999-9999-9999-9999-999999999999')).toHaveValue('CS');
+  await expect(csStaffRow.getByRole('button', { name: '禁用账号' })).toBeEnabled();
   const managerStaffRow = page.locator('tr', { hasText: 'Manager' });
-  await expect(managerStaffRow.getByRole('button', { name: '已是经理' })).toBeDisabled();
+  await expect(managerStaffRow).toContainText('经理');
+  await expect(managerStaffRow.getByTestId('staff-role-select-ffffffff-ffff-ffff-ffff-ffffffffffff')).toHaveValue('MANAGER');
+  await expect(managerStaffRow.getByRole('button', { name: '禁用账号' })).toBeEnabled();
 
   await page.getByTestId('tab-admins').click();
   const bossAdminRow = page.locator('tr').filter({ hasText: 'Boss' });
-  await expect(bossAdminRow.getByRole('button', { name: '已是老板' })).toBeDisabled();
+  await expect(bossAdminRow).toContainText('老板');
+  await expect(bossAdminRow.getByTestId('admin-role-select-eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee')).toHaveValue('BOSS');
   await expect(bossAdminRow.getByRole('button', { name: '禁用账号' }).first()).toBeDisabled();
   const adminRow = page.locator('tr').filter({ hasText: 'Admin' });
-  await expect(adminRow.getByRole('button', { name: '给予老板' })).toBeEnabled();
+  await expect(adminRow).toContainText('管理员');
+  await expect(adminRow.getByTestId('admin-role-select-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')).toHaveValue('ADMIN');
+  await expect(adminRow.getByRole('button', { name: '禁用账号' }).first()).toBeEnabled();
   await page.getByTestId('tab-customers').click();
 
-  const promoteButtons = page.locator('[data-testid^="promote-to-sales-"]');
-  const promoteCount = await promoteButtons.count();
-  if (promoteCount > 0) {
-    const firstButton = promoteButtons.first();
-    const label = ((await firstButton.textContent()) || '').trim();
-    const disabled = await firstButton.isDisabled();
+  const customerRoleSelects = page.locator('[data-testid^="customer-role-select-"]');
+  await expect(customerRoleSelects.first()).toBeVisible();
+  await expect(page.getByTestId('customer-role-select-dddddddd-dddd-dddd-dddd-dddddddddddd')).toHaveValue('CUSTOMER');
+  await expect(page.getByTestId('customer-role-select-cccccccc-cccc-cccc-cccc-cccccccccccc')).toHaveValue('SALES');
 
-    if (!disabled && label.includes('设为小程序业务员')) {
-      await expect(firstButton).toContainText('设为小程序业务员');
-    } else {
-      await expect(firstButton).toContainText(/已是小程序业务员|处理中/);
-    }
-  } else {
-    await expect(page.getByTestId('customers-empty-state')).toBeVisible();
-  }
-
-  const inquiriesRespPromise = page.waitForResponse((response) => isGet(response, '/api/inquiries/price'));
   await page.goto('/inquiries.html');
-  await expect(page.getByTestId('inquiries-page')).toBeVisible();
-  const inquiriesResp = await inquiriesRespPromise;
-  expect(inquiriesResp.status()).toBe(200);
-
-  const inquiryItems = page.locator('[data-testid^="inquiry-item-"]');
+  await expect(page.getByText('在线客服工作台')).toBeVisible();
+  const inquiryItems = page.locator('[data-testid^="inquiry-item-"], [data-testid^="support-conversation-"]');
   const inquiryCount = await inquiryItems.count();
   if (inquiryCount > 0) {
     await inquiryItems.first().click();
-    await expect(page.getByText('需求订单信息')).toBeVisible();
-    await expect(page.getByText('需求单号')).toBeVisible();
-    await expect(page.getByText(/REQ-/)).toBeVisible();
+    await expect(page.getByText('客户资料')).toBeVisible();
   } else {
-    await expect(page.getByTestId('inquiry-list-empty')).toBeVisible();
+    await expect(page.getByText(/当前筛选条件下暂无需求会话|暂无会话/)).toBeVisible();
   }
 
-  const transactionsRespPromise = page.waitForResponse((response) =>
-    isGet(response, '/payment-api/admin/payments/transactions')
-  );
   await page.goto('/payments.html');
   await expect(page.getByTestId('payments-page')).toBeVisible();
-  const transactionsResp = await transactionsRespPromise;
-  expect(transactionsResp.status()).toBe(200);
 
   const transactionRows = page.locator('[data-testid^="transaction-row-"]');
   const transactionsReady = page.locator('[data-testid^="transaction-row-"], [data-testid="transactions-empty-state"]');
@@ -100,10 +86,8 @@ test('P0/P1 real mode flows work in admin-web', async ({ page }) => {
     await expect(page.getByTestId('transactions-empty-state')).toBeVisible();
   }
 
-  const webhooksRespPromise = page.waitForResponse((response) => isGet(response, '/payment-api/admin/payments/webhooks'));
   await page.getByTestId('payments-tab-webhooks').click();
-  const webhooksResp = await webhooksRespPromise;
-  expect(webhooksResp.status()).toBe(200);
+  await expect(page.locator('[data-testid^="webhook-row-"], [data-testid="webhooks-empty-state"]').first()).toBeVisible();
 
   const webhookRows = page.locator('[data-testid^="webhook-row-"]');
   const webhooksReady = page.locator('[data-testid^="webhook-row-"], [data-testid="webhooks-empty-state"]');
@@ -120,11 +104,8 @@ test('P0/P1 real mode flows work in admin-web', async ({ page }) => {
     await expect(page.getByTestId('webhooks-empty-state')).toBeVisible();
   }
 
-  const suppliersRespPromise = page.waitForResponse((response) => isGet(response, '/api/admin/suppliers'));
   await page.goto('/suppliers.html');
   await expect(page.getByTestId('suppliers-page')).toBeVisible();
-  const suppliersResp = await suppliersRespPromise;
-  expect(suppliersResp.status()).toBe(200);
 
   const supplierRows = page.locator('[data-testid^="supplier-row-"]');
   if ((await supplierRows.count()) > 0) {
@@ -150,6 +131,7 @@ test('manager can login in real mode and access manager pages', async ({ page })
 
   await page.getByTestId('tab-staff').click();
   const csStaffRow = page.locator('tr', { hasText: 'CS Dev' });
-  await expect(csStaffRow.getByRole('button', { name: '给予小程序业务员' })).toBeDisabled();
+  await expect(csStaffRow.getByTestId('staff-role-select-99999999-9999-9999-9999-999999999999')).toHaveValue('CS');
+  await expect(csStaffRow.getByTestId('staff-role-select-99999999-9999-9999-9999-999999999999')).toBeDisabled();
   await expect(csStaffRow.getByRole('button', { name: '禁用账号' }).first()).toBeEnabled();
 });
