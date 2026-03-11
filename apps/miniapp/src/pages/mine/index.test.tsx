@@ -24,14 +24,28 @@ describe('PersonalCenter', () => {
       me: {
         displayName: '张三',
         ownerSalesDisplayName: '李经理',
-        roles: ['客户经理']
+        currentRole: 'CUSTOMER',
+        roles: ['CUSTOMER']
       }
     }))
+    asMock(identityServices.auth.switchRole).mockResolvedValue({
+      accessToken: 'switched-token',
+      expiresIn: 3600,
+      user: {
+        currentRole: 'SALES',
+        displayName: '张三',
+        ownerSalesDisplayName: '李经理',
+        roles: ['CUSTOMER', 'SALES'],
+        userType: 'staff'
+      }
+    })
     asMock(gatewayServices.bootstrap.get).mockClear()
     asMock(gatewayServices.tokens.setToken).mockClear()
     asMock(commerceServices.tokens.setToken).mockClear()
     asMock(identityServices.tokens.setToken).mockClear()
+    asMock(identityServices.auth.switchRole).mockClear()
     asMock(Taro.navigateTo).mockClear()
+    asMock(Taro.showToast).mockClear()
     asMock(removeStorage).mockClear()
   })
 
@@ -42,10 +56,46 @@ describe('PersonalCenter', () => {
     expect(navbar).not.toBeNull()
 
     expect(await screen.findByText('张三')).toBeInTheDocument()
-    expect(screen.getByText('客户经理')).toBeInTheDocument()
+    expect(screen.getByText('CUSTOMER')).toBeInTheDocument()
     expect(screen.getAllByText(/李经理/)).toHaveLength(2)
     expect(screen.getByText('专属顾问')).toBeInTheDocument()
     expect(screen.getByText('下单后由专属顾问继续报价、确认货源与同步发货进度。')).toBeInTheDocument()
+  })
+
+  it('shows debug role switcher and switches current role', async () => {
+    asMock(gatewayServices.bootstrap.get)
+      .mockResolvedValueOnce({
+        me: {
+          displayName: '张三',
+          ownerSalesDisplayName: '李经理',
+          currentRole: 'CUSTOMER',
+          roles: ['CUSTOMER', 'SALES'],
+          userType: 'customer'
+        }
+      })
+      .mockResolvedValueOnce({
+        me: {
+          displayName: '张三',
+          ownerSalesDisplayName: '李经理',
+          currentRole: 'SALES',
+          roles: ['CUSTOMER', 'SALES'],
+          userType: 'staff'
+        }
+      })
+
+    await renderPersonalCenter()
+
+    expect(await screen.findByText('调试角色')).toBeInTheDocument()
+    expect(screen.getByText('当前身份 CUSTOMER，可快速切换当前会话角色。')).toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'SALES' }))
+      await flushPromises()
+    })
+
+    expect(identityServices.auth.switchRole).toHaveBeenCalledWith({ role: 'SALES' })
+    expect(gatewayServices.bootstrap.get).toHaveBeenCalledTimes(2)
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '角色已切换', icon: 'none' })
   })
 
   it('hides manager card when not logged in', async () => {
@@ -94,21 +144,15 @@ describe('PersonalCenter', () => {
     expect(screen.getByText('系统设置')).toBeInTheDocument()
   })
 
-  it('opens manager chat and sends a message', async () => {
+  it('navigates to support page when opening advisor chat', async () => {
     await renderPersonalCenter()
 
     fireEvent.click(screen.getByText('立即沟通'))
 
-    expect(await screen.findByText('联系经理')).toBeInTheDocument()
-
-    const input = screen.getByPlaceholderText('请输入...')
-    fireEvent.change(input, { target: { value: '在吗' } })
-    expect(input).toHaveValue('在吗')
-
-    fireEvent.click(document.querySelector('.mine-modern-chat-send-btn') as Element)
-
     await waitFor(() => {
-      expect(screen.getByText('在吗')).toBeInTheDocument()
+      expect(Taro.navigateTo).toHaveBeenCalledWith({
+        url: '/pages/support/index'
+      })
     })
   })
 

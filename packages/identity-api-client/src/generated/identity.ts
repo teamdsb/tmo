@@ -118,6 +118,8 @@ export const UserUserType = {
 
 export interface User {
   id: string;
+  /** Current active role of this authenticated session. */
+  currentRole: string;
   userType: UserUserType;
   status?: UserStatus;
   displayName?: string;
@@ -135,6 +137,11 @@ export interface User {
   /** @nullable */
   disabledReason?: string | null;
   createdAt: string;
+}
+
+export interface DebugRoleSwitchRequest {
+  /** Target role already assigned to the current user. */
+  role: string;
 }
 
 export type UserStatus = typeof UserStatus[keyof typeof UserStatus];
@@ -163,6 +170,7 @@ export interface SalesQrCode {
   /** @nullable */
   expiresAt?: string | null;
 }
+
 
 
 
@@ -294,6 +302,49 @@ export interface CreateStaffRequest {
 export interface UpdateStaffRequest {
   displayName?: string;
   roles?: string[];
+  status?: UserStatus;
+  /** @nullable */
+  disabledReason?: string | null;
+}
+
+export type AdminUserUserType = typeof AdminUserUserType[keyof typeof AdminUserUserType];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const AdminUserUserType = {
+  admin: 'admin',
+} as const;
+
+export interface AdminUser {
+  id: string;
+  displayName?: string;
+  /** @nullable */
+  phone?: string | null;
+  userType: AdminUserUserType;
+  roles: string[];
+  status: UserStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PagedAdminUserList {
+  items: AdminUser[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+export type UpdateAdminUserRequestRolesItem = typeof UpdateAdminUserRequestRolesItem[keyof typeof UpdateAdminUserRequestRolesItem];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const UpdateAdminUserRequestRolesItem = {
+  ADMIN: 'ADMIN',
+  BOSS: 'BOSS',
+} as const;
+
+export interface UpdateAdminUserRequest {
+  roles?: UpdateAdminUserRequestRolesItem[];
   status?: UserStatus;
   /** @nullable */
   disabledReason?: string | null;
@@ -903,6 +954,30 @@ page?: number;
 pageSize?: number;
 };
 
+export type GetAdminUsersParams = {
+q?: string;
+status?: UserStatus;
+role?: GetAdminUsersRole;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type GetAdminUsersRole = typeof GetAdminUsersRole[keyof typeof GetAdminUsersRole];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const GetAdminUsersRole = {
+  ADMIN: 'ADMIN',
+  BOSS: 'BOSS',
+} as const;
+
 export type GetAuditLogsParams = {
 actorUserId?: string;
 action?: string;
@@ -1066,6 +1141,65 @@ export const postAuthPasswordLogin = async (passwordLoginRequest: PasswordLoginR
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
       passwordLoginRequest,)
+  }
+);}
+
+
+
+/**
+ * @summary Local debug only. Re-issue token with another assigned role.
+ */
+export type postAuthDebugSwitchRoleResponse200 = {
+  data: AuthResponse
+  status: 200
+}
+
+export type postAuthDebugSwitchRoleResponse400 = {
+  data: BadRequestResponse
+  status: 400
+}
+
+export type postAuthDebugSwitchRoleResponse401 = {
+  data: UnauthorizedResponse
+  status: 401
+}
+
+export type postAuthDebugSwitchRoleResponse403 = {
+  data: ForbiddenResponse
+  status: 403
+}
+
+export type postAuthDebugSwitchRoleResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+    
+export type postAuthDebugSwitchRoleResponseSuccess = (postAuthDebugSwitchRoleResponse200) & {
+  headers: Headers;
+};
+export type postAuthDebugSwitchRoleResponseError = (postAuthDebugSwitchRoleResponse400 | postAuthDebugSwitchRoleResponse401 | postAuthDebugSwitchRoleResponse403 | postAuthDebugSwitchRoleResponse404) & {
+  headers: Headers;
+};
+
+export type postAuthDebugSwitchRoleResponse = (postAuthDebugSwitchRoleResponseSuccess | postAuthDebugSwitchRoleResponseError)
+
+export const getPostAuthDebugSwitchRoleUrl = () => {
+
+
+  
+
+  return `/auth/debug/switch-role`
+}
+
+export const postAuthDebugSwitchRole = async (debugRoleSwitchRequest: DebugRoleSwitchRequest, options?: RequestInit): Promise<postAuthDebugSwitchRoleResponse> => {
+  
+  return apiMutator<postAuthDebugSwitchRoleResponse>(getPostAuthDebugSwitchRoleUrl(),
+  {      
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      debugRoleSwitchRequest,)
   }
 );}
 
@@ -1736,6 +1870,121 @@ export const postStaffStaffIdBindings = async (staffId: string,
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
       createStaffBindingRequest,)
+  }
+);}
+
+
+
+/**
+ * @summary List admin web users
+ */
+export type getAdminUsersResponse200 = {
+  data: PagedAdminUserList
+  status: 200
+}
+
+export type getAdminUsersResponse401 = {
+  data: UnauthorizedResponse
+  status: 401
+}
+
+export type getAdminUsersResponse403 = {
+  data: ForbiddenResponse
+  status: 403
+}
+    
+export type getAdminUsersResponseSuccess = (getAdminUsersResponse200) & {
+  headers: Headers;
+};
+export type getAdminUsersResponseError = (getAdminUsersResponse401 | getAdminUsersResponse403) & {
+  headers: Headers;
+};
+
+export type getAdminUsersResponse = (getAdminUsersResponseSuccess | getAdminUsersResponseError)
+
+export const getGetAdminUsersUrl = (params?: GetAdminUsersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/admin/users?${stringifiedParams}` : `/admin/users`
+}
+
+export const getAdminUsers = async (params?: GetAdminUsersParams, options?: RequestInit): Promise<getAdminUsersResponse> => {
+  
+  return apiMutator<getAdminUsersResponse>(getGetAdminUsersUrl(params),
+  {      
+    ...options,
+    method: 'GET'
+    
+    
+  }
+);}
+
+
+
+/**
+ * @summary Update admin web user roles or status
+ */
+export type patchAdminUsersUserIdResponse200 = {
+  data: AdminUser
+  status: 200
+}
+
+export type patchAdminUsersUserIdResponse400 = {
+  data: BadRequestResponse
+  status: 400
+}
+
+export type patchAdminUsersUserIdResponse401 = {
+  data: UnauthorizedResponse
+  status: 401
+}
+
+export type patchAdminUsersUserIdResponse403 = {
+  data: ForbiddenResponse
+  status: 403
+}
+
+export type patchAdminUsersUserIdResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+    
+export type patchAdminUsersUserIdResponseSuccess = (patchAdminUsersUserIdResponse200) & {
+  headers: Headers;
+};
+export type patchAdminUsersUserIdResponseError = (patchAdminUsersUserIdResponse400 | patchAdminUsersUserIdResponse401 | patchAdminUsersUserIdResponse403 | patchAdminUsersUserIdResponse404) & {
+  headers: Headers;
+};
+
+export type patchAdminUsersUserIdResponse = (patchAdminUsersUserIdResponseSuccess | patchAdminUsersUserIdResponseError)
+
+export const getPatchAdminUsersUserIdUrl = (userId: string,) => {
+
+
+  
+
+  return `/admin/users/${userId}`
+}
+
+export const patchAdminUsersUserId = async (userId: string,
+    updateAdminUserRequest: UpdateAdminUserRequest, options?: RequestInit): Promise<patchAdminUsersUserIdResponse> => {
+  
+  return apiMutator<patchAdminUsersUserIdResponse>(getPatchAdminUsersUserIdUrl(userId),
+  {      
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateAdminUserRequest,)
   }
 );}
 

@@ -349,6 +349,14 @@ func TestPasswordLoginAdmin(t *testing.T) {
 	if resp.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
 	}
+
+	var authResponse oapi.AuthResponse
+	if err := json.NewDecoder(resp.Body).Decode(&authResponse); err != nil {
+		t.Fatalf("decode auth response: %v", err)
+	}
+	if authResponse.User.CurrentRole != "ADMIN" {
+		t.Fatalf("expected currentRole ADMIN, got %q", authResponse.User.CurrentRole)
+	}
 }
 
 func TestPasswordLoginRoleConflictAndRetry(t *testing.T) {
@@ -390,6 +398,102 @@ func TestPasswordLoginRoleConflictAndRetry(t *testing.T) {
 	}, "")
 	if retry.Code != http.StatusOK {
 		t.Fatalf("expected retry 200, got %d: %s", retry.Code, retry.Body.String())
+	}
+
+	var authResponse oapi.AuthResponse
+	if err := json.NewDecoder(retry.Body).Decode(&authResponse); err != nil {
+		t.Fatalf("decode retry response: %v", err)
+	}
+	if authResponse.User.CurrentRole != "BOSS" {
+		t.Fatalf("expected currentRole BOSS, got %q", authResponse.User.CurrentRole)
+	}
+}
+
+func TestDebugSwitchRoleReissuesTokenForAssignedRole(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedAdmin(ctx, pool); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+	if err := seedRole(ctx, pool, adminID, "BOSS"); err != nil {
+		t.Fatalf("seed boss role: %v", err)
+	}
+
+	loginResp := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": adminUsername,
+		"password": adminPassword,
+		"role":     "ADMIN",
+	}, "")
+	if loginResp.Code != http.StatusOK {
+		t.Fatalf("expected login 200, got %d: %s", loginResp.Code, loginResp.Body.String())
+	}
+
+	var loginAuth oapi.AuthResponse
+	if err := json.NewDecoder(loginResp.Body).Decode(&loginAuth); err != nil {
+		t.Fatalf("decode login response: %v", err)
+	}
+
+	switchResp := doJSON(t, router, http.MethodPost, "/auth/debug/switch-role", map[string]interface{}{
+		"role": "BOSS",
+	}, loginAuth.AccessToken)
+	if switchResp.Code != http.StatusOK {
+		t.Fatalf("expected switch 200, got %d: %s", switchResp.Code, switchResp.Body.String())
+	}
+
+	var switched oapi.AuthResponse
+	if err := json.NewDecoder(switchResp.Body).Decode(&switched); err != nil {
+		t.Fatalf("decode switch response: %v", err)
+	}
+	if switched.User.CurrentRole != "BOSS" {
+		t.Fatalf("expected switched currentRole BOSS, got %q", switched.User.CurrentRole)
+	}
+
+	meResp := doJSON(t, router, http.MethodGet, "/me", nil, switched.AccessToken)
+	if meResp.Code != http.StatusOK {
+		t.Fatalf("expected /me 200, got %d: %s", meResp.Code, meResp.Body.String())
+	}
+	var me oapi.User
+	if err := json.NewDecoder(meResp.Body).Decode(&me); err != nil {
+		t.Fatalf("decode me: %v", err)
+	}
+	if me.CurrentRole != "BOSS" {
+		t.Fatalf("expected /me currentRole BOSS, got %q", me.CurrentRole)
+	}
+}
+
+func TestDebugSwitchRoleRejectsUnassignedRole(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedAdmin(ctx, pool); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+
+	loginResp := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": adminUsername,
+		"password": adminPassword,
+	}, "")
+	if loginResp.Code != http.StatusOK {
+		t.Fatalf("expected login 200, got %d: %s", loginResp.Code, loginResp.Body.String())
+	}
+
+	var loginAuth oapi.AuthResponse
+	if err := json.NewDecoder(loginResp.Body).Decode(&loginAuth); err != nil {
+		t.Fatalf("decode login response: %v", err)
+	}
+
+	switchResp := doJSON(t, router, http.MethodPost, "/auth/debug/switch-role", map[string]interface{}{
+		"role": "CS",
+	}, loginAuth.AccessToken)
+	if switchResp.Code != http.StatusForbidden {
+		t.Fatalf("expected switch 403, got %d: %s", switchResp.Code, switchResp.Body.String())
 	}
 }
 
@@ -1558,6 +1662,7 @@ func setupTestRouterWithPlatformConfig(t *testing.T, resolverConfig platform.Con
 			WeappAppID:                 resolverConfig.WeappAppID,
 			WeappAppSecret:             resolverConfig.WeappAppSecret,
 			EnablePhoneProofSimulation: resolverConfig.EnablePhoneProofSimulation,
+			EnableDebugRoleSwitch:      true,
 		},
 		DB:       pool,
 		Logger:   logger,

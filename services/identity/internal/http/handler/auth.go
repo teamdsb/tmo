@@ -170,7 +170,7 @@ func (h *Handler) PostAuthMiniLogin(c *gin.Context) {
 	response := oapi.AuthResponse{
 		AccessToken: token,
 		ExpiresIn:   expiresInSeconds(expiresAt),
-		User:        userFromModel(user, roles, userType),
+		User:        userFromModel(user, roles, selectedRole, userType),
 	}
 	c.JSON(http.StatusOK, response)
 }
@@ -606,9 +606,85 @@ func (h *Handler) PostAuthPasswordLogin(c *gin.Context) {
 	response := oapi.AuthResponse{
 		AccessToken: token,
 		ExpiresIn:   expiresInSeconds(expiresAt),
-		User:        userFromModel(user, roles, userType),
+		User:        userFromModel(user, roles, selectedRole, userType),
 	}
 	c.JSON(http.StatusOK, response)
+}
+
+func (h *Handler) PostAuthDebugSwitchRole(c *gin.Context) {
+	if !h.Config.EnableDebugRoleSwitch {
+		h.writeError(c, http.StatusNotFound, "not_found", "not found")
+		return
+	}
+
+	claims, ok := h.requireClaims(c)
+	if !ok {
+		return
+	}
+
+	var request oapi.DebugRoleSwitchRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
+		return
+	}
+
+	targetRole := strings.ToUpper(strings.TrimSpace(request.Role))
+	if targetRole == "" {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "role is required")
+		return
+	}
+
+	user, err := h.Store.GetUserByID(c.Request.Context(), claims.UserID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			h.writeError(c, http.StatusUnauthorized, "unauthorized", "invalid token")
+			return
+		}
+		h.logError("lookup user failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to switch role")
+		return
+	}
+	if user.Status == "disabled" {
+		h.writeError(c, http.StatusForbidden, "forbidden", "account disabled")
+		return
+	}
+
+	roles, err := h.Store.ListUserRoles(c.Request.Context(), user.ID)
+	if err != nil {
+		h.logError("list roles failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to switch role")
+		return
+	}
+	roles = normalizeRoles(roles)
+	if !containsRole(roles, targetRole) {
+		h.writeError(c, http.StatusForbidden, "forbidden", "role not assigned")
+		return
+	}
+
+	userType, ok := userTypeFromRole(targetRole)
+	if !ok {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid role")
+		return
+	}
+
+	var ownerSalesUserID *uuid.UUID
+	if targetRole == "CUSTOMER" && user.OwnerSalesUserID.Valid {
+		owner := uuid.UUID(user.OwnerSalesUserID.Bytes)
+		ownerSalesUserID = &owner
+	}
+
+	token, expiresAt, err := h.Auth.Issue(user.ID, targetRole, roles, string(userType), ownerSalesUserID, user.DisplayName, user.Phone)
+	if err != nil {
+		h.logError("issue token failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to switch role")
+		return
+	}
+
+	c.JSON(http.StatusOK, oapi.AuthResponse{
+		AccessToken: token,
+		ExpiresIn:   expiresInSeconds(expiresAt),
+		User:        userFromModel(user, roles, targetRole, userType),
+	})
 }
 
 func filterPasswordLoginRoles(roles []string) []string {

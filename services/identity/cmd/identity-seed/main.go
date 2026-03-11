@@ -26,6 +26,8 @@ const (
 	salesPassword   = "sales123"
 	adminUsername   = "admin"
 	adminPassword   = "admin123"
+	debugUsername   = "debug"
+	debugPassword   = "debug123"
 )
 
 func main() {
@@ -79,6 +81,7 @@ RESTART IDENTITY CASCADE
 	salesID := uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
 	multiID := uuid.MustParse("cccccccc-cccc-cccc-cccc-cccccccccccc")
 	customerID := uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
+	debugID := uuid.MustParse("12121212-1212-1212-1212-121212121212")
 
 	if err := ensureUser(ctx, pool, seedUser{
 		ID:          adminID,
@@ -138,6 +141,15 @@ RESTART IDENTITY CASCADE
 	}); err != nil {
 		return err
 	}
+	if err := ensureUser(ctx, pool, seedUser{
+		ID:               debugID,
+		DisplayName:      "Debug All Roles",
+		UserType:         "customer",
+		OwnerSalesUserID: &salesID,
+		Phone:            strPtr("+15550000008"),
+	}); err != nil {
+		return err
+	}
 
 	roleTargets := []seedRoleAssignment{
 		{UserID: adminID, Roles: []string{"ADMIN"}},
@@ -147,6 +159,7 @@ RESTART IDENTITY CASCADE
 		{UserID: salesID, Roles: []string{"SALES"}},
 		{UserID: customerID, Roles: []string{"CUSTOMER"}},
 		{UserID: multiID, Roles: []string{"CUSTOMER", "SALES"}},
+		{UserID: debugID, Roles: []string{"CUSTOMER", "SALES", "CS", "MANAGER", "ADMIN", "BOSS"}},
 	}
 	for _, roleTarget := range roleTargets {
 		if err := ensureExactRoles(ctx, pool, roleTarget.UserID, roleTarget.Roles); err != nil {
@@ -172,6 +185,13 @@ RESTART IDENTITY CASCADE
 		Provider:       "weapp",
 		ProviderUserID: "mock_multi_001",
 		UserID:         multiID,
+	}); err != nil {
+		return err
+	}
+	if err := ensureIdentity(ctx, pool, seedIdentity{
+		Provider:       "weapp",
+		ProviderUserID: "mock_debug_001",
+		UserID:         debugID,
 	}); err != nil {
 		return err
 	}
@@ -226,6 +246,13 @@ RESTART IDENTITY CASCADE
 	if err := ensurePassword(ctx, pool, salesID, salesUsername, string(salesPasswordHash)); err != nil {
 		return err
 	}
+	debugPasswordHash, err := bcrypt.GenerateFromPassword([]byte(debugPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash debug password: %w", err)
+	}
+	if err := ensurePassword(ctx, pool, debugID, debugUsername, string(debugPasswordHash)); err != nil {
+		return err
+	}
 	if err := verifySeedState(ctx, pool); err != nil {
 		return err
 	}
@@ -236,9 +263,10 @@ RESTART IDENTITY CASCADE
 	fmt.Printf("- %s / %s (role: BOSS)\n", bossUsername, bossPassword)
 	fmt.Printf("- %s / %s (role: MANAGER)\n", managerUsername, managerPassword)
 	fmt.Printf("- %s / %s (role: CS)\n", csUsername, csPassword)
+	fmt.Printf("- %s / %s (roles: BOSS / ADMIN / MANAGER / CS; use /auth/debug/switch-role for local role switch)\n", debugUsername, debugPassword)
 	fmt.Println("miniapp account:")
 	fmt.Printf("- %s / %s (role: SALES, password login disabled)\n", salesUsername, salesPassword)
-	fmt.Println("seeded phones: +15550000001(admin), +15550000002(sales), +15550000003(customer), +15550000004(multi-role), +15550000005(boss), +15550000006(manager), +15550000007(cs)")
+	fmt.Println("seeded phones: +15550000001(admin), +15550000002(sales), +15550000003(customer), +15550000004(multi-role), +15550000005(boss), +15550000006(manager), +15550000007(cs), +15550000008(debug)")
 	return nil
 }
 
@@ -249,6 +277,7 @@ func verifySeedState(ctx context.Context, pool *pgxpool.Pool) error {
 		managerUsername: "MANAGER",
 		csUsername:      "CS",
 		salesUsername:   "SALES",
+		debugUsername:   "ADMIN",
 	}
 	for username, role := range requiredPasswords {
 		var exists bool
@@ -271,6 +300,7 @@ SELECT EXISTS (
 		"mock_sales_001":    "SALES",
 		"mock_customer_001": "CUSTOMER",
 		"mock_multi_001":    "CUSTOMER",
+		"mock_debug_001":    "CUSTOMER",
 	}
 	for providerUserID, role := range requiredBindings {
 		var exists bool

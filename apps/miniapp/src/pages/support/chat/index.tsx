@@ -10,7 +10,7 @@ import './index.scss'
 import { commerceServices } from '../../../services/commerce'
 import { loadBootstrap } from '../../../services/bootstrap'
 import { ensureLoggedIn, isUnauthorized } from '../../../utils/auth'
-import { hasRole, isSalesUser } from '../../../utils/authz'
+import { isCustomerUser, isSalesUser } from '../../../utils/authz'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { goodsDetailRoute, orderDetailRoute, ROUTES } from '../../../routes'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
@@ -207,7 +207,7 @@ export default function SupportChatPage() {
       setPageError('')
       try {
         const bootstrap = await loadBootstrap()
-        if (isSalesUser(bootstrap) || !hasRole(bootstrap, 'CUSTOMER')) {
+        if (isSalesUser(bootstrap) || !isCustomerUser(bootstrap)) {
           if (!cancelled) {
             await Taro.showToast({ title: '当前身份请使用客服支持页', icon: 'none' })
             await navigateTo(ROUTES.support)

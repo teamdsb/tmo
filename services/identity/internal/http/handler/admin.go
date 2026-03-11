@@ -22,6 +22,7 @@ import (
 
 	shareddb "github.com/teamdsb/tmo/packages/go-shared/db"
 	"github.com/teamdsb/tmo/services/identity/internal/db"
+	"github.com/teamdsb/tmo/services/identity/internal/http/oapi"
 )
 
 const (
@@ -342,7 +343,7 @@ func (h *Handler) GetAdminSalesUsers(c *gin.Context) {
 	})
 }
 
-func (h *Handler) GetAdminUsers(c *gin.Context) {
+func (h *Handler) GetAdminUsers(c *gin.Context, _ oapi.GetAdminUsersParams) {
 	if _, _, ok := h.requirePermission(c, "rbac:manage", "ALL"); !ok {
 		return
 	}
@@ -396,17 +397,13 @@ func (h *Handler) GetAdminUsers(c *gin.Context) {
 	})
 }
 
-func (h *Handler) PatchAdminUsersUserId(c *gin.Context) {
+func (h *Handler) PatchAdminUsersUserId(c *gin.Context, userId openapi_types.UUID) {
 	claims, _, ok := h.requirePermission(c, "rbac:manage", "ALL")
 	if !ok {
 		return
 	}
 
-	userID, err := uuid.Parse(strings.TrimSpace(c.Param("userId")))
-	if err != nil {
-		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid userId")
-		return
-	}
+	userID := uuid.UUID(userId)
 
 	var request updateAdminUserRequest
 	if err := c.ShouldBindJSON(&request); err != nil {

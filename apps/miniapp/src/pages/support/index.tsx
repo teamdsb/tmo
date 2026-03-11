@@ -5,7 +5,7 @@ import type { BootstrapResponse } from '@tmo/gateway-api-client'
 import { ROUTES } from '../../routes'
 import { switchTabLike } from '../../utils/navigation'
 import { clearAuthSession, hasAuthToken, isUnauthorized } from '../../utils/auth'
-import { hasRole, isSalesUser } from '../../utils/authz'
+import { isCustomerUser } from '../../utils/authz'
 import { clearBootstrap, loadBootstrap, saveBootstrap } from '../../services/bootstrap'
 import { gatewayServices } from '../../services/gateway'
 import SupportSalesView from './support-sales-view'
@@ -63,7 +63,7 @@ export default function SupportPage() {
     )
   }
 
-  if (hasRole(bootstrap, 'CUSTOMER')) {
+  if (isCustomerUser(bootstrap)) {
     return <SupportChatPage />
   }
 

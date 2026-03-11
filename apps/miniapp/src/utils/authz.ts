@@ -39,6 +39,18 @@ export const isSalesUser = (bootstrap: BootstrapResponse | null): boolean => {
   return hasRole(bootstrap, 'SALES')
 }
 
+export const isCustomerUser = (bootstrap: BootstrapResponse | null): boolean => {
+  return bootstrap?.me?.userType === 'customer'
+}
+
+export const getCurrentRole = (bootstrap: BootstrapResponse | null): string => {
+  const currentRole = bootstrap?.me?.currentRole
+  if (typeof currentRole === 'string' && currentRole.trim()) {
+    return normalizeRole(currentRole)
+  }
+  return readRoles(bootstrap)[0] ?? ''
+}
+
 export const readRoleFromJwt = (token: string | null | undefined): string => {
   const raw = typeof token === 'string' ? token.trim() : ''
   if (!raw) {

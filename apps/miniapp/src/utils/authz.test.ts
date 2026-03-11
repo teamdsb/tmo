@@ -4,6 +4,7 @@ import { hasRole, isSalesUser } from './authz'
 const bootstrapWithRoles = (roles: string[]): BootstrapResponse => ({
   me: {
     id: 'u-1',
+    currentRole: roles[0] || 'CUSTOMER',
     userType: 'staff',
     roles,
     createdAt: '2026-01-01T00:00:00Z'
@@ -29,4 +30,3 @@ describe('authz utils', () => {
     expect(isSalesUser(bootstrapWithRoles(['CUSTOMER']))).toBe(false)
   })
 })
-

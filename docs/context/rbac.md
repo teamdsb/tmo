@@ -31,6 +31,8 @@
 - `POST /auth/mini/login` only supports role selection: `CUSTOMER`, `SALES`
 - `POST /auth/password/login` role whitelist: `BOSS`, `MANAGER`, `ADMIN`, `CS`
 - `SALES` does not use password login (miniapp only)
+- 当前会话的实际身份以 `currentRole` 为准；`roles[]` 仅表示账号被授予了哪些角色
+- 本地调试可开启 `POST /auth/debug/switch-role`，在“已分配角色集合”内重新签发单一当前角色 token；不放宽正式 RBAC
 
 ## Admin-Web User Operations Rules
 - `user-operations` 中的 `SALES` 指“小程序业务员”，不是泛指所有业务岗位

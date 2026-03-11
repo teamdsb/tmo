@@ -23,6 +23,7 @@ import {
   getRbacRoles,
   getStaff,
   patchStaffStaffId,
+  postAuthDebugSwitchRole,
   postAuthPasswordLogin,
   putRbacRolesRolePermissions,
   setIdentityApiClientConfig
@@ -156,6 +157,10 @@ export const passwordLogin = async (username, password, role) => {
   }
   const response = await postAuthPasswordLogin(payload);
   return response;
+};
+
+export const debugSwitchRole = async (role) => {
+  return postAuthDebugSwitchRole({ role });
 };
 
 export const bootstrap = async () => {

@@ -20,10 +20,13 @@ Identity service for authentication, JWT issuing, and sales binding.
 - Customer: `POST /auth/mini/login` with `{"platform":"weapp","code":"mock_customer_001"}`
 - Sales（业务员）: `POST /auth/mini/login` with `{"platform":"weapp","code":"mock_sales_001","role":"SALES"}`
 - Multi-role: `mock_multi_001` returns 409 with `details.availableRoles`, retry with `role`.
+- Debug all-role miniapp: `POST /auth/mini/login` with `{"platform":"weapp","code":"mock_debug_001"}` then choose `CUSTOMER` / `SALES`
 - Boss password: `POST /auth/password/login` with `{"username":"boss","password":"boss123"}`
 - Manager password: `POST /auth/password/login` with `{"username":"manager","password":"manager123"}`
 - CS password: `POST /auth/password/login` with `{"username":"cs","password":"cs123"}`
 - Admin password（超管）: `POST /auth/password/login` with `{"username":"admin","password":"admin123"}`
+- Debug all-role admin: `POST /auth/password/login` with `{"username":"debug","password":"debug123"}` then choose `BOSS` / `ADMIN` / `MANAGER` / `CS`
+- Local debug role switch: `POST /auth/debug/switch-role` with `{"role":"<TARGET_ROLE>"}` and current Bearer token
 - Staff binding: create staff + binding token (admin), then `POST /auth/mini/login` with `{"platform":"weapp","code":"mock_staff_001","bindingToken":"<token>","role":"SALES"}`
 
 说明：
@@ -70,6 +73,7 @@ Identity service for authentication, JWT issuing, and sales binding.
 - `IDENTITY_ALIPAY_PHONE_FALLBACK_AUTH_USER` (default `true`，开启后可在 `my.getPhoneNumber` 失败时回退 `auth_user`)
 - `IDENTITY_ENABLE_PHONE_PROOF_SIMULATION` (default `false`，审核前联调可开启模拟手机号)
 - `IDENTITY_PHONE_PROOF_SIMULATION_PHONE` (default `+15550009999`)
+- `IDENTITY_ENABLE_DEBUG_ROLE_SWITCH` (default `false`，仅建议本地 dev 打开；允许已登录用户在已分配角色之间重新签发 token)
 
 ## Real-mode mini login
 

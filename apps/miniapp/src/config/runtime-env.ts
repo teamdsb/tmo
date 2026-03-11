@@ -76,6 +76,13 @@ const weappAppIdConst = typeof __TMO_WEAPP_APP_ID__ !== 'undefined'
   : ''
 
 const optional = (value: string): string | undefined => value || undefined
+const isLocalBaseUrl = (value: string): boolean => {
+  const normalized = value.trim().toLowerCase()
+  return normalized.startsWith('http://localhost:')
+    || normalized.startsWith('https://localhost:')
+    || normalized.startsWith('http://127.0.0.1:')
+    || normalized.startsWith('https://127.0.0.1:')
+}
 const mockMode = parseMockMode(firstNonEmpty(
   readConst(mockModeConst),
   readProcessEnv('TARO_APP_MOCK_MODE')
@@ -93,8 +100,7 @@ const devFakePaymentEnabled = isIsolatedMock
     : nodeEnv !== 'production'
 const nonProductionFallbackBaseUrl =
   nodeEnv === 'production' || isIsolatedMock ? '' : 'http://localhost:8080'
-
-export const runtimeEnv = Object.freeze({
+const runtimeEnvRaw = {
   mockMode,
   isIsolatedMock,
   devFakePaymentEnabled,
@@ -153,8 +159,14 @@ export const runtimeEnv = Object.freeze({
   weappPhoneProofSimulation: readBoolean(firstNonEmpty(
     readConst(weappPhoneProofSimulationConst),
     readProcessEnv('TARO_APP_WEAPP_PHONE_PROOF_SIMULATION')
-  ))
-})
+  )),
+  enableDebugRoleSwitch: false
+}
+
+runtimeEnvRaw.enableDebugRoleSwitch = !runtimeEnvRaw.isIsolatedMock
+  && (isLocalBaseUrl(runtimeEnvRaw.gatewayBaseUrl) || isLocalBaseUrl(runtimeEnvRaw.identityBaseUrl))
+
+export const runtimeEnv = Object.freeze(runtimeEnvRaw)
 
 const requireBaseUrl = (
   serviceName: string,

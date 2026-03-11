@@ -11,11 +11,13 @@ import {
 import type { BootstrapResponse } from '@tmo/gateway-api-client'
 import { ROUTES } from '../../routes'
 import { clearAuthSession, hasAuthToken, isUnauthorized } from '../../utils/auth'
+import { getCurrentRole } from '../../utils/authz'
 import { getNavbarStyle } from '../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { gatewayServices } from '../../services/gateway'
 import { commerceServices } from '../../services/commerce'
 import { clearBootstrap, loadBootstrap, saveBootstrap } from '../../services/bootstrap'
+import { identityServices } from '../../services/identity'
 import placeholderProductImage from '../../assets/images/placeholder-product.svg'
 import { runtimeEnv } from '../../config/runtime-env'
 import {
@@ -36,6 +38,7 @@ export default function PersonalCenter() {
   const [bootstrap, setBootstrap] = useState<BootstrapResponse | null>(null)
   const [orderBadges, setOrderBadges] = useState<OrderBadges>({})
   const [loggingOut, setLoggingOut] = useState(false)
+  const [switchingRole, setSwitchingRole] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState<MineSubview>('profile')
   const [initialOrderTab, setInitialOrderTab] = useState('全部')
 
@@ -113,8 +116,24 @@ export default function PersonalCenter() {
 
   const isLoggedIn = Boolean(bootstrap?.me)
   const displayName = bootstrap?.me?.displayName?.trim() || (isLoggedIn ? '企业用户' : '未登录')
-  const roleLabel = bootstrap?.me?.roles?.find((role) => typeof role === 'string' && role.trim())?.trim() || '高级 B2B 客户经理'
+  const currentRole = getCurrentRole(bootstrap)
+  const roleLabel = currentRole || '高级 B2B 客户经理'
   const ownerSalesDisplayName = bootstrap?.me?.ownerSalesDisplayName?.trim() || '暂未分配专属顾问'
+  const debugRoleChoices = useMemo(() => {
+    if (!runtimeEnv.enableDebugRoleSwitch) {
+      return []
+    }
+    const roles = bootstrap?.me?.roles
+    if (!Array.isArray(roles)) {
+      return []
+    }
+    return Array.from(new Set(
+      roles
+        .filter((role): role is string => typeof role === 'string')
+        .map((role) => role.trim().toUpperCase())
+        .filter((role) => role === 'CUSTOMER' || role === 'SALES')
+    ))
+  }, [bootstrap?.me?.roles])
   const advisorFollowUpCopy = isLoggedIn
     ? '下单后由专属顾问继续报价、确认货源与同步发货进度。'
     : '登录后可绑定专属顾问，后续订单统一由固定联系人跟进。'
@@ -193,6 +212,25 @@ export default function PersonalCenter() {
     }
   }
 
+  const handleSwitchRole = async (role: string) => {
+    if (switchingRole || !bootstrap?.me) {
+      return
+    }
+    setSwitchingRole(role)
+    try {
+      await identityServices.auth.switchRole({ role })
+      const fresh = await gatewayServices.bootstrap.get()
+      setBootstrap(fresh)
+      await saveBootstrap(fresh)
+      await Taro.showToast({ title: '角色已切换', icon: 'none' })
+    } catch (error) {
+      console.warn('switch role failed', error)
+      await Taro.showToast({ title: '切换失败，请重试', icon: 'none' })
+    } finally {
+      setSwitchingRole(null)
+    }
+  }
+
   return (
     <View className='page font-sans mine-modern' style={isH5 ? navbarStyle : undefined}>
       {isH5 ? <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'></Navbar> : null}
@@ -224,6 +262,9 @@ export default function PersonalCenter() {
           orderItems={orderItems}
           menuItems={menuItems}
           loggingOut={loggingOut}
+          debugRoleChoices={debugRoleChoices}
+          currentRole={currentRole}
+          switchingRole={switchingRole}
           onOpenOrders={(tab) => {
             setInitialOrderTab(tab)
             setCurrentPage('orders')
@@ -242,6 +283,7 @@ export default function PersonalCenter() {
           }}
           onAuthAction={isLoggedIn ? handleLogout : () => navigateTo(ROUTES.authLogin)}
           onOpenAuth={() => navigateTo(ROUTES.authLogin)}
+          onSwitchRole={handleSwitchRole}
         />
       ) : null}
     </View>

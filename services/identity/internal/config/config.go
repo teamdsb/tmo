@@ -30,6 +30,7 @@ const (
 	defaultAlipaySignType              = "RSA2"
 	defaultAlipaySalesPage             = "pages/index/index"
 	defaultAlipayPhoneFallbackAuthUser = true
+	defaultEnableDebugRoleSwitch       = false
 )
 
 type Config struct {
@@ -58,6 +59,7 @@ type Config struct {
 	AlipayPhoneFallbackAuthUser bool
 	EnablePhoneProofSimulation  bool
 	PhoneProofSimulationPhone   string
+	EnableDebugRoleSwitch       bool
 }
 
 func Load() Config {
@@ -95,6 +97,10 @@ func Load() Config {
 		PhoneProofSimulationPhone: sharedconfig.String(
 			"IDENTITY_PHONE_PROOF_SIMULATION_PHONE",
 			defaultPhoneProofSimulationPhone,
+		),
+		EnableDebugRoleSwitch: sharedconfig.Bool(
+			"IDENTITY_ENABLE_DEBUG_ROLE_SWITCH",
+			defaultEnableDebugRoleSwitch,
 		),
 	}
 }
