@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -113,8 +114,18 @@ func (h *ImageProxyHandler) Handle(c *gin.Context) {
 
 	resp, err := h.client.Do(req)
 	if err != nil {
-		if isContextCanceled(c.Request.Context(), err) {
+		if isRequestContextCanceled(c.Request.Context()) {
 			c.Status(499)
+			return
+		}
+		if isTimeoutError(err) {
+			if h.logger != nil {
+				h.logger.Warn("image proxy upstream request timed out", "error", err, "url", targetURL.String())
+			}
+			apierrors.Write(c, http.StatusGatewayTimeout, apierrors.APIError{
+				Code:    "upstream_timeout",
+				Message: "image upstream timed out",
+			})
 			return
 		}
 		if h.logger != nil {
@@ -149,8 +160,18 @@ func (h *ImageProxyHandler) Handle(c *gin.Context) {
 
 	payload, err := io.ReadAll(io.LimitReader(resp.Body, h.maxBytes+1))
 	if err != nil {
-		if isContextCanceled(c.Request.Context(), err) {
+		if isRequestContextCanceled(c.Request.Context()) {
 			c.Status(499)
+			return
+		}
+		if isTimeoutError(err) {
+			if h.logger != nil {
+				h.logger.Warn("image proxy upstream body read timed out", "error", err, "url", targetURL.String())
+			}
+			apierrors.Write(c, http.StatusGatewayTimeout, apierrors.APIError{
+				Code:    "upstream_timeout",
+				Message: "image upstream timed out",
+			})
 			return
 		}
 		if h.logger != nil {
@@ -241,12 +262,16 @@ func isHostAllowed(host string, allowlist []string) bool {
 	return false
 }
 
-func isContextCanceled(ctx context.Context, err error) bool {
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return true
-	}
+func isRequestContextCanceled(ctx context.Context) bool {
 	if ctx == nil {
 		return false
 	}
 	return errors.Is(ctx.Err(), context.Canceled) || errors.Is(ctx.Err(), context.DeadlineExceeded)
+}
+
+func isTimeoutError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return errors.Is(err, context.DeadlineExceeded) || os.IsTimeout(err)
 }

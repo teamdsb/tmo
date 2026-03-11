@@ -6,6 +6,7 @@ root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 run_stack_up_raw="${E2E_LOCAL_STACK_UP:-true}"
 run_admin_smoke_raw="${E2E_LOCAL_RUN_ADMIN_SMOKE:-true}"
 run_miniapp_http_smoke_raw="${E2E_LOCAL_RUN_MINIAPP_HTTP_SMOKE:-true}"
+miniapp_http_allow_proxy_failure_raw="${E2E_LOCAL_MINIAPP_HTTP_ALLOW_PROXY_FAILURE:-true}"
 run_admin_real_raw="${E2E_LOCAL_RUN_ADMIN_REAL:-true}"
 run_admin_hybrid_raw="${E2E_LOCAL_RUN_ADMIN_HYBRID:-false}"
 run_miniapp_auth_raw="${E2E_LOCAL_RUN_MINIAPP_AUTH:-true}"
@@ -21,6 +22,7 @@ lower_bool() {
 run_stack_up="$(lower_bool "$run_stack_up_raw")"
 run_admin_smoke="$(lower_bool "$run_admin_smoke_raw")"
 run_miniapp_http_smoke="$(lower_bool "$run_miniapp_http_smoke_raw")"
+miniapp_http_allow_proxy_failure="$(lower_bool "$miniapp_http_allow_proxy_failure_raw")"
 run_admin_real="$(lower_bool "$run_admin_real_raw")"
 run_admin_hybrid="$(lower_bool "$run_admin_hybrid_raw")"
 run_miniapp_auth="$(lower_bool "$run_miniapp_auth_raw")"
@@ -60,7 +62,11 @@ fi
 
 if [[ "$run_miniapp_http_smoke" == "true" ]]; then
   phase "running miniapp HTTP smoke..."
-  bash "$root_dir/tools/scripts/miniapp-http-smoke.sh"
+  if [[ "$miniapp_http_allow_proxy_failure" == "true" ]]; then
+    MINIAPP_HTTP_SMOKE_ALLOW_PROXY_FAILURE=true bash "$root_dir/tools/scripts/miniapp-http-smoke.sh"
+  else
+    bash "$root_dir/tools/scripts/miniapp-http-smoke.sh"
+  fi
 fi
 
 if [[ "$run_admin_real" == "true" ]]; then

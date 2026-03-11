@@ -106,7 +106,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		Image:                imageProxyHandler.Handle,
 	}, logger, readyChecker.Check, int64(cfg.MaxBodyBytes))
 
-	server := httpserver.NewServer(cfg.HTTPAddr, router)
+	server := httpserver.NewServer(cfg.HTTPAddr, router, cfg.ImageProxyTimeout)
 
 	logger.Info("gateway-bff service listening", "addr", cfg.HTTPAddr)
 
