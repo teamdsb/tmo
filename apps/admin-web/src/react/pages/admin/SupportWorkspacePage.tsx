@@ -14,19 +14,24 @@ import {
 
 import { AdminTopbar } from '../../layout/AdminTopbar';
 import { getCurrentSession } from '../../../lib/auth';
-import { apiBaseUrl, isMockMode } from '../../../lib/env';
+import { isMockMode } from '../../../lib/env';
 import {
   claimAdminSupportConversation,
   fetchAdminSupportConversation,
   fetchAdminSupportConversations,
-  fetchOrders,
   fetchProducts,
   fetchStaffUsers,
+  markSupportConversationRead,
   releaseAdminSupportConversation,
   sendSupportConversationMessage,
   transferAdminSupportConversation,
   uploadSupportConversationImage
 } from '../../../lib/api';
+import {
+  refreshAdminSupportNotifications,
+  syncAdminSupportNotificationConversation,
+  useAdminSupportNotifications
+} from '../../support/adminSupportNotifications';
 import {
   buildOrderCardPayload,
   buildProductCardPayload,
@@ -45,25 +50,31 @@ import {
   type SupportMessage
 } from './supportWorkspaceData';
 
-const buildWsUrl = (token) => {
-  const base = String(apiBaseUrl || '').replace(/\/+$/, '');
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const query = token ? `?token=${encodeURIComponent(token)}` : '';
-  if (!base) {
-    return `${protocol}//${window.location.host}/ws/support${query}`;
-  }
-  if (base.startsWith('http://')) {
-    return `${base.replace(/^http:\/\//, 'ws://')}/ws/support${query}`;
-  }
-  if (base.startsWith('https://')) {
-    return `${base.replace(/^https:\/\//, 'wss://')}/ws/support${query}`;
-  }
-  return `${protocol}//${window.location.host}${base}/ws/support${query}`;
-};
-
 const normalizeConversations = (payload) => {
   const items = Array.isArray(payload?.items) ? payload.items : [];
   return items.map((item) => normalizeSupportConversation(item)).filter(Boolean);
+};
+
+const SUPPORT_NAVIGATION_EVENT = 'tmo:admin-support:navigate';
+
+const readConversationIdFromUrl = () => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  return String(new URLSearchParams(window.location.search).get('conversationId') || '').trim();
+};
+
+const syncConversationIdToUrl = (conversationId) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const url = new URL(window.location.href);
+  if (conversationId) {
+    url.searchParams.set('conversationId', conversationId);
+  } else {
+    url.searchParams.delete('conversationId');
+  }
+  window.history.replaceState({}, '', `${url.pathname}${url.search}`);
 };
 
 const getCurrentRole = () => {
@@ -151,9 +162,11 @@ const MessageBubble = ({ message }) => {
 
 export const SupportWorkspacePage = () => {
   const mockSeed = useMemo(() => (isMockMode ? createMockSupportData() : null), []);
-  const [scope, setScope] = useState(getDefaultSupportScope);
+  const supportNotifications = useAdminSupportNotifications();
+  const initialConversationIdRef = useRef(readConversationIdFromUrl());
+  const [scope, setScope] = useState(() => (initialConversationIdRef.current ? 'all' : getDefaultSupportScope()));
   const [conversations, setConversations] = useState<SupportConversationSummary[]>(mockSeed?.conversations || []);
-  const [activeConversationId, setActiveConversationId] = useState(mockSeed?.conversations[0]?.id || '');
+  const [activeConversationId, setActiveConversationId] = useState(initialConversationIdRef.current || mockSeed?.conversations[0]?.id || '');
   const [conversationDetail, setConversationDetail] = useState<SupportConversationDetail | null>(mockSeed?.details?.[mockSeed.conversations[0]?.id || ''] || null);
   const [staffOptions, setStaffOptions] = useState<StaffOption[]>(mockSeed?.staff || []);
   const [productOptions, setProductOptions] = useState([]);
@@ -164,6 +177,9 @@ export const SupportWorkspacePage = () => {
   const [sendingState, setSendingState] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const lastNotificationRevisionRef = useRef(0);
+  const readingConversationIdRef = useRef('');
+  const requestedConversationIdRef = useRef(initialConversationIdRef.current);
 
   const activeConversation = useMemo(() => {
     return conversations.find((item) => item.id === activeConversationId) || null;
@@ -191,7 +207,16 @@ export const SupportWorkspacePage = () => {
     }
     const items = normalizeConversations(response.data);
     setConversations(items);
-    setActiveConversationId((current) => current || items[0]?.id || '');
+    setActiveConversationId((current) => {
+      const requestedConversationId = requestedConversationIdRef.current;
+      if (requestedConversationId) {
+        return requestedConversationId;
+      }
+      if (current) {
+        return current;
+      }
+      return items[0]?.id || '';
+    });
   }, [scope]);
 
   const reloadConversationDetail = useCallback(async (conversationId) => {
@@ -200,14 +225,38 @@ export const SupportWorkspacePage = () => {
       return;
     }
     if (isMockMode) {
-      setConversationDetail(mockSeed?.details?.[conversationId] || null);
+      const detail = mockSeed?.details?.[conversationId] || null;
+      setConversationDetail(detail);
+      if (!detail && requestedConversationIdRef.current === conversationId) {
+        requestedConversationIdRef.current = '';
+        syncConversationIdToUrl('');
+        setStatusMessage('目标客服会话不存在或无法访问。');
+      }
       return;
     }
     const response = await fetchAdminSupportConversation(conversationId);
     if (response.status !== 200) {
+      if ((response.status === 403 || response.status === 404) && requestedConversationIdRef.current === conversationId) {
+        requestedConversationIdRef.current = '';
+        syncConversationIdToUrl('');
+        setActiveConversationId((current) => (current === conversationId ? '' : current));
+        setStatusMessage('目标客服会话不存在或无法访问。');
+        setConversationDetail(null);
+        return;
+      }
       throw new Error(response?.data?.message || '加载会话详情失败');
     }
-    setConversationDetail(normalizeSupportConversationDetail(response.data));
+    const detail = normalizeSupportConversationDetail(response.data);
+    setConversationDetail(detail);
+    if (detail?.conversation) {
+      setConversations((current) => {
+        const existingIndex = current.findIndex((item) => item.id === detail.conversation.id);
+        if (existingIndex === -1) {
+          return [detail.conversation, ...current];
+        }
+        return current.map((item) => (item.id === detail.conversation.id ? { ...item, ...detail.conversation } : item));
+      });
+    }
   }, [mockSeed]);
 
   const reloadReferenceData = useCallback(async () => {
@@ -226,7 +275,11 @@ export const SupportWorkspacePage = () => {
     setLoading(true);
     setStatusMessage('');
     try {
-      await Promise.all([reloadConversations(), reloadReferenceData()]);
+      await Promise.all([
+        reloadConversations(),
+        reloadReferenceData(),
+        refreshAdminSupportNotifications({ emitToast: false })
+      ]);
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : '初始化客服工作台失败');
     } finally {
@@ -239,71 +292,169 @@ export const SupportWorkspacePage = () => {
   }, [initialize]);
 
   useEffect(() => {
+    const handlePopState = () => {
+      const nextConversationId = readConversationIdFromUrl();
+      requestedConversationIdRef.current = nextConversationId;
+      setActiveConversationId(nextConversationId || conversations[0]?.id || '');
+      if (nextConversationId) {
+        setScope('all');
+      }
+    };
+
+    const handleSupportNavigate = (event) => {
+      const detail = event instanceof CustomEvent ? event.detail : null;
+      const nextConversationId = String(detail?.conversationId || '').trim();
+      requestedConversationIdRef.current = nextConversationId;
+      setScope('all');
+      setActiveConversationId(nextConversationId);
+      syncConversationIdToUrl(nextConversationId);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener(SUPPORT_NAVIGATION_EVENT, handleSupportNavigate);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener(SUPPORT_NAVIGATION_EVENT, handleSupportNavigate);
+    };
+  }, [conversations]);
+
+  useEffect(() => {
     void reloadConversationDetail(activeConversationId);
   }, [activeConversationId, reloadConversationDetail]);
 
   useEffect(() => {
-    if (isMockMode) {
-      return undefined;
+    if (!activeConversationId) {
+      syncConversationIdToUrl('');
+      return;
     }
-    const token = String(getCurrentSession()?.accessToken || '');
-    let pollTimer = null;
-    if (!token) {
-      pollTimer = window.setInterval(() => {
-        void reloadConversations();
-        if (activeConversationId) {
-          void reloadConversationDetail(activeConversationId);
-        }
-      }, 5000);
-      return () => {
-        if (pollTimer) {
-          window.clearInterval(pollTimer);
+    syncConversationIdToUrl(activeConversationId);
+  }, [activeConversationId]);
+
+  useEffect(() => {
+    if (lastNotificationRevisionRef.current === supportNotifications.revision) {
+      return;
+    }
+    lastNotificationRevisionRef.current = supportNotifications.revision;
+    if (!supportNotifications.enabled) {
+      return;
+    }
+    void reloadConversations();
+    if (activeConversationId) {
+      void reloadConversationDetail(activeConversationId);
+    }
+  }, [activeConversationId, reloadConversationDetail, reloadConversations, supportNotifications.enabled, supportNotifications.revision]);
+
+  useEffect(() => {
+    if (supportNotifications.items.length === 0) {
+      return;
+    }
+    const unreadById = new Map(supportNotifications.items.map((item) => [item.id, item]));
+    setConversations((current) => current.map((item) => {
+      const updated = unreadById.get(item.id);
+      return updated ? { ...item, ...updated } : item;
+    }));
+    setConversationDetail((current) => {
+      if (!current) {
+        return current;
+      }
+      const updated = unreadById.get(current.conversation.id);
+      if (!updated) {
+        return current;
+      }
+      return {
+        ...current,
+        conversation: {
+          ...current.conversation,
+          ...updated
         }
       };
+    });
+  }, [supportNotifications.items]);
+
+  const refreshWorkspaceState = useCallback(async (conversationId = activeConversationId) => {
+    await Promise.all([
+      reloadConversations(),
+      refreshAdminSupportNotifications({ emitToast: false }),
+      conversationId ? reloadConversationDetail(conversationId) : Promise.resolve()
+    ]);
+  }, [activeConversationId, reloadConversationDetail, reloadConversations]);
+
+  const markConversationRead = useCallback(async (conversationId) => {
+    const targetConversation = conversations.find((item) => item.id === conversationId)
+      || supportNotifications.items.find((item) => item.id === conversationId)
+      || null;
+    if (!conversationId || !targetConversation || targetConversation.staffUnreadCount <= 0) {
+      return;
     }
-    const socket = new WebSocket(buildWsUrl(token));
-    socket.onopen = () => {
-      setStatusMessage('');
-      if (pollTimer) {
-        window.clearInterval(pollTimer);
-        pollTimer = null;
-      }
+    if (readingConversationIdRef.current === conversationId) {
+      return;
+    }
+    readingConversationIdRef.current = conversationId;
+    const clearedConversation = {
+      ...targetConversation,
+      staffUnreadCount: 0
     };
-    socket.onerror = () => {
-      setStatusMessage('实时连接中断，已切换为 5 秒轮询。');
-      if (!pollTimer) {
-        pollTimer = window.setInterval(() => {
-          void reloadConversations();
-          if (activeConversationId) {
-            void reloadConversationDetail(activeConversationId);
+    try {
+      setConversations((current) => current.map((item) => (item.id === conversationId ? clearedConversation : item)));
+      if (conversationDetail?.conversation?.id === conversationId) {
+        setConversationDetail((current) => {
+          if (!current) {
+            return current;
           }
-        }, 5000);
+          return {
+            ...current,
+            conversation: {
+              ...current.conversation,
+              staffUnreadCount: 0
+            }
+          };
+        });
       }
-    };
-    socket.onclose = () => {
-      setStatusMessage('实时连接已断开，已切换为 5 秒轮询。');
-      if (!pollTimer) {
-        pollTimer = window.setInterval(() => {
-          void reloadConversations();
-          if (activeConversationId) {
-            void reloadConversationDetail(activeConversationId);
+      syncAdminSupportNotificationConversation(clearedConversation);
+      if (isMockMode) {
+        return;
+      }
+      const response = await markSupportConversationRead(conversationId);
+      if (response.status !== 200) {
+        throw new Error(response?.data?.message || '标记已读失败');
+      }
+      const normalized = normalizeSupportConversation(response.data);
+      if (normalized) {
+        setConversations((current) => current.map((item) => (item.id === conversationId ? { ...item, ...normalized } : item)));
+        setConversationDetail((current) => {
+          if (!current || current.conversation.id !== conversationId) {
+            return current;
           }
-        }, 5000);
+          return {
+            ...current,
+            conversation: {
+              ...current.conversation,
+              ...normalized
+            }
+          };
+        });
+        syncAdminSupportNotificationConversation(normalized);
+      } else {
+        await refreshAdminSupportNotifications({ emitToast: false });
       }
-    };
-    socket.onmessage = () => {
-      void reloadConversations();
-      if (activeConversationId) {
-        void reloadConversationDetail(activeConversationId);
-      }
-    };
-    return () => {
-      socket.close();
-      if (pollTimer) {
-        window.clearInterval(pollTimer);
-      }
-    };
-  }, [activeConversationId, reloadConversations, reloadConversationDetail]);
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : '标记已读失败');
+      await refreshWorkspaceState(conversationId);
+    } finally {
+      readingConversationIdRef.current = '';
+    }
+  }, [conversationDetail?.conversation?.id, conversations, refreshWorkspaceState, supportNotifications.items]);
+
+  useEffect(() => {
+    if (!activeConversationId) {
+      return;
+    }
+    const unreadConversation = conversations.find((item) => item.id === activeConversationId);
+    if (!unreadConversation || unreadConversation.staffUnreadCount <= 0) {
+      return;
+    }
+    void markConversationRead(activeConversationId);
+  }, [activeConversationId, conversations, markConversationRead]);
 
   const handleClaim = async () => {
     if (!activeConversationId || isMockMode) {
@@ -314,8 +465,7 @@ export const SupportWorkspacePage = () => {
       setStatusMessage(response?.data?.message || '认领失败');
       return;
     }
-    await reloadConversations();
-    await reloadConversationDetail(activeConversationId);
+    await refreshWorkspaceState(activeConversationId);
   };
 
   const handleRelease = async () => {
@@ -327,8 +477,7 @@ export const SupportWorkspacePage = () => {
       setStatusMessage(response?.data?.message || '释放失败');
       return;
     }
-    await reloadConversations();
-    await reloadConversationDetail(activeConversationId);
+    await refreshWorkspaceState(activeConversationId);
   };
 
   const handleTransfer = async () => {
@@ -350,8 +499,7 @@ export const SupportWorkspacePage = () => {
       return;
     }
     setTransferTargetId('');
-    await reloadConversations();
-    await reloadConversationDetail(activeConversationId);
+    await refreshWorkspaceState(activeConversationId);
   };
 
   const appendMessage = (message) => {
@@ -383,7 +531,7 @@ export const SupportWorkspacePage = () => {
         appendMessage(normalized);
       }
       setDraft('');
-      await reloadConversations();
+      await refreshWorkspaceState(activeConversationId);
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : '发送失败');
     } finally {
@@ -416,7 +564,7 @@ export const SupportWorkspacePage = () => {
       if (normalized) {
         appendMessage(normalized);
       }
-      await reloadConversations();
+      await refreshWorkspaceState(activeConversationId);
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : '图片发送失败');
     } finally {
@@ -441,7 +589,7 @@ export const SupportWorkspacePage = () => {
     if (normalized) {
       appendMessage(normalized);
     }
-    await reloadConversations();
+    await refreshWorkspaceState(activeConversationId);
   };
 
   const handleSendProductCard = async (product) => {
@@ -466,7 +614,7 @@ export const SupportWorkspacePage = () => {
     if (normalized) {
       appendMessage(normalized);
     }
-    await reloadConversations();
+    await refreshWorkspaceState(activeConversationId);
   };
 
   return (
@@ -518,7 +666,11 @@ export const SupportWorkspacePage = () => {
               <button
                 key={conversation.id}
                 type="button"
-                onClick={() => setActiveConversationId(conversation.id)}
+                onClick={() => {
+                  requestedConversationIdRef.current = conversation.id;
+                  setActiveConversationId(conversation.id);
+                  void markConversationRead(conversation.id);
+                }}
                 data-testid={`support-conversation-${conversation.id}`}
                 className={`flex w-full items-start gap-3 border-b border-slate-100 px-5 py-4 text-left transition hover:bg-slate-50 ${conversation.id === activeConversationId ? 'bg-blue-50' : 'bg-white'}`}
               >

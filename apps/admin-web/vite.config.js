@@ -25,6 +25,7 @@ export default defineConfig({
         target: proxyTarget,
         changeOrigin: true,
         secure: false,
+        ws: true,
         rewrite: (path) => path.replace(/^\/api/, '')
       },
       '/payment-api': {

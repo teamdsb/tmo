@@ -498,6 +498,13 @@ export const sendSupportConversationMessage = async (conversationId, payload) =>
   });
 };
 
+export const markSupportConversationRead = async (conversationId) => {
+  return requestRaw(`/support/conversations/${conversationId}/read`, {
+    method: 'POST',
+    body: {}
+  });
+};
+
 export const uploadSupportConversationImage = async (conversationId, file) => {
   const form = new FormData();
   form.append('file', file);
