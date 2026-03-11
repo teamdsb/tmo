@@ -11,6 +11,8 @@ import (
 	"github.com/teamdsb/tmo/packages/go-shared/httpx"
 )
 
+const imageProxyWriteTimeoutBuffer = 5 * time.Second
+
 type ProxyHandlers struct {
 	Identity             gin.HandlerFunc
 	Commerce             gin.HandlerFunc
@@ -98,12 +100,22 @@ func NewRouter(handlers ProxyHandlers, logger *slog.Logger, readyCheck func(cont
 	return router
 }
 
-func NewServer(addr string, router http.Handler) *http.Server {
+func NewServer(addr string, router http.Handler, imageProxyTimeout time.Duration) *http.Server {
 	server := httpx.NewServer(addr, router)
-	// Gateway image proxy may need extra time before first byte is written.
-	// Keep a longer write timeout here to avoid empty replies on slow upstream images.
-	server.WriteTimeout = 2 * time.Minute
+	server.WriteTimeout = gatewayWriteTimeout(imageProxyTimeout)
 	return server
+}
+
+func gatewayWriteTimeout(imageProxyTimeout time.Duration) time.Duration {
+	if imageProxyTimeout <= 0 {
+		imageProxyTimeout = 10 * time.Second
+	}
+	base := httpx.NewServer("", http.NewServeMux()).WriteTimeout
+	candidate := imageProxyTimeout + imageProxyWriteTimeoutBuffer
+	if candidate < base {
+		return base
+	}
+	return candidate
 }
 
 func limitRequestBody(maxBytes int64) gin.HandlerFunc {
