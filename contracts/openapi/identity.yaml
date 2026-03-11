@@ -83,6 +83,32 @@ paths:
           "$ref": "#/components/responses/Unauthorized"
         '409':
           "$ref": "#/components/responses/Conflict"
+  "/auth/debug/switch-role":
+    post:
+      tags:
+      - Auth
+      summary: Local debug only. Re-issue token with another assigned role.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/DebugRoleSwitchRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AuthResponse"
+        '400':
+          "$ref": "#/components/responses/BadRequest"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+        '403':
+          "$ref": "#/components/responses/Forbidden"
+        '404':
+          "$ref": "#/components/responses/NotFound"
   "/me":
     get:
       tags:
@@ -607,6 +633,8 @@ components:
       "$ref": "./common.yaml#/components/schemas/PasswordLoginRequest"
     AuthResponse:
       "$ref": "./common.yaml#/components/schemas/AuthResponse"
+    DebugRoleSwitchRequest:
+      "$ref": "./common.yaml#/components/schemas/DebugRoleSwitchRequest"
     User:
       "$ref": "./common.yaml#/components/schemas/User"
     Customer:

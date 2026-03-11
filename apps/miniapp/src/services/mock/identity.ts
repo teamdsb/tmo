@@ -2,6 +2,7 @@ import { login as platformLogin } from '@tmo/platform-adapter'
 import {
   ApiError,
   RoleSelectionRequiredError,
+  type DebugRoleSwitchInput,
   type IdentityServices,
   type MiniLoginInput
 } from '@tmo/identity-services'
@@ -12,6 +13,7 @@ import {
   createIsolatedTokenStore,
   getMockPermissions,
   getMockUser,
+  type IsolatedMockAuthContext,
   loadIsolatedMockAuthContext,
   saveIsolatedMockAuthContext
 } from './runtime'
@@ -85,6 +87,19 @@ export const createMockIdentityServices = (): IdentityServices => {
       },
       passwordLogin: async () => {
         throw new Error('password login is not available in miniapp isolated mock mode')
+      },
+      switchRole: async (input: DebugRoleSwitchInput) => {
+        const current = await ensureAuthorized()
+        const selectedRole = resolveSelectedRole(current.roles, input.role)
+        const nextContext: IsolatedMockAuthContext = {
+          ...current,
+          currentRole: selectedRole,
+          userType: selectedRole === 'CUSTOMER' ? 'customer' : 'staff'
+        }
+        const token = createIsolatedMockAccessToken()
+        await tokens.setToken(token)
+        await saveIsolatedMockAuthContext(nextContext)
+        return buildAuthResponse(token, nextContext)
       }
     },
     me: {

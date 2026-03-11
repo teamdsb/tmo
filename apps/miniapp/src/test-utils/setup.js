@@ -372,7 +372,8 @@ jest.mock('@tmo/identity-services', () => {
         setToken: jest.fn(async () => ({}))
       },
       auth: {
-        miniLogin: jest.fn(async () => ({}))
+        miniLogin: jest.fn(async () => ({})),
+        switchRole: jest.fn(async () => ({}))
       },
       me: {
         get: jest.fn(async () => ({})),

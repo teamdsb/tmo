@@ -1,7 +1,7 @@
-import { InquiriesPage } from '../pages/admin/InquiriesPage';
+import { SupportWorkspacePage } from '../pages/admin/SupportWorkspacePage';
 import { mountAdminPage } from '../runtime/mountAdminPage';
 import { ensureProtectedPage } from '../../lib/guard';
 
-void mountAdminPage(<InquiriesPage />, async () => {
+void mountAdminPage(<SupportWorkspacePage />, async () => {
   await ensureProtectedPage();
 });

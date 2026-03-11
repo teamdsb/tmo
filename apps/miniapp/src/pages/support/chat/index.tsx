@@ -10,10 +10,17 @@ import './index.scss'
 import { commerceServices } from '../../../services/commerce'
 import { loadBootstrap } from '../../../services/bootstrap'
 import { ensureLoggedIn, isUnauthorized } from '../../../utils/auth'
+import { isCustomerUser, isSalesUser } from '../../../utils/authz'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { goodsDetailRoute, orderDetailRoute, ROUTES } from '../../../routes'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { requireCommerceBaseUrl } from '../../../config/runtime-env'
+import {
+  clearSupportComposeIntent,
+  loadSupportComposeIntent,
+  saveSupportComposeIntent,
+  type SupportComposeIntent
+} from './compose-intent'
 
 type ChatMessageItem = Awaited<ReturnType<typeof commerceServices.support.sendMessage>> & {
   localId?: string
@@ -80,7 +87,7 @@ const connectSupportSocket = async (
     }
   }
 
-  const task = Taro.connectSocket({
+  const task = await Taro.connectSocket({
     url,
     header: {
       Authorization: `Bearer ${token}`
@@ -153,6 +160,8 @@ export default function SupportChatPage() {
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
   const [recentProducts, setRecentProducts] = useState<RecentProduct[]>([])
   const [pageError, setPageError] = useState('')
+  const [composeIntent, setComposeIntent] = useState<SupportComposeIntent | null>(null)
+  const [sendingIntentProduct, setSendingIntentProduct] = useState(false)
   const socketRef = useRef<SocketController | null>(null)
 
   useEffect(() => {
@@ -198,6 +207,13 @@ export default function SupportChatPage() {
       setPageError('')
       try {
         const bootstrap = await loadBootstrap()
+        if (isSalesUser(bootstrap) || !isCustomerUser(bootstrap)) {
+          if (!cancelled) {
+            await Taro.showToast({ title: '当前身份请使用客服支持页', icon: 'none' })
+            await navigateTo(ROUTES.support)
+          }
+          return
+        }
         const currentConversation = await commerceServices.support.getCurrentConversation()
         if (cancelled) {
           return
@@ -229,13 +245,14 @@ export default function SupportChatPage() {
             setConversation(envelope.data.conversation)
           }
           if (envelope.type === 'message.created' && envelope.data?.message?.conversationId === currentConversation.id) {
+            const nextMessage = envelope.data.message
             setMessages((currentItems) => {
               const nextItems = currentItems.filter((item) => !(
                 item.pending &&
-                item.messageType === envelope.data?.message?.messageType &&
-                item.textContent === envelope.data?.message?.textContent
+                item.messageType === nextMessage.messageType &&
+                item.textContent === nextMessage.textContent
               ))
-              return [...nextItems, envelope.data.message]
+              return [...nextItems, nextMessage]
             })
           }
         }, setSocketState)
@@ -273,6 +290,74 @@ export default function SupportChatPage() {
       socketRef.current = null
     }
   }, [])
+
+  const sendComposeIntent = async (
+    currentConversation: NonNullable<typeof conversation>,
+    intent: SupportComposeIntent
+  ): Promise<boolean> => {
+    if (intent.kind !== 'product_inquiry') {
+      return false
+    }
+
+    try {
+      const cardMessage = await commerceServices.support.sendMessage(currentConversation.id, {
+        messageType: 'PRODUCT_CARD',
+        cardPayload: {
+          title: intent.productName,
+          subtitle: '点击查看商品详情',
+          route: goodsDetailRoute(intent.productId),
+          productId: intent.productId,
+          imageUrl: intent.productImageUrl
+        }
+      })
+      const textMessage = await commerceServices.support.sendMessage(currentConversation.id, {
+        messageType: 'TEXT',
+        text: intent.message
+      })
+
+      setMessages((currentItems) => [...currentItems, cardMessage, textMessage])
+      setConversation(await commerceServices.support.getCurrentConversation())
+      await clearSupportComposeIntent()
+      setComposeIntent(null)
+      await Taro.showToast({ title: '已发送当前商品', icon: 'success' })
+      return true
+    } catch (error) {
+      console.warn('send support compose intent failed', error)
+      await saveSupportComposeIntent(intent)
+      await Taro.showToast({ title: '发送商品失败，请重试', icon: 'none' })
+      return false
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    const consumeComposeIntent = async () => {
+      const intent = await loadSupportComposeIntent()
+      if (cancelled) {
+        return
+      }
+      setComposeIntent(intent)
+    }
+
+    void consumeComposeIntent()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const handleSendIntentProduct = async () => {
+    if (!conversation || !composeIntent || sendingIntentProduct || sendingText || uploadingImage) {
+      return
+    }
+    setSendingIntentProduct(true)
+    try {
+      await sendComposeIntent(conversation, composeIntent)
+    } finally {
+      setSendingIntentProduct(false)
+    }
+  }
 
   const handleBack = async () => {
     await Taro.navigateBack().catch(() => switchTabLike(ROUTES.mine))
@@ -452,7 +537,7 @@ export default function SupportChatPage() {
     if (!selected) {
       return
     }
-    const firstItem = selected.items?.[0]?.name || '查看订单详情'
+    const firstItem = selected.items?.[0]?.sku?.name || '查看订单详情'
     const created = await commerceServices.support.sendMessage(conversation.id, {
       messageType: 'ORDER_CARD',
       cardPayload: {
@@ -560,6 +645,14 @@ export default function SupportChatPage() {
         <View className={`support-chat__chip ${!conversation ? 'support-chat__chip--disabled' : ''}`} onClick={() => conversation ? void handleSendOrderCard() : undefined}>
           <Text>发送订单</Text>
         </View>
+        {composeIntent?.kind === 'product_inquiry' ? (
+          <View
+            className={`support-chat__chip ${!conversation || sendingIntentProduct ? 'support-chat__chip--disabled' : ''}`}
+            onClick={() => conversation && !sendingIntentProduct ? void handleSendIntentProduct() : undefined}
+          >
+            <Text>{sendingIntentProduct ? '发送当前商品中...' : `发送当前商品 · ${composeIntent.productName}`}</Text>
+          </View>
+        ) : null}
         <View className={`support-chat__chip ${!conversation ? 'support-chat__chip--disabled' : ''}`} onClick={() => conversation ? void handleSendProductCard() : undefined}>
           <Text>发送商品</Text>
         </View>

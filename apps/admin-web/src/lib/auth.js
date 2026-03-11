@@ -1,4 +1,4 @@
-import { bootstrap, passwordLogin } from './api';
+import { bootstrap, debugSwitchRole, passwordLogin } from './api';
 import { filterAllowedAdminWebRoles, isAllowedAdminWebRole, normalizeRole } from './admin-role-policy';
 import { isDevMode, isMockMode, routes } from './env';
 import {
@@ -131,6 +131,10 @@ export const loginMock = (input, role) => {
 
 // 从显式选择或用户角色列表中推断当前角色。
 const inferCurrentRole = (user, explicitRole) => {
+  const reportedCurrentRole = normalizeRole(user?.currentRole);
+  if (isAllowedAdminWebRole(reportedCurrentRole)) {
+    return reportedCurrentRole;
+  }
   if (explicitRole) {
     const normalizedExplicit = normalizeRole(explicitRole);
     return isAllowedAdminWebRole(normalizedExplicit) ? normalizedExplicit : '';
@@ -205,6 +209,7 @@ export const refreshBootstrap = async () => {
     ...previous,
     mode: 'dev',
     user: normalizeSessionUserRoles(response.data.me || previous.user || null),
+    currentRole: normalizeRole(response.data?.me?.currentRole) || previous.currentRole || '',
     permissions: response.data.permissions || null,
     featureFlags: response.data.featureFlags || null,
     lastBootstrapAt: new Date().toISOString()
@@ -267,4 +272,42 @@ export const getDisplayProfile = () => {
     name: toDisplayName(state.user),
     role: getRoleLabel(primaryRole)
   };
+};
+
+export const switchDevRole = async (role) => {
+  const normalizedRole = normalizeRole(role);
+  if (!normalizedRole) {
+    throw new Error('invalid role');
+  }
+
+  const response = await debugSwitchRole(normalizedRole);
+  if (response.status !== 200) {
+    if (response.status === 404) {
+      throw new Error('当前环境未启用调试切角色。');
+    }
+    if (response.status === 403) {
+      throw new Error('该身份未分配所选角色。');
+    }
+    throw new Error(response?.data?.message || 'switch role failed');
+  }
+
+  const currentRole = inferCurrentRole(response.data.user, normalizedRole);
+  if (!currentRole) {
+    throw new Error('该账号角色不受 admin-web 支持（仅支持 ADMIN / BOSS / CS / MANAGER）。');
+  }
+
+  const previous = readAuthState() || {};
+  saveAuthState({
+    ...previous,
+    mode: 'dev',
+    accessToken: response.data.accessToken,
+    user: normalizeSessionUserRoles(response.data.user),
+    currentRole,
+    permissions: previous.permissions || null,
+    featureFlags: previous.featureFlags || null,
+    lastRoleSwitchAt: new Date().toISOString()
+  });
+
+  await refreshBootstrap();
+  return readAuthState();
 };

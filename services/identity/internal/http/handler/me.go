@@ -49,7 +49,7 @@ func (h *Handler) GetMe(c *gin.Context) {
 		}
 	}
 
-	response := userFromModel(user, roles, userType)
+	response := userFromModel(user, roles, strings.ToUpper(strings.TrimSpace(claims.Role)), userType)
 	if user.OwnerSalesUserID.Valid {
 		owner, err := h.Store.GetUserByID(c.Request.Context(), user.OwnerSalesUserID.Bytes)
 		if err != nil && err != pgx.ErrNoRows {

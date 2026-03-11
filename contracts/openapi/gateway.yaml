@@ -134,6 +134,8 @@ components:
         id:
           type: string
           format: uuid
+        currentRole:
+          type: string
         userType:
           type: string
           enum:
@@ -171,6 +173,7 @@ components:
           format: date-time
       required:
       - id
+      - currentRole
       - userType
       - roles
       - createdAt

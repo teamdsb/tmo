@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -8,10 +9,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/oapi-codegen/runtime/types"
 
+	shareddb "github.com/teamdsb/tmo/packages/go-shared/db"
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
+	"github.com/teamdsb/tmo/services/commerce/internal/http/middleware"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 )
 
@@ -169,6 +173,8 @@ func (h *Handler) PostInquiriesPrice(c *gin.Context) {
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to create inquiry")
 		return
 	}
+
+	h.mirrorInquiryIntoSupport(c.Request.Context(), claims, inquiry, request.Message)
 
 	c.JSON(http.StatusCreated, priceInquiryFromModel(inquiry))
 }
@@ -382,6 +388,8 @@ func (h *Handler) PostInquiriesPriceInquiryIdMessages(c *gin.Context, inquiryId 
 		return
 	}
 
+	h.mirrorInquiryIntoSupport(c.Request.Context(), claims, inquiry, request.Content)
+
 	c.JSON(http.StatusCreated, inquiryMessageFromModel(message))
 }
 
@@ -439,4 +447,92 @@ func canAccessPriceInquiry(role string, userID uuid.UUID, inquiry db.PriceInquir
 	default:
 		return true
 	}
+}
+
+func (h *Handler) mirrorInquiryIntoSupport(ctx context.Context, claims middleware.Claims, inquiry db.PriceInquiry, content string) {
+	text := strings.TrimSpace(content)
+	if text == "" || h.SupportStore == nil {
+		return
+	}
+
+	conversation, err := h.ensureSupportConversationForInquiryMirror(ctx, inquiry)
+	if err != nil {
+		h.logError("ensure support conversation for inquiry mirror failed", err)
+		return
+	}
+
+	request := createSupportMessageRequest{
+		MessageType: supportMessageTypeText,
+		Text:        &text,
+	}
+	message, updatedConversation, err := h.createSupportMessage(ctx, claims, conversation, request)
+	if err != nil {
+		h.logError("mirror inquiry message into support failed", err)
+		return
+	}
+
+	view, err := h.supportMessageView(ctx, message)
+	if err != nil {
+		h.logError("map mirrored support message failed", err)
+		return
+	}
+
+	publishSupportEvent(h.SupportHub, "message.created", updatedConversation, gin.H{
+		"conversation": supportConversationFromModel(updatedConversation),
+		"message":      view,
+	})
+}
+
+func (h *Handler) ensureSupportConversationForInquiryMirror(ctx context.Context, inquiry db.PriceInquiry) (db.SupportConversation, error) {
+	if h.SupportStore == nil {
+		return db.SupportConversation{}, errors.New("support store is nil")
+	}
+
+	conversation, err := h.SupportStore.GetActiveSupportConversationByCustomer(ctx, inquiry.CreatedByUserID)
+	if err == nil {
+		return conversation, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return db.SupportConversation{}, err
+	}
+	if h.DB == nil {
+		return db.SupportConversation{}, errors.New("db pool is nil")
+	}
+
+	var created db.SupportConversation
+	err = shareddb.WithTx(ctx, h.DB, func(tx pgx.Tx) error {
+		queries := db.New(tx)
+		existing, getErr := queries.GetActiveSupportConversationByCustomer(ctx, inquiry.CreatedByUserID)
+		if getErr == nil {
+			created = existing
+			return nil
+		}
+		if !errors.Is(getErr, pgx.ErrNoRows) {
+			return getErr
+		}
+
+		record, createErr := queries.CreateSupportConversation(ctx, db.CreateSupportConversationParams{
+			CustomerUserID:      inquiry.CreatedByUserID,
+			CustomerDisplayName: nil,
+			CustomerPhone:       nil,
+			OwnerSalesUserID:    inquiry.OwnerSalesUserID,
+			Status:              supportConversationStatusOpenUnassigned,
+			Column10:            nil,
+		})
+		if createErr != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(createErr, &pgErr) && pgErr.Code == "23505" {
+				record, getErr = queries.GetActiveSupportConversationByCustomer(ctx, inquiry.CreatedByUserID)
+				if getErr != nil {
+					return getErr
+				}
+			} else {
+				return createErr
+			}
+		}
+
+		created = record
+		return nil
+	})
+	return created, err
 }

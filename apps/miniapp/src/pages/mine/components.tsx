@@ -14,7 +14,6 @@ import UserOutlined from '@taroify/icons/UserOutlined'
 import { orderTrackingRoute } from '../../routes'
 import { navigateTo } from '../../utils/navigation'
 import type {
-  ChatMessage,
   IconComponent,
   MenuItem,
   MockAddress,
@@ -312,11 +311,15 @@ type MineProfileViewProps = {
   orderItems: OrderItem[]
   menuItems: MenuItem[]
   loggingOut: boolean
+  debugRoleChoices: string[]
+  currentRole: string
+  switchingRole: string | null
   onOpenOrders: (tab: string) => void
   onOpenChat: () => void
   onMenuItemClick: (item: MenuItem) => void
   onAuthAction: () => void
   onOpenAuth: () => void
+  onSwitchRole: (role: string) => void
 }
 
 export function MineProfileView({
@@ -329,11 +332,15 @@ export function MineProfileView({
   orderItems,
   menuItems,
   loggingOut,
+  debugRoleChoices,
+  currentRole,
+  switchingRole,
   onOpenOrders,
   onOpenChat,
   onMenuItemClick,
   onAuthAction,
-  onOpenAuth
+  onOpenAuth,
+  onSwitchRole
 }: MineProfileViewProps) {
   return (
     <View className='mine-modern-main mine-lite-main'>
@@ -396,6 +403,34 @@ export function MineProfileView({
                 <View className='mine-modern-online-dot h-1.5 w-1.5 rounded-full'></View>
                 <Text className='text-xs font-semibold mine-lite-section-link'>立即沟通</Text>
               </View>
+            </View>
+          </View>
+        ) : null}
+
+        {isLoggedIn && debugRoleChoices.length > 1 ? (
+          <View className='mine-lite-panel mb-5 rounded-3xl px-5 py-4'>
+            <Text className='block text-xs font-semibold uppercase tracking-widest mine-lite-profile-copy'>
+              调试角色
+            </Text>
+            <Text className='mt-2 block text-sm mine-lite-profile-copy'>
+              当前身份 {currentRole || roleLabel}，可快速切换当前会话角色。
+            </Text>
+            <View className='mt-3 flex flex-wrap gap-2'>
+              {debugRoleChoices.map((role) => {
+                const active = role === currentRole
+                return (
+                  <NativeButton
+                    key={role}
+                    className={`rounded-full border px-4 py-2 text-xs ${active ? 'mine-lite-logout-btn' : ''}`}
+                    disabled={Boolean(switchingRole)}
+                    onClick={() => onSwitchRole(role)}
+                  >
+                    <Text className='text-xs font-bold'>
+                      {switchingRole === role ? '切换中...' : role}
+                    </Text>
+                  </NativeButton>
+                )
+              })}
             </View>
           </View>
         ) : null}

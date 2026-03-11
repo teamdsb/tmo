@@ -18,6 +18,11 @@ const (
 	BearerAuthScopes = "bearerAuth.Scopes"
 )
 
+// Defines values for AdminUserUserType.
+const (
+	AdminUserUserTypeAdmin AdminUserUserType = "admin"
+)
+
 // Defines values for CreateStaffBindingRequestPlatform.
 const (
 	CreateStaffBindingRequestPlatformAlipay CreateStaffBindingRequestPlatform = "alipay"
@@ -38,11 +43,38 @@ const (
 	RoleUserTypeStaff    RoleUserType = "staff"
 )
 
+// Defines values for UpdateAdminUserRequestRoles.
+const (
+	UpdateAdminUserRequestRolesADMIN UpdateAdminUserRequestRoles = "ADMIN"
+	UpdateAdminUserRequestRolesBOSS  UpdateAdminUserRequestRoles = "BOSS"
+)
+
+// Defines values for GetAdminUsersParamsRole.
+const (
+	GetAdminUsersParamsRoleADMIN GetAdminUsersParamsRole = "ADMIN"
+	GetAdminUsersParamsRoleBOSS  GetAdminUsersParamsRole = "BOSS"
+)
+
 // Defines values for GetMeSalesQrCodeParamsPlatform.
 const (
 	GetMeSalesQrCodeParamsPlatformAlipay GetMeSalesQrCodeParamsPlatform = "alipay"
 	GetMeSalesQrCodeParamsPlatformWeapp  GetMeSalesQrCodeParamsPlatform = "weapp"
 )
+
+// AdminUser defines model for AdminUser.
+type AdminUser struct {
+	CreatedAt   time.Time               `json:"createdAt"`
+	DisplayName *string                 `json:"displayName,omitempty"`
+	Id          openapi_types.UUID      `json:"id"`
+	Phone       *string                 `json:"phone"`
+	Roles       []string                `json:"roles"`
+	Status      externalRef0.UserStatus `json:"status"`
+	UpdatedAt   time.Time               `json:"updatedAt"`
+	UserType    AdminUserUserType       `json:"userType"`
+}
+
+// AdminUserUserType defines model for AdminUser.UserType.
+type AdminUserUserType string
 
 // AuditLog defines model for AuditLog.
 type AuditLog struct {
@@ -97,6 +129,9 @@ type Customer struct {
 	Phone            *string             `json:"phone"`
 }
 
+// DebugRoleSwitchRequest defines model for DebugRoleSwitchRequest.
+type DebugRoleSwitchRequest = externalRef0.DebugRoleSwitchRequest
+
 // EffectivePermission defines model for EffectivePermission.
 type EffectivePermission struct {
 	Code  string          `json:"code"`
@@ -121,6 +156,14 @@ type MiniLoginPlatformCapabilities struct {
 
 // MiniLoginRequest defines model for MiniLoginRequest.
 type MiniLoginRequest = externalRef0.MiniLoginRequest
+
+// PagedAdminUserList defines model for PagedAdminUserList.
+type PagedAdminUserList struct {
+	Items    []AdminUser `json:"items"`
+	Page     int         `json:"page"`
+	PageSize int         `json:"pageSize"`
+	Total    int         `json:"total"`
+}
 
 // PagedAuditLogList defines model for PagedAuditLogList.
 type PagedAuditLogList struct {
@@ -223,6 +266,16 @@ type StaffUser struct {
 	UpdatedAt      time.Time               `json:"updatedAt"`
 }
 
+// UpdateAdminUserRequest defines model for UpdateAdminUserRequest.
+type UpdateAdminUserRequest struct {
+	DisabledReason *string                        `json:"disabledReason"`
+	Roles          *[]UpdateAdminUserRequestRoles `json:"roles,omitempty"`
+	Status         *externalRef0.UserStatus       `json:"status,omitempty"`
+}
+
+// UpdateAdminUserRequestRoles defines model for UpdateAdminUserRequest.Roles.
+type UpdateAdminUserRequestRoles string
+
 // UpdateStaffRequest defines model for UpdateStaffRequest.
 type UpdateStaffRequest struct {
 	DisabledReason *string                  `json:"disabledReason"`
@@ -248,6 +301,18 @@ type NotFound = ErrorResponse
 
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = ErrorResponse
+
+// GetAdminUsersParams defines parameters for GetAdminUsers.
+type GetAdminUsersParams struct {
+	Q        *string                  `form:"q,omitempty" json:"q,omitempty"`
+	Status   *externalRef0.UserStatus `form:"status,omitempty" json:"status,omitempty"`
+	Role     *GetAdminUsersParamsRole `form:"role,omitempty" json:"role,omitempty"`
+	Page     *int                     `form:"page,omitempty" json:"page,omitempty"`
+	PageSize *int                     `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+}
+
+// GetAdminUsersParamsRole defines parameters for GetAdminUsers.
+type GetAdminUsersParamsRole string
 
 // GetAuditLogsParams defines parameters for GetAuditLogs.
 type GetAuditLogsParams struct {
@@ -281,6 +346,12 @@ type GetStaffParams struct {
 	PageSize *int    `form:"pageSize,omitempty" json:"pageSize,omitempty"`
 }
 
+// PatchAdminUsersUserIdJSONRequestBody defines body for PatchAdminUsersUserId for application/json ContentType.
+type PatchAdminUsersUserIdJSONRequestBody = UpdateAdminUserRequest
+
+// PostAuthDebugSwitchRoleJSONRequestBody defines body for PostAuthDebugSwitchRole for application/json ContentType.
+type PostAuthDebugSwitchRoleJSONRequestBody = DebugRoleSwitchRequest
+
 // PostAuthMiniLoginJSONRequestBody defines body for PostAuthMiniLogin for application/json ContentType.
 type PostAuthMiniLoginJSONRequestBody = MiniLoginRequest
 
@@ -307,9 +378,18 @@ type PostStaffStaffIdBindingsJSONRequestBody = CreateStaffBindingRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// List admin web users
+	// (GET /admin/users)
+	GetAdminUsers(c *gin.Context, params GetAdminUsersParams)
+	// Update admin web user roles or status
+	// (PATCH /admin/users/{userId})
+	PatchAdminUsersUserId(c *gin.Context, userId openapi_types.UUID)
 	// List audit logs
 	// (GET /audit-logs)
 	GetAuditLogs(c *gin.Context, params GetAuditLogsParams)
+	// Local debug only. Re-issue token with another assigned role.
+	// (POST /auth/debug/switch-role)
+	PostAuthDebugSwitchRole(c *gin.Context)
 	// Get current mini login capability flags for local app gating
 	// (GET /auth/mini/capabilities)
 	GetAuthMiniCapabilities(c *gin.Context)
@@ -375,6 +455,92 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(c *gin.Context)
 
+// GetAdminUsers operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminUsers(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetAdminUsersParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "q", c.Request.URL.Query(), &params.Q)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter q: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "status", c.Request.URL.Query(), &params.Status)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter status: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "role" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "role", c.Request.URL.Query(), &params.Role)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter role: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", c.Request.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter page: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "pageSize" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "pageSize", c.Request.URL.Query(), &params.PageSize)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter pageSize: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAdminUsers(c, params)
+}
+
+// PatchAdminUsersUserId operation middleware
+func (siw *ServerInterfaceWrapper) PatchAdminUsersUserId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "userId" -------------
+	var userId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "userId", c.Param("userId"), &userId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter userId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PatchAdminUsersUserId(c, userId)
+}
+
 // GetAuditLogs operation middleware
 func (siw *ServerInterfaceWrapper) GetAuditLogs(c *gin.Context) {
 
@@ -433,6 +599,21 @@ func (siw *ServerInterfaceWrapper) GetAuditLogs(c *gin.Context) {
 	}
 
 	siw.Handler.GetAuditLogs(c, params)
+}
+
+// PostAuthDebugSwitchRole operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthDebugSwitchRole(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAuthDebugSwitchRole(c)
 }
 
 // GetAuthMiniCapabilities operation middleware
@@ -860,7 +1041,10 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 		ErrorHandler:       errorHandler,
 	}
 
+	router.GET(options.BaseURL+"/admin/users", wrapper.GetAdminUsers)
+	router.PATCH(options.BaseURL+"/admin/users/:userId", wrapper.PatchAdminUsersUserId)
 	router.GET(options.BaseURL+"/audit-logs", wrapper.GetAuditLogs)
+	router.POST(options.BaseURL+"/auth/debug/switch-role", wrapper.PostAuthDebugSwitchRole)
 	router.GET(options.BaseURL+"/auth/mini/capabilities", wrapper.GetAuthMiniCapabilities)
 	router.POST(options.BaseURL+"/auth/mini/login", wrapper.PostAuthMiniLogin)
 	router.POST(options.BaseURL+"/auth/password/login", wrapper.PostAuthPasswordLogin)

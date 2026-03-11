@@ -1,13 +1,18 @@
 import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } from 'react';
-import { getCurrentSession, getDisplayProfile, logout } from '../../lib/auth';
+import { getCurrentSession, getDisplayProfile, logout, switchDevRole } from '../../lib/auth';
+import { filterAllowedAdminWebRoles } from '../../lib/admin-role-policy';
+import { isDevMode } from '../../lib/env';
 import { UserAvatar } from './UserAvatar';
 import { resolveAvatarModel } from './avatar';
 
 type AdminTopbarProps = {
-  leftSlot: ReactNode;
+  leftSlot?: ReactNode;
   searchPlaceholder?: string;
   headerClassName?: string;
   innerClassName?: string;
+  title?: string;
+  subtitle?: string;
+  actions?: ReactNode;
 };
 
 // 拼接 className，忽略空值。
@@ -20,7 +25,10 @@ export const AdminTopbar = ({
   leftSlot,
   searchPlaceholder = '搜索...',
   headerClassName,
-  innerClassName
+  innerClassName,
+  title,
+  subtitle,
+  actions
 }: AdminTopbarProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuId = useId();
@@ -32,6 +40,10 @@ export const AdminTopbar = ({
   const profileName = displayProfile?.name || '管理员用户';
   const profileRole = displayProfile?.role || '管理员';
   const avatar = resolveAvatarModel(sessionUser || { displayName: profileName });
+  const [switchingRole, setSwitchingRole] = useState('');
+  const roleChoices = filterAllowedAdminWebRoles(session?.user?.roles);
+  const currentRole = String(session?.currentRole || '').trim().toUpperCase();
+  const canSwitchRole = isDevMode && roleChoices.length > 1;
 
   useEffect(() => {
     if (!isMenuOpen) {
@@ -79,6 +91,28 @@ export const AdminTopbar = ({
     logout();
   };
 
+  const handleSwitchRole = async (role: string) => {
+    if (!role || role === currentRole || switchingRole) {
+      return;
+    }
+    setSwitchingRole(role);
+    try {
+      await switchDevRole(role);
+      window.location.reload();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : '切换角色失败。');
+    } finally {
+      setSwitchingRole('');
+    }
+  };
+
+  const resolvedLeftSlot = leftSlot || (
+    <div className="min-w-0">
+      {title ? <div className="text-sm font-semibold text-slate-900 dark:text-white">{title}</div> : null}
+      {subtitle ? <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{subtitle}</div> : null}
+    </div>
+  );
+
   return (
     <header
       className={joinClasses(
@@ -87,8 +121,9 @@ export const AdminTopbar = ({
       )}
     >
       <div className={joinClasses('flex items-center justify-between gap-4', innerClassName)}>
-        <div className="flex min-w-0 flex-1 items-center gap-8">{leftSlot}</div>
+        <div className="flex min-w-0 flex-1 items-center gap-8">{resolvedLeftSlot}</div>
         <div className="flex items-center gap-4">
+          {actions ? <div className="hidden lg:block">{actions}</div> : null}
           <div className="hidden h-10 w-64 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 transition-all focus-within:ring-2 focus-within:ring-primary/20 dark:border-slate-700 dark:bg-slate-800 sm:flex">
             <span className="material-symbols-outlined text-[20px] text-slate-400 dark:text-slate-500">search</span>
             <input
@@ -135,6 +170,31 @@ export const AdminTopbar = ({
                     {profileRole}
                   </p>
                 </div>
+                {canSwitchRole ? (
+                  <div className="mb-1 border-b border-slate-100 px-2 pb-2 dark:border-slate-800">
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">调试角色</p>
+                    <div className="flex flex-wrap gap-2">
+                      {roleChoices.map((role) => {
+                        const active = role === currentRole;
+                        return (
+                          <button
+                            className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
+                              active
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-slate-200 text-slate-600 hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-300'
+                            }`}
+                            disabled={Boolean(switchingRole)}
+                            key={role}
+                            onClick={() => void handleSwitchRole(role)}
+                            type="button"
+                          >
+                            {switchingRole === role ? '切换中...' : role}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
                 <a
                   className="block rounded px-3 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-50 hover:text-primary dark:text-slate-300 dark:hover:bg-slate-800"
                   href="/profile.html"

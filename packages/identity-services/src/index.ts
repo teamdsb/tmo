@@ -4,6 +4,7 @@ import {
   getMe,
   getMePermissions,
   getMeSalesQrCode,
+  postAuthDebugSwitchRole,
   postAuthMiniLogin,
   postAuthPasswordLogin,
   setIdentityApiClientConfig,
@@ -44,6 +45,7 @@ export interface IdentityServices {
   auth: {
     miniLogin: (input: MiniLoginInput) => Promise<AuthResponse>
     passwordLogin: (input: PasswordLoginInput) => Promise<AuthResponse>
+    switchRole: (input: DebugRoleSwitchInput) => Promise<AuthResponse>
   }
   me: {
     get: () => Promise<User>
@@ -66,6 +68,10 @@ export interface PasswordLoginInput {
   username: string
   password: string
   role?: PasswordLoginRequest['role']
+}
+
+export interface DebugRoleSwitchInput {
+  role: string
 }
 
 const assertBaseUrl = (baseUrl: string): string => {
@@ -172,6 +178,16 @@ export const createIdentityServices = (config: IdentityServicesConfig = {}): Ide
       const response = await postAuthPasswordLogin(payload)
       if (response.status !== 200) {
         throw new ApiError('login failed', response.status)
+      }
+      await tokens.setToken(response.data.accessToken)
+      return response.data
+    },
+    switchRole: async (input: DebugRoleSwitchInput): Promise<AuthResponse> => {
+      const response = await postAuthDebugSwitchRole({
+        role: input.role
+      })
+      if (response.status !== 200) {
+        throw new ApiError('switch role failed', response.status)
       }
       await tokens.setToken(response.data.accessToken)
       return response.data

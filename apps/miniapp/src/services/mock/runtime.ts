@@ -6,7 +6,6 @@ import type {
   PriceInquiry,
   ProductRequest,
   TrackingInfo,
-  User,
   UserAddress
 } from '@tmo/api-client'
 import type { BootstrapResponse, PermissionList } from '@tmo/gateway-api-client'
@@ -287,8 +286,9 @@ export const loadIsolatedMockAuthContext = async (): Promise<IsolatedMockAuthCon
   }
 }
 
-export const getMockUser = (context: IsolatedMockAuthContext): User => ({
+export const getMockUser = (context: IsolatedMockAuthContext) => ({
   id: context.userId,
+  currentRole: context.currentRole,
   userType: context.userType,
   status: 'active',
   displayName: context.displayName,

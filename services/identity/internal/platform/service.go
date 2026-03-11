@@ -108,7 +108,10 @@ func (r *MiniLoginResolver) Resolve(ctx context.Context, platform, code string) 
 
 	switch strings.ToLower(platform) {
 	case "weapp":
-		if (r.mode == LoginModeMock || allowLocalMockFallback) && r.weapp == nil {
+		if allowLocalMockFallback {
+			return LoginIdentity{ProviderUserID: code}, nil
+		}
+		if r.mode == LoginModeMock && r.weapp == nil {
 			return LoginIdentity{ProviderUserID: code}, nil
 		}
 		if r.weapp == nil {
@@ -116,7 +119,10 @@ func (r *MiniLoginResolver) Resolve(ctx context.Context, platform, code string) 
 		}
 		return r.weapp.Resolve(ctx, code)
 	case "alipay":
-		if (r.mode == LoginModeMock || allowLocalMockFallback) && r.alipay == nil {
+		if allowLocalMockFallback {
+			return LoginIdentity{ProviderUserID: code}, nil
+		}
+		if r.mode == LoginModeMock && r.alipay == nil {
 			return LoginIdentity{ProviderUserID: code}, nil
 		}
 		if r.alipay == nil {

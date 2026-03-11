@@ -126,16 +126,17 @@ func userTypeFromString(raw string) (oapi.UserUserType, bool) {
 	}
 }
 
-func userFromModel(user db.User, roles []string, userType oapi.UserUserType) oapi.User {
+func userFromModel(user db.User, roles []string, currentRole string, userType oapi.UserUserType) oapi.User {
 	createdAt := time.Time{}
 	if user.CreatedAt.Valid {
 		createdAt = user.CreatedAt.Time
 	}
 	response := oapi.User{
-		Id:        openapi_types.UUID(user.ID),
-		UserType:  userType,
-		Roles:     roles,
-		CreatedAt: createdAt,
+		Id:          openapi_types.UUID(user.ID),
+		CurrentRole: currentRole,
+		UserType:    userType,
+		Roles:       roles,
+		CreatedAt:   createdAt,
 	}
 	if user.DisplayName != nil {
 		response.DisplayName = user.DisplayName

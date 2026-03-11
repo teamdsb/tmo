@@ -22,6 +22,7 @@ declare const __TMO_MOCK_MODE__: string;
 declare const __TMO_DEV_FAKE_PAYMENT__: string;
 declare const __TMO_ENABLE_MOCK_LOGIN__: string;
 declare const __TMO_WEAPP_PHONE_PROOF_SIMULATION__: string;
+declare const __TMO_WEAPP_APP_ID__: string;
 
 declare namespace NodeJS {
   interface ProcessEnv {

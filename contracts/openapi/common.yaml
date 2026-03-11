@@ -111,6 +111,9 @@ components:
         id:
           type: string
           format: uuid
+        currentRole:
+          type: string
+          description: Current active role of this authenticated session.
         userType:
           type: string
           enum:
@@ -151,9 +154,18 @@ components:
           format: date-time
       required:
       - id
+      - currentRole
       - userType
       - roles
       - createdAt
+    DebugRoleSwitchRequest:
+      type: object
+      properties:
+        role:
+          type: string
+          description: Target role already assigned to the current user.
+      required:
+      - role
     UserStatus:
       type: string
       enum:

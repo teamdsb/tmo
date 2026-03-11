@@ -47,6 +47,7 @@ export const UserUserType = {
 
 export interface User {
   id: string;
+  currentRole: string;
   userType: UserUserType;
   status?: UserStatus;
   displayName?: string;
