@@ -861,10 +861,28 @@
 .product-card-image {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+}
+
+.product-card-image-shell {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.product-card-image-wrapper {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
 }
 
 .product-card--home .product-card-image {
+  background: #f8fafc;
+}
+
+.product-card--home .product-card-image-wrapper {
   background: #f8fafc;
 }
 

@@ -365,7 +365,16 @@ function ProductCard({ data, priceLabel, imageSize }: { data: ProductSummary; pr
   const tagLabel = data.tags?.[0] ?? '分类'
   return (
     <View className='product-card product-card--home' onClick={() => navigateTo(goodsDetailRoute(data.id))}>
-      <SafeImage className='product-card-image' src={data.coverImageUrl} width='100%' height={imageSize} mode='aspectFill' />
+      <View className='product-card-image-shell' style={{ height: `${imageSize}px` }}>
+        <SafeImage
+          wrapperClassName='product-card-image-wrapper'
+          className='product-card-image'
+          src={data.coverImageUrl}
+          width='100%'
+          height='100%'
+          mode='aspectFill'
+        />
+      </View>
       <View className='product-card-body'>
         <Text className='product-card-title u-safe-title-2'>{data.name}</Text>
         <Text className='product-card-price'>{priceLabel}</Text>
