@@ -35,7 +35,7 @@
 - `build:weapp` 是 `build:weapp:prod` 的别名。
 - `build:alipay` 是 `build:alipay:prod` 的别名。
 - `dev:weapp` 是 `dev:weapp:dev` 的别名；另提供 `dev:weapp:mock` 用于 mock watch 模式。
-- `dev:alipay` 是 `build:alipay:dev` 的别名；另提供 `dev:alipay:mock` 用于 mock 单次构建。
+- `dev:alipay` 启动支付宝开发监听并在每次产物变更后自动执行 postprocess/verify；`dev:alipay:mock` 提供 mock 监听模式。
 - 当前 `prod` 允许保留占位域名 `api.example.com` 产出占坑包，但正式发版前必须替换为真实域名。
 - weapp 共享输出可通过以下环境变量控制：
   `TMO_WEAPP_SHARED_OUTPUT_ENABLED=true|false`
@@ -114,8 +114,8 @@
 
 - `pnpm -C apps/miniapp build:alipay:mock` / `build:alipay:dev` / `build:alipay:prod` 与 weapp 共用同一套 `.env.mock` / `.env.development` / `.env.production` 模式语义。
 - `pnpm -C apps/miniapp build:alipay` 等价于 `build:alipay:prod`，会执行构建、后处理、产物完整性校验与 API 基址校验。
-- `pnpm -C apps/miniapp dev:alipay` 等价于 `build:alipay:dev`，保持单次构建入口，不提供实时 watch 发布。
-- `pnpm -C apps/miniapp dev:alipay:mock` 提供 mock 单次构建入口。
+- `pnpm -C apps/miniapp dev:alipay` 启动 `alipay --watch`，并自动修正 `app.acss` 的相对导入与执行构建校验。
+- `pnpm -C apps/miniapp dev:alipay:mock` 提供 mock watch 入口。
 
 平台导入目录：
 

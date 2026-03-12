@@ -414,7 +414,7 @@ const MockProgress = ({ percent, ...props }) => (
   <div {...stripDomProps(props)} data-percent={percent} />
 );
 
-const MockImage = ({ src, width, height, ...props }) => (
+const MockImage = ({ src, width, height, wrapperClassName, ...props }) => (
   <img src={src} width={width} height={height} alt='' {...props} />
 );
 

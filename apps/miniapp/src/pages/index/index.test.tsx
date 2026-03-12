@@ -62,7 +62,7 @@ describe('ProductCatalogApp', () => {
     expect(pageRoot).not.toBeNull();
 
     expect(screen.getAllByTestId('home-showcase-card')).toHaveLength(3);
-    expect(screen.getByTestId('home-showcase-dots')).toBeInTheDocument();
+    expect(screen.getAllByTestId('home-showcase-dots')).toHaveLength(3);
     expect(screen.getByText('目录采购更快开始')).toBeInTheDocument();
     expect(screen.getByText('缺货或规格不清就提需求')).toBeInTheDocument();
     expect(screen.getByText('Excel 一次导入整单')).toBeInTheDocument();
@@ -124,14 +124,20 @@ describe('ProductCatalogApp', () => {
     const stylesheet = fs.readFileSync(path.resolve(__dirname, './index.scss'), 'utf8');
 
     expect(stylesheet).toContain('.home-showcase-swiper');
-    expect(stylesheet).toContain('height: 224px;');
+    expect(stylesheet).toContain('height: 300px;');
     expect(stylesheet).toContain('.home-showcase-title');
     expect(stylesheet).toContain('.home-showcase-copy');
+    expect(stylesheet).toContain('.home-showcase-decoration');
+    expect(stylesheet).toContain('max-width: 400rpx;');
+    expect(stylesheet).toContain('padding: 20px;');
+    expect(stylesheet).toContain('padding-top: 16px;');
     expect(stylesheet).toContain('box-sizing: border-box;');
     expect(stylesheet).toContain('-webkit-line-clamp: 2;');
     expect(stylesheet).toContain('.home-product-matrix');
     expect(stylesheet).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
-    expect(stylesheet).toContain('.home-product-cell:nth-child(2n)::after');
+    expect(stylesheet).toContain('gap: 12px;');
+    expect(stylesheet).toContain('.home-product-cell .product-card--home');
+    expect(stylesheet).toContain('.home-category-panel');
   });
 
   it('updates search input value', async () => {
