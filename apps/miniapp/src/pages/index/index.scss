@@ -43,7 +43,7 @@
 .home-search-input {
   width: 100%;
   height: 64px;
-  font-size: 15px;
+  font-size: 20px;
   line-height: 64px;
   color: #111827;
   text-align: left;
@@ -52,7 +52,7 @@
 
 .home-search-placeholder {
   color: #c4c8cf;
-  font-size: 15px;
+  font-size: 20px;
   text-align: left;
 }
 
@@ -234,7 +234,7 @@
 .home-category-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 
 .home-category-empty {
