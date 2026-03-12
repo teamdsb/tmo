@@ -1,9 +1,67 @@
+.home-search-shell {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: calc(100% - 28px);
+  min-height: 64px;
+  margin: 0 auto;
+  padding: 0 16px 0 48px;
+  border-radius: 18px;
+  background: #f3f4f6;
+}
+
+.home-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  transform: translateY(-50%);
+}
+
+.home-search-icon-circle {
+  width: 10px;
+  height: 10px;
+  border: 2px solid #9ca3af;
+  border-radius: 999px;
+  box-sizing: border-box;
+}
+
+.home-search-icon-handle {
+  position: absolute;
+  right: 0;
+  bottom: 1px;
+  width: 7px;
+  height: 2px;
+  border-radius: 999px;
+  background: #9ca3af;
+  transform: rotate(45deg);
+  transform-origin: center;
+}
+
+.home-search-input {
+  width: 100%;
+  height: 64px;
+  font-size: 15px;
+  line-height: 64px;
+  color: #111827;
+  text-align: left;
+  background: transparent;
+}
+
+.home-search-placeholder {
+  color: #c4c8cf;
+  font-size: 15px;
+  text-align: left;
+}
+
 .home-showcase {
   margin: 8px 6px 24px;
 }
 
 .home-showcase-swiper {
-  height: 300px;
+  height: 320px;
 }
 
 .home-showcase-card {
@@ -12,7 +70,7 @@
   overflow: hidden;
   border-radius: 18px;
   box-sizing: border-box;
-  padding: 20px;
+  padding: 20px 20px 24px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -26,6 +84,10 @@
   z-index: 1;
   min-height: 0;
   max-width: 400rpx;
+}
+
+.home-showcase-body--demand {
+  max-width: 520rpx;
 }
 
 .home-showcase-decoration {
@@ -69,6 +131,7 @@
   display: inline-flex;
   align-items: center;
   width: fit-content;
+  max-width: 100%;
   padding: 4px 8px;
   border-radius: 8px;
   font-size: 20rpx;
@@ -76,6 +139,7 @@
   letter-spacing: 0;
   color: #2563eb;
   background: #dbeafe;
+  white-space: nowrap;
 }
 
 .home-showcase-title {
@@ -91,6 +155,15 @@
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.home-showcase-title--demand {
+  font-size: 32rpx;
+  line-height: 1.3;
+  white-space: nowrap;
+  word-break: normal;
+  display: block;
+  -webkit-line-clamp: unset;
 }
 
 .home-showcase-copy {
@@ -111,7 +184,9 @@
 .home-showcase-footer {
   position: relative;
   z-index: 1;
-  padding-top: 16px;
+  margin-top: auto;
+  padding-top: 24px;
+  padding-bottom: 4px;
 }
 
 .home-showcase-action {
@@ -133,7 +208,7 @@
 }
 
 .home-showcase-dots {
-  margin-top: 16px;
+  margin-top: 18px;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -125,14 +125,20 @@ describe('ProductCatalogApp', () => {
   it('uses a safe showcase height and clamps slide copy for miniapp', () => {
     const stylesheet = fs.readFileSync(path.resolve(__dirname, './index.scss'), 'utf8');
 
+    expect(stylesheet).toContain('.home-search-shell');
+    expect(stylesheet).toContain('.home-search-input');
+    expect(stylesheet).toContain('.home-search-placeholder');
+    expect(stylesheet).toContain('text-align: left;');
     expect(stylesheet).toContain('.home-showcase-swiper');
-    expect(stylesheet).toContain('height: 300px;');
+    expect(stylesheet).toContain('height: 320px;');
     expect(stylesheet).toContain('.home-showcase-title');
+    expect(stylesheet).toContain('.home-showcase-title--demand');
     expect(stylesheet).toContain('.home-showcase-copy');
     expect(stylesheet).toContain('.home-showcase-decoration');
     expect(stylesheet).toContain('max-width: 400rpx;');
-    expect(stylesheet).toContain('padding: 20px;');
-    expect(stylesheet).toContain('padding-top: 16px;');
+    expect(stylesheet).toContain('max-width: 520rpx;');
+    expect(stylesheet).toContain('padding: 20px 20px 24px;');
+    expect(stylesheet).toContain('padding-top: 24px;');
     expect(stylesheet).toContain('box-sizing: border-box;');
     expect(stylesheet).toContain('-webkit-line-clamp: 2;');
     expect(stylesheet).toContain('.home-product-matrix');

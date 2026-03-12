@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
-import { View, Text, Swiper, SwiperItem } from '@tarojs/components'
+import { View, Text, Swiper, SwiperItem, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
-import Search from '@taroify/core/search'
 import Flex from '@taroify/core/flex'
-import SearchIcon from '@taroify/icons/Search'
 import type { Category, DisplayCategory, ProductSummary } from '@tmo/api-client'
 import SafeImage from '../../components/safe-image'
 import { useProductStartingPrices } from '../../hooks/use-product-starting-prices'
@@ -219,14 +217,21 @@ export default function ProductCatalogApp() {
       {isH5 ? <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary' /> : null}
 
       <View className='page-search'>
-        <Search
-          value={searchQuery}
-          shape='rounded'
-          clearable
-          icon={<SearchIcon />}
-          placeholder='按 SKU 或名称搜索...'
-          onChange={(event) => setSearchQuery(event.detail.value)}
-        />
+        <View className='home-search-shell'>
+          <View className='home-search-icon' aria-hidden='true'>
+            <View className='home-search-icon-circle' />
+            <View className='home-search-icon-handle' />
+          </View>
+          <Input
+            className='home-search-input'
+            type='text'
+            confirmType='search'
+            value={searchQuery}
+            placeholder='按 SKU 或名称搜索...'
+            placeholderClass='home-search-placeholder'
+            onInput={(event) => setSearchQuery(event.detail.value)}
+          />
+        </View>
       </View>
 
       <HomeShowcase />
@@ -335,9 +340,11 @@ function HomeShowcase() {
           <SwiperItem key={item.key}>
             <View className={`home-showcase-card home-showcase-card--${item.tone}`} data-testid='home-showcase-card'>
               <View className='home-showcase-decoration' />
-              <View className='home-showcase-body'>
+              <View className={`home-showcase-body ${item.key === 'demand' ? 'home-showcase-body--demand' : ''}`.trim()}>
                 <Text className='home-showcase-eyebrow'>{item.eyebrow}</Text>
-                <Text className='home-showcase-title'>{item.title}</Text>
+                <Text className={`home-showcase-title ${item.key === 'demand' ? 'home-showcase-title--demand' : ''}`.trim()}>
+                  {item.title}
+                </Text>
                 <Text className='home-showcase-copy'>{item.copy}</Text>
               </View>
               <View className='home-showcase-footer'>

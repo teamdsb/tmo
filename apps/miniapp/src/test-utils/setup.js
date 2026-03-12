@@ -54,7 +54,7 @@ const mockComponent = (tag = 'div') => {
 const joinClassName = (...values) => values.filter(Boolean).join(' ');
 
 jest.mock('@tarojs/components', () => {
-  const Input = ({ onInput, onChange, ...props }) => (
+  const Input = ({ onInput, onChange, confirmType, placeholderClass, ...props }) => (
     <input
       {...props}
       onChange={(event) => {
