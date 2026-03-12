@@ -35,7 +35,7 @@
 - `build:weapp` 是 `build:weapp:prod` 的别名。
 - `build:alipay` 是 `build:alipay:prod` 的别名。
 - `dev:weapp` 是 `dev:weapp:dev` 的别名；另提供 `dev:weapp:mock` 用于 mock watch 模式。
-- `dev:alipay` 是 `build:alipay:dev` 的别名；另提供 `dev:alipay:mock` 用于 mock 单次构建。
+- `dev:alipay` 启动支付宝开发监听并在每次产物变更后自动执行 postprocess/verify；`dev:alipay:mock` 提供 mock 监听模式。
 - 当前 `prod` 允许保留占位域名 `api.example.com` 产出占坑包，但正式发版前必须替换为真实域名。
 - weapp 共享输出可通过以下环境变量控制：
   `TMO_WEAPP_SHARED_OUTPUT_ENABLED=true|false`
@@ -114,8 +114,8 @@
 
 - `pnpm -C apps/miniapp build:alipay:mock` / `build:alipay:dev` / `build:alipay:prod` 与 weapp 共用同一套 `.env.mock` / `.env.development` / `.env.production` 模式语义。
 - `pnpm -C apps/miniapp build:alipay` 等价于 `build:alipay:prod`，会执行构建、后处理、产物完整性校验与 API 基址校验。
-- `pnpm -C apps/miniapp dev:alipay` 等价于 `build:alipay:dev`，保持单次构建入口，不提供实时 watch 发布。
-- `pnpm -C apps/miniapp dev:alipay:mock` 提供 mock 单次构建入口。
+- `pnpm -C apps/miniapp dev:alipay` 启动 `alipay --watch`，并自动修正 `app.acss` 的相对导入与执行构建校验。
+- `pnpm -C apps/miniapp dev:alipay:mock` 提供 mock watch 入口。
 
 平台导入目录：
 
@@ -362,6 +362,7 @@ bash tools/scripts/miniapp-customer-evidence.sh
 - 若微信端图片显示异常，先检查 gateway 的 `GATEWAY_PUBLIC_BASE_URL` 与 `GATEWAY_IMAGE_PROXY_ALLOWLIST`；默认通过 `/assets/img` 代理时不需要把第三方图床直接加入小程序图片白名单。
 - 如果支付宝开发者工具导入 `apps/miniapp/dist/alipay` 后出现 `ENOENT ... dist/dist/app.json`，请检查 `apps/miniapp/dist/alipay/mini.project.json` 中的 `miniprogramRoot`，应为 `./`。
 - 如果出现 `CE1000.01 cannot resolve module ...*.axml`，先执行 `pnpm -C apps/miniapp build:alipay`，再根据 `verify-alipay-dist` 输出补齐缺失文件后重试导入。
+- 如果出现 `CE1000.03: app.acss Can't resolve 'common.acss'`，先重新执行 `pnpm -C apps/miniapp build:alipay:dev`，再确认 `apps/miniapp/dist/alipay/app.acss` 中使用的是 `@import "./common.acss";` 而不是裸 `common.acss`。
 
 ## 导航栏高度约定
 

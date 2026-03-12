@@ -121,10 +121,15 @@ function patchAppAcss() {
   }
 
   const content = fs.readFileSync(appFile, 'utf8')
-  const updated = content.replace(
-    /@import\s+(['"])app-origin\.acss\1;/g,
-    '@import "./app-origin.acss";'
-  )
+  const updated = content
+    .replace(
+      /@import\s+(['"])app-origin\.acss\1;/g,
+      '@import "./app-origin.acss";'
+    )
+    .replace(
+      /@import\s+(['"])common\.acss\1;/g,
+      '@import "./common.acss";'
+    )
 
   if (updated !== content) {
     fs.writeFileSync(appFile, updated, 'utf8')

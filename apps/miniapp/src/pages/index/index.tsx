@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
-import { View, Text, Swiper, SwiperItem } from '@tarojs/components'
+import { View, Text, Swiper, SwiperItem, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
-import Search from '@taroify/core/search'
 import Flex from '@taroify/core/flex'
-import SearchIcon from '@taroify/icons/Search'
 import type { Category, DisplayCategory, ProductSummary } from '@tmo/api-client'
 import SafeImage from '../../components/safe-image'
 import { useProductStartingPrices } from '../../hooks/use-product-starting-prices'
@@ -13,6 +11,7 @@ import { type CategoryIconKey, renderCategoryIcon, resolveCategoryIconKey } from
 import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { commerceServices } from '../../services/commerce'
 import { getNavbarStyle } from '../../utils/navbar'
+import { getWindowSystemInfo } from '../../utils/system-info'
 import './index.scss'
 
 type QuickCategoryItem = {
@@ -35,6 +34,37 @@ type ShowcaseItem = {
 
 const QUICK_CATEGORY_CAPACITY = 8
 const QUICK_CATEGORY_PLACEHOLDER_NAME = '敬请期待'
+const HOME_PRODUCT_GRID_GAP_PX = 12
+const HOME_PRODUCT_SECTION_PADDING_PX = 16
+const HOME_SHOWCASE_ITEMS: ShowcaseItem[] = [
+  {
+    key: 'catalog',
+    eyebrow: 'V1 主链路',
+    title: '目录采购更快开始',
+    copy: '从分类找货到提交意向订单，先把客户最常走的采购路径做顺。',
+    actionLabel: '去找商品',
+    tone: 'catalog',
+    onClick: () => void switchTabLike(ROUTES.category)
+  },
+  {
+    key: 'demand',
+    eyebrow: '找不到也能继续',
+    title: '缺货或规格不清就提需求',
+    copy: '客户不用离开小程序，直接把名称、规格和数量交给寻源团队跟进。',
+    actionLabel: '发布需求',
+    tone: 'demand',
+    onClick: () => void navigateTo(ROUTES.demandCreate)
+  },
+  {
+    key: 'import',
+    eyebrow: '工业采购效率入口',
+    title: 'Excel 一次导入整单',
+    copy: '适合一口气采购几十个物料，能自动识别的直接加购，其他项再确认。',
+    actionLabel: '批量导入',
+    tone: 'import',
+    onClick: () => void navigateTo(ROUTES.import)
+  }
+]
 
 const isCategoryIconKey = (value: string): value is CategoryIconKey => {
   return ['notes', 'setting', 'desktop', 'shield', 'brush', 'hot', 'apps'].includes(value)
@@ -88,6 +118,12 @@ const buildQuickCategories = (categories: DisplayCategory[]): QuickCategoryItem[
   return [...enabledItems, ...placeholders]
 }
 
+const getHomeProductImageSize = () => {
+  const systemInfo = getWindowSystemInfo()
+  const windowWidth = typeof systemInfo.windowWidth === 'number' ? systemInfo.windowWidth : 375
+  return Math.max(120, Math.floor((windowWidth - HOME_PRODUCT_SECTION_PADDING_PX * 2 - HOME_PRODUCT_GRID_GAP_PX) / 2))
+}
+
 export default function ProductCatalogApp() {
   const [categories, setCategories] = useState<DisplayCategory[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
@@ -98,6 +134,7 @@ export default function ProductCatalogApp() {
   const navbarStyle = getNavbarStyle()
   const quickCategories = useMemo(() => buildQuickCategories(categories), [categories])
   const productStartingPrices = useProductStartingPrices(products)
+  const homeProductImageSize = useMemo(() => getHomeProductImageSize(), [])
   const trimmedSearchQuery = searchQuery.trim()
   const showEmptyDemandHint = !productsLoading && trimmedSearchQuery.length > 0 && products.length === 0
 
@@ -180,14 +217,21 @@ export default function ProductCatalogApp() {
       {isH5 ? <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary' /> : null}
 
       <View className='page-search'>
-        <Search
-          value={searchQuery}
-          shape='rounded'
-          clearable
-          icon={<SearchIcon />}
-          placeholder='按 SKU 或名称搜索...'
-          onChange={(event) => setSearchQuery(event.detail.value)}
-        />
+        <View className='home-search-shell'>
+          <View className='home-search-icon' aria-hidden='true'>
+            <View className='home-search-icon-circle' />
+            <View className='home-search-icon-handle' />
+          </View>
+          <Input
+            className='home-search-input'
+            type='text'
+            confirmType='search'
+            value={searchQuery}
+            placeholder='按 SKU 或名称搜索...'
+            placeholderClass='home-search-placeholder'
+            onInput={(event) => setSearchQuery(event.detail.value)}
+          />
+        </View>
       </View>
 
       <HomeShowcase />
@@ -218,7 +262,11 @@ export default function ProductCatalogApp() {
         <View className='home-product-matrix' data-testid='home-product-matrix'>
           {products.map((product) => (
             <View key={product.id} className='home-product-cell'>
-              <ProductCard data={product} priceLabel={productStartingPrices[product.id] ?? '询价'} />
+              <ProductCard
+                data={product}
+                priceLabel={productStartingPrices[product.id] ?? '询价'}
+                imageSize={homeProductImageSize}
+              />
             </View>
           ))}
         </View>
@@ -275,35 +323,6 @@ function HomeCategoryQuickGrid({ items, loading, onTap }: HomeCategoryQuickGridP
 }
 
 function HomeShowcase() {
-  const showcaseItems: ShowcaseItem[] = [
-    {
-      key: 'catalog',
-      eyebrow: 'V1 主链路',
-      title: '目录采购更快开始',
-      copy: '从分类找货到提交意向订单，先把客户最常走的采购路径做顺。',
-      actionLabel: '去找商品',
-      tone: 'catalog',
-      onClick: () => void switchTabLike(ROUTES.category)
-    },
-    {
-      key: 'demand',
-      eyebrow: '找不到也能继续',
-      title: '缺货或规格不清就提需求',
-      copy: '客户不用离开小程序，直接把名称、规格和数量交给寻源团队跟进。',
-      actionLabel: '发布需求',
-      tone: 'demand',
-      onClick: () => void navigateTo(ROUTES.demandCreate)
-    },
-    {
-      key: 'import',
-      eyebrow: '工业采购效率入口',
-      title: 'Excel 一次导入整单',
-      copy: '适合一口气采购几十个物料，能自动识别的直接加购，其他项再确认。',
-      actionLabel: '批量导入',
-      tone: 'import',
-      onClick: () => void navigateTo(ROUTES.import)
-    }
-  ]
   const [activePage, setActivePage] = useState(0)
 
   return (
@@ -317,41 +336,52 @@ function HomeShowcase() {
         duration={480}
         onChange={(event) => setActivePage(event.detail.current)}
       >
-        {showcaseItems.map((item) => (
+        {HOME_SHOWCASE_ITEMS.map((item) => (
           <SwiperItem key={item.key}>
             <View className={`home-showcase-card home-showcase-card--${item.tone}`} data-testid='home-showcase-card'>
-              <View className='home-showcase-body'>
+              <View className='home-showcase-decoration' />
+              <View className={`home-showcase-body ${item.key === 'demand' ? 'home-showcase-body--demand' : ''}`.trim()}>
                 <Text className='home-showcase-eyebrow'>{item.eyebrow}</Text>
-                <Text className='home-showcase-title'>{item.title}</Text>
+                <Text className={`home-showcase-title ${item.key === 'demand' ? 'home-showcase-title--demand' : ''}`.trim()}>
+                  {item.title}
+                </Text>
                 <Text className='home-showcase-copy'>{item.copy}</Text>
               </View>
               <View className='home-showcase-footer'>
                 <View className='home-showcase-action' role='button' onClick={item.onClick}>
                   <Text>{item.actionLabel}</Text>
                 </View>
+                <View className='home-showcase-dots' data-testid='home-showcase-dots'>
+                  {HOME_SHOWCASE_ITEMS.map((dotItem, index) => (
+                    <View
+                      key={dotItem.key}
+                      className={`home-showcase-dot ${index === activePage ? 'is-active' : ''}`}
+                    />
+                  ))}
+                </View>
               </View>
             </View>
           </SwiperItem>
         ))}
       </Swiper>
-
-      <View className='home-showcase-dots' data-testid='home-showcase-dots'>
-        {showcaseItems.map((item, index) => (
-          <View
-            key={item.key}
-            className={`home-showcase-dot ${index === activePage ? 'is-active' : ''}`}
-          />
-        ))}
-      </View>
     </View>
   )
 }
 
-function ProductCard({ data, priceLabel }: { data: ProductSummary; priceLabel: string }) {
+function ProductCard({ data, priceLabel, imageSize }: { data: ProductSummary; priceLabel: string; imageSize: number }) {
   const tagLabel = data.tags?.[0] ?? '分类'
   return (
     <View className='product-card product-card--home' onClick={() => navigateTo(goodsDetailRoute(data.id))}>
-      <SafeImage className='product-card-image' src={data.coverImageUrl} width='100%' height={198} mode='aspectFill' />
+      <View className='product-card-image-shell' style={{ height: `${imageSize}px` }}>
+        <SafeImage
+          wrapperClassName='product-card-image-wrapper'
+          className='product-card-image'
+          src={data.coverImageUrl}
+          width='100%'
+          height='100%'
+          mode='aspectFill'
+        />
+      </View>
       <View className='product-card-body'>
         <Text className='product-card-title u-safe-title-2'>{data.name}</Text>
         <Text className='product-card-price'>{priceLabel}</Text>

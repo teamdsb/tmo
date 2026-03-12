@@ -54,7 +54,7 @@ const mockComponent = (tag = 'div') => {
 const joinClassName = (...values) => values.filter(Boolean).join(' ');
 
 jest.mock('@tarojs/components', () => {
-  const Input = ({ onInput, onChange, ...props }) => (
+  const Input = ({ onInput, onChange, confirmType, placeholderClass, ...props }) => (
     <input
       {...props}
       onChange={(event) => {
@@ -414,7 +414,7 @@ const MockProgress = ({ percent, ...props }) => (
   <div {...stripDomProps(props)} data-percent={percent} />
 );
 
-const MockImage = ({ src, width, height, ...props }) => (
+const MockImage = ({ src, width, height, wrapperClassName, ...props }) => (
   <img src={src} width={width} height={height} alt='' {...props} />
 );
 

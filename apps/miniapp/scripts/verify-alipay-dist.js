@@ -3,6 +3,7 @@ const path = require('path')
 
 const distDir = path.resolve(__dirname, '..', 'dist', 'alipay')
 const appJsonPath = path.join(distDir, 'app.json')
+const appAcssPath = path.join(distDir, 'app.acss')
 
 function exists(filePath) {
   return fs.existsSync(filePath)
@@ -13,6 +14,30 @@ function getPages(appJson) {
     return []
   }
   return appJson.pages.filter((page) => typeof page === 'string' && page.length > 0)
+}
+
+function verifyAppAcssImports() {
+  if (!exists(appAcssPath)) {
+    return
+  }
+
+  const content = fs.readFileSync(appAcssPath, 'utf8')
+  const invalidImports = []
+
+  for (const fileName of ['app-origin.acss', 'common.acss']) {
+    const importPattern = new RegExp(`@import\\s+(['"])${fileName}\\1;`, 'g')
+    if (importPattern.test(content)) {
+      invalidImports.push(fileName)
+    }
+  }
+
+  if (invalidImports.length > 0) {
+    console.error('[verify-alipay-dist] app.acss has non-relative imports:')
+    for (const fileName of invalidImports) {
+      console.error(`- ${fileName} (expected @import "./${fileName}";)`)
+    }
+    process.exit(1)
+  }
 }
 
 function verify() {
@@ -62,6 +87,7 @@ function verify() {
     process.exit(1)
   }
 
+  verifyAppAcssImports()
   console.log(`[verify-alipay-dist] ok (${pages.length} pages checked)`)
 }
 
