@@ -362,6 +362,7 @@ bash tools/scripts/miniapp-customer-evidence.sh
 - 若微信端图片显示异常，先检查 gateway 的 `GATEWAY_PUBLIC_BASE_URL` 与 `GATEWAY_IMAGE_PROXY_ALLOWLIST`；默认通过 `/assets/img` 代理时不需要把第三方图床直接加入小程序图片白名单。
 - 如果支付宝开发者工具导入 `apps/miniapp/dist/alipay` 后出现 `ENOENT ... dist/dist/app.json`，请检查 `apps/miniapp/dist/alipay/mini.project.json` 中的 `miniprogramRoot`，应为 `./`。
 - 如果出现 `CE1000.01 cannot resolve module ...*.axml`，先执行 `pnpm -C apps/miniapp build:alipay`，再根据 `verify-alipay-dist` 输出补齐缺失文件后重试导入。
+- 如果出现 `CE1000.03: app.acss Can't resolve 'common.acss'`，先重新执行 `pnpm -C apps/miniapp build:alipay:dev`，再确认 `apps/miniapp/dist/alipay/app.acss` 中使用的是 `@import "./common.acss";` 而不是裸 `common.acss`。
 
 ## 导航栏高度约定
 
