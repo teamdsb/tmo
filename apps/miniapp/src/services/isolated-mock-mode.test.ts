@@ -121,4 +121,38 @@ describe('isolated mock mode', () => {
       phoneProof: { code: 'mock-phone-proof' }
     })).rejects.toBeInstanceOf(identityServicesModule.RoleSelectionRequiredError)
   })
+
+  it('supports role-only customer login in isolated mock mode', async () => {
+    const { identityServices } = require('./identity') as typeof import('./identity')
+    const { gatewayServices } = require('./gateway') as typeof import('./gateway')
+
+    await expect(identityServices.auth.miniLogin({
+      role: 'CUSTOMER'
+    })).resolves.toEqual(expect.objectContaining({
+      accessToken: expect.any(String),
+      user: expect.objectContaining({
+        currentRole: 'CUSTOMER'
+      })
+    }))
+
+    const bootstrap = await gatewayServices.bootstrap.get()
+    expect(bootstrap.me?.currentRole).toBe('CUSTOMER')
+  })
+
+  it('supports role-only sales login in isolated mock mode', async () => {
+    const { identityServices } = require('./identity') as typeof import('./identity')
+    const { gatewayServices } = require('./gateway') as typeof import('./gateway')
+
+    await expect(identityServices.auth.miniLogin({
+      role: 'SALES'
+    })).resolves.toEqual(expect.objectContaining({
+      accessToken: expect.any(String),
+      user: expect.objectContaining({
+        currentRole: 'SALES'
+      })
+    }))
+
+    const bootstrap = await gatewayServices.bootstrap.get()
+    expect(bootstrap.me?.currentRole).toBe('SALES')
+  })
 })

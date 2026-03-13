@@ -53,7 +53,7 @@ describe('SettingsPage', () => {
     })
 
     expect(screen.getByText('开发调试')).toBeInTheDocument()
-    expect(screen.getByText('测试登录（业务员）')).toBeInTheDocument()
+    expect(screen.getByText('切换为业务员 Mock 账号')).toBeInTheDocument()
     expect(screen.getByText('重置 Mock 数据')).toBeInTheDocument()
   })
 
@@ -66,7 +66,7 @@ describe('SettingsPage', () => {
     })
 
     expect(screen.queryByText('开发调试')).toBeNull()
-    expect(screen.queryByText('测试登录（业务员）')).toBeNull()
+    expect(screen.queryByText('切换为业务员 Mock 账号')).toBeNull()
   })
 
   it('runs mock sales login from debug panel', async () => {
@@ -78,7 +78,7 @@ describe('SettingsPage', () => {
     })
 
     await act(async () => {
-      fireEvent.click(screen.getByText('测试登录（业务员）'))
+      fireEvent.click(screen.getByText('切换为业务员 Mock 账号'))
       await flushPromises()
     })
 

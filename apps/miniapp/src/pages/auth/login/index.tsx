@@ -191,7 +191,28 @@ export default function LoginPage() {
   ])
   const isWeappLoginBlocked = blockedWeappLoginMessage.length > 0
 
-  const handleLoginFlow = async (resolvePhoneProof?: () => Promise<PhoneProofResult | undefined>) => {
+  const handleLoginSuccess = async (
+    role?: 'CUSTOMER' | 'SALES',
+    resolvePhoneProof?: () => Promise<PhoneProofResult | undefined>
+  ) => {
+    const phoneProof = resolvePhoneProof ? await resolvePhoneProof() : undefined
+    await identityServices.auth.miniLogin({
+      role,
+      scene: launchContext.scene,
+      bindingToken: launchContext.bindingToken,
+      phoneProof,
+      codeOverride: platform === 'weapp' && enableWeappPhoneProofSimulation ? 'mock_customer_001' : undefined
+    })
+    const bootstrap = await gatewayServices.bootstrap.get()
+    await saveBootstrap(bootstrap)
+    await savePendingRoleSelection(null)
+    await switchTabLike(redirect || ROUTES.home)
+  }
+
+  const handleLoginFlow = async (
+    resolvePhoneProof?: () => Promise<PhoneProofResult | undefined>,
+    options: { role?: 'CUSTOMER' | 'SALES' } = {}
+  ) => {
     if (!agreed) {
       await Taro.showToast({
         title: '请先同意条款。',
@@ -210,17 +231,7 @@ export default function LoginPage() {
 
     setLoading(true)
     try {
-      const phoneProof = resolvePhoneProof ? await resolvePhoneProof() : undefined
-      await identityServices.auth.miniLogin({
-        scene: launchContext.scene,
-        bindingToken: launchContext.bindingToken,
-        phoneProof,
-        codeOverride: platform === 'weapp' && enableWeappPhoneProofSimulation ? 'mock_customer_001' : undefined
-      })
-      const bootstrap = await gatewayServices.bootstrap.get()
-      await saveBootstrap(bootstrap)
-      await savePendingRoleSelection(null)
-      await switchTabLike(redirect || ROUTES.home)
+      await handleLoginSuccess(options.role, resolvePhoneProof)
     } catch (error) {
       if (error instanceof RoleSelectionRequiredError) {
         await savePendingRoleSelection({
@@ -303,6 +314,10 @@ export default function LoginPage() {
     }
   }
 
+  const handleMockRoleLogin = async (role: 'CUSTOMER' | 'SALES') => {
+    await handleLoginFlow(async () => undefined, { role })
+  }
+
   return (
     <View className='page login-page'>
       <View className='login-shell'>
@@ -325,14 +340,18 @@ export default function LoginPage() {
 
           <View className='login-panel'>
             <View className='login-panel-head'>
-              <Text className='login-panel-title'>手机号登录</Text>
-              <Text className='login-panel-caption'>使用微信授权手机号完成身份识别</Text>
+              <Text className='login-panel-title'>{runtimeEnv.isIsolatedMock ? 'Mock 快速登录' : '手机号登录'}</Text>
+              <Text className='login-panel-caption'>
+                {runtimeEnv.isIsolatedMock ? '当前为离线 Mock 模式，可直接选择角色进入调试。' : '使用微信授权手机号完成身份识别'}
+              </Text>
             </View>
 
             <View className='login-status-strip'>
               <View className='login-status-dot' />
               <Text className='login-status-copy'>
-                {platform === 'weapp'
+                {runtimeEnv.isIsolatedMock
+                  ? 'Mock 模式登录后会保留正常回跳链路，适合商品详情、加购和购物车联调。'
+                  : platform === 'weapp'
                   ? '微信环境将直接调起手机号授权。'
                   : platform === 'alipay'
                     ? '支付宝环境将使用平台手机号授权。'
@@ -349,7 +368,30 @@ export default function LoginPage() {
             ) : null}
 
             <View className='login-actions'>
-              {platform === 'weapp' && enableWeappPhoneProofSimulation ? (
+              {runtimeEnv.isIsolatedMock ? (
+                <>
+                  <Button
+                    color='primary'
+                    block
+                    loading={loading}
+                    onClick={() => handleMockRoleLogin('CUSTOMER')}
+                    className='login-primary'
+                  >
+                    客户登录
+                  </Button>
+                  <Button
+                    variant='outlined'
+                    block
+                    loading={loading}
+                    onClick={() => handleMockRoleLogin('SALES')}
+                    className='login-secondary'
+                  >
+                    业务员登录
+                  </Button>
+                </>
+              ) : null}
+
+              {!runtimeEnv.isIsolatedMock && platform === 'weapp' && enableWeappPhoneProofSimulation ? (
                 <NativeButton
                   className='login-primary login-native-button'
                   disabled={!agreed || loading}
@@ -360,7 +402,7 @@ export default function LoginPage() {
                 </NativeButton>
               ) : null}
 
-              {platform === 'weapp' && !enableWeappPhoneProofSimulation ? (
+              {!runtimeEnv.isIsolatedMock && platform === 'weapp' && !enableWeappPhoneProofSimulation ? (
                 <NativeButton
                   className='login-primary login-native-button'
                   disabled={!agreed || loading || isWeappLoginBlocked}
@@ -372,7 +414,7 @@ export default function LoginPage() {
                 </NativeButton>
               ) : null}
 
-              {platform === 'alipay' ? (
+              {!runtimeEnv.isIsolatedMock && platform === 'alipay' ? (
                 <NativeButton
                   className='login-primary login-native-button'
                   disabled={!agreed || loading}
@@ -386,7 +428,7 @@ export default function LoginPage() {
                 </NativeButton>
               ) : null}
 
-              {platform === 'unknown' ? (
+              {!runtimeEnv.isIsolatedMock && platform === 'unknown' ? (
                 <Button
                   color='primary'
                   block
