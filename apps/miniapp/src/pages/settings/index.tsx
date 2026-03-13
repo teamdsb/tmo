@@ -158,7 +158,7 @@ export default function SettingsPage() {
               disabled={mockLoggingIn}
               onClick={handleMockLogin}
             >
-              {mockLoggingIn ? '切换中...' : '测试登录（业务员）'}
+              {mockLoggingIn ? '切换中...' : '切换为业务员 Mock 账号'}
             </NativeButton>
             <NativeButton
               className='mt-3 rounded-xl border border-slate-200 py-2 text-sm text-slate-700'

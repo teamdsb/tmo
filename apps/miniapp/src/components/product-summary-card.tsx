@@ -29,7 +29,7 @@ export default function ProductSummaryCard({ data, imageSize, priceLabel }: Prod
       <View className='product-card-body'>
         <Text className='product-card-title u-safe-title-2'>{data.name}</Text>
         <Text className='product-card-price'>{priceLabel}</Text>
-        <Flex justify='space-between' align='center' className='product-card-footer'>
+        <Flex justify='between' align='center' className='product-card-footer'>
           <View className='product-card-tag'>
             <Text>{tagLabel}</Text>
           </View>

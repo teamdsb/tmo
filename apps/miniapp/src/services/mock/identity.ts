@@ -38,6 +38,14 @@ const buildAuthResponse = (
   }
 }
 
+const resolveMockLoginCodeFallback = (role?: string): string => {
+  const normalizedRole = String(role || '').trim().toUpperCase()
+  if (normalizedRole === 'SALES') {
+    return 'mock_sales_001'
+  }
+  return 'mock_customer_001'
+}
+
 const resolveMockLoginCode = async (): Promise<string> => {
   const result = await platformLogin()
   const code = typeof result?.code === 'string' ? result.code.trim() : ''
@@ -73,8 +81,10 @@ export const createMockIdentityServices = (): IdentityServices => {
   return {
     auth: {
       miniLogin: async (input: MiniLoginInput) => {
-        const code = String(input?.codeOverride || '').trim() || await resolveMockLoginCode()
-        if (!input?.role && !input?.phoneProof) {
+        const hasRequestedRole = Boolean(String(input?.role || '').trim())
+        const code = String(input?.codeOverride || '').trim()
+          || (hasRequestedRole ? resolveMockLoginCodeFallback(input?.role) : await resolveMockLoginCode())
+        if (!hasRequestedRole && !input?.phoneProof) {
           throw createPhoneRequiredError()
         }
         const preliminaryContext = buildMockAuthContext(code)

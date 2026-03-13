@@ -9,14 +9,16 @@ type LoadedLoginModule = {
   identityServices: typeof import('../../../services/identity').identityServices
   gatewayServices: typeof import('../../../services/gateway').gatewayServices
   commerceServices: typeof import('../../../services/commerce').commerceServices
+  bootstrapServices: typeof import('../../../services/bootstrap')
   ApiError: typeof import('@tmo/identity-services').ApiError
   Taro: typeof import('@tarojs/taro')
 }
 
 type LoadLoginModuleOptions = {
-  platform?: 'weapp' | 'unknown'
+  platform?: 'weapp' | 'alipay' | 'unknown'
   weappPhoneProofSimulation?: boolean
   weappAppId?: string
+  isIsolatedMock?: boolean
 }
 
 const setRouterParams = (params: Record<string, string> = {}) => {
@@ -27,7 +29,8 @@ const loadLoginModule = (options: LoadLoginModuleOptions = {}) => {
   const {
     platform = 'weapp',
     weappPhoneProofSimulation = true,
-    weappAppId = ''
+    weappAppId = '',
+    isIsolatedMock = false
   } = options
   let moduleValue: LoadedLoginModule | undefined
 
@@ -36,7 +39,7 @@ const loadLoginModule = (options: LoadLoginModuleOptions = {}) => {
     jest.doMock('react/jsx-runtime', () => actualJsxRuntime)
     jest.doMock('../../../config/runtime-env', () => ({
       runtimeEnv: {
-        isIsolatedMock: false,
+        isIsolatedMock,
         enableMockLogin: false,
         weappPhoneProofSimulation,
         weappAppId,
@@ -52,6 +55,7 @@ const loadLoginModule = (options: LoadLoginModuleOptions = {}) => {
     const identityModule = require('../../../services/identity')
     const gatewayModule = require('../../../services/gateway')
     const commerceModule = require('../../../services/commerce')
+    const bootstrapModule = require('../../../services/bootstrap')
     const identityServicesModule = require('@tmo/identity-services')
     const taroModule = require('@tarojs/taro')
     const platformAdapterModule = require('@tmo/platform-adapter')
@@ -63,6 +67,7 @@ const loadLoginModule = (options: LoadLoginModuleOptions = {}) => {
       identityServices: identityModule.identityServices,
       gatewayServices: gatewayModule.gatewayServices,
       commerceServices: commerceModule.commerceServices,
+      bootstrapServices: bootstrapModule,
       ApiError: identityServicesModule.ApiError,
       Taro: taroModule.default
     }
@@ -110,6 +115,15 @@ describe('LoginPage', () => {
     expect(screen.getByText('快速登录').closest('button')).toHaveClass('login-primary')
     expect(screen.getByText('暂不登录').closest('button')).toHaveClass('login-secondary')
     expect(screen.queryByText('测试登录')).not.toBeInTheDocument()
+  })
+
+  it('renders isolated mock role login actions', async () => {
+    const { LoginPage } = loadLoginModule({ platform: 'alipay', isIsolatedMock: true })
+    await renderLoginPage(LoginPage)
+
+    expect(screen.getByText('Mock 快速登录')).toBeInTheDocument()
+    expect(screen.getByText('客户登录').closest('button')).toHaveClass('login-primary')
+    expect(screen.getByText('业务员登录').closest('button')).toHaveClass('login-secondary')
   })
 
   it('supports alt login action', async () => {
@@ -257,5 +271,98 @@ describe('LoginPage', () => {
       title: '本地模拟账号与 seed 绑定冲突，请重启 identity 容器或更新后端后重试',
       icon: 'none'
     })
+  })
+
+  it('blocks isolated mock customer login until user agrees to terms', async () => {
+    const { LoginPage, identityServices, Taro: runtimeTaro } = loadLoginModule({
+      platform: 'alipay',
+      isIsolatedMock: true
+    })
+    const miniLoginSpy = jest.spyOn(identityServices.auth, 'miniLogin')
+
+    await renderLoginPage(LoginPage)
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('客户登录'))
+      await flushPromises()
+    })
+
+    expect(miniLoginSpy).not.toHaveBeenCalled()
+    expect(runtimeTaro.showToast).toHaveBeenCalledWith({
+      title: '请先同意条款。',
+      icon: 'none'
+    })
+  })
+
+  it('supports isolated mock customer login and redirect flow', async () => {
+    setRouterParams({ redirect: encodeURIComponent('/pages/cart/index') })
+    const {
+      LoginPage,
+      identityServices,
+      gatewayServices,
+      bootstrapServices,
+      Taro: runtimeTaro
+    } = loadLoginModule({
+      platform: 'alipay',
+      isIsolatedMock: true
+    })
+    const miniLoginSpy = jest.spyOn(identityServices.auth, 'miniLogin')
+    const bootstrapGetSpy = jest.spyOn(gatewayServices.bootstrap, 'get')
+    const saveBootstrapSpy = jest.spyOn(bootstrapServices, 'saveBootstrap')
+    const savePendingRoleSelectionSpy = jest.spyOn(bootstrapServices, 'savePendingRoleSelection')
+    bootstrapGetSpy.mockResolvedValue({
+      me: { id: 'customer-1', roles: ['CUSTOMER'] },
+      permissions: { items: [] },
+      featureFlags: {}
+    })
+
+    await renderLoginPage(LoginPage)
+    await agreeToTerms()
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('客户登录'))
+      await flushPromises()
+    })
+
+    expect(miniLoginSpy).toHaveBeenCalledWith({
+      role: 'CUSTOMER',
+      scene: undefined,
+      bindingToken: undefined,
+      phoneProof: undefined,
+      codeOverride: undefined
+    })
+    expect(bootstrapGetSpy).toHaveBeenCalled()
+    expect(saveBootstrapSpy).toHaveBeenCalled()
+    expect(savePendingRoleSelectionSpy).toHaveBeenCalledWith(null)
+    expect(runtimeTaro.switchTab).toHaveBeenCalledWith({ url: '/pages/cart/index' })
+  })
+
+  it('supports isolated mock sales login', async () => {
+    const {
+      LoginPage,
+      identityServices,
+      gatewayServices
+    } = loadLoginModule({
+      platform: 'alipay',
+      isIsolatedMock: true
+    })
+    const miniLoginSpy = jest.spyOn(identityServices.auth, 'miniLogin')
+    jest.spyOn(gatewayServices.bootstrap, 'get').mockResolvedValue({
+      me: { id: 'sales-1', roles: ['SALES'] },
+      permissions: { items: [] },
+      featureFlags: {}
+    })
+
+    await renderLoginPage(LoginPage)
+    await agreeToTerms()
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('业务员登录'))
+      await flushPromises()
+    })
+
+    expect(miniLoginSpy).toHaveBeenCalledWith(expect.objectContaining({
+      role: 'SALES'
+    }))
   })
 })
