@@ -55,11 +55,11 @@ describe('PersonalCenter', () => {
     const navbar = document.querySelector('.app-navbar.app-navbar--primary')
     expect(navbar).not.toBeNull()
 
-    expect(await screen.findByText('张三')).toBeInTheDocument()
-    expect(screen.getByText('CUSTOMER')).toBeInTheDocument()
-    expect(screen.getAllByText(/李经理/)).toHaveLength(2)
-    expect(screen.getByText('专属顾问')).toBeInTheDocument()
-    expect(screen.getByText('下单后由专属顾问继续报价、确认货源与同步发货进度。')).toBeInTheDocument()
+    expect(await screen.findByText('管理账户')).toBeInTheDocument()
+    expect(screen.getByText('欢迎回来，张三用户')).toBeInTheDocument()
+    expect(screen.getByText('订单跟踪')).toBeInTheDocument()
+    expect(screen.queryByText('专属顾问')).not.toBeInTheDocument()
+    expect(screen.queryByText('立即沟通')).not.toBeInTheDocument()
   })
 
   it('shows debug role switcher and switches current role', async () => {
@@ -105,7 +105,10 @@ describe('PersonalCenter', () => {
 
     await renderPersonalCenter()
 
-    expect(await screen.findByText('未登录')).toBeInTheDocument()
+    expect(await screen.findByText('开启您的专属购物之旅')).toBeInTheDocument()
+    expect(screen.queryByText('欢迎回来，张三用户')).not.toBeInTheDocument()
+    expect(screen.queryByText('访客模式')).not.toBeInTheDocument()
+    expect(screen.queryByText('未登录')).not.toBeInTheDocument()
     expect(screen.queryByText('客户经理')).not.toBeInTheDocument()
     expect(screen.queryByText('李经理')).not.toBeInTheDocument()
   })
@@ -130,7 +133,7 @@ describe('PersonalCenter', () => {
     expect(Taro.reLaunch).toHaveBeenCalledWith({ url: '/pages/auth/login/index' })
 
     await waitFor(() => {
-      expect(screen.getByText('未登录')).toBeInTheDocument()
+      expect(screen.getByText('开启您的专属购物之旅')).toBeInTheDocument()
     })
   })
 
@@ -139,19 +142,20 @@ describe('PersonalCenter', () => {
 
     expect(screen.getByText('订单跟踪')).toBeInTheDocument()
     expect(screen.getByText('我的需求')).toBeInTheDocument()
-    expect(screen.getByText('收藏')).toBeInTheDocument()
+    expect(screen.getByText('我的收藏')).toBeInTheDocument()
+    expect(screen.getByText('帮助中心')).toBeInTheDocument()
     expect(screen.getByText('物流跟踪')).toBeInTheDocument()
     expect(screen.getByText('系统设置')).toBeInTheDocument()
   })
 
-  it('navigates to support page when opening advisor chat', async () => {
+  it('navigates to settings page when opening account management', async () => {
     await renderPersonalCenter()
 
-    fireEvent.click(screen.getByText('立即沟通'))
+    fireEvent.click(screen.getByText('管理账户'))
 
     await waitFor(() => {
       expect(Taro.navigateTo).toHaveBeenCalledWith({
-        url: '/pages/support/index'
+        url: '/pages/settings/index'
       })
     })
   })
@@ -161,23 +165,46 @@ describe('PersonalCenter', () => {
 
     await renderPersonalCenter()
 
-    expect(await screen.findByText('未登录')).toBeInTheDocument()
+    expect(await screen.findByText('立即登录 / 注册')).toBeInTheDocument()
+    expect(screen.queryByText('未登录')).not.toBeInTheDocument()
     expect(gatewayServices.bootstrap.get).not.toHaveBeenCalled()
     expect(removeStorage).toHaveBeenCalledWith('tmo:bootstrap')
   })
 
-  it('opens login page when tapping guest profile header', async () => {
+  it('opens login page when tapping guest hero CTA', async () => {
     asMock(identityServices.tokens.getToken).mockResolvedValue(null)
 
     await renderPersonalCenter()
 
-    fireEvent.click(screen.getByText('未登录'))
+    fireEvent.click(screen.getByText('立即登录 / 注册'))
 
     await waitFor(() => {
       expect(Taro.navigateTo).toHaveBeenCalledWith({
         url: '/pages/auth/login/index'
       })
     })
+  })
+
+  it('shows logged-in hero CTA', async () => {
+    await renderPersonalCenter()
+
+    expect(await screen.findByText('管理账户')).toBeInTheDocument()
+  })
+
+  it('shows guest hero CTA', async () => {
+    asMock(identityServices.tokens.getToken).mockResolvedValue(null)
+
+    await renderPersonalCenter()
+
+    expect(await screen.findByText('立即登录 / 注册')).toBeInTheDocument()
+  })
+
+  it('opens order list from embedded order section', async () => {
+    await renderPersonalCenter()
+
+    fireEvent.click(screen.getByText('查看全部'))
+
+    expect(await screen.findByText('订单列表')).toBeInTheDocument()
   })
 
   it('filters orders by selected tracking status', async () => {

@@ -163,15 +163,17 @@ export const toOrderBadge = (count: number): string | undefined => {
 }
 
 export const createMineMenuItems = (setCurrentPage: (page: 'demand' | 'address' | 'orders') => void): MenuItem[] => [
-  { key: 'demand', label: '我的需求', icon: Description, action: () => setCurrentPage('demand') },
-  { key: 'favorites', label: '收藏', icon: StarOutlined, route: ROUTES.favorites },
-  { key: 'address', label: '收货地址', icon: LocationOutlined, route: ROUTES.addressList },
-  { key: 'import', label: 'Excel 批量导入', icon: AppsOutlined, route: ROUTES.import },
+  { key: 'demand', label: '我的需求', description: '查看询价与跟进进度', icon: Description, action: () => setCurrentPage('demand') },
+  { key: 'favorites', label: '我的收藏', description: '同步关注的商品与方案', icon: StarOutlined, route: ROUTES.favorites },
+  { key: 'address', label: '收货地址', description: '管理常用收货信息', icon: LocationOutlined, route: ROUTES.addressList },
+  { key: 'support', label: '帮助中心', description: '联系客服与售后支持', icon: ServiceOutlined, route: ROUTES.support },
   {
     key: 'tracking',
     label: '物流跟踪',
+    description: '统一查看订单配送动态',
     icon: BarChartOutlined,
     action: () => setCurrentPage('orders')
   },
-  { key: 'settings', label: '系统设置', icon: SettingOutlined, route: ROUTES.settings }
+  { key: 'import', label: 'Excel 批量导入', description: '批量上传商品与需求', icon: AppsOutlined, route: ROUTES.import },
+  { key: 'settings', label: '系统设置', description: '账号与通知偏好', icon: SettingOutlined, route: ROUTES.settings }
 ]

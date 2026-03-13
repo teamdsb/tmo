@@ -2721,125 +2721,477 @@
   background: var(--mine-modern-bg);
 }
 
-.mine-lite-main {
-  background: #f5f6f8;
-}
-
 .mine-modern-main-content {
   padding: 32rpx;
   padding-bottom: calc(32rpx + var(--tabbar-safe-offset));
   padding-bottom: calc(32rpx + var(--tabbar-safe-offset-legacy));
 }
 
-.mine-lite-content {
-  padding-top: 36rpx;
+.mine-dashboard-main {
+  background:
+    radial-gradient(circle at top center, rgb(219 234 254 / 96%) 0, rgb(237 242 247 / 0%) 42%),
+    linear-gradient(180deg, #eef4fb 0%, #f8fbff 100%);
 }
 
-.mine-lite-profile {
-  padding: 8rpx 12rpx 12rpx;
+.mine-dashboard-content {
+  padding-top: 20rpx;
 }
 
-.mine-lite-profile-icon {
-  background: #fff;
-  border: 1px solid #edf1f4;
+.mine-dashboard-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
 }
 
-.mine-lite-avatar-wrap {
+.mine-dashboard-title {
+  color: #111827;
+  letter-spacing: 0.04em;
+}
+
+.mine-dashboard-action {
+  background: rgb(255 255 255 / 72%);
+  border: 1px solid rgb(255 255 255 / 88%);
+  box-shadow: 0 10rpx 32rpx rgb(15 23 42 / 7%);
+  backdrop-filter: blur(10px);
+}
+
+.mine-dashboard-action-icon {
+  color: #111827;
+}
+
+.mine-hero-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 760rpx;
+  padding: 40rpx 32rpx 48rpx;
+  border-radius: 44rpx;
+  background: linear-gradient(180deg, #e9f3ff 0%, #dfeaf8 100%);
+  box-shadow: 0 20rpx 56rpx rgb(59 130 246 / 18%);
+}
+
+.mine-hero-visual {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 320rpx;
+  margin-bottom: 32rpx;
+}
+
+.mine-hero-orbit {
+  position: absolute;
+  border-radius: 9999px;
+}
+
+.mine-hero-orbit--outer {
+  width: 300rpx;
+  height: 300rpx;
+  background: rgb(255 255 255 / 26%);
+}
+
+.mine-hero-orbit--inner {
+  width: 228rpx;
+  height: 228rpx;
+  background: rgb(255 255 255 / 42%);
+}
+
+.mine-hero-center {
+  position: relative;
+  z-index: 1;
+}
+
+.mine-hero-user-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.mine-hero-user-avatar {
+  width: 152rpx;
+  height: 152rpx;
+  overflow: hidden;
+  border-radius: 9999px;
+  border: 4rpx solid rgb(255 255 255 / 95%);
+  box-shadow: 0 18rpx 42rpx rgb(15 23 42 / 14%);
+  background: rgb(255 255 255 / 72%);
+}
+
+.mine-hero-user-copy {
+  color: #334155;
+  font-size: 36rpx;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.mine-hero-symbol {
+  color: #6b9dff;
+  font-size: 104rpx;
+}
+
+.mine-hero-symbol--filled {
+  color: #3b82f6;
+}
+
+.mine-hero-float {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 62rpx;
+  height: 62rpx;
+  border-radius: 22rpx;
+  box-shadow: 0 16rpx 32rpx rgb(15 23 42 / 12%);
+}
+
+.mine-hero-float--top {
+  top: 22rpx;
+  right: 92rpx;
+  background: linear-gradient(180deg, #fb7185 0%, #fda4af 100%);
+  transform: rotate(12deg);
+}
+
+.mine-hero-float--bottom {
+  left: 88rpx;
+  bottom: 18rpx;
+  background: linear-gradient(180deg, #f59e0b 0%, #facc15 100%);
+  transform: rotate(-12deg);
+}
+
+.mine-hero-float-icon {
+  color: #fff;
+  font-size: 32rpx;
+}
+
+.mine-hero-profile {
+  margin-bottom: 24rpx;
+}
+
+.mine-hero-avatar-shell {
+  background: rgb(255 255 255 / 90%);
+  border: 1px solid rgb(255 255 255 / 96%);
+  box-shadow: 0 12rpx 24rpx rgb(15 23 42 / 8%);
+}
+
+.mine-hero-avatar-wrap {
   border-width: 0;
   box-shadow: none;
 }
 
-.mine-lite-profile-name {
-  color: #202531;
-  letter-spacing: -0.02em;
-  line-height: 1.3;
+.mine-hero-avatar-icon {
+  color: #6b7280;
 }
 
-.mine-lite-profile-copy {
-  color: #8b93a1;
+.mine-hero-eyebrow {
+  color: #64748b;
+  letter-spacing: 0.1em;
+}
+
+.mine-hero-title,
+.mine-hero-headline {
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.mine-hero-copy,
+.mine-hero-supporting {
+  color: #64748b;
   line-height: 1.5;
 }
 
-.mine-lite-profile-copy--hero {
-  display: block;
-  margin-top: 8rpx;
-  line-height: 1.35;
+.mine-hero-headline {
+  margin-bottom: 12rpx;
 }
 
-.mine-lite-section-head {
-  padding: 0 4rpx;
+.mine-hero-supporting {
+  max-width: 560rpx;
+  margin: 0 auto;
 }
 
-.mine-lite-section-title {
-  color: #2c3440;
-  font-size: 32rpx;
+.mine-hero-role-icon {
+  color: #2563eb;
 }
 
-.mine-lite-section-link {
-  color: #7e8796;
-  font-size: 26rpx;
+.mine-hero-cta {
+  min-height: 96rpx;
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  box-shadow: 0 20rpx 48rpx rgb(59 130 246 / 30%);
 }
 
-.mine-lite-panel {
-  background: #fff;
-  border: 1px solid #edf1f5;
-  box-shadow: 0 6px 16px rgb(15 23 42 / 4%);
+.mine-hero-cta::after {
+  border: none;
 }
 
-.mine-lite-order-item {
+.mine-hero-embedded-order-panel {
+  margin-top: 36rpx;
+  padding: 28rpx;
+  border-radius: 32rpx;
+  background: rgb(255 255 255 / 55%);
+  border: 1px solid rgb(255 255 255 / 72%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 46%);
+  backdrop-filter: blur(10px);
+}
+
+.mine-hero-meta {
+  flex-wrap: wrap;
+  gap: 24rpx;
+}
+
+.mine-hero-meta-chip {
+  display: flex;
+  align-items: center;
+}
+
+.mine-hero-meta-dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 9999px;
+  background: #3b82f6;
+  box-shadow: 0 0 0 6rpx rgb(59 130 246 / 12%);
+}
+
+.mine-hero-meta-text {
+  color: #64748b;
+}
+
+.mine-hero-summary-card,
+.mine-dashboard-advisor-card,
+.mine-dashboard-debug-card {
+  margin-top: 24rpx;
+  padding: 28rpx;
+  border-radius: 32rpx;
+  background: rgb(255 255 255 / 92%);
+  border: 1px solid rgb(255 255 255 / 80%);
+  box-shadow: 0 14rpx 36rpx rgb(15 23 42 / 7%);
+  backdrop-filter: blur(14px);
+}
+
+.mine-hero-summary-icon {
+  background: rgb(59 130 246 / 10%);
+}
+
+.mine-dashboard-primary-icon,
+.mine-dashboard-primary-text {
+  color: #2563eb;
+}
+
+.mine-hero-summary-title,
+.mine-dashboard-card-title,
+.mine-dashboard-section-title {
+  color: #0f172a;
+}
+
+.mine-hero-summary-copy,
+.mine-dashboard-card-copy,
+.mine-dashboard-card-eyebrow,
+.mine-dashboard-discovery-title {
+  color: #64748b;
+}
+
+.mine-hero-summary-action {
+  flex-shrink: 0;
+  padding: 12rpx 20rpx;
+  border-radius: 20rpx;
+  background: rgb(59 130 246 / 8%);
+}
+
+.mine-dashboard-section-head {
+  margin-bottom: 24rpx;
+}
+
+.mine-dashboard-section-link {
+  color: #64748b;
+}
+
+.mine-dashboard-order-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24rpx 16rpx;
+}
+
+.mine-hero-embedded-order-panel .mine-dashboard-section-head {
+  margin-bottom: 20rpx;
+}
+
+.mine-hero-order-item {
   min-width: 0;
-  gap: 12rpx;
 }
 
-.mine-lite-order-icon {
+.mine-hero-order-icon {
   width: 92rpx;
   height: 92rpx;
-  background: #eef4fb;
-  border: 1px solid #d7e5f7;
+  margin-bottom: 4rpx;
 }
 
-.mine-lite-order-label {
-  color: #7e8796;
-  font-size: 24rpx;
-  line-height: 1.35;
+.mine-hero-order-glyph {
+  color: #2563eb;
 }
 
-.mine-lite-menu-row {
+.mine-hero-order-label {
+  color: #64748b;
+}
+
+.mine-dashboard-discovery {
+  margin-top: 28rpx;
+}
+
+.mine-dashboard-discovery-title {
+  margin-bottom: 12rpx;
+  padding: 0 4rpx;
+  letter-spacing: 0.14em;
+}
+
+.mine-dashboard-discovery-list,
+.mine-dashboard-secondary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.mine-dashboard-secondary-list {
+  margin-top: 20rpx;
+}
+
+.mine-menu-card {
+  min-height: 132rpx;
+  padding: 0 28rpx;
+  border-radius: 28rpx;
+  background: rgb(255 255 255 / 94%);
+  border: 1px solid rgb(226 232 240 / 80%);
+  box-shadow: 0 8rpx 22rpx rgb(15 23 42 / 5%);
+}
+
+.mine-menu-card--compact {
+  min-height: 120rpx;
+}
+
+.mine-menu-card-icon {
+  background: rgb(226 232 240 / 70%);
+}
+
+.mine-menu-card-glyph {
+  color: #475569;
+}
+
+.mine-menu-card-title {
+  color: #1e293b;
+}
+
+.mine-menu-card-copy,
+.mine-menu-card-chevron {
+  color: #94a3b8;
+}
+
+.mine-menu-accent--indigo {
+  background: linear-gradient(180deg, #fff 0%, #f8faff 100%);
+}
+
+.mine-menu-accent--rose {
+  background: linear-gradient(180deg, #fff 0%, #fff8fa 100%);
+}
+
+.mine-menu-accent--sky {
+  background: linear-gradient(180deg, #fff 0%, #f6fbff 100%);
+}
+
+.mine-menu-accent--amber {
+  background: linear-gradient(180deg, #fff 0%, #fffaf2 100%);
+}
+
+.mine-menu-accent--emerald {
+  background: linear-gradient(180deg, #fff 0%, #f5fffb 100%);
+}
+
+.mine-menu-accent--violet {
+  background: linear-gradient(180deg, #fff 0%, #faf7ff 100%);
+}
+
+.mine-menu-accent--slate {
+  background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+}
+
+.mine-menu-icon--indigo {
+  background: #eef2ff;
+}
+
+.mine-menu-icon--rose {
+  background: #fff1f2;
+}
+
+.mine-menu-icon--sky {
+  background: #eff6ff;
+}
+
+.mine-menu-icon--amber {
+  background: #fffbeb;
+}
+
+.mine-menu-icon--emerald {
+  background: #ecfdf5;
+}
+
+.mine-menu-icon--violet {
+  background: #f5f3ff;
+}
+
+.mine-menu-icon--slate {
+  background: #f1f5f9;
+}
+
+.mine-menu-icon--indigo .mine-menu-card-glyph {
+  color: #4f46e5;
+}
+
+.mine-menu-icon--rose .mine-menu-card-glyph {
+  color: #f43f5e;
+}
+
+.mine-menu-icon--sky .mine-menu-card-glyph {
+  color: #0ea5e9;
+}
+
+.mine-menu-icon--amber .mine-menu-card-glyph {
+  color: #f59e0b;
+}
+
+.mine-menu-icon--emerald .mine-menu-card-glyph {
+  color: #10b981;
+}
+
+.mine-menu-icon--violet .mine-menu-card-glyph {
+  color: #8b5cf6;
+}
+
+.mine-menu-icon--slate .mine-menu-card-glyph {
+  color: #475569;
+}
+
+.mine-dashboard-role-chip,
+.mine-dashboard-logout-btn {
   background: #fff;
-  min-height: 144rpx;
+  border-color: #e2e8f0;
+  box-shadow: 0 6rpx 18rpx rgb(15 23 42 / 4%);
 }
 
-.mine-lite-menu-icon {
-  background: transparent;
-  border: 0;
+.mine-dashboard-role-chip--active {
+  background: #eff6ff;
+  border-color: rgb(59 130 246 / 30%);
 }
 
-.mine-lite-icon {
-  color: #7f8794;
-}
-
-.mine-lite-text {
-  color: #2c3440;
-  font-size: 30rpx;
-}
-
-.mine-lite-chevron {
-  color: #a4acb8;
-}
-
-.mine-lite-divider {
-  border-color: #eef2f6;
-}
-
-.mine-lite-logout-btn {
-  background: #fff;
-  border-color: #edf1f5;
-  box-shadow: 0 4px 10px rgb(15 23 42 / 4%);
-  min-height: 88rpx;
-}
-
-.mine-lite-logout-btn::after {
+.mine-dashboard-role-chip::after,
+.mine-dashboard-logout-btn::after {
   border: none;
+}
+
+.mine-dashboard-logout-btn {
+  min-height: 92rpx;
+}
+
+.mine-dashboard-logout-icon,
+.mine-dashboard-logout-text {
+  color: #64748b;
 }
 
 .mine-modern-profile-card {

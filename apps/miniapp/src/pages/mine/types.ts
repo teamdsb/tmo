@@ -6,6 +6,7 @@ export type MenuItem = {
   key: string
   label: string
   icon: IconComponent
+  description?: string
   action?: () => void
   route?: string
 }
