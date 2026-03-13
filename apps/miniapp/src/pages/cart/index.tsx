@@ -316,6 +316,7 @@ export default function ExcelImportConfirmation() {
         <CartListView
           busyItemId={busyItemId}
           cartItems={cartItems}
+          onContinueBrowse={() => void switchTabLike(ROUTES.home)}
           onOpenCartItemDetail={handleOpenCartItemDetail}
           productImageBySpuId={productImageBySpuId}
           productNameBySpuId={productNameBySpuId}

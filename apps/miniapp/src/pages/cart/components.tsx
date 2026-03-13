@@ -1,12 +1,44 @@
 import { Button, Image, Text, View } from '@tarojs/components'
 import FixedView from '@taroify/core/fixed-view'
-import { AppsOutlined, ArrowLeft, FilterOutlined } from '@taroify/icons'
+import { ArrowLeft } from '@taroify/icons'
 import type { CartImportJob, CartImportPendingItem } from '@tmo/api-client'
+import cartActiveIcon from '../../assets/tabbar/cart-active.png'
 import placeholderProductImage from '../../assets/images/placeholder-product.svg'
+import recommendBagImage from '../../assets/cart/recommend-bag.jpg'
+import recommendHeadphonesImage from '../../assets/cart/recommend-headphones.jpg'
+import recommendShoesImage from '../../assets/cart/recommend-shoes.jpg'
+import recommendWatchImage from '../../assets/cart/recommend-watch.jpg'
 import { formatCartItemMeta, formatCartItemPrice, formatFen, formatPendingMeta, getCartItemTitle, MATCH_TYPE_BADGES } from './helpers'
 import type { CartItem, ImportTab, ProductImageMap, ProductNameMap, SelectionMap } from './types'
 
 type AutoAddedItem = NonNullable<CartImportJob['result']>['autoAddedItems'][number]
+
+const EMPTY_CART_RECOMMENDATIONS = [
+  {
+    id: 'shoes',
+    title: '专业跑鞋 X',
+    price: '¥125.00',
+    image: recommendShoesImage
+  },
+  {
+    id: 'watch',
+    title: '地平线经典腕表',
+    price: '¥180.00',
+    image: recommendWatchImage
+  },
+  {
+    id: 'bag',
+    title: '绒面托特包',
+    price: '¥95.00',
+    image: recommendBagImage
+  },
+  {
+    id: 'headphones',
+    title: '声学纯净耳机',
+    price: '¥210.00',
+    image: recommendHeadphonesImage
+  }
+]
 
 type ImportResultViewProps = {
   activeTab: ImportTab
@@ -166,6 +198,7 @@ export function ImportResultView({
 type CartListViewProps = {
   busyItemId: string | null
   cartItems: CartItem[]
+  onContinueBrowse: () => void
   onOpenCartItemDetail: (item: CartItem) => Promise<void>
   productImageBySpuId: ProductImageMap
   productNameBySpuId: ProductNameMap
@@ -178,6 +211,7 @@ type CartListViewProps = {
 export function CartListView({
   busyItemId,
   cartItems,
+  onContinueBrowse,
   onOpenCartItemDetail,
   productImageBySpuId,
   productNameBySpuId,
@@ -189,155 +223,170 @@ export function CartListView({
   const isCartEmpty = cartItems.length === 0
 
   return (
-    <View className='flex-1 flex flex-col bg-gray-50'>
-      <View className='px-6 pt-4 pb-4 bg-white'>
-        <View className='flex items-center justify-between gap-4'>
-          <View className='min-w-0'>
-            <Text className='text-xl font-semibold text-slate-900'>购物车</Text>
-          </View>
-        </View>
-      </View>
-
-      <View className='px-5 py-4 flex justify-between items-center bg-gray-50'>
-        <Text className='text-sm text-slate-500 font-medium'>
-          {`共 ${cartItems.length} 件`}
-        </Text>
-        <View className='flex gap-2'>
-          <View className='p-2 bg-white rounded-md shadow-sm border border-gray-200 text-slate-400'>
-            <FilterOutlined className='text-base' />
-          </View>
-          <View className='p-2 bg-white rounded-md shadow-sm border border-gray-200 text-slate-400'>
-            <AppsOutlined className='text-base' />
-          </View>
-        </View>
-      </View>
-
+    <View className='cart-screen'>
       <View className='cart-list-body'>
-        {!isCartEmpty ? (
-          <View className='cart-list-panel'>
-            {cartItems.map((item, index) => {
-              const meta = formatCartItemMeta(item)
-              const isBusy = busyItemId === item.id
-              const title = getCartItemTitle(item, productNameBySpuId)
-              const specLabel = item.sku.spec?.trim() || item.sku.name
-              const priceLabel = formatCartItemPrice(item)
-              const productImage = item.sku.spuId ? productImageBySpuId[item.sku.spuId] : undefined
-              const itemClassName = `cart-item-card${index === cartItems.length - 1 ? ' cart-item-card--last' : ''}`
-              const stopPropagation = (event: { stopPropagation?: () => void }) => {
-                event.stopPropagation?.()
-              }
-
-              return (
-                <View
-                  key={item.id}
-                  className={itemClassName}
-                  onClick={() => void onOpenCartItemDetail(item)}
-                >
-                  <View className='cart-item-top'>
-                    <View className='cart-item-thumb'>
-                      <Image
-                        src={productImage || placeholderProductImage}
-                        mode='aspectFill'
-                        className='cart-item-thumb-image'
-                      />
-                    </View>
-                    <View className='cart-item-main'>
-                      <View className='cart-item-header'>
-                        <View className='cart-item-title-wrap'>
-                          <Text className='cart-item-title'>
-                            {title}
-                          </Text>
-                          {meta ? (
-                            <Text className='cart-item-meta'>{meta}</Text>
-                          ) : null}
-                        </View>
-                        <View
-                          className={`cart-item-remove ${isBusy ? 'cart-item-remove--disabled' : ''}`}
-                          onClick={isBusy ? undefined : (event) => {
-                            stopPropagation(event)
-                            void onRemoveCartItem(item)
-                          }}
-                        >
-                          <Text>移除</Text>
-                        </View>
-                      </View>
-
-                      <View className='cart-item-middle'>
-                        <View
-                          className={`cart-item-spec-trigger ${isBusy ? 'cart-item-spec-trigger--disabled' : ''}`}
-                          onClick={isBusy ? undefined : (event) => {
-                            stopPropagation(event)
-                            void onChangeCartItemSku(item)
-                          }}
-                        >
-                          <Text className='cart-item-spec-label'>规格</Text>
-                          <Text className='cart-item-spec-value'>{specLabel}</Text>
-                        </View>
-                        <View className='cart-item-price'>
-                          <Text className='cart-item-price-label'>参考单价</Text>
-                          <Text className='cart-item-price-value'>{priceLabel}</Text>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-
-                  <View className='cart-item-footer'>
-                    <View className='cart-item-summary'>
-                      <Text className='cart-item-qty-label'>采购数量</Text>
-                      <Text className='cart-item-summary-text'>{item.qty} 件</Text>
-                    </View>
-                    <View className='cart-item-stepper'>
-                      <View
-                        className={`cart-item-stepper-btn ${
-                          item.qty <= 1 || isBusy ? 'cart-item-stepper-btn--disabled' : ''
-                        }`}
-                        onClick={
-                          item.qty <= 1 || isBusy
-                            ? undefined
-                            : (event) => {
-                              stopPropagation(event)
-                              void onChangeCartItemQty(item, item.qty - 1)
-                            }
-                        }
-                      >
-                        <Text className='cart-item-stepper-btn-icon'>-</Text>
-                      </View>
-                      <View
-                        className={`cart-item-stepper-value ${isBusy ? 'cart-item-stepper-value--disabled' : ''}`}
-                        onClick={isBusy ? undefined : (event) => {
-                          stopPropagation(event)
-                          void onQuickChangeCartItemQty(item)
-                        }}
-                      >
-                        <Text>{item.qty}</Text>
-                      </View>
-                      <View
-                        className={`cart-item-stepper-btn ${isBusy ? 'cart-item-stepper-btn--disabled' : ''}`}
-                        onClick={
-                          isBusy
-                            ? undefined
-                            : (event) => {
-                              stopPropagation(event)
-                              void onChangeCartItemQty(item, item.qty + 1)
-                            }
-                        }
-                      >
-                        <Text className='cart-item-stepper-btn-icon'>+</Text>
-                      </View>
-                    </View>
+        {isCartEmpty ? (
+          <>
+            <View className='cart-empty-hero'>
+              <View className='cart-empty-hero-visual'>
+                <View className='cart-empty-hero-glow' />
+                <View className='cart-empty-hero-ring'>
+                  <Image src={cartActiveIcon} mode='aspectFit' className='cart-empty-hero-icon' />
+                  <View className='cart-empty-hero-badge'>
+                    <Text>0</Text>
                   </View>
                 </View>
-              )
-            })}
-          </View>
-        ) : (
-          <View className='cart-empty-state'>
-            <View className='cart-empty-icon'>
-              <AppsOutlined className='text-xl cart-shell-primary' />
+              </View>
+              <Text className='cart-empty-title'>您的购物车是空的</Text>
+              <Text className='cart-empty-copy'>看来您还没有添加任何商品。快去探索我们的最新系列吧。</Text>
+              <Button className='cart-empty-primary' hoverClass='none' onClick={onContinueBrowse}>
+                探索系列
+              </Button>
             </View>
-            <Text className='cart-empty-title'>购物车还是空的</Text>
-            <Text className='cart-empty-copy'>先去首页挑几件常购商品，结算区会在这里汇总。</Text>
-          </View>
+
+            <View className='cart-recommend-section'>
+              <View className='cart-recommend-header'>
+                <Text className='cart-recommend-title'>为您推荐</Text>
+                <Text className='cart-recommend-link' onClick={onContinueBrowse}>查看全部</Text>
+              </View>
+              <View className='cart-recommend-grid'>
+                {EMPTY_CART_RECOMMENDATIONS.map((item) => (
+                  <View key={item.id} className='cart-recommend-card'>
+                    <View className='cart-recommend-image-wrap'>
+                      <Image src={item.image} mode='aspectFill' className='cart-recommend-image' />
+                      <View className='cart-recommend-favorite'>
+                        <Text>♡</Text>
+                      </View>
+                    </View>
+                    <Text className='cart-recommend-name'>{item.title}</Text>
+                    <Text className='cart-recommend-price'>{item.price}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </>
+        ) : (
+          <>
+            <View className='cart-summary-strip'>
+              <View className='cart-summary-copy'>
+                <Text className='cart-summary-eyebrow'>当前小计</Text>
+                <Text className='cart-summary-count'>{`购物车共有 ${cartItems.length} 件商品`}</Text>
+              </View>
+              <View className='cart-summary-badge'>
+                <Text>{cartItems.length}</Text>
+              </View>
+            </View>
+
+            <View className='cart-list-panel'>
+              {cartItems.map((item) => {
+                const meta = formatCartItemMeta(item)
+                const isBusy = busyItemId === item.id
+                const title = getCartItemTitle(item, productNameBySpuId)
+                const specLabel = item.sku.spec?.trim() || item.sku.name
+                const priceLabel = formatCartItemPrice(item)
+                const productImage = item.sku.spuId ? productImageBySpuId[item.sku.spuId] : undefined
+                const stopPropagation = (event: { stopPropagation?: () => void }) => {
+                  event.stopPropagation?.()
+                }
+
+                return (
+                  <View
+                    key={item.id}
+                    className='cart-item-card'
+                    onClick={() => void onOpenCartItemDetail(item)}
+                  >
+                    <View className='cart-item-card-main'>
+                      <View className='cart-item-thumb'>
+                        <Image
+                          src={productImage || placeholderProductImage}
+                          mode='aspectFill'
+                          className='cart-item-thumb-image'
+                        />
+                      </View>
+                      <View className='cart-item-content'>
+                        <View className='cart-item-header'>
+                          <View className='cart-item-title-wrap'>
+                            <Text className='cart-item-title'>{title}</Text>
+                            {meta ? (
+                              <Text className='cart-item-meta'>{meta}</Text>
+                            ) : null}
+                          </View>
+                          <View
+                            className={`cart-item-remove ${isBusy ? 'cart-item-remove--disabled' : ''}`}
+                            onClick={isBusy ? undefined : (event) => {
+                              stopPropagation(event)
+                              void onRemoveCartItem(item)
+                            }}
+                          >
+                            <Text>移除</Text>
+                          </View>
+                        </View>
+
+                        <View className='cart-item-spec-row'>
+                          <View
+                            className={`cart-item-spec-trigger ${isBusy ? 'cart-item-spec-trigger--disabled' : ''}`}
+                            onClick={isBusy ? undefined : (event) => {
+                              stopPropagation(event)
+                              void onChangeCartItemSku(item)
+                            }}
+                          >
+                            <Text className='cart-item-spec-label'>规格</Text>
+                            <Text className='cart-item-spec-value'>{specLabel}</Text>
+                          </View>
+                        </View>
+
+                        <View className='cart-item-footer'>
+                          <View className='cart-item-price'>
+                            <Text className='cart-item-price-label'>参考单价</Text>
+                            <Text className='cart-item-price-value'>{priceLabel}</Text>
+                          </View>
+                          <View className='cart-item-stepper'>
+                            <View
+                              className={`cart-item-stepper-btn ${
+                                item.qty <= 1 || isBusy ? 'cart-item-stepper-btn--disabled' : ''
+                              }`}
+                              onClick={
+                                item.qty <= 1 || isBusy
+                                  ? undefined
+                                  : (event) => {
+                                    stopPropagation(event)
+                                    void onChangeCartItemQty(item, item.qty - 1)
+                                  }
+                              }
+                            >
+                              <Text className='cart-item-stepper-btn-icon'>-</Text>
+                            </View>
+                            <View
+                              className={`cart-item-stepper-value ${isBusy ? 'cart-item-stepper-value--disabled' : ''}`}
+                              onClick={isBusy ? undefined : (event) => {
+                                stopPropagation(event)
+                                void onQuickChangeCartItemQty(item)
+                              }}
+                            >
+                              <Text>{item.qty}</Text>
+                            </View>
+                            <View
+                              className={`cart-item-stepper-btn ${isBusy ? 'cart-item-stepper-btn--disabled' : ''}`}
+                              onClick={
+                                isBusy
+                                  ? undefined
+                                  : (event) => {
+                                    stopPropagation(event)
+                                    void onChangeCartItemQty(item, item.qty + 1)
+                                  }
+                              }
+                            >
+                              <Text className='cart-item-stepper-btn-icon'>+</Text>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                )
+              })}
+            </View>
+          </>
         )}
       </View>
     </View>
@@ -365,34 +414,41 @@ export function CartBottomBar({
   onConfirmImport,
   onContinueBrowse
 }: CartBottomBarProps) {
-  const actionBase = 'flex-1 h-12 rounded-xl text-base font-semibold flex items-center justify-center'
   const actionDisabled = loading ? 'opacity-60' : ''
+  const checkoutDisabled = loading || (!importJob && cartTotalItems === 0)
 
   return (
     <FixedView position='bottom' placeholder>
       <View className='cart-bottom-bar'>
         {!importJob ? (
           <View className='cart-bottom-summary'>
-            <Text className='cart-bottom-summary-label'>{`合计 · ${cartTotalItems} 件`}</Text>
+            <View className='cart-bottom-summary-copy'>
+              <Text className='cart-bottom-summary-label'>小计</Text>
+              <Text className='cart-bottom-summary-meta'>{`购物车共有 ${cartTotalItems} 件商品`}</Text>
+            </View>
             <Text className='cart-bottom-summary-value'>
-              {!cartHasPendingPrice && cartTotalFen > 0 ? formatFen(cartTotalFen) : '待确认报价'}
+              {!cartHasPendingPrice ? formatFen(cartTotalFen) : '待确认报价'}
             </Text>
-            <Text className='cart-bottom-summary-meta'>{`共 ${cartTotalItems} 件`}</Text>
           </View>
-        ) : null}
+        ) : (
+          <View className='cart-bottom-summary cart-bottom-summary--import'>
+            <Text className='cart-bottom-summary-label'>导入结果</Text>
+            <Text className='cart-bottom-summary-meta'>请完成待确认项后加入购物车</Text>
+          </View>
+        )}
         <View className='cart-bottom-actions'>
           <Button
-            className={`${actionBase} cart-action-secondary ${actionDisabled}`}
+            className={`cart-action cart-action-secondary ${actionDisabled}`}
             hoverClass='none'
             disabled={loading}
             onClick={!importJob ? onContinueBrowse : undefined}
           >
-            {importJob ? '保存草稿' : '继续浏览'}
+            {importJob ? '保存草稿' : '立即购物'}
           </Button>
           <Button
-            className={`${actionBase} cart-action-primary ${actionDisabled}`}
+            className={`cart-action cart-action-primary ${actionDisabled} ${checkoutDisabled ? 'cart-action-primary--disabled' : ''}`}
             hoverClass='none'
-            disabled={loading}
+            disabled={checkoutDisabled}
             onClick={() => void (importJob ? onConfirmImport() : onCheckout())}
           >
             {importJob ? '确认并加入购物车' : '去结算'}

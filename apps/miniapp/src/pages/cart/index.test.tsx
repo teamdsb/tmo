@@ -25,15 +25,15 @@ describe('ExcelImportConfirmation', () => {
     expect(navbar).not.toBeNull()
 
     expect((await screen.findAllByText('示例螺栓')).length).toBeGreaterThan(0)
-    expect(screen.getByText('采购数量')).toBeInTheDocument()
+    expect(screen.getByText('参考单价')).toBeInTheDocument()
     expect(screen.getByText('2')).toBeInTheDocument()
   })
 
   it('shows the cart action buttons', async () => {
     await renderCart()
 
-    expect(screen.getByText(/合计/)).toBeInTheDocument()
-    expect(screen.getByText('继续浏览')).toBeInTheDocument()
+    expect(screen.getByText('小计')).toBeInTheDocument()
+    expect(screen.getByText('立即购物')).toBeInTheDocument()
     expect(screen.getByText('去结算')).toBeInTheDocument()
   })
 
@@ -42,10 +42,10 @@ describe('ExcelImportConfirmation', () => {
 
     await renderCart()
 
-    expect(screen.getByText('共 0 件')).toBeInTheDocument()
-    expect(screen.getByText('合计 · 0 件')).toBeInTheDocument()
-    expect(screen.getByText('购物车还是空的')).toBeInTheDocument()
-    expect(screen.getByText('先去首页挑几件常购商品，结算区会在这里汇总。')).toBeInTheDocument()
+    expect(screen.getByText('购物车共有 0 件商品')).toBeInTheDocument()
+    expect(screen.getByText('¥0.00')).toBeInTheDocument()
+    expect(screen.getByText('您的购物车是空的')).toBeInTheDocument()
+    expect(screen.getByText('看来您还没有添加任何商品。快去探索我们的最新系列吧。')).toBeInTheDocument()
   })
 
   it('prefers product name from product detail for cart item title', async () => {
@@ -549,7 +549,7 @@ describe('ExcelImportConfirmation', () => {
     await renderCart()
     fireEvent.click(screen.getAllByText('规格')[0])
 
-    expect(await screen.findByText('共 1 件')).toBeInTheDocument()
+    expect(await screen.findByText('购物车共有 1 件商品')).toBeInTheDocument()
     expect(screen.getByText('3')).toBeInTheDocument()
   })
 
@@ -589,6 +589,6 @@ describe('ExcelImportConfirmation', () => {
     await waitFor(() => {
       expect(removeItemSpy).toHaveBeenCalledWith('cart-1')
     })
-    expect(await screen.findByText('购物车还是空的')).toBeInTheDocument()
+    expect(await screen.findByText('您的购物车是空的')).toBeInTheDocument()
   })
 })
