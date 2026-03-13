@@ -1,44 +1,14 @@
 import { Button, Image, Text, View } from '@tarojs/components'
 import FixedView from '@taroify/core/fixed-view'
 import { ArrowLeft } from '@taroify/icons'
-import type { CartImportJob, CartImportPendingItem } from '@tmo/api-client'
+import type { CartImportJob, CartImportPendingItem, ProductSummary } from '@tmo/api-client'
 import cartActiveIcon from '../../assets/tabbar/cart-active.png'
 import placeholderProductImage from '../../assets/images/placeholder-product.svg'
-import recommendBagImage from '../../assets/cart/recommend-bag.jpg'
-import recommendHeadphonesImage from '../../assets/cart/recommend-headphones.jpg'
-import recommendShoesImage from '../../assets/cart/recommend-shoes.jpg'
-import recommendWatchImage from '../../assets/cart/recommend-watch.jpg'
+import ProductSummaryCard from '../../components/product-summary-card'
 import { formatCartItemMeta, formatCartItemPrice, formatFen, formatPendingMeta, getCartItemTitle, MATCH_TYPE_BADGES } from './helpers'
 import type { CartItem, ImportTab, ProductImageMap, ProductNameMap, SelectionMap } from './types'
 
 type AutoAddedItem = NonNullable<CartImportJob['result']>['autoAddedItems'][number]
-
-const EMPTY_CART_RECOMMENDATIONS = [
-  {
-    id: 'shoes',
-    title: '专业跑鞋 X',
-    price: '¥125.00',
-    image: recommendShoesImage
-  },
-  {
-    id: 'watch',
-    title: '地平线经典腕表',
-    price: '¥180.00',
-    image: recommendWatchImage
-  },
-  {
-    id: 'bag',
-    title: '绒面托特包',
-    price: '¥95.00',
-    image: recommendBagImage
-  },
-  {
-    id: 'headphones',
-    title: '声学纯净耳机',
-    price: '¥210.00',
-    image: recommendHeadphonesImage
-  }
-]
 
 type ImportResultViewProps = {
   activeTab: ImportTab
@@ -200,6 +170,9 @@ type CartListViewProps = {
   cartItems: CartItem[]
   onContinueBrowse: () => void
   onOpenCartItemDetail: (item: CartItem) => Promise<void>
+  recommendedProducts: ProductSummary[]
+  recommendedPriceMap: Record<string, string>
+  recommendedProductImageSize: number
   productImageBySpuId: ProductImageMap
   productNameBySpuId: ProductNameMap
   onChangeCartItemQty: (item: CartItem, nextQty: number) => Promise<void>
@@ -213,6 +186,9 @@ export function CartListView({
   cartItems,
   onContinueBrowse,
   onOpenCartItemDetail,
+  recommendedProducts,
+  recommendedPriceMap,
+  recommendedProductImageSize,
   productImageBySpuId,
   productNameBySpuId,
   onChangeCartItemQty,
@@ -244,25 +220,23 @@ export function CartListView({
               </Button>
             </View>
 
-            <View className='cart-recommend-section'>
-              <View className='cart-recommend-header'>
-                <Text className='cart-recommend-title'>为您推荐</Text>
-                <Text className='cart-recommend-link' onClick={onContinueBrowse}>查看全部</Text>
+            <View className='home-product-section cart-recommend-section'>
+              <View className='home-product-toolbar'>
+                <Text className='home-product-title'>推荐商品</Text>
               </View>
-              <View className='cart-recommend-grid'>
-                {EMPTY_CART_RECOMMENDATIONS.map((item) => (
-                  <View key={item.id} className='cart-recommend-card'>
-                    <View className='cart-recommend-image-wrap'>
-                      <Image src={item.image} mode='aspectFill' className='cart-recommend-image' />
-                      <View className='cart-recommend-favorite'>
-                        <Text>♡</Text>
-                      </View>
+              {recommendedProducts.length > 0 ? (
+                <View className='home-product-matrix'>
+                  {recommendedProducts.map((item) => (
+                    <View key={item.id} className='home-product-cell'>
+                      <ProductSummaryCard
+                        data={item}
+                        imageSize={recommendedProductImageSize}
+                        priceLabel={recommendedPriceMap[item.id] ?? '询价'}
+                      />
                     </View>
-                    <Text className='cart-recommend-name'>{item.title}</Text>
-                    <Text className='cart-recommend-price'>{item.price}</Text>
-                  </View>
-                ))}
-              </View>
+                  ))}
+                </View>
+              ) : null}
             </View>
           </>
         ) : (

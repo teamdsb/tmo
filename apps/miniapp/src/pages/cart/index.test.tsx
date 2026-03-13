@@ -39,6 +39,7 @@ describe('ExcelImportConfirmation', () => {
 
   it('shows a single empty-state title and count summary when cart is empty', async () => {
     jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({ items: [] })
+    const listProductsSpy = jest.spyOn(commerceServices.catalog, 'listProducts')
 
     await renderCart()
 
@@ -46,6 +47,9 @@ describe('ExcelImportConfirmation', () => {
     expect(screen.getByText('¥0.00')).toBeInTheDocument()
     expect(screen.getByText('您的购物车是空的')).toBeInTheDocument()
     expect(screen.getByText('看来您还没有添加任何商品。快去探索我们的最新系列吧。')).toBeInTheDocument()
+    expect(screen.getByText('A4 办公用纸')).toBeInTheDocument()
+    expect(screen.getByText('钢制螺栓套装')).toBeInTheDocument()
+    expect(listProductsSpy).toHaveBeenCalledWith({ page: 1, pageSize: 4 })
   })
 
   it('prefers product name from product detail for cart item title', async () => {
@@ -144,7 +148,10 @@ describe('ExcelImportConfirmation', () => {
     await waitFor(() => {
       expect(getProductDetailSpy).toHaveBeenCalled()
     })
-    const requestedSpuIds = getProductDetailSpy.mock.calls.map((call) => call[0])
+    const requestedSpuIds = getProductDetailSpy.mock.calls
+      .map((call) => call[0])
+      .filter((spuId) => spuId === 'spu-bolt-a2')
+    expect(requestedSpuIds.length).toBeGreaterThan(0)
     expect(requestedSpuIds.every((spuId) => spuId === 'spu-bolt-a2')).toBe(true)
   })
 

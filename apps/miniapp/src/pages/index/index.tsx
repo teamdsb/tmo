@@ -4,8 +4,8 @@ import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import type { Category, DisplayCategory, ProductSummary } from '@tmo/api-client'
 import Flex from '../../components/flex'
-import SafeImage from '../../components/safe-image'
 import HomeSearchInput from '../../components/home-search-input'
+import ProductSummaryCard from '../../components/product-summary-card'
 import { useProductStartingPrices } from '../../hooks/use-product-starting-prices'
 import { ROUTES, goodsDetailRoute, withQuery } from '../../routes'
 import { type CategoryIconKey, renderCategoryIcon, resolveCategoryIconKey } from '../../utils/category-icons'
@@ -249,7 +249,7 @@ export default function ProductCatalogApp() {
         <View className='home-product-matrix' data-testid='home-product-matrix'>
           {products.map((product) => (
             <View key={product.id} className='home-product-cell'>
-              <ProductCard
+              <ProductSummaryCard
                 data={product}
                 priceLabel={productStartingPrices[product.id] ?? '询价'}
                 imageSize={homeProductImageSize}
@@ -351,33 +351,6 @@ function HomeShowcase() {
           </SwiperItem>
         ))}
       </Swiper>
-    </View>
-  )
-}
-
-function ProductCard({ data, priceLabel, imageSize }: { data: ProductSummary; priceLabel: string; imageSize: number }) {
-  const tagLabel = data.tags?.[0] ?? '分类'
-  return (
-    <View className='product-card product-card--home' onClick={() => navigateTo(goodsDetailRoute(data.id))}>
-      <View className='product-card-image-shell' style={{ height: `${imageSize}px` }}>
-        <SafeImage
-          wrapperClassName='product-card-image-wrapper'
-          className='product-card-image'
-          src={data.coverImageUrl}
-          width='100%'
-          height='100%'
-          mode='aspectFill'
-        />
-      </View>
-      <View className='product-card-body'>
-        <Text className='product-card-title u-safe-title-2'>{data.name}</Text>
-        <Text className='product-card-price'>{priceLabel}</Text>
-        <Flex justify='space-between' align='center' className='product-card-footer'>
-          <View className='product-card-tag'>
-            <Text>{tagLabel}</Text>
-          </View>
-        </Flex>
-      </View>
     </View>
   )
 }

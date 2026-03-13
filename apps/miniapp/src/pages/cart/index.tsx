@@ -2,22 +2,34 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View } from '@tarojs/components'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
-import type { Cart, CartImportJob, CartImportPendingItem, Sku } from '@tmo/api-client'
+import type { Cart, CartImportJob, CartImportPendingItem, ProductSummary, Sku } from '@tmo/api-client'
+import { useProductStartingPrices } from '../../hooks/use-product-starting-prices'
 import { commerceServices } from '../../services/commerce'
 import { ROUTES, goodsDetailRoute } from '../../routes'
 import { ensureLoggedIn } from '../../utils/auth'
 import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { getNavbarStyle } from '../../utils/navbar'
+import { getWindowSystemInfo } from '../../utils/system-info'
 import { CartBottomBar, CartListView, ImportResultView } from './components'
 import { getCartItemUnitPriceFen, getSkuLabel, normalizeSpuId, QUICK_CART_QTY_OPTIONS } from './helpers'
 import { useCartProductDetails } from './hooks'
 import type { CartItem, ImportTab, SelectionMap } from './types'
+
+const CART_RECOMMEND_GRID_GAP_PX = 12
+const CART_RECOMMEND_SECTION_PADDING_PX = 12
+
+const getCartRecommendProductImageSize = () => {
+  const systemInfo = getWindowSystemInfo()
+  const windowWidth = typeof systemInfo.windowWidth === 'number' ? systemInfo.windowWidth : 375
+  return Math.max(120, Math.floor((windowWidth - CART_RECOMMEND_SECTION_PADDING_PX * 2 - CART_RECOMMEND_GRID_GAP_PX) / 2))
+}
 
 export default function ExcelImportConfirmation() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<ImportTab>('to-confirm')
   const [importJob, setImportJob] = useState<CartImportJob | null>(null)
   const [cart, setCart] = useState<Cart | null>(null)
+  const [recommendedProducts, setRecommendedProducts] = useState<ProductSummary[]>([])
   const [selectionMap, setSelectionMap] = useState<SelectionMap>({})
   const [loading, setLoading] = useState(false)
   const [busyItemId, setBusyItemId] = useState<string | null>(null)
@@ -31,6 +43,8 @@ export default function ExcelImportConfirmation() {
     productNameBySpuId,
     loadSkuOptions
   } = useCartProductDetails(cartItems, !importJob)
+  const recommendedPriceMap = useProductStartingPrices(recommendedProducts)
+  const recommendedProductImageSize = useMemo(() => getCartRecommendProductImageSize(), [])
 
   const loadCartOrImport = useCallback(async () => {
     setLoading(true)
@@ -64,6 +78,28 @@ export default function ExcelImportConfirmation() {
   useDidShow(() => {
     void loadCartOrImport()
   })
+
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      try {
+        const response = await commerceServices.catalog.listProducts({ page: 1, pageSize: 4 })
+        if (!cancelled) {
+          setRecommendedProducts(response.items ?? [])
+        }
+      } catch (error) {
+        console.warn('load cart recommendations failed', error)
+        if (!cancelled) {
+          setRecommendedProducts([])
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const pendingItems = importJob?.result?.pendingItems ?? []
   const autoAddedItems = importJob?.result?.autoAddedItems ?? []
@@ -318,6 +354,9 @@ export default function ExcelImportConfirmation() {
           cartItems={cartItems}
           onContinueBrowse={() => void switchTabLike(ROUTES.home)}
           onOpenCartItemDetail={handleOpenCartItemDetail}
+          recommendedProducts={recommendedProducts}
+          recommendedPriceMap={recommendedPriceMap}
+          recommendedProductImageSize={recommendedProductImageSize}
           productImageBySpuId={productImageBySpuId}
           productNameBySpuId={productNameBySpuId}
           onChangeCartItemQty={handleChangeCartItemQty}

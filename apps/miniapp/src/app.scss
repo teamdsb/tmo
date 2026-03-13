@@ -561,81 +561,67 @@
   margin-top: 12rpx;
 }
 
-.cart-recommend-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 22rpx;
+.home-product-section {
+  padding-top: 0;
 }
 
-.cart-recommend-title {
-  font-size: 34rpx;
-  font-weight: 700;
-  color: #0f172a;
+.home-product-toolbar {
+  margin-bottom: 16px;
 }
 
-.cart-recommend-link {
-  font-size: 24rpx;
-  font-weight: 700;
-  color: #2a7be4;
-}
-
-.cart-recommend-grid {
+.home-product-matrix {
+  margin-top: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24rpx;
+  gap: 12px;
 }
 
-.cart-recommend-card {
+.home-product-cell {
   min-width: 0;
 }
 
-.cart-recommend-image-wrap {
-  position: relative;
-  height: 280rpx;
-  border-radius: 28rpx;
-  overflow: hidden;
-  background: #eceef2;
-}
-
-.cart-recommend-image {
-  width: 100%;
-  height: 100%;
-}
-
-.cart-recommend-favorite {
-  position: absolute;
-  top: 16rpx;
-  right: 16rpx;
-  width: 44rpx;
-  height: 44rpx;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 88%);
-  color: #64748b;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 6rpx 16rpx rgb(15 23 42 / 10%);
-  font-size: 24rpx;
-}
-
-.cart-recommend-name {
+.home-product-title {
   display: block;
-  margin-top: 14rpx;
-  font-size: 26rpx;
-  font-weight: 600;
-  color: #0f172a;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cart-recommend-price {
-  display: block;
-  margin-top: 6rpx;
-  font-size: 24rpx;
+  font-size: 34rpx;
   font-weight: 700;
-  color: #2a7be4;
+  color: #111827;
+}
+
+.home-product-cell .product-card--home {
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 5%);
+}
+
+.home-product-cell .product-card--home .product-card-image {
+  background: #f3f4f6;
+}
+
+.home-product-cell .product-card--home .product-card-body {
+  padding: 12px;
+}
+
+.home-product-cell .product-card--home .product-card-title {
+  -webkit-line-clamp: 1;
+  font-size: 26rpx;
+  line-height: 1.35;
+  color: #1f2937;
+  margin-bottom: 4px;
+}
+
+.home-product-cell .product-card--home .product-card-price {
+  font-size: 26rpx;
+  color: #ef4444;
+  margin-bottom: 8px;
+}
+
+.home-product-cell .product-card--home .product-card-tag {
+  border-radius: 999px;
+  border-color: #f3f4f6;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 20rpx;
 }
 
 .cart-summary-strip {
