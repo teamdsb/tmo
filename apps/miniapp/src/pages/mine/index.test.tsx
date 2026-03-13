@@ -55,12 +55,10 @@ describe('PersonalCenter', () => {
     const navbar = document.querySelector('.app-navbar.app-navbar--primary')
     expect(navbar).not.toBeNull()
 
-    expect(await screen.findAllByText('张三')).toHaveLength(2)
-    expect(screen.getByText('CUSTOMER')).toBeInTheDocument()
-    expect(screen.getAllByText(/李经理/)).toHaveLength(2)
-    expect(screen.getByText('专属顾问')).toBeInTheDocument()
-    expect(screen.getByText('下单后由专属顾问继续报价、确认货源与同步发货进度。')).toBeInTheDocument()
-    expect(screen.getAllByText('立即沟通')).toHaveLength(2)
+    expect(await screen.findByText('管理账户')).toBeInTheDocument()
+    expect(screen.getByText('订单跟踪')).toBeInTheDocument()
+    expect(screen.queryByText('专属顾问')).not.toBeInTheDocument()
+    expect(screen.queryByText('立即沟通')).not.toBeInTheDocument()
   })
 
   it('shows debug role switcher and switches current role', async () => {
@@ -148,14 +146,14 @@ describe('PersonalCenter', () => {
     expect(screen.getByText('系统设置')).toBeInTheDocument()
   })
 
-  it('navigates to support page when opening advisor chat', async () => {
+  it('navigates to settings page when opening account management', async () => {
     await renderPersonalCenter()
 
-    fireEvent.click(screen.getByText('专属顾问'))
+    fireEvent.click(screen.getByText('管理账户'))
 
     await waitFor(() => {
       expect(Taro.navigateTo).toHaveBeenCalledWith({
-        url: '/pages/support/index'
+        url: '/pages/settings/index'
       })
     })
   })
@@ -188,7 +186,7 @@ describe('PersonalCenter', () => {
   it('shows logged-in hero CTA', async () => {
     await renderPersonalCenter()
 
-    expect(await screen.findAllByText('立即沟通')).toHaveLength(2)
+    expect(await screen.findByText('管理账户')).toBeInTheDocument()
   })
 
   it('shows guest hero CTA', async () => {
@@ -199,10 +197,10 @@ describe('PersonalCenter', () => {
     expect(await screen.findByText('立即登录 / 注册')).toBeInTheDocument()
   })
 
-  it('opens order list from summary card', async () => {
+  it('opens order list from embedded order section', async () => {
     await renderPersonalCenter()
 
-    fireEvent.click(screen.getByText('追踪您的包裹'))
+    fireEvent.click(screen.getByText('查看全部'))
 
     expect(await screen.findByText('订单列表')).toBeInTheDocument()
   })

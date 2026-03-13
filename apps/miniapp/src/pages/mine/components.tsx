@@ -346,6 +346,7 @@ type MineProfileViewProps = {
   switchingRole: string | null
   onOpenOrders: (tab: string) => void
   onOpenChat: () => void
+  onOpenSettings: () => void
   onMenuItemClick: (item: MenuItem) => void
   onAuthAction: () => void
   onOpenAuth: () => void
@@ -385,6 +386,7 @@ export function MineProfileView({
   switchingRole,
   onOpenOrders,
   onOpenChat,
+  onOpenSettings,
   onMenuItemClick,
   onAuthAction,
   onOpenAuth,
@@ -398,14 +400,14 @@ export function MineProfileView({
   const guestHeroCopy = '登录后即可享受个性化推荐、专属会员权益及实时物流追踪'
   const heroTitle = isLoggedIn ? displayName : guestHeroTitle
   const heroCopy = isLoggedIn ? `${roleLabel} · ${ownerSalesDisplayName} · 已绑定专属渠道` : guestHeroCopy
-  const heroCtaLabel = isLoggedIn ? '立即沟通' : '立即登录 / 注册'
+  const heroCtaLabel = isLoggedIn ? '管理账户' : '立即登录 / 注册'
   const heroMetaItems = isLoggedIn
     ? ['专属顾问在线', '订单动态同步', '收藏与地址云端保存']
     : ['独家优惠', '订单同步', '收藏同步']
 
   const handleHeroCta = () => {
     if (isLoggedIn) {
-      onOpenChat()
+      onOpenSettings()
       return
     }
     onOpenAuth()
@@ -433,87 +435,55 @@ export function MineProfileView({
         <View className='mine-hero-card'>
           <MineHeroDecoration isLoggedIn={isLoggedIn} />
 
-          {isLoggedIn ? (
-            <View className='mine-hero-profile flex items-center gap-3'>
-              <View className='mine-hero-avatar-shell flex h-11 w-11 items-center justify-center rounded-full'>
-                <View className='mine-modern-avatar-wrap mine-hero-avatar-wrap h-11 w-11 overflow-hidden rounded-full'>
-                  <Image src={avatarFallback} mode='aspectFill' className='h-full w-full' />
-                </View>
-              </View>
-              <View className='min-w-0 flex-1'>
-                <Text className='mine-hero-eyebrow block text-xs font-semibold'>欢迎回来</Text>
-                <Text className='mine-hero-title block truncate text-xl font-bold'>{heroTitle}</Text>
-                <View className='mt-1 flex items-center gap-1.5'>
-                  <ShieldOutlined className='text-base mine-hero-role-icon' />
-                  <Text className='mine-hero-copy text-sm'>{roleLabel}</Text>
-                </View>
-              </View>
-            </View>
-          ) : null}
-
-          <Text className='mine-hero-headline block text-center text-xl font-bold'>{heroTitle}</Text>
-          <Text className='mine-hero-supporting block text-center text-sm'>{heroCopy}</Text>
+          {!isLoggedIn ? <Text className='mine-hero-headline block text-center text-xl font-bold'>{heroTitle}</Text> : null}
+          {!isLoggedIn ? <Text className='mine-hero-supporting block text-center text-sm'>{heroCopy}</Text> : null}
 
           <NativeButton className='mine-hero-cta mt-6 flex w-full items-center justify-center rounded-2xl' onClick={handleHeroCta}>
             <Text className='text-base font-bold text-white'>{heroCtaLabel}</Text>
           </NativeButton>
 
-          <View className='mine-hero-meta mt-5 flex items-center justify-center'>
-            {heroMetaItems.map((item) => (
-              <View key={item} className='mine-hero-meta-chip flex items-center gap-1.5'>
-                <View className='mine-hero-meta-dot'></View>
-                <Text className='text-10 mine-hero-meta-text'>{item}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View className='mine-hero-summary-card' onClick={() => onOpenOrders('全部')}>
-          <View className='flex items-center justify-between gap-3'>
-            <View className='flex min-w-0 flex-1 items-center gap-3'>
-              <View className='mine-hero-summary-icon flex h-10 w-10 items-center justify-center rounded-full'>
-                <Logistics className='text-lg mine-dashboard-primary-icon' />
-              </View>
-              <View className='min-w-0 flex-1'>
-                <Text className='mine-hero-summary-title block text-sm font-bold'>追踪您的包裹</Text>
-                <Text className='mine-hero-summary-copy block text-xs'>
-                  {isLoggedIn ? '登录订单实时同步，点击查看所有配送动态' : '登录后实时查看所有订单动态'}
-                </Text>
-              </View>
-            </View>
-            <View className='mine-hero-summary-action'>
-              <Text className='text-xs font-bold mine-dashboard-primary-text'>去查看</Text>
-            </View>
-          </View>
-        </View>
-
-        {isLoggedIn ? (
-          <View className='mine-dashboard-order-panel'>
-            <View className='mine-dashboard-section-head flex items-center justify-between'>
-              <Text className='mine-dashboard-section-title text-base font-bold'>订单跟踪</Text>
-              <Text className='mine-dashboard-section-link text-sm font-medium' onClick={() => onOpenOrders('全部')}>
-                查看全部
-              </Text>
-            </View>
-            <View className='mine-dashboard-order-grid'>
-              {orderItems.map((item) => (
-                <OrderTrackItem key={item.key} icon={item.icon} label={item.label} badge={item.badge} onClick={item.onClick} />
+          {!isLoggedIn ? (
+            <View className='mine-hero-meta mt-5 flex items-center justify-center'>
+              {heroMetaItems.map((item) => (
+                <View key={item} className='mine-hero-meta-chip flex items-center gap-1.5'>
+                  <View className='mine-hero-meta-dot'></View>
+                  <Text className='text-10 mine-hero-meta-text'>{item}</Text>
+                </View>
               ))}
             </View>
-          </View>
-        ) : null}
+          ) : null}
 
-        {isLoggedIn ? (
-          <View className='mine-dashboard-advisor-card' onClick={onOpenChat}>
-            <View className='flex items-start justify-between gap-4'>
-              <View className='min-w-0 flex-1'>
-                <Text className='mine-dashboard-card-eyebrow block text-xs font-semibold uppercase tracking-widest'>专属顾问</Text>
-                <Text className='mine-dashboard-card-title mt-2 block text-base font-bold'>{ownerSalesDisplayName}</Text>
-                <Text className='mine-dashboard-card-copy mt-1 block text-sm'>{advisorFollowUpCopy}</Text>
+          {isLoggedIn ? (
+            <View className='mine-hero-embedded-order-panel'>
+              <View className='mine-dashboard-section-head flex items-center justify-between'>
+                <Text className='mine-dashboard-section-title text-base font-bold'>订单跟踪</Text>
+                <Text className='mine-dashboard-section-link text-sm font-medium' onClick={() => onOpenOrders('全部')}>
+                  查看全部
+                </Text>
               </View>
-              <View className='flex items-center gap-2'>
-                <View className='mine-modern-online-dot h-1.5 w-1.5 rounded-full'></View>
-                <Text className='text-xs font-semibold mine-dashboard-primary-text'>立即沟通</Text>
+              <View className='mine-dashboard-order-grid'>
+                {orderItems.map((item) => (
+                  <OrderTrackItem key={item.key} icon={item.icon} label={item.label} badge={item.badge} onClick={item.onClick} />
+                ))}
+              </View>
+            </View>
+          ) : null}
+        </View>
+
+        {!isLoggedIn ? (
+          <View className='mine-hero-summary-card' onClick={() => onOpenOrders('全部')}>
+            <View className='flex items-center justify-between gap-3'>
+              <View className='flex min-w-0 flex-1 items-center gap-3'>
+                <View className='mine-hero-summary-icon flex h-10 w-10 items-center justify-center rounded-full'>
+                  <Logistics className='text-lg mine-dashboard-primary-icon' />
+                </View>
+                <View className='min-w-0 flex-1'>
+                  <Text className='mine-hero-summary-title block text-sm font-bold'>追踪您的包裹</Text>
+                  <Text className='mine-hero-summary-copy block text-xs'>登录后实时查看所有订单动态</Text>
+                </View>
+              </View>
+              <View className='mine-hero-summary-action'>
+                <Text className='text-xs font-bold mine-dashboard-primary-text'>去查看</Text>
               </View>
             </View>
           </View>
@@ -559,17 +529,6 @@ export function MineProfileView({
         </View>
 
         <View className='mine-dashboard-secondary-list'>
-          {supportItem && isLoggedIn ? (
-            <MenuLink
-              item={supportItem}
-              compact
-              titleOverride='专属客户经理'
-              descriptionOverride='在线咨询'
-              icon={ChatOutlined}
-              label='专属客户经理'
-              onClick={onOpenChat}
-            />
-          ) : null}
           {extendedMenuItems.map((item) => (
             <MenuLink
               key={item.key}

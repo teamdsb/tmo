@@ -272,6 +272,9 @@ export default function PersonalCenter() {
           onOpenChat={() => {
             void navigateTo(ROUTES.support)
           }}
+          onOpenSettings={() => {
+            void navigateTo(ROUTES.settings)
+          }}
           onMenuItemClick={(item) => {
             if (typeof item.action === 'function') {
               item.action()
