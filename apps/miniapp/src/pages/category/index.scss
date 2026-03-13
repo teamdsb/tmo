@@ -186,13 +186,14 @@
 }
 
 .category-product-body {
-  padding: 10px 8px 10px;
+  padding: 10px 8px 8px;
   min-width: 0;
 }
 
 .category-product-title {
   display: -webkit-box;
-  min-height: 2.8em;
+  min-height: 1.35em;
+  line-height: 1.35;
   font-size: calc(20rpx + var(--font-size-step-rpx, 0rpx));
   font-weight: 600;
   color: #111827;
@@ -207,18 +208,18 @@
 
 .category-product-price {
   display: block;
-  margin-top: 6px;
+  margin-top: 0;
   font-size: calc(20rpx + var(--font-size-step-rpx, 0rpx));
   font-weight: 700;
   color: #0b57d0;
 }
 
 .category-product-action {
-  margin-top: 8px;
+  margin-top: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 28px;
+  height: 48px;
   border-radius: 8px;
   background: #e8f0ff;
   color: #0b57d0;
