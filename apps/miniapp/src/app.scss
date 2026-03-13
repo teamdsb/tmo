@@ -2801,6 +2801,30 @@
   z-index: 1;
 }
 
+.mine-hero-user-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.mine-hero-user-avatar {
+  width: 152rpx;
+  height: 152rpx;
+  overflow: hidden;
+  border-radius: 9999px;
+  border: 4rpx solid rgb(255 255 255 / 95%);
+  box-shadow: 0 18rpx 42rpx rgb(15 23 42 / 14%);
+  background: rgb(255 255 255 / 72%);
+}
+
+.mine-hero-user-copy {
+  color: #334155;
+  font-size: 36rpx;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
 .mine-hero-symbol {
   color: #6b9dff;
   font-size: 104rpx;

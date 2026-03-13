@@ -56,6 +56,7 @@ describe('PersonalCenter', () => {
     expect(navbar).not.toBeNull()
 
     expect(await screen.findByText('管理账户')).toBeInTheDocument()
+    expect(screen.getByText('欢迎回来，张三用户')).toBeInTheDocument()
     expect(screen.getByText('订单跟踪')).toBeInTheDocument()
     expect(screen.queryByText('专属顾问')).not.toBeInTheDocument()
     expect(screen.queryByText('立即沟通')).not.toBeInTheDocument()
@@ -105,6 +106,7 @@ describe('PersonalCenter', () => {
     await renderPersonalCenter()
 
     expect(await screen.findByText('开启您的专属购物之旅')).toBeInTheDocument()
+    expect(screen.queryByText('欢迎回来，张三用户')).not.toBeInTheDocument()
     expect(screen.queryByText('访客模式')).not.toBeInTheDocument()
     expect(screen.queryByText('未登录')).not.toBeInTheDocument()
     expect(screen.queryByText('客户经理')).not.toBeInTheDocument()

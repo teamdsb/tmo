@@ -353,20 +353,41 @@ type MineProfileViewProps = {
   onSwitchRole: (role: string) => void
 }
 
-function MineHeroDecoration({ isLoggedIn }: { isLoggedIn: boolean }) {
+function MineHeroDecoration({
+  isLoggedIn,
+  avatarFallback,
+  welcomeCopy
+}: {
+  isLoggedIn: boolean
+  avatarFallback: string
+  welcomeCopy: string
+}) {
   return (
     <View className='mine-hero-visual'>
-      <View className='mine-hero-orbit mine-hero-orbit--outer'></View>
-      <View className='mine-hero-orbit mine-hero-orbit--inner'></View>
+      {!isLoggedIn ? <View className='mine-hero-orbit mine-hero-orbit--outer'></View> : null}
+      {!isLoggedIn ? <View className='mine-hero-orbit mine-hero-orbit--inner'></View> : null}
       <View className='mine-hero-center'>
-        {isLoggedIn ? <ShieldOutlined className='mine-hero-symbol mine-hero-symbol--filled' /> : <AppsOutlined className='mine-hero-symbol' />}
+        {isLoggedIn ? (
+          <View className='mine-hero-user-center'>
+            <View className='mine-hero-user-avatar'>
+              <Image src={avatarFallback} mode='aspectFill' className='h-full w-full' />
+            </View>
+            <Text className='mine-hero-user-copy'>{welcomeCopy}</Text>
+          </View>
+        ) : (
+          <AppsOutlined className='mine-hero-symbol' />
+        )}
       </View>
-      <View className='mine-hero-float mine-hero-float--top'>
-        <Description className='mine-hero-float-icon' />
-      </View>
-      <View className='mine-hero-float mine-hero-float--bottom'>
-        {isLoggedIn ? <Logistics className='mine-hero-float-icon' /> : <Exchange className='mine-hero-float-icon' />}
-      </View>
+      {!isLoggedIn ? (
+        <View className='mine-hero-float mine-hero-float--top'>
+          <Description className='mine-hero-float-icon' />
+        </View>
+      ) : null}
+      {!isLoggedIn ? (
+        <View className='mine-hero-float mine-hero-float--bottom'>
+          <Exchange className='mine-hero-float-icon' />
+        </View>
+      ) : null}
     </View>
   )
 }
@@ -404,6 +425,7 @@ export function MineProfileView({
   const heroMetaItems = isLoggedIn
     ? ['专属顾问在线', '订单动态同步', '收藏与地址云端保存']
     : ['独家优惠', '订单同步', '收藏同步']
+  const heroWelcomeCopy = `欢迎回来，${displayName}用户`
 
   const handleHeroCta = () => {
     if (isLoggedIn) {
@@ -433,7 +455,7 @@ export function MineProfileView({
         </View>
 
         <View className='mine-hero-card'>
-          <MineHeroDecoration isLoggedIn={isLoggedIn} />
+          <MineHeroDecoration isLoggedIn={isLoggedIn} avatarFallback={avatarFallback} welcomeCopy={heroWelcomeCopy} />
 
           {!isLoggedIn ? <Text className='mine-hero-headline block text-center text-xl font-bold'>{heroTitle}</Text> : null}
           {!isLoggedIn ? <Text className='mine-hero-supporting block text-center text-sm'>{heroCopy}</Text> : null}
