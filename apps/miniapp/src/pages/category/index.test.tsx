@@ -55,6 +55,18 @@ describe('CategoryPage', () => {
     expect(stylesheet).toContain('.category-product-title');
     expect(stylesheet).toContain('-webkit-line-clamp: 2;');
     expect(stylesheet).toContain('overflow-wrap: anywhere;');
+    expect(stylesheet).toContain('.category-secondary-nav-inner');
+    expect(stylesheet).toContain('min-width: max-content;');
+    expect(stylesheet).toContain('flex: 0 0 auto;');
+    expect(stylesheet).toContain('white-space: nowrap;');
+    expect(stylesheet).toContain('.category-primary-label');
+    expect(stylesheet).toContain('font-size: calc(18rpx + var(--font-size-step-rpx, 0rpx));');
+    expect(stylesheet).toContain('.category-primary-item');
+    expect(stylesheet).toContain('min-width: 96px;');
+    expect(stylesheet).toContain('gap: 18px;');
+    expect(stylesheet).toContain('padding: 24px 16px 22px;');
+    expect(stylesheet).toContain('width: 36px;');
+    expect(stylesheet).toContain('height: 8px;');
     expect(searchStylesheet).toContain('.home-search-shell');
     expect(searchStylesheet).toContain('.home-search-input');
     expect(searchStylesheet).toContain('.home-search-placeholder');

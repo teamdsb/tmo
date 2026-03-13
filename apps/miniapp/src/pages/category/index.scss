@@ -19,15 +19,15 @@
   display: inline-flex;
   min-width: 100%;
   gap: 20px;
-  padding: 14px 16px 12px;
+  padding: 24px 16px 22px;
 }
 
 .category-primary-item {
   display: flex;
-  min-width: 88px;
+  min-width: 96px;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 18px;
   color: #64748b;
 }
 
@@ -46,9 +46,11 @@
 }
 
 .category-primary-label {
-  font-size: calc(22rpx + var(--font-size-step-rpx, 0rpx));
-  line-height: 1.2;
+  font-size: calc(18rpx + var(--font-size-step-rpx, 0rpx));
+  line-height: 1.1;
   font-weight: 500;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .category-primary-item.is-active .category-primary-label {
@@ -56,9 +58,9 @@
 }
 
 .category-primary-indicator {
-  width: 26px;
-  height: 5px;
-  margin-top: 2px;
+  width: 36px;
+  height: 8px;
+  margin-top: 8px;
   border-radius: 999px;
   background: transparent;
 }
@@ -81,10 +83,12 @@
   display: inline-flex;
   gap: 10px;
   padding: 0 16px;
+  min-width: max-content;
 }
 
 .category-secondary-chip {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   height: 34px;
@@ -94,6 +98,7 @@
   color: #64748b;
   font-size: calc(22rpx + var(--font-size-step-rpx, 0rpx));
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .category-secondary-chip.is-active {
