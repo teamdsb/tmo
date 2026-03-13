@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { View, Text } from '@tarojs/components'
-import { Button, Cell } from '@taroify/core'
+import Button from '@taroify/core/button'
+import Cell from '@taroify/core/cell'
 import Taro from '@tarojs/taro'
 
 import { RoleSelectionRequiredError, type MiniLoginInput } from '@tmo/identity-services'

@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { commerceServices } from '../../services/commerce';
 import CategoryPage from './index';
 
@@ -22,10 +22,12 @@ describe('CategoryPage', () => {
 
     const navbar = document.querySelector('.app-navbar.app-navbar--primary');
     expect(navbar).not.toBeNull();
-    expect(screen.getByPlaceholderText('搜索 SKU 或商品...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('按 SKU 或名称搜索...')).toBeInTheDocument();
+    expect(document.querySelector('.category-header-action')).toBeNull();
 
     expect((await screen.findAllByText('紧固件')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('电气')).length).toBeGreaterThan(0);
+    expect(await screen.findByText('全部商品')).toBeInTheDocument();
     expect(await screen.findByText('A4 办公用纸')).toBeInTheDocument();
     expect(await screen.findAllByText('¥185.00 起')).toHaveLength(4);
   });
@@ -48,10 +50,14 @@ describe('CategoryPage', () => {
 
   it('keeps shared long-text styles for category product titles', () => {
     const stylesheet = fs.readFileSync(path.resolve(__dirname, './index.scss'), 'utf8');
+    const searchStylesheet = fs.readFileSync(path.resolve(__dirname, '../../components/home-search-input/index.scss'), 'utf8');
 
     expect(stylesheet).toContain('.category-product-title');
     expect(stylesheet).toContain('-webkit-line-clamp: 2;');
     expect(stylesheet).toContain('overflow-wrap: anywhere;');
+    expect(searchStylesheet).toContain('.home-search-shell');
+    expect(searchStylesheet).toContain('.home-search-input');
+    expect(searchStylesheet).toContain('.home-search-placeholder');
   });
 
   it('switches active category from sidebar', async () => {
@@ -60,12 +66,28 @@ describe('CategoryPage', () => {
     const electricalEntry = await screen.findByText('电气');
     fireEvent.click(electricalEntry);
 
-    const sidebarItem = electricalEntry.closest('.category-sidebar-item');
-    expect(sidebarItem).not.toBeNull();
-    if (!sidebarItem) {
-      throw new Error('Expected category sidebar item');
+    const categoryItem = electricalEntry.closest('.category-primary-item');
+    expect(categoryItem).not.toBeNull();
+    if (!categoryItem) {
+      throw new Error('Expected category primary item');
     }
-    expect(sidebarItem).toHaveClass('is-active');
-    expect(await screen.findByText('共 4 件商品')).toBeInTheDocument();
+    expect(categoryItem).toHaveClass('is-active');
+    expect(await screen.findByText('4 ITEMS')).toBeInTheDocument();
+  });
+
+  it('reuses home search input and queries products with q', async () => {
+    render(<CategoryPage />);
+
+    const input = screen.getByPlaceholderText('按 SKU 或名称搜索...');
+    fireEvent.change(input, { target: { value: 'bolt' } });
+
+    await waitFor(() => {
+      expect(commerceServices.catalog.listProducts).toHaveBeenLastCalledWith({
+        categoryId: 'fasteners',
+        q: 'bolt',
+        page: 1,
+        pageSize: 40
+      });
+    });
   });
 });
