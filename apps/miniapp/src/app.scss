@@ -2763,7 +2763,8 @@
 .mine-hero-card {
   position: relative;
   overflow: hidden;
-  padding: 28rpx 32rpx 36rpx;
+  min-height: 760rpx;
+  padding: 40rpx 32rpx 48rpx;
   border-radius: 44rpx;
   background: linear-gradient(180deg, #e9f3ff 0%, #dfeaf8 100%);
   box-shadow: 0 20rpx 56rpx rgb(59 130 246 / 18%);
@@ -2774,8 +2775,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 248rpx;
-  margin-bottom: 20rpx;
+  height: 320rpx;
+  margin-bottom: 32rpx;
 }
 
 .mine-hero-orbit {
@@ -2784,14 +2785,14 @@
 }
 
 .mine-hero-orbit--outer {
-  width: 240rpx;
-  height: 240rpx;
+  width: 300rpx;
+  height: 300rpx;
   background: rgb(255 255 255 / 26%);
 }
 
 .mine-hero-orbit--inner {
-  width: 180rpx;
-  height: 180rpx;
+  width: 228rpx;
+  height: 228rpx;
   background: rgb(255 255 255 / 42%);
 }
 
@@ -2802,7 +2803,7 @@
 
 .mine-hero-symbol {
   color: #6b9dff;
-  font-size: 88rpx;
+  font-size: 104rpx;
 }
 
 .mine-hero-symbol--filled {
@@ -2822,15 +2823,15 @@
 }
 
 .mine-hero-float--top {
-  top: 18rpx;
-  right: 112rpx;
+  top: 22rpx;
+  right: 92rpx;
   background: linear-gradient(180deg, #fb7185 0%, #fda4af 100%);
   transform: rotate(12deg);
 }
 
 .mine-hero-float--bottom {
-  left: 108rpx;
-  bottom: 8rpx;
+  left: 88rpx;
+  bottom: 18rpx;
   background: linear-gradient(180deg, #f59e0b 0%, #facc15 100%);
   transform: rotate(-12deg);
 }

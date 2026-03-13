@@ -15,7 +15,6 @@ import {
   SettingOutlined,
   ShieldOutlined
 } from '@taroify/icons'
-import UserOutlined from '@taroify/icons/UserOutlined'
 import { orderTrackingRoute } from '../../routes'
 import { navigateTo } from '../../utils/navigation'
 import type {
@@ -434,28 +433,23 @@ export function MineProfileView({
         <View className='mine-hero-card'>
           <MineHeroDecoration isLoggedIn={isLoggedIn} />
 
-          <View className='mine-hero-profile flex items-center gap-3' onClick={!isLoggedIn ? onOpenAuth : undefined}>
-            <View className='mine-hero-avatar-shell flex h-11 w-11 items-center justify-center rounded-full'>
-              {isLoggedIn ? (
+          {isLoggedIn ? (
+            <View className='mine-hero-profile flex items-center gap-3'>
+              <View className='mine-hero-avatar-shell flex h-11 w-11 items-center justify-center rounded-full'>
                 <View className='mine-modern-avatar-wrap mine-hero-avatar-wrap h-11 w-11 overflow-hidden rounded-full'>
                   <Image src={avatarFallback} mode='aspectFill' className='h-full w-full' />
                 </View>
-              ) : (
-                <UserOutlined className='text-xl mine-hero-avatar-icon' />
-              )}
-            </View>
-            <View className='min-w-0 flex-1'>
-              <Text className='mine-hero-eyebrow block text-xs font-semibold'>{isLoggedIn ? '欢迎回来' : '访客模式'}</Text>
-              <Text className='mine-hero-title block truncate text-xl font-bold'>{isLoggedIn ? heroTitle : '未登录'}</Text>
-              {!isLoggedIn ? <Text className='mine-hero-copy mt-1 block text-xs'>点击此处登录并同步账号权益</Text> : null}
-              {isLoggedIn ? (
+              </View>
+              <View className='min-w-0 flex-1'>
+                <Text className='mine-hero-eyebrow block text-xs font-semibold'>欢迎回来</Text>
+                <Text className='mine-hero-title block truncate text-xl font-bold'>{heroTitle}</Text>
                 <View className='mt-1 flex items-center gap-1.5'>
                   <ShieldOutlined className='text-base mine-hero-role-icon' />
                   <Text className='mine-hero-copy text-sm'>{roleLabel}</Text>
                 </View>
-              ) : null}
+              </View>
             </View>
-          </View>
+          ) : null}
 
           <Text className='mine-hero-headline block text-center text-xl font-bold'>{heroTitle}</Text>
           <Text className='mine-hero-supporting block text-center text-sm'>{heroCopy}</Text>

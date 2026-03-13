@@ -106,7 +106,9 @@ describe('PersonalCenter', () => {
 
     await renderPersonalCenter()
 
-    expect(await screen.findByText('未登录')).toBeInTheDocument()
+    expect(await screen.findByText('开启您的专属购物之旅')).toBeInTheDocument()
+    expect(screen.queryByText('访客模式')).not.toBeInTheDocument()
+    expect(screen.queryByText('未登录')).not.toBeInTheDocument()
     expect(screen.queryByText('客户经理')).not.toBeInTheDocument()
     expect(screen.queryByText('李经理')).not.toBeInTheDocument()
   })
@@ -131,7 +133,7 @@ describe('PersonalCenter', () => {
     expect(Taro.reLaunch).toHaveBeenCalledWith({ url: '/pages/auth/login/index' })
 
     await waitFor(() => {
-      expect(screen.getByText('未登录')).toBeInTheDocument()
+      expect(screen.getByText('开启您的专属购物之旅')).toBeInTheDocument()
     })
   })
 
@@ -163,17 +165,18 @@ describe('PersonalCenter', () => {
 
     await renderPersonalCenter()
 
-    expect(await screen.findByText('未登录')).toBeInTheDocument()
+    expect(await screen.findByText('立即登录 / 注册')).toBeInTheDocument()
+    expect(screen.queryByText('未登录')).not.toBeInTheDocument()
     expect(gatewayServices.bootstrap.get).not.toHaveBeenCalled()
     expect(removeStorage).toHaveBeenCalledWith('tmo:bootstrap')
   })
 
-  it('opens login page when tapping guest profile header', async () => {
+  it('opens login page when tapping guest hero CTA', async () => {
     asMock(identityServices.tokens.getToken).mockResolvedValue(null)
 
     await renderPersonalCenter()
 
-    fireEvent.click(screen.getByText('未登录'))
+    fireEvent.click(screen.getByText('立即登录 / 注册'))
 
     await waitFor(() => {
       expect(Taro.navigateTo).toHaveBeenCalledWith({
