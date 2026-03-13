@@ -46,6 +46,7 @@ describe('CategoryPage', () => {
 
     expect((await screen.findAllByText(/Category Product ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890/)).length).toBeGreaterThan(0);
     expect(document.querySelectorAll('.category-product-card')).toHaveLength(2);
+    expect(document.querySelectorAll('.category-product-image-shell')).toHaveLength(2);
   });
 
   it('keeps shared long-text styles for category product titles', () => {
@@ -53,6 +54,9 @@ describe('CategoryPage', () => {
     const searchStylesheet = fs.readFileSync(path.resolve(__dirname, '../../components/home-search-input/index.scss'), 'utf8');
 
     expect(stylesheet).toContain('.category-product-title');
+    expect(stylesheet).toContain('.category-product-image-shell');
+    expect(stylesheet).toContain('aspect-ratio: 1 / 1;');
+    expect(stylesheet).toContain('.category-product-image-wrapper');
     expect(stylesheet).toContain('-webkit-line-clamp: 2;');
     expect(stylesheet).toContain('overflow-wrap: anywhere;');
     expect(stylesheet).toContain('.category-secondary-nav-inner');

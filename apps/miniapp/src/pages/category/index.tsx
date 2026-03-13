@@ -307,13 +307,16 @@ export default function CategoryPage() {
                   className='category-product-card'
                   onClick={() => navigateTo(goodsDetailRoute(item.id))}
                 >
-                  <SafeImage
-                    className='category-product-image'
-                    src={item.coverImageUrl}
-                    width='100%'
-                    height={110}
-                    mode='aspectFill'
-                  />
+                  <View className='category-product-image-shell'>
+                    <SafeImage
+                      wrapperClassName='category-product-image-wrapper'
+                      className='category-product-image'
+                      src={item.coverImageUrl}
+                      width='100%'
+                      height='100%'
+                      mode='aspectFill'
+                    />
+                  </View>
                   <View className='category-product-body'>
                     <Text className='category-product-title u-safe-title-2'>{item.name}</Text>
                     <Text className='category-product-price'>{productStartingPrices[item.id] ?? '询价'}</Text>
