@@ -45,6 +45,17 @@ describe('isolated mock mode', () => {
     const categories = await commerceServices.catalog.listCategories()
     expect(categories.items.length).toBeGreaterThan(0)
 
+    const fasteners = await commerceServices.catalog.listProducts({
+      categoryId: 'fasteners',
+      page: 1,
+      pageSize: 50
+    })
+    expect(fasteners.items.length).toBeGreaterThanOrEqual(10)
+
+    const fastenerDetail = await commerceServices.catalog.getProductDetail('spu-bolt-a2')
+    expect(fastenerDetail.product.categoryId).toBe('fasteners')
+    expect(fastenerDetail.skus.some((sku) => sku.id === 'sku-bolt-a2-m8')).toBe(true)
+
     await commerceServices.wishlist.add('sku-bolt-a2-m8')
     const wishlist = await commerceServices.wishlist.list()
     expect(wishlist.map((item) => item.sku.id)).toContain('sku-bolt-a2-m8')

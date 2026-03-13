@@ -109,4 +109,37 @@ describe('CategoryPage', () => {
       });
     });
   });
+
+  it('filters fastener products through secondary chips', async () => {
+    (commerceServices.catalog.listProducts as jest.Mock).mockResolvedValue({
+      items: [
+        { id: 'fastener-bolt-1', name: '不锈钢六角螺栓 A2', coverImageUrl: '', tags: ['紧固件'] },
+        { id: 'fastener-nut-1', name: '304 法兰螺母', coverImageUrl: '', tags: ['紧固件'] },
+        { id: 'fastener-washer-1', name: '304 平垫圈', coverImageUrl: '', tags: ['紧固件'] },
+        { id: 'fastener-ring-1', name: '孔用弹性挡圈', coverImageUrl: '', tags: ['紧固件'] },
+        { id: 'fastener-anchor-1', name: '镀锌膨胀螺栓', coverImageUrl: '', tags: ['紧固件'] },
+        { id: 'fastener-anchor-2', name: '化学锚栓 M12', coverImageUrl: '', tags: ['紧固件'] },
+        { id: 'fastener-rivet-1', name: '开口型抽芯铆钉', coverImageUrl: '', tags: ['紧固件'] }
+      ],
+      total: 7
+    });
+
+    render(<CategoryPage />);
+
+    await screen.findByText('不锈钢六角螺栓 A2');
+
+    fireEvent.click(screen.getByText('垫圈卡簧'));
+    expect(screen.getByText('304 平垫圈')).toBeInTheDocument();
+    expect(screen.getByText('孔用弹性挡圈')).toBeInTheDocument();
+    expect(screen.queryByText('不锈钢六角螺栓 A2')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('膨胀锚固'));
+    expect(screen.getByText('镀锌膨胀螺栓')).toBeInTheDocument();
+    expect(screen.getByText('化学锚栓 M12')).toBeInTheDocument();
+    expect(screen.queryByText('304 平垫圈')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('铆接件'));
+    expect(screen.getByText('开口型抽芯铆钉')).toBeInTheDocument();
+    expect(screen.queryByText('镀锌膨胀螺栓')).not.toBeInTheDocument();
+  });
 });
