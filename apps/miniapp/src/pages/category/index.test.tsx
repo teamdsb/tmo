@@ -59,6 +59,13 @@ describe('CategoryPage', () => {
     expect(stylesheet).toContain('min-width: max-content;');
     expect(stylesheet).toContain('flex: 0 0 auto;');
     expect(stylesheet).toContain('white-space: nowrap;');
+    expect(stylesheet).toContain('.category-secondary-nav');
+    expect(stylesheet).toContain('border-top: 1px solid #eef2f6;');
+    expect(stylesheet).toContain('padding: 20px 0 22px;');
+    expect(stylesheet).toContain('gap: 14px;');
+    expect(stylesheet).toContain('height: 42px;');
+    expect(stylesheet).toContain('padding: 0 18px;');
+    expect(stylesheet).toContain('font-size: calc(24rpx + var(--font-size-step-rpx, 0rpx));');
     expect(stylesheet).toContain('.category-primary-label');
     expect(stylesheet).toContain('font-size: calc(18rpx + var(--font-size-step-rpx, 0rpx));');
     expect(stylesheet).toContain('.category-primary-item');

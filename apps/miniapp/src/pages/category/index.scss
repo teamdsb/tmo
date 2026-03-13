@@ -76,12 +76,13 @@
 }
 
 .category-secondary-nav {
-  padding: 12px 0 14px;
+  border-top: 1px solid #eef2f6;
+  padding: 20px 0 22px;
 }
 
 .category-secondary-nav-inner {
   display: inline-flex;
-  gap: 10px;
+  gap: 14px;
   padding: 0 16px;
   min-width: max-content;
 }
@@ -91,12 +92,12 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  height: 34px;
-  padding: 0 16px;
+  height: 42px;
+  padding: 0 18px;
   border-radius: 999px;
   background: #f1f5f9;
   color: #64748b;
-  font-size: calc(22rpx + var(--font-size-step-rpx, 0rpx));
+  font-size: calc(24rpx + var(--font-size-step-rpx, 0rpx));
   font-weight: 500;
   white-space: nowrap;
 }
