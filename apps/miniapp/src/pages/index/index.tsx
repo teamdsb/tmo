@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
-import { View, Text, Swiper, SwiperItem, Input } from '@tarojs/components'
+import { View, Text, Swiper, SwiperItem } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
-import Flex from '@taroify/core/flex'
 import type { Category, DisplayCategory, ProductSummary } from '@tmo/api-client'
+import Flex from '../../components/flex'
 import SafeImage from '../../components/safe-image'
+import HomeSearchInput from '../../components/home-search-input'
 import { useProductStartingPrices } from '../../hooks/use-product-starting-prices'
 import { ROUTES, goodsDetailRoute, withQuery } from '../../routes'
 import { type CategoryIconKey, renderCategoryIcon, resolveCategoryIconKey } from '../../utils/category-icons'
@@ -217,21 +218,7 @@ export default function ProductCatalogApp() {
       {isH5 ? <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary' /> : null}
 
       <View className='page-search'>
-        <View className='home-search-shell'>
-          <View className='home-search-icon' aria-hidden='true'>
-            <View className='home-search-icon-circle' />
-            <View className='home-search-icon-handle' />
-          </View>
-          <Input
-            className='home-search-input'
-            type='text'
-            confirmType='search'
-            value={searchQuery}
-            placeholder='按 SKU 或名称搜索...'
-            placeholderClass='home-search-placeholder'
-            onInput={(event) => setSearchQuery(event.detail.value)}
-          />
-        </View>
+        <HomeSearchInput value={searchQuery} onInput={setSearchQuery} />
       </View>
 
       <HomeShowcase />

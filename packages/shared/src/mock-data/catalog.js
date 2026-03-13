@@ -97,6 +97,196 @@ export const canonicalDisplayCategories = [
 
 const productTemplates = [
   {
+    id: 'spu-bolt-a2',
+    name: '不锈钢六角螺栓 A2',
+    categoryId: 'fasteners',
+    coverImageUrl:
+      'https://images.unsplash.com/photo-1581092921461-eab62e97a780',
+    description: 'A2-70 材质六角螺栓，适用于设备装配、机柜固定与常规工况紧固。',
+    inventory: 8600,
+    status: 'ACTIVE',
+    tierLabel: '工程常备',
+    models: [
+      { name: 'M8 x 30', code: 'M8', spec: 'M8 x 30 / A2-70', basePrice: 1.8 },
+      { name: 'M10 x 40', code: 'M10', spec: 'M10 x 40 / A2-70', basePrice: 2.6 }
+    ],
+    tierPricing: [
+      { minQty: 50, discountRate: 6 },
+      { minQty: 200, discountRate: 12 }
+    ]
+  },
+  {
+    id: 'spu-nut-flange-304',
+    name: '304 法兰螺母',
+    categoryId: 'fasteners',
+    coverImageUrl:
+      'https://images.unsplash.com/photo-1565793298595-6a879b1d9492',
+    description: '304 不锈钢带齿法兰螺母，适合振动工位与板材装配场景。',
+    inventory: 12400,
+    status: 'ACTIVE',
+    tierLabel: '标准档',
+    models: [
+      { name: 'M8', code: 'M8', spec: 'M8 / 304 不锈钢', basePrice: 0.68 },
+      { name: 'M10', code: 'M10', spec: 'M10 / 304 不锈钢', basePrice: 0.92 }
+    ],
+    tierPricing: [
+      { minQty: 100, discountRate: 5 },
+      { minQty: 500, discountRate: 10 }
+    ]
+  },
+  {
+    id: 'spu-washer-flat-304',
+    name: '304 平垫圈',
+    categoryId: 'fasteners',
+    coverImageUrl:
+      'https://images.unsplash.com/photo-1517048676732-d65bc937f952',
+    description: '304 平垫圈，适用于分散压强、保护连接面并提升装配稳定性。',
+    inventory: 18600,
+    status: 'ACTIVE',
+    tierLabel: '标准档',
+    models: [
+      { name: 'M8', code: 'M8', spec: 'M8 / 外径 16mm', basePrice: 0.22 },
+      { name: 'M10', code: 'M10', spec: 'M10 / 外径 20mm', basePrice: 0.28 }
+    ],
+    tierPricing: [
+      { minQty: 200, discountRate: 5 },
+      { minQty: 1000, discountRate: 11 }
+    ]
+  },
+  {
+    id: 'spu-washer-spring-65mn',
+    name: '65Mn 弹簧垫圈',
+    categoryId: 'fasteners',
+    coverImageUrl:
+      'https://images.unsplash.com/photo-1532634896-26909d0d4b6b',
+    description: '发黑 65Mn 弹簧垫圈，用于防松连接，适合设备维护与机加装配。',
+    inventory: 15300,
+    status: 'ACTIVE',
+    tierLabel: '防松档',
+    models: [
+      { name: 'M8', code: 'M8', spec: 'M8 / 发黑 65Mn', basePrice: 0.18 },
+      { name: 'M10', code: 'M10', spec: 'M10 / 发黑 65Mn', basePrice: 0.24 }
+    ],
+    tierPricing: [
+      { minQty: 200, discountRate: 4 },
+      { minQty: 1000, discountRate: 9 }
+    ]
+  },
+  {
+    id: 'spu-retaining-ring-internal',
+    name: '孔用弹性挡圈',
+    categoryId: 'fasteners',
+    coverImageUrl:
+      'https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc',
+    description: '标准孔用弹性挡圈，适用于轴承定位与传动部件限位。',
+    inventory: 7200,
+    status: 'ACTIVE',
+    tierLabel: '卡簧档',
+    models: [
+      { name: '18mm', code: '18', spec: '孔径 18mm / 65Mn', basePrice: 0.46 },
+      { name: '25mm', code: '25', spec: '孔径 25mm / 65Mn', basePrice: 0.62 }
+    ],
+    tierPricing: [
+      { minQty: 100, discountRate: 5 },
+      { minQty: 500, discountRate: 10 }
+    ]
+  },
+  {
+    id: 'spu-anchor-expansion-zp',
+    name: '镀锌膨胀螺栓',
+    categoryId: 'fasteners',
+    coverImageUrl:
+      'https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122',
+    description: '镀锌膨胀螺栓，适用于混凝土墙体、支架底座与设备落地固定。',
+    inventory: 4300,
+    status: 'ACTIVE',
+    tierLabel: '锚固档',
+    models: [
+      { name: 'M8 x 80', code: 'M8', spec: 'M8 x 80 / 镀锌', basePrice: 2.9 },
+      { name: 'M10 x 100', code: 'M10', spec: 'M10 x 100 / 镀锌', basePrice: 4.2 }
+    ],
+    tierPricing: [
+      { minQty: 20, discountRate: 4 },
+      { minQty: 100, discountRate: 9 }
+    ]
+  },
+  {
+    id: 'spu-anchor-chemical-m12',
+    name: '化学锚栓 M12',
+    categoryId: 'fasteners',
+    coverImageUrl:
+      'https://images.unsplash.com/photo-1517048676732-d65bc937f952',
+    description: '8.8 级化学锚栓，适合高荷载设备基础、幕墙预埋与改造加固场景。',
+    inventory: 2100,
+    status: 'ACTIVE',
+    tierLabel: '重载档',
+    models: [
+      { name: 'M12 x 160', code: '160', spec: 'M12 x 160 / 8.8 级', basePrice: 8.6 },
+      { name: 'M12 x 200', code: '200', spec: 'M12 x 200 / 8.8 级', basePrice: 10.2 }
+    ],
+    tierPricing: [
+      { minQty: 10, discountRate: 3 },
+      { minQty: 50, discountRate: 7 }
+    ]
+  },
+  {
+    id: 'spu-rivet-blind-alfe',
+    name: '开口型抽芯铆钉',
+    categoryId: 'fasteners',
+    coverImageUrl:
+      'https://images.unsplash.com/photo-1497493292307-31c376b6e479',
+    description: '铝铁开口型抽芯铆钉，适用于薄板连接、风管安装与机壳装配。',
+    inventory: 9600,
+    status: 'ACTIVE',
+    tierLabel: '铆接档',
+    models: [
+      { name: '4.0 x 10', code: '4X10', spec: '4.0 x 10 / 铝铁', basePrice: 0.36 },
+      { name: '4.8 x 12', code: '4X12', spec: '4.8 x 12 / 铝铁', basePrice: 0.44 }
+    ],
+    tierPricing: [
+      { minQty: 200, discountRate: 5 },
+      { minQty: 1000, discountRate: 12 }
+    ]
+  },
+  {
+    id: 'spu-selftap-410',
+    name: '410 不锈钢自攻钉',
+    categoryId: 'fasteners',
+    coverImageUrl:
+      'https://images.unsplash.com/photo-1581092160607-ee22731d8c1a',
+    description: '十字盘头 410 不锈钢自攻钉，适用于薄钢板、箱体与面板固定。',
+    inventory: 11800,
+    status: 'ACTIVE',
+    tierLabel: '板材固定',
+    models: [
+      { name: 'ST4.2 x 19', code: 'ST42-19', spec: 'ST4.2 x 19 / 十字盘头', basePrice: 0.27 },
+      { name: 'ST4.8 x 25', code: 'ST48-25', spec: 'ST4.8 x 25 / 十字盘头', basePrice: 0.39 }
+    ],
+    tierPricing: [
+      { minQty: 200, discountRate: 5 },
+      { minQty: 1000, discountRate: 10 }
+    ]
+  },
+  {
+    id: 'spu-u-bolt-zp',
+    name: '镀锌 U 型卡',
+    categoryId: 'fasteners',
+    coverImageUrl:
+      'https://images.unsplash.com/photo-1517048676732-d65bc937f952',
+    description: '镀锌 U 型卡箍，适用于管道支撑、线缆桥架与支架抱箍固定。',
+    inventory: 3800,
+    status: 'ACTIVE',
+    tierLabel: '管夹档',
+    models: [
+      { name: 'DN20', code: 'DN20', spec: 'DN20 / 镀锌碳钢', basePrice: 1.6 },
+      { name: 'DN32', code: 'DN32', spec: 'DN32 / 镀锌碳钢', basePrice: 2.1 }
+    ],
+    tierPricing: [
+      { minQty: 50, discountRate: 4 },
+      { minQty: 200, discountRate: 8 }
+    ]
+  },
+  {
     id: 'spu-tee-classic',
     name: '经典纯棉 T 恤',
     categoryId: 'office',

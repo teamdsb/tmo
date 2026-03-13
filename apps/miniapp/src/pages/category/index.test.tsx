@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { commerceServices } from '../../services/commerce';
 import CategoryPage from './index';
 
@@ -22,10 +22,12 @@ describe('CategoryPage', () => {
 
     const navbar = document.querySelector('.app-navbar.app-navbar--primary');
     expect(navbar).not.toBeNull();
-    expect(screen.getByPlaceholderText('搜索 SKU 或商品...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('按 SKU 或名称搜索...')).toBeInTheDocument();
+    expect(document.querySelector('.category-header-action')).toBeNull();
 
     expect((await screen.findAllByText('紧固件')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('电气')).length).toBeGreaterThan(0);
+    expect(await screen.findByText('全部商品')).toBeInTheDocument();
     expect(await screen.findByText('A4 办公用纸')).toBeInTheDocument();
     expect(await screen.findAllByText('¥185.00 起')).toHaveLength(4);
   });
@@ -44,14 +46,50 @@ describe('CategoryPage', () => {
 
     expect((await screen.findAllByText(/Category Product ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890/)).length).toBeGreaterThan(0);
     expect(document.querySelectorAll('.category-product-card')).toHaveLength(2);
+    expect(document.querySelectorAll('.category-product-image-shell')).toHaveLength(2);
   });
 
   it('keeps shared long-text styles for category product titles', () => {
     const stylesheet = fs.readFileSync(path.resolve(__dirname, './index.scss'), 'utf8');
+    const searchStylesheet = fs.readFileSync(path.resolve(__dirname, '../../components/home-search-input/index.scss'), 'utf8');
 
     expect(stylesheet).toContain('.category-product-title');
+    expect(stylesheet).toContain('.category-product-image-shell');
+    expect(stylesheet).toContain('aspect-ratio: 1 / 1;');
+    expect(stylesheet).toContain('.category-product-image-wrapper');
+    expect(stylesheet).toContain('.category-product-body');
+    expect(stylesheet).toContain('padding: 10px 8px 8px;');
     expect(stylesheet).toContain('-webkit-line-clamp: 2;');
+    expect(stylesheet).toContain('min-height: 1.35em;');
+    expect(stylesheet).toContain('line-height: 1.35;');
     expect(stylesheet).toContain('overflow-wrap: anywhere;');
+    expect(stylesheet).toContain('.category-product-price');
+    expect(stylesheet).toContain('margin-top: 0;');
+    expect(stylesheet).toContain('.category-product-action');
+    expect(stylesheet).toContain('margin-top: 6px;');
+    expect(stylesheet).toContain('height: 48px;');
+    expect(stylesheet).toContain('.category-secondary-nav-inner');
+    expect(stylesheet).toContain('min-width: max-content;');
+    expect(stylesheet).toContain('flex: 0 0 auto;');
+    expect(stylesheet).toContain('white-space: nowrap;');
+    expect(stylesheet).toContain('.category-secondary-nav');
+    expect(stylesheet).toContain('border-top: 1px solid #eef2f6;');
+    expect(stylesheet).toContain('padding: 20px 0 22px;');
+    expect(stylesheet).toContain('gap: 14px;');
+    expect(stylesheet).toContain('height: 42px;');
+    expect(stylesheet).toContain('padding: 0 18px;');
+    expect(stylesheet).toContain('font-size: calc(24rpx + var(--font-size-step-rpx, 0rpx));');
+    expect(stylesheet).toContain('.category-primary-label');
+    expect(stylesheet).toContain('font-size: calc(18rpx + var(--font-size-step-rpx, 0rpx));');
+    expect(stylesheet).toContain('.category-primary-item');
+    expect(stylesheet).toContain('min-width: 96px;');
+    expect(stylesheet).toContain('gap: 18px;');
+    expect(stylesheet).toContain('padding: 24px 16px 22px;');
+    expect(stylesheet).toContain('width: 36px;');
+    expect(stylesheet).toContain('height: 8px;');
+    expect(searchStylesheet).toContain('.home-search-shell');
+    expect(searchStylesheet).toContain('.home-search-input');
+    expect(searchStylesheet).toContain('.home-search-placeholder');
   });
 
   it('switches active category from sidebar', async () => {
@@ -60,12 +98,61 @@ describe('CategoryPage', () => {
     const electricalEntry = await screen.findByText('电气');
     fireEvent.click(electricalEntry);
 
-    const sidebarItem = electricalEntry.closest('.category-sidebar-item');
-    expect(sidebarItem).not.toBeNull();
-    if (!sidebarItem) {
-      throw new Error('Expected category sidebar item');
+    const categoryItem = electricalEntry.closest('.category-primary-item');
+    expect(categoryItem).not.toBeNull();
+    if (!categoryItem) {
+      throw new Error('Expected category primary item');
     }
-    expect(sidebarItem).toHaveClass('is-active');
-    expect(await screen.findByText('共 4 件商品')).toBeInTheDocument();
+    expect(categoryItem).toHaveClass('is-active');
+    expect(await screen.findByText('4 ITEMS')).toBeInTheDocument();
+  });
+
+  it('reuses home search input and queries products with q', async () => {
+    render(<CategoryPage />);
+
+    const input = screen.getByPlaceholderText('按 SKU 或名称搜索...');
+    fireEvent.change(input, { target: { value: 'bolt' } });
+
+    await waitFor(() => {
+      expect(commerceServices.catalog.listProducts).toHaveBeenLastCalledWith({
+        categoryId: 'fasteners',
+        q: 'bolt',
+        page: 1,
+        pageSize: 40
+      });
+    });
+  });
+
+  it('filters fastener products through secondary chips', async () => {
+    (commerceServices.catalog.listProducts as jest.Mock).mockResolvedValue({
+      items: [
+        { id: 'fastener-bolt-1', name: '不锈钢六角螺栓 A2', coverImageUrl: '', tags: ['紧固件'] },
+        { id: 'fastener-nut-1', name: '304 法兰螺母', coverImageUrl: '', tags: ['紧固件'] },
+        { id: 'fastener-washer-1', name: '304 平垫圈', coverImageUrl: '', tags: ['紧固件'] },
+        { id: 'fastener-ring-1', name: '孔用弹性挡圈', coverImageUrl: '', tags: ['紧固件'] },
+        { id: 'fastener-anchor-1', name: '镀锌膨胀螺栓', coverImageUrl: '', tags: ['紧固件'] },
+        { id: 'fastener-anchor-2', name: '化学锚栓 M12', coverImageUrl: '', tags: ['紧固件'] },
+        { id: 'fastener-rivet-1', name: '开口型抽芯铆钉', coverImageUrl: '', tags: ['紧固件'] }
+      ],
+      total: 7
+    });
+
+    render(<CategoryPage />);
+
+    await screen.findByText('不锈钢六角螺栓 A2');
+
+    fireEvent.click(screen.getByText('垫圈卡簧'));
+    expect(screen.getByText('304 平垫圈')).toBeInTheDocument();
+    expect(screen.getByText('孔用弹性挡圈')).toBeInTheDocument();
+    expect(screen.queryByText('不锈钢六角螺栓 A2')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('膨胀锚固'));
+    expect(screen.getByText('镀锌膨胀螺栓')).toBeInTheDocument();
+    expect(screen.getByText('化学锚栓 M12')).toBeInTheDocument();
+    expect(screen.queryByText('304 平垫圈')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('铆接件'));
+    expect(screen.getByText('开口型抽芯铆钉')).toBeInTheDocument();
+    expect(screen.queryByText('镀锌膨胀螺栓')).not.toBeInTheDocument();
   });
 });

@@ -123,29 +123,30 @@ describe('ProductCatalogApp', () => {
   });
 
   it('uses a safe showcase height and clamps slide copy for miniapp', () => {
-    const stylesheet = fs.readFileSync(path.resolve(__dirname, './index.scss'), 'utf8');
+    const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../components/home-search-input/index.scss'), 'utf8');
+    const pageStylesheet = fs.readFileSync(path.resolve(__dirname, './index.scss'), 'utf8');
 
     expect(stylesheet).toContain('.home-search-shell');
     expect(stylesheet).toContain('.home-search-input');
     expect(stylesheet).toContain('.home-search-placeholder');
     expect(stylesheet).toContain('text-align: left;');
-    expect(stylesheet).toContain('.home-showcase-swiper');
-    expect(stylesheet).toContain('height: 320px;');
-    expect(stylesheet).toContain('.home-showcase-title');
-    expect(stylesheet).toContain('.home-showcase-title--demand');
-    expect(stylesheet).toContain('.home-showcase-copy');
-    expect(stylesheet).toContain('.home-showcase-decoration');
-    expect(stylesheet).toContain('max-width: 400rpx;');
-    expect(stylesheet).toContain('max-width: 520rpx;');
-    expect(stylesheet).toContain('padding: 20px 20px 24px;');
-    expect(stylesheet).toContain('padding-top: 24px;');
-    expect(stylesheet).toContain('box-sizing: border-box;');
-    expect(stylesheet).toContain('-webkit-line-clamp: 2;');
-    expect(stylesheet).toContain('.home-product-matrix');
-    expect(stylesheet).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
-    expect(stylesheet).toContain('gap: 12px;');
-    expect(stylesheet).toContain('.home-product-cell .product-card--home');
-    expect(stylesheet).toContain('.home-category-panel');
+    expect(pageStylesheet).toContain('.home-showcase-swiper');
+    expect(pageStylesheet).toContain('height: 320px;');
+    expect(pageStylesheet).toContain('.home-showcase-title');
+    expect(pageStylesheet).toContain('.home-showcase-title--demand');
+    expect(pageStylesheet).toContain('.home-showcase-copy');
+    expect(pageStylesheet).toContain('.home-showcase-decoration');
+    expect(pageStylesheet).toContain('max-width: 400rpx;');
+    expect(pageStylesheet).toContain('max-width: 520rpx;');
+    expect(pageStylesheet).toContain('padding: 20px 20px 24px;');
+    expect(pageStylesheet).toContain('padding-top: 24px;');
+    expect(pageStylesheet).toContain('box-sizing: border-box;');
+    expect(pageStylesheet).toContain('-webkit-line-clamp: 2;');
+    expect(pageStylesheet).toContain('.home-product-matrix');
+    expect(pageStylesheet).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
+    expect(pageStylesheet).toContain('gap: 12px;');
+    expect(pageStylesheet).toContain('.home-product-cell .product-card--home');
+    expect(pageStylesheet).toContain('.home-category-panel');
   });
 
   it('updates search input value', async () => {
