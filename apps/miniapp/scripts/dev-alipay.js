@@ -12,9 +12,11 @@ const verifyDistScript = path.resolve(__dirname, './verify-alipay-dist.js')
 const verifyApiBaseScript = path.resolve(__dirname, './verify-miniapp-api-base.js')
 
 let child
-let lastAppAcssMtimeMs = -1
-let lastAppJsonMtimeMs = -1
-let lastVerifyKey = ''
+let lastProcessedKey = ''
+let pendingKey = ''
+let pendingSince = 0
+
+const STABLE_WINDOW_MS = 1200
 
 function cleanAlipayDist() {
   fs.rmSync(alipayDistDir, { recursive: true, force: true })
@@ -60,24 +62,65 @@ function watchBuildArtifacts() {
   setInterval(() => {
     const appAcssPath = path.join(alipayDistDir, 'app.acss')
     const appJsonPath = path.join(alipayDistDir, 'app.json')
+    const taroJsPath = path.join(alipayDistDir, 'taro.js')
+    const vendorsJsPath = path.join(alipayDistDir, 'vendors.js')
+    const commonJsPath = path.join(alipayDistDir, 'common.js')
+    const appJsPath = path.join(alipayDistDir, 'app.js')
 
-    try {
-      const appAcssStats = fs.statSync(appAcssPath)
-      if (appAcssStats.mtimeMs !== lastAppAcssMtimeMs) {
-        lastAppAcssMtimeMs = appAcssStats.mtimeMs
-        runPostprocess()
+    const readMtimeMs = (filePath) => {
+      try {
+        return fs.statSync(filePath).mtimeMs
+      } catch {
+        return 0
       }
-    } catch {
-      return
     }
 
+    const appAcssMtimeMs = readMtimeMs(appAcssPath)
+    const appJsonMtimeMs = readMtimeMs(appJsonPath)
+    const taroJsMtimeMs = readMtimeMs(taroJsPath)
+    const vendorsJsMtimeMs = readMtimeMs(vendorsJsPath)
+    const commonJsMtimeMs = readMtimeMs(commonJsPath)
+    const appJsMtimeMs = readMtimeMs(appJsPath)
+
+    const artifactKey = [
+      appAcssMtimeMs,
+      appJsonMtimeMs,
+      taroJsMtimeMs,
+      vendorsJsMtimeMs,
+      commonJsMtimeMs,
+      appJsMtimeMs
+    ].join(':')
+
     try {
-      const appJsonStats = fs.statSync(appJsonPath)
-      const verifyKey = `${lastAppAcssMtimeMs}:${appJsonStats.mtimeMs}`
-      if (verifyKey !== lastVerifyKey) {
-        lastAppJsonMtimeMs = appJsonStats.mtimeMs
-        lastVerifyKey = verifyKey
+      if (artifactKey === '0:0:0:0:0:0') {
+        return
+      }
+
+      if (!appAcssMtimeMs || !appJsonMtimeMs) {
+        return
+      }
+
+      const now = Date.now()
+      if (artifactKey !== pendingKey) {
+        pendingKey = artifactKey
+        pendingSince = now
+        return
+      }
+
+      if (artifactKey !== lastProcessedKey && now - pendingSince >= STABLE_WINDOW_MS) {
+        runPostprocess()
         runBuildVerifications()
+        const processedKey = [
+          readMtimeMs(appAcssPath),
+          readMtimeMs(appJsonPath),
+          readMtimeMs(taroJsPath),
+          readMtimeMs(vendorsJsPath),
+          readMtimeMs(commonJsPath),
+          readMtimeMs(appJsPath)
+        ].join(':')
+        lastProcessedKey = processedKey
+        pendingKey = processedKey
+        pendingSince = now
       }
     } catch (error) {
       exitWithFailure('verify build artifacts failed', error)

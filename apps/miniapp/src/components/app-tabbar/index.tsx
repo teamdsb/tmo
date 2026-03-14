@@ -37,7 +37,6 @@ export default function AppTabbar({ value, fixed = true, placeholder = true }: A
       value={value}
       fixed={fixed}
       placeholder={placeholder}
-      safeArea={fixed ? 'bottom' : undefined}
       onChange={(next) => handleChange(next as AppTabKey)}
     >
       {TAB_ITEMS.map((item) => (

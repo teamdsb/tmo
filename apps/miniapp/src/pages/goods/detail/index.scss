@@ -1,9 +1,13 @@
 .page-detail {
+  --detail-action-bar-base-height: calc(var(--tabbar-height) + 18rpx);
+  --detail-action-bar-offset: calc(var(--detail-action-bar-base-height) + 8px + env(safe-area-inset-bottom));
+  --detail-action-bar-offset-legacy: calc(var(--detail-action-bar-base-height) + 8px + constant(safe-area-inset-bottom));
   background: linear-gradient(180deg, #f4f8fc 0%, #eef4fb 100%);
 }
 
 .detail-page-content {
-  padding-bottom: 24rpx;
+  padding-bottom: var(--detail-action-bar-offset);
+  padding-bottom: var(--detail-action-bar-offset-legacy);
 }
 
 .detail-surface-card {
@@ -244,7 +248,19 @@
 .detail-action-bar {
   display: flex;
   align-items: center;
+  min-height: var(--tabbar-height);
   gap: 20rpx;
+  padding-top: 12rpx;
+  padding-right: 32rpx;
+  padding-left: 32rpx;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  padding-bottom: calc(8px + constant(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.page-detail .taroify-fixed-view--bottom {
+  bottom: 0;
+  background: #fff;
 }
 
 .detail-footer-actions {

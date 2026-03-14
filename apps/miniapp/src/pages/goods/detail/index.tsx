@@ -343,7 +343,7 @@ export default function ProductDetail() {
 
       </View>
 
-      <FixedView position='bottom' safeArea='bottom' placeholder>
+      <FixedView position='bottom' placeholder>
         <View className='action-bar detail-action-bar'>
           <TaroButton
             className='detail-light-action'

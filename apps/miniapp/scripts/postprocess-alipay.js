@@ -122,17 +122,29 @@ function patchTaroReactExports(source) {
   const marker = '/*__tmo_taro_react_exports__*/'
   const patchBody =
     '(function(exports){' +
-    'if(!exports||!exports.reactExports){return;}' +
+    'if(!exports){return;}' +
     'var reactExports=exports.reactExports;' +
-    'for(var key in reactExports){' +
-    'if(Object.prototype.hasOwnProperty.call(reactExports,key)&&!(key in exports)){' +
-    'exports[key]=reactExports[key];' +
+    'var jsxRuntimeExports=exports.jsxRuntimeExports;' +
+    'var merged={};' +
+    'if(reactExports&&typeof reactExports==="object"){' +
+    'for(var reactKey in reactExports){' +
+    'if(Object.prototype.hasOwnProperty.call(reactExports,reactKey)){merged[reactKey]=reactExports[reactKey];}' +
+    '}' +
+    '}' +
+    'if(jsxRuntimeExports&&typeof jsxRuntimeExports==="object"){' +
+    'for(var jsxKey in jsxRuntimeExports){' +
+    'if(Object.prototype.hasOwnProperty.call(jsxRuntimeExports,jsxKey)){merged[jsxKey]=jsxRuntimeExports[jsxKey];}' +
+    '}' +
+    '}' +
+    'for(var key in merged){' +
+    'if(Object.prototype.hasOwnProperty.call(merged,key)&&!(key in exports)){' +
+    'exports[key]=merged[key];' +
     '}' +
     '}' +
     'if(exports.default&&typeof exports.default==="object"){' +
-    'for(var defaultKey in reactExports){' +
-    'if(Object.prototype.hasOwnProperty.call(reactExports,defaultKey)&&!(defaultKey in exports.default)){' +
-    'exports.default[defaultKey]=reactExports[defaultKey];' +
+    'for(var defaultKey in merged){' +
+    'if(Object.prototype.hasOwnProperty.call(merged,defaultKey)&&!(defaultKey in exports.default)){' +
+    'exports.default[defaultKey]=merged[defaultKey];' +
     '}' +
     '}' +
     '}' +
@@ -140,7 +152,7 @@ function patchTaroReactExports(source) {
   const patch =
     `${marker};${patchBody}`
   const legacyPattern = /\n?\/\*__tmo_taro_react_exports__\*\/;\(function\(exports\)\{[\s\S]*?\}\)\(typeof exports!==\"undefined\"\?exports:void 0\);?\n?/g
-  const loosePattern = /\n?;\(function\(exports\)\{if\(!exports\|\|!exports\.reactExports\)\{return;\}var reactExports=exports\.reactExports;[\s\S]*?\}\)\(typeof exports!==\"undefined\"\?exports:void 0\);?\n?/g
+  const loosePattern = /\n?;\(function\(exports\)\{[\s\S]*?\}\)\(typeof exports!==\"undefined\"\?exports:void 0\);?\n?/g
   const cleaned = source.replace(legacyPattern, '\n').replace(loosePattern, '\n').trimEnd()
 
   return `${cleaned}\n${patch}\n`
