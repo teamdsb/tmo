@@ -100,6 +100,7 @@ export default function LoginPage() {
   const [capabilitiesError, setCapabilitiesError] = useState('')
   const launchContext = useMemo(readLaunchContext, [])
   const enableWeappPhoneProofSimulation = useMemo(() => runtimeEnv.weappPhoneProofSimulation, [])
+  const isMockMode = runtimeEnv.isIsolatedMock
   const platform = useMemo(() => getPlatform() as MiniPlatform, [])
   const redirect = (() => {
     if (typeof router.params?.redirect !== 'string') {
@@ -113,7 +114,7 @@ export default function LoginPage() {
   })()
   const hasRealWeappAppId = useMemo(() => hasConfiguredWeappAppId(runtimeEnv.weappAppId), [])
   const shouldCheckRealWeappCapabilities = platform === 'weapp'
-    && !runtimeEnv.isIsolatedMock
+    && !isMockMode
     && !enableWeappPhoneProofSimulation
 
   useEffect(() => {
@@ -190,6 +191,23 @@ export default function LoginPage() {
     shouldCheckRealWeappCapabilities
   ])
   const isWeappLoginBlocked = blockedWeappLoginMessage.length > 0
+  const panelTitle = isMockMode ? 'Mock 快速登录' : '手机号登录'
+  const panelDescription = isMockMode
+    ? '当前处于演示模式。所有业务逻辑已预设，可直接体验不同角色的操作流程。'
+    : platform === 'weapp'
+      ? '使用微信授权手机号完成身份识别。'
+      : platform === 'alipay'
+        ? '使用支付宝授权手机号完成身份识别。'
+        : '当前环境将按调试登录逻辑执行。'
+  const statusMessage = isMockMode
+    ? '模拟数据已激活'
+    : platform === 'weapp'
+      ? enableWeappPhoneProofSimulation
+        ? '开发调试已启用模拟手机号校验'
+        : '微信手机号授权'
+      : platform === 'alipay'
+        ? '支付宝手机号授权'
+        : '调试登录'
 
   const handleLoginSuccess = async (
     role?: 'CUSTOMER' | 'SALES',
@@ -324,41 +342,45 @@ export default function LoginPage() {
         <View className='login-backdrop login-backdrop--top' />
         <View className='login-backdrop login-backdrop--bottom' />
 
+        <View className='login-header'>
+          <View className='login-header-spacer' />
+          <Text className='login-header-title'>登录</Text>
+          <View className='login-header-spacer' />
+        </View>
+
         <View className='login-content'>
-          <View className='login-hero'>
+          <View className='login-card login-card--hero'>
+            <View className='login-hero-glow' />
             <View className='login-logo-frame'>
               <View className='login-logo'>
                 <AppsOutlined className='login-logo-icon' />
               </View>
             </View>
             <View className='login-copy'>
-              <Text className='login-eyebrow'>企业采购小程序</Text>
+              <Text className='login-eyebrow'>Enterprise Sourcing</Text>
               <Text className='login-title'>批发合作伙伴</Text>
-              <Text className='login-subtitle'>登录后可查看账号信息、专属价格与履约进度。</Text>
+              <Text className='login-subtitle'>验证身份以访问您的专属价格、账户信息及订单实时进度</Text>
             </View>
           </View>
 
-          <View className='login-panel'>
-            <View className='login-panel-head'>
-              <Text className='login-panel-title'>{runtimeEnv.isIsolatedMock ? 'Mock 快速登录' : '手机号登录'}</Text>
-              <Text className='login-panel-caption'>
-                {runtimeEnv.isIsolatedMock ? '当前为离线 Mock 模式，可直接选择角色进入调试。' : '使用微信授权手机号完成身份识别'}
-              </Text>
+          <View className='login-card login-card--info'>
+            <View className='login-panel-head login-panel-head--compact'>
+              <View className='login-panel-badge' />
+              <Text className='login-panel-title'>{panelTitle}</Text>
             </View>
-
-            <View className='login-status-strip'>
-              <View className='login-status-dot' />
-              <Text className='login-status-copy'>
-                {runtimeEnv.isIsolatedMock
-                  ? 'Mock 模式登录后会保留正常回跳链路，适合商品详情、加购和购物车联调。'
-                  : platform === 'weapp'
-                  ? '微信环境将直接调起手机号授权。'
-                  : platform === 'alipay'
-                    ? '支付宝环境将使用平台手机号授权。'
-                    : '当前环境将按调试登录逻辑执行。'}
-              </Text>
+            <View className='login-panel-note'>
+              <View className='login-panel-note-dot' />
+              <Text className='login-panel-caption'>{panelDescription}</Text>
             </View>
+            <View className='login-status-toggle'>
+              <Text className='login-status-label'>{statusMessage}</Text>
+              <View className='login-status-switch'>
+                <View className='login-status-switch-thumb' />
+              </View>
+            </View>
+          </View>
 
+          <View className='login-card login-card--actions'>
             {isWeappLoginBlocked ? (
               <View className='login-alert'>
                 <Text className='login-alert-text'>
@@ -368,7 +390,7 @@ export default function LoginPage() {
             ) : null}
 
             <View className='login-actions'>
-              {runtimeEnv.isIsolatedMock ? (
+              {isMockMode ? (
                 <>
                   <Button
                     color='primary'
@@ -378,6 +400,7 @@ export default function LoginPage() {
                     className='login-primary'
                   >
                     客户登录
+                    <Text className='login-primary-arrow'>→</Text>
                   </Button>
                   <Button
                     variant='outlined'
@@ -391,7 +414,7 @@ export default function LoginPage() {
                 </>
               ) : null}
 
-              {!runtimeEnv.isIsolatedMock && platform === 'weapp' && enableWeappPhoneProofSimulation ? (
+              {!isMockMode && platform === 'weapp' && enableWeappPhoneProofSimulation ? (
                 <NativeButton
                   className='login-primary login-native-button'
                   disabled={!agreed || loading}
@@ -402,7 +425,7 @@ export default function LoginPage() {
                 </NativeButton>
               ) : null}
 
-              {!runtimeEnv.isIsolatedMock && platform === 'weapp' && !enableWeappPhoneProofSimulation ? (
+              {!isMockMode && platform === 'weapp' && !enableWeappPhoneProofSimulation ? (
                 <NativeButton
                   className='login-primary login-native-button'
                   disabled={!agreed || loading || isWeappLoginBlocked}
@@ -414,7 +437,7 @@ export default function LoginPage() {
                 </NativeButton>
               ) : null}
 
-              {!runtimeEnv.isIsolatedMock && platform === 'alipay' ? (
+              {!isMockMode && platform === 'alipay' ? (
                 <NativeButton
                   className='login-primary login-native-button'
                   disabled={!agreed || loading}
@@ -428,7 +451,7 @@ export default function LoginPage() {
                 </NativeButton>
               ) : null}
 
-              {!runtimeEnv.isIsolatedMock && platform === 'unknown' ? (
+              {!isMockMode && platform === 'unknown' ? (
                 <Button
                   color='primary'
                   block
@@ -441,12 +464,12 @@ export default function LoginPage() {
               ) : null}
 
               <Button
-                variant='outlined'
+                variant='text'
                 block
                 onClick={handleAltLogin}
-                className='login-secondary'
+                className='login-ghost'
               >
-                暂不登录
+                {isMockMode ? '暂不登录，先去逛逛' : '暂不登录'}
               </Button>
             </View>
 
@@ -460,13 +483,21 @@ export default function LoginPage() {
                 <Text className='login-agreement-link'>隐私政策</Text>
                 与
                 <Text className='login-agreement-link'>服务条款</Text>
-                。
               </Text>
             </View>
           </View>
 
           <View className='login-footer'>
-            <Text className='login-footer-text'>需要帮助？请联系你的客户经理。</Text>
+            <View className='login-footer-divider'>
+              <View className='login-footer-line' />
+              <Text className='login-footer-label'>寻求支持</Text>
+              <View className='login-footer-line' />
+            </View>
+            <View className='login-footer-support'>
+              <View className='login-footer-support-dot' />
+              <Text className='login-footer-text'>联系您的客户经理</Text>
+            </View>
+            <View className='login-footer-handle' />
           </View>
         </View>
       </View>
