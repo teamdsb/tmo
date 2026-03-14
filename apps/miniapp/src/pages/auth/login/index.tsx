@@ -395,7 +395,7 @@ export default function LoginPage() {
                   <Button
                     color='primary'
                     block
-                    loading={loading}
+                    disabled={loading}
                     onClick={() => handleMockRoleLogin('CUSTOMER')}
                     className='login-primary'
                   >
@@ -405,7 +405,7 @@ export default function LoginPage() {
                   <Button
                     variant='outlined'
                     block
-                    loading={loading}
+                    disabled={loading}
                     onClick={() => handleMockRoleLogin('SALES')}
                     className='login-secondary'
                   >
