@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 
 const flushPromises = () => new Promise((resolve) => process.nextTick(resolve))
 const actualReact = jest.requireActual('react')
@@ -70,6 +70,26 @@ describe('SettingsPage', () => {
     jest.resetModules()
   })
 
+  it('renders cards in the updated order with account card first', async () => {
+    const { SettingsPage } = loadSettingsPage({ isIsolatedMock: true })
+    render(<SettingsPage />)
+
+    await act(async () => {
+      await flushPromises()
+    })
+
+    expect(screen.getByTestId('settings-basic-card')).toBeInTheDocument()
+    expect(screen.getByTestId('settings-account-card')).toBeInTheDocument()
+    expect(screen.getByTestId('settings-policy-card')).toBeInTheDocument()
+    expect(screen.getByTestId('settings-debug-card')).toBeInTheDocument()
+    expect(screen.getByTestId('settings-env-card')).toBeInTheDocument()
+    expect(screen.getByText('账号与角色信息')).toBeInTheDocument()
+    expect(screen.getByText('订单通知')).toBeInTheDocument()
+    expect(screen.getByText('自动登录')).toBeInTheDocument()
+    expect(screen.getByText('隐私与协议')).toBeInTheDocument()
+    expect(screen.getByText('版本与环境信息')).toBeInTheDocument()
+  })
+
   it('shows mock debug actions only in isolated mock mode', async () => {
     const { SettingsPage } = loadSettingsPage(
       { isIsolatedMock: true },
@@ -117,7 +137,7 @@ describe('SettingsPage', () => {
     expect(applyMockLogin).toHaveBeenCalled()
   })
 
-  it('shows account and role info for logged-in sales users', async () => {
+  it('shows account and role info for logged-in sales users and places sales entry in account card', async () => {
     const { SettingsPage } = loadSettingsPage(
       {},
       { me: { displayName: '张三', currentRole: 'SALES', roles: ['CUSTOMER', 'SALES'] } }
@@ -128,11 +148,14 @@ describe('SettingsPage', () => {
       await flushPromises()
     })
 
-    expect(screen.getByText('账号与角色信息')).toBeInTheDocument()
-    expect(screen.getByText('张三')).toBeInTheDocument()
-    expect(screen.getByText('SALES')).toBeInTheDocument()
-    expect(screen.getByText('CUSTOMER / SALES')).toBeInTheDocument()
-    expect(screen.getByText('业务员页面')).toBeInTheDocument()
+    const accountCard = screen.getByTestId('settings-account-card')
+    const basicCard = screen.getByTestId('settings-basic-card')
+
+    expect(within(accountCard).getByText('张三')).toBeInTheDocument()
+    expect(within(accountCard).getByText('SALES')).toBeInTheDocument()
+    expect(within(accountCard).getByText('CUSTOMER / SALES')).toBeInTheDocument()
+    expect(within(accountCard).getByText('业务员页面')).toBeInTheDocument()
+    expect(within(basicCard).queryByText('业务员页面')).toBeNull()
   })
 
   it('shows guest account hint and hides sales workbench entry for guests', async () => {
@@ -143,7 +166,8 @@ describe('SettingsPage', () => {
       await flushPromises()
     })
 
-    expect(screen.queryByText('业务员页面')).toBeNull()
+    const accountCard = screen.getByTestId('settings-account-card')
+    expect(within(accountCard).queryByText('业务员页面')).toBeNull()
     expect(screen.getByText('当前未登录')).toBeInTheDocument()
     expect(screen.getByText('去登录')).toBeInTheDocument()
   })

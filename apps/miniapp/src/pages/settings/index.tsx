@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { View, Text, Button as NativeButton } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
-import Cell from '@taroify/core/cell'
 import Switch from '@taroify/core/switch'
+import Arrow from '@taroify/icons/Arrow'
 import type { BootstrapResponse } from '@tmo/gateway-api-client'
 import miniappPackage from '../../../package.json'
 import { ROUTES } from '../../routes'
@@ -46,6 +46,42 @@ const POLICY_CONTENT: Record<PolicySectionKey, { title: string; body: string }> 
 const appVersion = typeof miniappPackage?.version === 'string' && miniappPackage.version.trim()
   ? miniappPackage.version.trim()
   : '0.0.0'
+
+type SettingToggleRowProps = {
+  title: string
+  brief: string
+  checked: boolean
+  onToggle: () => void
+}
+
+function SettingToggleRow({ title, brief, checked, onToggle }: SettingToggleRowProps) {
+  return (
+    <View className='flex items-center justify-between gap-4 px-4 py-4 border-b border-slate-100 last:border-b-0'>
+      <View className='min-w-0 flex-1'>
+        <Text className='block text-base font-medium text-slate-900'>{title}</Text>
+        <Text className='mt-1 block text-xs leading-5 text-slate-400'>{brief}</Text>
+      </View>
+      <Switch size='24px' checked={checked} onChange={onToggle} />
+    </View>
+  )
+}
+
+type LinkRowProps = {
+  title: string
+  onClick: () => void
+}
+
+function LinkRow({ title, onClick }: LinkRowProps) {
+  return (
+    <View
+      className='flex items-center justify-between gap-4 px-4 py-4 border-b border-slate-100 last:border-b-0'
+      onClick={onClick}
+    >
+      <Text className='text-base text-slate-900'>{title}</Text>
+      <Arrow className='text-slate-300' />
+    </View>
+  )
+}
 
 export default function SettingsPage() {
   const navbarStyle = getNavbarStyle()
@@ -160,73 +196,46 @@ export default function SettingsPage() {
   }
 
   return (
-    <View className='page'>
+    <View className='page bg-slate-100'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
         <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.mine))} />
         <Navbar.Title>系统设置</Navbar.Title>
       </Navbar>
-      <View className='page-content'>
-        <View className='mb-4'>
-          <Text className='section-subtitle'>控制通知、账号信息与排障配置。</Text>
+
+      <View className='page-content px-4 pb-8'>
+        <View className='mb-3 px-1'>
+          <Text className='text-xs leading-5 text-slate-400'>控制通知、账号信息与排障配置。</Text>
         </View>
 
-        <Cell.Group inset>
-          {showSalesWorkbenchEntry ? (
-            <Cell
-              title='业务员页面'
-              brief='进入业务员工作台'
-              isLink
-              onClick={() => navigateTo(ROUTES.sales)}
-            />
-          ) : null}
-          <Cell
-            title='订单通知'
-            brief='获取状态更新和发货提醒'
-            rightIcon={
-              <Switch
-                size='24px'
-                checked={settings.notifications}
-                onChange={() => handleToggle('notifications')}
-              />
-            }
-          />
-          <Cell
-            title='自动登录'
-            brief='保持在本设备登录'
-            rightIcon={
-              <Switch
-                size='24px'
-                checked={settings.autoLogin}
-                onChange={() => handleToggle('autoLogin')}
-              />
-            }
-          />
-        </Cell.Group>
-
-        <View className='mt-6 bg-white rounded-2xl border border-slate-100 p-4'>
-          <Text className='text-xs uppercase tracking-wide text-slate-400'>账号与角色信息</Text>
+        <View data-testid='settings-account-card' className='mt-6 rounded-3xl bg-white p-4 shadow-sm'>
+          <Text className='px-1 text-xs tracking-wide text-slate-400'>账号与角色信息</Text>
           {isLoggedIn ? (
-            <>
-              <View className='mt-3'>
-                <Text className='text-xs text-slate-400'>当前账号</Text>
-                <Text className='text-sm text-slate-700 mt-1'>{accountDisplayName}</Text>
+            <View className='mt-3'>
+              <View className='px-1 py-2'>
+                <Text className='block text-xs text-slate-400'>当前账号</Text>
+                <Text className='mt-1 block text-sm text-slate-700'>{accountDisplayName}</Text>
               </View>
-              <View className='mt-3'>
-                <Text className='text-xs text-slate-400'>当前角色</Text>
-                <Text className='text-sm text-slate-700 mt-1'>{currentRole || '未识别'}</Text>
+              <View className='px-1 py-2'>
+                <Text className='block text-xs text-slate-400'>当前角色</Text>
+                <Text className='mt-1 block text-sm text-slate-700'>{currentRole || '未识别'}</Text>
               </View>
-              <View className='mt-3'>
-                <Text className='text-xs text-slate-400'>可用角色</Text>
-                <Text className='text-sm text-slate-700 mt-1'>
+              <View className='px-1 py-2'>
+                <Text className='block text-xs text-slate-400'>可用角色</Text>
+                <Text className='mt-1 block text-sm text-slate-700'>
                   {normalizedRoles.length > 0 ? normalizedRoles.join(' / ') : '未配置'}
                 </Text>
               </View>
-            </>
+              {showSalesWorkbenchEntry ? (
+                <View className='mt-2 overflow-hidden rounded-2xl border border-slate-100'>
+                  <LinkRow title='业务员页面' onClick={() => navigateTo(ROUTES.sales)} />
+                </View>
+              ) : null}
+            </View>
           ) : (
-            <View className='mt-3 flex items-center justify-between gap-3'>
+            <View className='mt-3 flex items-center justify-between gap-4 rounded-2xl border border-slate-100 px-4 py-4'>
               <View className='min-w-0 flex-1'>
-                <Text className='text-sm text-slate-700'>当前未登录</Text>
-                <Text className='text-xs text-slate-400 mt-1'>登录后可查看账号身份、角色能力和业务员入口。</Text>
+                <Text className='block text-base font-medium text-slate-900'>当前未登录</Text>
+                <Text className='mt-1 block text-xs leading-5 text-slate-400'>登录后可查看账号身份、角色能力和业务员入口。</Text>
               </View>
               <NativeButton
                 className='rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-700'
@@ -238,19 +247,33 @@ export default function SettingsPage() {
           )}
         </View>
 
-        <View className='mt-6 bg-white rounded-2xl border border-slate-100 p-4'>
-          <Text className='text-xs uppercase tracking-wide text-slate-400'>隐私与协议</Text>
-          <View className='mt-3'>
+        <View data-testid='settings-basic-card' className='mt-6 overflow-hidden rounded-3xl bg-white shadow-sm'>
+          <SettingToggleRow
+            title='订单通知'
+            brief='获取状态更新和发货提醒'
+            checked={settings.notifications}
+            onToggle={() => handleToggle('notifications')}
+          />
+          <SettingToggleRow
+            title='自动登录'
+            brief='保持在本设备登录'
+            checked={settings.autoLogin}
+            onToggle={() => handleToggle('autoLogin')}
+          />
+        </View>
+
+        <View data-testid='settings-policy-card' className='mt-6 rounded-3xl bg-white p-4 shadow-sm'>
+          <Text className='px-1 text-xs tracking-wide text-slate-400'>隐私与协议</Text>
+          <View className='mt-3 overflow-hidden rounded-2xl border border-slate-100'>
             {(Object.entries(POLICY_CONTENT) as Array<[PolicySectionKey, { title: string; body: string }]>).map(([key, item]) => (
               <View key={key} className='border-b border-slate-100 last:border-b-0'>
-                <Cell
-                  title={item.title}
-                  isLink
-                  onClick={() => handleTogglePolicy(key)}
-                />
+                <View className='flex items-center justify-between gap-4 px-4 py-4' onClick={() => handleTogglePolicy(key)}>
+                  <Text className='text-base text-slate-900'>{item.title}</Text>
+                  <Arrow className='text-slate-300' />
+                </View>
                 {expandedPolicy === key ? (
                   <View className='px-4 pb-4'>
-                    <Text className='text-sm text-slate-600 leading-6'>{item.body}</Text>
+                    <Text className='text-sm leading-6 text-slate-600'>{item.body}</Text>
                   </View>
                 ) : null}
               </View>
@@ -259,20 +282,20 @@ export default function SettingsPage() {
         </View>
 
         {runtimeEnv.isIsolatedMock ? (
-          <View className='mt-6 bg-white rounded-2xl border border-slate-100 p-4'>
-            <Text className='text-xs uppercase tracking-wide text-slate-400'>开发调试</Text>
-            <Text className='text-sm text-slate-600 mt-2'>
+          <View data-testid='settings-debug-card' className='mt-6 rounded-3xl border border-blue-50 bg-white/70 p-4 shadow-sm'>
+            <Text className='px-1 text-xs tracking-wide text-slate-400'>开发调试</Text>
+            <Text className='mt-3 px-1 text-xs leading-6 text-slate-500'>
               当前为离线 Mock 模式。这里保留调试专用入口，不影响默认交互评审路径。
             </Text>
             <NativeButton
-              className='mt-3 rounded-xl border border-slate-200 py-2 text-sm text-slate-700'
+              className='mt-4 w-full rounded-2xl border border-slate-200 py-3 text-sm text-slate-800'
               disabled={mockLoggingIn}
               onClick={handleMockLogin}
             >
               {mockLoggingIn ? '切换中...' : '切换为业务员 Mock 账号'}
             </NativeButton>
             <NativeButton
-              className='mt-3 rounded-xl border border-slate-200 py-2 text-sm text-slate-700'
+              className='mt-3 w-full rounded-2xl border border-slate-200 py-3 text-sm text-slate-800'
               disabled={resettingMock}
               onClick={handleResetMock}
             >
@@ -281,36 +304,36 @@ export default function SettingsPage() {
           </View>
         ) : null}
 
-        <View className='mt-6 bg-white rounded-2xl border border-slate-100 p-4'>
-          <Text className='text-xs uppercase tracking-wide text-slate-400'>版本与环境信息</Text>
-          <View className='mt-3'>
-            <Text className='text-xs text-slate-400'>App 版本</Text>
-            <Text className='text-sm text-slate-700 mt-1'>v{appVersion}</Text>
+        <View data-testid='settings-env-card' className='mt-6 rounded-3xl bg-white p-4 shadow-sm'>
+          <Text className='px-1 text-xs tracking-wide text-slate-400'>版本与环境信息</Text>
+          <View className='mt-3 px-1'>
+            <Text className='block text-xs text-slate-400'>App 版本</Text>
+            <Text className='mt-1 block text-sm text-slate-700'>v{appVersion}</Text>
           </View>
-          <View className='mt-3'>
-            <Text className='text-xs text-slate-400'>运行模式</Text>
-            <Text className='text-sm text-slate-700 mt-1'>{modeLabel}</Text>
+          <View className='mt-3 px-1'>
+            <Text className='block text-xs text-slate-400'>运行模式</Text>
+            <Text className='mt-1 block text-sm text-slate-700'>{modeLabel}</Text>
           </View>
-          <View className='mt-3'>
-            <Text className='text-xs text-slate-400'>接口环境</Text>
-            <Text className='text-sm text-slate-700 mt-1'>{environmentHint}</Text>
+          <View className='mt-3 px-1'>
+            <Text className='block text-xs text-slate-400'>接口环境</Text>
+            <Text className='mt-1 block text-sm text-slate-700'>{environmentHint}</Text>
           </View>
           <NativeButton
-            className='mt-3 rounded-xl border border-slate-200 py-2 text-sm text-slate-700'
+            className='mt-4 w-full rounded-2xl border border-slate-200 py-3 text-sm text-slate-800'
             onClick={() => setShowEnvDetails((prev) => !prev)}
           >
             {showEnvDetails ? '收起详情' : '查看详情'}
           </NativeButton>
           {showEnvDetails ? (
-            <View className='mt-4 rounded-xl bg-slate-50 px-4 py-3'>
+            <View className='mt-4 rounded-2xl bg-slate-50 px-4 py-3'>
               <Text className='text-xs text-slate-400'>Gateway</Text>
-              <Text className='text-sm text-slate-700 mt-1'>{runtimeEnv.gatewayBaseUrl || '离线模式'}</Text>
-              <Text className='text-xs text-slate-400 mt-3'>Commerce</Text>
-              <Text className='text-sm text-slate-700 mt-1'>{runtimeEnv.commerceBaseUrl || '离线模式'}</Text>
-              <Text className='text-xs text-slate-400 mt-3'>Identity</Text>
-              <Text className='text-sm text-slate-700 mt-1'>{runtimeEnv.identityBaseUrl || '离线模式'}</Text>
-              <Text className='text-xs text-slate-400 mt-3'>Fake Payment</Text>
-              <Text className='text-sm text-slate-700 mt-1'>{runtimeEnv.devFakePaymentEnabled ? '已开启' : '未开启'}</Text>
+              <Text className='mt-1 text-sm text-slate-700'>{runtimeEnv.gatewayBaseUrl || '离线模式'}</Text>
+              <Text className='mt-3 text-xs text-slate-400'>Commerce</Text>
+              <Text className='mt-1 text-sm text-slate-700'>{runtimeEnv.commerceBaseUrl || '离线模式'}</Text>
+              <Text className='mt-3 text-xs text-slate-400'>Identity</Text>
+              <Text className='mt-1 text-sm text-slate-700'>{runtimeEnv.identityBaseUrl || '离线模式'}</Text>
+              <Text className='mt-3 text-xs text-slate-400'>Fake Payment</Text>
+              <Text className='mt-1 text-sm text-slate-700'>{runtimeEnv.devFakePaymentEnabled ? '已开启' : '未开启'}</Text>
             </View>
           ) : null}
         </View>
