@@ -66,6 +66,15 @@
   border-color: #e5edff;
 }
 
+.address-card-selectable:active {
+  transform: scale(0.99);
+}
+
+.address-card-selected {
+  border-color: #93c5fd;
+  box-shadow: 0 10px 24px rgb(37 99 235 / 12%);
+}
+
 .address-card-head {
   margin-bottom: 18rpx;
 }

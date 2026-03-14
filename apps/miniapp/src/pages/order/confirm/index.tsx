@@ -5,14 +5,14 @@ import Navbar from '@taroify/core/navbar'
 import Button from '@taroify/core/button'
 import FixedView from '@taroify/core/fixed-view'
 import type { Cart, UserAddress } from '@tmo/api-client'
-import { ROUTES, goodsDetailRoute, orderDetailRoute } from '../../../routes'
+import { ROUTES, goodsDetailRoute, orderDetailRoute, withQuery } from '../../../routes'
 import SafeImage from '../../../components/safe-image'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { matchPriceTier } from '../../../utils/price-tier'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { ensureLoggedIn } from '../../../utils/auth'
 import { commerceServices } from '../../../services/commerce'
-import { listUserAddresses } from '../../../services/addresses'
+import { clearSelectedUserAddressId, getSelectedUserAddressId, listUserAddresses } from '../../../services/addresses'
 import { isPaymentCancelled, paymentServices } from '../../../services/payment'
 import './index.scss'
 
@@ -53,8 +53,25 @@ export default function OrderConfirmPage() {
     void loadData()
   })
 
-  const defaultAddress = addresses.find((addr) => addr.isDefault) ?? addresses[0]
+  const selectedAddressId = getSelectedUserAddressId()
+  const defaultAddress = addresses.find((addr) => addr.id === selectedAddressId)
+    ?? addresses.find((addr) => addr.isDefault)
+    ?? addresses[0]
   const cartItems = useMemo(() => cart?.items ?? [], [cart])
+
+  useEffect(() => {
+    if (addresses.length === 0) {
+      clearSelectedUserAddressId()
+      return
+    }
+    if (!selectedAddressId) {
+      return
+    }
+    const exists = addresses.some((address) => address.id === selectedAddressId)
+    if (!exists) {
+      clearSelectedUserAddressId()
+    }
+  }, [addresses, selectedAddressId])
 
   useEffect(() => {
     const spuIds = Array.from(new Set(
@@ -210,7 +227,10 @@ export default function OrderConfirmPage() {
 
       <View className='page-content order-confirm-content'>
         <View className='order-confirm-section'>
-          <View className='order-confirm-address-card' onClick={() => navigateTo(ROUTES.addressList)}>
+          <View
+            className='order-confirm-address-card'
+            onClick={() => navigateTo(withQuery(ROUTES.addressList, { mode: 'select' }))}
+          >
             <View className='order-confirm-address-icon'>
               <View className='order-confirm-address-icon-dot' />
             </View>

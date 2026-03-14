@@ -3,6 +3,7 @@ import type { CreateUserAddressRequest, UserAddress } from '@tmo/api-client'
 import { commerceServices } from './commerce'
 
 const LEGACY_ADDRESS_STORAGE_KEY = 'tmo.addresses'
+const SELECTED_ADDRESS_STORAGE_KEY = 'tmo.selectedAddressId'
 
 type LegacyAddressRecord = {
   name: string
@@ -87,4 +88,22 @@ export const listUserAddresses = async (): Promise<UserAddress[]> => {
   await migrateLegacyAddressesIfNeeded()
   const response = await commerceServices.addresses.list()
   return response.items ?? []
+}
+
+export const getSelectedUserAddressId = (): string => {
+  const value = Taro.getStorageSync(SELECTED_ADDRESS_STORAGE_KEY)
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+export const setSelectedUserAddressId = (addressId: string): void => {
+  const normalized = addressId.trim()
+  if (!normalized) {
+    Taro.removeStorageSync(SELECTED_ADDRESS_STORAGE_KEY)
+    return
+  }
+  Taro.setStorageSync(SELECTED_ADDRESS_STORAGE_KEY, normalized)
+}
+
+export const clearSelectedUserAddressId = (): void => {
+  Taro.removeStorageSync(SELECTED_ADDRESS_STORAGE_KEY)
 }

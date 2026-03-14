@@ -9,7 +9,9 @@ import { ensureLoggedIn } from '../../../utils/auth'
 import { navigateTo } from '../../../utils/navigation'
 
 jest.mock('../../../services/addresses', () => ({
-  listUserAddresses: jest.fn()
+  listUserAddresses: jest.fn(),
+  getSelectedUserAddressId: jest.fn(() => ''),
+  clearSelectedUserAddressId: jest.fn()
 }))
 
 jest.mock('../../../services/payment', () => ({
@@ -117,6 +119,32 @@ describe('OrderConfirmPage', () => {
 
     expect(screen.getByText('添加收货地址')).toBeInTheDocument()
     expect(screen.getByText('请填写您的收货联系信息')).toBeInTheDocument()
+  })
+
+  it('prefers selected address from storage over default address', async () => {
+    const addressModule = jest.requireMock('../../../services/addresses') as {
+      getSelectedUserAddressId: jest.Mock
+    }
+    addressModule.getSelectedUserAddressId.mockReturnValue('addr-2')
+    ;(listUserAddresses as jest.Mock).mockResolvedValueOnce([
+      defaultAddress,
+      {
+        ...defaultAddress,
+        id: 'addr-2',
+        receiverName: '李四',
+        receiverPhone: '13900000000',
+        detail: '杭州市西湖区 2 号',
+        isDefault: false
+      }
+    ])
+
+    render(<OrderConfirmPage />)
+    await act(async () => {
+      await flushPromises()
+    })
+
+    expect(screen.getByText('李四 · 13900000000')).toBeInTheDocument()
+    expect(screen.getByText('杭州市西湖区 2 号')).toBeInTheDocument()
   })
 
   it('navigates to goods detail when clicking order item row', async () => {
