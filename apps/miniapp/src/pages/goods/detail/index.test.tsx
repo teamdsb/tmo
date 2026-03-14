@@ -59,12 +59,12 @@ describe('ProductDetail', () => {
     expect((await screen.findAllByText('高精度工业控制阀')).length).toBeGreaterThan(0)
     expect(screen.getByText('询价')).toBeInTheDocument()
     expect(screen.getByText('最低起订单价')).toBeInTheDocument()
-    expect(screen.getByText('标准配送')).toBeInTheDocument()
     expect(screen.getByText('采购量越高单价越低')).toBeInTheDocument()
     expect(screen.getByText('购买数量')).toBeInTheDocument()
-    expect(screen.getByText('简介')).toBeInTheDocument()
     expect(screen.getByText(/高精度工业控制阀专为复杂工况设计/i)).toBeInTheDocument()
     expect(screen.queryByText('属性')).not.toBeInTheDocument()
+    expect(screen.queryByText('产品详情')).not.toBeInTheDocument()
+    expect(screen.queryByText('标准配送')).not.toBeInTheDocument()
   })
 
 
@@ -127,7 +127,7 @@ describe('ProductDetail', () => {
     fireEvent.click(sizeButton)
 
     expect(screen.getByText('¥185.00 起')).toBeInTheDocument()
-    expect(sizeButton).toHaveClass('bg-[#137fec]')
+    expect(sizeButton).toHaveClass('product-sku-button--selected')
   })
 
   it('adds selected sku with chosen quantity', async () => {
@@ -205,5 +205,44 @@ describe('ProductDetail', () => {
     await waitFor(() => {
       expect(thirdTierCard).toHaveClass('tier-card-highlight')
     })
+  })
+
+  it('renders hero image card and bottom actions', async () => {
+    render(<ProductDetail />)
+
+    await screen.findByText('¥185.00 起')
+
+    expect(document.querySelector('.detail-hero-card')).not.toBeNull()
+    expect(document.querySelector('.detail-action-bar')).not.toBeNull()
+    expect(screen.getByText('议价')).toBeInTheDocument()
+    expect(screen.getByText('加入购物车')).toBeInTheDocument()
+  })
+
+  it('keeps placeholder image available in hero area when product images are empty', async () => {
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValueOnce({
+      product: {
+        id: 'spu-empty-image',
+        name: '无图商品',
+        categoryId: 'industrial',
+        images: [],
+        description: '无图兜底'
+      },
+      skus: [
+        {
+          id: 'sku-default',
+          spuId: 'spu-empty-image',
+          name: '默认规格',
+          spec: '默认规格',
+          isActive: true,
+          priceTiers: [{ minQty: 1, maxQty: null, unitPriceFen: 1200 }]
+        }
+      ]
+    } as any)
+
+    render(<ProductDetail />)
+    expect((await screen.findAllByText('无图商品')).length).toBeGreaterThan(0)
+
+    const heroImage = document.querySelector('.detail-hero-frame img')
+    expect(heroImage).not.toBeNull()
   })
 })

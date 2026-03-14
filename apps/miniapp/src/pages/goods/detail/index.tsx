@@ -4,11 +4,8 @@ import Taro, { useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Tag from '@taroify/core/tag'
 import Grid from '@taroify/core/grid'
-import Cell from '@taroify/core/cell'
 import TaroifyButton from '@taroify/core/button'
 import FixedView from '@taroify/core/fixed-view'
-import ArrowRight from '@taroify/icons/ArrowRight'
-import Logistics from '@taroify/icons/Logistics'
 import Star from '@taroify/icons/Star'
 import StarOutlined from '@taroify/icons/StarOutlined'
 import type { PriceTier, ProductDetail, Sku } from '@tmo/api-client'
@@ -22,6 +19,7 @@ import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
 import placeholderProductImage from '../../../assets/images/placeholder-product.svg'
 import { saveSupportComposeIntent } from '../../support/chat/compose-intent'
+import './index.scss'
 
 const MIN_PURCHASE_QTY = 1
 const MAX_PURCHASE_QTY = 999
@@ -92,6 +90,17 @@ export default function ProductDetail() {
   const isFavorite = selectedSku ? favoriteIdSet.has(selectedSku.id) : false
   const productDescription = detail?.product?.description?.trim() ?? ''
   const displayPrice = useMemo(() => formatStartingPrice(skus), [skus])
+  const categoryLabel = useMemo(() => formatCategoryLabel(detail?.product?.categoryId), [detail?.product?.categoryId])
+  const productSummary = useMemo(() => {
+    if (productDescription) {
+      return truncateText(productDescription, 38)
+    }
+    if (loading) {
+      return '正在加载详情...'
+    }
+    return '适合工程采购与批量交付场景'
+  }, [loading, productDescription])
+  const selectedSkuLabel = selectedSku?.spec ?? selectedSku?.name ?? ''
 
   const normalizePurchaseQty = (value: number): number => {
     if (!Number.isFinite(value)) {
@@ -217,62 +226,71 @@ export default function ProductDetail() {
         <Navbar.Title>{detail?.product?.name ?? '商品详情'}</Navbar.Title>
       </Navbar>
 
-      <View className='page-content'>
-        <View className='media'>
-          <SafeImage
-            width='100%'
-            height={208}
-            mode='aspectFill'
-            src={images[0]}
-          />
-          <Tag size='small' color='default' className='media-counter'>
+      <View className='page-content detail-page-content'>
+        <View className='detail-hero-card'>
+          <View className='detail-hero-frame'>
+            <SafeImage
+              className='detail-hero-image'
+              width='100%'
+              height='100%'
+              mode='aspectFill'
+              src={images[0]}
+            />
+          </View>
+          <Tag size='small' color='default' className='media-counter detail-hero-counter'>
             {images.length} 张
           </Tag>
         </View>
 
-        <View className='product-header u-shrinkable'>
-          <Text className='product-title u-safe-title-2'>{detail?.product?.name ?? '加载中...'}</Text>
+        <View className='product-header detail-surface-card u-shrinkable'>
+          <View className='detail-header-top'>
+            <View className='detail-header-badges'>
+              <Tag size='small' color='primary' className='detail-category-tag'>{categoryLabel}</Tag>
+              <Tag size='small' variant='outlined' className='product-meta-tag'>可选规格 {skus.length}</Tag>
+            </View>
+            <TaroifyButton
+              size='mini'
+              variant='outlined'
+              icon={isFavorite ? <Star className='text-base' /> : <StarOutlined className='text-base' />}
+              loading={favoriteLoading}
+              onClick={handleToggleFavorite}
+              className='product-save-button detail-favorite-button'
+            >
+              {isFavorite ? '已收藏' : '收藏'}
+            </TaroifyButton>
+          </View>
+          <Text className='product-title detail-product-title u-safe-title-2'>{detail?.product?.name ?? '加载中...'}</Text>
+          <Text className='detail-product-summary'>{productSummary}</Text>
           <View className='product-price-row'>
             <View className='product-price'>
               <Text className='product-price-value'>{displayPrice}</Text>
               <Text className='product-price-note'>最低起订单价</Text>
             </View>
-            <View className='product-price-actions'>
-              <TaroifyButton
-                size='mini'
-                variant='outlined'
-                icon={isFavorite ? <Star className='text-base' /> : <StarOutlined className='text-base' />}
-                loading={favoriteLoading}
-                onClick={handleToggleFavorite}
-                className='product-save-button'
-              />
+            <View className='detail-price-aside'>
+              <Text className='detail-price-aside-label'>当前选择</Text>
+              <Text className='detail-price-aside-value'>{selectedSkuLabel || (skus.length > 1 ? '请选择规格' : '默认规格')}</Text>
             </View>
           </View>
-
-          <Flex align='center' gutter={8} className='product-meta'>
-            <Tag size='small' variant='outlined' className='product-meta-tag'>可选规格 {skus.length}</Tag>
-            <Text className='product-meta-text'>{loading ? '正在加载详情...' : '含税单价'}</Text>
-          </Flex>
+          <Text className='product-meta-text'>{loading ? '正在加载详情...' : '含税单价，最终价格以所选规格和采购量为准'}</Text>
         </View>
 
-        <View className='product-section'>
-          <Flex justify='space-between' align='center'>
+        <View className='product-section detail-surface-card detail-tier-section'>
+          <View className='detail-section-header'>
             <Text className='product-section-title'>阶梯单价</Text>
             <Text className='product-section-link'>采购量越高单价越低</Text>
-          </Flex>
-
+          </View>
           <Grid columns={3} gutter={10} className='product-tier-grid'>
             {renderPriceTiers(selectedSku?.priceTiers, purchaseQty)}
           </Grid>
         </View>
 
-        <View className='product-section'>
+        <View className='product-section detail-surface-card'>
           <Text className='product-section-title'>SKU 选项</Text>
-          <Flex wrap='wrap' gutter={8}>
+          <Flex wrap='wrap' gutter={8} className='detail-sku-list'>
             {skus.map((sku) => (
               <TaroifyButton
                 key={sku.id}
-                className='product-sku-button'
+                className={`product-sku-button ${selectedSku?.id === sku.id ? 'product-sku-button--selected' : ''}`}
                 size='small'
                 color={selectedSku?.id === sku.id ? 'primary' : 'default'}
                 variant={selectedSku?.id === sku.id ? 'contained' : 'outlined'}
@@ -287,11 +305,11 @@ export default function ProductDetail() {
           ) : null}
         </View>
 
-        <View className='product-section'>
-          <Flex justify='space-between' align='center'>
+        <View className='product-section detail-surface-card'>
+          <View className='detail-section-header'>
             <Text className='product-section-title'>购买数量</Text>
             <Text className='product-qty-hint'>可加入 {MIN_PURCHASE_QTY}-{MAX_PURCHASE_QTY}</Text>
-          </Flex>
+          </View>
           <View className='product-qty-picker'>
             <TaroButton
               className={`product-qty-button ${
@@ -323,42 +341,63 @@ export default function ProductDetail() {
           </View>
         </View>
 
-        {productDescription ? (
-          <View className='product-section'>
-            <Text className='product-section-title'>简介</Text>
-            <Text className='product-description-text'>{productDescription}</Text>
-          </View>
-        ) : null}
-
-        <Cell
-          className='product-logistics'
-          icon={<Logistics />}
-          title='标准配送'
-          brief='预计 9月12日 - 9月18日送达（工作日）'
-          rightIcon={<ArrowRight />}
-        />
       </View>
 
-      <FixedView position='bottom' safeArea='bottom' placeholder>
-        <Flex className='action-bar detail-action-bar'>
+      <FixedView position='bottom' placeholder>
+        <View className='action-bar detail-action-bar'>
           <TaroButton
-            className={`${actionBase} detail-action-button cart-action-secondary`}
+            className='detail-light-action'
             hoverClass='none'
-            onClick={handleInquiry}
+            onClick={handleToggleFavorite}
           >
-            议价
+            {isFavorite ? <Star className='detail-light-action-icon' /> : <StarOutlined className='detail-light-action-icon' />}
+            <Text className='detail-light-action-label'>{isFavorite ? '已收藏' : '收藏'}</Text>
           </TaroButton>
-          <TaroButton
-            className={`${actionBase} detail-action-button cart-action-primary`}
-            hoverClass='none'
-            onClick={handleAddToCart}
-          >
-            加入购物车
-          </TaroButton>
-        </Flex>
+          <View className='detail-footer-actions'>
+            <TaroButton
+              className={`${actionBase} detail-action-button cart-action-secondary`}
+              hoverClass='none'
+              onClick={handleInquiry}
+            >
+              议价
+            </TaroButton>
+            <TaroButton
+              className={`${actionBase} detail-action-button cart-action-primary`}
+              hoverClass='none'
+              onClick={handleAddToCart}
+            >
+              加入购物车
+            </TaroButton>
+          </View>
+        </View>
       </FixedView>
     </View>
   )
+}
+
+const formatCategoryLabel = (categoryId?: string | null) => {
+  const raw = typeof categoryId === 'string' ? categoryId.trim() : ''
+  if (!raw) {
+    return '工业商品'
+  }
+
+  return raw
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((segment) => {
+      if (segment.length <= 2) {
+        return segment.toUpperCase()
+      }
+      return `${segment[0].toUpperCase()}${segment.slice(1)}`
+    })
+    .join(' / ')
+}
+
+const truncateText = (value: string, maxLength: number) => {
+  if (value.length <= maxLength) {
+    return value
+  }
+  return `${value.slice(0, maxLength).trimEnd()}...`
 }
 
 const formatPriceTierRange = (tier: PriceTier) => {

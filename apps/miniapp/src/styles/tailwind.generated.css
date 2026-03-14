@@ -73,10 +73,6 @@
   margin-bottom: 32rpx
 }
 
-.mb-5 {
-  margin-bottom: 40rpx
-}
-
 .mb-6 {
   margin-bottom: 48rpx
 }
@@ -129,7 +125,6 @@
   height: 8rpx
 }
 
-
 .h-10 {
   height: 80rpx
 }
@@ -177,7 +172,6 @@
 .min-h-screen {
   min-height: 100vh
 }
-
 
 .w-10 {
   width: 80rpx
@@ -243,10 +237,6 @@
   grid-template-columns: repeat(1, minmax(0, 1fr))
 }
 
-.grid-cols-4 {
-  grid-template-columns: repeat(4, minmax(0, 1fr))
-}
-
 .flex-col {
   flex-direction: column
 }
@@ -265,10 +255,6 @@
 
 .items-center {
   align-items: center
-}
-
-.items-baseline {
-  align-items: baseline
 }
 
 .justify-start {
@@ -342,10 +328,6 @@
   border-radius: 16rpx
 }
 
-.rounded-md {
-  border-radius: 12rpx
-}
-
 .rounded-xl {
   border-radius: 24rpx
 }
@@ -390,11 +372,6 @@
   border-color: rgb(37 99 235)
 }
 
-.border-gray-200 {
-  
-  border-color: rgb(229 231 235)
-}
-
 .border-slate-100 {
   
   border-color: rgb(241 245 249)
@@ -428,11 +405,6 @@
 .bg-emerald-50 {
   
   background-color: rgb(236 253 245)
-}
-
-.bg-gray-50 {
-  
-  background-color: rgb(249 250 251)
 }
 
 .bg-red-50 {
@@ -537,11 +509,6 @@
 .py-3 {
   padding-top: 24rpx;
   padding-bottom: 24rpx
-}
-
-.py-4 {
-  padding-top: 32rpx;
-  padding-bottom: 32rpx
 }
 
 .py-5 {
@@ -672,11 +639,6 @@
 .text-emerald-600 {
   
   color: rgb(5 150 105)
-}
-
-.text-green-500 {
-  
-  color: rgb(34 197 94)
 }
 
 .text-red-600 {
