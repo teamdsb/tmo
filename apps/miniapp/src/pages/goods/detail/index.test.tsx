@@ -62,9 +62,9 @@ describe('ProductDetail', () => {
     expect(screen.getByText('标准配送')).toBeInTheDocument()
     expect(screen.getByText('采购量越高单价越低')).toBeInTheDocument()
     expect(screen.getByText('购买数量')).toBeInTheDocument()
-    expect(screen.getByText('产品详情')).toBeInTheDocument()
-    expect(screen.getAllByText(/高精度工业控制阀专为复杂工况设计/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/高精度工业控制阀专为复杂工况设计/i)).toBeInTheDocument()
     expect(screen.queryByText('属性')).not.toBeInTheDocument()
+    expect(screen.queryByText('产品详情')).not.toBeInTheDocument()
   })
 
 

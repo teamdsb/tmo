@@ -344,13 +344,6 @@ export default function ProductDetail() {
           </View>
         </View>
 
-        {productDescription ? (
-          <View className='product-section detail-surface-card'>
-            <Text className='product-section-title'>产品详情</Text>
-            <Text className='product-description-text'>{productDescription}</Text>
-          </View>
-        ) : null}
-
         <Cell
           className='product-logistics detail-surface-card detail-logistics-card'
           icon={<Logistics />}
