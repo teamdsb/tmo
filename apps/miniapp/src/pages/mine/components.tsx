@@ -417,6 +417,7 @@ export function MineProfileView({
   const supportItem = menuItems.find((item) => item.key === 'support')
   const priorityMenuItems = menuItems.filter((item) => ['demand', 'favorites', 'support'].includes(item.key))
   const extendedMenuItems = menuItems.filter((item) => !['demand', 'favorites', 'support'].includes(item.key))
+  const guestMenuItems = menuItems.filter((item) => item.key === 'support' || item.key === 'settings')
   const guestHeroTitle = '开启您的专属购物之旅'
   const guestHeroCopy = '登录后即可享受个性化推荐、专属会员权益及实时物流追踪'
   const heroTitle = isLoggedIn ? displayName : guestHeroTitle
@@ -441,7 +442,11 @@ export function MineProfileView({
         <View className='mine-dashboard-topbar'>
           <View
             className='mine-dashboard-action flex h-10 w-10 items-center justify-center rounded-full'
-            onClick={settingsItem ? () => onMenuItemClick(settingsItem) : undefined}
+            onClick={isLoggedIn
+              ? settingsItem
+                ? () => onMenuItemClick(settingsItem)
+                : undefined
+              : onOpenAuth}
           >
             <SettingOutlined className='text-lg mine-dashboard-action-icon' />
           </View>
@@ -492,25 +497,6 @@ export function MineProfileView({
           ) : null}
         </View>
 
-        {!isLoggedIn ? (
-          <View className='mine-hero-summary-card' onClick={() => onOpenOrders('全部')}>
-            <View className='flex items-center justify-between gap-3'>
-              <View className='flex min-w-0 flex-1 items-center gap-3'>
-                <View className='mine-hero-summary-icon flex h-10 w-10 items-center justify-center rounded-full'>
-                  <Logistics className='text-lg mine-dashboard-primary-icon' />
-                </View>
-                <View className='min-w-0 flex-1'>
-                  <Text className='mine-hero-summary-title block text-sm font-bold'>追踪您的包裹</Text>
-                  <Text className='mine-hero-summary-copy block text-xs'>登录后实时查看所有订单动态</Text>
-                </View>
-              </View>
-              <View className='mine-hero-summary-action'>
-                <Text className='text-xs font-bold mine-dashboard-primary-text'>去查看</Text>
-              </View>
-            </View>
-          </View>
-        ) : null}
-
         {isLoggedIn && debugRoleChoices.length > 1 ? (
           <View className='mine-dashboard-debug-card'>
             <Text className='mine-dashboard-card-eyebrow block text-xs font-semibold uppercase tracking-widest'>调试角色</Text>
@@ -535,33 +521,52 @@ export function MineProfileView({
           </View>
         ) : null}
 
-        <View className='mine-dashboard-discovery'>
-          <Text className='mine-dashboard-discovery-title block text-xs font-bold uppercase'>发现更多</Text>
-          <View className='mine-dashboard-discovery-list'>
-            {priorityMenuItems.map((item) => (
-              <MenuLink
-                key={item.key}
-                item={item}
-                icon={item.icon}
-                label={item.label}
-                onClick={() => onMenuItemClick(item)}
-              />
-            ))}
-          </View>
-        </View>
+        {isLoggedIn ? (
+          <>
+            <View className='mine-dashboard-discovery'>
+              <Text className='mine-dashboard-discovery-title block text-xs font-bold uppercase'>发现更多</Text>
+              <View className='mine-dashboard-discovery-list'>
+                {priorityMenuItems.map((item) => (
+                  <MenuLink
+                    key={item.key}
+                    item={item}
+                    icon={item.icon}
+                    label={item.label}
+                    onClick={() => onMenuItemClick(item)}
+                  />
+                ))}
+              </View>
+            </View>
 
-        <View className='mine-dashboard-secondary-list'>
-          {extendedMenuItems.map((item) => (
-            <MenuLink
-              key={item.key}
-              item={item}
-              compact
-              icon={item.icon}
-              label={item.label}
-              onClick={() => onMenuItemClick(item)}
-            />
-          ))}
-        </View>
+            <View className='mine-dashboard-secondary-list'>
+              {extendedMenuItems.map((item) => (
+                <MenuLink
+                  key={item.key}
+                  item={item}
+                  compact
+                  icon={item.icon}
+                  label={item.label}
+                  onClick={() => onMenuItemClick(item)}
+                />
+              ))}
+            </View>
+          </>
+        ) : (
+          <View className='mine-dashboard-discovery'>
+            <Text className='mine-dashboard-discovery-title block text-xs font-bold uppercase'>帮助与支持</Text>
+            <View className='mine-dashboard-discovery-list'>
+              {guestMenuItems.map((item) => (
+                <MenuLink
+                  key={item.key}
+                  item={item}
+                  icon={item.icon}
+                  label={item.label}
+                  onClick={() => onMenuItemClick(item)}
+                />
+              ))}
+            </View>
+          </View>
+        )}
 
         {isLoggedIn ? (
           <View className='mt-4'>

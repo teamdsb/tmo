@@ -111,9 +111,10 @@ describe('LoginPage', () => {
     await renderLoginPage(LoginPage)
 
     expect(screen.getByText('批发合作伙伴')).toBeInTheDocument()
-    expect(screen.getByText('登录后可查看账号信息、专属价格与履约进度。')).toBeInTheDocument()
+    expect(screen.getByText('验证身份以访问您的专属价格、账户信息及订单实时进度')).toBeInTheDocument()
+    expect(screen.getByText('手机号登录')).toBeInTheDocument()
     expect(screen.getByText('快速登录').closest('button')).toHaveClass('login-primary')
-    expect(screen.getByText('暂不登录').closest('button')).toHaveClass('login-secondary')
+    expect(screen.getByText('暂不登录').closest('button')).toHaveClass('login-ghost')
     expect(screen.queryByText('测试登录')).not.toBeInTheDocument()
   })
 
@@ -122,8 +123,10 @@ describe('LoginPage', () => {
     await renderLoginPage(LoginPage)
 
     expect(screen.getByText('Mock 快速登录')).toBeInTheDocument()
+    expect(screen.getByText('模拟数据已激活')).toBeInTheDocument()
     expect(screen.getByText('客户登录').closest('button')).toHaveClass('login-primary')
     expect(screen.getByText('业务员登录').closest('button')).toHaveClass('login-secondary')
+    expect(screen.getByText('暂不登录，先去逛逛').closest('button')).toHaveClass('login-ghost')
   })
 
   it('supports alt login action', async () => {
