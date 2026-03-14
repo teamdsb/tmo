@@ -111,6 +111,14 @@ describe('PersonalCenter', () => {
     expect(screen.queryByText('未登录')).not.toBeInTheDocument()
     expect(screen.queryByText('客户经理')).not.toBeInTheDocument()
     expect(screen.queryByText('李经理')).not.toBeInTheDocument()
+    expect(screen.getByText('帮助中心')).toBeInTheDocument()
+    expect(screen.getByText('系统设置')).toBeInTheDocument()
+    expect(screen.queryByText('追踪您的包裹')).not.toBeInTheDocument()
+    expect(screen.queryByText('我的需求')).not.toBeInTheDocument()
+    expect(screen.queryByText('我的收藏')).not.toBeInTheDocument()
+    expect(screen.queryByText('收货地址')).not.toBeInTheDocument()
+    expect(screen.queryByText('物流跟踪')).not.toBeInTheDocument()
+    expect(screen.queryByText('Excel 批量导入')).not.toBeInTheDocument()
   })
 
   it('clears tokens and updates UI after logout', async () => {
@@ -177,6 +185,37 @@ describe('PersonalCenter', () => {
     await renderPersonalCenter()
 
     fireEvent.click(screen.getByText('立即登录 / 注册'))
+
+    await waitFor(() => {
+      expect(Taro.navigateTo).toHaveBeenCalledWith({
+        url: '/pages/auth/login/index'
+      })
+    })
+  })
+
+  it('opens support center in guest state', async () => {
+    asMock(identityServices.tokens.getToken).mockResolvedValue(null)
+
+    await renderPersonalCenter()
+
+    fireEvent.click(screen.getByText('帮助中心'))
+
+    await waitFor(() => {
+      expect(Taro.navigateTo).toHaveBeenCalledWith({
+        url: '/pages/support/index'
+      })
+    })
+  })
+
+  it('opens login page when tapping guest topbar settings button', async () => {
+    asMock(identityServices.tokens.getToken).mockResolvedValue(null)
+
+    await renderPersonalCenter()
+
+    const buttons = document.querySelectorAll('.mine-dashboard-action')
+    expect(buttons[0]).toBeTruthy()
+
+    fireEvent.click(buttons[0] as Element)
 
     await waitFor(() => {
       expect(Taro.navigateTo).toHaveBeenCalledWith({
