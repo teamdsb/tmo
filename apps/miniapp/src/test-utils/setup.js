@@ -117,6 +117,7 @@ jest.mock('@tarojs/taro', () => {
     chooseImage: jest.fn(() => Promise.resolve({ tempFilePaths: ['/tmp/mock.png'] })),
     request: jest.fn(() => Promise.resolve({ statusCode: 200, data: {} })),
     navigateTo: jest.fn(() => Promise.resolve()),
+    navigateBack: jest.fn(() => Promise.resolve()),
     reLaunch: jest.fn(() => Promise.resolve()),
     switchTab: jest.fn(() => Promise.resolve()),
     setClipboardData: jest.fn(() => Promise.resolve()),
@@ -143,6 +144,9 @@ jest.mock('@tarojs/taro', () => {
     })),
     getLaunchOptionsSync: jest.fn(() => ({ query: {} })),
     getStorageSync: jest.fn((key) => storage.get(key)),
+    removeStorageSync: jest.fn((key) => {
+      storage.delete(key);
+    }),
     setStorageSync: jest.fn((key, value) => {
       storage.set(key, value);
     })

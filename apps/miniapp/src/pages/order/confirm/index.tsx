@@ -5,15 +5,16 @@ import Navbar from '@taroify/core/navbar'
 import Button from '@taroify/core/button'
 import FixedView from '@taroify/core/fixed-view'
 import type { Cart, UserAddress } from '@tmo/api-client'
-import { ROUTES, goodsDetailRoute, orderDetailRoute } from '../../../routes'
+import { ROUTES, goodsDetailRoute, orderDetailRoute, withQuery } from '../../../routes'
 import SafeImage from '../../../components/safe-image'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { matchPriceTier } from '../../../utils/price-tier'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { ensureLoggedIn } from '../../../utils/auth'
 import { commerceServices } from '../../../services/commerce'
-import { listUserAddresses } from '../../../services/addresses'
+import { clearSelectedUserAddressId, getSelectedUserAddressId, listUserAddresses } from '../../../services/addresses'
 import { isPaymentCancelled, paymentServices } from '../../../services/payment'
+import './index.scss'
 
 export default function OrderConfirmPage() {
   const navbarStyle = getNavbarStyle()
@@ -22,7 +23,6 @@ export default function OrderConfirmPage() {
   const [productImageBySpuId, setProductImageBySpuId] = useState<Record<string, string>>({})
   const [productNameBySpuId, setProductNameBySpuId] = useState<Record<string, string>>({})
   const [remark, setRemark] = useState('')
-  const [remarkExpanded, setRemarkExpanded] = useState(false)
   const [loadingData, setLoadingData] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -53,8 +53,25 @@ export default function OrderConfirmPage() {
     void loadData()
   })
 
-  const defaultAddress = addresses.find((addr) => addr.isDefault) ?? addresses[0]
-  const cartItems = cart?.items ?? []
+  const selectedAddressId = getSelectedUserAddressId()
+  const defaultAddress = addresses.find((addr) => addr.id === selectedAddressId)
+    ?? addresses.find((addr) => addr.isDefault)
+    ?? addresses[0]
+  const cartItems = useMemo(() => cart?.items ?? [], [cart])
+
+  useEffect(() => {
+    if (addresses.length === 0) {
+      clearSelectedUserAddressId()
+      return
+    }
+    if (!selectedAddressId) {
+      return
+    }
+    const exists = addresses.some((address) => address.id === selectedAddressId)
+    if (!exists) {
+      clearSelectedUserAddressId()
+    }
+  }, [addresses, selectedAddressId])
 
   useEffect(() => {
     const spuIds = Array.from(new Set(
@@ -127,6 +144,7 @@ export default function OrderConfirmPage() {
   }, [cartItems, productImageBySpuId, productNameBySpuId])
 
   const hasPendingPrice = orderItems.some((item) => item.unitPriceFen === null)
+  const shippingFeeFen = 0
   const totalQty = orderItems.reduce((sum, item) => sum + item.qty, 0)
   const totalFen = hasPendingPrice
     ? 0
@@ -208,39 +226,39 @@ export default function OrderConfirmPage() {
       </Navbar>
 
       <View className='page-content order-confirm-content'>
-        <View className='order-confirm-card order-confirm-address-card' onClick={() => navigateTo(ROUTES.addressList)}>
-          <View className='order-confirm-card-head'>
-            <Text className='order-confirm-card-title'>收货地址</Text>
-            <Text className='order-confirm-card-link'>
-              管理
-            </Text>
+        <View className='order-confirm-section'>
+          <View
+            className='order-confirm-address-card'
+            onClick={() => navigateTo(withQuery(ROUTES.addressList, { mode: 'select' }))}
+          >
+            <View className='order-confirm-address-icon'>
+              <View className='order-confirm-address-icon-dot' />
+            </View>
+            <View className='order-confirm-address-content'>
+              {defaultAddress ? (
+                <>
+                  <Text className='order-confirm-address-title'>
+                    {defaultAddress.receiverName} · {defaultAddress.receiverPhone}
+                  </Text>
+                  <Text className='order-confirm-address-detail'>{defaultAddress.detail}</Text>
+                </>
+              ) : (
+                <>
+                  <Text className='order-confirm-address-title'>添加收货地址</Text>
+                  <Text className='order-confirm-address-detail'>请填写您的收货联系信息</Text>
+                </>
+              )}
+            </View>
+            <Text className='order-confirm-address-arrow'>›</Text>
           </View>
-          {defaultAddress ? (
-            <View className='order-confirm-address-body'>
-              <Text className='order-confirm-address-contact'>
-                {defaultAddress.receiverName} · {defaultAddress.receiverPhone}
-              </Text>
-              <Text className='order-confirm-address-detail'>{defaultAddress.detail}</Text>
-            </View>
-          ) : (
-            <View className='order-confirm-address-empty'>
-              <Text className='order-confirm-address-empty-copy'>暂无地址，请先添加。</Text>
-              <Button
-                size='small'
-                color='primary'
-                className='mt-3'
-                onClick={() => navigateTo(ROUTES.addressList)}
-              >
-                添加地址
-              </Button>
-            </View>
-          )}
         </View>
 
-        <View className='order-confirm-card order-confirm-goods-card'>
-          <View className='order-confirm-card-head'>
-            <Text className='order-confirm-card-title'>商品</Text>
-            <Text className='order-confirm-card-hint'>{`共 ${totalQty} 件`}</Text>
+        <View className='order-confirm-section-divider' />
+
+        <View className='order-confirm-section'>
+          <View className='order-confirm-section-head'>
+            <Text className='order-confirm-section-title'>商品清单</Text>
+            <Text className='order-confirm-section-hint'>{`共 ${totalQty} 件`}</Text>
           </View>
           {loadingData && cart === null ? (
             <View className='order-confirm-loading-list'>
@@ -257,23 +275,25 @@ export default function OrderConfirmPage() {
                 <SafeImage
                   className='order-confirm-item-image'
                   src={item.imageUrl}
-                  width={88}
-                  height={88}
+                  width={112}
+                  height={112}
                   mode='aspectFill'
                 />
                 <View className='order-confirm-item-main'>
-                  <View className='order-confirm-item-head'>
+                  <View className='order-confirm-item-copy'>
                     <Text className='order-confirm-item-title'>{item.productName}</Text>
-                    <Text className='order-confirm-item-qty'>×{item.qty}</Text>
+                    <Text className='order-confirm-item-spec'>{`规格：${item.sku.spec ?? '标准规格'}`}</Text>
                   </View>
-                  <Text className='order-confirm-item-spec'>{item.sku.spec ?? '标准规格'}</Text>
                   <View className='order-confirm-item-price-row'>
-                    <Text className='order-confirm-item-unit-price'>
-                      单价 {item.unitPriceFen === null ? '询价' : formatFen(item.unitPriceFen)}
-                    </Text>
-                    <Text className='order-confirm-item-subtotal'>
-                      {item.subtotalFen === null ? '待确认报价' : formatFen(item.subtotalFen)}
-                    </Text>
+                    <View className='order-confirm-item-price-main'>
+                      <Text className='order-confirm-item-subtotal'>
+                        {item.subtotalFen === null ? '待确认报价' : formatFen(item.subtotalFen)}
+                      </Text>
+                      <Text className='order-confirm-item-unit-price'>
+                        {item.unitPriceFen === null ? '询价' : `单价 ${formatFen(item.unitPriceFen)}`}
+                      </Text>
+                    </View>
+                    <Text className='order-confirm-item-qty'>x{item.qty}</Text>
                   </View>
                 </View>
               </View>
@@ -285,40 +305,43 @@ export default function OrderConfirmPage() {
           )}
         </View>
 
-        <View className='order-confirm-card order-confirm-price-card'>
+        <View className='order-confirm-section-divider' />
+
+        <View className='order-confirm-section'>
+          <Text className='order-confirm-section-title'>订单备注</Text>
+          <Textarea
+            className='order-confirm-remark-input'
+            placeholder='选填（例如: 包装要求、发货时间等）'
+            value={remark}
+            maxLength={200}
+            onInput={(event) => setRemark(event.detail.value)}
+          />
+        </View>
+
+        <View className='order-confirm-section'>
           <View className='order-confirm-price-row'>
             <Text className='order-confirm-price-label'>商品总额</Text>
             <Text className='order-confirm-price-text'>{hasPendingPrice ? '待确认报价' : formatFen(totalFen)}</Text>
+          </View>
+          <View className='order-confirm-price-row'>
+            <Text className='order-confirm-price-label'>运费</Text>
+            <Text className='order-confirm-price-text'>{formatFen(shippingFeeFen)}</Text>
           </View>
           <View className='order-confirm-price-row order-confirm-price-row--total'>
             <Text className='order-confirm-price-label'>应付合计</Text>
             <Text className='order-confirm-price-total'>{hasPendingPrice ? '待确认报价' : formatFen(totalFen)}</Text>
           </View>
         </View>
-
-        <View className='order-confirm-card order-confirm-remark-card'>
-          <View className='order-confirm-card-head order-confirm-card-head--compact' onClick={() => setRemarkExpanded((value) => !value)}>
-            <Text className='order-confirm-card-title'>订单备注</Text>
-            <Text className='order-confirm-card-link'>
-              {remark.trim() ? summarizeRemark(remark) : '选填'}
-            </Text>
-          </View>
-          {remarkExpanded ? (
-            <Textarea
-              className='order-confirm-remark-input'
-              placeholder='添加订单备注...'
-              value={remark}
-              onInput={(event) => setRemark(event.detail.value)}
-            />
-          ) : null}
-        </View>
       </View>
 
       <FixedView position='bottom' placeholder>
         <View className='order-confirm-bottom-bar'>
           <View className='order-confirm-bottom-summary'>
-            <Text className='order-confirm-bottom-label'>{`合计 · 共 ${totalQty} 件`}</Text>
-            <Text className='order-confirm-bottom-value'>{hasPendingPrice ? '待确认报价' : formatFen(totalFen)}</Text>
+            <Text className='order-confirm-bottom-label'>{`合计：共 ${totalQty} 件`}</Text>
+            <View className='order-confirm-bottom-price'>
+              <Text className='order-confirm-bottom-currency'>¥</Text>
+              <Text className='order-confirm-bottom-value'>{hasPendingPrice ? '待确认报价' : formatPriceNumber(totalFen)}</Text>
+            </View>
           </View>
           <Button
             color='primary'
@@ -344,10 +367,4 @@ const normalizeSpuId = (value: unknown): string => {
 
 const formatFen = (fen: number): string => `¥${(fen / 100).toFixed(2)}`
 
-const summarizeRemark = (value: string): string => {
-  const normalized = value.trim()
-  if (!normalized) {
-    return '选填'
-  }
-  return normalized.length > 10 ? `${normalized.slice(0, 10)}...` : normalized
-}
+const formatPriceNumber = (fen: number): string => (fen / 100).toFixed(2)

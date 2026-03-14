@@ -9,7 +9,9 @@ import { ensureLoggedIn } from '../../../utils/auth'
 import { navigateTo } from '../../../utils/navigation'
 
 jest.mock('../../../services/addresses', () => ({
-  listUserAddresses: jest.fn()
+  listUserAddresses: jest.fn(),
+  getSelectedUserAddressId: jest.fn(() => ''),
+  clearSelectedUserAddressId: jest.fn()
 }))
 
 jest.mock('../../../services/payment', () => ({
@@ -86,7 +88,7 @@ describe('OrderConfirmPage', () => {
     })
   })
 
-  it('renders larger address block and goods rows with image and pricing', async () => {
+  it('renders stitch-style address, remark input and price breakdown', async () => {
     render(<OrderConfirmPage />)
     await act(async () => {
       await flushPromises()
@@ -94,27 +96,55 @@ describe('OrderConfirmPage', () => {
 
     expect(screen.getByText('张三 · 13800000000')).toBeInTheDocument()
     expect(screen.getByText('上海市浦东新区世纪大道 1 号')).toBeInTheDocument()
+    expect(screen.getByText('商品清单')).toBeInTheDocument()
+    expect(screen.getByText('规格：M 码')).toBeInTheDocument()
+    expect(screen.getAllByText('¥64.00')).toHaveLength(3)
     expect(screen.getByText('单价 ¥32.00')).toBeInTheDocument()
-    expect(screen.getByText('商品总额')).toBeInTheDocument()
+    expect(screen.getByText('运费')).toBeInTheDocument()
+    expect(screen.getByText('¥0.00')).toBeInTheDocument()
     expect(screen.getByText('应付合计')).toBeInTheDocument()
-    expect(screen.getByText('合计 · 共 2 件')).toBeInTheDocument()
-    expect(document.querySelector('.order-confirm-item-subtotal')?.textContent).toBe('¥64.00')
-    expect(document.querySelector('.order-confirm-price-total')?.textContent).toBe('¥64.00')
-    expect(document.querySelector('.order-confirm-bottom-value')?.textContent).toBe('¥64.00')
+    expect(screen.getByText('合计：共 2 件')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('选填（例如: 包装要求、发货时间等）')).toBeInTheDocument()
     expect(document.querySelector('.order-confirm-item-image')).not.toBeNull()
+    expect(document.querySelector('.order-confirm-bottom-value')?.textContent).toBe('64.00')
   })
 
-  it('keeps remark collapsed by default and expands on click', async () => {
+  it('renders empty address call-to-action when no address exists', async () => {
+    ;(listUserAddresses as jest.Mock).mockResolvedValueOnce([])
+
     render(<OrderConfirmPage />)
     await act(async () => {
       await flushPromises()
     })
 
-    expect(screen.queryByPlaceholderText('添加订单备注...')).toBeNull()
+    expect(screen.getByText('添加收货地址')).toBeInTheDocument()
+    expect(screen.getByText('请填写您的收货联系信息')).toBeInTheDocument()
+  })
 
-    fireEvent.click(screen.getByText('订单备注'))
+  it('prefers selected address from storage over default address', async () => {
+    const addressModule = jest.requireMock('../../../services/addresses') as {
+      getSelectedUserAddressId: jest.Mock
+    }
+    addressModule.getSelectedUserAddressId.mockReturnValue('addr-2')
+    ;(listUserAddresses as jest.Mock).mockResolvedValueOnce([
+      defaultAddress,
+      {
+        ...defaultAddress,
+        id: 'addr-2',
+        receiverName: '李四',
+        receiverPhone: '13900000000',
+        detail: '杭州市西湖区 2 号',
+        isDefault: false
+      }
+    ])
 
-    expect(screen.getByPlaceholderText('添加订单备注...')).toBeInTheDocument()
+    render(<OrderConfirmPage />)
+    await act(async () => {
+      await flushPromises()
+    })
+
+    expect(screen.getByText('李四 · 13900000000')).toBeInTheDocument()
+    expect(screen.getByText('杭州市西湖区 2 号')).toBeInTheDocument()
   })
 
   it('navigates to goods detail when clicking order item row', async () => {
@@ -162,7 +192,7 @@ describe('OrderConfirmPage', () => {
     expect(Taro.showToast).toHaveBeenCalledWith({ title: '当前商品数量未命中价格区间', icon: 'none' })
   })
 
-  it('submits order and shows success toast when payment succeeds', async () => {
+  it('submits order and passes trimmed remark when payment succeeds', async () => {
     ;(paymentServices.sessions.payForOrder as jest.Mock).mockResolvedValue({
       id: 'pay-1',
       orderId: 'order-1001',
@@ -175,6 +205,9 @@ describe('OrderConfirmPage', () => {
       await flushPromises()
     })
 
+    fireEvent.change(screen.getByPlaceholderText('选填（例如: 包装要求、发货时间等）'), {
+      target: { value: '  周五前发货  ' }
+    })
     fireEvent.click(screen.getByText('提交订单'))
     await act(async () => {
       await flushPromises()
@@ -182,6 +215,7 @@ describe('OrderConfirmPage', () => {
 
     expect(commerceServices.orders.submit).toHaveBeenCalled()
     expect(commerceServices.orders.submit).toHaveBeenCalledWith(expect.objectContaining({
+      remark: '周五前发货',
       items: [
         expect.objectContaining({
           cartItemId: 'cart-1',

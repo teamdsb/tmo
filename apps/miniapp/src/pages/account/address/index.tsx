@@ -1,21 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View, Text, Input, Textarea } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Plus from '@taroify/icons/Plus'
 import LocationOutlined from '@taroify/icons/LocationOutlined'
 import type { UserAddress } from '@tmo/api-client'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { commerceServices } from '../../../services/commerce'
-import { listUserAddresses } from '../../../services/addresses'
+import { getSelectedUserAddressId, listUserAddresses, setSelectedUserAddressId } from '../../../services/addresses'
 import './index.scss'
 
 export default function AddressList() {
+  const router = useRouter()
   const navbarStyle = getNavbarStyle()
   const [addresses, setAddresses] = useState<AddressRecord[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingAddress, setEditingAddress] = useState<AddressRecord | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const selectMode = router.params?.mode === 'select'
+  const selectedAddressId = getSelectedUserAddressId()
 
   const loadAddresses = useCallback(async () => {
     setIsLoading(true)
@@ -94,6 +97,14 @@ export default function AddressList() {
     setIsFormOpen(true)
   }
 
+  const handleSelectAddress = async (addr: AddressRecord) => {
+    if (!selectMode || isFormOpen) {
+      return
+    }
+    setSelectedUserAddressId(addr.id)
+    await Taro.navigateBack()
+  }
+
   return (
     <View className='min-h-screen bg-slate-50 text-slate-900 font-sans page address-page'>
       <Navbar
@@ -124,7 +135,10 @@ export default function AddressList() {
           sortedAddresses.map((addr) => (
             <View
               key={addr.id}
-              className='bg-white rounded-2xl border border-slate-100 p-5 shadow-sm transition-all address-card'
+              className={`bg-white rounded-2xl border border-slate-100 p-5 shadow-sm transition-all address-card ${
+                selectMode ? 'address-card-selectable' : ''
+              } ${selectedAddressId === addr.id ? 'address-card-selected' : ''}`}
+              onClick={() => void handleSelectAddress(addr)}
             >
               <View className='flex justify-between items-start mb-2 address-card-head'>
                 <View className='flex flex-wrap items-center gap-2'>
@@ -142,13 +156,19 @@ export default function AddressList() {
               <View className='mt-4 pt-4 border-t border-slate-50 flex justify-end gap-5 address-actions-row'>
                 <View
                   className='flex items-center gap-2 text-slate-400 transition-colors address-action address-action-edit'
-                  onClick={() => openEdit(addr)}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    openEdit(addr)
+                  }}
                 >
                   <Text>编辑</Text>
                 </View>
                 <View
                   className='flex items-center gap-2 text-slate-400 transition-colors address-action address-action-delete'
-                  onClick={() => void handleDelete(addr.id)}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    void handleDelete(addr.id)
+                  }}
                 >
                   <Text>删除</Text>
                 </View>
