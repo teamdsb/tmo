@@ -4,9 +4,23 @@ const flushPromises = () => new Promise((resolve) => process.nextTick(resolve))
 const actualReact = jest.requireActual('react')
 const actualJsxRuntime = jest.requireActual('react/jsx-runtime')
 
+type BootstrapMock = {
+  me?: {
+    displayName?: string
+    currentRole?: string
+    roles?: string[]
+  }
+} | null
+
 const loadSettingsPage = (
-  isIsolatedMock: boolean,
-  bootstrap: { me?: { roles?: string[] } } | null = null
+  runtimeOverrides: {
+    isIsolatedMock?: boolean
+    gatewayBaseUrl?: string
+    commerceBaseUrl?: string
+    identityBaseUrl?: string
+    devFakePaymentEnabled?: boolean
+  } = {},
+  bootstrap: BootstrapMock = null
 ) => {
   let moduleValue:
     | {
@@ -21,7 +35,12 @@ const loadSettingsPage = (
     jest.doMock('react/jsx-runtime', () => actualJsxRuntime)
     jest.doMock('../../config/runtime-env', () => ({
       runtimeEnv: {
-        isIsolatedMock
+        isIsolatedMock: false,
+        gatewayBaseUrl: 'http://localhost:8080',
+        commerceBaseUrl: 'http://localhost:8082',
+        identityBaseUrl: 'http://localhost:8081',
+        devFakePaymentEnabled: true,
+        ...runtimeOverrides
       }
     }))
     jest.doMock('../../services/bootstrap', () => ({
@@ -52,7 +71,10 @@ describe('SettingsPage', () => {
   })
 
   it('shows mock debug actions only in isolated mock mode', async () => {
-    const { SettingsPage } = loadSettingsPage(true, { me: { roles: ['CUSTOMER', 'SALES'] } })
+    const { SettingsPage } = loadSettingsPage(
+      { isIsolatedMock: true },
+      { me: { displayName: '张三', currentRole: 'SALES', roles: ['CUSTOMER', 'SALES'] } }
+    )
     render(<SettingsPage />)
 
     await act(async () => {
@@ -65,7 +87,7 @@ describe('SettingsPage', () => {
   })
 
   it('hides mock debug actions outside isolated mock mode', async () => {
-    const { SettingsPage } = loadSettingsPage(false)
+    const { SettingsPage } = loadSettingsPage()
     render(<SettingsPage />)
 
     await act(async () => {
@@ -77,7 +99,10 @@ describe('SettingsPage', () => {
   })
 
   it('runs mock sales login from debug panel', async () => {
-    const { SettingsPage, applyMockLogin } = loadSettingsPage(true, { me: { roles: ['SALES'] } })
+    const { SettingsPage, applyMockLogin } = loadSettingsPage(
+      { isIsolatedMock: true },
+      { me: { displayName: '张三', currentRole: 'SALES', roles: ['SALES'] } }
+    )
 
     render(<SettingsPage />)
     await act(async () => {
@@ -92,26 +117,85 @@ describe('SettingsPage', () => {
     expect(applyMockLogin).toHaveBeenCalled()
   })
 
-  it('shows sales workbench entry only for logged-in sales users', async () => {
-    const { SettingsPage } = loadSettingsPage(false, { me: { roles: ['CUSTOMER', 'SALES'] } })
+  it('shows account and role info for logged-in sales users', async () => {
+    const { SettingsPage } = loadSettingsPage(
+      {},
+      { me: { displayName: '张三', currentRole: 'SALES', roles: ['CUSTOMER', 'SALES'] } }
+    )
     render(<SettingsPage />)
 
     await act(async () => {
       await flushPromises()
     })
 
+    expect(screen.getByText('账号与角色信息')).toBeInTheDocument()
+    expect(screen.getByText('张三')).toBeInTheDocument()
+    expect(screen.getByText('SALES')).toBeInTheDocument()
+    expect(screen.getByText('CUSTOMER / SALES')).toBeInTheDocument()
     expect(screen.getByText('业务员页面')).toBeInTheDocument()
   })
 
-  it('hides sales workbench entry for guest or non-sales users', async () => {
-    const guestModule = loadSettingsPage(false, null)
-    render(<guestModule.SettingsPage />)
+  it('shows guest account hint and hides sales workbench entry for guests', async () => {
+    const { SettingsPage } = loadSettingsPage({}, null)
+    render(<SettingsPage />)
 
     await act(async () => {
       await flushPromises()
     })
 
     expect(screen.queryByText('业务员页面')).toBeNull()
-    expect(screen.queryByText('紧凑显示')).toBeNull()
+    expect(screen.getByText('当前未登录')).toBeInTheDocument()
+    expect(screen.getByText('去登录')).toBeInTheDocument()
+  })
+
+  it('expands only one privacy section at a time', async () => {
+    const { SettingsPage } = loadSettingsPage()
+    render(<SettingsPage />)
+
+    await act(async () => {
+      await flushPromises()
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('隐私政策'))
+      await flushPromises()
+    })
+    expect(screen.getByText(/我们会在登录、下单、收货与售后流程中处理账号信息/)).toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('服务条款'))
+      await flushPromises()
+    })
+    expect(screen.getByText(/账号需按真实业务身份使用/)).toBeInTheDocument()
+    expect(screen.queryByText(/我们会在登录、下单、收货与售后流程中处理账号信息/)).toBeNull()
+  })
+
+  it('shows version and environment summary and details', async () => {
+    const { SettingsPage } = loadSettingsPage({
+      isIsolatedMock: false,
+      gatewayBaseUrl: 'http://localhost:8080',
+      commerceBaseUrl: 'http://localhost:8082',
+      identityBaseUrl: 'http://localhost:8081',
+      devFakePaymentEnabled: true
+    })
+    render(<SettingsPage />)
+
+    await act(async () => {
+      await flushPromises()
+    })
+
+    expect(screen.getByText('版本与环境信息')).toBeInTheDocument()
+    expect(screen.getByText('v1.0.0')).toBeInTheDocument()
+    expect(screen.getByText('Real')).toBeInTheDocument()
+    expect(screen.getByText('http://localhost:8080')).toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('查看详情'))
+      await flushPromises()
+    })
+
+    expect(screen.getAllByText('http://localhost:8082').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('http://localhost:8081').length).toBeGreaterThan(0)
+    expect(screen.getByText('已开启')).toBeInTheDocument()
   })
 })
