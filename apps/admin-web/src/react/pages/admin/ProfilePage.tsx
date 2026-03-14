@@ -237,7 +237,6 @@ export const ProfilePage = () => {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold text-slate-900 dark:text-white">个人资料</h1>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{statusText}</p>
               </div>
               <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
                 {profile.roleLabel}

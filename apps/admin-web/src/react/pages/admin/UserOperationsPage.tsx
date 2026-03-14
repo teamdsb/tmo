@@ -2021,13 +2021,10 @@ export const UserOperationsPage = () => {
 
   return (
     <main className="flex h-screen flex-1 flex-col overflow-hidden bg-background-light dark:bg-background-dark" data-testid="user-operations-page">
-              <AdminTopbar
+      <AdminTopbar
         leftSlot={(
           <div className="min-w-0">
             <h1 className="text-lg font-bold text-text-primary-light dark:text-text-primary-dark">用户运营中心</h1>
-            <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">
-              支持在客户、员工与管理员列表内直接切换角色
-            </p>
           </div>
         )}
         searchPlaceholder="搜索客户或员工"

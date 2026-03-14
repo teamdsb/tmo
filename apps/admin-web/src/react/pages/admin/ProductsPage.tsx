@@ -1626,7 +1626,6 @@ export const ProductsPage = () => {
         <div className="mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <div className="flex flex-col gap-2">
             <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white md:text-4xl">商品与 SKU 管理</h1>
-            <p className="max-w-2xl text-lg text-slate-500 dark:text-slate-400">集中管理库存、分层定价和类目展示，逐步替换旧版 DOM 脚本页面。</p>
           </div>
           <div className="flex gap-3">
             <button

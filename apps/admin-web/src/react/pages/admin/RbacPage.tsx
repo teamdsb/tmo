@@ -389,7 +389,6 @@ export const RbacPage = () => {
       <header className="flex shrink-0 items-center justify-between border-b border-border-light bg-surface-light px-8 py-5 dark:border-border-dark dark:bg-surface-dark">
         <div>
           <h1 className="text-2xl font-bold text-text-main dark:text-white">角色与权限</h1>
-          <p className="mt-1 text-sm text-text-secondary">来自身份服务的角色定义与按范围划分的权限配置。</p>
         </div>
         <div className="flex gap-3">
           <button

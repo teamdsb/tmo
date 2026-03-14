@@ -3,7 +3,7 @@ import { Button, Image, Input, ScrollView, Text, View } from '@tarojs/components
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Tag from '@taroify/core/tag'
-import { AddOutlined, ArrowLeft, ChatOutlined, PhotoOutlined } from '@taroify/icons'
+import { AddOutlined, ChatOutlined, PhotoOutlined } from '@taroify/icons'
 
 import './index.scss'
 
@@ -611,9 +611,7 @@ export default function SupportChatPage() {
   return (
     <View className='page support-chat'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
-        <Navbar.NavLeft onClick={handleBack}>
-          <ArrowLeft />
-        </Navbar.NavLeft>
+        <Navbar.NavLeft onClick={handleBack} />
         <Navbar.Title>{title}</Navbar.Title>
       </Navbar>
 

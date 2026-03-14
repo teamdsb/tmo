@@ -557,9 +557,6 @@ export const OrdersPage = () => {
                 <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
                   <div className="space-y-2">
                     <h1 className="text-3xl font-black tracking-tight text-text-main dark:text-text-main-dark md:text-4xl">订单履约</h1>
-                    <p className="text-sm text-text-sub dark:text-text-sub-dark">
-                      {context?.mode === 'dev' ? 'Dev 模式显示后端实时订单。' : 'Mock 模式支持状态筛选、分页和详情编辑。'}
-                    </p>
                   </div>
                   <a
                     className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-content shadow-sm transition-colors hover:bg-primary-dark active:scale-95"

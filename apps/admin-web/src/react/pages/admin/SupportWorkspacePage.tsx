@@ -621,7 +621,6 @@ export const SupportWorkspacePage = () => {
     <main className="min-h-screen bg-slate-100" data-testid="support-workspace-page">
       <AdminTopbar
         title="在线客服工作台"
-        subtitle="认领、转接并实时处理客户消息。"
         actions={(
           <button
             type="button"

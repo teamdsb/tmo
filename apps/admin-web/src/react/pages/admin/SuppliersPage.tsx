@@ -603,7 +603,6 @@ export const SuppliersPage = () => {
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
             <div>
               <h1 className="text-slate-900 text-3xl font-bold tracking-tight">供应商管理</h1>
-              <p className="text-slate-500 text-sm mt-2">P1 里程碑：供应商列表、详情与关键字段编辑已接入真实接口</p>
             </div>
             <form className="flex flex-wrap items-center gap-3" onSubmit={handleSubmitSearch}>
               <input

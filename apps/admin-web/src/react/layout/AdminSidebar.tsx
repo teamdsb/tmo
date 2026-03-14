@@ -27,7 +27,7 @@ const navItems: NavItem[] = [
   { key: 'dashboard', href: '/dashboard.html', icon: 'dashboard', label: '仪表盘' },
   { key: 'products', href: '/products.html', icon: 'inventory_2', label: '商品' },
   { key: 'orders', href: '/orders.html', icon: 'shopping_cart', label: '订单', badge: isDevMode ? '' : '12' },
-  { key: 'logistics', href: '/import.html', icon: 'local_shipping', label: '物流' },
+  { key: 'logistics', href: '/import.html', icon: 'local_shipping', label: '导入与导出' },
   { key: 'sourcing', href: '/inquiries.html', icon: 'assignment', label: '在线客服' },
   { key: 'users', href: '/transfer.html', icon: 'group', label: '客户转移' },
   { key: 'userOperations', href: '/user-operations.html', icon: 'supervisor_account', label: '用户运营' }

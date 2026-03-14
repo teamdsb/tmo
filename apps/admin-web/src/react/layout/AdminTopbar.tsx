@@ -168,7 +168,6 @@ export const AdminTopbar = ({
   const resolvedLeftSlot = leftSlot || (
     <div className="min-w-0">
       {title ? <div className="text-sm font-semibold text-slate-900 dark:text-white">{title}</div> : null}
-      {subtitle ? <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{subtitle}</div> : null}
     </div>
   );
 

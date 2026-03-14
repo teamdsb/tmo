@@ -816,9 +816,6 @@ export const TransferPage = () => {
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-8 md:px-10 lg:px-20">
         <div className="mb-6">
           <h1 className="text-3xl font-bold tracking-tight text-text-primary-light dark:text-text-primary-dark">客户转移</h1>
-          <p className="mt-2 text-sm text-text-secondary-light dark:text-text-secondary-dark">
-            支持按业务员管理客户、批量转移归属、以及客户标签管理。
-          </p>
         </div>
 
         <section className="mb-6 rounded-xl border border-border-light bg-surface-light p-5 shadow-sm dark:border-border-dark dark:bg-surface-dark">

@@ -418,9 +418,6 @@ export const ImportPage = () => {
                 <div>
                   <p className="text-sm uppercase tracking-[0.18em] text-slate-400">Import Jobs</p>
                   <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">商品 Excel 导入工作台</h1>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
-                    real 模式会真正创建 `/admin/products/import-jobs` 任务并自动轮询状态；mock 模式会在浏览器内解析 Excel 和 ZIP，并把成功导入的商品写入本地存储，随后可在商品页查看。
-                  </p>
                 </div>
                 <div className="rounded-2xl bg-slate-900 px-4 py-3 text-sm text-white">
                   <div className="text-slate-300">当前模式</div>
