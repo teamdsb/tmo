@@ -4,7 +4,10 @@ const flushPromises = () => new Promise((resolve) => process.nextTick(resolve))
 const actualReact = jest.requireActual('react')
 const actualJsxRuntime = jest.requireActual('react/jsx-runtime')
 
-const loadSettingsPage = (isIsolatedMock: boolean) => {
+const loadSettingsPage = (
+  isIsolatedMock: boolean,
+  bootstrap: { me?: { roles?: string[] } } | null = null
+) => {
   let moduleValue:
     | {
         SettingsPage: typeof import('./index').default
@@ -20,6 +23,10 @@ const loadSettingsPage = (isIsolatedMock: boolean) => {
       runtimeEnv: {
         isIsolatedMock
       }
+    }))
+    jest.doMock('../../services/bootstrap', () => ({
+      clearBootstrap: jest.fn(async () => {}),
+      loadBootstrap: jest.fn(async () => bootstrap)
     }))
     jest.doMock('../../services/mock-auth', () => ({
       applyMockLogin
@@ -45,7 +52,7 @@ describe('SettingsPage', () => {
   })
 
   it('shows mock debug actions only in isolated mock mode', async () => {
-    const { SettingsPage } = loadSettingsPage(true)
+    const { SettingsPage } = loadSettingsPage(true, { me: { roles: ['CUSTOMER', 'SALES'] } })
     render(<SettingsPage />)
 
     await act(async () => {
@@ -70,7 +77,7 @@ describe('SettingsPage', () => {
   })
 
   it('runs mock sales login from debug panel', async () => {
-    const { SettingsPage, applyMockLogin } = loadSettingsPage(true)
+    const { SettingsPage, applyMockLogin } = loadSettingsPage(true, { me: { roles: ['SALES'] } })
 
     render(<SettingsPage />)
     await act(async () => {
@@ -83,5 +90,28 @@ describe('SettingsPage', () => {
     })
 
     expect(applyMockLogin).toHaveBeenCalled()
+  })
+
+  it('shows sales workbench entry only for logged-in sales users', async () => {
+    const { SettingsPage } = loadSettingsPage(false, { me: { roles: ['CUSTOMER', 'SALES'] } })
+    render(<SettingsPage />)
+
+    await act(async () => {
+      await flushPromises()
+    })
+
+    expect(screen.getByText('业务员页面')).toBeInTheDocument()
+  })
+
+  it('hides sales workbench entry for guest or non-sales users', async () => {
+    const guestModule = loadSettingsPage(false, null)
+    render(<guestModule.SettingsPage />)
+
+    await act(async () => {
+      await flushPromises()
+    })
+
+    expect(screen.queryByText('业务员页面')).toBeNull()
+    expect(screen.queryByText('紧凑显示')).toBeNull()
   })
 })

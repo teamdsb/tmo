@@ -7,22 +7,21 @@ import Switch from '@taroify/core/switch'
 import { ROUTES } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../utils/navigation'
-import { clearBootstrap } from '../../services/bootstrap'
+import { clearBootstrap, loadBootstrap } from '../../services/bootstrap'
 import { applyMockLogin } from '../../services/mock-auth'
 import { resetIsolatedMockState } from '../../services/mock/runtime'
 import { runtimeEnv } from '../../config/runtime-env'
+import { isSalesUser } from '../../utils/authz'
 
 type SettingsState = {
   notifications: boolean
   autoLogin: boolean
-  compactMode: boolean
 }
 
 const STORAGE_KEY = 'tmo.settings'
 const DEFAULT_SETTINGS: SettingsState = {
   notifications: true,
-  autoLogin: true,
-  compactMode: false
+  autoLogin: true
 }
 
 export default function SettingsPage() {
@@ -30,6 +29,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS)
   const [resettingMock, setResettingMock] = useState(false)
   const [mockLoggingIn, setMockLoggingIn] = useState(false)
+  const [showSalesWorkbenchEntry, setShowSalesWorkbenchEntry] = useState(false)
 
   useEffect(() => {
     const stored = Taro.getStorageSync(STORAGE_KEY)
@@ -41,6 +41,21 @@ export default function SettingsPage() {
   useEffect(() => {
     Taro.setStorageSync(STORAGE_KEY, settings)
   }, [settings])
+
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      const bootstrap = await loadBootstrap()
+      if (!cancelled) {
+        setShowSalesWorkbenchEntry(Boolean(bootstrap?.me) && isSalesUser(bootstrap))
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleToggle = (key: keyof SettingsState) => {
     setSettings((prev) => ({ ...prev, [key]: !prev[key] }))
@@ -106,12 +121,14 @@ export default function SettingsPage() {
         </View>
 
         <Cell.Group inset>
-          <Cell
-            title='业务员页面'
-            brief='进入业务员工作台'
-            isLink
-            onClick={() => navigateTo(ROUTES.sales)}
-          />
+          {showSalesWorkbenchEntry ? (
+            <Cell
+              title='业务员页面'
+              brief='进入业务员工作台'
+              isLink
+              onClick={() => navigateTo(ROUTES.sales)}
+            />
+          ) : null}
           <Cell
             title='订单通知'
             brief='获取状态更新和发货提醒'
@@ -131,17 +148,6 @@ export default function SettingsPage() {
                 size='24px'
                 checked={settings.autoLogin}
                 onChange={() => handleToggle('autoLogin')}
-              />
-            }
-          />
-          <Cell
-            title='紧凑显示'
-            brief='减少间距查看更多内容'
-            rightIcon={
-              <Switch
-                size='24px'
-                checked={settings.compactMode}
-                onChange={() => handleToggle('compactMode')}
               />
             }
           />
