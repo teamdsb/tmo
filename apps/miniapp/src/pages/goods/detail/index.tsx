@@ -4,11 +4,8 @@ import Taro, { useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Tag from '@taroify/core/tag'
 import Grid from '@taroify/core/grid'
-import Cell from '@taroify/core/cell'
 import TaroifyButton from '@taroify/core/button'
 import FixedView from '@taroify/core/fixed-view'
-import ArrowRight from '@taroify/icons/ArrowRight'
-import Logistics from '@taroify/icons/Logistics'
 import Star from '@taroify/icons/Star'
 import StarOutlined from '@taroify/icons/StarOutlined'
 import type { PriceTier, ProductDetail, Sku } from '@tmo/api-client'
@@ -344,13 +341,6 @@ export default function ProductDetail() {
           </View>
         </View>
 
-        <Cell
-          className='product-logistics detail-surface-card detail-logistics-card'
-          icon={<Logistics />}
-          title='标准配送'
-          brief='预计 9月12日 - 9月18日送达（工作日）'
-          rightIcon={<ArrowRight />}
-        />
       </View>
 
       <FixedView position='bottom' safeArea='bottom' placeholder>
