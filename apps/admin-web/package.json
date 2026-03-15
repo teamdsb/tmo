@@ -12,7 +12,8 @@
     "test:e2e:mock": "playwright test -c playwright.e2e.mock.config.mjs",
     "test:e2e:hybrid": "playwright test -c playwright.e2e.hybrid.config.mjs",
     "test:visual": "playwright test -c playwright.visual.config.mjs",
-    "test:e2e:real": "playwright test -c playwright.e2e.real.config.mjs"
+    "test:e2e:real": "playwright test -c playwright.e2e.real.config.mjs",
+    "test:e2e:real:support": "playwright test -c playwright.e2e.real.config.mjs tests/e2e/support-real.spec.ts"
   },
   "dependencies": {
     "@tmo/api-client": "workspace:*",

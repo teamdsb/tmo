@@ -11,6 +11,7 @@ run_admin_real_raw="${E2E_LOCAL_RUN_ADMIN_REAL:-true}"
 run_admin_hybrid_raw="${E2E_LOCAL_RUN_ADMIN_HYBRID:-false}"
 run_miniapp_auth_raw="${E2E_LOCAL_RUN_MINIAPP_AUTH:-true}"
 run_miniapp_catalog_real_raw="${E2E_LOCAL_RUN_MINIAPP_CATALOG_REAL:-true}"
+run_support_real_raw="${E2E_LOCAL_RUN_SUPPORT_REAL:-false}"
 build_weapp_dev_raw="${E2E_LOCAL_BUILD_WEAPP_DEV:-true}"
 force_build_raw="${E2E_LOCAL_FORCE_BUILD_IMAGES:-true}"
 weapp_phone_sim_raw="${E2E_LOCAL_WEAPP_PHONE_SIMULATION:-true}"
@@ -27,6 +28,7 @@ run_admin_real="$(lower_bool "$run_admin_real_raw")"
 run_admin_hybrid="$(lower_bool "$run_admin_hybrid_raw")"
 run_miniapp_auth="$(lower_bool "$run_miniapp_auth_raw")"
 run_miniapp_catalog_real="$(lower_bool "$run_miniapp_catalog_real_raw")"
+run_support_real="$(lower_bool "$run_support_real_raw")"
 build_weapp_dev="$(lower_bool "$build_weapp_dev_raw")"
 force_build="$(lower_bool "$force_build_raw")"
 weapp_phone_sim="$(lower_bool "$weapp_phone_sim_raw")"
@@ -105,6 +107,14 @@ if [[ "$run_miniapp_catalog_real" == "true" ]]; then
 
   phase "running miniapp catalog real e2e..."
   pnpm -C "$root_dir/apps/miniapp" run test:e2e:weapp:catalog-real
+fi
+
+if [[ "$run_support_real" == "true" ]]; then
+  phase "running support real e2e..."
+  SUPPORT_REAL_E2E_STACK_UP=false \
+  SUPPORT_REAL_E2E_BUILD_WEAPP_DEV="$build_weapp_dev" \
+  SUPPORT_REAL_E2E_RUN_ADMIN_SMOKE=false \
+  bash "$root_dir/tools/scripts/support-real-e2e.sh"
 fi
 
 phase "all enabled stages passed."

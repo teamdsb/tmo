@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fireEvent, render, screen } from '@testing-library/react'
+import Taro from '@tarojs/taro'
 import SalesPage from './index'
 
 describe('SalesPage', () => {
@@ -43,5 +44,13 @@ describe('SalesPage', () => {
     } finally {
       consoleErrorSpy.mockRestore()
     }
+  })
+
+  it('returns to shopping home when clicking global action', () => {
+    render(<SalesPage />)
+
+    fireEvent.click(screen.getByText('返回购物'))
+
+    expect(Taro.switchTab).toHaveBeenCalledWith({ url: '/pages/index/index' })
   })
 })

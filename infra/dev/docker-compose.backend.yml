@@ -44,6 +44,9 @@ services:
     environment:
       COMMERCE_HTTP_ADDR: ":8082"
       COMMERCE_DB_DSN: "postgres://commerce:commerce@postgres:5432/commerce?sslmode=disable"
+      COMMERCE_AUTH_ENABLED: "${COMMERCE_AUTH_ENABLED:-true}"
+      COMMERCE_JWT_SECRET: "${COMMERCE_JWT_SECRET:-${IDENTITY_JWT_SECRET:-dev-secret}}"
+      COMMERCE_JWT_ISSUER: "${COMMERCE_JWT_ISSUER:-${IDENTITY_JWT_ISSUER:-tmo-identity}}"
       COMMERCE_INTERNAL_SYNC_TOKEN: "${COMMERCE_INTERNAL_SYNC_TOKEN:-dev-payment-sync-token}"
       MEDIA_LOCAL_OUTPUT_DIR: "${MEDIA_LOCAL_OUTPUT_DIR:-/data/media}"
       MEDIA_PUBLIC_BASE_URL: "${MEDIA_PUBLIC_BASE_URL:-http://localhost:8080/assets/media}"

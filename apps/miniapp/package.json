@@ -48,6 +48,7 @@
     "test:e2e:weapp:auth:dev": "pnpm run build:weapp:dev && pnpm run test:e2e:weapp:auth",
     "test:e2e:weapp:catalog-real": "node scripts/weapp-catalog-real-e2e.js",
     "test:e2e:weapp:catalog-real:dev": "pnpm run build:weapp:dev && pnpm run test:e2e:weapp:catalog-real",
+    "test:e2e:weapp:support-real": "node scripts/weapp-support-real-e2e.js",
     "dev:weapp": "node scripts/dev-weapp.js dev",
     "dev:weapp:dev": "node scripts/dev-weapp.js dev",
     "dev:weapp:mock": "node scripts/dev-weapp.js mock",

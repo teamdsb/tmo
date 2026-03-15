@@ -252,6 +252,8 @@ const run = async () => {
     )
 
     const agreementToggle = await page.$('.login-agreement-toggle')
+      || await page.$('.login-agreement')
+      || await page.$('.login-checkbox')
     assertPass(checks, 'login.agreement.toggle', Boolean(agreementToggle), 'agreement toggle should be found')
     await agreementToggle.tap()
     await sleep(700)

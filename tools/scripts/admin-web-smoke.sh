@@ -10,6 +10,7 @@ manager_username="${ADMIN_WEB_SMOKE_MANAGER_USERNAME:-manager}"
 manager_password="${ADMIN_WEB_SMOKE_MANAGER_PASSWORD:-manager123}"
 cs_username="${ADMIN_WEB_SMOKE_CS_USERNAME:-cs}"
 cs_password="${ADMIN_WEB_SMOKE_CS_PASSWORD:-cs123}"
+check_support_raw="${ADMIN_WEB_SMOKE_CHECK_SUPPORT:-false}"
 
 http_code=""
 http_body=""
@@ -63,6 +64,10 @@ PY
 
   echo "node or python is required to parse JSON" >&2
   exit 1
+}
+
+lower_bool() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
 }
 
 login_with_role() {
@@ -136,6 +141,17 @@ verify_admin_sales_users_status "$admin_token" "200" "admin"
 verify_admin_sales_users_status "$boss_token" "200" "boss"
 verify_admin_sales_users_status "$manager_token" "200" "manager"
 verify_admin_sales_users_status "$cs_token" "403" "cs"
+
+check_support="$(lower_bool "$check_support_raw")"
+if [[ "$check_support" == "true" ]]; then
+  echo "[admin-web-smoke] cs list support conversations..."
+  request "GET" "$base_url/admin/support/conversations?page=1&pageSize=5" "" "$cs_token"
+  if [[ "$http_code" != "200" ]]; then
+    echo "support conversations query failed: $http_code" >&2
+    echo "$http_body" >&2
+    exit 1
+  fi
+fi
 
 echo "[admin-web-smoke] admin list products..."
 request "GET" "$base_url/catalog/products?page=1&pageSize=5" "" "$admin_token"

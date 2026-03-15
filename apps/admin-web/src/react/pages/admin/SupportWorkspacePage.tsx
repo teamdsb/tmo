@@ -715,6 +715,7 @@ export const SupportWorkspacePage = () => {
                 disabled={!activeConversationId || isMockMode}
                 onClick={() => void handleClaim()}
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                data-testid="support-claim-button"
               >
                 <UserCheck className="h-4 w-4" />
                 认领
@@ -724,6 +725,7 @@ export const SupportWorkspacePage = () => {
                 disabled={!activeConversationId || !roleCanRelease(activeConversation) || isMockMode}
                 onClick={() => void handleRelease()}
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                data-testid="support-release-button"
               >
                 <Clock3 className="h-4 w-4" />
                 释放
@@ -733,7 +735,14 @@ export const SupportWorkspacePage = () => {
 
           <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50 px-6 py-5">
             {conversationDetail?.messages?.length ? conversationDetail.messages.map((message) => (
-              <MessageBubble key={message.id} message={message} />
+              <div
+                key={message.id}
+                data-testid={`support-message-${message.id}`}
+                data-support-sender-type={message.senderType}
+                data-support-message-type={message.messageType}
+              >
+                <MessageBubble message={message} />
+              </div>
             )) : (
               <div className="flex h-full items-center justify-center text-sm text-slate-500">
                 选择会话后开始处理客户消息
@@ -784,6 +793,7 @@ export const SupportWorkspacePage = () => {
                 rows={3}
                 placeholder="输入回复内容..."
                 className="min-h-[88px] flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white"
+                data-testid="support-reply-input"
               />
               <button
                 type="button"

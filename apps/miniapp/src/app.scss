@@ -1757,6 +1757,47 @@
   color: #7b8794;
 }
 
+.sales-global-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 14px 6px;
+}
+
+.sales-global-header-title {
+  display: block;
+  font-size: 38rpx;
+  font-weight: 800;
+  color: #1f2937;
+}
+
+.sales-global-header-copy {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #64748b;
+}
+
+.sales-global-header-action {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 152rpx;
+  padding: 0 24rpx;
+  height: 64rpx;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #137fec 0%, #0f5dd7 100%);
+  box-shadow: 0 10px 24px rgb(15 93 215 / 20%);
+}
+
+.sales-global-header-action-text {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #fff;
+}
+
 .sales-page-header {
   display: flex;
   align-items: center;

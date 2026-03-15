@@ -14,6 +14,7 @@
     "test:backend": "bash tools/scripts/test-backend.sh",
     "test:backend:coverage": "bash tools/scripts/test-backend-coverage.sh",
     "smoke:admin-web": "bash tools/scripts/admin-web-smoke.sh",
+    "test:support:real": "bash tools/scripts/support-real-e2e.sh",
     "verify:miniapp:customer:evidence": "bash tools/scripts/miniapp-customer-evidence.sh",
     "test:fullstack:real": "bash tools/scripts/fullstack-real-check.sh",
     "test": "pnpm run test:backend && pnpm -C apps/miniapp test && pnpm -C apps/miniapp test:wxss",

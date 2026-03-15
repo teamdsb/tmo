@@ -4,6 +4,8 @@ import Navbar from '@taroify/core/navbar'
 import { navItems } from './data'
 import type { SalesTab } from './types'
 import { AccountingView, CustomersView, DashboardView, OrdersView } from './views'
+import { ROUTES } from '../../routes'
+import { switchTabLike } from '../../utils/navigation'
 import { getNavbarStyle, getNavbarTotalHeight } from '../../utils/navbar'
 
 export default function SalesPage() {
@@ -18,6 +20,18 @@ export default function SalesPage() {
       {isH5 ? <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary' /> : null}
       {!isH5 ? <View className='sales-safe-top-spacer' style={navbarSpacerStyle} /> : null}
       <View className='sales-main-container relative mx-auto flex w-full max-w-md flex-col'>
+        <View className='sales-global-header'>
+          <View>
+            <Text className='sales-global-header-title'>业务员工作台</Text>
+            <Text className='sales-global-header-copy'>查看客户、订单与结算信息</Text>
+          </View>
+          <View
+            className='sales-global-header-action'
+            onClick={() => void switchTabLike(ROUTES.home)}
+          >
+            <Text className='sales-global-header-action-text'>返回购物</Text>
+          </View>
+        </View>
         <View className='sales-main-content min-h-0 flex-1'>
           {activeTab === 'dashboard' ? <DashboardView /> : null}
           {activeTab === 'customers' ? <CustomersView /> : null}
