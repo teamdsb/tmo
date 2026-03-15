@@ -4,7 +4,12 @@ import { removeStorage } from '@tmo/platform-adapter'
 import { gatewayServices } from '../../services/gateway'
 import { commerceServices } from '../../services/commerce'
 import { identityServices } from '../../services/identity'
+import { loadEditableProfile } from '../../services/profile'
 import PersonalCenter from './index'
+
+jest.mock('../../services/profile', () => ({
+  loadEditableProfile: jest.fn(() => null)
+}))
 
 const flushPromises = () => new Promise((resolve) => process.nextTick(resolve))
 
@@ -19,6 +24,7 @@ const asMock = <T extends (...args: any[]) => any>(fn: T) => fn as unknown as je
 
 describe('PersonalCenter', () => {
   beforeEach(() => {
+    ;(loadEditableProfile as jest.Mock).mockReturnValue(null)
     asMock(identityServices.tokens.getToken).mockResolvedValue('token-123')
     asMock(gatewayServices.bootstrap.get).mockImplementation(async () => ({
       me: {
@@ -74,6 +80,31 @@ describe('PersonalCenter', () => {
     expect(screen.getByText('订单跟踪')).toBeInTheDocument()
     expect(screen.queryByText('专属顾问')).not.toBeInTheDocument()
     expect(screen.queryByText('立即沟通')).not.toBeInTheDocument()
+  })
+
+  it('uses locally saved avatar when profile avatar exists', async () => {
+    ;(loadEditableProfile as jest.Mock).mockReturnValue({
+      displayName: '张三',
+      phone: '13800138000',
+      avatarUrl: '/tmp/local-avatar.png'
+    })
+
+    await renderPersonalCenter()
+
+    const avatar = document.querySelector('.mine-hero-user-avatar img')
+    expect(avatar).toHaveAttribute('src', '/tmp/local-avatar.png')
+  })
+
+  it('uses locally saved display name when profile name exists', async () => {
+    ;(loadEditableProfile as jest.Mock).mockReturnValue({
+      displayName: '阿西莫夫',
+      phone: '13800138000',
+      avatarUrl: ''
+    })
+
+    await renderPersonalCenter()
+
+    expect(await screen.findByText('欢迎回来，阿西莫夫用户')).toBeInTheDocument()
   })
 
   it('shows debug role switcher and switches current role', async () => {

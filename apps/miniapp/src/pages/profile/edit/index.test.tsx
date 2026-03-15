@@ -29,7 +29,8 @@ describe('ProfileEditPage', () => {
     })
     ;(loadEditableProfile as jest.Mock).mockReturnValue({
       displayName: '张三',
-      phone: '13800138000'
+      phone: '13800138000',
+      avatarUrl: '/tmp/original-avatar.png'
     })
   })
 
@@ -38,9 +39,10 @@ describe('ProfileEditPage', () => {
 
     expect(await screen.findByDisplayValue('张三')).toBeInTheDocument()
     expect(screen.getByDisplayValue('13800138000')).toBeInTheDocument()
+    expect(screen.getByRole('img')).toHaveAttribute('src', '/tmp/original-avatar.png')
   })
 
-  it('saves display name and phone then navigates back', async () => {
+  it('saves display name, phone and avatar then navigates back', async () => {
     render(<ProfileEditPage />)
 
     const nameInput = await screen.findByDisplayValue('张三')
@@ -52,12 +54,17 @@ describe('ProfileEditPage', () => {
     })
 
     await act(async () => {
+      fireEvent.click(screen.getByText('选择头像'))
+    })
+
+    await act(async () => {
       fireEvent.click(screen.getByText('保存'))
     })
 
     expect(saveEditableProfile).toHaveBeenCalledWith({
       displayName: '李四',
-      phone: '13900139000'
+      phone: '13900139000',
+      avatarUrl: '/tmp/mock.png'
     })
     expect(saveBootstrap).toHaveBeenCalledWith(expect.objectContaining({
       me: expect.objectContaining({
@@ -86,5 +93,12 @@ describe('ProfileEditPage', () => {
 
     expect(saveEditableProfile).not.toHaveBeenCalled()
     expect(Taro.showToast).toHaveBeenCalledWith({ title: '请输入正确手机号', icon: 'none' })
+  })
+
+  it('disables avatar upload when not logged in', async () => {
+    ;(loadBootstrap as jest.Mock).mockResolvedValue(null)
+    render(<ProfileEditPage />)
+
+    expect(await screen.findByText('选择头像')).toBeDisabled()
   })
 })

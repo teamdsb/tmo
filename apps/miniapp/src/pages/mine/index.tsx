@@ -19,6 +19,7 @@ import { gatewayServices } from '../../services/gateway'
 import { commerceServices } from '../../services/commerce'
 import { clearBootstrap, loadBootstrap, saveBootstrap } from '../../services/bootstrap'
 import { identityServices } from '../../services/identity'
+import { loadEditableProfile } from '../../services/profile'
 import placeholderProductImage from '../../assets/images/placeholder-product.svg'
 import { runtimeEnv } from '../../config/runtime-env'
 import {
@@ -42,8 +43,10 @@ export default function PersonalCenter() {
   const [currentPage, setCurrentPage] = useState<MineSubview>('profile')
   const [initialOrderTab, setInitialOrderTab] = useState('全部')
   const [demands, setDemands] = useState<ProductRequest[]>([])
+  const [editableDisplayName, setEditableDisplayName] = useState('')
+  const [editableAvatarUrl, setEditableAvatarUrl] = useState('')
 
-  const avatarFallback = placeholderProductImage
+  const avatarFallback = editableAvatarUrl || placeholderProductImage
 
   const refreshOrderBadges = useCallback(async () => {
     try {
@@ -71,6 +74,9 @@ export default function PersonalCenter() {
 
   const refreshBootstrap = useCallback(async () => {
     const cached = await loadBootstrap()
+    const editableProfile = loadEditableProfile()
+    setEditableDisplayName(editableProfile?.displayName || '')
+    setEditableAvatarUrl(editableProfile?.avatarUrl || '')
     if (cached) {
       setBootstrap(cached)
     }
@@ -138,7 +144,7 @@ export default function PersonalCenter() {
   }, [currentPage, refreshDemands])
 
   const isLoggedIn = Boolean(bootstrap?.me)
-  const displayName = bootstrap?.me?.displayName?.trim() || (isLoggedIn ? '企业用户' : '未登录')
+  const displayName = editableDisplayName || bootstrap?.me?.displayName?.trim() || (isLoggedIn ? '企业用户' : '未登录')
   const currentRole = getCurrentRole(bootstrap)
   const roleLabel = currentRole || '高级 B2B 客户经理'
   const ownerSalesDisplayName = bootstrap?.me?.ownerSalesDisplayName?.trim() || '暂未分配专属顾问'
