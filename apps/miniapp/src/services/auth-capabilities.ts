@@ -10,6 +10,7 @@ export type MiniLoginPlatformCapabilities = {
 export type MiniLoginCapabilities = {
   loginMode: string
   weapp: MiniLoginPlatformCapabilities
+  alipay: MiniLoginPlatformCapabilities
 }
 
 export const fetchMiniLoginCapabilities = async (): Promise<MiniLoginCapabilities> => {

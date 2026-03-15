@@ -298,12 +298,6 @@ export default function PersonalCenter() {
             setInitialOrderTab(tab)
             setCurrentPage('orders')
           }}
-          onOpenChat={() => {
-            void navigateTo(ROUTES.support)
-          }}
-          onOpenSettings={() => {
-            void navigateTo(ROUTES.settings)
-          }}
           onMenuItemClick={(item) => {
             if (typeof item.action === 'function') {
               item.action()

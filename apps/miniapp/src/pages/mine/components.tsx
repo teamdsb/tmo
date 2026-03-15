@@ -11,8 +11,7 @@ import {
   Exchange,
   MoreOutlined,
   RecordsOutlined,
-  Revoke,
-  SettingOutlined
+  Revoke
 } from '@taroify/icons'
 import type { CreateProductRequest, ProductRequest } from '@tmo/api-client'
 import { orderTrackingRoute } from '../../routes'
@@ -492,8 +491,6 @@ type MineProfileViewProps = {
   currentRole: string
   switchingRole: string | null
   onOpenOrders: (tab: string) => void
-  onOpenChat: () => void
-  onOpenSettings: () => void
   onMenuItemClick: (item: MenuItem) => void
   onAuthAction: () => void
   onOpenAuth: () => void
@@ -552,8 +549,6 @@ export function MineProfileView({
   currentRole,
   switchingRole,
   onOpenOrders,
-  onOpenChat,
-  onOpenSettings,
   onMenuItemClick,
   onAuthAction,
   onOpenAuth,
@@ -575,7 +570,9 @@ export function MineProfileView({
 
   const handleHeroCta = () => {
     if (isLoggedIn) {
-      onOpenSettings()
+      if (settingsItem) {
+        onMenuItemClick(settingsItem)
+      }
       return
     }
     onOpenAuth()
@@ -584,26 +581,6 @@ export function MineProfileView({
   return (
     <View className='mine-modern-main mine-dashboard-main'>
       <View className='mine-modern-main-content mine-dashboard-content'>
-        <View className='mine-dashboard-topbar'>
-          <View
-            className='mine-dashboard-action flex h-10 w-10 items-center justify-center rounded-full'
-            onClick={isLoggedIn
-              ? settingsItem
-                ? () => onMenuItemClick(settingsItem)
-                : undefined
-              : onOpenAuth}
-          >
-            <SettingOutlined className='text-lg mine-dashboard-action-icon' />
-          </View>
-          <Text className='mine-dashboard-title text-base font-bold'>我的</Text>
-          <View
-            className='mine-dashboard-action flex h-10 w-10 items-center justify-center rounded-full'
-            onClick={isLoggedIn ? onOpenChat : onOpenAuth}
-          >
-            <ChatOutlined className='text-lg mine-dashboard-action-icon' />
-          </View>
-        </View>
-
         <View className='mine-hero-card'>
           <MineHeroDecoration isLoggedIn={isLoggedIn} avatarFallback={avatarFallback} welcomeCopy={heroWelcomeCopy} />
 

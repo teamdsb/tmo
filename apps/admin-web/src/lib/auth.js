@@ -62,6 +62,11 @@ export const logout = () => {
   goToLogin();
 };
 
+// 清理本地保存的登录状态，但不触发跳转。
+export const clearSavedSession = () => {
+  clearAllSessions();
+};
+
 // 兼容旧 mock 登录入口，构造最小会话结构。
 const buildLegacyMockSession = (username, role) => {
   const normalizedRole = String(role || 'ADMIN').trim().toUpperCase() || 'ADMIN';
@@ -235,6 +240,25 @@ export const isLoggedIn = () => {
     return Boolean(readMockSession());
   }
   return Boolean(getAccessToken());
+};
+
+// 供登录页展示当前缓存会话的基础信息。
+export const getStoredSessionSummary = () => {
+  const session = getCurrentSession();
+  if (!session) {
+    return null;
+  }
+
+  const displayProfile = getDisplayProfile();
+  const username = typeof session?.username === 'string' && session.username.trim()
+    ? session.username.trim()
+    : '';
+
+  return {
+    mode: session?.mode || (isDevMode ? 'dev' : 'mock'),
+    role: displayProfile?.role || '管理员',
+    username: username || displayProfile?.name || '管理员用户'
+  };
 };
 
 // 构造顶部栏需要的展示资料（昵称 + 角色名）。

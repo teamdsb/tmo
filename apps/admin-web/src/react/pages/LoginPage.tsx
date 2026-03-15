@@ -1,7 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { filterAllowedAdminWebRoles } from '../../lib/admin-role-policy';
-import { goToDashboard, isLoggedIn, loginDev, loginMock, refreshBootstrap } from '../../lib/auth';
+import {
+  clearSavedSession,
+  getStoredSessionSummary,
+  goToDashboard,
+  loginDev,
+  loginMock,
+  refreshBootstrap
+} from '../../lib/auth';
 import { isDevMode, isMockMode } from '../../lib/env';
 import { installZhLocalization } from '../../lib/i18n-zh';
 import { resolveMockAccount } from '../../lib/mock-accounts';
@@ -15,6 +22,12 @@ const ROLE_LABELS: Record<string, string> = {
 
 type PendingRoleSelection = {
   password: string;
+  username: string;
+};
+
+type StoredSessionSummary = {
+  mode: string;
+  role: string;
   username: string;
 };
 
@@ -39,51 +52,44 @@ export const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [roleChoices, setRoleChoices] = useState<string[]>([]);
   const [pendingRoleSelection, setPendingRoleSelection] = useState<PendingRoleSelection | null>(null);
+  const [storedSession, setStoredSession] = useState<StoredSessionSummary | null>(() => getStoredSessionSummary());
 
   useEffect(() => {
     installZhLocalization();
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const initSessionRedirect = async () => {
-      if (!isLoggedIn()) {
-        return;
-      }
-
-      setPending(true);
-
-      if (isDevMode) {
-        try {
-          await refreshBootstrap();
-          if (!cancelled) {
-            goToDashboard();
-          }
-          return;
-        } catch {
-          if (!cancelled) {
-            setPending(false);
-          }
-          return;
-        }
-      }
-
-      if (isMockMode && !cancelled) {
-        goToDashboard();
-      }
-    };
-
-    void initSessionRedirect();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const closeRoleModal = () => {
     setRoleChoices([]);
     setPendingRoleSelection(null);
+  };
+
+  const handleDiscardStoredSession = () => {
+    clearSavedSession();
+    setStoredSession(null);
+    setErrorMessage('');
+    closeRoleModal();
+  };
+
+  const handleResumeStoredSession = async () => {
+    if (!storedSession) {
+      return;
+    }
+
+    setPending(true);
+    setErrorMessage('');
+
+    try {
+      if (isDevMode) {
+        await refreshBootstrap();
+      }
+      goToDashboard();
+    } catch {
+      clearSavedSession();
+      setStoredSession(null);
+      setErrorMessage('当前登录状态已失效，请重新输入账号和密码。');
+    } finally {
+      setPending(false);
+    }
   };
 
   const attemptLogin = async (nextUsername: string, nextPassword: string, role?: string) => {
@@ -97,6 +103,7 @@ export const LoginPage = () => {
           throw new Error('invalid credentials');
         }
         loginMock(mockAccount);
+        setStoredSession(getStoredSessionSummary());
         closeRoleModal();
         goToDashboard();
         return;
@@ -116,6 +123,7 @@ export const LoginPage = () => {
       }
 
       await refreshBootstrap();
+      setStoredSession(getStoredSessionSummary());
       closeRoleModal();
       goToDashboard();
     } catch (error) {
@@ -204,6 +212,39 @@ export const LoginPage = () => {
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Welcome Back</h2>
               <p className="text-sm text-slate-500 dark:text-slate-400">Please sign in to access your dashboard</p>
             </div>
+
+            {storedSession ? (
+              <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
+                <p className="font-semibold">检测到本地登录会话</p>
+                <p className="mt-1">
+                  当前缓存账号为 <span className="font-semibold">{storedSession.username}</span>，角色为{' '}
+                  <span className="font-semibold">{storedSession.role}</span>。
+                </p>
+                <p className="mt-1 text-xs text-amber-800">
+                  为避免共享设备自动登录，系统不会直接进入后台，请选择继续当前会话或清除后重新登录。
+                </p>
+                <div className="mt-3 flex gap-3">
+                  <button
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70"
+                    disabled={pending}
+                    id="resume-session"
+                    onClick={() => void handleResumeStoredSession()}
+                    type="button"
+                  >
+                    继续当前会话
+                  </button>
+                  <button
+                    className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70"
+                    disabled={pending}
+                    id="discard-session"
+                    onClick={handleDiscardStoredSession}
+                    type="button"
+                  >
+                    清除并重新登录
+                  </button>
+                </div>
+              </div>
+            ) : null}
 
             <form id="login-form" action="#" className="flex flex-col gap-5" onSubmit={handleSubmit}>
               <div className="flex flex-col gap-1.5">

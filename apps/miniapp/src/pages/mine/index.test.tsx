@@ -221,23 +221,6 @@ describe('PersonalCenter', () => {
     })
   })
 
-  it('opens login page when tapping guest topbar settings button', async () => {
-    asMock(identityServices.tokens.getToken).mockResolvedValue(null)
-
-    await renderPersonalCenter()
-
-    const buttons = document.querySelectorAll('.mine-dashboard-action')
-    expect(buttons[0]).toBeTruthy()
-
-    fireEvent.click(buttons[0] as Element)
-
-    await waitFor(() => {
-      expect(Taro.navigateTo).toHaveBeenCalledWith({
-        url: '/pages/auth/login/index'
-      })
-    })
-  })
-
   it('shows logged-in hero CTA', async () => {
     await renderPersonalCenter()
 
