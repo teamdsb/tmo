@@ -15,6 +15,7 @@ export const ROUTES = {
   demandList: '/pages/demand/list/index',
   demandCreate: '/pages/demand/create/index',
   addressList: '/pages/account/address/index',
+  profileEdit: '/pages/profile/edit/index',
   import: '/pages/import/index',
   trackingBatch: '/pages/tracking/batch/index',
   settings: '/pages/settings/index',

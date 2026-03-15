@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View, Text, Button as NativeButton } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Switch from '@taroify/core/switch'
 import Arrow from '@taroify/icons/Arrow'
@@ -12,6 +12,7 @@ import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { clearBootstrap, loadBootstrap } from '../../services/bootstrap'
 import { applyMockLogin } from '../../services/mock-auth'
 import { resetIsolatedMockState } from '../../services/mock/runtime'
+import { loadEditableProfile } from '../../services/profile'
 import { runtimeEnv } from '../../config/runtime-env'
 import { getCurrentRole, isSalesUser } from '../../utils/authz'
 
@@ -87,6 +88,7 @@ export default function SettingsPage() {
   const navbarStyle = getNavbarStyle()
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS)
   const [bootstrap, setBootstrap] = useState<BootstrapResponse | null>(null)
+  const [profilePhone, setProfilePhone] = useState('')
   const [expandedPolicy, setExpandedPolicy] = useState<PolicySectionKey | null>(null)
   const [showEnvDetails, setShowEnvDetails] = useState(false)
   const [resettingMock, setResettingMock] = useState(false)
@@ -103,20 +105,20 @@ export default function SettingsPage() {
     Taro.setStorageSync(STORAGE_KEY, settings)
   }, [settings])
 
-  useEffect(() => {
-    let cancelled = false
-
-    void (async () => {
-      const cachedBootstrap = await loadBootstrap()
-      if (!cancelled) {
-        setBootstrap(cachedBootstrap)
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
+  const refreshAccountInfo = useCallback(async () => {
+    const cachedBootstrap = await loadBootstrap()
+    const editableProfile = loadEditableProfile()
+    setBootstrap(cachedBootstrap)
+    setProfilePhone(editableProfile?.phone || '')
   }, [])
+
+  useEffect(() => {
+    void refreshAccountInfo()
+  }, [refreshAccountInfo])
+
+  useDidShow(() => {
+    void refreshAccountInfo()
+  })
 
   const currentRole = useMemo(() => getCurrentRole(bootstrap), [bootstrap])
   const normalizedRoles = useMemo(() => {
@@ -133,6 +135,7 @@ export default function SettingsPage() {
   const isLoggedIn = Boolean(bootstrap?.me)
   const showSalesWorkbenchEntry = isLoggedIn && isSalesUser(bootstrap)
   const accountDisplayName = bootstrap?.me?.displayName?.trim() || '企业账号'
+  const accountPhone = profilePhone || '未设置'
   const modeLabel = runtimeEnv.isIsolatedMock ? 'Mock' : 'Real'
   const gatewayBaseUrl = runtimeEnv.gatewayBaseUrl || '离线模式'
   const environmentHint = runtimeEnv.isIsolatedMock
@@ -216,6 +219,10 @@ export default function SettingsPage() {
                 <Text className='mt-1 block text-sm text-slate-700'>{accountDisplayName}</Text>
               </View>
               <View className='px-1 py-2'>
+                <Text className='block text-xs text-slate-400'>手机号</Text>
+                <Text className='mt-1 block text-sm text-slate-700'>{accountPhone}</Text>
+              </View>
+              <View className='px-1 py-2'>
                 <Text className='block text-xs text-slate-400'>当前角色</Text>
                 <Text className='mt-1 block text-sm text-slate-700'>{currentRole || '未识别'}</Text>
               </View>
@@ -230,6 +237,9 @@ export default function SettingsPage() {
                   <LinkRow title='业务员页面' onClick={() => navigateTo(ROUTES.sales)} />
                 </View>
               ) : null}
+              <View className='mt-2 overflow-hidden rounded-2xl border border-slate-100'>
+                <LinkRow title='更改个人信息' onClick={() => navigateTo(ROUTES.profileEdit)} />
+              </View>
             </View>
           ) : (
             <View className='mt-3 flex items-center justify-between gap-4 rounded-2xl border border-slate-100 px-4 py-4'>

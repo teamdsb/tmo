@@ -7,6 +7,7 @@ const actualJsxRuntime = jest.requireActual('react/jsx-runtime')
 type BootstrapMock = {
   me?: {
     displayName?: string
+    userType?: string
     currentRole?: string
     roles?: string[]
   }
@@ -26,11 +27,13 @@ const loadSettingsPage = (
     | {
         SettingsPage: typeof import('./index').default
         applyMockLogin: jest.Mock
+        navigateTo: jest.Mock
       }
     | undefined
 
   jest.isolateModules(() => {
     const applyMockLogin = jest.fn(async () => {})
+    const navigateTo = jest.fn(async () => {})
     jest.doMock('react', () => actualReact)
     jest.doMock('react/jsx-runtime', () => actualJsxRuntime)
     jest.doMock('../../config/runtime-env', () => ({
@@ -47,13 +50,22 @@ const loadSettingsPage = (
       clearBootstrap: jest.fn(async () => {}),
       loadBootstrap: jest.fn(async () => bootstrap)
     }))
+    jest.doMock('../../services/profile', () => ({
+      loadEditableProfile: jest.fn(() => ({ displayName: '张三', phone: '13800138000' })),
+      saveEditableProfile: jest.fn()
+    }))
     jest.doMock('../../services/mock-auth', () => ({
       applyMockLogin
+    }))
+    jest.doMock('../../utils/navigation', () => ({
+      navigateTo,
+      switchTabLike: jest.fn(async () => {})
     }))
 
     moduleValue = {
       SettingsPage: require('./index').default,
-      applyMockLogin
+      applyMockLogin,
+      navigateTo
     }
   })
 
@@ -152,9 +164,11 @@ describe('SettingsPage', () => {
     const basicCard = screen.getByTestId('settings-basic-card')
 
     expect(within(accountCard).getByText('张三')).toBeInTheDocument()
+    expect(within(accountCard).getByText('13800138000')).toBeInTheDocument()
     expect(within(accountCard).getByText('SALES')).toBeInTheDocument()
     expect(within(accountCard).getByText('CUSTOMER / SALES')).toBeInTheDocument()
     expect(within(accountCard).getByText('业务员页面')).toBeInTheDocument()
+    expect(within(accountCard).getByText('更改个人信息')).toBeInTheDocument()
     expect(within(basicCard).queryByText('业务员页面')).toBeNull()
   })
 
@@ -168,8 +182,28 @@ describe('SettingsPage', () => {
 
     const accountCard = screen.getByTestId('settings-account-card')
     expect(within(accountCard).queryByText('业务员页面')).toBeNull()
+    expect(within(accountCard).queryByText('更改个人信息')).toBeNull()
     expect(screen.getByText('当前未登录')).toBeInTheDocument()
     expect(screen.getByText('去登录')).toBeInTheDocument()
+  })
+
+  it('navigates to profile edit page from account card', async () => {
+    const { SettingsPage, navigateTo } = loadSettingsPage(
+      {},
+      { me: { displayName: '张三', userType: 'customer', currentRole: 'CUSTOMER', roles: ['CUSTOMER'] } }
+    )
+    render(<SettingsPage />)
+
+    await act(async () => {
+      await flushPromises()
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('更改个人信息'))
+      await flushPromises()
+    })
+
+    expect(navigateTo).toHaveBeenCalledWith('/pages/profile/edit/index')
   })
 
   it('expands only one privacy section at a time', async () => {

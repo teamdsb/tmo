@@ -1,8 +1,17 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import Taro from '@tarojs/taro'
+import fs from 'node:fs'
+import path from 'node:path'
 
 jest.mock('../../../services/bootstrap', () => ({
-  loadBootstrap: jest.fn(async () => null)
+  loadBootstrap: jest.fn(async () => ({
+    me: {
+      userType: 'customer',
+      roles: ['CUSTOMER'],
+      currentRole: 'CUSTOMER',
+      displayName: '测试客户'
+    }
+  }))
 }))
 
 jest.mock('../../../utils/auth', () => ({
@@ -14,6 +23,11 @@ import { commerceServices } from '../../../services/commerce'
 import SupportChatPage from './index'
 
 const flushPromises = () => new Promise((resolve) => process.nextTick(resolve))
+
+const waitForConversationReady = async () => {
+  await screen.findByText('待接入客服')
+  await screen.findByText('客服通道已就绪，发送第一条消息开始沟通。')
+}
 
 describe('SupportChatPage', () => {
   const supportService = {
@@ -64,7 +78,9 @@ describe('SupportChatPage', () => {
   it('shows conversation status after initialization', async () => {
     render(<SupportChatPage />)
 
-    expect(await screen.findByText('待接入客服')).toBeInTheDocument()
+    await waitForConversationReady()
+
+    expect(screen.getByText('待接入客服')).toBeInTheDocument()
     expect(screen.getByText(/连接中/)).toBeInTheDocument()
     expect(screen.getByText('客服通道已就绪，发送第一条消息开始沟通。')).toBeInTheDocument()
   })
@@ -82,7 +98,7 @@ describe('SupportChatPage', () => {
       })
 
     const { container } = render(<SupportChatPage />)
-    await screen.findByText('待接入客服')
+    await waitForConversationReady()
 
     await act(async () => {
       fireEvent.change(screen.getByPlaceholderText('请输入您要咨询的内容...'), { target: { value: '重试消息' } })
@@ -117,7 +133,7 @@ describe('SupportChatPage', () => {
     ;(Taro.chooseImage as jest.Mock).mockResolvedValueOnce({ tempFilePaths: ['/tmp/support.png'] })
 
     const { container } = render(<SupportChatPage />)
-    await screen.findByText('待接入客服')
+    await waitForConversationReady()
 
     await act(async () => {
       fireEvent.click(container.querySelector('.support-chat__tool') as Element)
@@ -126,5 +142,15 @@ describe('SupportChatPage', () => {
 
     expect(await screen.findByText('图片发送失败')).toBeInTheDocument()
     expect(screen.getByText('重试')).toBeInTheDocument()
+  })
+
+  it('keeps composer visible above bottom safe area', () => {
+    const stylesheet = fs.readFileSync(path.resolve(__dirname, './index.scss'), 'utf8')
+
+    expect(stylesheet).toContain('.support-chat__composer')
+    expect(stylesheet).toContain('padding-bottom: calc(28px + env(safe-area-inset-bottom));')
+    expect(stylesheet).toContain('padding-bottom: calc(28px + constant(safe-area-inset-bottom));')
+    expect(stylesheet).toContain('.support-chat__messages')
+    expect(stylesheet).toContain('padding-bottom: calc(20px + env(safe-area-inset-bottom));')
   })
 })
