@@ -1,5 +1,6 @@
-import { Button as NativeButton, Image, Input, Text, View } from '@tarojs/components'
+import { Button as NativeButton, Image, Input, Text, Textarea, View } from '@tarojs/components'
 import { useMemo, useState } from 'react'
+import Taro from '@tarojs/taro'
 import {
   AddOutlined,
   AppsOutlined,
@@ -8,20 +9,18 @@ import {
   ChatOutlined,
   Description,
   Exchange,
-  Logistics,
   MoreOutlined,
   RecordsOutlined,
   Revoke,
-  SettingOutlined,
-  ShieldOutlined
+  SettingOutlined
 } from '@taroify/icons'
+import type { CreateProductRequest, ProductRequest } from '@tmo/api-client'
 import { orderTrackingRoute } from '../../routes'
 import { navigateTo } from '../../utils/navigation'
 import type {
   IconComponent,
   MenuItem,
   MockAddress,
-  MockDemand,
   MockOrder,
   OrderItem
 } from './types'
@@ -219,25 +218,174 @@ export function AddressView({ addresses, onBack }: AddressViewProps) {
 }
 
 type DemandViewProps = {
-  demands: MockDemand[]
+  demands: ProductRequest[]
   onBack: () => void
+  onCreateDemand: (payload: CreateProductRequest) => Promise<void>
 }
 
-export function DemandView({ demands, onBack }: DemandViewProps) {
+const formatDemandDate = (value?: string) => {
+  if (!value) {
+    return '刚刚创建'
+  }
+
+  const timestamp = Date.parse(value)
+  if (Number.isNaN(timestamp)) {
+    return value
+  }
+
+  return new Date(timestamp).toLocaleDateString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit'
+  })
+}
+
+export function DemandView({ demands, onBack, onCreateDemand }: DemandViewProps) {
+  const [composerOpen, setComposerOpen] = useState(false)
+  const [name, setName] = useState('')
+  const [qty, setQty] = useState('')
+  const [note, setNote] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const closeComposer = () => {
+    if (submitting) {
+      return
+    }
+    setComposerOpen(false)
+  }
+
+  const resetComposer = () => {
+    setName('')
+    setQty('')
+    setNote('')
+  }
+
+  const handleSubmit = async () => {
+    const trimmedName = name.trim()
+    const trimmedQty = qty.trim()
+    const trimmedNote = note.trim()
+
+    if (!trimmedName) {
+      await Taro.showToast({ title: '请输入产品名称', icon: 'none' })
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      await onCreateDemand({
+        name: trimmedName,
+        qty: trimmedQty || undefined,
+        note: trimmedNote || undefined
+      })
+      resetComposer()
+      setComposerOpen(false)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <View className='mine-modern-subview'>
       <SubviewHeader title='我的需求' onBack={onBack} />
       <View className='mine-modern-subview-scroll no-scrollbar'>
-        {demands.map((demand) => (
-          <View key={demand.id} className='mine-modern-card mb-3 rounded-2xl p-4'>
-            <View className='mb-2 flex items-start justify-between gap-2'>
-              <Text className='flex-1 text-sm font-bold mine-modern-text'>{demand.title}</Text>
-              <Text className='text-10 font-bold mine-modern-primary'>{demand.status}</Text>
-            </View>
-            <Text className='text-xs mine-modern-subtle'>数量: {demand.count} | 交期: {demand.date}</Text>
+        <View className='mine-demand-toolbar mb-4 flex items-center justify-between gap-3'>
+          <View className='min-w-0 flex-1'>
+            <Text className='mine-demand-toolbar-title block text-base font-bold mine-modern-text'>需求池</Text>
+            <Text className='mine-demand-toolbar-copy mt-1 block text-xs mine-modern-subtle'>
+              缺规格、缺 SKU 或需代采时，可直接在这里补充新需求。
+            </Text>
           </View>
-        ))}
+          <NativeButton
+            className='mine-demand-create-btn flex items-center justify-center rounded-full'
+            onClick={() => setComposerOpen(true)}
+          >
+            <Text className='text-sm font-bold text-white'>新增需求</Text>
+          </NativeButton>
+        </View>
+
+        {demands.length > 0 ? demands.map((demand) => (
+          <View key={demand.id} className='mine-modern-card mine-demand-card mb-3 rounded-2xl p-4'>
+            <View className='mb-2 flex items-start justify-between gap-3'>
+              <View className='min-w-0 flex-1'>
+                <Text className='block text-sm font-bold mine-modern-text'>{demand.name}</Text>
+                <Text className='mt-1 block text-xs mine-modern-subtle'>创建于 {formatDemandDate(demand.createdAt)}</Text>
+              </View>
+              <View className='mine-demand-status-pill'>
+                <Text className='text-10 font-bold mine-modern-primary'>已提交</Text>
+              </View>
+            </View>
+            <Text className='text-xs mine-modern-subtle'>数量: {demand.qty?.trim() || '待确认'}</Text>
+            {demand.note?.trim() ? (
+              <Text className='mine-demand-note mt-2 block text-xs mine-modern-muted'>{demand.note.trim()}</Text>
+            ) : null}
+          </View>
+        )) : (
+          <View className='mine-demand-empty rounded-3xl p-6 text-center'>
+            <Description className='mine-demand-empty-icon text-2xl' />
+            <Text className='mine-demand-empty-title mt-3 block text-sm font-semibold'>还没有需求记录</Text>
+            <Text className='mine-demand-empty-copy mt-1 block text-xs'>点击右上角新增需求，先把要找的商品告诉我们。</Text>
+          </View>
+        )}
       </View>
+
+      {composerOpen ? (
+        <View className='mine-demand-popup' onClick={closeComposer}>
+          <View className='mine-demand-popup-panel' onClick={(event) => event.stopPropagation()}>
+            <View className='mine-demand-popup-handle'></View>
+            <View className='mine-demand-popup-head flex items-start justify-between gap-4'>
+              <View className='min-w-0 flex-1'>
+                <Text className='block text-lg font-bold mine-modern-text'>新增需求</Text>
+                <Text className='mine-demand-popup-copy mt-2 block text-sm mine-modern-subtle'>
+                  先填写核心信息，后续由顾问继续补齐规格、图片和交期。
+                </Text>
+              </View>
+              <View className='mine-demand-popup-badge'>
+                <Text className='text-10 font-bold mine-modern-primary'>速填</Text>
+              </View>
+            </View>
+
+            <View className='mine-demand-form mt-5 flex flex-col gap-3'>
+              <View className='mine-demand-field'>
+                <Text className='mine-demand-field-label mb-2 block text-xs font-semibold mine-modern-subtle'>产品名称</Text>
+                <Input
+                  value={name}
+                  className='mine-demand-field-input'
+                  placeholder='例如：工业级轴承 / 定制办公椅'
+                  onInput={(event) => setName(event.detail.value)}
+                />
+              </View>
+
+              <View className='mine-demand-field'>
+                <Text className='mine-demand-field-label mb-2 block text-xs font-semibold mine-modern-subtle'>需求数量</Text>
+                <Input
+                  value={qty}
+                  className='mine-demand-field-input'
+                  placeholder='例如：200 件 / 10 箱'
+                  onInput={(event) => setQty(event.detail.value)}
+                />
+              </View>
+
+              <View className='mine-demand-field'>
+                <Text className='mine-demand-field-label mb-2 block text-xs font-semibold mine-modern-subtle'>补充说明</Text>
+                <Textarea
+                  value={note}
+                  className='mine-demand-field-textarea'
+                  placeholder='补充规格、材质、品牌倾向或交期要求'
+                  onInput={(event) => setNote(event.detail.value)}
+                />
+              </View>
+            </View>
+
+            <View className='mine-demand-popup-actions mt-5 flex gap-3'>
+              <NativeButton className='mine-demand-secondary-btn flex-1 rounded-2xl' onClick={closeComposer}>
+                <Text className='text-sm font-semibold mine-modern-muted'>取消</Text>
+              </NativeButton>
+              <NativeButton className='mine-demand-primary-btn flex-1 rounded-2xl' onClick={() => void handleSubmit()}>
+                <Text className='text-sm font-bold text-white'>{submitting ? '提交中...' : '提交需求'}</Text>
+              </NativeButton>
+            </View>
+          </View>
+        </View>
+      ) : null}
     </View>
   )
 }
@@ -333,7 +481,6 @@ export function OrderManagementView({ orders, initialTab, onBack }: OrderManagem
 
 type MineProfileViewProps = {
   avatarFallback: string
-  advisorFollowUpCopy: string
   displayName: string
   isLoggedIn: boolean
   roleLabel: string
@@ -394,7 +541,6 @@ function MineHeroDecoration({
 
 export function MineProfileView({
   avatarFallback,
-  advisorFollowUpCopy,
   displayName,
   isLoggedIn,
   roleLabel,
@@ -414,7 +560,6 @@ export function MineProfileView({
   onSwitchRole
 }: MineProfileViewProps) {
   const settingsItem = menuItems.find((item) => item.key === 'settings')
-  const supportItem = menuItems.find((item) => item.key === 'support')
   const priorityMenuItems = menuItems.filter((item) => ['demand', 'favorites', 'support'].includes(item.key))
   const extendedMenuItems = menuItems.filter((item) => !['demand', 'favorites', 'support'].includes(item.key))
   const guestMenuItems = menuItems.filter((item) => item.key === 'support' || item.key === 'settings')

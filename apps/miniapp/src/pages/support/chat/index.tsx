@@ -689,7 +689,11 @@ export default function SupportChatPage() {
                       src={message.asset.url}
                       mode='aspectFill'
                       onClick={() => {
-                        void Taro.previewImage({ current: message.asset?.url, urls: [message.asset.url] })
+                        const imageUrl = message.asset?.url
+                        if (!imageUrl) {
+                          return
+                        }
+                        void Taro.previewImage({ current: imageUrl, urls: [imageUrl] })
                       }}
                     />
                   ) : null}

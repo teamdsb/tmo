@@ -656,6 +656,135 @@ export const createMockCommerceServices = (): CommerceServices => {
     }
   }
 
+  const support: CommerceServices['support'] = {
+    getCurrentConversation: async () => ({
+      id: 'mock-support-conversation',
+      customerUserId: 'mock_customer_001',
+      customerDisplayName: '张三',
+      ownerSalesUserId: 'mock_sales_001',
+      status: 'OPEN',
+      lastMessageType: 'TEXT',
+      lastMessagePreview: '您好，请问有什么可以帮您？',
+      lastMessageAt: nowIso(),
+      customerUnreadCount: 0,
+      staffUnreadCount: 0,
+      createdAt: nowIso(),
+      updatedAt: nowIso()
+    }),
+    listMessages: async () => ({
+      items: [],
+      page: 1,
+      pageSize: 20,
+      total: 0
+    }),
+    sendMessage: async (conversationId, payload) => ({
+      id: `mock-support-message-${Date.now().toString(36)}`,
+      conversationId,
+      senderType: payload.messageType === 'TEXT' ? 'CUSTOMER' : 'SYSTEM',
+      messageType: payload.messageType ?? 'TEXT',
+      textContent: payload.text,
+      createdAt: nowIso()
+    }),
+    uploadImage: async () => ({
+      id: `mock-support-asset-${Date.now().toString(36)}`,
+      contentType: 'image/png',
+      fileName: 'mock-image.png',
+      fileSize: 0,
+      url: 'mock://support/mock-image.png',
+      createdAt: nowIso()
+    }),
+    markRead: async () => ({
+      id: 'mock-support-conversation',
+      customerUserId: 'mock_customer_001',
+      customerDisplayName: '张三',
+      ownerSalesUserId: 'mock_sales_001',
+      status: 'OPEN',
+      lastMessageType: 'TEXT',
+      lastMessagePreview: '已读',
+      lastMessageAt: nowIso(),
+      customerUnreadCount: 0,
+      staffUnreadCount: 0,
+      createdAt: nowIso(),
+      updatedAt: nowIso()
+    }),
+    listAdminConversations: async () => ({
+      items: [],
+      page: 1,
+      pageSize: 20,
+      total: 0
+    }),
+    getAdminConversation: async () => ({
+      conversation: {
+        id: 'mock-support-conversation',
+        customerUserId: 'mock_customer_001',
+        customerDisplayName: '张三',
+        ownerSalesUserId: 'mock_sales_001',
+        status: 'OPEN',
+        lastMessageType: 'TEXT',
+        lastMessagePreview: '您好，请问有什么可以帮您？',
+        lastMessageAt: nowIso(),
+        customerUnreadCount: 0,
+        staffUnreadCount: 0,
+        createdAt: nowIso(),
+        updatedAt: nowIso()
+      },
+      messages: [],
+      context: {
+        customerUserId: 'mock_customer_001',
+        ownerSalesUserId: 'mock_sales_001',
+        recentOrders: [],
+        recentInquiries: [],
+        recentTickets: []
+      }
+    }),
+    claimConversation: async () => ({
+      id: 'mock-support-conversation',
+      customerUserId: 'mock_customer_001',
+      customerDisplayName: '张三',
+      ownerSalesUserId: 'mock_sales_001',
+      assigneeUserId: 'mock_sales_001',
+      assigneeRole: 'SALES',
+      status: 'OPEN',
+      lastMessageType: 'TEXT',
+      lastMessagePreview: '您好，请问有什么可以帮您？',
+      lastMessageAt: nowIso(),
+      customerUnreadCount: 0,
+      staffUnreadCount: 0,
+      createdAt: nowIso(),
+      updatedAt: nowIso()
+    }),
+    releaseConversation: async () => ({
+      id: 'mock-support-conversation',
+      customerUserId: 'mock_customer_001',
+      customerDisplayName: '张三',
+      ownerSalesUserId: 'mock_sales_001',
+      status: 'OPEN',
+      lastMessageType: 'TEXT',
+      lastMessagePreview: '您好，请问有什么可以帮您？',
+      lastMessageAt: nowIso(),
+      customerUnreadCount: 0,
+      staffUnreadCount: 0,
+      createdAt: nowIso(),
+      updatedAt: nowIso()
+    }),
+    transferConversation: async () => ({
+      id: 'mock-support-conversation',
+      customerUserId: 'mock_customer_001',
+      customerDisplayName: '张三',
+      ownerSalesUserId: 'mock_sales_001',
+      assigneeUserId: 'mock_sales_001',
+      assigneeRole: 'SALES',
+      status: 'OPEN',
+      lastMessageType: 'TEXT',
+      lastMessagePreview: '会话已转交',
+      lastMessageAt: nowIso(),
+      customerUnreadCount: 0,
+      staffUnreadCount: 0,
+      createdAt: nowIso(),
+      updatedAt: nowIso()
+    })
+  }
+
   const afterSales: CommerceServices['afterSales'] = {
     listTickets: async (params) => {
       const state = await loadIsolatedMockState()
@@ -860,6 +989,7 @@ export const createMockCommerceServices = (): CommerceServices => {
     tracking,
     wishlist,
     productRequests,
+    support,
     afterSales,
     inquiries,
     files,

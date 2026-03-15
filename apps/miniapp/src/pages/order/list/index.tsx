@@ -70,7 +70,7 @@ export default function OrderHistoryApp() {
               <Cell.Group inset>
                 {filteredOrders.map((order) => (
                   <Cell key={order.id} bordered={false}>
-                    <Flex justify='space-between' align='center'>
+                    <Flex justify='between' align='center'>
                       <View>
                         <Text className='order-id'>{order.id}</Text>
                         <Text className='order-date'>{formatDate(order.createdAt)}</Text>
@@ -84,7 +84,7 @@ export default function OrderHistoryApp() {
                       <Text>{order.items[0]?.sku.name ?? '订单商品'}</Text>
                     </View>
 
-                    <Flex justify='space-between' align='center'>
+                    <Flex justify='between' align='center'>
                       <Text className='order-meta'>{orderItemCount(order)} 件</Text>
                       <View className='order-price'>
                         <Text className='order-label'>合计</Text>

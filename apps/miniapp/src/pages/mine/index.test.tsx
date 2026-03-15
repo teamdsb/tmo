@@ -28,6 +28,20 @@ describe('PersonalCenter', () => {
         roles: ['CUSTOMER']
       }
     }))
+    asMock(commerceServices.productRequests.list).mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 20,
+      total: 0
+    })
+    asMock(commerceServices.productRequests.create).mockResolvedValue({
+      id: 'pr-created',
+      createdByUserId: 'u-1',
+      createdAt: '2026-03-15T08:00:00Z',
+      name: '工业轴承',
+      qty: '200 件',
+      note: '耐高温'
+    })
     asMock(identityServices.auth.switchRole).mockResolvedValue({
       accessToken: 'switched-token',
       expiresIn: 3600,
@@ -244,6 +258,56 @@ describe('PersonalCenter', () => {
     fireEvent.click(screen.getByText('查看全部'))
 
     expect(await screen.findByText('订单列表')).toBeInTheDocument()
+  })
+
+  it('opens demand composer from mine demand subview', async () => {
+    await renderPersonalCenter()
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('我的需求'))
+      await flushPromises()
+    })
+
+    expect(await screen.findByText('需求池')).toBeInTheDocument()
+    expect(screen.getByText('新增需求')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('新增需求'))
+
+    expect(await screen.findByText('速填')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('例如：工业级轴承 / 定制办公椅')).toBeInTheDocument()
+  })
+
+  it('creates a demand from mine demand popup', async () => {
+    await renderPersonalCenter()
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('我的需求'))
+      await flushPromises()
+    })
+
+    fireEvent.click(screen.getByText('新增需求'))
+
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText('例如：工业级轴承 / 定制办公椅'), {
+        target: { value: '工业轴承' }
+      })
+      fireEvent.change(screen.getByPlaceholderText('例如：200 件 / 10 箱'), {
+        target: { value: '200 件' }
+      })
+      fireEvent.change(screen.getByPlaceholderText('补充规格、材质、品牌倾向或交期要求'), {
+        target: { value: '耐高温' }
+      })
+      fireEvent.click(screen.getByText('提交需求'))
+      await flushPromises()
+    })
+
+    expect(commerceServices.productRequests.create).toHaveBeenCalledWith({
+      name: '工业轴承',
+      qty: '200 件',
+      note: '耐高温'
+    })
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '已提交需求', icon: 'success' })
+    expect(await screen.findByText('工业轴承')).toBeInTheDocument()
   })
 
   it('filters orders by selected tracking status', async () => {

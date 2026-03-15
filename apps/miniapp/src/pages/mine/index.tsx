@@ -8,6 +8,7 @@ import {
   OrdersOutlined,
   TodoList
 } from '@taroify/icons'
+import type { CreateProductRequest, ProductRequest } from '@tmo/api-client'
 import type { BootstrapResponse } from '@tmo/gateway-api-client'
 import { ROUTES } from '../../routes'
 import { clearAuthSession, hasAuthToken, isUnauthorized } from '../../utils/auth'
@@ -22,7 +23,6 @@ import placeholderProductImage from '../../assets/images/placeholder-product.svg
 import { runtimeEnv } from '../../config/runtime-env'
 import {
   INITIAL_ADDRESSES_DATA,
-  INITIAL_DEMANDS_DATA,
   INITIAL_ORDERS_DATA,
   PENDING_ORDER_STATUSES,
   createMineMenuItems,
@@ -41,6 +41,7 @@ export default function PersonalCenter() {
   const [switchingRole, setSwitchingRole] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState<MineSubview>('profile')
   const [initialOrderTab, setInitialOrderTab] = useState('全部')
+  const [demands, setDemands] = useState<ProductRequest[]>([])
 
   const avatarFallback = placeholderProductImage
 
@@ -114,6 +115,28 @@ export default function PersonalCenter() {
     void refreshOrderBadges()
   }, [bootstrap?.me?.id, refreshOrderBadges])
 
+  const refreshDemands = useCallback(async () => {
+    if (!bootstrap?.me?.id) {
+      setDemands([])
+      return
+    }
+
+    try {
+      const response = await commerceServices.productRequests.list({ page: 1, pageSize: 20 })
+      setDemands(response.items ?? [])
+    } catch (error) {
+      console.warn('demand list refresh failed', error)
+      await Taro.showToast({ title: '加载需求失败', icon: 'none' })
+    }
+  }, [bootstrap?.me?.id])
+
+  useEffect(() => {
+    if (currentPage !== 'demand') {
+      return
+    }
+    void refreshDemands()
+  }, [currentPage, refreshDemands])
+
   const isLoggedIn = Boolean(bootstrap?.me)
   const displayName = bootstrap?.me?.displayName?.trim() || (isLoggedIn ? '企业用户' : '未登录')
   const currentRole = getCurrentRole(bootstrap)
@@ -134,9 +157,6 @@ export default function PersonalCenter() {
         .filter((role) => role === 'CUSTOMER' || role === 'SALES')
     ))
   }, [bootstrap?.me?.roles])
-  const advisorFollowUpCopy = isLoggedIn
-    ? '下单后由专属顾问继续报价、确认货源与同步发货进度。'
-    : '登录后可绑定专属顾问，后续订单统一由固定联系人跟进。'
 
   const orderItems: OrderItem[] = [
     {
@@ -231,6 +251,12 @@ export default function PersonalCenter() {
     }
   }
 
+  const handleCreateDemand = useCallback(async (payload: CreateProductRequest) => {
+    const created = await commerceServices.productRequests.create(payload)
+    setDemands((current) => [created, ...current.filter((item) => item.id !== created.id)])
+    await Taro.showToast({ title: '已提交需求', icon: 'success' })
+  }, [])
+
   return (
     <View className='page font-sans mine-modern' style={isH5 ? navbarStyle : undefined}>
       {isH5 ? <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'></Navbar> : null}
@@ -248,13 +274,16 @@ export default function PersonalCenter() {
       ) : null}
 
       {currentPage === 'demand' ? (
-        <DemandView demands={INITIAL_DEMANDS_DATA} onBack={() => setCurrentPage('profile')} />
+        <DemandView
+          demands={demands}
+          onBack={() => setCurrentPage('profile')}
+          onCreateDemand={handleCreateDemand}
+        />
       ) : null}
 
       {currentPage === 'profile' ? (
         <MineProfileView
           avatarFallback={avatarFallback}
-          advisorFollowUpCopy={advisorFollowUpCopy}
           displayName={displayName}
           isLoggedIn={isLoggedIn}
           roleLabel={roleLabel}
