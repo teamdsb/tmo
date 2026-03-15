@@ -1757,6 +1757,12 @@
   color: #0f172a;
 }
 
+.sales-dashboard-qr-image {
+  width: 136px;
+  height: 136px;
+  display: block;
+}
+
 .sales-dashboard-card-title {
   margin-top: 20px;
   font-size: 34rpx;
@@ -1769,6 +1775,33 @@
   font-size: 26rpx;
   font-weight: 600;
   color: #7b8794;
+  line-height: 1.5;
+}
+
+.sales-dashboard-card-meta {
+  margin-top: 10px;
+  font-size: 22rpx;
+  color: #64748b;
+}
+
+.sales-dashboard-card-error {
+  margin-top: 10px;
+  font-size: 22rpx;
+  color: #dc2626;
+}
+
+.sales-dashboard-card-action {
+  margin-top: 16px;
+  min-width: 180rpx;
+  padding: 14rpx 28rpx;
+  border-radius: 999px;
+  background: #0f172a;
+}
+
+.sales-dashboard-card-action-text {
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: 700;
 }
 
 .sales-global-header {

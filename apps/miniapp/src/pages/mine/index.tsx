@@ -12,7 +12,7 @@ import type { CreateProductRequest, ProductRequest } from '@tmo/api-client'
 import type { BootstrapResponse } from '@tmo/gateway-api-client'
 import { ROUTES } from '../../routes'
 import { clearAuthSession, hasAuthToken, isUnauthorized } from '../../utils/auth'
-import { getCurrentRole } from '../../utils/authz'
+import { getCurrentRole, isSalesUser } from '../../utils/authz'
 import { getNavbarStyle } from '../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { gatewayServices } from '../../services/gateway'
@@ -214,8 +214,8 @@ export default function PersonalCenter() {
           setInitialOrderTab('待收货')
         }
         setCurrentPage(page)
-      }),
-    []
+      }, isSalesUser(bootstrap)),
+    [bootstrap]
   )
 
   const handleLogout = async () => {

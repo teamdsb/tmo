@@ -1,5 +1,6 @@
-import { type CSSProperties, useState } from 'react'
+import { type CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import { Text, View } from '@tarojs/components'
+import { useDidShow } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import { navItems } from './data'
 import type { SalesTab } from './types'
@@ -7,13 +8,67 @@ import { AccountingView, CustomersView, DashboardView, OrdersView } from './view
 import { ROUTES } from '../../routes'
 import { switchTabLike } from '../../utils/navigation'
 import { getNavbarStyle, getNavbarTotalHeight } from '../../utils/navbar'
+import { loadBootstrap } from '../../services/bootstrap'
+import { gatewayServices } from '../../services/gateway'
+import { identityServices } from '../../services/identity'
+import { getCurrentRole } from '../../utils/authz'
+
+type SalesQrCode = Awaited<ReturnType<typeof identityServices.me.getSalesQrCode>>
 
 export default function SalesPage() {
   const [activeTab, setActiveTab] = useState<SalesTab>('dashboard')
+  const [salesQrCode, setSalesQrCode] = useState<SalesQrCode | null>(null)
+  const [salesName, setSalesName] = useState('业务员')
+  const [salesRole, setSalesRole] = useState('客户经理')
+  const [qrLoading, setQrLoading] = useState(false)
+  const [qrError, setQrError] = useState('')
   const isH5 = process.env.TARO_ENV === 'h5'
   const navbarStyle = getNavbarStyle()
   const pageStyle = navbarStyle as CSSProperties
   const navbarSpacerStyle = { height: `${getNavbarTotalHeight()}px` } as CSSProperties
+  const qrPlatformLabel = useMemo(() => {
+    const platform = String(salesQrCode?.platform || 'weapp').trim().toLowerCase()
+    return platform === 'alipay' ? '支付宝' : '微信'
+  }, [salesQrCode?.platform])
+
+  const refreshSalesContext = useCallback(async () => {
+    let cachedBootstrap = await loadBootstrap()
+    try {
+      const freshBootstrap = await gatewayServices.bootstrap.get()
+      cachedBootstrap = freshBootstrap
+    } catch (error) {
+      console.warn('refresh sales bootstrap failed', error)
+    }
+    const nextSalesName = cachedBootstrap?.me?.displayName?.trim() || '业务员'
+    const nextSalesRole = getCurrentRole(cachedBootstrap) || '客户经理'
+    setSalesName(nextSalesName)
+    setSalesRole(nextSalesRole)
+  }, [])
+
+  const refreshSalesQrCode = useCallback(async () => {
+    setQrLoading(true)
+    setQrError('')
+    try {
+      const nextQr = await identityServices.me.getSalesQrCode()
+      setSalesQrCode(nextQr)
+    } catch (error) {
+      console.warn('load sales qr failed', error)
+      setSalesQrCode(null)
+      setQrError('二维码生成失败，请确认当前账号为业务员并稍后重试。')
+    } finally {
+      setQrLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshSalesContext()
+    void refreshSalesQrCode()
+  }, [refreshSalesContext, refreshSalesQrCode])
+
+  useDidShow(() => {
+    void refreshSalesContext()
+    void refreshSalesQrCode()
+  })
 
   return (
     <View className='sales-page-shell sales-font w-full text-slate-900' style={pageStyle}>
@@ -33,7 +88,18 @@ export default function SalesPage() {
           </View>
         </View>
         <View className='sales-main-content min-h-0 flex-1'>
-          {activeTab === 'dashboard' ? <DashboardView /> : null}
+          {activeTab === 'dashboard' ? (
+            <DashboardView
+              qrCodeUrl={salesQrCode?.qrCodeUrl || ''}
+              qrError={qrError}
+              qrLoading={qrLoading}
+              qrPlatformLabel={qrPlatformLabel}
+              qrScene={salesQrCode?.scene || ''}
+              salesName={salesName}
+              salesRole={salesRole}
+              onRefreshQr={() => void refreshSalesQrCode()}
+            />
+          ) : null}
           {activeTab === 'customers' ? <CustomersView /> : null}
           {activeTab === 'orders' ? <OrdersView /> : null}
           {activeTab === 'accounting' ? <AccountingView /> : null}

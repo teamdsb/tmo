@@ -22,13 +22,13 @@ const (
 	defaultWeappSessionURL             = "https://api.weixin.qq.com/sns/jscode2session"
 	defaultWeappQRCodeURL              = "https://api.weixin.qq.com/wxa/getwxacodeunlimit"
 	defaultWeappPhoneURL               = "https://api.weixin.qq.com/wxa/business/getuserphonenumber"
-	defaultWeappSalesPage              = "pages/index/index"
+	defaultWeappSalesPage              = "pages/auth/login/index"
 	defaultWeappQRWidth                = 256
 	defaultPhoneProofSimulationEnabled = false
 	defaultPhoneProofSimulationPhone   = "+15550009999"
 	defaultAlipayGatewayURL            = "https://openapi.alipay.com/gateway.do"
 	defaultAlipaySignType              = "RSA2"
-	defaultAlipaySalesPage             = "pages/index/index"
+	defaultAlipaySalesPage             = "pages/auth/login/index"
 	defaultAlipayPhoneFallbackAuthUser = true
 	defaultEnableDebugRoleSwitch       = false
 )

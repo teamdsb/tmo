@@ -152,5 +152,8 @@ describe('SupportChatPage', () => {
     expect(stylesheet).toContain('padding-bottom: calc(28px + constant(safe-area-inset-bottom));')
     expect(stylesheet).toContain('.support-chat__messages')
     expect(stylesheet).toContain('padding-bottom: calc(20px + env(safe-area-inset-bottom));')
+    expect(stylesheet).toContain('.support-chat__row--customer')
+    expect(stylesheet).toContain('margin-left: auto;')
+    expect(stylesheet).toContain('overflow-wrap: anywhere;')
   })
 })

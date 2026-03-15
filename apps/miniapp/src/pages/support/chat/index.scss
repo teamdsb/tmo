@@ -77,6 +77,8 @@
 
 .support-chat__row {
   display: flex;
+  width: 100%;
+  box-sizing: border-box;
   margin-bottom: 22px;
 }
 
@@ -93,16 +95,20 @@
 }
 
 .support-chat__bubble {
+  width: fit-content;
   max-width: 82%;
+  min-width: 112px;
   padding: 20px 22px;
   border-radius: 28px;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+  box-sizing: border-box;
 }
 
 .support-chat__bubble--customer {
   background: linear-gradient(135deg, #137fec 0%, #0f6ad0 100%);
   color: #ffffff;
   border-bottom-right-radius: 10px;
+  margin-left: auto;
 }
 
 .support-chat__bubble--staff {
@@ -124,6 +130,8 @@
   display: block;
   font-size: 30px;
   line-height: 1.55;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .support-chat__meta {

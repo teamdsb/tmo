@@ -143,6 +143,22 @@ describe('PersonalCenter', () => {
     expect(Taro.showToast).toHaveBeenCalledWith({ title: '角色已切换', icon: 'none' })
   })
 
+  it('shows sales workbench entry when sales role is available', async () => {
+    asMock(gatewayServices.bootstrap.get).mockResolvedValueOnce({
+      me: {
+        displayName: '张三',
+        ownerSalesDisplayName: '李经理',
+        currentRole: 'SALES',
+        roles: ['CUSTOMER', 'SALES'],
+        userType: 'staff'
+      }
+    })
+
+    await renderPersonalCenter()
+
+    expect(await screen.findByText('业务员工作台')).toBeInTheDocument()
+  })
+
   it('hides manager card when not logged in', async () => {
     asMock(gatewayServices.bootstrap.get).mockImplementation(async () => ({
       me: undefined
