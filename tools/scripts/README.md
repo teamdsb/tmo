@@ -27,6 +27,9 @@ Bootstrap and local dev scripts.
 - `miniapp-smoke.sh`: run multi-route WeChat automator smoke on `apps/miniapp` (`MINIAPP_SMOKE_STACK_UP=true` to auto start backend stack; `WEAPP_SMOKE_PREFLIGHT=true` to run preflight gate first; supports `WEAPP_SMOKE_ASSERT_*` assertion thresholds, default all minimum-count thresholds to `0` to focus on endpoint health first).
 - `miniapp-customer-evidence.sh`: verify CUSTOMER auto-provision evidence for a phone/provider pair by combining admin `/admin/customers` query and identity DB checks.
 - `support-history-backfill.sh`: migrate legacy `price_inquiries` and `inquiry_messages` into `support_conversations` / `support_messages` so admin-web and miniapp support chat can share historical records.
+- `prod-ecs-up.sh`: start the ECS-targeted production backend stack, apply migrations, and optionally build the admin-web static site (`DEPLOY_ADMIN_WEB=false` to skip the frontend build).
+- `prod-ecs-admin-web-build.sh`: build `apps/admin-web` in real/dev mode for production and sync the generated static assets to `ADMIN_WEB_DIST_DIR` (default `/var/www/tmo-admin`).
+- `prod-ecs-smoke.sh`: smoke-check ECS-targeted health/ready/business endpoints; set `ADMIN_WEB_BASE_URL` to include the admin-web site in the checks.
 - Preflight result file: `apps/miniapp/.logs/preflight/result.json` (machine-readable status for CI and local diagnosis).
 - Automator result file: `apps/miniapp/.logs/weapp/run.json` (machine-readable run summary, first failure, and assertion stats).
 - Troubleshooting runbook: `docs/runbooks/miniapp-white-screen-gate.md`.

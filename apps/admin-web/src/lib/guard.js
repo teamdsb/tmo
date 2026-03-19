@@ -1,4 +1,4 @@
-import { isDevMode, isMockMode } from './env';
+import { isDevMode, isMockMode, routes } from './env';
 import { hasAllowedAdminWebRole } from './admin-role-policy';
 import {
   getCurrentSession,
@@ -119,13 +119,13 @@ export const ensureProtectedPage = async () => {
 
   const permissionMap = normalizePermissionMap(latestSession?.permissions);
   if (isDevMode && !canAccessPath(window.location.pathname, permissionMap)) {
-    window.location.href = '/dashboard.html';
+    window.location.href = routes.dashboard;
     return null;
   }
   if (isMockMode) {
     if (hasPermissionItems(latestSession)) {
       if (!canAccessPath(window.location.pathname, permissionMap)) {
-        window.location.href = '/dashboard.html';
+        window.location.href = routes.dashboard;
         return null;
       }
     } else {

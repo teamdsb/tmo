@@ -1,3 +1,5 @@
+import { normalizeAppPath } from './env';
+
 // 权限作用域权重：ALL > OWNED > SELF。
 const rankScope = (scope) => {
   const normalized = String(scope || '').toUpperCase();
@@ -53,7 +55,7 @@ export const resolveAccessTier = (session) => {
 
 // 路径级访问控制，作为菜单和守卫的统一判定入口。
 export const canAccessPath = (path, permissionMap) => {
-  const currentPath = String(path || '/');
+  const currentPath = normalizeAppPath(path);
   if (currentPath === '/dashboard.html' || currentPath === '/') return true;
   if (currentPath === '/profile.html') return true;
   if (currentPath === '/rbac.html') return hasPermission(permissionMap, 'rbac:manage', 'ALL');

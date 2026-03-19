@@ -3,14 +3,16 @@ import { flushSync } from 'react-dom';
 import { createRoot } from 'react-dom/client';
 
 import { installZhLocalization } from '../../lib/i18n-zh';
+import { normalizeAppPath } from '../../lib/env';
 import { AdminSidebar, type AdminRouteKey } from '../layout/AdminSidebar';
 
 type BootstrapFn = () => Promise<unknown> | unknown;
 
 // 规范化当前路径，根路径默认映射到 dashboard。
 const normalizePath = (value: string) => {
-  if (!value || value === '/') return '/dashboard.html';
-  return value;
+  const currentPath = normalizeAppPath(value);
+  if (!currentPath || currentPath === '/') return '/dashboard.html';
+  return currentPath;
 };
 
 // 根据 path 解析当前主导航 key。

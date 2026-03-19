@@ -70,6 +70,45 @@ mock/dev 常用账号如下（dev 支持 `BOSS/MANAGER/ADMIN/CS` 密码登录）
 默认 gateway 基址通过 Vite 代理 `/api -> http://localhost:8080`。
 可通过环境变量 `ADMIN_WEB_PROXY_TARGET` 覆盖代理目标。
 
+## ECS 部署
+
+生产环境建议把 `admin-web` 部署到独立域名，例如 `https://admin.example.com`，后端 API 继续使用 `https://api.example.com`。
+
+1. 在 ECS 上复制并编辑环境变量：
+
+```bash
+cd /opt/tmo
+cp infra/prod/env.ecs.example infra/prod/env.ecs.local
+```
+
+至少确认这些值正确：
+
+- `ADMIN_WEB_PUBLIC_BASE_URL`
+- `ADMIN_WEB_API_BASE_URL`
+- `ADMIN_WEB_DIST_DIR`
+- `GATEWAY_PUBLIC_BASE_URL`
+
+2. 构建并发布静态站点：
+
+```bash
+cd /opt/tmo
+bash tools/scripts/prod-ecs-admin-web-build.sh
+```
+
+3. 配置 Nginx：
+
+```bash
+sudo cp infra/prod/nginx.admin.conf /etc/nginx/conf.d/tmo-admin.conf
+```
+
+然后把配置中的 `admin.example.com` 替换成真实域名，并确保 `root` 与 `ADMIN_WEB_DIST_DIR` 一致。
+
+4. 验收：
+
+```bash
+ADMIN_WEB_BASE_URL=https://你的后台域名 bash tools/scripts/prod-ecs-smoke.sh
+```
+
 ## 快速验收
 
 ```bash

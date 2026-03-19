@@ -1,4 +1,4 @@
-.PHONY: help docker-build docker-push docker-up docker-down docker-logs docker-clean db-up db-down db-clean dev-stack-up dev-stack-up-air dev-stack-down-air dev-air-switch identity-seed-check identity-repair all-up all-down
+.PHONY: help docker-build docker-push docker-up docker-down docker-logs docker-clean db-up db-down db-clean dev-stack-up dev-stack-up-air dev-stack-down-air dev-air-switch identity-seed-check identity-repair prod-ecs-migrate prod-ecs-up prod-ecs-smoke all-up all-down
 
 IMAGE_REPO ?= tmo
 IMAGE_TAG ?= dev
@@ -6,7 +6,7 @@ PLATFORM ?= linux/amd64
 SERVICES := commerce identity payment gateway-bff
 
 help:
-	@echo "Common targets: db-up, db-down, dev-stack-up, dev-stack-up-air, dev-stack-down-air, dev-air-switch, identity-seed-check, identity-repair, docker-build, docker-push, docker-up, docker-down, all-up, all-down"
+	@echo "Common targets: db-up, db-down, dev-stack-up, dev-stack-up-air, dev-stack-down-air, dev-air-switch, identity-seed-check, identity-repair, prod-ecs-migrate, prod-ecs-up, prod-ecs-smoke, docker-build, docker-push, docker-up, docker-down, all-up, all-down"
 
 docker-build: $(SERVICES:%=docker-build-%)
 
@@ -60,3 +60,12 @@ identity-seed-check:
 
 identity-repair:
 	bash tools/scripts/identity-repair.sh
+
+prod-ecs-migrate:
+	bash tools/scripts/prod-ecs-migrate.sh
+
+prod-ecs-up:
+	bash tools/scripts/prod-ecs-up.sh
+
+prod-ecs-smoke:
+	bash tools/scripts/prod-ecs-smoke.sh

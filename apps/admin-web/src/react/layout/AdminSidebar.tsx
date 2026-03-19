@@ -1,5 +1,5 @@
 import { getCurrentSession, getDisplayProfile } from '../../lib/auth';
-import { isDevMode, isMockMode } from '../../lib/env';
+import { buildAppHref, isDevMode, isMockMode } from '../../lib/env';
 import { canAccessPath, normalizePermissionMap } from '../../lib/permissions';
 import { UserAvatar } from './UserAvatar';
 import { resolveAvatarModel } from './avatar';
@@ -24,13 +24,13 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { key: 'dashboard', href: '/dashboard.html', icon: 'dashboard', label: '仪表盘' },
-  { key: 'products', href: '/products.html', icon: 'inventory_2', label: '商品' },
-  { key: 'orders', href: '/orders.html', icon: 'shopping_cart', label: '订单', badge: isDevMode ? '' : '12' },
-  { key: 'logistics', href: '/import.html', icon: 'local_shipping', label: '导入与导出' },
-  { key: 'sourcing', href: '/inquiries.html', icon: 'assignment', label: '在线客服' },
-  { key: 'users', href: '/transfer.html', icon: 'group', label: '客户转移' },
-  { key: 'userOperations', href: '/user-operations.html', icon: 'supervisor_account', label: '用户运营' }
+  { key: 'dashboard', href: buildAppHref('/dashboard.html'), icon: 'dashboard', label: '仪表盘' },
+  { key: 'products', href: buildAppHref('/products.html'), icon: 'inventory_2', label: '商品' },
+  { key: 'orders', href: buildAppHref('/orders.html'), icon: 'shopping_cart', label: '订单', badge: isDevMode ? '' : '12' },
+  { key: 'logistics', href: buildAppHref('/import.html'), icon: 'local_shipping', label: '导入与导出' },
+  { key: 'sourcing', href: buildAppHref('/inquiries.html'), icon: 'assignment', label: '在线客服' },
+  { key: 'users', href: buildAppHref('/transfer.html'), icon: 'group', label: '客户转移' },
+  { key: 'userOperations', href: buildAppHref('/user-operations.html'), icon: 'supervisor_account', label: '用户运营' }
 ];
 
 // 侧边栏菜单项样式计算。
@@ -89,13 +89,13 @@ export const AdminSidebar = ({ currentKey, currentSettingKey }: AdminSidebarProp
           <div className="px-3 py-1.5">
             <p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">设置</p>
             {showGeneralSetting ? (
-              <a className={itemClass(currentSettingKey === 'general')} href="/settings.html">
+              <a className={itemClass(currentSettingKey === 'general')} href={buildAppHref('/settings.html')}>
                 <span className="material-symbols-outlined">settings</span>
                 <span className="font-medium">通用</span>
               </a>
             ) : null}
             {showSecuritySetting ? (
-              <a className={itemClass(currentSettingKey === 'security')} href="/rbac.html">
+              <a className={itemClass(currentSettingKey === 'security')} href={buildAppHref('/rbac.html')}>
                 <span className="material-symbols-outlined">security</span>
                 <span className="font-medium">安全</span>
               </a>

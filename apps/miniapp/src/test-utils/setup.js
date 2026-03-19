@@ -381,7 +381,13 @@ jest.mock('@tmo/identity-services', () => {
       },
       me: {
         get: jest.fn(async () => ({})),
-        getPermissions: jest.fn(async () => ({}))
+        getPermissions: jest.fn(async () => ({})),
+        getSalesQrCode: jest.fn(async () => ({
+          qrCodeUrl: 'https://example.com/mock-sales-qr.png',
+          scene: 'mock-sales-bind',
+          platform: 'weapp',
+          expiresAt: null
+        }))
       }
     }),
     ApiError,

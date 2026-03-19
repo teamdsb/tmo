@@ -23,14 +23,16 @@ describe('SalesPage', () => {
     expect(stylesheet).toContain('.u-safe-title-2')
   })
 
-  it('renders dashboard by default and switches between tabs', () => {
+  it('renders dashboard by default and switches between tabs', async () => {
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
 
     try {
       render(<SalesPage />)
 
       expect(screen.getByText('您的专属推广二维码')).toBeInTheDocument()
-      expect(screen.getByText('李明浩')).toBeInTheDocument()
+      expect(await screen.findByText('张三')).toBeInTheDocument()
+      expect(await screen.findByText(/客户扫码后将打开微信小程序并进入登录流程/)).toBeInTheDocument()
+      expect(await screen.findByText('渠道码：mock-sales-bind')).toBeInTheDocument()
 
       fireEvent.click(screen.getByText('客户'))
       expect(screen.getByText('客户列表')).toBeInTheDocument()

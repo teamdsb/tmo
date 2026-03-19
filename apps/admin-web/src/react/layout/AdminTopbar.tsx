@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } from 'react';
 import { getCurrentSession, getDisplayProfile, logout, switchDevRole } from '../../lib/auth';
 import { filterAllowedAdminWebRoles } from '../../lib/admin-role-policy';
-import { isDevMode } from '../../lib/env';
+import { buildAppHref, isDevMode, normalizeAppPath } from '../../lib/env';
 import {
   dismissAdminSupportToast,
   useAdminSupportNotifications
@@ -28,9 +28,9 @@ const joinClasses = (...classes: Array<string | undefined>) => {
 const buildSupportConversationHref = (conversationId: string) => {
   const normalizedConversationId = String(conversationId || '').trim();
   if (!normalizedConversationId) {
-    return '/support.html';
+    return buildAppHref('/support.html');
   }
-  return `/support.html?conversationId=${encodeURIComponent(normalizedConversationId)}`;
+  return `${buildAppHref('/support.html')}?conversationId=${encodeURIComponent(normalizedConversationId)}`;
 };
 
 // 后台顶部栏（搜索、用户菜单、退出）。
@@ -132,7 +132,7 @@ export const AdminTopbar = ({
     const href = buildSupportConversationHref(conversationId);
     dismissAdminSupportToast();
     closeNotification();
-    if (window.location.pathname === '/support.html') {
+    if (normalizeAppPath(window.location.pathname) === '/support.html') {
       const url = new URL(window.location.href);
       url.searchParams.set('conversationId', conversationId);
       window.history.replaceState({}, '', `${url.pathname}${url.search}`);

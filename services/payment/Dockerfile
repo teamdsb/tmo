@@ -1,4 +1,5 @@
-FROM golang:1.26 AS build
+ARG DOCKERHUB_MIRROR_PREFIX=
+FROM ${DOCKERHUB_MIRROR_PREFIX}golang:1.26 AS build
 
 WORKDIR /workspace
 
@@ -17,7 +18,8 @@ COPY services ./services
 RUN cd services/payment && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 	go build -trimpath -ldflags "-s -w" -o /out/payment ./cmd/payment
 
-FROM gcr.io/distroless/base-debian12:nonroot
+ARG GCR_MIRROR_PREFIX=
+FROM ${GCR_MIRROR_PREFIX}gcr.io/distroless/base-debian12:nonroot
 
 COPY --from=build /out/payment /app/payment
 COPY --from=build /workspace/services/payment/migrations /app/migrations

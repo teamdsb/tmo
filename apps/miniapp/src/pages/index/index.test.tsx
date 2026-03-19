@@ -143,7 +143,9 @@ describe('ProductCatalogApp', () => {
     expect(pageStylesheet).toContain('box-sizing: border-box;');
     expect(pageStylesheet).toContain('-webkit-line-clamp: 2;');
     expect(pageStylesheet).toContain('.home-product-matrix');
-    expect(pageStylesheet).toContain('grid-template-columns: repeat(2, minmax(0, 1fr));');
+    expect(pageStylesheet).toContain('display: flex;');
+    expect(pageStylesheet).toContain('flex-wrap: wrap;');
+    expect(pageStylesheet).toContain('flex: 0 0 calc((100% - 12px) / 2);');
     expect(pageStylesheet).toContain('gap: 12px;');
     expect(pageStylesheet).toContain('.home-product-cell .product-card--home');
     expect(pageStylesheet).toContain('.home-category-panel');

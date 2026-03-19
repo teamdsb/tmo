@@ -17,8 +17,9 @@ describe('mock catalog fixtures', () => {
 
       for (const sku of detail?.skus ?? []) {
         expect(sku.isActive).toBe(true)
-        expect(sku.priceTiers.length).toBeGreaterThan(0)
-        for (const tier of sku.priceTiers) {
+        const priceTiers = sku.priceTiers ?? []
+        expect(priceTiers.length).toBeGreaterThan(0)
+        for (const tier of priceTiers) {
           expect(tier.minQty).toBeGreaterThanOrEqual(1)
           expect(tier.unitPriceFen).toBeGreaterThan(0)
         }

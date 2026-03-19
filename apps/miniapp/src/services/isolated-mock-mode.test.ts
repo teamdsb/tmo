@@ -70,7 +70,7 @@ describe('isolated mock mode', () => {
         receiverPhone: '13800000000',
         detail: '上海市浦东新区世纪大道 1 号'
       },
-      items: [{ skuId: 'sku-bolt-a2-m8', qty: 2 }]
+      items: [{ cartItemId: 'mock-cart-sku-bolt-a2-m8', skuId: 'sku-bolt-a2-m8', qty: 2 }]
     })
 
     expect(createdOrder.latestPaymentId).toBeTruthy()

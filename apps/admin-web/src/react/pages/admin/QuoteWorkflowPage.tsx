@@ -1,4 +1,5 @@
 import { AdminTopbar } from '../../layout/AdminTopbar';
+import { buildAppHref } from '../../../lib/env';
 
 type HeaderNavItem = {
   label: string;
@@ -37,11 +38,11 @@ type ChatMessage = {
 };
 
 const headerNavItems: readonly HeaderNavItem[] = [
-  { label: '仪表盘', href: '/dashboard.html' },
-  { label: '询价', href: '/quote-workflow.html', active: true },
-  { label: '订单', href: '/orders.html' },
-  { label: '库存', href: '/products.html' },
-  { label: '设置', href: '/settings.html' }
+  { label: '仪表盘', href: buildAppHref('/dashboard.html') },
+  { label: '询价', href: buildAppHref('/quote-workflow.html'), active: true },
+  { label: '订单', href: buildAppHref('/orders.html') },
+  { label: '库存', href: buildAppHref('/products.html') },
+  { label: '设置', href: buildAppHref('/settings.html') }
 ];
 
 const workflowSteps: readonly WorkflowStep[] = [

@@ -103,7 +103,7 @@ const request = async <T>(path: string, method = 'GET', body?: unknown): Promise
   const response = await requester<T>({
     url: joinUrl(baseUrl, path),
     method,
-    body
+    body: body as BodyInit | null | undefined
   })
   return unwrapResponse(response)
 }

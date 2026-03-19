@@ -10,7 +10,7 @@
     "enhance": false,
     "compileHotReLoad": true,
     "postcss": false,
-    "minified": false,
+    "minified": true,
     "packNpmManually": false,
     "packNpmRelationList": [],
     "ignoreDevUnusedFiles": true,

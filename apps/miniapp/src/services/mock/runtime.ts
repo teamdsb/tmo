@@ -8,7 +8,8 @@ import type {
   TrackingInfo,
   UserAddress
 } from '@tmo/api-client'
-import type { BootstrapResponse, PermissionList } from '@tmo/gateway-api-client'
+import type { BootstrapResponse, PermissionList, User } from '@tmo/gateway-api-client'
+import { UserStatus } from '@tmo/gateway-api-client'
 import type { PaymentChannel, PaymentSession } from '@tmo/payment-services'
 import { getStorage, removeStorage, setStorage } from '@tmo/platform-adapter'
 import { buildPermissionListForRole, resolveMiniMockIdentityFixture } from '../../../../../packages/shared/src/mock-data/auth.js'
@@ -286,13 +287,12 @@ export const loadIsolatedMockAuthContext = async (): Promise<IsolatedMockAuthCon
   }
 }
 
-export const getMockUser = (context: IsolatedMockAuthContext) => ({
+export const getMockUser = (context: IsolatedMockAuthContext): User => ({
   id: context.userId,
   currentRole: context.currentRole,
   userType: context.userType,
-  status: 'active',
+  status: UserStatus.active,
   displayName: context.displayName,
-  phone: null,
   roles: [...context.roles],
   ownerSalesDisplayName: context.ownerSalesDisplayName,
   disabledAt: null,

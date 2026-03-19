@@ -1,7 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react';
 
 import { filterAllowedAdminWebRoles } from '../../lib/admin-role-policy';
-import { goToDashboard, isLoggedIn, loginDev, loginMock, refreshBootstrap } from '../../lib/auth';
+import {
+  clearSavedSession,
+  getStoredSessionSummary,
+  goToDashboard,
+  loginDev,
+  loginMock,
+  refreshBootstrap
+} from '../../lib/auth';
 import { isDevMode, isMockMode } from '../../lib/env';
 import { installZhLocalization } from '../../lib/i18n-zh';
 import { resolveMockAccount } from '../../lib/mock-accounts';
@@ -15,6 +22,12 @@ const ROLE_LABELS: Record<string, string> = {
 
 type PendingRoleSelection = {
   password: string;
+  username: string;
+};
+
+type StoredSessionSummary = {
+  mode: string;
+  role: string;
   username: string;
 };
 
@@ -39,51 +52,44 @@ export const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [roleChoices, setRoleChoices] = useState<string[]>([]);
   const [pendingRoleSelection, setPendingRoleSelection] = useState<PendingRoleSelection | null>(null);
+  const [storedSession, setStoredSession] = useState<StoredSessionSummary | null>(() => getStoredSessionSummary());
 
   useEffect(() => {
     installZhLocalization();
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const initSessionRedirect = async () => {
-      if (!isLoggedIn()) {
-        return;
-      }
-
-      setPending(true);
-
-      if (isDevMode) {
-        try {
-          await refreshBootstrap();
-          if (!cancelled) {
-            goToDashboard();
-          }
-          return;
-        } catch {
-          if (!cancelled) {
-            setPending(false);
-          }
-          return;
-        }
-      }
-
-      if (isMockMode && !cancelled) {
-        goToDashboard();
-      }
-    };
-
-    void initSessionRedirect();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const closeRoleModal = () => {
     setRoleChoices([]);
     setPendingRoleSelection(null);
+  };
+
+  const handleDiscardStoredSession = () => {
+    clearSavedSession();
+    setStoredSession(null);
+    setErrorMessage('');
+    closeRoleModal();
+  };
+
+  const handleResumeStoredSession = async () => {
+    if (!storedSession) {
+      return;
+    }
+
+    setPending(true);
+    setErrorMessage('');
+
+    try {
+      if (isDevMode) {
+        await refreshBootstrap();
+      }
+      goToDashboard();
+    } catch {
+      clearSavedSession();
+      setStoredSession(null);
+      setErrorMessage('当前登录状态已失效，请重新输入账号和密码。');
+    } finally {
+      setPending(false);
+    }
   };
 
   const attemptLogin = async (nextUsername: string, nextPassword: string, role?: string) => {
@@ -97,6 +103,7 @@ export const LoginPage = () => {
           throw new Error('invalid credentials');
         }
         loginMock(mockAccount);
+        setStoredSession(getStoredSessionSummary());
         closeRoleModal();
         goToDashboard();
         return;
@@ -116,6 +123,7 @@ export const LoginPage = () => {
       }
 
       await refreshBootstrap();
+      setStoredSession(getStoredSessionSummary());
       closeRoleModal();
       goToDashboard();
     } catch (error) {
@@ -169,41 +177,63 @@ export const LoginPage = () => {
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-white">
                 <span className="material-symbols-outlined">inventory_2</span>
               </div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Nexus Commerce</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">云互惠平台后台管理系统</h1>
             </div>
             <p className="text-4xl font-black leading-tight tracking-[-0.033em] text-slate-900 dark:text-white">
-              Simplicity is the ultimate sophistication.
+              让后台管理更简单，更高效。
             </p>
             <p className="text-lg leading-relaxed text-slate-500 dark:text-slate-400">
-              Streamline your marketplace operations with our secure, unified management platform.
+              通过统一、安全、清晰的平台能力，集中处理商城运营、订单协同与日常管理工作。
             </p>
           </div>
           <div className="group relative flex h-48 w-full items-center justify-center overflow-hidden rounded-xl border border-white/60 bg-white/50 shadow-sm backdrop-blur-sm">
             <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#144bb8_1px,transparent_1px)] [background-size:16px_16px]"></div>
             <div className="relative z-10 flex flex-col items-center gap-4 text-primary/80">
               <span className="material-symbols-outlined text-6xl opacity-50">hub</span>
-              <p className="text-sm font-medium uppercase tracking-widest opacity-70">Unified Ecosystem</p>
+              <p className="text-sm font-medium tracking-[0.3em] opacity-70">统一运营平台</p>
             </div>
           </div>
         </div>
 
         <div className="relative w-full max-w-[440px] overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-800">
-          <div className="group absolute top-0 right-0 z-20 cursor-pointer p-4" title="Login with Mini-program">
-            <div className="relative">
-              <div className="pointer-events-none absolute top-1/2 right-full mr-3 -translate-y-1/2 whitespace-nowrap rounded bg-slate-900 px-3 py-1.5 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
-                Scan QR Code
-              </div>
-              <div className="flex h-12 w-12 items-start justify-end text-primary/80 transition-colors hover:text-primary">
-                <span className="material-symbols-outlined text-4xl">qr_code_scanner</span>
-              </div>
-            </div>
-          </div>
-
           <div className="p-8 md:p-10">
             <div className="mb-8 flex flex-col gap-2">
               <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Welcome Back</h2>
               <p className="text-sm text-slate-500 dark:text-slate-400">Please sign in to access your dashboard</p>
             </div>
+
+            {storedSession ? (
+              <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
+                <p className="font-semibold">检测到本地登录会话</p>
+                <p className="mt-1">
+                  当前缓存账号为 <span className="font-semibold">{storedSession.username}</span>，角色为{' '}
+                  <span className="font-semibold">{storedSession.role}</span>。
+                </p>
+                <p className="mt-1 text-xs text-amber-800">
+                  为避免共享设备自动登录，系统不会直接进入后台，请选择继续当前会话或清除后重新登录。
+                </p>
+                <div className="mt-3 flex gap-3">
+                  <button
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70"
+                    disabled={pending}
+                    id="resume-session"
+                    onClick={() => void handleResumeStoredSession()}
+                    type="button"
+                  >
+                    继续当前会话
+                  </button>
+                  <button
+                    className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70"
+                    disabled={pending}
+                    id="discard-session"
+                    onClick={handleDiscardStoredSession}
+                    type="button"
+                  >
+                    清除并重新登录
+                  </button>
+                </div>
+              </div>
+            ) : null}
 
             <form id="login-form" action="#" className="flex flex-col gap-5" onSubmit={handleSubmit}>
               <div className="flex flex-col gap-1.5">

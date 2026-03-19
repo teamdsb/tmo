@@ -314,7 +314,13 @@ describe('LoginPage', () => {
     const saveBootstrapSpy = jest.spyOn(bootstrapServices, 'saveBootstrap')
     const savePendingRoleSelectionSpy = jest.spyOn(bootstrapServices, 'savePendingRoleSelection')
     bootstrapGetSpy.mockResolvedValue({
-      me: { id: 'customer-1', roles: ['CUSTOMER'] },
+      me: {
+        id: 'customer-1',
+        currentRole: 'CUSTOMER',
+        userType: 'customer',
+        roles: ['CUSTOMER'],
+        createdAt: '2026-01-01T00:00:00Z'
+      },
       permissions: { items: [] },
       featureFlags: {}
     })
@@ -351,7 +357,13 @@ describe('LoginPage', () => {
     })
     const miniLoginSpy = jest.spyOn(identityServices.auth, 'miniLogin')
     jest.spyOn(gatewayServices.bootstrap, 'get').mockResolvedValue({
-      me: { id: 'sales-1', roles: ['SALES'] },
+      me: {
+        id: 'sales-1',
+        currentRole: 'SALES',
+        userType: 'staff',
+        roles: ['SALES'],
+        createdAt: '2026-01-01T00:00:00Z'
+      },
       permissions: { items: [] },
       featureFlags: {}
     })

@@ -1,4 +1,5 @@
 export default defineAppConfig({
+  lazyCodeLoading: 'requiredComponents',
   pages: [
     'pages/index/index',
     'pages/category/index',
@@ -18,6 +19,7 @@ export default defineAppConfig({
     'pages/order/tracking/index',
     'pages/order/tracking/detail/index',
     'pages/account/address/index',
+    'pages/profile/edit/index',
     'pages/import/index',
     'pages/tracking/batch/index',
     'pages/settings/index',

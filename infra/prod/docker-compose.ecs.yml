@@ -1,0 +1,216 @@
+services:
+  postgres:
+    image: ${DOCKERHUB_MIRROR_PREFIX:-}postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-commerce}
+      POSTGRES_USER: ${POSTGRES_USER:-commerce}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in env file}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ${POSTGRES_DATA_DIR:-../../data/postgres}:/var/lib/postgresql/data
+      - ../docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-commerce} -d ${POSTGRES_DB:-commerce}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  identity-migrate:
+    profiles: ["tools"]
+    image: golang:1.26
+    working_dir: /workspace
+    environment:
+      GOPROXY: ${BUILD_GOPROXY:-https://proxy.golang.org,direct}
+      GOSUMDB: ${BUILD_GOSUMDB:-sum.golang.org}
+      GONOSUMDB: ${BUILD_GONOSUMDB:-}
+      IDENTITY_DB_DSN: ${IDENTITY_DB_DSN:?set IDENTITY_DB_DSN in env file}
+    volumes:
+      - ../..:/workspace
+    command: ["go", "run", "./services/identity/cmd/identity-migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  commerce-migrate:
+    profiles: ["tools"]
+    image: golang:1.26
+    working_dir: /workspace
+    environment:
+      GOPROXY: ${BUILD_GOPROXY:-https://proxy.golang.org,direct}
+      GOSUMDB: ${BUILD_GOSUMDB:-sum.golang.org}
+      GONOSUMDB: ${BUILD_GONOSUMDB:-}
+      COMMERCE_DB_DSN: ${COMMERCE_DB_DSN:?set COMMERCE_DB_DSN in env file}
+    volumes:
+      - ../..:/workspace
+    command: ["go", "run", "./services/commerce/cmd/commerce-migrate"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  identity:
+    build:
+      context: ../..
+      dockerfile: services/identity/Dockerfile
+      args:
+        GOPROXY: ${BUILD_GOPROXY:-https://proxy.golang.org,direct}
+        GOSUMDB: ${BUILD_GOSUMDB:-sum.golang.org}
+        GONOSUMDB: ${BUILD_GONOSUMDB:-}
+        DOCKERHUB_MIRROR_PREFIX: ${DOCKERHUB_MIRROR_PREFIX:-}
+        GCR_MIRROR_PREFIX: ${GCR_MIRROR_PREFIX:-}
+    image: ${IMAGE_REPO:-tmo}/identity:${IMAGE_TAG:-ecs}
+    restart: unless-stopped
+    environment:
+      IDENTITY_HTTP_ADDR: ":8081"
+      IDENTITY_DB_DSN: ${IDENTITY_DB_DSN:?set IDENTITY_DB_DSN in env file}
+      IDENTITY_LOG_LEVEL: ${IDENTITY_LOG_LEVEL:-info}
+      IDENTITY_JWT_SECRET: ${IDENTITY_JWT_SECRET:?set IDENTITY_JWT_SECRET in env file}
+      IDENTITY_JWT_ISSUER: ${IDENTITY_JWT_ISSUER:-tmo-identity}
+      IDENTITY_LOGIN_MODE: ${IDENTITY_LOGIN_MODE:-real}
+      IDENTITY_ENABLE_PHONE_PROOF_SIMULATION: ${IDENTITY_ENABLE_PHONE_PROOF_SIMULATION:-false}
+      IDENTITY_PHONE_PROOF_SIMULATION_PHONE: ${IDENTITY_PHONE_PROOF_SIMULATION_PHONE:-+15550009999}
+      IDENTITY_ENABLE_DEBUG_ROLE_SWITCH: ${IDENTITY_ENABLE_DEBUG_ROLE_SWITCH:-false}
+      IDENTITY_WEAPP_APPID: ${IDENTITY_WEAPP_APPID:-}
+      IDENTITY_WEAPP_APPSECRET: ${IDENTITY_WEAPP_APPSECRET:-}
+      IDENTITY_WEAPP_TOKEN_URL: ${IDENTITY_WEAPP_TOKEN_URL:-https://api.weixin.qq.com/cgi-bin/token}
+      IDENTITY_WEAPP_SESSION_URL: ${IDENTITY_WEAPP_SESSION_URL:-https://api.weixin.qq.com/sns/jscode2session}
+      IDENTITY_WEAPP_QRCODE_URL: ${IDENTITY_WEAPP_QRCODE_URL:-https://api.weixin.qq.com/wxa/getwxacodeunlimit}
+      IDENTITY_WEAPP_PHONE_NUMBER_URL: ${IDENTITY_WEAPP_PHONE_NUMBER_URL:-https://api.weixin.qq.com/wxa/business/getuserphonenumber}
+      IDENTITY_ALIPAY_APP_ID: ${IDENTITY_ALIPAY_APP_ID:-}
+      IDENTITY_ALIPAY_PRIVATE_KEY: ${IDENTITY_ALIPAY_PRIVATE_KEY:-}
+      IDENTITY_ALIPAY_PUBLIC_KEY: ${IDENTITY_ALIPAY_PUBLIC_KEY:-}
+      IDENTITY_ALIPAY_AES_KEY: ${IDENTITY_ALIPAY_AES_KEY:-}
+      IDENTITY_ALIPAY_GATEWAY_URL: ${IDENTITY_ALIPAY_GATEWAY_URL:-https://openapi.alipay.com/gateway.do}
+      IDENTITY_ALIPAY_SIGN_TYPE: ${IDENTITY_ALIPAY_SIGN_TYPE:-RSA2}
+    ports:
+      - "127.0.0.1:${IDENTITY_PORT:-8081}:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  commerce:
+    build:
+      context: ../..
+      dockerfile: services/commerce/Dockerfile
+      args:
+        GOPROXY: ${BUILD_GOPROXY:-https://proxy.golang.org,direct}
+        GOSUMDB: ${BUILD_GOSUMDB:-sum.golang.org}
+        GONOSUMDB: ${BUILD_GONOSUMDB:-}
+        DOCKERHUB_MIRROR_PREFIX: ${DOCKERHUB_MIRROR_PREFIX:-}
+        GCR_MIRROR_PREFIX: ${GCR_MIRROR_PREFIX:-}
+    image: ${IMAGE_REPO:-tmo}/commerce:${IMAGE_TAG:-ecs}
+    restart: unless-stopped
+    environment:
+      COMMERCE_HTTP_ADDR: ":8082"
+      COMMERCE_DB_DSN: ${COMMERCE_DB_DSN:?set COMMERCE_DB_DSN in env file}
+      COMMERCE_LOG_LEVEL: ${COMMERCE_LOG_LEVEL:-info}
+      COMMERCE_AUTH_ENABLED: ${COMMERCE_AUTH_ENABLED:-true}
+      COMMERCE_JWT_SECRET: ${COMMERCE_JWT_SECRET:?set COMMERCE_JWT_SECRET in env file}
+      COMMERCE_JWT_ISSUER: ${COMMERCE_JWT_ISSUER:-tmo-identity}
+      COMMERCE_INTERNAL_SYNC_TOKEN: ${COMMERCE_INTERNAL_SYNC_TOKEN:?set COMMERCE_INTERNAL_SYNC_TOKEN in env file}
+      MEDIA_LOCAL_OUTPUT_DIR: ${MEDIA_LOCAL_OUTPUT_DIR:-/data/media}
+      MEDIA_PUBLIC_BASE_URL: ${MEDIA_PUBLIC_BASE_URL:?set MEDIA_PUBLIC_BASE_URL in env file}
+    ports:
+      - "127.0.0.1:${COMMERCE_PORT:-8082}:8082"
+    volumes:
+      - ${MEDIA_HOST_DIR:-../../data/media}:/data/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  payment:
+    build:
+      context: ../..
+      dockerfile: services/payment/Dockerfile
+      args:
+        GOPROXY: ${BUILD_GOPROXY:-https://proxy.golang.org,direct}
+        GOSUMDB: ${BUILD_GOSUMDB:-sum.golang.org}
+        GONOSUMDB: ${BUILD_GONOSUMDB:-}
+        DOCKERHUB_MIRROR_PREFIX: ${DOCKERHUB_MIRROR_PREFIX:-}
+        GCR_MIRROR_PREFIX: ${GCR_MIRROR_PREFIX:-}
+    image: ${IMAGE_REPO:-tmo}/payment:${IMAGE_TAG:-ecs}
+    restart: unless-stopped
+    environment:
+      PAYMENT_HTTP_ADDR: ":8083"
+      PAYMENT_LOG_LEVEL: ${PAYMENT_LOG_LEVEL:-info}
+      PAYMENT_AUTH_ENABLED: ${PAYMENT_AUTH_ENABLED:-false}
+      PAYMENT_DB_DSN: ${PAYMENT_DB_DSN:?set PAYMENT_DB_DSN in env file}
+      PAYMENT_JWT_SECRET: ${PAYMENT_JWT_SECRET:-${IDENTITY_JWT_SECRET}}
+      PAYMENT_JWT_ISSUER: ${PAYMENT_JWT_ISSUER:-${IDENTITY_JWT_ISSUER:-tmo-identity}}
+      PAYMENT_IDENTITY_BASE_URL: http://identity:8081
+      PAYMENT_COMMERCE_BASE_URL: http://commerce:8082
+      PAYMENT_COMMERCE_SYNC_TOKEN: ${PAYMENT_COMMERCE_SYNC_TOKEN:?set PAYMENT_COMMERCE_SYNC_TOKEN in env file}
+      PAYMENT_PROVIDER_MODE: ${PAYMENT_PROVIDER_MODE:-mock}
+      PAYMENT_ENABLED: ${PAYMENT_ENABLED:-false}
+      PAYMENT_WECHAT_PAY_ENABLED: ${PAYMENT_WECHAT_PAY_ENABLED:-false}
+      PAYMENT_ALIPAY_PAY_ENABLED: ${PAYMENT_ALIPAY_PAY_ENABLED:-false}
+      PAYMENT_MIGRATIONS_DIR: /app/migrations
+    ports:
+      - "127.0.0.1:${PAYMENT_PORT:-8083}:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      identity:
+        condition: service_started
+      commerce:
+        condition: service_started
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  gateway-bff:
+    build:
+      context: ../..
+      dockerfile: services/gateway-bff/Dockerfile
+      args:
+        GOPROXY: ${BUILD_GOPROXY:-https://proxy.golang.org,direct}
+        GOSUMDB: ${BUILD_GOSUMDB:-sum.golang.org}
+        GONOSUMDB: ${BUILD_GONOSUMDB:-}
+        DOCKERHUB_MIRROR_PREFIX: ${DOCKERHUB_MIRROR_PREFIX:-}
+        GCR_MIRROR_PREFIX: ${GCR_MIRROR_PREFIX:-}
+    image: ${IMAGE_REPO:-tmo}/gateway-bff:${IMAGE_TAG:-ecs}
+    restart: unless-stopped
+    environment:
+      GATEWAY_HTTP_ADDR: ":8080"
+      GATEWAY_LOG_LEVEL: ${GATEWAY_LOG_LEVEL:-info}
+      GATEWAY_PUBLIC_BASE_URL: ${GATEWAY_PUBLIC_BASE_URL:?set GATEWAY_PUBLIC_BASE_URL in env file}
+      GATEWAY_IDENTITY_BASE_URL: http://identity:8081
+      GATEWAY_COMMERCE_BASE_URL: http://commerce:8082
+      GATEWAY_PAYMENT_BASE_URL: http://payment:8083
+      GATEWAY_AI_BASE_URL: ""
+      GATEWAY_MEDIA_LOCAL_DIR: ${GATEWAY_MEDIA_LOCAL_DIR:-/data/media}
+      GATEWAY_UPSTREAM_TIMEOUT: ${GATEWAY_UPSTREAM_TIMEOUT:-10s}
+      GATEWAY_MAX_BODY_BYTES: ${GATEWAY_MAX_BODY_BYTES:-33554432}
+      GATEWAY_IMAGE_PROXY_ALLOWLIST: ${GATEWAY_IMAGE_PROXY_ALLOWLIST:-images.unsplash.com}
+      GATEWAY_IMAGE_PROXY_TIMEOUT: ${GATEWAY_IMAGE_PROXY_TIMEOUT:-30s}
+      GATEWAY_IMAGE_PROXY_MAX_BYTES: ${GATEWAY_IMAGE_PROXY_MAX_BYTES:-8388608}
+      GATEWAY_IMAGE_PROXY_CACHE_MAX_AGE_SECONDS: ${GATEWAY_IMAGE_PROXY_CACHE_MAX_AGE_SECONDS:-3600}
+    ports:
+      - "127.0.0.1:${GATEWAY_PORT:-8080}:8080"
+    volumes:
+      - ${MEDIA_HOST_DIR:-../../data/media}:/data/media
+    depends_on:
+      identity:
+        condition: service_started
+      commerce:
+        condition: service_started
+      payment:
+        condition: service_started
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

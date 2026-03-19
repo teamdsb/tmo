@@ -126,6 +126,11 @@ function processWeappProjectConfig() {
     changed = true
   }
 
+  if (config.setting.minified !== true) {
+    config.setting.minified = true
+    changed = true
+  }
+
   if (config.setting.compileHotReLoad !== true) {
     config.setting.compileHotReLoad = true
     changed = true

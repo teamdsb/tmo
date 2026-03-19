@@ -5,8 +5,13 @@ import react from '@vitejs/plugin-react';
 const proxyTarget = process.env.ADMIN_WEB_PROXY_TARGET || 'http://localhost:8080';
 const paymentProxyTarget = process.env.ADMIN_WEB_PAYMENT_PROXY_TARGET || 'http://localhost:8083';
 const workspaceRoot = resolve(__dirname, '../..');
+const rawBasePath = String(process.env.VITE_ADMIN_WEB_BASE_PATH || '/').trim();
+const normalizedBasePath = rawBasePath === '/'
+  ? '/'
+  : `/${rawBasePath.replace(/^\/+|\/+$/g, '')}/`;
 
 export default defineConfig({
+  base: normalizedBasePath,
   plugins: [react()],
   resolve: {
     alias: {

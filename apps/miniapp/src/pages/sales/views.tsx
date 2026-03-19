@@ -12,24 +12,59 @@ import {
 } from './data'
 import type { CustomerSubFilter } from './types'
 
-export function DashboardView() {
+type DashboardViewProps = {
+  qrCodeUrl: string
+  qrError: string
+  qrLoading: boolean
+  qrPlatformLabel: string
+  qrScene: string
+  salesName: string
+  salesRole: string
+  onRefreshQr: () => void
+}
+
+export function DashboardView({
+  qrCodeUrl,
+  qrError,
+  qrLoading,
+  qrPlatformLabel,
+  qrScene,
+  salesName,
+  salesRole,
+  onRefreshQr
+}: DashboardViewProps) {
   return (
     <View className='sales-screen sales-dashboard-screen'>
       <View className='sales-dashboard-stack'>
         <View className='sales-dashboard-profile'>
           <View className='sales-dashboard-avatar'>
-            <Text className='sales-dashboard-avatar-text'>LM</Text>
+            <Text className='sales-dashboard-avatar-text'>{salesName.slice(0, 1) || '销'}</Text>
           </View>
-          <Text className='sales-dashboard-name'>李明浩</Text>
-          <Text className='sales-dashboard-role'>高级 B2B 客户经理</Text>
+          <Text className='sales-dashboard-name'>{salesName}</Text>
+          <Text className='sales-dashboard-role'>{salesRole}</Text>
         </View>
 
         <View className='sales-dashboard-card'>
           <View className='sales-dashboard-qr-shell'>
-            <Qr className='sales-dashboard-qr' />
+            {qrCodeUrl ? (
+              <Image className='sales-dashboard-qr-image' src={qrCodeUrl} mode='aspectFit' />
+            ) : (
+              <Qr className='sales-dashboard-qr' />
+            )}
           </View>
           <Text className='sales-dashboard-card-title'>您的专属推广二维码</Text>
-          <Text className='sales-dashboard-card-copy'>请客户扫码以绑定归属</Text>
+          <Text className='sales-dashboard-card-copy'>
+            客户扫码后将打开{qrPlatformLabel}小程序并进入登录流程，首次登录后自动归属到您名下。
+          </Text>
+          {qrScene ? (
+            <Text className='sales-dashboard-card-meta'>渠道码：{qrScene}</Text>
+          ) : null}
+          {qrError ? (
+            <Text className='sales-dashboard-card-error'>{qrError}</Text>
+          ) : null}
+          <View className='sales-dashboard-card-action' onClick={onRefreshQr}>
+            <Text className='sales-dashboard-card-action-text'>{qrLoading ? '生成中...' : '刷新二维码'}</Text>
+          </View>
         </View>
       </View>
     </View>

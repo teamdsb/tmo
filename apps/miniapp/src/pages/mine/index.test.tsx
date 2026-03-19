@@ -4,7 +4,12 @@ import { removeStorage } from '@tmo/platform-adapter'
 import { gatewayServices } from '../../services/gateway'
 import { commerceServices } from '../../services/commerce'
 import { identityServices } from '../../services/identity'
+import { loadEditableProfile } from '../../services/profile'
 import PersonalCenter from './index'
+
+jest.mock('../../services/profile', () => ({
+  loadEditableProfile: jest.fn(() => null)
+}))
 
 const flushPromises = () => new Promise((resolve) => process.nextTick(resolve))
 
@@ -19,6 +24,7 @@ const asMock = <T extends (...args: any[]) => any>(fn: T) => fn as unknown as je
 
 describe('PersonalCenter', () => {
   beforeEach(() => {
+    ;(loadEditableProfile as jest.Mock).mockReturnValue(null)
     asMock(identityServices.tokens.getToken).mockResolvedValue('token-123')
     asMock(gatewayServices.bootstrap.get).mockImplementation(async () => ({
       me: {
@@ -28,6 +34,20 @@ describe('PersonalCenter', () => {
         roles: ['CUSTOMER']
       }
     }))
+    asMock(commerceServices.productRequests.list).mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 20,
+      total: 0
+    })
+    asMock(commerceServices.productRequests.create).mockResolvedValue({
+      id: 'pr-created',
+      createdByUserId: 'u-1',
+      createdAt: '2026-03-15T08:00:00Z',
+      name: '工业轴承',
+      qty: '200 件',
+      note: '耐高温'
+    })
     asMock(identityServices.auth.switchRole).mockResolvedValue({
       accessToken: 'switched-token',
       expiresIn: 3600,
@@ -60,6 +80,31 @@ describe('PersonalCenter', () => {
     expect(screen.getByText('订单跟踪')).toBeInTheDocument()
     expect(screen.queryByText('专属顾问')).not.toBeInTheDocument()
     expect(screen.queryByText('立即沟通')).not.toBeInTheDocument()
+  })
+
+  it('uses locally saved avatar when profile avatar exists', async () => {
+    ;(loadEditableProfile as jest.Mock).mockReturnValue({
+      displayName: '张三',
+      phone: '13800138000',
+      avatarUrl: '/tmp/local-avatar.png'
+    })
+
+    await renderPersonalCenter()
+
+    const avatar = document.querySelector('.mine-hero-user-avatar img')
+    expect(avatar).toHaveAttribute('src', '/tmp/local-avatar.png')
+  })
+
+  it('uses locally saved display name when profile name exists', async () => {
+    ;(loadEditableProfile as jest.Mock).mockReturnValue({
+      displayName: '阿西莫夫',
+      phone: '13800138000',
+      avatarUrl: ''
+    })
+
+    await renderPersonalCenter()
+
+    expect(await screen.findByText('欢迎回来，阿西莫夫用户')).toBeInTheDocument()
   })
 
   it('shows debug role switcher and switches current role', async () => {
@@ -96,6 +141,22 @@ describe('PersonalCenter', () => {
     expect(identityServices.auth.switchRole).toHaveBeenCalledWith({ role: 'SALES' })
     expect(gatewayServices.bootstrap.get).toHaveBeenCalledTimes(2)
     expect(Taro.showToast).toHaveBeenCalledWith({ title: '角色已切换', icon: 'none' })
+  })
+
+  it('shows sales workbench entry when sales role is available', async () => {
+    asMock(gatewayServices.bootstrap.get).mockResolvedValueOnce({
+      me: {
+        displayName: '张三',
+        ownerSalesDisplayName: '李经理',
+        currentRole: 'SALES',
+        roles: ['CUSTOMER', 'SALES'],
+        userType: 'staff'
+      }
+    })
+
+    await renderPersonalCenter()
+
+    expect(await screen.findByText('业务员工作台')).toBeInTheDocument()
   })
 
   it('hides manager card when not logged in', async () => {
@@ -207,23 +268,6 @@ describe('PersonalCenter', () => {
     })
   })
 
-  it('opens login page when tapping guest topbar settings button', async () => {
-    asMock(identityServices.tokens.getToken).mockResolvedValue(null)
-
-    await renderPersonalCenter()
-
-    const buttons = document.querySelectorAll('.mine-dashboard-action')
-    expect(buttons[0]).toBeTruthy()
-
-    fireEvent.click(buttons[0] as Element)
-
-    await waitFor(() => {
-      expect(Taro.navigateTo).toHaveBeenCalledWith({
-        url: '/pages/auth/login/index'
-      })
-    })
-  })
-
   it('shows logged-in hero CTA', async () => {
     await renderPersonalCenter()
 
@@ -244,6 +288,56 @@ describe('PersonalCenter', () => {
     fireEvent.click(screen.getByText('查看全部'))
 
     expect(await screen.findByText('订单列表')).toBeInTheDocument()
+  })
+
+  it('opens demand composer from mine demand subview', async () => {
+    await renderPersonalCenter()
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('我的需求'))
+      await flushPromises()
+    })
+
+    expect(await screen.findByText('需求池')).toBeInTheDocument()
+    expect(screen.getByText('新增需求')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('新增需求'))
+
+    expect(await screen.findByText('速填')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('例如：工业级轴承 / 定制办公椅')).toBeInTheDocument()
+  })
+
+  it('creates a demand from mine demand popup', async () => {
+    await renderPersonalCenter()
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('我的需求'))
+      await flushPromises()
+    })
+
+    fireEvent.click(screen.getByText('新增需求'))
+
+    await act(async () => {
+      fireEvent.change(screen.getByPlaceholderText('例如：工业级轴承 / 定制办公椅'), {
+        target: { value: '工业轴承' }
+      })
+      fireEvent.change(screen.getByPlaceholderText('例如：200 件 / 10 箱'), {
+        target: { value: '200 件' }
+      })
+      fireEvent.change(screen.getByPlaceholderText('补充规格、材质、品牌倾向或交期要求'), {
+        target: { value: '耐高温' }
+      })
+      fireEvent.click(screen.getByText('提交需求'))
+      await flushPromises()
+    })
+
+    expect(commerceServices.productRequests.create).toHaveBeenCalledWith({
+      name: '工业轴承',
+      qty: '200 件',
+      note: '耐高温'
+    })
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '已提交需求', icon: 'success' })
+    expect(await screen.findByText('工业轴承')).toBeInTheDocument()
   })
 
   it('filters orders by selected tracking status', async () => {

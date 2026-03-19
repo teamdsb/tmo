@@ -313,7 +313,7 @@ export default function OrderConfirmPage() {
             className='order-confirm-remark-input'
             placeholder='选填（例如: 包装要求、发货时间等）'
             value={remark}
-            maxLength={200}
+            maxlength={200}
             onInput={(event) => setRemark(event.detail.value)}
           />
         </View>

@@ -87,23 +87,6 @@ func (h *Handler) GetMeSalesQrCode(c *gin.Context, params oapi.GetMeSalesQrCodeP
 		return
 	}
 
-	if existing, err := h.Store.GetLatestSalesQrCode(c.Request.Context(), db.GetLatestSalesQrCodeParams{
-		SalesUserID: claims.UserID,
-		Platform:    platformName,
-	}); err == nil {
-		if existing.QrCodeUrl != nil && existing.ExpiresAt.Valid && existing.ExpiresAt.Time.After(time.Now()) {
-			expiresAt := existing.ExpiresAt.Time
-			platform := oapi.SalesQrCodePlatform(platformName)
-			c.JSON(http.StatusOK, oapi.SalesQrCode{
-				QrCodeUrl: *existing.QrCodeUrl,
-				Scene:     existing.Scene,
-				ExpiresAt: &expiresAt,
-				Platform:  &platform,
-			})
-			return
-		}
-	}
-
 	scene := generateSalesScene()
 	expiresAt := time.Now().Add(salesSceneTTL)
 
