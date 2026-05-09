@@ -8,6 +8,19 @@ const placeholderHost = 'api.example.com'
 const expectedDevHost = 'localhost:8080'
 const mode = process.env.TMO_WEAPP_BUILD_MODE || (process.env.NODE_ENV === 'development' ? 'development' : 'production')
 
+const normalize = (value) => String(value || '').trim().replace(/\/+$/, '')
+
+const configuredBaseUrls = () => {
+  const names = [
+    'TARO_APP_API_BASE_URL',
+    'TARO_APP_GATEWAY_BASE_URL',
+    'TARO_APP_COMMERCE_BASE_URL',
+    'TARO_APP_IDENTITY_BASE_URL',
+    'TARO_APP_PAYMENT_BASE_URL'
+  ]
+  return [...new Set(names.map((name) => normalize(process.env[name])).filter(Boolean))]
+}
+
 const readBundledSources = () => {
   return targetFiles
     .map((name) => path.join(distDir, name))
@@ -58,10 +71,22 @@ const main = () => {
   }
 
   if (mode === 'production' || mode === 'prod') {
+    const expectedUrls = configuredBaseUrls()
     if (hasPlaceholder) {
-      console.log(
-        `[verify-miniapp-api-base] ok (${platform}/${mode}): api base references "${placeholderHost}" (production placeholder retained)`
+      fail(
+        `${platform} production build contains placeholder host "${placeholderHost}". ` +
+        'configure .env.production before release'
       )
+    }
+    if (expectedUrls.length > 0) {
+      const missingUrls = expectedUrls.filter((url) => !bundledSource.includes(url))
+      if (missingUrls.length > 0) {
+        fail(
+          `${platform} production build does not contain configured api base ${missingUrls.join(', ')}. ` +
+          'check .env.production and Taro defineConstants'
+        )
+      }
+      console.log(`[verify-miniapp-api-base] ok (${platform}/${mode}): api base references ${expectedUrls.join(', ')}`)
       return
     }
   }

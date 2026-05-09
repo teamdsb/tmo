@@ -16,6 +16,10 @@ if [[ ! -f "$env_file" ]]; then
   exit 1
 fi
 
+set -a
+source "$env_file"
+set +a
+
 run_compose() {
   docker compose --env-file "$env_file" -f "$compose_file" "$@"
 }

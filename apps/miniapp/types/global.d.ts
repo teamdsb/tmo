@@ -15,9 +15,11 @@ declare const __TMO_API_BASE_URL__: string;
 declare const __TMO_GATEWAY_BASE_URL__: string;
 declare const __TMO_COMMERCE_BASE_URL__: string;
 declare const __TMO_IDENTITY_BASE_URL__: string;
+declare const __TMO_PAYMENT_BASE_URL__: string;
 declare const __TMO_GATEWAY_DEV_TOKEN__: string;
 declare const __TMO_COMMERCE_DEV_TOKEN__: string;
 declare const __TMO_IDENTITY_DEV_TOKEN__: string;
+declare const __TMO_PAYMENT_DEV_TOKEN__: string;
 declare const __TMO_MOCK_MODE__: string;
 declare const __TMO_DEV_FAKE_PAYMENT__: string;
 declare const __TMO_ENABLE_MOCK_LOGIN__: string;
@@ -47,6 +49,8 @@ declare namespace NodeJS {
     TARO_APP_WEAPP_PHONE_PROOF_SIMULATION?: string
     TARO_APP_IDENTITY_BASE_URL?: string
     TARO_APP_IDENTITY_DEV_TOKEN?: string
+    TARO_APP_PAYMENT_BASE_URL?: string
+    TARO_APP_PAYMENT_DEV_TOKEN?: string
     TMO_WEAPP_SHARED_OUTPUT_ENABLED?: string
     TMO_WEAPP_SHARED_OUTPUT_ROOT?: string
   }

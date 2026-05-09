@@ -70,7 +70,7 @@ test('P0/P1 real mode flows work in admin-web', async ({ page }) => {
     await inquiryItems.first().click();
     await expect(page.getByText('客户资料')).toBeVisible();
   } else {
-    await expect(page.getByText(/当前筛选条件下暂无需求会话|暂无会话/)).toBeVisible();
+    await expect(page.getByText(/当前筛选条件下暂无需求会话|暂无会话|当前没有匹配会话/)).toBeVisible();
   }
 
   await page.goto('/payments.html');
