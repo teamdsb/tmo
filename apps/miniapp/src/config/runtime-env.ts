@@ -48,6 +48,9 @@ const commerceBaseUrlConst = typeof __TMO_COMMERCE_BASE_URL__ !== 'undefined'
 const identityBaseUrlConst = typeof __TMO_IDENTITY_BASE_URL__ !== 'undefined'
   ? __TMO_IDENTITY_BASE_URL__
   : ''
+const paymentBaseUrlConst = typeof __TMO_PAYMENT_BASE_URL__ !== 'undefined'
+  ? __TMO_PAYMENT_BASE_URL__
+  : ''
 
 const gatewayDevTokenConst = typeof __TMO_GATEWAY_DEV_TOKEN__ !== 'undefined'
   ? __TMO_GATEWAY_DEV_TOKEN__
@@ -57,6 +60,9 @@ const commerceDevTokenConst = typeof __TMO_COMMERCE_DEV_TOKEN__ !== 'undefined'
   : ''
 const identityDevTokenConst = typeof __TMO_IDENTITY_DEV_TOKEN__ !== 'undefined'
   ? __TMO_IDENTITY_DEV_TOKEN__
+  : ''
+const paymentDevTokenConst = typeof __TMO_PAYMENT_DEV_TOKEN__ !== 'undefined'
+  ? __TMO_PAYMENT_DEV_TOKEN__
   : ''
 
 const mockModeConst = typeof __TMO_MOCK_MODE__ !== 'undefined'
@@ -127,6 +133,7 @@ const runtimeEnvRaw = {
   ),
   paymentBaseUrl: firstNonEmpty(
     readConst(apiBaseUrlConst),
+    readConst(paymentBaseUrlConst),
     readProcessEnv('TARO_APP_API_BASE_URL'),
     readProcessEnv('TARO_APP_PAYMENT_BASE_URL'),
     nonProductionFallbackBaseUrl
@@ -145,6 +152,7 @@ const runtimeEnvRaw = {
     readProcessEnv('TARO_APP_IDENTITY_DEV_TOKEN')
   )),
   paymentDevToken: optional(firstNonEmpty(
+    readConst(paymentDevTokenConst),
     readProcessEnv('TARO_APP_PAYMENT_DEV_TOKEN'),
     readProcessEnv('TARO_APP_COMMERCE_DEV_TOKEN')
   )),
