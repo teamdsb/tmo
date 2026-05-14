@@ -84,7 +84,25 @@ function buildModeEnv(mode, extraEnv = {}) {
   }
 }
 
+function inferModeFromEnv(env = process.env) {
+  if (env.TMO_WEAPP_BUILD_MODE === 'mock' || env.TARO_APP_MOCK_MODE === 'isolated') {
+    return 'mock'
+  }
+  if (env.NODE_ENV === 'production' || env.TMO_WEAPP_BUILD_MODE === 'production') {
+    return 'prod'
+  }
+  return 'dev'
+}
+
+function loadModeEnv(mode = inferModeFromEnv(), extraEnv = {}) {
+  const env = buildModeEnv(mode, extraEnv)
+  Object.assign(process.env, env)
+  return env
+}
+
 module.exports = {
   buildModeEnv,
+  inferModeFromEnv,
+  loadModeEnv,
   resolveModeConfig
 }

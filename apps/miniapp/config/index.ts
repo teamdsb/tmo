@@ -7,6 +7,10 @@ import prodConfig from './prod'
 const path = require('node:path')
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { resolveOutputRootForTaroEnv } = require('../scripts/weapp-paths')
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { loadModeEnv } = require('../scripts/miniapp-mode')
+
+loadModeEnv()
 
 const postcssConfig = {
   pxtransform: {
