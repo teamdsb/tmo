@@ -18,8 +18,8 @@
 .category-primary-nav-inner {
   display: inline-flex;
   min-width: 100%;
-  gap: 20px;
-  padding: 24px 16px 22px;
+  gap: 14px;
+  padding: 16px 16px 14px;
 }
 
 .category-primary-item {
@@ -27,7 +27,7 @@
   min-width: 96px;
   flex-direction: column;
   align-items: center;
-  gap: 18px;
+  gap: 12px;
   color: #64748b;
 }
 
@@ -59,8 +59,8 @@
 
 .category-primary-indicator {
   width: 36px;
-  height: 8px;
-  margin-top: 8px;
+  height: 6px;
+  margin-top: 4px;
   border-radius: 999px;
   background: transparent;
 }
@@ -77,12 +77,12 @@
 
 .category-secondary-nav {
   border-top: 1px solid #eef2f6;
-  padding: 20px 0 22px;
+  padding: 14px 0 16px;
 }
 
 .category-secondary-nav-inner {
   display: inline-flex;
-  gap: 14px;
+  gap: 12px;
   padding: 0 16px;
   min-width: max-content;
 }
@@ -92,7 +92,7 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  height: 42px;
+  height: 36px;
   padding: 0 18px;
   border-radius: 999px;
   background: #f1f5f9;
@@ -114,11 +114,11 @@
 }
 
 .category-content-scroll-inner {
-  padding: 0 12px calc(18px + var(--tabbar-safe-offset));
+  padding: 8px 12px calc(24px + var(--tabbar-safe-offset));
 }
 
 .category-overview {
-  padding: 0 4px 14px;
+  padding: 0 4px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -231,7 +231,7 @@
   border-radius: 18px;
   border: 1px dashed #d5deea;
   background: #fff;
-  padding: 28px 12px;
+  padding: 22px 12px 24px;
   text-align: center;
 }
 
