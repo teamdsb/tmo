@@ -83,7 +83,7 @@ func TestAdminProductRequestExportCreateAndQuery(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/admin/product-requests/export-jobs", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), "ADMIN", nil))
+	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), "BOSS", nil))
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, req)
 
@@ -109,7 +109,7 @@ func TestAdminProductRequestExportCreateAndQuery(t *testing.T) {
 	}
 
 	req = httptest.NewRequest(http.MethodGet, "/admin/import-jobs/"+created.Id.String(), nil)
-	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), "ADMIN", nil))
+	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), "BOSS", nil))
 	recorder = httptest.NewRecorder()
 	router.ServeHTTP(recorder, req)
 
@@ -134,6 +134,23 @@ func TestAdminProductRequestExportCreateAndQuery(t *testing.T) {
 	}
 	if rows[1][3] != "Need export" {
 		t.Fatalf("unexpected exported row: %#v", rows[1])
+	}
+}
+
+func TestAdminProductRequestExportRejectsNonAdminRoles(t *testing.T) {
+	pool := openHandlerTestPool(t)
+	resetCommerceTables(t, pool)
+	queries := db.New(pool)
+
+	router, _ := newAuthRouterWithProductRequestExport(pool, queries, t.TempDir(), "http://localhost:8080/assets/media")
+	req := httptest.NewRequest(http.MethodPost, "/admin/product-requests/export-jobs", bytes.NewReader([]byte(`{}`)))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), "SALES", nil))
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected status 403, got %d: %s", recorder.Code, recorder.Body.String())
 	}
 }
 
