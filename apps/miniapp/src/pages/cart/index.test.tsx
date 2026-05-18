@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import Taro from '@tarojs/taro'
 import ExcelImportConfirmation from './index'
@@ -50,6 +52,20 @@ describe('ExcelImportConfirmation', () => {
     expect(screen.getByText('A4 办公用纸')).toBeInTheDocument()
     expect(screen.getByText('钢制螺栓套装')).toBeInTheDocument()
     expect(listProductsSpy).toHaveBeenCalledWith({ page: 1, pageSize: 4 })
+  })
+
+  it('keeps empty cart and bottom bar proportions compact', () => {
+    const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../app.scss'), 'utf8')
+
+    expect(stylesheet).toContain('padding: 18rpx 24rpx calc(184rpx + env(safe-area-inset-bottom));')
+    expect(stylesheet).toContain('padding: 28rpx 12rpx 22rpx;')
+    expect(stylesheet).toContain('width: 220rpx;')
+    expect(stylesheet).toContain('height: 220rpx;')
+    expect(stylesheet).toContain('font-size: 44rpx;')
+    expect(stylesheet).toContain('margin-top: 8rpx;')
+    expect(stylesheet).toContain('min-height: 78rpx;')
+    expect(stylesheet).toContain('font-size: 46rpx;')
+    expect(stylesheet).toContain('min-width: 128rpx;')
   })
 
   it('prefers product name from product detail for cart item title', async () => {
