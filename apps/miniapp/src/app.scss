@@ -1757,9 +1757,14 @@
   color: #0f172a;
 }
 
-.sales-dashboard-qr-image {
+.sales-dashboard-qr-image-wrapper {
   width: 136px;
   height: 136px;
+}
+
+.sales-dashboard-qr-image {
+  width: 100%;
+  height: 100%;
   display: block;
 }
 

@@ -33,6 +33,8 @@ describe('SalesPage', () => {
       expect(await screen.findByText('张三')).toBeInTheDocument()
       expect(await screen.findByText(/客户扫码后将打开微信小程序并进入登录流程/)).toBeInTheDocument()
       expect(await screen.findByText('渠道码：mock-sales-bind')).toBeInTheDocument()
+      expect(screen.getByRole('img')).toHaveAttribute('src', expect.stringMatching(/^data:image\/svg\+xml;charset=UTF-8,/))
+      expect(screen.getByRole('img')).toHaveClass('sales-dashboard-qr-image')
 
       fireEvent.click(screen.getByText('客户'))
       expect(screen.getByText('客户列表')).toBeInTheDocument()

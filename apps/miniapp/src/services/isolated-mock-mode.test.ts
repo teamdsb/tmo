@@ -155,4 +155,15 @@ describe('isolated mock mode', () => {
     const bootstrap = await gatewayServices.bootstrap.get()
     expect(bootstrap.me?.currentRole).toBe('SALES')
   })
+
+  it('returns an inline sales qr image in isolated mock mode', async () => {
+    const { identityServices } = require('./identity') as typeof import('./identity')
+
+    await identityServices.auth.miniLogin({ role: 'SALES' })
+
+    const qr = await identityServices.me.getSalesQrCode()
+    expect(qr.qrCodeUrl).toMatch(/^data:image\/svg\+xml;charset=UTF-8,/)
+    expect(qr.scene).toBe('mock-sales-bind')
+    expect(qr.platform).toBe('weapp')
+  })
 })
