@@ -5,18 +5,21 @@ import Navbar from '@taroify/core/navbar'
 import Button from '@taroify/core/button'
 import Empty from '@taroify/core/empty'
 import Tag from '@taroify/core/tag'
-import type { WishlistItem, PriceTier } from '@tmo/api-client'
+import type { ProductDetail, WishlistItem, PriceTier } from '@tmo/api-client'
 import { ROUTES, goodsDetailRoute } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { ensureLoggedIn } from '../../utils/auth'
 import { commerceServices } from '../../services/commerce'
+import SafeImage from '../../components/safe-image'
+import './index.scss'
 
 const QUICK_ADD_QTY_OPTIONS = [1, 2, 5, 10]
 
 export default function FavoritesPage() {
   const navbarStyle = getNavbarStyle()
   const [items, setItems] = useState<WishlistItem[]>([])
+  const [productDetails, setProductDetails] = useState<Record<string, ProductDetail>>({})
   const [loading, setLoading] = useState(false)
 
   const loadWishlist = useCallback(async () => {
@@ -26,6 +29,17 @@ export default function FavoritesPage() {
       if (!allowed) return
       const list = await commerceServices.wishlist.list()
       setItems(list)
+      const uniqueSpuIds = Array.from(new Set(list.map((item) => item.sku.spuId).filter(Boolean)))
+      const detailEntries = await Promise.all(uniqueSpuIds.map(async (spuId) => {
+        try {
+          const detail = await commerceServices.catalog.getProductDetail(spuId)
+          return [spuId, detail] as const
+        } catch (error) {
+          console.warn('load wishlist product detail failed', { spuId, error })
+          return null
+        }
+      }))
+      setProductDetails(Object.fromEntries(detailEntries.filter((entry): entry is readonly [string, ProductDetail] => Boolean(entry))))
     } catch (error) {
       console.warn('load wishlist failed', error)
       await Taro.showToast({ title: '加载收藏失败', icon: 'none' })
@@ -99,29 +113,43 @@ export default function FavoritesPage() {
             </Empty.Description>
           </Empty>
         ) : (
-          <View className='grid grid-cols-1 gap-4'>
+          <View className='favorites-list'>
             {items.map((item) => {
               const primaryTier = item.sku.priceTiers?.[0]
+              const detail = productDetails[item.sku.spuId]
+              const productName = detail?.product.name || item.sku.name
+              const productImage = detail?.product.images?.find((image) => typeof image === 'string' && image.trim())
+              const modelLabel = item.sku.name || item.sku.skuCode || '标准型号'
+              const specLabel = item.sku.spec || item.sku.skuCode || item.sku.unit || '标准规格'
               return (
                 <View
                   key={item.sku.id}
-                  className='bg-white rounded-2xl border border-slate-100 p-4 shadow-sm'
+                  className='favorite-card'
                 >
-                  <View className='flex items-start justify-between gap-4'>
-                    <View className='flex-1 min-w-0'>
-                      <Text className='text-sm font-semibold text-slate-900 truncate'>
-                        {item.sku.name}
-                      </Text>
-                      <Text className='text-xs text-slate-400 truncate'>
-                        {item.sku.spec || '标准规格'}
-                      </Text>
+                  <View className='favorite-card-main'>
+                    <View className='favorite-card-image-shell'>
+                      <SafeImage
+                        wrapperClassName='favorite-card-image-wrapper'
+                        className='favorite-card-image'
+                        src={productImage}
+                        width='100%'
+                        height='100%'
+                        mode='aspectFill'
+                      />
                     </View>
-                    <Tag size='small' variant='outlined' color='primary'>
-                      {primaryTier ? formatTierLabel(primaryTier) : '报价'}
-                    </Tag>
+                    <View className='favorite-card-copy'>
+                      <View className='favorite-card-heading'>
+                        <Text className='favorite-card-title'>{productName}</Text>
+                        <Tag size='small' variant='outlined' color='primary'>
+                          {primaryTier ? formatTierLabel(primaryTier) : '报价'}
+                        </Tag>
+                      </View>
+                      <Text className='favorite-card-model'>型号 {modelLabel}</Text>
+                      <Text className='favorite-card-spec'>{specLabel}</Text>
+                    </View>
                   </View>
 
-                  <View className='mt-3 flex items-center justify-between'>
+                  <View className='favorite-card-actions'>
                     <Button
                       size='small'
                       variant='outlined'
@@ -129,7 +157,7 @@ export default function FavoritesPage() {
                     >
                       查看
                     </Button>
-                    <View className='flex items-center gap-2'>
+                    <View className='favorite-card-action-group'>
                       <Button
                         size='small'
                         variant='outlined'
