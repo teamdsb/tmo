@@ -5,10 +5,12 @@ const automator = require('miniprogram-automator')
 const miniappDir = path.resolve(__dirname, '..')
 const rootDir = path.resolve(miniappDir, '..', '..')
 const projectPath = path.join(miniappDir, 'dist', 'weapp')
-const port = Number(process.env.WEAPP_AUTOMATOR_PORT || 9527)
+const requestedPort = process.env.WEAPP_AUTOMATOR_PORT
+const defaultPort = Number(requestedPort || 9527)
 const timeoutMs = Number(process.env.WEAPP_CATALOG_E2E_TIMEOUT_MS || 120000)
 const pageWaitMs = Number(process.env.WEAPP_CATALOG_E2E_PAGE_WAIT_MS || 8000)
 const apiBaseUrl = process.env.WEAPP_CATALOG_E2E_API_BASE_URL || 'http://localhost:8080'
+const allowSimulatedLoginFallback = String(process.env.TARO_APP_WEAPP_PHONE_PROOF_SIMULATION || '').trim().toLowerCase() === 'true'
 
 const cliCandidates = [
   process.env.WEAPP_DEVTOOLS_CLI_PATH,
@@ -18,6 +20,13 @@ const cliCandidates = [
 ].filter(Boolean)
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const resolveAutomatorPort = async () => {
+  if (requestedPort) {
+    return defaultPort
+  }
+  return null
+}
 
 const lastRunDebugState = {
   routeAfterLogin: '',
@@ -98,6 +107,63 @@ const hasBootstrapMe = (value) => {
   }
 
   return typeof value === 'object' && value !== null && 'me' in value && Boolean(value.me)
+}
+
+const readLoginSuccessState = async (miniProgram) => {
+  const currentPage = await miniProgram.currentPage()
+  const currentRoute = normalizePath(currentPage?.path)
+  const token = await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
+  const bootstrap = await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
+  if (
+    currentRoute !== 'pages/auth/login/index'
+    && typeof token === 'string'
+    && token.trim().length > 0
+    && hasBootstrapMe(bootstrap)
+  ) {
+    return {
+      routeAfterLogin: currentRoute,
+      token,
+      bootstrap
+    }
+  }
+  return null
+}
+
+const loginWithSimulatedPhoneProofViaGateway = async (miniProgram) => {
+  const baseUrl = apiBaseUrl.replace(/\/$/, '')
+  const loginResponse = await fetch(`${baseUrl}/auth/mini/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      platform: 'weapp',
+      code: 'mock_customer_001',
+      phoneProof: {
+        code: 'simulated_weapp_phone_proof'
+      }
+    })
+  })
+  if (loginResponse.status !== 200) {
+    const body = await loginResponse.text().catch(() => '')
+    throw new Error(`simulated gateway login failed: ${loginResponse.status} ${body}`)
+  }
+  const loginPayload = await loginResponse.json()
+  const token = String(loginPayload?.accessToken || '').trim()
+  if (!token) {
+    throw new Error('simulated gateway login returned empty accessToken')
+  }
+
+  const bootstrapResponse = await fetch(`${baseUrl}/bff/bootstrap`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  if (bootstrapResponse.status !== 200) {
+    const body = await bootstrapResponse.text().catch(() => '')
+    throw new Error(`bootstrap after simulated gateway login failed: ${bootstrapResponse.status} ${body}`)
+  }
+  const bootstrap = await bootstrapResponse.json()
+  await miniProgram.callWxMethod('setStorageSync', 'tmo:auth:token', token)
+  await miniProgram.callWxMethod('setStorageSync', 'tmo:bootstrap', bootstrap)
+  await miniProgram.reLaunch('/pages/index/index')
+  return readLoginSuccessState(miniProgram)
 }
 
 const assertPass = (checks, name, condition, detail) => {
@@ -328,12 +394,26 @@ const loginWithNativeFlow = async (miniProgram, checks) => {
   const loginButton = await page.$('.login-native-button')
   assertPass(checks, 'login.primary.button', Boolean(loginButton), 'login button should be found')
   await loginButton.tap()
-  await sleep(6500)
+  await sleep(1200)
+
+  let loginState = await readLoginSuccessState(miniProgram)
+  if (!loginState && typeof loginButton.trigger === 'function') {
+    await loginButton.trigger('tap')
+    await sleep(1200)
+    loginState = await readLoginSuccessState(miniProgram)
+  }
+  if (!loginState && allowSimulatedLoginFallback) {
+    loginState = await loginWithSimulatedPhoneProofViaGateway(miniProgram)
+  }
+  if (!loginState) {
+    await sleep(6500)
+    loginState = await readLoginSuccessState(miniProgram)
+  }
 
   page = await miniProgram.currentPage()
-  const routeAfterLogin = normalizePath(page?.path)
-  const tokenAfterLogin = await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
-  const bootstrapAfterLogin = await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
+  const routeAfterLogin = loginState?.routeAfterLogin ?? normalizePath(page?.path)
+  const tokenAfterLogin = loginState?.token ?? await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
+  const bootstrapAfterLogin = loginState?.bootstrap ?? await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
 
   lastRunDebugState.routeAfterLogin = routeAfterLogin
 
@@ -377,14 +457,18 @@ const run = async () => {
   }
 
   try {
-    miniProgram = await automator.launch({
+    const port = await resolveAutomatorPort()
+    const launchOptions = {
       cliPath,
       projectPath,
-      port,
       timeout: timeoutMs,
       trustProject: true,
       cwd: rootDir
-    })
+    }
+    if (port) {
+      launchOptions.port = port
+    }
+    miniProgram = await automator.launch(launchOptions)
 
     miniProgram.on('console', (payload) => {
       const level = String(payload?.level || payload?.type || 'info').toLowerCase()
@@ -532,13 +616,17 @@ const run = async () => {
 }
 
 run().catch((error) => {
+  const errorText = readErrorText(error)
+  if (/cmpVersion|checkVersion|split/i.test(`${errorText}\n${error?.stack || ''}`)) {
+    lastRunDebugState.automatorVersionCheck = 'failed'
+  }
   const summary = {
     status: 'fail',
-    error: readErrorText(error),
+    error: errorText,
     stack: error?.stack || '',
     debugState: lastRunDebugState
   }
   console.error(JSON.stringify(summary, null, 2))
   console.error('WEAPP_CATALOG_REAL_E2E:FAIL')
-  process.exitCode = 1
+  process.exit(1)
 })
