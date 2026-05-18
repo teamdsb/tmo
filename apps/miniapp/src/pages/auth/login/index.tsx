@@ -471,14 +471,12 @@ export default function LoginPage() {
               ) : null}
 
               {!isMockMode && platform === 'weapp' && enableWeappPhoneProofSimulation ? (
-                <NativeButton
+                <View
                   className='login-primary login-native-button'
-                  disabled={!agreed || loading}
-                  loading={loading}
                   onClick={handleWeappSimulatedLogin}
                 >
-                  快速登录
-                </NativeButton>
+                  <Text>快速登录</Text>
+                </View>
               ) : null}
 
               {!isMockMode && platform === 'weapp' && !enableWeappPhoneProofSimulation ? (
