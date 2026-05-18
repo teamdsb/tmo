@@ -60,6 +60,7 @@ const smokeAssertMinProducts = Number(process.env.WEAPP_SMOKE_ASSERT_MIN_PRODUCT
 const smokeAssertCategoryMin = Number(process.env.WEAPP_SMOKE_ASSERT_CATEGORY_MIN || 0)
 const smokeAssertImageSuccessMin = Number(process.env.WEAPP_SMOKE_ASSERT_IMAGE_SUCCESS_MIN || 0)
 const smokeAssertNoConsoleError = readBool(process.env.WEAPP_SMOKE_ASSERT_NO_CONSOLE_ERROR, true)
+const smokeRequireBootstrap = readBool(process.env.WEAPP_SMOKE_REQUIRE_BOOTSTRAP, true)
 const smokeRouteWaitMs = Number(process.env.WEAPP_SMOKE_ROUTE_WAIT_MS || 8000)
 const warningAllowlistRaw = String(process.env.WEAPP_WARNING_ALLOWLIST || '')
 const defaultWarningAllowlistPatterns = [
@@ -99,7 +100,11 @@ const imageAssertionScope = resolveImageAssertionScope({
   isMultiRouteParent: !multiRouteChild && automatorRoutes.length > 0
 })
 
-const keyEndpoints = ['/bff/bootstrap', '/catalog/categories', '/catalog/products']
+const keyEndpoints = [
+  ...(smokeRequireBootstrap ? ['/bff/bootstrap'] : []),
+  '/catalog/categories',
+  '/catalog/products'
+]
 const endpointAliases = new Map([
   ['/catalog/display-categories', '/catalog/categories']
 ])
@@ -2132,6 +2137,7 @@ function buildEnvSnapshot(runtimeInfo) {
       minProducts: assertionConfig.minProducts,
       minCategories: assertionConfig.minCategories,
       minImageSuccess: assertionConfig.minImageSuccess,
+      requireBootstrap: smokeRequireBootstrap,
       imageScope: imageAssertionScope,
       assertNoConsoleError: assertionConfig.assertNoConsoleError,
       routeWaitMs: assertionConfig.routeWaitMs
@@ -2187,6 +2193,7 @@ function buildSummary(runtimeInfo, startedAt, finishedAt) {
     `- assertMinProducts: ${assertionConfig.minProducts}`,
     `- assertMinCategories: ${assertionConfig.minCategories}`,
     `- assertMinImageSuccess: ${assertionConfig.minImageSuccess}`,
+    `- requireBootstrap: ${smokeRequireBootstrap}`,
     `- assertImageScope: ${imageAssertionScope}`,
     `- assertNoConsoleError: ${assertionConfig.assertNoConsoleError}`,
     `- routeWaitMs: ${assertionConfig.routeWaitMs}`,
