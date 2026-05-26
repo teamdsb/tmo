@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,6 +16,11 @@ import (
 )
 
 const defaultDSN = "postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable"
+
+const (
+	defaultMediaLocalOutputDir = "./infra/dev/media"
+	defaultMediaPublicBaseURL  = "http://localhost:8080/assets/media"
+)
 
 func main() {
 	if err := run(); err != nil {
@@ -50,6 +57,9 @@ func run() error {
 	}()
 
 	seed := buildCatalogSeed()
+	if err := ensureCatalogMediaAssets(seed.Products); err != nil {
+		return err
+	}
 
 	categoryCount := 0
 	displayCategoryCount := 0
@@ -155,6 +165,7 @@ type productSeed struct {
 	CategoryID       uuid.UUID
 	CoverImageURL    string
 	Images           []string
+	ImageFileName    string
 	Tags             []string
 	FilterDimensions []string
 	SKUs             []skuSeed
@@ -585,7 +596,7 @@ func buildCatalogSeed() catalogSeed {
 			},
 		},
 	}
-	stripRemoteProductImages(products)
+	applyManagedProductImages(products)
 
 	return catalogSeed{
 		Categories: []categorySeed{
@@ -633,11 +644,91 @@ func buildCatalogSeed() catalogSeed {
 	}
 }
 
-func stripRemoteProductImages(products []productSeed) {
-	for index := range products {
-		products[index].CoverImageURL = ""
-		products[index].Images = []string{}
+func applyManagedProductImages(products []productSeed) {
+	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("MEDIA_PUBLIC_BASE_URL")), "/")
+	if baseURL == "" {
+		baseURL = defaultMediaPublicBaseURL
 	}
+	for index := range products {
+		fileName := products[index].ImageFileName
+		if strings.TrimSpace(fileName) == "" {
+			fileName = products[index].ID.String() + ".svg"
+			products[index].ImageFileName = fileName
+		}
+		imageURL := baseURL + "/catalog/" + fileName
+		products[index].CoverImageURL = imageURL
+		products[index].Images = []string{imageURL}
+	}
+}
+
+func ensureCatalogMediaAssets(products []productSeed) error {
+	outputDir := strings.TrimSpace(os.Getenv("MEDIA_LOCAL_OUTPUT_DIR"))
+	if outputDir == "" {
+		outputDir = defaultMediaLocalOutputDir
+	}
+	catalogDir := filepath.Join(outputDir, "catalog")
+	if err := os.MkdirAll(catalogDir, 0o755); err != nil {
+		return fmt.Errorf("create catalog media dir: %w", err)
+	}
+
+	for _, product := range products {
+		fileName := product.ImageFileName
+		if strings.TrimSpace(fileName) == "" {
+			fileName = product.ID.String() + ".svg"
+		}
+		if err := os.WriteFile(filepath.Join(catalogDir, fileName), []byte(renderProductImageSVG(product)), 0o644); err != nil {
+			return fmt.Errorf("write catalog media %s: %w", fileName, err)
+		}
+	}
+	return nil
+}
+
+func renderProductImageSVG(product productSeed) string {
+	title := escapeSVGText(product.Name)
+	tag := "Industrial Supply"
+	if len(product.Tags) > 0 && strings.TrimSpace(product.Tags[0]) != "" {
+		tag = escapeSVGText(product.Tags[0])
+	}
+
+	return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#eef5ff"/>
+    <stop offset="1" stop-color="#d9e8fb"/>
+  </linearGradient>
+  <linearGradient id="steel" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#f8fbff"/>
+    <stop offset="0.55" stop-color="#a9bdd8"/>
+    <stop offset="1" stop-color="#6f88aa"/>
+  </linearGradient>
+</defs>
+<rect width="640" height="480" fill="url(#bg)"/>
+<circle cx="520" cy="96" r="72" fill="#c6dbf7" opacity="0.58"/>
+<circle cx="118" cy="398" r="88" fill="#ffffff" opacity="0.42"/>
+<g transform="translate(126 108)">
+  <rect x="0" y="120" width="388" height="58" rx="29" fill="#9ab0cf" opacity="0.28"/>
+  <rect x="60" y="36" width="336" height="64" rx="20" fill="url(#steel)" transform="rotate(-12 228 68)"/>
+  <rect x="26" y="128" width="386" height="58" rx="18" fill="url(#steel)" transform="rotate(-12 219 157)"/>
+  <rect x="96" y="214" width="316" height="56" rx="18" fill="url(#steel)" transform="rotate(-12 254 242)"/>
+  <circle cx="394" cy="76" r="38" fill="#347fe6"/>
+  <circle cx="394" cy="76" r="17" fill="#eaf3ff"/>
+  <path d="M77 60h126M47 158h160M122 244h132" stroke="#ffffff" stroke-width="10" stroke-linecap="round" opacity="0.72"/>
+</g>
+<rect x="52" y="358" width="536" height="70" rx="18" fill="#ffffff" opacity="0.86"/>
+<text x="82" y="392" font-family="Arial, 'PingFang SC', sans-serif" font-size="26" font-weight="700" fill="#172033">%s</text>
+<text x="82" y="418" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#5d708e">%s</text>
+</svg>`, title, tag)
+}
+
+func escapeSVGText(value string) string {
+	replacer := strings.NewReplacer(
+		"&", "&amp;",
+		"<", "&lt;",
+		">", "&gt;",
+		`"`, "&quot;",
+		"'", "&apos;",
+	)
+	return replacer.Replace(strings.TrimSpace(value))
 }
 
 func newSKU(

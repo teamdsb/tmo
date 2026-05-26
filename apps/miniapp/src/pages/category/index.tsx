@@ -19,6 +19,33 @@ type SecondaryFilter = {
   keywords: string[]
 }
 
+type CategoryViewItem = DisplayCategory & {
+  catalogCategoryId: string
+  filterKey: string
+}
+
+const FILTER_KEY_BY_DISPLAY_CATEGORY_ID: Record<string, string> = {
+  'cat-fasteners': 'fasteners',
+  'cat-electrical': 'electrical',
+  'cat-ppe': 'safety',
+  'cat-tools': 'tools',
+  'cat-instrumentation': 'instrumentation',
+  'cat-janitorial': 'janitorial',
+  'cat-office': 'office',
+  'cat-packaging': 'packaging'
+}
+
+const FILTER_KEY_BY_CATEGORY_NAME: Record<string, string> = {
+  '紧固件': 'fasteners',
+  '电气': 'electrical',
+  '安全防护': 'safety',
+  '工具': 'tools',
+  '仪器仪表': 'instrumentation',
+  '劳保清洁': 'janitorial',
+  '办公文具': 'office',
+  '包装耗材': 'packaging'
+}
+
 const SECONDARY_FILTERS_BY_CATEGORY: Record<string, SecondaryFilter[]> = {
   fasteners: [
     { id: 'all', label: '全部商品', keywords: [] },
@@ -101,6 +128,23 @@ const toDisplayCategoriesFromCatalog = (items: Category[]): DisplayCategory[] =>
   }))
 }
 
+const toCategoryViewItems = (displayItems: DisplayCategory[], catalogItems: Category[]): CategoryViewItem[] => {
+  const catalogByName = new Map(catalogItems.map((item) => [item.name, item.id]))
+
+  return sortCategories(displayItems)
+    .filter((item) => item.enabled !== false)
+    .map((item) => {
+      const displayId = String(item.id)
+      const name = String(item.name)
+      return {
+        ...item,
+        id: displayId,
+        catalogCategoryId: catalogByName.get(name) ?? displayId,
+        filterKey: FILTER_KEY_BY_DISPLAY_CATEGORY_ID[displayId] ?? FILTER_KEY_BY_CATEGORY_NAME[name] ?? displayId
+      }
+    })
+}
+
 const matchesSecondaryFilter = (product: ProductSummary, filter: SecondaryFilter, categoryName: string): boolean => {
   if (filter.keywords.length === 0) {
     return true
@@ -118,7 +162,7 @@ const matchesSecondaryFilter = (product: ProductSummary, filter: SecondaryFilter
 export default function CategoryPage() {
   const navbarStyle = getNavbarStyle()
   const isH5 = process.env.TARO_ENV === 'h5'
-  const [categories, setCategories] = useState<DisplayCategory[]>([])
+  const [categories, setCategories] = useState<CategoryViewItem[]>([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [activeCategoryId, setActiveCategoryId] = useState('')
   const [activeFilterId, setActiveFilterId] = useState('all')
@@ -134,8 +178,8 @@ export default function CategoryPage() {
   }, [activeCategoryId, sortedCategories])
 
   const secondaryFilters = useMemo(() => {
-    return SECONDARY_FILTERS_BY_CATEGORY[activeCategoryId] ?? [{ id: 'all', label: '全部商品', keywords: [] }]
-  }, [activeCategoryId])
+    return SECONDARY_FILTERS_BY_CATEGORY[activeCategory?.filterKey ?? activeCategoryId] ?? [{ id: 'all', label: '全部商品', keywords: [] }]
+  }, [activeCategory, activeCategoryId])
 
   const filteredProducts = useMemo(() => {
     const activeFilter = secondaryFilters.find((item) => item.id === activeFilterId) ?? secondaryFilters[0]
@@ -151,9 +195,12 @@ export default function CategoryPage() {
     void (async () => {
       setCategoriesLoading(true)
       try {
-        const response = await commerceServices.catalog.listDisplayCategories()
+        const [displayResponse, catalogResponse] = await Promise.all([
+          commerceServices.catalog.listDisplayCategories(),
+          commerceServices.catalog.listCategories()
+        ])
         if (!cancelled) {
-          const nextCategories = sortCategories(response.items ?? []).filter((item) => item.enabled !== false)
+          const nextCategories = toCategoryViewItems(displayResponse.items ?? [], catalogResponse.items ?? [])
           setCategories(nextCategories)
           setActiveCategoryId((prev) => {
             if (prev && nextCategories.some((item) => item.id === prev)) {
@@ -169,7 +216,8 @@ export default function CategoryPage() {
           if (cancelled) {
             return
           }
-          const nextCategories = toDisplayCategoriesFromCatalog(response.items ?? [])
+          const catalogItems = response.items ?? []
+          const nextCategories = toCategoryViewItems(toDisplayCategoriesFromCatalog(catalogItems), catalogItems)
           setCategories(nextCategories)
           setActiveCategoryId((prev) => {
             if (prev && nextCategories.some((item) => item.id === prev)) {
@@ -198,7 +246,7 @@ export default function CategoryPage() {
   }, [activeCategoryId])
 
   useEffect(() => {
-    if (!activeCategoryId) {
+    if (!activeCategory) {
       setProducts([])
       return
     }
@@ -209,7 +257,7 @@ export default function CategoryPage() {
       setProductsLoading(true)
       try {
         const response = await commerceServices.catalog.listProducts({
-          categoryId: activeCategoryId,
+          categoryId: activeCategory.catalogCategoryId,
           q: query || undefined,
           page: 1,
           pageSize: 40
@@ -230,7 +278,7 @@ export default function CategoryPage() {
     return () => {
       cancelled = true
     }
-  }, [activeCategoryId, query])
+  }, [activeCategory, query])
 
   return (
     <View className='page category-page' style={isH5 ? navbarStyle : undefined}>
