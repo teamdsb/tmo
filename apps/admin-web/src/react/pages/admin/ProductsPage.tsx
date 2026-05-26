@@ -1200,15 +1200,15 @@ const DisplayCategoryManagerModal = ({ items, onClose, onSaveAll, open }: Displa
   return (
     <div
       id="display-category-manager-modal"
-      className="fixed inset-0 z-[93] flex items-center justify-center bg-slate-900/50 p-4"
+      className="fixed inset-0 z-[93] flex items-start justify-center overflow-y-auto bg-slate-900/50 px-4 py-6"
       onClick={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
         }
       }}
     >
-      <div className="w-full max-w-5xl rounded-xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+      <div className="flex max-h-[calc(100vh-3rem)] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+        <div className="shrink-0 flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <div>
             <h3 className="text-lg font-bold text-slate-900">展示类目管理</h3>
             <p className="text-xs text-slate-500">管理小程序首页的展示类目（Admin 改动会同步到小程序首页）。</p>
@@ -1222,7 +1222,7 @@ const DisplayCategoryManagerModal = ({ items, onClose, onSaveAll, open }: Displa
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
-        <div className="space-y-5 px-6 py-5">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
           <form
             className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-[2fr_1fr_110px_110px_auto]"
             data-role="create-display-category-form"
