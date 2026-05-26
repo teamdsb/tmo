@@ -1,6 +1,7 @@
 .DS_Store
 .env
 .env.*
+!apps/miniapp/.env.production
 *.log
 
 node_modules/

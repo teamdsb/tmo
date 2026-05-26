@@ -7,6 +7,7 @@ const targetFiles = ['common.js', 'app.js', 'vendors.js']
 const placeholderHost = 'api.example.com'
 const expectedDevHost = 'localhost:8080'
 const mode = process.env.TMO_WEAPP_BUILD_MODE || (process.env.NODE_ENV === 'development' ? 'development' : 'production')
+const expectedProdBaseUrl = (process.env.TARO_APP_API_BASE_URL || '').trim()
 
 const readBundledSources = () => {
   return targetFiles
@@ -58,6 +59,24 @@ const main = () => {
   }
 
   if (mode === 'production' || mode === 'prod') {
+    if (expectedProdBaseUrl) {
+      if (!bundledSource.includes(expectedProdBaseUrl)) {
+        fail(
+          `${platform} production build does not contain "${expectedProdBaseUrl}". ` +
+          'check .env.production TARO_APP_API_BASE_URL'
+        )
+      }
+      if (hasPlaceholder) {
+        fail(
+          `${platform} production build still contains placeholder host "${placeholderHost}". ` +
+          'check production env resolution'
+        )
+      }
+
+      console.log(`[verify-miniapp-api-base] ok (${platform}/${mode}): api base references "${expectedProdBaseUrl}"`)
+      return
+    }
+
     if (hasPlaceholder) {
       console.log(
         `[verify-miniapp-api-base] ok (${platform}/${mode}): api base references "${placeholderHost}" (production placeholder retained)`
