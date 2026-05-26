@@ -22,6 +22,7 @@ const (
 	defaultImageProxyMaxBytes          = int64(8 * 1024 * 1024)
 	defaultImageProxyCacheMaxAgeSecond = 3600
 	imageProxyUserAgent                = "tmo-gateway-image-proxy/1.0"
+	imageProxyPlaceholderSVG           = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480"><rect width="640" height="480" fill="#e8f0fb"/><rect x="176" y="162" width="288" height="156" rx="18" fill="#fff"/><rect x="216" y="208" width="208" height="20" rx="10" fill="#a9bddb"/><rect x="216" y="248" width="152" height="18" rx="9" fill="#a9bddb"/><rect x="216" y="284" width="104" height="18" rx="9" fill="#a9bddb"/><circle cx="424" cy="268" r="24" fill="#7da0d3"/><path d="M424 254v28M410 268h28" stroke="#fff" stroke-width="8" stroke-linecap="round"/><text x="320" y="378" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" fill="#6f91c2">Product Image</text></svg>`
 )
 
 type ImageProxyHandler struct {
@@ -122,10 +123,7 @@ func (h *ImageProxyHandler) Handle(c *gin.Context) {
 			if h.logger != nil {
 				h.logger.Warn("image proxy upstream request timed out", "error", err, "url", targetURL.String())
 			}
-			apierrors.Write(c, http.StatusGatewayTimeout, apierrors.APIError{
-				Code:    "upstream_timeout",
-				Message: "image upstream timed out",
-			})
+			writeImageProxyPlaceholder(c, h.cacheMaxAgeSeconds)
 			return
 		}
 		if h.logger != nil {
@@ -168,10 +166,7 @@ func (h *ImageProxyHandler) Handle(c *gin.Context) {
 			if h.logger != nil {
 				h.logger.Warn("image proxy upstream body read timed out", "error", err, "url", targetURL.String())
 			}
-			apierrors.Write(c, http.StatusGatewayTimeout, apierrors.APIError{
-				Code:    "upstream_timeout",
-				Message: "image upstream timed out",
-			})
+			writeImageProxyPlaceholder(c, h.cacheMaxAgeSeconds)
 			return
 		}
 		if h.logger != nil {
@@ -206,6 +201,15 @@ func (h *ImageProxyHandler) Handle(c *gin.Context) {
 		c.Header("Last-Modified", lastModified)
 	}
 	c.Data(http.StatusOK, contentType, payload)
+}
+
+func writeImageProxyPlaceholder(c *gin.Context, cacheMaxAgeSeconds int) {
+	if cacheMaxAgeSeconds <= 0 {
+		cacheMaxAgeSeconds = defaultImageProxyCacheMaxAgeSecond
+	}
+	c.Header("Cache-Control", fmt.Sprintf("public, max-age=%d", cacheMaxAgeSeconds))
+	c.Header("X-TMO-Image-Fallback", "upstream_timeout")
+	c.Data(http.StatusOK, "image/svg+xml; charset=utf-8", []byte(imageProxyPlaceholderSVG))
 }
 
 func parseImageURL(rawURL string) (*url.URL, error) {

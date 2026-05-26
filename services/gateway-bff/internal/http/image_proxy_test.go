@@ -157,11 +157,17 @@ func TestImageProxyHandleUpstreamTimeout(t *testing.T) {
 
 	router.ServeHTTP(recorder, request)
 
-	if recorder.Code != http.StatusGatewayTimeout {
-		t.Fatalf("expected status %d, got %d, body=%s", http.StatusGatewayTimeout, recorder.Code, recorder.Body.String())
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d, body=%s", http.StatusOK, recorder.Code, recorder.Body.String())
 	}
-	if !strings.Contains(recorder.Body.String(), "\"code\":\"upstream_timeout\"") {
-		t.Fatalf("expected upstream_timeout error, got %s", recorder.Body.String())
+	if contentType := recorder.Header().Get("Content-Type"); !strings.HasPrefix(contentType, "image/svg+xml") {
+		t.Fatalf("expected svg placeholder content type, got %q", contentType)
+	}
+	if fallback := recorder.Header().Get("X-TMO-Image-Fallback"); fallback != "upstream_timeout" {
+		t.Fatalf("expected fallback header, got %q", fallback)
+	}
+	if !strings.Contains(recorder.Body.String(), "Product Image") {
+		t.Fatalf("expected placeholder image payload, got %s", recorder.Body.String())
 	}
 }
 

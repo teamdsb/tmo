@@ -585,6 +585,7 @@ func buildCatalogSeed() catalogSeed {
 			},
 		},
 	}
+	stripRemoteProductImages(products)
 
 	return catalogSeed{
 		Categories: []categorySeed{
@@ -629,6 +630,13 @@ func buildCatalogSeed() catalogSeed {
 				},
 			},
 		},
+	}
+}
+
+func stripRemoteProductImages(products []productSeed) {
+	for index := range products {
+		products[index].CoverImageURL = ""
+		products[index].Images = nil
 	}
 }
 
