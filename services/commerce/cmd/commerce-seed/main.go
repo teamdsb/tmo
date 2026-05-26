@@ -655,7 +655,7 @@ func applyManagedProductImages(products []productSeed) {
 			fileName = products[index].ID.String() + ".svg"
 			products[index].ImageFileName = fileName
 		}
-		imageURL := baseURL + "/catalog/" + fileName
+		imageURL := baseURL + "/catalog/v3/" + fileName
 		products[index].CoverImageURL = imageURL
 		products[index].Images = []string{imageURL}
 	}
@@ -666,7 +666,7 @@ func ensureCatalogMediaAssets(products []productSeed) error {
 	if outputDir == "" {
 		outputDir = defaultMediaLocalOutputDir
 	}
-	catalogDir := filepath.Join(outputDir, "catalog")
+	catalogDir := filepath.Join(outputDir, "catalog", "v3")
 	if err := os.MkdirAll(catalogDir, 0o755); err != nil {
 		return fmt.Errorf("create catalog media dir: %w", err)
 	}
@@ -684,51 +684,36 @@ func ensureCatalogMediaAssets(products []productSeed) error {
 }
 
 func renderProductImageSVG(product productSeed) string {
-	title := escapeSVGText(product.Name)
-	tag := "Industrial Supply"
-	if len(product.Tags) > 0 && strings.TrimSpace(product.Tags[0]) != "" {
-		tag = escapeSVGText(product.Tags[0])
-	}
-
-	return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480">
+	return `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640">
 <defs>
   <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-    <stop offset="0" stop-color="#eef5ff"/>
-    <stop offset="1" stop-color="#d9e8fb"/>
+    <stop offset="0" stop-color="#edf6ff"/>
+    <stop offset="1" stop-color="#dbeafe"/>
   </linearGradient>
   <linearGradient id="steel" x1="0" y1="0" x2="1" y2="1">
-    <stop offset="0" stop-color="#f8fbff"/>
-    <stop offset="0.55" stop-color="#a9bdd8"/>
-    <stop offset="1" stop-color="#6f88aa"/>
+    <stop offset="0" stop-color="#f9fbff"/>
+    <stop offset="0.5" stop-color="#b9c9df"/>
+    <stop offset="1" stop-color="#7890ae"/>
+  </linearGradient>
+  <linearGradient id="shadow" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#9db2ce" stop-opacity="0.22"/>
+    <stop offset="1" stop-color="#4d6f9d" stop-opacity="0.08"/>
   </linearGradient>
 </defs>
-<rect width="640" height="480" fill="url(#bg)"/>
-<circle cx="520" cy="96" r="72" fill="#c6dbf7" opacity="0.58"/>
-<circle cx="118" cy="398" r="88" fill="#ffffff" opacity="0.42"/>
-<g transform="translate(126 108)">
-  <rect x="0" y="120" width="388" height="58" rx="29" fill="#9ab0cf" opacity="0.28"/>
-  <rect x="60" y="36" width="336" height="64" rx="20" fill="url(#steel)" transform="rotate(-12 228 68)"/>
-  <rect x="26" y="128" width="386" height="58" rx="18" fill="url(#steel)" transform="rotate(-12 219 157)"/>
-  <rect x="96" y="214" width="316" height="56" rx="18" fill="url(#steel)" transform="rotate(-12 254 242)"/>
-  <circle cx="394" cy="76" r="38" fill="#347fe6"/>
-  <circle cx="394" cy="76" r="17" fill="#eaf3ff"/>
-  <path d="M77 60h126M47 158h160M122 244h132" stroke="#ffffff" stroke-width="10" stroke-linecap="round" opacity="0.72"/>
+<rect width="640" height="640" fill="url(#bg)"/>
+<circle cx="512" cy="128" r="92" fill="#bfdbfe" opacity="0.55"/>
+<circle cx="122" cy="516" r="126" fill="#ffffff" opacity="0.5"/>
+<path d="M72 442c116-32 236-45 498-23" stroke="#c7d7ed" stroke-width="42" stroke-linecap="round" opacity="0.42"/>
+<g transform="translate(92 144)">
+  <rect x="22" y="154" width="438" height="66" rx="22" fill="url(#shadow)" transform="rotate(-12 241 187)"/>
+  <rect x="74" y="48" width="392" height="72" rx="20" fill="url(#steel)" transform="rotate(-12 270 84)"/>
+  <rect x="16" y="176" width="430" height="72" rx="22" fill="url(#steel)" transform="rotate(-12 231 212)"/>
+  <rect x="100" y="298" width="350" height="68" rx="20" fill="url(#steel)" transform="rotate(-12 275 332)"/>
+  <circle cx="456" cy="96" r="48" fill="#2f7eea"/>
+  <circle cx="456" cy="96" r="21" fill="#eaf3ff"/>
+  <path d="M84 78h142M52 206h184M132 328h148" stroke="#ffffff" stroke-width="11" stroke-linecap="round" opacity="0.78"/>
 </g>
-<rect x="52" y="358" width="536" height="70" rx="18" fill="#ffffff" opacity="0.86"/>
-<text x="82" y="392" font-family="Arial, 'PingFang SC', sans-serif" font-size="26" font-weight="700" fill="#172033">%s</text>
-<text x="82" y="418" font-family="Arial, 'PingFang SC', sans-serif" font-size="18" fill="#5d708e">%s</text>
-</svg>`, title, tag)
-}
-
-func escapeSVGText(value string) string {
-	replacer := strings.NewReplacer(
-		"&", "&amp;",
-		"<", "&lt;",
-		">", "&gt;",
-		`"`, "&quot;",
-		"'", "&apos;",
-	)
-	return replacer.Replace(strings.TrimSpace(value))
+</svg>`
 }
 
 func newSKU(
