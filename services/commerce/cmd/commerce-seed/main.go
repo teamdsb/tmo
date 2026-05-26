@@ -636,7 +636,7 @@ func buildCatalogSeed() catalogSeed {
 func stripRemoteProductImages(products []productSeed) {
 	for index := range products {
 		products[index].CoverImageURL = ""
-		products[index].Images = nil
+		products[index].Images = []string{}
 	}
 }
 
