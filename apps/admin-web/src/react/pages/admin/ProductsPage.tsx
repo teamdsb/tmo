@@ -90,6 +90,152 @@ const readFileAsDataUrl = (file: File) =>
     reader.readAsDataURL(file);
   });
 
+type ProductImageUploaderProps = {
+  fileInputTestId?: string;
+  imageRole?: string;
+  onChange: (value: string) => void;
+  onError: (message: string) => void;
+  onPreview?: (value: string) => void;
+  uploadTestId?: string;
+  value: string;
+};
+
+const ProductImageUploader = ({
+  fileInputTestId,
+  imageRole,
+  onChange,
+  onError,
+  onPreview,
+  uploadTestId,
+  value
+}: ProductImageUploaderProps) => {
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const applyCoverFile = async (file: File | null | undefined) => {
+    if (!file) {
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      onError('只能上传图片文件。');
+      return;
+    }
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      onChange(dataUrl);
+      onError('');
+    } catch (error) {
+      onError(error instanceof Error ? error.message : '图片读取失败，请稍后重试。');
+    }
+  };
+
+  const resetImage = () => {
+    onChange('');
+    onError('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="space-y-2 text-sm text-slate-700">
+      <div className="flex items-center justify-between">
+        <span>封面图</span>
+        {value ? (
+          <button
+            className="text-xs font-medium text-slate-500 transition-colors hover:text-red-600"
+            onClick={resetImage}
+            type="button"
+          >
+            移除图片
+          </button>
+        ) : null}
+      </div>
+      <input
+        ref={fileInputRef}
+        accept="image/*"
+        className="hidden"
+        data-testid={fileInputTestId}
+        name="coverImageFile"
+        onChange={(event) => void applyCoverFile(event.target.files?.[0])}
+        type="file"
+      />
+      <button
+        className={`group relative flex min-h-44 w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed px-4 py-5 text-center transition ${
+          dragActive
+            ? 'border-primary bg-primary/5'
+            : 'border-slate-300 bg-slate-50 hover:border-primary/60 hover:bg-slate-50/80'
+        }`}
+        data-testid={uploadTestId}
+        onClick={() => fileInputRef.current?.click()}
+        onDragEnter={(event) => {
+          event.preventDefault();
+          setDragActive(true);
+        }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setDragActive(true);
+        }}
+        onDragLeave={(event) => {
+          event.preventDefault();
+          if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) {
+            return;
+          }
+          setDragActive(false);
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          setDragActive(false);
+          void applyCoverFile(event.dataTransfer.files?.[0]);
+        }}
+        type="button"
+      >
+        {value ? (
+          <>
+            <img
+              alt="封面图预览"
+              className="absolute inset-0 h-full w-full object-cover"
+              data-role={imageRole}
+              onClick={(event) => {
+                if (!onPreview) {
+                  return;
+                }
+                event.stopPropagation();
+                onPreview(value);
+              }}
+              src={value}
+            />
+            <div className="absolute inset-0 bg-slate-900/35" />
+            {onPreview ? (
+              <span
+                className="absolute right-3 top-3 z-10 rounded bg-slate-900/70 px-2 py-1 text-xs font-medium text-white shadow-sm"
+                data-role="open-image-preview"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onPreview(value);
+                }}
+              >
+                查看大图
+              </span>
+            ) : null}
+            <div className="relative z-10 rounded-full bg-white/92 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm">
+              重新拖入图片或点击更换
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="material-symbols-outlined mb-2 text-4xl text-slate-400 transition-colors group-hover:text-primary">
+              add_photo_alternate
+            </span>
+            <span className="text-sm font-semibold text-slate-800">拖动图片到这里即可添加</span>
+            <span className="mt-1 text-xs text-slate-500">也可点击选择本地图片，支持常见图片格式</span>
+          </>
+        )}
+      </button>
+    </div>
+  );
+};
+
 const cloneProduct = (product: ProductRecord): ProductRecord => ({
   ...product,
   models: product.models.map((model) => ({ ...model })),
@@ -192,26 +338,7 @@ const CreateProductModal = ({ categories, onClose, onSubmit, open }: CreateProdu
     description: ''
   });
   const [errorMessage, setErrorMessage] = useState('');
-  const [dragActive, setDragActive] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const applyCoverFile = async (file: File | null | undefined) => {
-    if (!file) {
-      return;
-    }
-    if (!file.type.startsWith('image/')) {
-      setErrorMessage('只能上传图片文件。');
-      return;
-    }
-    try {
-      const dataUrl = await readFileAsDataUrl(file);
-      setDraft((current) => ({ ...current, coverImageUrl: dataUrl }));
-      setErrorMessage('');
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '图片读取失败，请稍后重试。');
-    }
-  };
 
   useEffect(() => {
     if (!open) {
@@ -226,11 +353,7 @@ const CreateProductModal = ({ categories, onClose, onSubmit, open }: CreateProdu
       description: ''
     });
     setErrorMessage('');
-    setDragActive(false);
     setSubmitting(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
   }, [open]);
 
   if (!open) {
@@ -339,80 +462,11 @@ const CreateProductModal = ({ categories, onClose, onSubmit, open }: CreateProdu
               </select>
             </label>
           </div>
-          <div className="space-y-2 text-sm text-slate-700">
-            <div className="flex items-center justify-between">
-              <span>封面图</span>
-              {draft.coverImageUrl ? (
-                <button
-                  className="text-xs font-medium text-slate-500 transition-colors hover:text-red-600"
-                  onClick={() => {
-                    setDraft((current) => ({ ...current, coverImageUrl: '' }));
-                    if (fileInputRef.current) {
-                      fileInputRef.current.value = '';
-                    }
-                  }}
-                  type="button"
-                >
-                  移除图片
-                </button>
-              ) : null}
-            </div>
-            <input
-              ref={fileInputRef}
-              accept="image/*"
-              className="hidden"
-              name="coverImageFile"
-              onChange={(event) => void applyCoverFile(event.target.files?.[0])}
-              type="file"
-            />
-            <button
-              className={`group relative flex min-h-44 w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed px-4 py-5 text-center transition ${
-                dragActive
-                  ? 'border-primary bg-primary/5'
-                  : 'border-slate-300 bg-slate-50 hover:border-primary/60 hover:bg-slate-50/80'
-              }`}
-              onClick={() => fileInputRef.current?.click()}
-              onDragEnter={(event) => {
-                event.preventDefault();
-                setDragActive(true);
-              }}
-              onDragOver={(event) => {
-                event.preventDefault();
-                setDragActive(true);
-              }}
-              onDragLeave={(event) => {
-                event.preventDefault();
-                if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                  return;
-                }
-                setDragActive(false);
-              }}
-              onDrop={(event) => {
-                event.preventDefault();
-                setDragActive(false);
-                void applyCoverFile(event.dataTransfer.files?.[0]);
-              }}
-              type="button"
-            >
-              {draft.coverImageUrl ? (
-                <>
-                  <img alt="封面图预览" className="absolute inset-0 h-full w-full object-cover" src={draft.coverImageUrl} />
-                  <div className="absolute inset-0 bg-slate-900/35" />
-                  <div className="relative z-10 rounded-full bg-white/92 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm">
-                    重新拖入图片或点击更换
-                  </div>
-                </>
-              ) : (
-                <>
-                  <span className="material-symbols-outlined mb-2 text-4xl text-slate-400 transition-colors group-hover:text-primary">
-                    add_photo_alternate
-                  </span>
-                  <span className="text-sm font-semibold text-slate-800">拖动图片到这里即可添加</span>
-                  <span className="mt-1 text-xs text-slate-500">也可点击选择本地图片，支持常见图片格式</span>
-                </>
-              )}
-            </button>
-          </div>
+          <ProductImageUploader
+            onChange={(coverImageUrl) => setDraft((current) => ({ ...current, coverImageUrl }))}
+            onError={setErrorMessage}
+            value={draft.coverImageUrl}
+          />
           <label className="block space-y-1 text-sm text-slate-700">
             <span>商品简介</span>
             <textarea
@@ -590,33 +644,15 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
             });
           }}
         >
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-            <div className="relative flex aspect-video items-center justify-center bg-slate-100">
-              {draft.coverImageUrl ? (
-                <img
-                  alt="商品预览图"
-                  className="h-full w-full cursor-zoom-in object-cover"
-                  data-role="drawer-preview-image"
-                  onClick={() => setPreviewUrl(draft.coverImageUrl)}
-                  src={draft.coverImageUrl}
-                />
-              ) : (
-                <div className="text-sm text-slate-400" data-role="drawer-preview-empty">
-                  暂无图片预览
-                </div>
-              )}
-              {draft.coverImageUrl ? (
-                <button
-                  className="absolute right-2 top-2 rounded bg-slate-900/70 px-2 py-1 text-xs font-medium text-white hover:bg-slate-900"
-                  data-role="open-image-preview"
-                  onClick={() => setPreviewUrl(draft.coverImageUrl)}
-                  type="button"
-                >
-                  查看大图
-                </button>
-              ) : null}
-            </div>
-          </div>
+          <ProductImageUploader
+            fileInputTestId="edit-product-cover-file"
+            imageRole="drawer-preview-image"
+            onChange={(coverImageUrl) => setDraft((current) => current ? { ...current, coverImageUrl } : current)}
+            onError={setErrorMessage}
+            onPreview={setPreviewUrl}
+            uploadTestId="edit-product-cover-upload"
+            value={draft.coverImageUrl}
+          />
 
           <label className="block space-y-1 text-sm text-slate-700">
             <span>商品名称 *</span>
@@ -848,18 +884,6 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
               </select>
             </label>
           </div>
-
-          <label className="block space-y-1 text-sm text-slate-700">
-            <span>封面图 URL</span>
-            <input
-              className="w-full rounded-lg border-slate-300 focus:border-primary focus:ring-primary"
-              name="coverImageUrl"
-              onChange={(event) => setDraft((current) => current ? { ...current, coverImageUrl: event.target.value } : current)}
-              placeholder="https://example.com/image.jpg"
-              type="url"
-              value={draft.coverImageUrl}
-            />
-          </label>
 
           <label className="block space-y-1 text-sm text-slate-700">
             <span>商品简介</span>
