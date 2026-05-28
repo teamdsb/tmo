@@ -92,7 +92,7 @@ func (h *Handler) GetCatalogCategoriesCategoryId(c *gin.Context, categoryId type
 }
 
 func (h *Handler) PostCatalogCategories(c *gin.Context) {
-	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
 		return
 	}
 
@@ -132,7 +132,7 @@ func (h *Handler) PostCatalogCategories(c *gin.Context) {
 }
 
 func (h *Handler) PatchCatalogCategoriesCategoryId(c *gin.Context, categoryId types.UUID) {
-	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
 		return
 	}
 
@@ -198,7 +198,7 @@ func (h *Handler) PatchCatalogCategoriesCategoryId(c *gin.Context, categoryId ty
 }
 
 func (h *Handler) DeleteCatalogCategoriesCategoryId(c *gin.Context, categoryId types.UUID) {
-	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
 		return
 	}
 
@@ -274,7 +274,7 @@ func (h *Handler) GetCatalogProducts(c *gin.Context, params oapi.GetCatalogProdu
 }
 
 func (h *Handler) PostCatalogProducts(c *gin.Context) {
-	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
 		return
 	}
 
@@ -365,7 +365,7 @@ func (h *Handler) GetCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 }
 
 func (h *Handler) PatchCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
-	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
 		return
 	}
 
@@ -496,7 +496,7 @@ func (h *Handler) PatchCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 }
 
 func (h *Handler) DeleteCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
-	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
 		return
 	}
 
@@ -515,7 +515,7 @@ func (h *Handler) DeleteCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 }
 
 func (h *Handler) PostCatalogProductsSpuIdSkus(c *gin.Context, spuId types.UUID) {
-	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
 		return
 	}
 

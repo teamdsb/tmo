@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import type { Category, DisplayCategory, ProductSummary } from '@tmo/api-client'
 import HomeSearchInput from '../../components/home-search-input'
@@ -169,6 +169,8 @@ export default function CategoryPage() {
   const [query, setQuery] = useState('')
   const [products, setProducts] = useState<ProductSummary[]>([])
   const [productsLoading, setProductsLoading] = useState(false)
+  const categoriesRequestSeq = useRef(0)
+  const productsRequestSeq = useRef(0)
   const productStartingPrices = useProductStartingPrices(products)
 
   const sortedCategories = useMemo(() => sortCategories(categories), [categories])
@@ -189,96 +191,113 @@ export default function CategoryPage() {
     return products.filter((item) => matchesSecondaryFilter(item, activeFilter, activeCategory.name))
   }, [activeCategory, activeFilterId, products, secondaryFilters])
 
-  useEffect(() => {
-    let cancelled = false
+  const applyCategories = useCallback((nextCategories: CategoryViewItem[]) => {
+    setCategories((current) => {
+      const unchanged =
+        current.length === nextCategories.length &&
+        current.every((item, index) => {
+          const next = nextCategories[index]
+          return next &&
+            item.id === next.id &&
+            item.catalogCategoryId === next.catalogCategoryId &&
+            item.name === next.name &&
+            item.sort === next.sort &&
+            item.enabled === next.enabled &&
+            item.iconKey === next.iconKey
+        })
+      return unchanged ? current : nextCategories
+    })
+    setActiveCategoryId((prev) => {
+      if (prev && nextCategories.some((item) => item.id === prev)) {
+        return prev
+      }
+      return nextCategories[0]?.id ?? ''
+    })
+  }, [])
 
-    void (async () => {
+  const loadCategories = useCallback(async (showLoading = true) => {
+    const requestId = categoriesRequestSeq.current + 1
+    categoriesRequestSeq.current = requestId
+    if (showLoading) {
       setCategoriesLoading(true)
+    }
+    try {
+      const [displayResponse, catalogResponse] = await Promise.all([
+        commerceServices.catalog.listDisplayCategories(),
+        commerceServices.catalog.listCategories()
+      ])
+      if (categoriesRequestSeq.current === requestId) {
+        applyCategories(toCategoryViewItems(displayResponse.items ?? [], catalogResponse.items ?? []))
+      }
+    } catch (error) {
+      console.warn('load display categories failed', error)
       try {
-        const [displayResponse, catalogResponse] = await Promise.all([
-          commerceServices.catalog.listDisplayCategories(),
-          commerceServices.catalog.listCategories()
-        ])
-        if (!cancelled) {
-          const nextCategories = toCategoryViewItems(displayResponse.items ?? [], catalogResponse.items ?? [])
-          setCategories(nextCategories)
-          setActiveCategoryId((prev) => {
-            if (prev && nextCategories.some((item) => item.id === prev)) {
-              return prev
-            }
-            return nextCategories[0]?.id ?? ''
-          })
-        }
-      } catch (error) {
-        console.warn('load display categories failed', error)
-        try {
-          const response = await commerceServices.catalog.listCategories()
-          if (cancelled) {
-            return
-          }
+        const response = await commerceServices.catalog.listCategories()
+        if (categoriesRequestSeq.current === requestId) {
           const catalogItems = response.items ?? []
-          const nextCategories = toCategoryViewItems(toDisplayCategoriesFromCatalog(catalogItems), catalogItems)
-          setCategories(nextCategories)
-          setActiveCategoryId((prev) => {
-            if (prev && nextCategories.some((item) => item.id === prev)) {
-              return prev
-            }
-            return nextCategories[0]?.id ?? ''
-          })
-        } catch (fallbackError) {
-          console.warn('load categories failed', fallbackError)
+          applyCategories(toCategoryViewItems(toDisplayCategoriesFromCatalog(catalogItems), catalogItems))
+        }
+      } catch (fallbackError) {
+        console.warn('load categories failed', fallbackError)
+        if (categoriesRequestSeq.current === requestId) {
           await Taro.showToast({ title: '加载分类失败', icon: 'none' })
         }
-      } finally {
-        if (!cancelled) {
-          setCategoriesLoading(false)
-        }
       }
-    })()
+    } finally {
+      if (categoriesRequestSeq.current === requestId) {
+        setCategoriesLoading(false)
+      }
+    }
+  }, [applyCategories])
 
-    return () => {
-      cancelled = true
+  const loadCategoryProducts = useCallback(async (category: CategoryViewItem | null, keyword: string, showLoading = true) => {
+    if (!category) {
+      setProducts([])
+      return
+    }
+    const requestId = productsRequestSeq.current + 1
+    productsRequestSeq.current = requestId
+    if (showLoading) {
+      setProductsLoading(true)
+    }
+    try {
+      const response = await commerceServices.catalog.listProducts({
+        categoryId: category.catalogCategoryId,
+        q: keyword || undefined,
+        page: 1,
+        pageSize: 40
+      })
+      if (productsRequestSeq.current === requestId) {
+        setProducts(response.items ?? [])
+      }
+    } catch (error) {
+      console.warn('load category products failed', error)
+      if (productsRequestSeq.current === requestId) {
+        await Taro.showToast({ title: '加载商品失败', icon: 'none' })
+      }
+    } finally {
+      if (productsRequestSeq.current === requestId) {
+        setProductsLoading(false)
+      }
     }
   }, [])
+
+  useEffect(() => {
+    void loadCategories()
+  }, [loadCategories])
 
   useEffect(() => {
     setActiveFilterId('all')
   }, [activeCategoryId])
 
   useEffect(() => {
-    if (!activeCategory) {
-      setProducts([])
-      return
-    }
+    void loadCategoryProducts(activeCategory, query)
+  }, [activeCategory, loadCategoryProducts, query])
 
-    let cancelled = false
-
-    void (async () => {
-      setProductsLoading(true)
-      try {
-        const response = await commerceServices.catalog.listProducts({
-          categoryId: activeCategory.catalogCategoryId,
-          q: query || undefined,
-          page: 1,
-          pageSize: 40
-        })
-        if (!cancelled) {
-          setProducts(response.items ?? [])
-        }
-      } catch (error) {
-        console.warn('load category products failed', error)
-        await Taro.showToast({ title: '加载商品失败', icon: 'none' })
-      } finally {
-        if (!cancelled) {
-          setProductsLoading(false)
-        }
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [activeCategory, query])
+  useDidShow(() => {
+    void loadCategories(false)
+    void loadCategoryProducts(activeCategory, query, false)
+  })
 
   return (
     <View className='page category-page' style={isH5 ? navbarStyle : undefined}>

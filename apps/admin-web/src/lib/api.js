@@ -8,6 +8,7 @@ import {
   getOrders,
   getProductRequests,
   patchCatalogCategoriesCategoryId,
+  patchCatalogProductsSpuId,
   patchInquiriesPriceInquiryId,
   postCatalogCategories,
   postCatalogProducts,
@@ -177,6 +178,10 @@ export const fetchProducts = async (params = {}) => {
 
 export const createCatalogProduct = async (payload) => {
   return postCatalogProducts(payload);
+};
+
+export const updateCatalogProduct = async (spuId, payload) => {
+  return patchCatalogProductsSpuId(spuId, payload);
 };
 
 export const fetchCatalogCategories = async () => {

@@ -8,7 +8,8 @@ import {
   fetchMiniappDisplayCategories,
   fetchProducts,
   replaceMiniappDisplayCategories,
-  updateCatalogCategory
+  updateCatalogCategory,
+  updateCatalogProduct
 } from '../../../lib/api';
 import { ensureProtectedPage } from '../../../lib/guard';
 import { AdminTopbar } from '../../layout/AdminTopbar';
@@ -293,6 +294,31 @@ const toCategoryPayload = (item: CategoryItem) => ({
   parentId: item.parentId || null
 });
 
+const toProductUpdatePayload = (product: ProductRecord) => {
+  const coverImageUrl = product.coverImageUrl.trim();
+  const payload: {
+    categoryId?: string;
+    coverImageUrl: string | null;
+    description: string | null;
+    images: string[];
+    name: string;
+  } = {
+    name: product.name,
+    description: product.description.trim() || null,
+    coverImageUrl: coverImageUrl || null,
+    images: coverImageUrl ? [coverImageUrl] : []
+  };
+  if (product.categoryId) {
+    payload.categoryId = product.categoryId;
+  }
+  return payload;
+};
+
+const extractResponseMessage = (response: unknown) => {
+  const data = (response as { data?: { message?: unknown } } | null)?.data;
+  return typeof data?.message === 'string' && data.message.trim() ? data.message.trim() : '';
+};
+
 const ToastMessage = ({ toast }: { toast: ToastState }) => {
   if (!toast) {
     return null;
@@ -507,7 +533,7 @@ const CreateProductModal = ({ categories, onClose, onSubmit, open }: CreateProdu
 type ProductEditDrawerProps = {
   categories: CategoryItem[];
   onClose: () => void;
-  onSave: (product: ProductRecord) => void;
+  onSave: (product: ProductRecord) => Promise<void>;
   open: boolean;
   product: ProductRecord | null;
 };
@@ -515,6 +541,7 @@ type ProductEditDrawerProps = {
 const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: ProductEditDrawerProps) => {
   const [draft, setDraft] = useState<ProductRecord | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
 
   useEffect(() => {
@@ -526,6 +553,7 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
     }
     setDraft(cloneProduct(product));
     setErrorMessage('');
+    setIsSaving(false);
     setPreviewUrl('');
   }, [open, product]);
 
@@ -572,7 +600,7 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
           <div>
             <h3 className="text-lg font-bold text-slate-900">编辑商品</h3>
-            <p className="text-xs text-slate-500">商品编辑当前仍保存为前端会话态。</p>
+            <p className="text-xs text-slate-500">保存后同步更新小程序商品目录。</p>
           </div>
           <button
             className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
@@ -589,6 +617,9 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
           data-role="drawer-form"
           onSubmit={(event) => {
             event.preventDefault();
+            if (isSaving) {
+              return;
+            }
             const name = draft.name.trim();
             const cleanedModels = draft.models
               .map((model, index) => ({
@@ -633,7 +664,9 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
               }
             }
 
-            onSave({
+            setIsSaving(true);
+            setErrorMessage('');
+            void onSave({
               ...draft,
               name,
               coverImageUrl: draft.coverImageUrl.trim(),
@@ -641,6 +674,10 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
               inventory: Math.max(0, Math.round(Number(draft.inventory) || 0)),
               models: cleanedModels,
               tierPricing: cleanedTiers
+            }).catch((error) => {
+              setErrorMessage(error instanceof Error ? error.message : '保存失败，请稍后重试。');
+            }).finally(() => {
+              setIsSaving(false);
             });
           }}
         >
@@ -905,13 +942,18 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
             <button
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
               data-role="cancel-drawer"
+              disabled={isSaving}
               onClick={onClose}
               type="button"
             >
               取消
             </button>
-            <button className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark" type="submit">
-              保存（Mock）
+            <button
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-70"
+              disabled={isSaving}
+              type="submit"
+            >
+              {isSaving ? '保存中...' : '保存'}
             </button>
           </div>
         </form>
@@ -2083,8 +2125,27 @@ export const ProductsPage = () => {
       <ProductEditDrawer
         categories={categories}
         onClose={() => setEditingProductId('')}
-        onSave={(updatedProduct) => {
-          setProducts((current) => current.map((item) => (item.id === updatedProduct.id ? cloneProduct(updatedProduct) : item)));
+        onSave={async (updatedProduct) => {
+          let nextProduct = cloneProduct(updatedProduct);
+          if (context?.mode === 'dev') {
+            const response = await updateCatalogProduct(updatedProduct.id, toProductUpdatePayload(updatedProduct));
+            if (response.status !== 200 || !response.data?.product) {
+              const serverMessage = extractResponseMessage(response);
+              throw new Error(serverMessage ? `保存失败：${serverMessage}` : '保存失败，请稍后重试。');
+            }
+            nextProduct = normalizeProduct(
+              {
+                ...response.data.product,
+                coverImageUrl: response.data.product.images?.[0] || updatedProduct.coverImageUrl,
+                inventory: updatedProduct.inventory,
+                models: updatedProduct.models,
+                status: updatedProduct.status,
+                tierPricing: updatedProduct.tierPricing
+              },
+              products.findIndex((item) => item.id === updatedProduct.id)
+            );
+          }
+          setProducts((current) => current.map((item) => (item.id === updatedProduct.id ? nextProduct : item)));
           setEditingProductId('');
           showToast('保存成功。');
         }}
