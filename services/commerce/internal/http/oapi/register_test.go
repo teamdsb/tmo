@@ -92,6 +92,10 @@ func (server *stubServer) PostCatalogProducts(context *gin.Context) {
 	context.Status(http.StatusNotImplemented)
 }
 
+func (server *stubServer) PostAdminCatalogProductsAssets(context *gin.Context) {
+	context.Status(http.StatusNotImplemented)
+}
+
 func (server *stubServer) GetCatalogProductsSpuId(context *gin.Context, spuId openapi_types.UUID) {
 	context.Status(http.StatusNotImplemented)
 }

@@ -53,6 +53,7 @@ const installDevSession = async (page) => {
 
 const routeProductPageApis = async (page, options = {}) => {
   const patchStatus = options.patchStatus ?? 200;
+  const uploadedImageUrl = options.uploadedImageUrl ?? 'https://yunhuhui.com.cn/assets/media/catalog/products/uploaded-cover.png';
   let serverProduct = { ...productSummary };
 
   await page.route('**/api/bff/bootstrap', async (route) => {
@@ -85,6 +86,17 @@ const routeProductPageApis = async (page, options = {}) => {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ items: [], page: 1, pageSize: 50, total: 0 })
+    });
+  });
+  await page.route('**/api/admin/catalog/products/assets', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({ url: uploadedImageUrl, contentType: 'image/png', size: 8 })
     });
   });
   await page.route('**/api/catalog/products?page=1&pageSize=200', async (route) => {
@@ -153,6 +165,10 @@ test('product edit persists changes through catalog PATCH', async ({ page }) => 
     mimeType: 'image/png',
     buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
   });
+  await expect(page.locator('#product-edit-drawer [data-role="drawer-preview-image"]')).toHaveAttribute(
+    'src',
+    'https://yunhuhui.com.cn/assets/media/catalog/products/uploaded-cover.png'
+  );
 
   const patchRequestPromise = page.waitForRequest((request) => {
     const url = new URL(request.url());
@@ -164,7 +180,7 @@ test('product edit persists changes through catalog PATCH', async ({ page }) => 
 
   expect(payload.name).toBe('新商品名');
   expect(payload.categoryId).toBe(categoryId);
-  expect(payload.coverImageUrl).toMatch(/^data:image\/png;base64,/);
+  expect(payload.coverImageUrl).toBe('https://yunhuhui.com.cn/assets/media/catalog/products/uploaded-cover.png');
   expect(payload.images).toEqual([payload.coverImageUrl]);
   await page.waitForResponse((response) => {
     const url = new URL(response.url());

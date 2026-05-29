@@ -659,6 +659,11 @@ type Conflict = ErrorResponse
 // NotFound defines model for NotFound.
 type NotFound = ErrorResponse
 
+// PostAdminCatalogProductsAssetsMultipartBody defines parameters for PostAdminCatalogProductsAssets.
+type PostAdminCatalogProductsAssetsMultipartBody struct {
+	File openapi_types.File `json:"file"`
+}
+
 // GetAfterSalesTicketsParams defines parameters for GetAfterSalesTickets.
 type GetAfterSalesTicketsParams struct {
 	Status   *TicketStatus       `form:"status,omitempty" json:"status,omitempty"`
@@ -750,6 +755,9 @@ type PostAddressesJSONRequestBody = CreateUserAddressRequest
 // PatchAddressesAddressIdJSONRequestBody defines body for PatchAddressesAddressId for application/json ContentType.
 type PatchAddressesAddressIdJSONRequestBody = UpdateUserAddressRequest
 
+// PostAdminCatalogProductsAssetsMultipartRequestBody defines body for PostAdminCatalogProductsAssets for multipart/form-data ContentType.
+type PostAdminCatalogProductsAssetsMultipartRequestBody PostAdminCatalogProductsAssetsMultipartBody
+
 // PostAfterSalesTicketsJSONRequestBody defines body for PostAfterSalesTickets for application/json ContentType.
 type PostAfterSalesTicketsJSONRequestBody = CreateAfterSalesTicket
 
@@ -827,6 +835,9 @@ type ServerInterface interface {
 	// Update current user's address
 	// (PATCH /addresses/{addressId})
 	PatchAddressesAddressId(c *gin.Context, addressId openapi_types.UUID)
+	// Upload catalog product image asset
+	// (POST /admin/catalog/products/assets)
+	PostAdminCatalogProductsAssets(c *gin.Context)
 	// List after-sales tickets
 	// (GET /after-sales/tickets)
 	GetAfterSalesTickets(c *gin.Context, params GetAfterSalesTicketsParams)
@@ -1050,6 +1061,21 @@ func (siw *ServerInterfaceWrapper) PatchAddressesAddressId(c *gin.Context) {
 	}
 
 	siw.Handler.PatchAddressesAddressId(c, addressId)
+}
+
+// PostAdminCatalogProductsAssets operation middleware
+func (siw *ServerInterfaceWrapper) PostAdminCatalogProductsAssets(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAdminCatalogProductsAssets(c)
 }
 
 // GetAfterSalesTickets operation middleware
@@ -2235,6 +2261,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.POST(options.BaseURL+"/addresses", wrapper.PostAddresses)
 	router.DELETE(options.BaseURL+"/addresses/:addressId", wrapper.DeleteAddressesAddressId)
 	router.PATCH(options.BaseURL+"/addresses/:addressId", wrapper.PatchAddressesAddressId)
+	router.POST(options.BaseURL+"/admin/catalog/products/assets", wrapper.PostAdminCatalogProductsAssets)
 	router.GET(options.BaseURL+"/after-sales/tickets", wrapper.GetAfterSalesTickets)
 	router.POST(options.BaseURL+"/after-sales/tickets", wrapper.PostAfterSalesTickets)
 	router.GET(options.BaseURL+"/after-sales/tickets/:ticketId", wrapper.GetAfterSalesTicketsTicketId)

@@ -184,6 +184,15 @@ export const updateCatalogProduct = async (spuId, payload) => {
   return patchCatalogProductsSpuId(spuId, payload);
 };
 
+export const uploadCatalogProductImage = async (file) => {
+  const form = new FormData();
+  form.append('file', file);
+  return requestRaw('/admin/catalog/products/assets', {
+    method: 'POST',
+    body: form
+  });
+};
+
 export const fetchCatalogCategories = async () => {
   return getCatalogCategories();
 };

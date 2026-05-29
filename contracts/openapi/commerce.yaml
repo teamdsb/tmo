@@ -770,6 +770,30 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ProductRequestAsset"
+  "/admin/catalog/products/assets":
+    post:
+      tags:
+      - Catalog
+      summary: Upload catalog product image asset
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+              - file
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ProductRequestAsset"
   "/after-sales/tickets":
     get:
       tags:

@@ -9,7 +9,8 @@ import {
   fetchProducts,
   replaceMiniappDisplayCategories,
   updateCatalogCategory,
-  updateCatalogProduct
+  updateCatalogProduct,
+  uploadCatalogProductImage
 } from '../../../lib/api';
 import { ensureProtectedPage } from '../../../lib/guard';
 import { AdminTopbar } from '../../layout/AdminTopbar';
@@ -97,6 +98,7 @@ type ProductImageUploaderProps = {
   onChange: (value: string) => void;
   onError: (message: string) => void;
   onPreview?: (value: string) => void;
+  uploadImage?: (file: File) => Promise<string>;
   uploadTestId?: string;
   value: string;
 };
@@ -107,10 +109,12 @@ const ProductImageUploader = ({
   onChange,
   onError,
   onPreview,
+  uploadImage,
   uploadTestId,
   value
 }: ProductImageUploaderProps) => {
   const [dragActive, setDragActive] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const applyCoverFile = async (file: File | null | undefined) => {
@@ -121,12 +125,18 @@ const ProductImageUploader = ({
       onError('只能上传图片文件。');
       return;
     }
+    if (uploading) {
+      return;
+    }
     try {
-      const dataUrl = await readFileAsDataUrl(file);
-      onChange(dataUrl);
+      setUploading(true);
+      const imageUrl = uploadImage ? await uploadImage(file) : await readFileAsDataUrl(file);
+      onChange(imageUrl);
       onError('');
     } catch (error) {
-      onError(error instanceof Error ? error.message : '图片读取失败，请稍后重试。');
+      onError(error instanceof Error ? error.message : '图片上传失败，请稍后重试。');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -220,7 +230,7 @@ const ProductImageUploader = ({
               </span>
             ) : null}
             <div className="relative z-10 rounded-full bg-white/92 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm">
-              重新拖入图片或点击更换
+              {uploading ? '图片上传中...' : '重新拖入图片或点击更换'}
             </div>
           </>
         ) : (
@@ -228,7 +238,7 @@ const ProductImageUploader = ({
             <span className="material-symbols-outlined mb-2 text-4xl text-slate-400 transition-colors group-hover:text-primary">
               add_photo_alternate
             </span>
-            <span className="text-sm font-semibold text-slate-800">拖动图片到这里即可添加</span>
+            <span className="text-sm font-semibold text-slate-800">{uploading ? '图片上传中...' : '拖动图片到这里即可添加'}</span>
             <span className="mt-1 text-xs text-slate-500">也可点击选择本地图片，支持常见图片格式</span>
           </>
         )}
@@ -352,9 +362,10 @@ type CreateProductModalProps = {
   onClose: () => void;
   onSubmit: (draft: ProductDraft) => Promise<void>;
   open: boolean;
+  uploadImage?: (file: File) => Promise<string>;
 };
 
-const CreateProductModal = ({ categories, onClose, onSubmit, open }: CreateProductModalProps) => {
+const CreateProductModal = ({ categories, onClose, onSubmit, open, uploadImage }: CreateProductModalProps) => {
   const [draft, setDraft] = useState<ProductDraft>({
     name: '',
     categoryId: '',
@@ -491,6 +502,7 @@ const CreateProductModal = ({ categories, onClose, onSubmit, open }: CreateProdu
           <ProductImageUploader
             onChange={(coverImageUrl) => setDraft((current) => ({ ...current, coverImageUrl }))}
             onError={setErrorMessage}
+            uploadImage={uploadImage}
             value={draft.coverImageUrl}
           />
           <label className="block space-y-1 text-sm text-slate-700">
@@ -536,9 +548,10 @@ type ProductEditDrawerProps = {
   onSave: (product: ProductRecord) => Promise<void>;
   open: boolean;
   product: ProductRecord | null;
+  uploadImage?: (file: File) => Promise<string>;
 };
 
-const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: ProductEditDrawerProps) => {
+const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadImage }: ProductEditDrawerProps) => {
   const [draft, setDraft] = useState<ProductRecord | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -687,6 +700,7 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
             onChange={(coverImageUrl) => setDraft((current) => current ? { ...current, coverImageUrl } : current)}
             onError={setErrorMessage}
             onPreview={setPreviewUrl}
+            uploadImage={uploadImage}
             uploadTestId="edit-product-cover-upload"
             value={draft.coverImageUrl}
           />
@@ -1671,6 +1685,16 @@ export const ProductsPage = () => {
     setProducts(loadedProducts);
   }, [context?.mode, loadBackendProducts]);
 
+  const uploadBackendCatalogProductImage = useCallback(async (file: File) => {
+    const response = await uploadCatalogProductImage(file);
+    const imageUrl = typeof response.data?.url === 'string' ? response.data.url.trim() : '';
+    if (response.status !== 201 || !imageUrl) {
+      const serverMessage = extractResponseMessage(response);
+      throw new Error(serverMessage ? `图片上传失败：${serverMessage}` : '图片上传失败，请稍后重试。');
+    }
+    return imageUrl;
+  }, []);
+
   useEffect(() => {
     if (context?.mode !== 'dev') {
       return;
@@ -2153,6 +2177,7 @@ export const ProductsPage = () => {
           showToast('新建商品成功。');
         }}
         open={createModalOpen}
+        uploadImage={context?.mode === 'dev' ? uploadBackendCatalogProductImage : undefined}
       />
 
       <ProductEditDrawer
@@ -2178,6 +2203,7 @@ export const ProductsPage = () => {
         }}
         open={Boolean(editingProductId)}
         product={editingProduct}
+        uploadImage={context?.mode === 'dev' ? uploadBackendCatalogProductImage : undefined}
       />
 
       <CategoryManagerModal
