@@ -1,5 +1,5 @@
 import { Button as NativeButton, Image, Input, Text, Textarea, View } from '@tarojs/components'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import Taro from '@tarojs/taro'
 import {
   AddOutlined,
@@ -10,17 +10,13 @@ import {
   Description,
   Exchange,
   MoreOutlined,
-  RecordsOutlined,
   Revoke
 } from '@taroify/icons'
 import type { CreateProductRequest, ProductRequest } from '@tmo/api-client'
-import { orderTrackingRoute } from '../../routes'
-import { navigateTo } from '../../utils/navigation'
 import type {
   IconComponent,
   MenuItem,
   MockAddress,
-  MockOrder,
   OrderItem
 } from './types'
 
@@ -385,95 +381,6 @@ export function DemandView({ demands, onBack, onCreateDemand }: DemandViewProps)
           </View>
         </View>
       ) : null}
-    </View>
-  )
-}
-
-type OrderManagementViewProps = {
-  orders: MockOrder[]
-  initialTab: string
-  onBack: () => void
-}
-
-export function OrderManagementView({ orders, initialTab, onBack }: OrderManagementViewProps) {
-  const [activeTab, setActiveTab] = useState(initialTab)
-  const orderTabs = ['全部', '待处理', '已发货', '已送达', '退换货']
-  const filteredOrders = useMemo(() => {
-    if (activeTab === '全部') {
-      return orders
-    }
-    if (activeTab === '待处理') {
-      return orders.filter((order) => order.status === '待处理' || order.status === '待收货')
-    }
-    return orders.filter((order) => order.status === activeTab)
-  }, [activeTab, orders])
-
-  return (
-    <View className='mine-modern-subview'>
-      <SubviewHeader title='订单列表' onBack={onBack} />
-      <View className='mine-modern-subview-scroll no-scrollbar'>
-        <View className='mine-order-tabs mb-4'>
-          {orderTabs.map((tab) => (
-            <View
-              key={tab}
-              className={`mine-order-tab ${activeTab === tab ? 'mine-order-tab--active' : ''}`}
-              onClick={() => setActiveTab(tab)}
-            >
-              <Text className={`mine-order-tab-text ${activeTab === tab ? 'mine-order-tab-text--active' : ''}`}>{tab}</Text>
-            </View>
-          ))}
-        </View>
-
-        {filteredOrders.length > 0 ? filteredOrders.map((order) => (
-          <View
-            key={order.id}
-            className='mine-order-card mb-3 rounded-3xl p-4'
-            data-testid={`mine-order-card-${order.id}`}
-            onClick={() => navigateTo(orderTrackingRoute(order.id))}
-          >
-            <View className='mb-3 flex items-start justify-between gap-3'>
-              <View className='min-w-0 flex-1'>
-                <Text className='mine-order-id block text-sm font-bold'>{order.id}</Text>
-                <Text className='mine-order-date mt-1 block text-xs'>{order.date}</Text>
-              </View>
-              <View className='mine-order-status'>
-                <Text className='mine-order-status-text'>{order.status}</Text>
-              </View>
-            </View>
-            {order.items.map((item, index) => (
-              <View key={`${order.id}-${index}`} className='mine-order-row mb-3 flex gap-3'>
-                <View className='mine-modern-order-thumb mine-order-thumb h-16 w-16 overflow-hidden rounded-2xl'>
-                  <Image src={item.image} mode='aspectFill' className='h-full w-full' />
-                </View>
-                <View className='min-w-0 flex-1'>
-                  <Text className='mine-order-name block truncate text-sm font-bold'>{item.name}</Text>
-                  <Text className='mine-order-spec mt-1 block text-xs'>{item.specs}</Text>
-                  <Text className='mine-order-price mt-2 block text-xs'>
-                    ￥{item.price.toFixed(2)} × {item.count}
-                  </Text>
-                </View>
-              </View>
-            ))}
-            <View className='mine-order-footer mt-2 flex items-end justify-between gap-3'>
-              <View className='min-w-0 flex-1'>
-                <Text className='mine-order-track-label block text-xs'>物流进度</Text>
-                <Text className='mine-order-track mt-1 block text-xs'>{order.tracking.latest}</Text>
-              </View>
-              <View className='text-right'>
-                <Text className='mine-order-total-label block text-xs'>订单金额</Text>
-                <Text className='mine-order-total mt-1 block text-base font-bold'>￥{order.totalPrice.toFixed(2)}</Text>
-                <Text className='block mt-2 text-xs mine-modern-primary'>点击查看物流</Text>
-              </View>
-            </View>
-          </View>
-        )) : (
-          <View className='mine-order-empty rounded-3xl p-6 text-center'>
-            <RecordsOutlined className='mine-order-empty-icon text-2xl' />
-            <Text className='mine-order-empty-title mt-3 block text-sm font-semibold'>当前状态下暂无订单</Text>
-            <Text className='mine-order-empty-copy mt-1 block text-xs'>切换其他状态或返回首页继续浏览商品</Text>
-          </View>
-        )}
-      </View>
     </View>
   )
 }

@@ -24,12 +24,11 @@ import placeholderProductImage from '../../assets/images/placeholder-product.svg
 import { runtimeEnv } from '../../config/runtime-env'
 import {
   INITIAL_ADDRESSES_DATA,
-  INITIAL_ORDERS_DATA,
   PENDING_ORDER_STATUSES,
   createMineMenuItems,
   toOrderBadge
 } from './data'
-import { AddressView, DemandView, MineProfileView, OrderManagementView } from './components'
+import { AddressView, DemandView, MineProfileView } from './components'
 import type { MenuItem, MineSubview, OrderBadges, OrderItem } from './types'
 
 export default function PersonalCenter() {
@@ -41,7 +40,6 @@ export default function PersonalCenter() {
   const [loggingOut, setLoggingOut] = useState(false)
   const [switchingRole, setSwitchingRole] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState<MineSubview>('profile')
-  const [initialOrderTab, setInitialOrderTab] = useState('全部')
   const [demands, setDemands] = useState<ProductRequest[]>([])
   const [editableDisplayName, setEditableDisplayName] = useState('')
   const [editableAvatarUrl, setEditableAvatarUrl] = useState('')
@@ -164,46 +162,38 @@ export default function PersonalCenter() {
     ))
   }, [bootstrap?.me?.roles])
 
+  const openOrderList = useCallback(() => {
+    void navigateTo(ROUTES.orders)
+  }, [])
+
   const orderItems: OrderItem[] = [
     {
       key: 'pending',
       label: '待处理',
       icon: OrdersOutlined,
       badge: orderBadges.pending,
-      onClick: () => {
-        setInitialOrderTab('待处理')
-        setCurrentPage('orders')
-      }
+      onClick: openOrderList
     },
     {
       key: 'shipped',
       label: '已发货',
       icon: Logistics,
       badge: orderBadges.shipped,
-      onClick: () => {
-        setInitialOrderTab('已发货')
-        setCurrentPage('orders')
-      }
+      onClick: openOrderList
     },
     {
       key: 'delivered',
       label: '已送达',
       icon: TodoList,
       badge: orderBadges.delivered,
-      onClick: () => {
-        setInitialOrderTab('已送达')
-        setCurrentPage('orders')
-      }
+      onClick: openOrderList
     },
     {
       key: 'returns',
       label: '退换货',
       icon: Exchange,
       badge: orderBadges.returns,
-      onClick: () => {
-        setInitialOrderTab('退换货')
-        setCurrentPage('orders')
-      }
+      onClick: openOrderList
     }
   ]
 
@@ -211,11 +201,12 @@ export default function PersonalCenter() {
     () =>
       createMineMenuItems((page) => {
         if (page === 'orders') {
-          setInitialOrderTab('待收货')
+          openOrderList()
+          return
         }
         setCurrentPage(page)
       }, isSalesUser(bootstrap)),
-    [bootstrap]
+    [bootstrap, openOrderList]
   )
 
   const handleLogout = async () => {
@@ -267,14 +258,6 @@ export default function PersonalCenter() {
     <View className='page font-sans mine-modern' style={isH5 ? navbarStyle : undefined}>
       {isH5 ? <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'></Navbar> : null}
 
-      {currentPage === 'orders' ? (
-        <OrderManagementView
-          orders={INITIAL_ORDERS_DATA}
-          initialTab={initialOrderTab}
-          onBack={() => setCurrentPage('profile')}
-        />
-      ) : null}
-
       {currentPage === 'address' ? (
         <AddressView addresses={INITIAL_ADDRESSES_DATA} onBack={() => setCurrentPage('profile')} />
       ) : null}
@@ -300,10 +283,7 @@ export default function PersonalCenter() {
           debugRoleChoices={debugRoleChoices}
           currentRole={currentRole}
           switchingRole={switchingRole}
-          onOpenOrders={(tab) => {
-            setInitialOrderTab(tab)
-            setCurrentPage('orders')
-          }}
+          onOpenOrders={openOrderList}
           onMenuItemClick={(item) => {
             if (typeof item.action === 'function') {
               item.action()

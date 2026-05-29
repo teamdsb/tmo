@@ -282,12 +282,17 @@ describe('PersonalCenter', () => {
     expect(await screen.findByText('立即登录 / 注册')).toBeInTheDocument()
   })
 
-  it('opens order list from embedded order section', async () => {
+  it('opens real order list from embedded order section', async () => {
     await renderPersonalCenter()
 
     fireEvent.click(screen.getByText('查看全部'))
 
-    expect(await screen.findByText('订单列表')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(Taro.navigateTo).toHaveBeenCalledWith({
+        url: '/pages/order/list/index'
+      })
+    })
+    expect(screen.queryByText('ORD-20240520-99')).not.toBeInTheDocument()
   })
 
   it('opens demand composer from mine demand subview', async () => {
@@ -340,41 +345,19 @@ describe('PersonalCenter', () => {
     expect(await screen.findByText('工业轴承')).toBeInTheDocument()
   })
 
-  it('filters orders by selected tracking status', async () => {
+  it('opens real order list from order status shortcuts', async () => {
     await renderPersonalCenter()
 
     await act(async () => {
       fireEvent.click(screen.getByText('已发货'))
       await flushPromises()
     })
-
-    expect(await screen.findByText('订单列表')).toBeInTheDocument()
-    expect(screen.getByText('ORD-20240515-17')).toBeInTheDocument()
-    expect(screen.queryByText('ORD-20240510-08')).not.toBeInTheDocument()
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('退换货'))
-      await flushPromises()
-    })
-
-    expect(screen.getByText('ORD-20240506-03')).toBeInTheDocument()
-    expect(screen.queryByText('ORD-20240515-17')).not.toBeInTheDocument()
-  })
-
-  it('opens logistics page when clicking an order card', async () => {
-    await renderPersonalCenter()
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('已发货'))
-      await flushPromises()
-    })
-
-    fireEvent.click(screen.getByTestId('mine-order-card-ORD-20240515-17'))
 
     await waitFor(() => {
       expect(Taro.navigateTo).toHaveBeenCalledWith({
-        url: '/pages/order/tracking/index?id=ORD-20240515-17'
+        url: '/pages/order/list/index'
       })
     })
+    expect(screen.queryByText('ORD-20240515-17')).not.toBeInTheDocument()
   })
 })

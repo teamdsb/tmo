@@ -21,26 +21,6 @@ export type OrderItem = {
 
 export type MineSubview = 'profile' | 'orders' | 'address' | 'demand'
 
-export type MockOrderItem = {
-  name: string
-  specs: string
-  price: number
-  count: number
-  image: string
-}
-
-export type MockOrder = {
-  id: string
-  status: string
-  date: string
-  totalPrice: number
-  items: MockOrderItem[]
-  tracking: {
-    latest: string
-    time: string
-  }
-}
-
 export type MockAddress = {
   id: number
   name: string
