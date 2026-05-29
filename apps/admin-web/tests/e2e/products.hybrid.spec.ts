@@ -1,4 +1,8 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+
 import { expect, test } from '@playwright/test';
+import { PNG } from 'pngjs';
 
 const productId = '11111111-2222-3333-4444-555555555555';
 const categoryId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
@@ -24,6 +28,25 @@ const productSummary = {
   categoryId,
   coverImageUrl: 'https://cdn.example.com/old.png',
   tags: ['旧标签']
+};
+
+const createUploadFixture = async () => {
+  const uploadDir = path.resolve(process.cwd(), '../../tmp');
+  const uploadPath = path.join(uploadDir, 'test-upload.png');
+  await mkdir(uploadDir, { recursive: true });
+
+  const png = new PNG({ width: 400, height: 300 });
+  for (let y = 0; y < png.height; y += 1) {
+    for (let x = 0; x < png.width; x += 1) {
+      const offset = (png.width * y + x) << 2;
+      png.data[offset] = Math.floor((x / png.width) * 255);
+      png.data[offset + 1] = Math.floor((y / png.height) * 255);
+      png.data[offset + 2] = 180;
+      png.data[offset + 3] = 255;
+    }
+  }
+  await writeFile(uploadPath, PNG.sync.write(png));
+  return uploadPath;
 };
 
 const categoryList = {
@@ -53,7 +76,7 @@ const installDevSession = async (page) => {
 
 const routeProductPageApis = async (page, options = {}) => {
   const patchStatus = options.patchStatus ?? 200;
-  const uploadedImageUrl = options.uploadedImageUrl ?? 'https://yunhuhui.com.cn/assets/media/catalog/products/uploaded-cover.png';
+  const uploadedImageUrl = options.uploadedImageUrl ?? 'http://127.0.0.1:5174/assets/media/catalog/products/test-upload.png';
   let serverProduct = { ...productSummary };
 
   await page.route('**/api/bff/bootstrap', async (route) => {
@@ -97,6 +120,13 @@ const routeProductPageApis = async (page, options = {}) => {
       status: 201,
       contentType: 'application/json',
       body: JSON.stringify({ url: uploadedImageUrl, contentType: 'image/png', size: 8 })
+    });
+  });
+  await page.route('**/assets/media/catalog/products/test-upload.png', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      path: options.uploadPath
     });
   });
   await page.route('**/api/catalog/products?page=1&pageSize=200', async (route) => {
@@ -151,8 +181,9 @@ const routeProductPageApis = async (page, options = {}) => {
 };
 
 test('product edit persists changes through catalog PATCH', async ({ page }) => {
+  const uploadPath = await createUploadFixture();
   await installDevSession(page);
-  await routeProductPageApis(page);
+  await routeProductPageApis(page, { uploadPath });
 
   await page.goto('/products.html');
   await expect(page.getByText('旧商品名')).toBeVisible();
@@ -160,15 +191,20 @@ test('product edit persists changes through catalog PATCH', async ({ page }) => 
   await expect(page.locator('#product-edit-drawer')).toBeVisible();
 
   await page.locator('#product-edit-drawer input[name="name"]').fill('新商品名');
-  await page.getByTestId('edit-product-cover-file').setInputFiles({
-    name: 'cover.png',
-    mimeType: 'image/png',
-    buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
-  });
+  await page.getByTestId('edit-product-cover-file').setInputFiles(uploadPath);
   await expect(page.locator('#product-edit-drawer [data-role="drawer-preview-image"]')).toHaveAttribute(
     'src',
-    'https://yunhuhui.com.cn/assets/media/catalog/products/uploaded-cover.png'
+    'http://127.0.0.1:5174/assets/media/catalog/products/test-upload.png'
   );
+  const imageResponse = await page.evaluate(async () => {
+    const response = await fetch('http://127.0.0.1:5174/assets/media/catalog/products/test-upload.png');
+    return {
+      contentType: response.headers.get('content-type') || '',
+      status: response.status
+    };
+  });
+  expect(imageResponse.status).toBe(200);
+  expect(imageResponse.contentType).toContain('image/png');
 
   const patchRequestPromise = page.waitForRequest((request) => {
     const url = new URL(request.url());
@@ -180,7 +216,7 @@ test('product edit persists changes through catalog PATCH', async ({ page }) => 
 
   expect(payload.name).toBe('新商品名');
   expect(payload.categoryId).toBe(categoryId);
-  expect(payload.coverImageUrl).toBe('https://yunhuhui.com.cn/assets/media/catalog/products/uploaded-cover.png');
+  expect(payload.coverImageUrl).toBe('http://127.0.0.1:5174/assets/media/catalog/products/test-upload.png');
   expect(payload.images).toEqual([payload.coverImageUrl]);
   await page.waitForResponse((response) => {
     const url = new URL(response.url());
@@ -190,6 +226,9 @@ test('product edit persists changes through catalog PATCH', async ({ page }) => 
   });
   await expect(page.locator('#product-edit-drawer')).toHaveCount(0);
   await expect(page.getByText('新商品名')).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('新商品名')).toBeVisible();
+  await expect(page.locator(`[data-product-id="${productId}"] div[style*="test-upload.png"]`)).toBeVisible();
 });
 
 test('product edit keeps drawer open when catalog PATCH fails', async ({ page }) => {
