@@ -53,6 +53,7 @@ const installDevSession = async (page) => {
 
 const routeProductPageApis = async (page, options = {}) => {
   const patchStatus = options.patchStatus ?? 200;
+  let serverProduct = { ...productSummary };
 
   await page.route('**/api/bff/bootstrap', async (route) => {
     await route.fulfill({
@@ -91,7 +92,7 @@ const routeProductPageApis = async (page, options = {}) => {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        items: [productSummary],
+        items: [serverProduct],
         page: 1,
         pageSize: 200,
         total: 1
@@ -112,6 +113,13 @@ const routeProductPageApis = async (page, options = {}) => {
       return;
     }
     const payload = route.request().postDataJSON();
+    serverProduct = {
+      ...serverProduct,
+      name: payload.name,
+      categoryId: payload.categoryId,
+      coverImageUrl: payload.coverImageUrl,
+      tags: productSummary.tags
+    };
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -158,6 +166,12 @@ test('product edit persists changes through catalog PATCH', async ({ page }) => 
   expect(payload.categoryId).toBe(categoryId);
   expect(payload.coverImageUrl).toMatch(/^data:image\/png;base64,/);
   expect(payload.images).toEqual([payload.coverImageUrl]);
+  await page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.status() === 200
+      && url.pathname === '/api/catalog/products'
+      && url.searchParams.get('pageSize') === '200';
+  });
   await expect(page.locator('#product-edit-drawer')).toHaveCount(0);
   await expect(page.getByText('新商品名')).toBeVisible();
 });

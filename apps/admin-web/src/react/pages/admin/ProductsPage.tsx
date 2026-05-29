@@ -1,4 +1,4 @@
-import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   createCatalogCategory,
@@ -1565,6 +1565,15 @@ export const ProductsPage = () => {
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
   const [displayCategoryManagerOpen, setDisplayCategoryManagerOpen] = useState(false);
 
+  const loadBackendProducts = useCallback(async () => {
+    const response = await fetchProducts({ page: 1, pageSize: 200 });
+    if (response.status !== 200 || !Array.isArray(response.data?.items)) {
+      const serverMessage = extractResponseMessage(response);
+      throw new Error(serverMessage || '商品列表加载失败，请稍后重试。');
+    }
+    return response.data.items.map((item, index) => normalizeProduct(item, index));
+  }, []);
+
   useEffect(() => {
     let active = true;
 
@@ -1625,11 +1634,7 @@ export const ProductsPage = () => {
 
         let loadedProducts: ProductRecord[] = [];
         if (nextContext.mode === 'dev') {
-          const response = await fetchProducts({ page: 1, pageSize: 200 });
-          loadedProducts =
-            response.status === 200 && Array.isArray(response.data?.items)
-              ? response.data.items.map((item, index) => normalizeProduct(item, index))
-              : [];
+          loadedProducts = await loadBackendProducts();
         } else {
           loadedProducts = mergeImportedMockProducts(buildMockProducts(30));
         }
@@ -1656,7 +1661,39 @@ export const ProductsPage = () => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [loadBackendProducts]);
+
+  const refreshBackendProducts = useCallback(async () => {
+    if (context?.mode !== 'dev') {
+      return;
+    }
+    const loadedProducts = await loadBackendProducts();
+    setProducts(loadedProducts);
+  }, [context?.mode, loadBackendProducts]);
+
+  useEffect(() => {
+    if (context?.mode !== 'dev') {
+      return;
+    }
+
+    let active = true;
+    const refresh = () => {
+      if (!active || document.visibilityState === 'hidden') {
+        return;
+      }
+      void refreshBackendProducts().catch((error) => {
+        console.warn('商品列表刷新失败', error);
+      });
+    };
+
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      active = false;
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [context?.mode, refreshBackendProducts]);
 
   useEffect(() => {
     if (!toast) {
@@ -2085,35 +2122,31 @@ export const ProductsPage = () => {
         categories={categories}
         onClose={() => setCreateModalOpen(false)}
         onSubmit={async (draft) => {
-          let nextProduct = createLocalProduct(draft);
-          if (context?.mode === 'dev' && draft.categoryId) {
-            try {
-              const categoryLabel = resolveCategoryLabel(draft.categoryId, categories);
-              const response = await createCatalogProduct({
-                name: draft.name,
-                categoryId: draft.categoryId,
-                description: draft.description || undefined,
-                coverImageUrl: draft.coverImageUrl || undefined,
-                images: draft.coverImageUrl ? [draft.coverImageUrl] : undefined,
-                tags: [categoryLabel, '标准档']
-              });
-              if (response.status !== 201 || !response.data?.product) {
-                throw new Error('后端创建失败，请稍后重试。');
-              }
-              nextProduct = normalizeProduct(
-                {
-                  ...response.data.product,
-                  coverImageUrl: response.data.product.images?.[0] || draft.coverImageUrl,
-                  inventory: draft.inventory,
-                  status: draft.status
-                },
-                products.length
-              );
-            } catch (error) {
-              showToast(`后端创建失败，已在前端暂存。原因：${error instanceof Error ? error.message : '未知错误'}`, 'error');
+          if (context?.mode === 'dev') {
+            if (!draft.categoryId) {
+              throw new Error('请选择类目后再创建商品。');
             }
+            const categoryLabel = resolveCategoryLabel(draft.categoryId, categories);
+            const response = await createCatalogProduct({
+              name: draft.name,
+              categoryId: draft.categoryId,
+              description: draft.description || undefined,
+              coverImageUrl: draft.coverImageUrl || undefined,
+              images: draft.coverImageUrl ? [draft.coverImageUrl] : undefined,
+              tags: [categoryLabel, '标准档']
+            });
+            if (response.status !== 201 || !response.data?.product) {
+              const serverMessage = extractResponseMessage(response);
+              throw new Error(serverMessage ? `后端创建失败：${serverMessage}` : '后端创建失败，请稍后重试。');
+            }
+            await refreshBackendProducts();
+            setCurrentPage(1);
+            setCreateModalOpen(false);
+            showToast('新建商品成功。');
+            return;
           }
 
+          const nextProduct = createLocalProduct(draft);
           setProducts((current) => [nextProduct, ...current]);
           setCurrentPage(1);
           setCreateModalOpen(false);
@@ -2126,25 +2159,19 @@ export const ProductsPage = () => {
         categories={categories}
         onClose={() => setEditingProductId('')}
         onSave={async (updatedProduct) => {
-          let nextProduct = cloneProduct(updatedProduct);
           if (context?.mode === 'dev') {
             const response = await updateCatalogProduct(updatedProduct.id, toProductUpdatePayload(updatedProduct));
             if (response.status !== 200 || !response.data?.product) {
               const serverMessage = extractResponseMessage(response);
               throw new Error(serverMessage ? `保存失败：${serverMessage}` : '保存失败，请稍后重试。');
             }
-            nextProduct = normalizeProduct(
-              {
-                ...response.data.product,
-                coverImageUrl: response.data.product.images?.[0] || updatedProduct.coverImageUrl,
-                inventory: updatedProduct.inventory,
-                models: updatedProduct.models,
-                status: updatedProduct.status,
-                tierPricing: updatedProduct.tierPricing
-              },
-              products.findIndex((item) => item.id === updatedProduct.id)
-            );
+            await refreshBackendProducts();
+            setEditingProductId('');
+            showToast('保存成功。');
+            return;
           }
+
+          const nextProduct = cloneProduct(updatedProduct);
           setProducts((current) => current.map((item) => (item.id === updatedProduct.id ? nextProduct : item)));
           setEditingProductId('');
           showToast('保存成功。');
