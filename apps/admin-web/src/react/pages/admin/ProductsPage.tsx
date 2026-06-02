@@ -37,6 +37,7 @@ import {
   mergeImportedMockProducts,
   MIN_TIER_QTY,
   MODEL_CLASS_BADGE,
+  MOCK_PRODUCTS_STORAGE_KEY,
   NO_CATEGORY_FILTER,
   normalizeCategoryItem,
   normalizeDisplayCategoryItem,
@@ -52,7 +53,8 @@ import {
   type DisplayCategoryItem,
   type ProductModel,
   type ProductRecord,
-  type ProductTier
+  type ProductTier,
+  writeStoredJson
 } from './products-data';
 
 type PageContext = {
@@ -77,6 +79,10 @@ type ProductDraft = {
   name: string;
   status: ProductStatusValue;
 };
+
+const MAX_MODEL_CODE_DIGITS = 20;
+
+const sanitizeModelCode = (value: string) => value.replace(/\D/g, '').slice(0, MAX_MODEL_CODE_DIGITS);
 
 const readFileAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -555,16 +561,20 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
   const [draft, setDraft] = useState<ProductRecord | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [modelRowKeys, setModelRowKeys] = useState<string[]>([]);
   const [previewUrl, setPreviewUrl] = useState('');
+  const modelRowKeyCounterRef = useRef(0);
 
   useEffect(() => {
     if (!open || !product) {
       setDraft(null);
+      setModelRowKeys([]);
       setErrorMessage('');
       setPreviewUrl('');
       return;
     }
     setDraft(cloneProduct(product));
+    setModelRowKeys(product.models.map((_, index) => `${product.id}-model-${index}`));
     setErrorMessage('');
     setIsSaving(false);
     setPreviewUrl('');
@@ -744,6 +754,9 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
                 className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
                 data-role="add-model-row"
                 onClick={() => {
+                  const nextKey = `${draft.id}-model-new-${modelRowKeyCounterRef.current}`;
+                  modelRowKeyCounterRef.current += 1;
+                  setModelRowKeys((current) => [...current, nextKey]);
                   setDraft((current) => current ? {
                     ...current,
                     models: [
@@ -765,7 +778,7 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
             <div className="space-y-2" data-role="model-list">
               {draft.models.map((model, index) => (
                 <div
-                  key={`${model.code}-${index}`}
+                  key={modelRowKeys[index] || `${draft.id}-model-${index}`}
                   className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-[1.2fr_1fr_1fr_auto]"
                   data-role="model-row"
                 >
@@ -784,7 +797,9 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
                     <input
                       className="w-full rounded-lg border-slate-300 text-sm uppercase focus:border-primary focus:ring-primary"
                       data-field="model-code"
-                      onChange={(event) => updateModel(index, { code: event.target.value })}
+                      inputMode="numeric"
+                      maxLength={MAX_MODEL_CODE_DIGITS}
+                      onChange={(event) => updateModel(index, { code: sanitizeModelCode(event.target.value) })}
                       type="text"
                       value={model.code}
                     />
@@ -806,6 +821,7 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
                     data-role="remove-model-row"
                     disabled={draft.models.length <= 1}
                     onClick={() => {
+                      setModelRowKeys((current) => current.length <= 1 ? current : current.filter((_, itemIndex) => itemIndex !== index));
                       setDraft((current) => current ? {
                         ...current,
                         models: current.models.length <= 1 ? current.models : current.models.filter((_, itemIndex) => itemIndex !== index)
@@ -1650,7 +1666,12 @@ export const ProductsPage = () => {
         if (nextContext.mode === 'dev') {
           loadedProducts = await loadBackendProducts();
         } else {
-          loadedProducts = mergeImportedMockProducts(buildMockProducts(30));
+          const storedProducts = readStoredJson<unknown[]>(MOCK_PRODUCTS_STORAGE_KEY);
+          const mockBaseProducts = Array.isArray(storedProducts) && storedProducts.length > 0
+            ? storedProducts.map((item, index) => normalizeProduct(item, index))
+            : buildMockProducts(30);
+          loadedProducts = mergeImportedMockProducts(mockBaseProducts);
+          writeStoredJson(MOCK_PRODUCTS_STORAGE_KEY, loadedProducts);
         }
 
         if (!active) {
@@ -2171,7 +2192,11 @@ export const ProductsPage = () => {
           }
 
           const nextProduct = createLocalProduct(draft);
-          setProducts((current) => [nextProduct, ...current]);
+          setProducts((current) => {
+            const nextProducts = [nextProduct, ...current];
+            writeStoredJson(MOCK_PRODUCTS_STORAGE_KEY, nextProducts);
+            return nextProducts;
+          });
           setCurrentPage(1);
           setCreateModalOpen(false);
           showToast('新建商品成功。');
@@ -2197,7 +2222,11 @@ export const ProductsPage = () => {
           }
 
           const nextProduct = cloneProduct(updatedProduct);
-          setProducts((current) => current.map((item) => (item.id === updatedProduct.id ? nextProduct : item)));
+          setProducts((current) => {
+            const nextProducts = current.map((item) => (item.id === updatedProduct.id ? nextProduct : item));
+            writeStoredJson(MOCK_PRODUCTS_STORAGE_KEY, nextProducts);
+            return nextProducts;
+          });
           setEditingProductId('');
           showToast('保存成功。');
         }}

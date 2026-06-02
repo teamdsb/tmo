@@ -50,6 +50,7 @@ export const NO_CATEGORY_FILTER = '__NO_CATEGORY__';
 export const CATEGORY_STORAGE_KEY = 'admin-web-products-categories';
 export const DISPLAY_CATEGORY_STORAGE_KEY = 'admin-web-miniapp-display-categories';
 export const MOCK_IMPORTED_PRODUCTS_STORAGE_KEY = 'admin-web-mock-imported-products';
+export const MOCK_PRODUCTS_STORAGE_KEY = 'admin-web-mock-products';
 export const PRODUCTS_PAGE_SIZE = 10;
 export const MIN_TIER_QTY = 2;
 export const MAX_TIER_DISCOUNT_RATE = 90;

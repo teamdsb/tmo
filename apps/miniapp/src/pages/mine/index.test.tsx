@@ -282,17 +282,17 @@ describe('PersonalCenter', () => {
     expect(await screen.findByText('立即登录 / 注册')).toBeInTheDocument()
   })
 
-  it('opens real order list from embedded order section', async () => {
+  it('opens styled real order list from embedded order section', async () => {
     await renderPersonalCenter()
 
     fireEvent.click(screen.getByText('查看全部'))
 
-    await waitFor(() => {
-      expect(Taro.navigateTo).toHaveBeenCalledWith({
-        url: '/pages/order/list/index'
-      })
+    expect(await screen.findByText('订单列表')).toBeInTheDocument()
+    expect(await screen.findByText('ORD-88291')).toBeInTheDocument()
+    expect(screen.getAllByText('工业阀门').length).toBeGreaterThan(0)
+    expect(Taro.navigateTo).not.toHaveBeenCalledWith({
+      url: '/pages/order/list/index'
     })
-    expect(screen.queryByText('ORD-20240520-99')).not.toBeInTheDocument()
   })
 
   it('opens demand composer from mine demand subview', async () => {
@@ -345,7 +345,7 @@ describe('PersonalCenter', () => {
     expect(await screen.findByText('工业轴承')).toBeInTheDocument()
   })
 
-  it('opens real order list from order status shortcuts', async () => {
+  it('opens styled real order list from order status shortcuts', async () => {
     await renderPersonalCenter()
 
     await act(async () => {
@@ -353,11 +353,10 @@ describe('PersonalCenter', () => {
       await flushPromises()
     })
 
-    await waitFor(() => {
-      expect(Taro.navigateTo).toHaveBeenCalledWith({
-        url: '/pages/order/list/index'
-      })
+    expect(await screen.findByText('订单列表')).toBeInTheDocument()
+    expect(screen.getByText('ORD-88291')).toBeInTheDocument()
+    expect(Taro.navigateTo).not.toHaveBeenCalledWith({
+      url: '/pages/order/list/index'
     })
-    expect(screen.queryByText('ORD-20240515-17')).not.toBeInTheDocument()
   })
 })

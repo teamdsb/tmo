@@ -63,9 +63,22 @@ describe('ExcelImportConfirmation', () => {
     expect(stylesheet).toContain('height: 220rpx;')
     expect(stylesheet).toContain('font-size: 44rpx;')
     expect(stylesheet).toContain('margin-top: 8rpx;')
-    expect(stylesheet).toContain('min-height: 78rpx;')
-    expect(stylesheet).toContain('font-size: 46rpx;')
-    expect(stylesheet).toContain('min-width: 128rpx;')
+    expect(stylesheet).toContain('min-height: 72rpx;')
+    expect(stylesheet).toContain('font-size: 42rpx;')
+    expect(stylesheet).toContain('min-width: 156rpx;')
+  })
+
+  it('keeps checkout bar readable on narrow screens', () => {
+    const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../app.scss'), 'utf8')
+
+    expect(stylesheet).toContain('align-items: center;')
+    expect(stylesheet).toContain('grid-template-columns: minmax(0, 1fr) auto;')
+    expect(stylesheet).toContain('min-width: 156rpx;')
+    expect(stylesheet).toContain('font-size: 42rpx;')
+    expect(stylesheet).toContain('width: 292rpx;')
+    expect(stylesheet).toContain('grid-template-columns: 132rpx 150rpx;')
+    expect(stylesheet).toContain('min-height: 72rpx;')
+    expect(stylesheet).toContain('padding: 0 12rpx;')
   })
 
   it('prefers product name from product detail for cart item title', async () => {

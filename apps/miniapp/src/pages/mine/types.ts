@@ -21,6 +21,26 @@ export type OrderItem = {
 
 export type MineSubview = 'profile' | 'orders' | 'address' | 'demand'
 
+export type MineOrderItem = {
+  name: string
+  specs: string
+  price: number
+  count: number
+  image: string
+}
+
+export type MineOrder = {
+  id: string
+  status: string
+  date: string
+  totalPrice: number
+  items: MineOrderItem[]
+  tracking: {
+    latest: string
+    time: string
+  }
+}
+
 export type MockAddress = {
   id: number
   name: string
