@@ -30,6 +30,27 @@ const productSummary = {
   tags: ['旧标签']
 };
 
+const skuId = '66666666-7777-8888-9999-000000000000';
+
+const productDetail = {
+  product: {
+    ...productSummary,
+    description: '旧简介',
+    images: ['https://cdn.example.com/old.png']
+  },
+  skus: [
+    {
+      id: skuId,
+      spuId: productId,
+      skuCode: '1234567890',
+      name: '旧型号',
+      spec: '旧型号',
+      priceTiers: [{ minQty: 1, maxQty: null, unitPriceFen: 8800 }],
+      isActive: true
+    }
+  ]
+};
+
 const createUploadFixture = async () => {
   const uploadDir = path.resolve(process.cwd(), '../../tmp');
   const uploadPath = path.join(uploadDir, 'test-upload.png');
@@ -78,6 +99,7 @@ const routeProductPageApis = async (page, options = {}) => {
   const patchStatus = options.patchStatus ?? 200;
   const uploadedImageUrl = options.uploadedImageUrl ?? 'http://127.0.0.1:5174/assets/media/catalog/products/test-upload.png';
   let serverProduct = { ...productSummary };
+  let serverDetail = JSON.parse(JSON.stringify(productDetail));
 
   await page.route('**/api/bff/bootstrap', async (route) => {
     await route.fulfill({
@@ -134,14 +156,27 @@ const routeProductPageApis = async (page, options = {}) => {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        items: [serverProduct],
+        items: serverProduct ? [serverProduct] : [],
         page: 1,
         pageSize: 200,
-        total: 1
+        total: serverProduct ? 1 : 0
       })
     });
   });
   await page.route(`**/api/catalog/products/${productId}`, async (route) => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(serverDetail)
+      });
+      return;
+    }
+    if (route.request().method() === 'DELETE') {
+      serverProduct = null;
+      await route.fulfill({ status: 204 });
+      return;
+    }
     if (route.request().method() !== 'PATCH') {
       await route.continue();
       return;
@@ -162,20 +197,46 @@ const routeProductPageApis = async (page, options = {}) => {
       coverImageUrl: payload.coverImageUrl,
       tags: productSummary.tags
     };
+    serverDetail = {
+      ...serverDetail,
+      product: {
+        ...serverDetail.product,
+        name: payload.name,
+        description: payload.description,
+        coverImageUrl: payload.coverImageUrl,
+        images: payload.images
+      }
+    };
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
-        product: {
-          ...productSummary,
-          name: payload.name,
-          description: payload.description,
-          coverImageUrl: payload.coverImageUrl,
-          images: payload.images,
-          tags: productSummary.tags
-        },
-        skus: []
+        ...serverDetail,
+        product: serverDetail.product
       })
+    });
+  });
+  await page.route(`**/api/catalog/products/${productId}/skus/${skuId}`, async (route) => {
+    if (route.request().method() !== 'PATCH') {
+      await route.continue();
+      return;
+    }
+    const payload = route.request().postDataJSON();
+    serverDetail = {
+      ...serverDetail,
+      skus: serverDetail.skus.map((sku) => sku.id === skuId ? {
+        ...sku,
+        skuCode: payload.skuCode,
+        name: payload.name,
+        spec: payload.spec,
+        priceTiers: payload.priceTiers,
+        isActive: payload.isActive
+      } : sku)
+    };
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(serverDetail.skus.find((sku) => sku.id === skuId))
     });
   });
 };
@@ -244,4 +305,60 @@ test('product edit keeps drawer open when catalog PATCH fails', async ({ page })
   await expect(page.locator('#product-edit-drawer')).toBeVisible();
   await expect(page.locator('[data-role="drawer-error"]')).toContainText('保存失败');
   await expect(page.getByText('失败商品名')).toHaveCount(0);
+});
+
+test('product edit persists model fields through catalog SKU PATCH', async ({ page }) => {
+  await installDevSession(page);
+  await routeProductPageApis(page);
+
+  await page.goto('/products.html');
+  await expect(page.getByText('旧商品名')).toBeVisible();
+  await page.locator('[data-role="open-product-drawer"]').first().click();
+
+  const modelName = page.locator('#product-edit-drawer [data-field="model-name"]').first();
+  const modelCode = page.locator('#product-edit-drawer [data-field="model-code"]').first();
+  const modelPrice = page.locator('#product-edit-drawer [data-field="model-base-price"]').first();
+  await expect(modelName).toHaveValue('旧型号');
+  await expect(modelCode).toHaveValue('1234567890');
+  await expect(modelPrice).toHaveValue('88');
+
+  await modelName.fill('新型号');
+  await modelCode.fill('12345678901234567890');
+  await modelPrice.fill('99.5');
+
+  const skuPatchRequestPromise = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return request.method() === 'PATCH' && url.pathname === `/api/catalog/products/${productId}/skus/${skuId}`;
+  });
+  await page.locator('#product-edit-drawer button[type="submit"]').click();
+  const skuPatchRequest = await skuPatchRequestPromise;
+  const payload = skuPatchRequest.postDataJSON();
+
+  expect(payload.name).toBe('新型号');
+  expect(payload.skuCode).toBe('12345678901234567890');
+  expect(payload.spec).toBe('新型号');
+  expect(payload.priceTiers).toEqual([{ minQty: 1, maxQty: null, unitPriceFen: 9950 }]);
+  await expect(page.locator('#product-edit-drawer')).toHaveCount(0);
+
+  await page.locator('[data-role="open-product-drawer"]').first().click();
+  await expect(page.locator('#product-edit-drawer [data-field="model-code"]').first()).toHaveValue('12345678901234567890');
+  await expect(page.locator('#product-edit-drawer [data-field="model-base-price"]').first()).toHaveValue('99.5');
+});
+
+test('product row can delete a catalog product', async ({ page }) => {
+  await installDevSession(page);
+  await routeProductPageApis(page);
+
+  await page.goto('/products.html');
+  await expect(page.getByText('旧商品名')).toBeVisible();
+  page.on('dialog', (dialog) => dialog.accept());
+
+  const deleteRequestPromise = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return request.method() === 'DELETE' && url.pathname === `/api/catalog/products/${productId}`;
+  });
+  await page.locator('[data-role="delete-product"]').first().click();
+  await deleteRequestPromise;
+
+  await expect(page.getByText('旧商品名')).toHaveCount(0);
 });

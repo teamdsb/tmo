@@ -10,6 +10,7 @@ export type ProductStatusTone = 'active' | 'inactive' | 'draft';
 export type ProductModel = {
   basePrice: number;
   code: string;
+  id?: string;
   name: string;
 };
 
@@ -176,7 +177,7 @@ const normalizeTierPricing = (value: unknown): ProductTier[] => {
 
 const normalizeModels = (value: unknown, fallbackName: string): ProductModel[] => {
   const item = asRecord(value);
-  const candidates = Array.isArray(item.models) ? item.models : [];
+  const candidates = Array.isArray(item.models) ? item.models : Array.isArray(item.skus) ? item.skus : [];
   if (candidates.length === 0) {
     const fallbackPrice = toNumber(item.basePrice, 0);
     return [
@@ -188,9 +189,13 @@ const normalizeModels = (value: unknown, fallbackName: string): ProductModel[] =
     ];
   }
   return candidates.map((model, index) => ({
+    id: toText(model?.id, '') || undefined,
     name: toText(model?.name, `${DEFAULT_MODEL_NAME} ${index + 1}`),
-    code: normalizeModelCode(model?.code, `${DEFAULT_MODEL_CODE}-${index + 1}`),
-    basePrice: Math.max(0, toNumber(model?.basePrice, toNumber(item.basePrice, 0)))
+    code: normalizeModelCode(model?.code ?? model?.skuCode, `${DEFAULT_MODEL_CODE}-${index + 1}`),
+    basePrice: Math.max(0, toNumber(
+      model?.basePrice,
+      toNumber(model?.priceTiers?.[0]?.unitPriceFen, toNumber(item.basePrice, 0) * 100) / 100
+    ))
   }));
 };
 

@@ -619,6 +619,19 @@ type UpdatePriceInquiryRequest struct {
 // UpdatePriceInquiryRequestStatus defines model for UpdatePriceInquiryRequest.Status.
 type UpdatePriceInquiryRequestStatus string
 
+// UpdateSkuRequest defines model for UpdateSkuRequest.
+type UpdateSkuRequest struct {
+	Attributes *map[string]string `json:"attributes,omitempty"`
+	IsActive   *bool              `json:"isActive,omitempty"`
+	Name       string             `json:"name"`
+	PriceTiers *[]PriceTier       `json:"priceTiers,omitempty"`
+	SkuCode    *string            `json:"skuCode,omitempty"`
+
+	// Spec Primary spec label used for matching (e.g., size/grade); store here and avoid duplicating in attributes
+	Spec *string `json:"spec,omitempty"`
+	Unit *string `json:"unit,omitempty"`
+}
+
 // UpdateTrackingRequest defines model for UpdateTrackingRequest.
 type UpdateTrackingRequest struct {
 	Shipments []struct {
@@ -794,6 +807,9 @@ type PatchCatalogProductsSpuIdJSONRequestBody = UpdateCatalogProductRequest
 // PostCatalogProductsSpuIdSkusJSONRequestBody defines body for PostCatalogProductsSpuIdSkus for application/json ContentType.
 type PostCatalogProductsSpuIdSkusJSONRequestBody = CreateSkuRequest
 
+// PatchCatalogProductsSpuIdSkusSkuIdJSONRequestBody defines body for PatchCatalogProductsSpuIdSkusSkuId for application/json ContentType.
+type PatchCatalogProductsSpuIdSkusSkuIdJSONRequestBody = UpdateSkuRequest
+
 // PostInquiriesPriceJSONRequestBody defines body for PostInquiriesPrice for application/json ContentType.
 type PostInquiriesPriceJSONRequestBody = CreatePriceInquiry
 
@@ -913,6 +929,9 @@ type ServerInterface interface {
 	// Create SKU for product
 	// (POST /catalog/products/{spuId}/skus)
 	PostCatalogProductsSpuIdSkus(c *gin.Context, spuId openapi_types.UUID)
+	// Update SKU for product
+	// (PATCH /catalog/products/{spuId}/skus/{skuId})
+	PatchCatalogProductsSpuIdSkusSkuId(c *gin.Context, spuId openapi_types.UUID, skuId openapi_types.UUID)
 	// List price inquiries
 	// (GET /inquiries/price)
 	GetInquiriesPrice(c *gin.Context, params GetInquiriesPriceParams)
@@ -1701,6 +1720,41 @@ func (siw *ServerInterfaceWrapper) PostCatalogProductsSpuIdSkus(c *gin.Context) 
 	siw.Handler.PostCatalogProductsSpuIdSkus(c, spuId)
 }
 
+// PatchCatalogProductsSpuIdSkusSkuId operation middleware
+func (siw *ServerInterfaceWrapper) PatchCatalogProductsSpuIdSkusSkuId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "spuId" -------------
+	var spuId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "spuId", c.Param("spuId"), &spuId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter spuId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "skuId" -------------
+	var skuId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "skuId", c.Param("skuId"), &skuId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter skuId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PatchCatalogProductsSpuIdSkusSkuId(c, spuId, skuId)
+}
+
 // GetInquiriesPrice operation middleware
 func (siw *ServerInterfaceWrapper) GetInquiriesPrice(c *gin.Context) {
 
@@ -2287,6 +2341,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/catalog/products/:spuId", wrapper.GetCatalogProductsSpuId)
 	router.PATCH(options.BaseURL+"/catalog/products/:spuId", wrapper.PatchCatalogProductsSpuId)
 	router.POST(options.BaseURL+"/catalog/products/:spuId/skus", wrapper.PostCatalogProductsSpuIdSkus)
+	router.PATCH(options.BaseURL+"/catalog/products/:spuId/skus/:skuId", wrapper.PatchCatalogProductsSpuIdSkusSkuId)
 	router.GET(options.BaseURL+"/inquiries/price", wrapper.GetInquiriesPrice)
 	router.POST(options.BaseURL+"/inquiries/price", wrapper.PostInquiriesPrice)
 	router.GET(options.BaseURL+"/inquiries/price/:inquiryId", wrapper.GetInquiriesPriceInquiryId)

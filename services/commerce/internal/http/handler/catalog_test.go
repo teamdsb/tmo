@@ -30,12 +30,14 @@ type stubStore struct {
 	updateCategoryFn        func(context.Context, db.UpdateCategoryParams) (db.CatalogCategory, error)
 	deleteCategoryFn        func(context.Context, uuid.UUID) (int64, error)
 	createSkuFn             func(context.Context, db.CreateSkuParams) (db.CatalogSku, error)
+	updateSkuFn             func(context.Context, db.UpdateSkuParams) (db.CatalogSku, error)
 	listSkusByProductFn     func(context.Context, uuid.UUID) ([]db.CatalogSku, error)
 	listSkusByIDsFn         func(context.Context, []uuid.UUID) ([]db.CatalogSku, error)
 	listSkusBySkuCodeFn     func(context.Context, *string) ([]db.CatalogSku, error)
 	listSkusByNameFn        func(context.Context, string) ([]db.CatalogSku, error)
 	listSkusByNameAndSpecFn func(context.Context, db.ListSkusByNameAndSpecParams) ([]db.CatalogSku, error)
 	createPriceTierFn       func(context.Context, db.CreatePriceTierParams) (db.CatalogPriceTier, error)
+	deletePriceTiersBySkuFn func(context.Context, uuid.UUID) (int64, error)
 	listPriceTiersBySkuFn   func(context.Context, uuid.UUID) ([]db.CatalogPriceTier, error)
 	listPriceTiersBySkusFn  func(context.Context, []uuid.UUID) ([]db.CatalogPriceTier, error)
 }
@@ -124,6 +126,13 @@ func (s *stubStore) CreateSku(ctx context.Context, arg db.CreateSkuParams) (db.C
 	return s.createSkuFn(ctx, arg)
 }
 
+func (s *stubStore) UpdateSku(ctx context.Context, arg db.UpdateSkuParams) (db.CatalogSku, error) {
+	if s.updateSkuFn == nil {
+		return db.CatalogSku{}, pgx.ErrTxClosed
+	}
+	return s.updateSkuFn(ctx, arg)
+}
+
 func (s *stubStore) ListSkusByProduct(ctx context.Context, productID uuid.UUID) ([]db.CatalogSku, error) {
 	if s.listSkusByProductFn == nil {
 		return nil, pgx.ErrTxClosed
@@ -164,6 +173,13 @@ func (s *stubStore) CreatePriceTier(ctx context.Context, arg db.CreatePriceTierP
 		return db.CatalogPriceTier{}, pgx.ErrTxClosed
 	}
 	return s.createPriceTierFn(ctx, arg)
+}
+
+func (s *stubStore) DeletePriceTiersBySku(ctx context.Context, skuID uuid.UUID) (int64, error) {
+	if s.deletePriceTiersBySkuFn == nil {
+		return 0, pgx.ErrTxClosed
+	}
+	return s.deletePriceTiersBySkuFn(ctx, skuID)
 }
 
 func (s *stubStore) ListPriceTiersBySku(ctx context.Context, skuID uuid.UUID) ([]db.CatalogPriceTier, error) {

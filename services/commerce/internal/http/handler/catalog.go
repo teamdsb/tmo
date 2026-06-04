@@ -514,6 +514,101 @@ func (h *Handler) DeleteCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 	c.Status(http.StatusNoContent)
 }
 
+func (h *Handler) PatchCatalogProductsSpuIdSkusSkuId(c *gin.Context, spuId types.UUID, skuId types.UUID) {
+	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
+		return
+	}
+
+	var request oapi.UpdateSkuRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
+		return
+	}
+	name := strings.TrimSpace(request.Name)
+	if name == "" {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "name is required")
+		return
+	}
+
+	existingSkus, err := h.CatalogStore.ListSkusByIDs(c.Request.Context(), []uuid.UUID{uuid.UUID(skuId)})
+	if err != nil {
+		h.logError("get sku failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update sku")
+		return
+	}
+	if len(existingSkus) == 0 || existingSkus[0].ProductID != uuid.UUID(spuId) {
+		h.writeError(c, http.StatusNotFound, "not_found", "sku not found")
+		return
+	}
+
+	attributes := map[string]string{}
+	if request.Attributes != nil {
+		attributes = *request.Attributes
+	}
+	spec := ""
+	if request.Spec != nil {
+		spec = strings.TrimSpace(*request.Spec)
+	}
+	if spec == "" {
+		if value, ok := attributes["spec"]; ok {
+			spec = strings.TrimSpace(value)
+		}
+	}
+	delete(attributes, "spec")
+	var specPtr *string
+	if spec != "" {
+		specPtr = &spec
+	}
+	attributesJSON, err := json.Marshal(attributes)
+	if err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid attributes")
+		return
+	}
+
+	isActive := true
+	if request.IsActive != nil {
+		isActive = *request.IsActive
+	}
+
+	sku, err := h.CatalogStore.UpdateSku(c.Request.Context(), db.UpdateSkuParams{
+		ID:         uuid.UUID(skuId),
+		SkuCode:    request.SkuCode,
+		Name:       name,
+		Spec:       specPtr,
+		Attributes: attributesJSON,
+		Unit:       request.Unit,
+		IsActive:   isActive,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			h.writeError(c, http.StatusNotFound, "not_found", "sku not found")
+			return
+		}
+		h.logError("update sku failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update sku")
+		return
+	}
+
+	if _, err := h.CatalogStore.DeletePriceTiersBySku(c.Request.Context(), sku.ID); err != nil {
+		h.logError("delete price tiers failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update sku")
+		return
+	}
+	tiers, ok := h.createPriceTiers(c, sku.ID, derefPriceTiers(request.PriceTiers))
+	if !ok {
+		return
+	}
+
+	response, err := skuFromModel(sku, tiers)
+	if err != nil {
+		h.logError("map sku failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update sku")
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 func (h *Handler) PostCatalogProductsSpuIdSkus(c *gin.Context, spuId types.UUID) {
 	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
 		return
@@ -573,27 +668,9 @@ func (h *Handler) PostCatalogProductsSpuIdSkus(c *gin.Context, spuId types.UUID)
 		return
 	}
 
-	tiers := make([]db.CatalogPriceTier, 0, len(derefPriceTiers(request.PriceTiers)))
-	for _, tier := range derefPriceTiers(request.PriceTiers) {
-		minQty := clampInt32(tier.MinQty)
-		var maxQty *int32
-		if tier.MaxQty != nil {
-			value := clampInt32(*tier.MaxQty)
-			maxQty = &value
-		}
-		unitPrice := sharedmoney.FromInt64(tier.UnitPriceFen)
-		createdTier, err := h.CatalogStore.CreatePriceTier(c.Request.Context(), db.CreatePriceTierParams{
-			SkuID:        sku.ID,
-			MinQty:       minQty,
-			MaxQty:       maxQty,
-			UnitPriceFen: unitPrice.Int64(),
-		})
-		if err != nil {
-			h.logError("create price tier failed", err)
-			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to create sku")
-			return
-		}
-		tiers = append(tiers, createdTier)
+	tiers, ok := h.createPriceTiers(c, sku.ID, derefPriceTiers(request.PriceTiers))
+	if !ok {
+		return
 	}
 
 	response, err := skuFromModel(sku, tiers)
@@ -604,6 +681,32 @@ func (h *Handler) PostCatalogProductsSpuIdSkus(c *gin.Context, spuId types.UUID)
 	}
 
 	c.JSON(http.StatusCreated, response)
+}
+
+func (h *Handler) createPriceTiers(c *gin.Context, skuID uuid.UUID, priceTiers []oapi.PriceTier) ([]db.CatalogPriceTier, bool) {
+	tiers := make([]db.CatalogPriceTier, 0, len(priceTiers))
+	for _, tier := range priceTiers {
+		minQty := clampInt32(tier.MinQty)
+		var maxQty *int32
+		if tier.MaxQty != nil {
+			value := clampInt32(*tier.MaxQty)
+			maxQty = &value
+		}
+		unitPrice := sharedmoney.FromInt64(tier.UnitPriceFen)
+		createdTier, err := h.CatalogStore.CreatePriceTier(c.Request.Context(), db.CreatePriceTierParams{
+			SkuID:        skuID,
+			MinQty:       minQty,
+			MaxQty:       maxQty,
+			UnitPriceFen: unitPrice.Int64(),
+		})
+		if err != nil {
+			h.logError("create price tier failed", err)
+			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to create sku")
+			return nil, false
+		}
+		tiers = append(tiers, createdTier)
+	}
+	return tiers, true
 }
 
 func (h *Handler) logError(message string, err error) {

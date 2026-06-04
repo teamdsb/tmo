@@ -111,6 +111,19 @@ export interface CreateSkuRequest {
   isActive?: boolean;
 }
 
+export type UpdateSkuRequestAttributes = {[key: string]: string};
+
+export interface UpdateSkuRequest {
+  skuCode?: string;
+  name: string;
+  /** Primary spec label used for matching (e.g., size/grade); store here and avoid duplicating in attributes */
+  spec?: string;
+  attributes?: UpdateSkuRequestAttributes;
+  priceTiers?: PriceTier[];
+  unit?: string;
+  isActive?: boolean;
+}
+
 export interface PagedProductList {
   items: ProductSummary[];
   page: number;
@@ -597,6 +610,186 @@ export interface PagedInquiryMessageList {
   total: number;
 }
 
+export type SupportConversationStatus = typeof SupportConversationStatus[keyof typeof SupportConversationStatus];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const SupportConversationStatus = {
+  OPEN_UNASSIGNED: 'OPEN_UNASSIGNED',
+  OPEN_ASSIGNED: 'OPEN_ASSIGNED',
+  CLOSED: 'CLOSED',
+} as const;
+
+export type SupportMessageType = typeof SupportMessageType[keyof typeof SupportMessageType];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const SupportMessageType = {
+  TEXT: 'TEXT',
+  IMAGE: 'IMAGE',
+  ORDER_CARD: 'ORDER_CARD',
+  PRODUCT_CARD: 'PRODUCT_CARD',
+  SYSTEM: 'SYSTEM',
+} as const;
+
+export type SupportSenderType = typeof SupportSenderType[keyof typeof SupportSenderType];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const SupportSenderType = {
+  CUSTOMER: 'CUSTOMER',
+  STAFF: 'STAFF',
+  SYSTEM: 'SYSTEM',
+} as const;
+
+export interface SupportMessageAsset {
+  id: string;
+  contentType: string;
+  fileName: string;
+  fileSize: number;
+  url: string;
+  createdAt: string;
+}
+
+/**
+ * @nullable
+ */
+export type SupportMessageAssetProperty = SupportMessageAsset | null;
+
+/**
+ * @nullable
+ */
+export type SupportMessageCardPayload = { [key: string]: unknown } | null;
+
+export interface SupportMessage {
+  id: string;
+  conversationId: string;
+  senderType: SupportSenderType;
+  /** @nullable */
+  senderUserId?: string | null;
+  /** @nullable */
+  senderRole?: string | null;
+  messageType: SupportMessageType;
+  /** @nullable */
+  textContent?: string | null;
+  /** @nullable */
+  asset?: SupportMessageAssetProperty;
+  /** @nullable */
+  cardPayload?: SupportMessageCardPayload;
+  createdAt: string;
+}
+
+export interface SupportConversation {
+  id: string;
+  customerUserId: string;
+  /** @nullable */
+  customerDisplayName?: string | null;
+  /** @nullable */
+  customerPhone?: string | null;
+  /** @nullable */
+  ownerSalesUserId?: string | null;
+  /** @nullable */
+  assigneeUserId?: string | null;
+  /** @nullable */
+  assigneeRole?: string | null;
+  status: SupportConversationStatus;
+  /** @nullable */
+  lastMessageType?: SupportMessageType;
+  /** @nullable */
+  lastMessagePreview?: string | null;
+  lastMessageAt: string;
+  customerUnreadCount: number;
+  staffUnreadCount: number;
+  createdAt: string;
+  updatedAt: string;
+  /** @nullable */
+  closedAt?: string | null;
+}
+
+export interface PagedSupportConversationList {
+  items: SupportConversation[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+export interface PagedSupportMessageList {
+  items: SupportMessage[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+/**
+ * @nullable
+ */
+export type CreateSupportMessageRequestCardPayload = { [key: string]: unknown } | null;
+
+export interface CreateSupportMessageRequest {
+  messageType: SupportMessageType;
+  /** @nullable */
+  text?: string | null;
+  /** @nullable */
+  assetId?: string | null;
+  /** @nullable */
+  cardPayload?: CreateSupportMessageRequestCardPayload;
+}
+
+export interface SupportOrderSummary {
+  id: string;
+  status: string;
+  createdAt: string;
+  /** @nullable */
+  remark?: string | null;
+  /** @nullable */
+  firstItem?: string | null;
+  totalItems: number;
+}
+
+export interface SupportInquirySummary {
+  id: string;
+  status: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface SupportAfterSalesSummary {
+  id: string;
+  status: string;
+  subject: string;
+  createdAt: string;
+}
+
+export interface SupportConversationContext {
+  customerUserId: string;
+  /** @nullable */
+  ownerSalesUserId?: string | null;
+  recentOrders: SupportOrderSummary[];
+  recentInquiries: SupportInquirySummary[];
+  recentTickets: SupportAfterSalesSummary[];
+}
+
+export interface SupportConversationDetail {
+  conversation: SupportConversation;
+  messages: SupportMessage[];
+  context: SupportConversationContext;
+}
+
+export type TransferSupportConversationRequestToRole = typeof TransferSupportConversationRequestToRole[keyof typeof TransferSupportConversationRequestToRole];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const TransferSupportConversationRequestToRole = {
+  CS: 'CS',
+} as const;
+
+export interface TransferSupportConversationRequest {
+  toUserId: string;
+  toRole: TransferSupportConversationRequestToRole;
+  /** @nullable */
+  note?: string | null;
+}
+
 export interface AIReplySuggestionRequest {
   ticketId: string;
   /** @nullable */
@@ -762,6 +955,10 @@ export type PostProductRequestsAssetsBody = {
   file: Blob;
 };
 
+export type PostAdminCatalogProductsAssetsBody = {
+  file: Blob;
+};
+
 export type GetAfterSalesTicketsParams = {
 status?: TicketStatus;
 orderId?: string;
@@ -822,6 +1019,46 @@ page?: number;
  */
 pageSize?: number;
 };
+
+export type GetSupportConversationsConversationIdMessagesParams = {
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type PostSupportConversationsConversationIdMessagesImageBody = {
+  file: Blob;
+};
+
+export type GetAdminSupportConversationsParams = {
+scope?: GetAdminSupportConversationsScope;
+status?: SupportConversationStatus;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type GetAdminSupportConversationsScope = typeof GetAdminSupportConversationsScope[keyof typeof GetAdminSupportConversationsScope];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const GetAdminSupportConversationsScope = {
+  mine: 'mine',
+  unassigned: 'unassigned',
+  unread: 'unread',
+} as const;
 
 export type PostShipmentsImportJobsBody = {
   excelFile: Blob;
@@ -932,6 +1169,8 @@ export const UserUserType = {
 
 export interface User {
   id: string;
+  /** Current active role of this authenticated session. */
+  currentRole: string;
   userType: UserUserType;
   status?: UserStatus;
   displayName?: string;
@@ -949,6 +1188,11 @@ export interface User {
   /** @nullable */
   disabledReason?: string | null;
   createdAt: string;
+}
+
+export interface DebugRoleSwitchRequest {
+  /** Target role already assigned to the current user. */
+  role: string;
 }
 
 export type UserStatus = typeof UserStatus[keyof typeof UserStatus];
@@ -985,7 +1229,7 @@ export type getCatalogCategoriesResponse200 = {
   data: GetCatalogCategories200
   status: 200
 }
-    
+
 export type getCatalogCategoriesResponseSuccess = (getCatalogCategoriesResponse200) & {
   headers: Headers;
 };
@@ -996,19 +1240,19 @@ export type getCatalogCategoriesResponse = (getCatalogCategoriesResponseSuccess)
 export const getGetCatalogCategoriesUrl = () => {
 
 
-  
+
 
   return `/catalog/categories`
 }
 
 export const getCatalogCategories = async ( options?: RequestInit): Promise<getCatalogCategoriesResponse> => {
-  
+
   return apiMutator<getCatalogCategoriesResponse>(getGetCatalogCategoriesUrl(),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1021,7 +1265,7 @@ export type postCatalogCategoriesResponse201 = {
   data: Category
   status: 201
 }
-    
+
 export type postCatalogCategoriesResponseSuccess = (postCatalogCategoriesResponse201) & {
   headers: Headers;
 };
@@ -1032,15 +1276,15 @@ export type postCatalogCategoriesResponse = (postCatalogCategoriesResponseSucces
 export const getPostCatalogCategoriesUrl = () => {
 
 
-  
+
 
   return `/catalog/categories`
 }
 
 export const postCatalogCategories = async (createCategoryRequest: CreateCategoryRequest, options?: RequestInit): Promise<postCatalogCategoriesResponse> => {
-  
+
   return apiMutator<postCatalogCategoriesResponse>(getPostCatalogCategoriesUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1063,7 +1307,7 @@ export type getCatalogCategoriesCategoryIdResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type getCatalogCategoriesCategoryIdResponseSuccess = (getCatalogCategoriesCategoryIdResponse200) & {
   headers: Headers;
 };
@@ -1076,19 +1320,19 @@ export type getCatalogCategoriesCategoryIdResponse = (getCatalogCategoriesCatego
 export const getGetCatalogCategoriesCategoryIdUrl = (categoryId: string,) => {
 
 
-  
+
 
   return `/catalog/categories/${categoryId}`
 }
 
 export const getCatalogCategoriesCategoryId = async (categoryId: string, options?: RequestInit): Promise<getCatalogCategoriesCategoryIdResponse> => {
-  
+
   return apiMutator<getCatalogCategoriesCategoryIdResponse>(getGetCatalogCategoriesCategoryIdUrl(categoryId),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1101,7 +1345,7 @@ export type patchCatalogCategoriesCategoryIdResponse200 = {
   data: Category
   status: 200
 }
-    
+
 export type patchCatalogCategoriesCategoryIdResponseSuccess = (patchCatalogCategoriesCategoryIdResponse200) & {
   headers: Headers;
 };
@@ -1112,16 +1356,16 @@ export type patchCatalogCategoriesCategoryIdResponse = (patchCatalogCategoriesCa
 export const getPatchCatalogCategoriesCategoryIdUrl = (categoryId: string,) => {
 
 
-  
+
 
   return `/catalog/categories/${categoryId}`
 }
 
 export const patchCatalogCategoriesCategoryId = async (categoryId: string,
     updateCategoryRequest: UpdateCategoryRequest, options?: RequestInit): Promise<patchCatalogCategoriesCategoryIdResponse> => {
-  
+
   return apiMutator<patchCatalogCategoriesCategoryIdResponse>(getPatchCatalogCategoriesCategoryIdUrl(categoryId),
-  {      
+  {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1139,7 +1383,7 @@ export type deleteCatalogCategoriesCategoryIdResponse204 = {
   data: void
   status: 204
 }
-    
+
 export type deleteCatalogCategoriesCategoryIdResponseSuccess = (deleteCatalogCategoriesCategoryIdResponse204) & {
   headers: Headers;
 };
@@ -1150,19 +1394,19 @@ export type deleteCatalogCategoriesCategoryIdResponse = (deleteCatalogCategories
 export const getDeleteCatalogCategoriesCategoryIdUrl = (categoryId: string,) => {
 
 
-  
+
 
   return `/catalog/categories/${categoryId}`
 }
 
 export const deleteCatalogCategoriesCategoryId = async (categoryId: string, options?: RequestInit): Promise<deleteCatalogCategoriesCategoryIdResponse> => {
-  
+
   return apiMutator<deleteCatalogCategoriesCategoryIdResponse>(getDeleteCatalogCategoriesCategoryIdUrl(categoryId),
-  {      
+  {
     ...options,
     method: 'DELETE'
-    
-    
+
+
   }
 );}
 
@@ -1175,7 +1419,7 @@ export type getCatalogDisplayCategoriesResponse200 = {
   data: DisplayCategoryListResponse
   status: 200
 }
-    
+
 export type getCatalogDisplayCategoriesResponseSuccess = (getCatalogDisplayCategoriesResponse200) & {
   headers: Headers;
 };
@@ -1186,19 +1430,19 @@ export type getCatalogDisplayCategoriesResponse = (getCatalogDisplayCategoriesRe
 export const getGetCatalogDisplayCategoriesUrl = () => {
 
 
-  
+
 
   return `/catalog/display-categories`
 }
 
 export const getCatalogDisplayCategories = async ( options?: RequestInit): Promise<getCatalogDisplayCategoriesResponse> => {
-  
+
   return apiMutator<getCatalogDisplayCategoriesResponse>(getGetCatalogDisplayCategoriesUrl(),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1211,7 +1455,7 @@ export type getCatalogProductsResponse200 = {
   data: PagedProductList
   status: 200
 }
-    
+
 export type getCatalogProductsResponseSuccess = (getCatalogProductsResponse200) & {
   headers: Headers;
 };
@@ -1223,7 +1467,7 @@ export const getGetCatalogProductsUrl = (params?: GetCatalogProductsParams,) => 
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -1235,13 +1479,13 @@ export const getGetCatalogProductsUrl = (params?: GetCatalogProductsParams,) => 
 }
 
 export const getCatalogProducts = async (params?: GetCatalogProductsParams, options?: RequestInit): Promise<getCatalogProductsResponse> => {
-  
+
   return apiMutator<getCatalogProductsResponse>(getGetCatalogProductsUrl(params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1254,7 +1498,7 @@ export type postCatalogProductsResponse201 = {
   data: ProductDetail
   status: 201
 }
-    
+
 export type postCatalogProductsResponseSuccess = (postCatalogProductsResponse201) & {
   headers: Headers;
 };
@@ -1265,15 +1509,15 @@ export type postCatalogProductsResponse = (postCatalogProductsResponseSuccess)
 export const getPostCatalogProductsUrl = () => {
 
 
-  
+
 
   return `/catalog/products`
 }
 
 export const postCatalogProducts = async (createCatalogProductRequest: CreateCatalogProductRequest, options?: RequestInit): Promise<postCatalogProductsResponse> => {
-  
+
   return apiMutator<postCatalogProductsResponse>(getPostCatalogProductsUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1296,7 +1540,7 @@ export type getCatalogProductsSpuIdResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type getCatalogProductsSpuIdResponseSuccess = (getCatalogProductsSpuIdResponse200) & {
   headers: Headers;
 };
@@ -1309,19 +1553,19 @@ export type getCatalogProductsSpuIdResponse = (getCatalogProductsSpuIdResponseSu
 export const getGetCatalogProductsSpuIdUrl = (spuId: string,) => {
 
 
-  
+
 
   return `/catalog/products/${spuId}`
 }
 
 export const getCatalogProductsSpuId = async (spuId: string, options?: RequestInit): Promise<getCatalogProductsSpuIdResponse> => {
-  
+
   return apiMutator<getCatalogProductsSpuIdResponse>(getGetCatalogProductsSpuIdUrl(spuId),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1339,7 +1583,7 @@ export type patchCatalogProductsSpuIdResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type patchCatalogProductsSpuIdResponseSuccess = (patchCatalogProductsSpuIdResponse200) & {
   headers: Headers;
 };
@@ -1352,16 +1596,16 @@ export type patchCatalogProductsSpuIdResponse = (patchCatalogProductsSpuIdRespon
 export const getPatchCatalogProductsSpuIdUrl = (spuId: string,) => {
 
 
-  
+
 
   return `/catalog/products/${spuId}`
 }
 
 export const patchCatalogProductsSpuId = async (spuId: string,
     updateCatalogProductRequest: UpdateCatalogProductRequest, options?: RequestInit): Promise<patchCatalogProductsSpuIdResponse> => {
-  
+
   return apiMutator<patchCatalogProductsSpuIdResponse>(getPatchCatalogProductsSpuIdUrl(spuId),
-  {      
+  {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1384,7 +1628,7 @@ export type deleteCatalogProductsSpuIdResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type deleteCatalogProductsSpuIdResponseSuccess = (deleteCatalogProductsSpuIdResponse204) & {
   headers: Headers;
 };
@@ -1397,19 +1641,19 @@ export type deleteCatalogProductsSpuIdResponse = (deleteCatalogProductsSpuIdResp
 export const getDeleteCatalogProductsSpuIdUrl = (spuId: string,) => {
 
 
-  
+
 
   return `/catalog/products/${spuId}`
 }
 
 export const deleteCatalogProductsSpuId = async (spuId: string, options?: RequestInit): Promise<deleteCatalogProductsSpuIdResponse> => {
-  
+
   return apiMutator<deleteCatalogProductsSpuIdResponse>(getDeleteCatalogProductsSpuIdUrl(spuId),
-  {      
+  {
     ...options,
     method: 'DELETE'
-    
-    
+
+
   }
 );}
 
@@ -1422,7 +1666,7 @@ export type postCatalogProductsSpuIdSkusResponse201 = {
   data: Sku
   status: 201
 }
-    
+
 export type postCatalogProductsSpuIdSkusResponseSuccess = (postCatalogProductsSpuIdSkusResponse201) & {
   headers: Headers;
 };
@@ -1433,21 +1677,68 @@ export type postCatalogProductsSpuIdSkusResponse = (postCatalogProductsSpuIdSkus
 export const getPostCatalogProductsSpuIdSkusUrl = (spuId: string,) => {
 
 
-  
+
 
   return `/catalog/products/${spuId}/skus`
 }
 
 export const postCatalogProductsSpuIdSkus = async (spuId: string,
     createSkuRequest: CreateSkuRequest, options?: RequestInit): Promise<postCatalogProductsSpuIdSkusResponse> => {
-  
+
   return apiMutator<postCatalogProductsSpuIdSkusResponse>(getPostCatalogProductsSpuIdSkusUrl(spuId),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
       createSkuRequest,)
+  }
+);}
+
+
+
+/**
+ * @summary Update SKU for product
+ */
+export type patchCatalogProductsSpuIdSkusSkuIdResponse200 = {
+  data: Sku
+  status: 200
+}
+
+export type patchCatalogProductsSpuIdSkusSkuIdResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type patchCatalogProductsSpuIdSkusSkuIdResponseSuccess = (patchCatalogProductsSpuIdSkusSkuIdResponse200) & {
+  headers: Headers;
+};
+export type patchCatalogProductsSpuIdSkusSkuIdResponseError = (patchCatalogProductsSpuIdSkusSkuIdResponse404) & {
+  headers: Headers;
+};
+
+export type patchCatalogProductsSpuIdSkusSkuIdResponse = (patchCatalogProductsSpuIdSkusSkuIdResponseSuccess | patchCatalogProductsSpuIdSkusSkuIdResponseError)
+
+export const getPatchCatalogProductsSpuIdSkusSkuIdUrl = (spuId: string,
+    skuId: string,) => {
+
+
+
+
+  return `/catalog/products/${spuId}/skus/${skuId}`
+}
+
+export const patchCatalogProductsSpuIdSkusSkuId = async (spuId: string,
+    skuId: string,
+    updateSkuRequest: UpdateSkuRequest, options?: RequestInit): Promise<patchCatalogProductsSpuIdSkusSkuIdResponse> => {
+
+  return apiMutator<patchCatalogProductsSpuIdSkusSkuIdResponse>(getPatchCatalogProductsSpuIdSkusSkuIdUrl(spuId,skuId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateSkuRequest,)
   }
 );}
 
@@ -1460,7 +1751,7 @@ export type getWishlistResponse200 = {
   data: GetWishlist200
   status: 200
 }
-    
+
 export type getWishlistResponseSuccess = (getWishlistResponse200) & {
   headers: Headers;
 };
@@ -1471,19 +1762,19 @@ export type getWishlistResponse = (getWishlistResponseSuccess)
 export const getGetWishlistUrl = () => {
 
 
-  
+
 
   return `/wishlist`
 }
 
 export const getWishlist = async ( options?: RequestInit): Promise<getWishlistResponse> => {
-  
+
   return apiMutator<getWishlistResponse>(getGetWishlistUrl(),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1496,7 +1787,7 @@ export type postWishlistResponse204 = {
   data: void
   status: 204
 }
-    
+
 export type postWishlistResponseSuccess = (postWishlistResponse204) & {
   headers: Headers;
 };
@@ -1507,15 +1798,15 @@ export type postWishlistResponse = (postWishlistResponseSuccess)
 export const getPostWishlistUrl = () => {
 
 
-  
+
 
   return `/wishlist`
 }
 
 export const postWishlist = async (postWishlistBody: PostWishlistBody, options?: RequestInit): Promise<postWishlistResponse> => {
-  
+
   return apiMutator<postWishlistResponse>(getPostWishlistUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1533,7 +1824,7 @@ export type deleteWishlistSkuIdResponse204 = {
   data: void
   status: 204
 }
-    
+
 export type deleteWishlistSkuIdResponseSuccess = (deleteWishlistSkuIdResponse204) & {
   headers: Headers;
 };
@@ -1544,19 +1835,19 @@ export type deleteWishlistSkuIdResponse = (deleteWishlistSkuIdResponseSuccess)
 export const getDeleteWishlistSkuIdUrl = (skuId: string,) => {
 
 
-  
+
 
   return `/wishlist/${skuId}`
 }
 
 export const deleteWishlistSkuId = async (skuId: string, options?: RequestInit): Promise<deleteWishlistSkuIdResponse> => {
-  
+
   return apiMutator<deleteWishlistSkuIdResponse>(getDeleteWishlistSkuIdUrl(skuId),
-  {      
+  {
     ...options,
     method: 'DELETE'
-    
-    
+
+
   }
 );}
 
@@ -1569,7 +1860,7 @@ export type getCartResponse200 = {
   data: Cart
   status: 200
 }
-    
+
 export type getCartResponseSuccess = (getCartResponse200) & {
   headers: Headers;
 };
@@ -1580,19 +1871,19 @@ export type getCartResponse = (getCartResponseSuccess)
 export const getGetCartUrl = () => {
 
 
-  
+
 
   return `/cart`
 }
 
 export const getCart = async ( options?: RequestInit): Promise<getCartResponse> => {
-  
+
   return apiMutator<getCartResponse>(getGetCartUrl(),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1605,7 +1896,7 @@ export type postCartItemsResponse200 = {
   data: Cart
   status: 200
 }
-    
+
 export type postCartItemsResponseSuccess = (postCartItemsResponse200) & {
   headers: Headers;
 };
@@ -1616,15 +1907,15 @@ export type postCartItemsResponse = (postCartItemsResponseSuccess)
 export const getPostCartItemsUrl = () => {
 
 
-  
+
 
   return `/cart/items`
 }
 
 export const postCartItems = async (addCartItemRequest: AddCartItemRequest, options?: RequestInit): Promise<postCartItemsResponse> => {
-  
+
   return apiMutator<postCartItemsResponse>(getPostCartItemsUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1642,7 +1933,7 @@ export type patchCartItemsItemIdResponse200 = {
   data: Cart
   status: 200
 }
-    
+
 export type patchCartItemsItemIdResponseSuccess = (patchCartItemsItemIdResponse200) & {
   headers: Headers;
 };
@@ -1653,16 +1944,16 @@ export type patchCartItemsItemIdResponse = (patchCartItemsItemIdResponseSuccess)
 export const getPatchCartItemsItemIdUrl = (itemId: string,) => {
 
 
-  
+
 
   return `/cart/items/${itemId}`
 }
 
 export const patchCartItemsItemId = async (itemId: string,
     patchCartItemsItemIdBody: PatchCartItemsItemIdBody, options?: RequestInit): Promise<patchCartItemsItemIdResponse> => {
-  
+
   return apiMutator<patchCartItemsItemIdResponse>(getPatchCartItemsItemIdUrl(itemId),
-  {      
+  {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1680,7 +1971,7 @@ export type deleteCartItemsItemIdResponse204 = {
   data: void
   status: 204
 }
-    
+
 export type deleteCartItemsItemIdResponseSuccess = (deleteCartItemsItemIdResponse204) & {
   headers: Headers;
 };
@@ -1691,19 +1982,19 @@ export type deleteCartItemsItemIdResponse = (deleteCartItemsItemIdResponseSucces
 export const getDeleteCartItemsItemIdUrl = (itemId: string,) => {
 
 
-  
+
 
   return `/cart/items/${itemId}`
 }
 
 export const deleteCartItemsItemId = async (itemId: string, options?: RequestInit): Promise<deleteCartItemsItemIdResponse> => {
-  
+
   return apiMutator<deleteCartItemsItemIdResponse>(getDeleteCartItemsItemIdUrl(itemId),
-  {      
+  {
     ...options,
     method: 'DELETE'
-    
-    
+
+
   }
 );}
 
@@ -1717,7 +2008,7 @@ export type postCartImportJobsResponse202 = {
   data: CartImportJob
   status: 202
 }
-    
+
 export type postCartImportJobsResponseSuccess = (postCartImportJobsResponse202) & {
   headers: Headers;
 };
@@ -1728,7 +2019,7 @@ export type postCartImportJobsResponse = (postCartImportJobsResponseSuccess)
 export const getPostCartImportJobsUrl = () => {
 
 
-  
+
 
   return `/cart/import-jobs`
 }
@@ -1738,11 +2029,11 @@ export const postCartImportJobs = async (postCartImportJobsBody: PostCartImportJ
 formData.append(`file`, postCartImportJobsBody.file)
 
   return apiMutator<postCartImportJobsResponse>(getPostCartImportJobsUrl(),
-  {      
+  {
     ...options,
     method: 'POST'
     ,
-    body: 
+    body:
       formData,
   }
 );}
@@ -1757,7 +2048,7 @@ export type getCartImportJobsJobIdResponse200 = {
   data: CartImportJob
   status: 200
 }
-    
+
 export type getCartImportJobsJobIdResponseSuccess = (getCartImportJobsJobIdResponse200) & {
   headers: Headers;
 };
@@ -1768,19 +2059,19 @@ export type getCartImportJobsJobIdResponse = (getCartImportJobsJobIdResponseSucc
 export const getGetCartImportJobsJobIdUrl = (jobId: string,) => {
 
 
-  
+
 
   return `/cart/import-jobs/${jobId}`
 }
 
 export const getCartImportJobsJobId = async (jobId: string, options?: RequestInit): Promise<getCartImportJobsJobIdResponse> => {
-  
+
   return apiMutator<getCartImportJobsJobIdResponse>(getGetCartImportJobsJobIdUrl(jobId),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1793,7 +2084,7 @@ export type postCartImportJobsJobIdConfirmResponse200 = {
   data: Cart
   status: 200
 }
-    
+
 export type postCartImportJobsJobIdConfirmResponseSuccess = (postCartImportJobsJobIdConfirmResponse200) & {
   headers: Headers;
 };
@@ -1804,16 +2095,16 @@ export type postCartImportJobsJobIdConfirmResponse = (postCartImportJobsJobIdCon
 export const getPostCartImportJobsJobIdConfirmUrl = (jobId: string,) => {
 
 
-  
+
 
   return `/cart/import-jobs/${jobId}/confirm`
 }
 
 export const postCartImportJobsJobIdConfirm = async (jobId: string,
     confirmCartImportRequest: ConfirmCartImportRequest, options?: RequestInit): Promise<postCartImportJobsJobIdConfirmResponse> => {
-  
+
   return apiMutator<postCartImportJobsJobIdConfirmResponse>(getPostCartImportJobsJobIdConfirmUrl(jobId),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1836,7 +2127,7 @@ export type postOrdersResponse409 = {
   data: ConflictResponse
   status: 409
 }
-    
+
 export type postOrdersResponseSuccess = (postOrdersResponse201) & {
   headers: Headers;
 };
@@ -1849,15 +2140,15 @@ export type postOrdersResponse = (postOrdersResponseSuccess | postOrdersResponse
 export const getPostOrdersUrl = () => {
 
 
-  
+
 
   return `/orders`
 }
 
 export const postOrders = async (createOrderRequest: CreateOrderRequest, options?: RequestInit): Promise<postOrdersResponse> => {
-  
+
   return apiMutator<postOrdersResponse>(getPostOrdersUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1875,7 +2166,7 @@ export type getOrdersResponse200 = {
   data: PagedOrderList
   status: 200
 }
-    
+
 export type getOrdersResponseSuccess = (getOrdersResponse200) & {
   headers: Headers;
 };
@@ -1887,7 +2178,7 @@ export const getGetOrdersUrl = (params?: GetOrdersParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -1899,13 +2190,13 @@ export const getGetOrdersUrl = (params?: GetOrdersParams,) => {
 }
 
 export const getOrders = async (params?: GetOrdersParams, options?: RequestInit): Promise<getOrdersResponse> => {
-  
+
   return apiMutator<getOrdersResponse>(getGetOrdersUrl(params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1918,7 +2209,7 @@ export type getOrdersStatsResponse200 = {
   data: OrderStatsResponse
   status: 200
 }
-    
+
 export type getOrdersStatsResponseSuccess = (getOrdersStatsResponse200) & {
   headers: Headers;
 };
@@ -1929,19 +2220,19 @@ export type getOrdersStatsResponse = (getOrdersStatsResponseSuccess)
 export const getGetOrdersStatsUrl = () => {
 
 
-  
+
 
   return `/orders/stats`
 }
 
 export const getOrdersStats = async ( options?: RequestInit): Promise<getOrdersStatsResponse> => {
-  
+
   return apiMutator<getOrdersStatsResponse>(getGetOrdersStatsUrl(),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1954,7 +2245,7 @@ export type getAddressesResponse200 = {
   data: ListAddressesResponse
   status: 200
 }
-    
+
 export type getAddressesResponseSuccess = (getAddressesResponse200) & {
   headers: Headers;
 };
@@ -1965,19 +2256,19 @@ export type getAddressesResponse = (getAddressesResponseSuccess)
 export const getGetAddressesUrl = () => {
 
 
-  
+
 
   return `/addresses`
 }
 
 export const getAddresses = async ( options?: RequestInit): Promise<getAddressesResponse> => {
-  
+
   return apiMutator<getAddressesResponse>(getGetAddressesUrl(),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1990,7 +2281,7 @@ export type postAddressesResponse201 = {
   data: UserAddress
   status: 201
 }
-    
+
 export type postAddressesResponseSuccess = (postAddressesResponse201) & {
   headers: Headers;
 };
@@ -2001,15 +2292,15 @@ export type postAddressesResponse = (postAddressesResponseSuccess)
 export const getPostAddressesUrl = () => {
 
 
-  
+
 
   return `/addresses`
 }
 
 export const postAddresses = async (createUserAddressRequest: CreateUserAddressRequest, options?: RequestInit): Promise<postAddressesResponse> => {
-  
+
   return apiMutator<postAddressesResponse>(getPostAddressesUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -2032,7 +2323,7 @@ export type patchAddressesAddressIdResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type patchAddressesAddressIdResponseSuccess = (patchAddressesAddressIdResponse200) & {
   headers: Headers;
 };
@@ -2045,16 +2336,16 @@ export type patchAddressesAddressIdResponse = (patchAddressesAddressIdResponseSu
 export const getPatchAddressesAddressIdUrl = (addressId: string,) => {
 
 
-  
+
 
   return `/addresses/${addressId}`
 }
 
 export const patchAddressesAddressId = async (addressId: string,
     updateUserAddressRequest: UpdateUserAddressRequest, options?: RequestInit): Promise<patchAddressesAddressIdResponse> => {
-  
+
   return apiMutator<patchAddressesAddressIdResponse>(getPatchAddressesAddressIdUrl(addressId),
-  {      
+  {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -2077,7 +2368,7 @@ export type deleteAddressesAddressIdResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type deleteAddressesAddressIdResponseSuccess = (deleteAddressesAddressIdResponse204) & {
   headers: Headers;
 };
@@ -2090,19 +2381,19 @@ export type deleteAddressesAddressIdResponse = (deleteAddressesAddressIdResponse
 export const getDeleteAddressesAddressIdUrl = (addressId: string,) => {
 
 
-  
+
 
   return `/addresses/${addressId}`
 }
 
 export const deleteAddressesAddressId = async (addressId: string, options?: RequestInit): Promise<deleteAddressesAddressIdResponse> => {
-  
+
   return apiMutator<deleteAddressesAddressIdResponse>(getDeleteAddressesAddressIdUrl(addressId),
-  {      
+  {
     ...options,
     method: 'DELETE'
-    
-    
+
+
   }
 );}
 
@@ -2115,7 +2406,7 @@ export type getOrdersOrderIdResponse200 = {
   data: Order
   status: 200
 }
-    
+
 export type getOrdersOrderIdResponseSuccess = (getOrdersOrderIdResponse200) & {
   headers: Headers;
 };
@@ -2126,19 +2417,19 @@ export type getOrdersOrderIdResponse = (getOrdersOrderIdResponseSuccess)
 export const getGetOrdersOrderIdUrl = (orderId: string,) => {
 
 
-  
+
 
   return `/orders/${orderId}`
 }
 
 export const getOrdersOrderId = async (orderId: string, options?: RequestInit): Promise<getOrdersOrderIdResponse> => {
-  
+
   return apiMutator<getOrdersOrderIdResponse>(getGetOrdersOrderIdUrl(orderId),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -2151,7 +2442,7 @@ export type getOrdersOrderIdTrackingResponse200 = {
   data: TrackingInfo
   status: 200
 }
-    
+
 export type getOrdersOrderIdTrackingResponseSuccess = (getOrdersOrderIdTrackingResponse200) & {
   headers: Headers;
 };
@@ -2162,19 +2453,19 @@ export type getOrdersOrderIdTrackingResponse = (getOrdersOrderIdTrackingResponse
 export const getGetOrdersOrderIdTrackingUrl = (orderId: string,) => {
 
 
-  
+
 
   return `/orders/${orderId}/tracking`
 }
 
 export const getOrdersOrderIdTracking = async (orderId: string, options?: RequestInit): Promise<getOrdersOrderIdTrackingResponse> => {
-  
+
   return apiMutator<getOrdersOrderIdTrackingResponse>(getGetOrdersOrderIdTrackingUrl(orderId),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -2188,7 +2479,7 @@ export type postOrdersOrderIdTrackingResponse200 = {
   data: TrackingInfo
   status: 200
 }
-    
+
 export type postOrdersOrderIdTrackingResponseSuccess = (postOrdersOrderIdTrackingResponse200) & {
   headers: Headers;
 };
@@ -2199,16 +2490,16 @@ export type postOrdersOrderIdTrackingResponse = (postOrdersOrderIdTrackingRespon
 export const getPostOrdersOrderIdTrackingUrl = (orderId: string,) => {
 
 
-  
+
 
   return `/orders/${orderId}/tracking`
 }
 
 export const postOrdersOrderIdTracking = async (orderId: string,
     updateTrackingRequest: UpdateTrackingRequest, options?: RequestInit): Promise<postOrdersOrderIdTrackingResponse> => {
-  
+
   return apiMutator<postOrdersOrderIdTrackingResponse>(getPostOrdersOrderIdTrackingUrl(orderId),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -2226,7 +2517,7 @@ export type getProductRequestsResponse200 = {
   data: PagedProductRequestList
   status: 200
 }
-    
+
 export type getProductRequestsResponseSuccess = (getProductRequestsResponse200) & {
   headers: Headers;
 };
@@ -2238,7 +2529,7 @@ export const getGetProductRequestsUrl = (params?: GetProductRequestsParams,) => 
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -2250,13 +2541,13 @@ export const getGetProductRequestsUrl = (params?: GetProductRequestsParams,) => 
 }
 
 export const getProductRequests = async (params?: GetProductRequestsParams, options?: RequestInit): Promise<getProductRequestsResponse> => {
-  
+
   return apiMutator<getProductRequestsResponse>(getGetProductRequestsUrl(params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -2269,7 +2560,7 @@ export type postProductRequestsResponse201 = {
   data: ProductRequest
   status: 201
 }
-    
+
 export type postProductRequestsResponseSuccess = (postProductRequestsResponse201) & {
   headers: Headers;
 };
@@ -2280,15 +2571,15 @@ export type postProductRequestsResponse = (postProductRequestsResponseSuccess)
 export const getPostProductRequestsUrl = () => {
 
 
-  
+
 
   return `/product-requests`
 }
 
 export const postProductRequests = async (createProductRequest: CreateProductRequest, options?: RequestInit): Promise<postProductRequestsResponse> => {
-  
+
   return apiMutator<postProductRequestsResponse>(getPostProductRequestsUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -2306,7 +2597,7 @@ export type postProductRequestsAssetsResponse201 = {
   data: ProductRequestAsset
   status: 201
 }
-    
+
 export type postProductRequestsAssetsResponseSuccess = (postProductRequestsAssetsResponse201) & {
   headers: Headers;
 };
@@ -2317,7 +2608,7 @@ export type postProductRequestsAssetsResponse = (postProductRequestsAssetsRespon
 export const getPostProductRequestsAssetsUrl = () => {
 
 
-  
+
 
   return `/product-requests/assets`
 }
@@ -2327,11 +2618,50 @@ export const postProductRequestsAssets = async (postProductRequestsAssetsBody: P
 formData.append(`file`, postProductRequestsAssetsBody.file)
 
   return apiMutator<postProductRequestsAssetsResponse>(getPostProductRequestsAssetsUrl(),
-  {      
+  {
     ...options,
     method: 'POST'
     ,
-    body: 
+    body:
+      formData,
+  }
+);}
+
+
+
+/**
+ * @summary Upload catalog product image asset
+ */
+export type postAdminCatalogProductsAssetsResponse201 = {
+  data: ProductRequestAsset
+  status: 201
+}
+
+export type postAdminCatalogProductsAssetsResponseSuccess = (postAdminCatalogProductsAssetsResponse201) & {
+  headers: Headers;
+};
+;
+
+export type postAdminCatalogProductsAssetsResponse = (postAdminCatalogProductsAssetsResponseSuccess)
+
+export const getPostAdminCatalogProductsAssetsUrl = () => {
+
+
+
+
+  return `/admin/catalog/products/assets`
+}
+
+export const postAdminCatalogProductsAssets = async (postAdminCatalogProductsAssetsBody: PostAdminCatalogProductsAssetsBody, options?: RequestInit): Promise<postAdminCatalogProductsAssetsResponse> => {
+    const formData = new FormData();
+formData.append(`file`, postAdminCatalogProductsAssetsBody.file)
+
+  return apiMutator<postAdminCatalogProductsAssetsResponse>(getPostAdminCatalogProductsAssetsUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body:
       formData,
   }
 );}
@@ -2345,7 +2675,7 @@ export type getAfterSalesTicketsResponse200 = {
   data: PagedAfterSalesTicketList
   status: 200
 }
-    
+
 export type getAfterSalesTicketsResponseSuccess = (getAfterSalesTicketsResponse200) & {
   headers: Headers;
 };
@@ -2357,7 +2687,7 @@ export const getGetAfterSalesTicketsUrl = (params?: GetAfterSalesTicketsParams,)
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -2369,13 +2699,13 @@ export const getGetAfterSalesTicketsUrl = (params?: GetAfterSalesTicketsParams,)
 }
 
 export const getAfterSalesTickets = async (params?: GetAfterSalesTicketsParams, options?: RequestInit): Promise<getAfterSalesTicketsResponse> => {
-  
+
   return apiMutator<getAfterSalesTicketsResponse>(getGetAfterSalesTicketsUrl(params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -2388,7 +2718,7 @@ export type postAfterSalesTicketsResponse201 = {
   data: AfterSalesTicket
   status: 201
 }
-    
+
 export type postAfterSalesTicketsResponseSuccess = (postAfterSalesTicketsResponse201) & {
   headers: Headers;
 };
@@ -2399,15 +2729,15 @@ export type postAfterSalesTicketsResponse = (postAfterSalesTicketsResponseSucces
 export const getPostAfterSalesTicketsUrl = () => {
 
 
-  
+
 
   return `/after-sales/tickets`
 }
 
 export const postAfterSalesTickets = async (createAfterSalesTicket: CreateAfterSalesTicket, options?: RequestInit): Promise<postAfterSalesTicketsResponse> => {
-  
+
   return apiMutator<postAfterSalesTicketsResponse>(getPostAfterSalesTicketsUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -2425,7 +2755,7 @@ export type getAfterSalesTicketsTicketIdResponse200 = {
   data: AfterSalesTicket
   status: 200
 }
-    
+
 export type getAfterSalesTicketsTicketIdResponseSuccess = (getAfterSalesTicketsTicketIdResponse200) & {
   headers: Headers;
 };
@@ -2436,19 +2766,19 @@ export type getAfterSalesTicketsTicketIdResponse = (getAfterSalesTicketsTicketId
 export const getGetAfterSalesTicketsTicketIdUrl = (ticketId: string,) => {
 
 
-  
+
 
   return `/after-sales/tickets/${ticketId}`
 }
 
 export const getAfterSalesTicketsTicketId = async (ticketId: string, options?: RequestInit): Promise<getAfterSalesTicketsTicketIdResponse> => {
-  
+
   return apiMutator<getAfterSalesTicketsTicketIdResponse>(getGetAfterSalesTicketsTicketIdUrl(ticketId),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -2461,7 +2791,7 @@ export type patchAfterSalesTicketsTicketIdResponse200 = {
   data: AfterSalesTicket
   status: 200
 }
-    
+
 export type patchAfterSalesTicketsTicketIdResponseSuccess = (patchAfterSalesTicketsTicketIdResponse200) & {
   headers: Headers;
 };
@@ -2472,16 +2802,16 @@ export type patchAfterSalesTicketsTicketIdResponse = (patchAfterSalesTicketsTick
 export const getPatchAfterSalesTicketsTicketIdUrl = (ticketId: string,) => {
 
 
-  
+
 
   return `/after-sales/tickets/${ticketId}`
 }
 
 export const patchAfterSalesTicketsTicketId = async (ticketId: string,
     updateAfterSalesTicketRequest: UpdateAfterSalesTicketRequest, options?: RequestInit): Promise<patchAfterSalesTicketsTicketIdResponse> => {
-  
+
   return apiMutator<patchAfterSalesTicketsTicketIdResponse>(getPatchAfterSalesTicketsTicketIdUrl(ticketId),
-  {      
+  {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -2499,7 +2829,7 @@ export type getAfterSalesTicketsTicketIdMessagesResponse200 = {
   data: PagedAfterSalesMessageList
   status: 200
 }
-    
+
 export type getAfterSalesTicketsTicketIdMessagesResponseSuccess = (getAfterSalesTicketsTicketIdMessagesResponse200) & {
   headers: Headers;
 };
@@ -2512,7 +2842,7 @@ export const getGetAfterSalesTicketsTicketIdMessagesUrl = (ticketId: string,
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -2525,13 +2855,13 @@ export const getGetAfterSalesTicketsTicketIdMessagesUrl = (ticketId: string,
 
 export const getAfterSalesTicketsTicketIdMessages = async (ticketId: string,
     params?: GetAfterSalesTicketsTicketIdMessagesParams, options?: RequestInit): Promise<getAfterSalesTicketsTicketIdMessagesResponse> => {
-  
+
   return apiMutator<getAfterSalesTicketsTicketIdMessagesResponse>(getGetAfterSalesTicketsTicketIdMessagesUrl(ticketId,params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -2544,7 +2874,7 @@ export type postAfterSalesTicketsTicketIdMessagesResponse201 = {
   data: AfterSalesMessage
   status: 201
 }
-    
+
 export type postAfterSalesTicketsTicketIdMessagesResponseSuccess = (postAfterSalesTicketsTicketIdMessagesResponse201) & {
   headers: Headers;
 };
@@ -2555,16 +2885,16 @@ export type postAfterSalesTicketsTicketIdMessagesResponse = (postAfterSalesTicke
 export const getPostAfterSalesTicketsTicketIdMessagesUrl = (ticketId: string,) => {
 
 
-  
+
 
   return `/after-sales/tickets/${ticketId}/messages`
 }
 
 export const postAfterSalesTicketsTicketIdMessages = async (ticketId: string,
     createTicketMessage: CreateTicketMessage, options?: RequestInit): Promise<postAfterSalesTicketsTicketIdMessagesResponse> => {
-  
+
   return apiMutator<postAfterSalesTicketsTicketIdMessagesResponse>(getPostAfterSalesTicketsTicketIdMessagesUrl(ticketId),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -2582,7 +2912,7 @@ export type getInquiriesPriceResponse200 = {
   data: PagedPriceInquiryList
   status: 200
 }
-    
+
 export type getInquiriesPriceResponseSuccess = (getInquiriesPriceResponse200) & {
   headers: Headers;
 };
@@ -2594,7 +2924,7 @@ export const getGetInquiriesPriceUrl = (params?: GetInquiriesPriceParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -2606,13 +2936,13 @@ export const getGetInquiriesPriceUrl = (params?: GetInquiriesPriceParams,) => {
 }
 
 export const getInquiriesPrice = async (params?: GetInquiriesPriceParams, options?: RequestInit): Promise<getInquiriesPriceResponse> => {
-  
+
   return apiMutator<getInquiriesPriceResponse>(getGetInquiriesPriceUrl(params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -2625,7 +2955,7 @@ export type postInquiriesPriceResponse201 = {
   data: PriceInquiry
   status: 201
 }
-    
+
 export type postInquiriesPriceResponseSuccess = (postInquiriesPriceResponse201) & {
   headers: Headers;
 };
@@ -2636,15 +2966,15 @@ export type postInquiriesPriceResponse = (postInquiriesPriceResponseSuccess)
 export const getPostInquiriesPriceUrl = () => {
 
 
-  
+
 
   return `/inquiries/price`
 }
 
 export const postInquiriesPrice = async (createPriceInquiry: CreatePriceInquiry, options?: RequestInit): Promise<postInquiriesPriceResponse> => {
-  
+
   return apiMutator<postInquiriesPriceResponse>(getPostInquiriesPriceUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -2662,7 +2992,7 @@ export type getInquiriesPriceInquiryIdResponse200 = {
   data: PriceInquiry
   status: 200
 }
-    
+
 export type getInquiriesPriceInquiryIdResponseSuccess = (getInquiriesPriceInquiryIdResponse200) & {
   headers: Headers;
 };
@@ -2673,19 +3003,19 @@ export type getInquiriesPriceInquiryIdResponse = (getInquiriesPriceInquiryIdResp
 export const getGetInquiriesPriceInquiryIdUrl = (inquiryId: string,) => {
 
 
-  
+
 
   return `/inquiries/price/${inquiryId}`
 }
 
 export const getInquiriesPriceInquiryId = async (inquiryId: string, options?: RequestInit): Promise<getInquiriesPriceInquiryIdResponse> => {
-  
+
   return apiMutator<getInquiriesPriceInquiryIdResponse>(getGetInquiriesPriceInquiryIdUrl(inquiryId),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -2698,7 +3028,7 @@ export type patchInquiriesPriceInquiryIdResponse200 = {
   data: PriceInquiry
   status: 200
 }
-    
+
 export type patchInquiriesPriceInquiryIdResponseSuccess = (patchInquiriesPriceInquiryIdResponse200) & {
   headers: Headers;
 };
@@ -2709,16 +3039,16 @@ export type patchInquiriesPriceInquiryIdResponse = (patchInquiriesPriceInquiryId
 export const getPatchInquiriesPriceInquiryIdUrl = (inquiryId: string,) => {
 
 
-  
+
 
   return `/inquiries/price/${inquiryId}`
 }
 
 export const patchInquiriesPriceInquiryId = async (inquiryId: string,
     updatePriceInquiryRequest: UpdatePriceInquiryRequest, options?: RequestInit): Promise<patchInquiriesPriceInquiryIdResponse> => {
-  
+
   return apiMutator<patchInquiriesPriceInquiryIdResponse>(getPatchInquiriesPriceInquiryIdUrl(inquiryId),
-  {      
+  {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -2736,7 +3066,7 @@ export type getInquiriesPriceInquiryIdMessagesResponse200 = {
   data: PagedInquiryMessageList
   status: 200
 }
-    
+
 export type getInquiriesPriceInquiryIdMessagesResponseSuccess = (getInquiriesPriceInquiryIdMessagesResponse200) & {
   headers: Headers;
 };
@@ -2749,7 +3079,7 @@ export const getGetInquiriesPriceInquiryIdMessagesUrl = (inquiryId: string,
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -2762,13 +3092,13 @@ export const getGetInquiriesPriceInquiryIdMessagesUrl = (inquiryId: string,
 
 export const getInquiriesPriceInquiryIdMessages = async (inquiryId: string,
     params?: GetInquiriesPriceInquiryIdMessagesParams, options?: RequestInit): Promise<getInquiriesPriceInquiryIdMessagesResponse> => {
-  
+
   return apiMutator<getInquiriesPriceInquiryIdMessagesResponse>(getGetInquiriesPriceInquiryIdMessagesUrl(inquiryId,params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -2781,7 +3111,7 @@ export type postInquiriesPriceInquiryIdMessagesResponse201 = {
   data: InquiryMessage
   status: 201
 }
-    
+
 export type postInquiriesPriceInquiryIdMessagesResponseSuccess = (postInquiriesPriceInquiryIdMessagesResponse201) & {
   headers: Headers;
 };
@@ -2792,21 +3122,406 @@ export type postInquiriesPriceInquiryIdMessagesResponse = (postInquiriesPriceInq
 export const getPostInquiriesPriceInquiryIdMessagesUrl = (inquiryId: string,) => {
 
 
-  
+
 
   return `/inquiries/price/${inquiryId}/messages`
 }
 
 export const postInquiriesPriceInquiryIdMessages = async (inquiryId: string,
     createInquiryMessage: CreateInquiryMessage, options?: RequestInit): Promise<postInquiriesPriceInquiryIdMessagesResponse> => {
-  
+
   return apiMutator<postInquiriesPriceInquiryIdMessagesResponse>(getPostInquiriesPriceInquiryIdMessagesUrl(inquiryId),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
       createInquiryMessage,)
+  }
+);}
+
+
+
+/**
+ * @summary Get or create the current customer's active support conversation
+ */
+export type getSupportConversationsCurrentResponse200 = {
+  data: SupportConversation
+  status: 200
+}
+
+export type getSupportConversationsCurrentResponseSuccess = (getSupportConversationsCurrentResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getSupportConversationsCurrentResponse = (getSupportConversationsCurrentResponseSuccess)
+
+export const getGetSupportConversationsCurrentUrl = () => {
+
+
+
+
+  return `/support/conversations/current`
+}
+
+export const getSupportConversationsCurrent = async ( options?: RequestInit): Promise<getSupportConversationsCurrentResponse> => {
+
+  return apiMutator<getSupportConversationsCurrentResponse>(getGetSupportConversationsCurrentUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+/**
+ * @summary List support messages for a conversation
+ */
+export type getSupportConversationsConversationIdMessagesResponse200 = {
+  data: PagedSupportMessageList
+  status: 200
+}
+
+export type getSupportConversationsConversationIdMessagesResponseSuccess = (getSupportConversationsConversationIdMessagesResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getSupportConversationsConversationIdMessagesResponse = (getSupportConversationsConversationIdMessagesResponseSuccess)
+
+export const getGetSupportConversationsConversationIdMessagesUrl = (conversationId: string,
+    params?: GetSupportConversationsConversationIdMessagesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/support/conversations/${conversationId}/messages?${stringifiedParams}` : `/support/conversations/${conversationId}/messages`
+}
+
+export const getSupportConversationsConversationIdMessages = async (conversationId: string,
+    params?: GetSupportConversationsConversationIdMessagesParams, options?: RequestInit): Promise<getSupportConversationsConversationIdMessagesResponse> => {
+
+  return apiMutator<getSupportConversationsConversationIdMessagesResponse>(getGetSupportConversationsConversationIdMessagesUrl(conversationId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+/**
+ * @summary Send a support message (customer or CS)
+ */
+export type postSupportConversationsConversationIdMessagesResponse201 = {
+  data: SupportMessage
+  status: 201
+}
+
+export type postSupportConversationsConversationIdMessagesResponseSuccess = (postSupportConversationsConversationIdMessagesResponse201) & {
+  headers: Headers;
+};
+;
+
+export type postSupportConversationsConversationIdMessagesResponse = (postSupportConversationsConversationIdMessagesResponseSuccess)
+
+export const getPostSupportConversationsConversationIdMessagesUrl = (conversationId: string,) => {
+
+
+
+
+  return `/support/conversations/${conversationId}/messages`
+}
+
+export const postSupportConversationsConversationIdMessages = async (conversationId: string,
+    createSupportMessageRequest: CreateSupportMessageRequest, options?: RequestInit): Promise<postSupportConversationsConversationIdMessagesResponse> => {
+
+  return apiMutator<postSupportConversationsConversationIdMessagesResponse>(getPostSupportConversationsConversationIdMessagesUrl(conversationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createSupportMessageRequest,)
+  }
+);}
+
+
+
+/**
+ * @summary Upload a support chat image asset
+ */
+export type postSupportConversationsConversationIdMessagesImageResponse201 = {
+  data: SupportMessageAsset
+  status: 201
+}
+
+export type postSupportConversationsConversationIdMessagesImageResponseSuccess = (postSupportConversationsConversationIdMessagesImageResponse201) & {
+  headers: Headers;
+};
+;
+
+export type postSupportConversationsConversationIdMessagesImageResponse = (postSupportConversationsConversationIdMessagesImageResponseSuccess)
+
+export const getPostSupportConversationsConversationIdMessagesImageUrl = (conversationId: string,) => {
+
+
+
+
+  return `/support/conversations/${conversationId}/messages/image`
+}
+
+export const postSupportConversationsConversationIdMessagesImage = async (conversationId: string,
+    postSupportConversationsConversationIdMessagesImageBody: PostSupportConversationsConversationIdMessagesImageBody, options?: RequestInit): Promise<postSupportConversationsConversationIdMessagesImageResponse> => {
+    const formData = new FormData();
+formData.append(`file`, postSupportConversationsConversationIdMessagesImageBody.file)
+
+  return apiMutator<postSupportConversationsConversationIdMessagesImageResponse>(getPostSupportConversationsConversationIdMessagesImageUrl(conversationId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body:
+      formData,
+  }
+);}
+
+
+
+/**
+ * @summary Mark a support conversation as read for the current actor
+ */
+export type postSupportConversationsConversationIdReadResponse200 = {
+  data: SupportConversation
+  status: 200
+}
+
+export type postSupportConversationsConversationIdReadResponseSuccess = (postSupportConversationsConversationIdReadResponse200) & {
+  headers: Headers;
+};
+;
+
+export type postSupportConversationsConversationIdReadResponse = (postSupportConversationsConversationIdReadResponseSuccess)
+
+export const getPostSupportConversationsConversationIdReadUrl = (conversationId: string,) => {
+
+
+
+
+  return `/support/conversations/${conversationId}/read`
+}
+
+export const postSupportConversationsConversationIdRead = async (conversationId: string, options?: RequestInit): Promise<postSupportConversationsConversationIdReadResponse> => {
+
+  return apiMutator<postSupportConversationsConversationIdReadResponse>(getPostSupportConversationsConversationIdReadUrl(conversationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+/**
+ * Only admin-web staff roles may access this list. Customer conversation handling is owned by CS; SALES remains miniapp-only.
+ * @summary List support conversations for admin-web staff queues
+ */
+export type getAdminSupportConversationsResponse200 = {
+  data: PagedSupportConversationList
+  status: 200
+}
+
+export type getAdminSupportConversationsResponseSuccess = (getAdminSupportConversationsResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getAdminSupportConversationsResponse = (getAdminSupportConversationsResponseSuccess)
+
+export const getGetAdminSupportConversationsUrl = (params?: GetAdminSupportConversationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/admin/support/conversations?${stringifiedParams}` : `/admin/support/conversations`
+}
+
+export const getAdminSupportConversations = async (params?: GetAdminSupportConversationsParams, options?: RequestInit): Promise<getAdminSupportConversationsResponse> => {
+
+  return apiMutator<getAdminSupportConversationsResponse>(getGetAdminSupportConversationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+/**
+ * @summary Get support conversation detail with context
+ */
+export type getAdminSupportConversationsConversationIdResponse200 = {
+  data: SupportConversationDetail
+  status: 200
+}
+
+export type getAdminSupportConversationsConversationIdResponseSuccess = (getAdminSupportConversationsConversationIdResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getAdminSupportConversationsConversationIdResponse = (getAdminSupportConversationsConversationIdResponseSuccess)
+
+export const getGetAdminSupportConversationsConversationIdUrl = (conversationId: string,) => {
+
+
+
+
+  return `/admin/support/conversations/${conversationId}`
+}
+
+export const getAdminSupportConversationsConversationId = async (conversationId: string, options?: RequestInit): Promise<getAdminSupportConversationsConversationIdResponse> => {
+
+  return apiMutator<getAdminSupportConversationsConversationIdResponse>(getGetAdminSupportConversationsConversationIdUrl(conversationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+/**
+ * @summary Claim a support conversation
+ */
+export type postAdminSupportConversationsConversationIdClaimResponse200 = {
+  data: SupportConversation
+  status: 200
+}
+
+export type postAdminSupportConversationsConversationIdClaimResponseSuccess = (postAdminSupportConversationsConversationIdClaimResponse200) & {
+  headers: Headers;
+};
+;
+
+export type postAdminSupportConversationsConversationIdClaimResponse = (postAdminSupportConversationsConversationIdClaimResponseSuccess)
+
+export const getPostAdminSupportConversationsConversationIdClaimUrl = (conversationId: string,) => {
+
+
+
+
+  return `/admin/support/conversations/${conversationId}/claim`
+}
+
+export const postAdminSupportConversationsConversationIdClaim = async (conversationId: string, options?: RequestInit): Promise<postAdminSupportConversationsConversationIdClaimResponse> => {
+
+  return apiMutator<postAdminSupportConversationsConversationIdClaimResponse>(getPostAdminSupportConversationsConversationIdClaimUrl(conversationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+/**
+ * @summary Release a support conversation back to the queue
+ */
+export type postAdminSupportConversationsConversationIdReleaseResponse200 = {
+  data: SupportConversation
+  status: 200
+}
+
+export type postAdminSupportConversationsConversationIdReleaseResponseSuccess = (postAdminSupportConversationsConversationIdReleaseResponse200) & {
+  headers: Headers;
+};
+;
+
+export type postAdminSupportConversationsConversationIdReleaseResponse = (postAdminSupportConversationsConversationIdReleaseResponseSuccess)
+
+export const getPostAdminSupportConversationsConversationIdReleaseUrl = (conversationId: string,) => {
+
+
+
+
+  return `/admin/support/conversations/${conversationId}/release`
+}
+
+export const postAdminSupportConversationsConversationIdRelease = async (conversationId: string, options?: RequestInit): Promise<postAdminSupportConversationsConversationIdReleaseResponse> => {
+
+  return apiMutator<postAdminSupportConversationsConversationIdReleaseResponse>(getPostAdminSupportConversationsConversationIdReleaseUrl(conversationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+/**
+ * @summary Transfer a support conversation to another CS user
+ */
+export type postAdminSupportConversationsConversationIdTransferResponse200 = {
+  data: SupportConversation
+  status: 200
+}
+
+export type postAdminSupportConversationsConversationIdTransferResponseSuccess = (postAdminSupportConversationsConversationIdTransferResponse200) & {
+  headers: Headers;
+};
+;
+
+export type postAdminSupportConversationsConversationIdTransferResponse = (postAdminSupportConversationsConversationIdTransferResponseSuccess)
+
+export const getPostAdminSupportConversationsConversationIdTransferUrl = (conversationId: string,) => {
+
+
+
+
+  return `/admin/support/conversations/${conversationId}/transfer`
+}
+
+export const postAdminSupportConversationsConversationIdTransfer = async (conversationId: string,
+    transferSupportConversationRequest: TransferSupportConversationRequest, options?: RequestInit): Promise<postAdminSupportConversationsConversationIdTransferResponse> => {
+
+  return apiMutator<postAdminSupportConversationsConversationIdTransferResponse>(getPostAdminSupportConversationsConversationIdTransferUrl(conversationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      transferSupportConversationRequest,)
   }
 );}
 
@@ -2820,7 +3535,7 @@ export type postShipmentsImportJobsResponse202 = {
   data: ImportJob
   status: 202
 }
-    
+
 export type postShipmentsImportJobsResponseSuccess = (postShipmentsImportJobsResponse202) & {
   headers: Headers;
 };
@@ -2831,7 +3546,7 @@ export type postShipmentsImportJobsResponse = (postShipmentsImportJobsResponseSu
 export const getPostShipmentsImportJobsUrl = () => {
 
 
-  
+
 
   return `/shipments/import-jobs`
 }
@@ -2841,11 +3556,11 @@ export const postShipmentsImportJobs = async (postShipmentsImportJobsBody: PostS
 formData.append(`excelFile`, postShipmentsImportJobsBody.excelFile)
 
   return apiMutator<postShipmentsImportJobsResponse>(getPostShipmentsImportJobsUrl(),
-  {      
+  {
     ...options,
     method: 'POST'
     ,
-    body: 
+    body:
       formData,
   }
 );}

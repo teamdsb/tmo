@@ -279,6 +279,39 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/SKU"
+  "/catalog/products/{spuId}/skus/{skuId}":
+    patch:
+      tags:
+      - Catalog
+      summary: Update SKU for product
+      parameters:
+      - in: path
+        name: spuId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: skuId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UpdateSkuRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SKU"
+        '404':
+          "$ref": "#/components/responses/NotFound"
   "/wishlist":
     get:
       tags:
@@ -1568,6 +1601,31 @@ components:
           items:
             type: string
     CreateSkuRequest:
+      type: object
+      properties:
+        skuCode:
+          type: string
+        name:
+          type: string
+        spec:
+          type: string
+          description: Primary spec label used for matching (e.g., size/grade); store here and avoid duplicating in attributes
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+        priceTiers:
+          type: array
+          items:
+            "$ref": "#/components/schemas/PriceTier"
+        unit:
+          type: string
+        isActive:
+          type: boolean
+          default: true
+      required:
+      - name
+    UpdateSkuRequest:
       type: object
       properties:
         skuCode:

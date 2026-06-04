@@ -1,13 +1,17 @@
 import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
+  createCatalogSku,
   createCatalogCategory,
   createCatalogProduct,
   deleteCatalogCategory,
+  deleteCatalogProduct,
   fetchCatalogCategories,
   fetchMiniappDisplayCategories,
+  fetchProductDetail,
   fetchProducts,
   replaceMiniappDisplayCategories,
+  updateCatalogSku,
   updateCatalogCategory,
   updateCatalogProduct,
   uploadCatalogProductImage
@@ -330,6 +334,39 @@ const toProductUpdatePayload = (product: ProductRecord) => {
   return payload;
 };
 
+const toProductRecordFromDetail = (detail: any, fallback: ProductRecord, index = 0): ProductRecord => {
+  return normalizeProduct(
+    {
+      ...fallback,
+      ...(detail?.product || {}),
+      coverImageUrl: detail?.product?.coverImageUrl || fallback.coverImageUrl,
+      inventory: fallback.inventory,
+      models: detail?.models,
+      skus: detail?.skus,
+      status: fallback.status,
+      tierPricing: fallback.tierPricing
+    },
+    index
+  );
+};
+
+const toSkuPayload = (model: ProductModel) => {
+  const unitPriceFen = Math.max(0, Math.round((Number(model.basePrice) || 0) * 100));
+  return {
+    name: model.name,
+    skuCode: model.code || undefined,
+    spec: model.name,
+    priceTiers: [
+      {
+        minQty: 1,
+        maxQty: null,
+        unitPriceFen
+      }
+    ],
+    isActive: true
+  };
+};
+
 const extractResponseMessage = (response: unknown) => {
   const data = (response as { data?: { message?: unknown } } | null)?.data;
   return typeof data?.message === 'string' && data.message.trim() ? data.message.trim() : '';
@@ -646,6 +683,7 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
             const name = draft.name.trim();
             const cleanedModels = draft.models
               .map((model, index) => ({
+                id: model.id,
                 name: model.name.trim(),
                 code: model.code.trim().toUpperCase() || `${DEFAULT_MODEL_CODE}-${index + 1}`,
                 basePrice: Math.max(0, Number(model.basePrice) || 0)
@@ -1592,6 +1630,7 @@ export const ProductsPage = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editingProductId, setEditingProductId] = useState('');
+  const [editingProductDetail, setEditingProductDetail] = useState<ProductRecord | null>(null);
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
   const [displayCategoryManagerOpen, setDisplayCategoryManagerOpen] = useState(false);
 
@@ -1790,11 +1829,65 @@ export const ProductsPage = () => {
   const allSelectedOnPage = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
 
   const editingProduct = useMemo(() => {
+    if (editingProductDetail?.id === editingProductId) {
+      return editingProductDetail;
+    }
     return products.find((item) => item.id === editingProductId) || null;
-  }, [editingProductId, products]);
+  }, [editingProductDetail, editingProductId, products]);
 
   const showToast = (message: string, tone: 'error' | 'success' = 'success') => {
     setToast({ message, tone });
+  };
+
+  const openProductEditor = useCallback((product: ProductRecord) => {
+    setEditingProductDetail(null);
+    setEditingProductId(product.id);
+    if (context?.mode !== 'dev') {
+      return;
+    }
+    void fetchProductDetail(product.id).then((response) => {
+      if (response.status !== 200 || !response.data?.product) {
+        const serverMessage = extractResponseMessage(response);
+        throw new Error(serverMessage || '商品详情加载失败。');
+      }
+      setEditingProductDetail(toProductRecordFromDetail(response.data, product));
+    }).catch((error) => {
+      showToast(error instanceof Error ? error.message : '商品详情加载失败。', 'error');
+    });
+  }, [context?.mode]);
+
+  const closeProductEditor = () => {
+    setEditingProductId('');
+    setEditingProductDetail(null);
+  };
+
+  const deleteProduct = async (product: ProductRecord) => {
+    if (!window.confirm(`确定删除商品“${product.name}”吗？`)) {
+      return;
+    }
+    if (context?.mode === 'dev') {
+      const response = await deleteCatalogProduct(product.id);
+      if (response.status !== 204) {
+        const serverMessage = extractResponseMessage(response);
+        showToast(serverMessage ? `删除失败：${serverMessage}` : '删除失败，请稍后重试。', 'error');
+        return;
+      }
+      await refreshBackendProducts();
+      showToast('商品已删除。');
+      return;
+    }
+
+    setProducts((current) => {
+      const nextProducts = current.filter((item) => item.id !== product.id);
+      writeStoredJson(MOCK_PRODUCTS_STORAGE_KEY, nextProducts);
+      return nextProducts;
+    });
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      next.delete(product.id);
+      return next;
+    });
+    showToast('商品已删除。');
   };
 
   const persistCategories = (nextCategories: CategoryItem[], persistLocal: boolean) => {
@@ -2086,16 +2179,28 @@ export const ProductsPage = () => {
                               <ProductStatusBadge status={product.status} />
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <button
-                                className="inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:border-slate-200 hover:bg-slate-50 hover:text-primary"
-                                data-role="open-product-drawer"
-                                onClick={() => setEditingProductId(product.id)}
-                                title="编辑商品"
-                                type="button"
-                              >
-                                <span className="material-symbols-outlined text-base">edit</span>
-                                <span className="hidden sm:inline">编辑</span>
-                              </button>
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  className="inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:border-slate-200 hover:bg-slate-50 hover:text-primary"
+                                  data-role="open-product-drawer"
+                                  onClick={() => openProductEditor(product)}
+                                  title="编辑商品"
+                                  type="button"
+                                >
+                                  <span className="material-symbols-outlined text-base">edit</span>
+                                  <span className="hidden sm:inline">编辑</span>
+                                </button>
+                                <button
+                                  className="inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                                  data-role="delete-product"
+                                  onClick={() => void deleteProduct(product)}
+                                  title="删除商品"
+                                  type="button"
+                                >
+                                  <span className="material-symbols-outlined text-base">delete</span>
+                                  <span className="hidden sm:inline">删除</span>
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -2207,7 +2312,7 @@ export const ProductsPage = () => {
 
       <ProductEditDrawer
         categories={categories}
-        onClose={() => setEditingProductId('')}
+        onClose={closeProductEditor}
         onSave={async (updatedProduct) => {
           if (context?.mode === 'dev') {
             const response = await updateCatalogProduct(updatedProduct.id, toProductUpdatePayload(updatedProduct));
@@ -2215,8 +2320,18 @@ export const ProductsPage = () => {
               const serverMessage = extractResponseMessage(response);
               throw new Error(serverMessage ? `保存失败：${serverMessage}` : '保存失败，请稍后重试。');
             }
+            for (const model of updatedProduct.models) {
+              const payload = toSkuPayload(model);
+              const skuResponse = model.id
+                ? await updateCatalogSku(updatedProduct.id, model.id, payload)
+                : await createCatalogSku(updatedProduct.id, payload);
+              if (!((model.id && skuResponse.status === 200) || (!model.id && skuResponse.status === 201))) {
+                const serverMessage = extractResponseMessage(skuResponse);
+                throw new Error(serverMessage ? `型号保存失败：${serverMessage}` : '型号保存失败，请稍后重试。');
+              }
+            }
             await refreshBackendProducts();
-            setEditingProductId('');
+            closeProductEditor();
             showToast('保存成功。');
             return;
           }
@@ -2227,7 +2342,7 @@ export const ProductsPage = () => {
             writeStoredJson(MOCK_PRODUCTS_STORAGE_KEY, nextProducts);
             return nextProducts;
           });
-          setEditingProductId('');
+          closeProductEditor();
           showToast('保存成功。');
         }}
         open={Boolean(editingProductId)}
