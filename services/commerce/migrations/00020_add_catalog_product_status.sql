@@ -3,9 +3,19 @@
 ALTER TABLE catalog_products
     ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'DRAFT';
 
-ALTER TABLE catalog_products
-    ADD CONSTRAINT catalog_products_status_check
-    CHECK (status IN ('ACTIVE', 'INACTIVE', 'DRAFT'));
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'catalog_products_status_check'
+          AND conrelid = 'catalog_products'::regclass
+    ) THEN
+        ALTER TABLE catalog_products
+            ADD CONSTRAINT catalog_products_status_check
+            CHECK (status IN ('ACTIVE', 'INACTIVE', 'DRAFT'));
+    END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_catalog_products_status_created_at
     ON catalog_products (status, created_at DESC);
