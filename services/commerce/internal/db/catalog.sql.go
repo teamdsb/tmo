@@ -17,15 +17,17 @@ SELECT count(*)
 FROM catalog_products
 WHERE ($1::text IS NULL OR name ILIKE '%' || $1 || '%')
   AND ($2::uuid IS NULL OR category_id = $2)
+  AND ($3::text IS NULL OR status = $3)
 `
 
 type CountProductsParams struct {
 	Q          *string     `db:"q" json:"q"`
 	CategoryID pgtype.UUID `db:"category_id" json:"category_id"`
+	Status     *string     `db:"status" json:"status"`
 }
 
 func (q *Queries) CountProducts(ctx context.Context, arg CountProductsParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countProducts, arg.Q, arg.CategoryID)
+	row := q.db.QueryRow(ctx, countProducts, arg.Q, arg.CategoryID, arg.Status)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -39,7 +41,8 @@ INSERT INTO catalog_products (
     cover_image_url,
     images,
     tags,
-    filter_dimensions
+    filter_dimensions,
+    status
 ) VALUES (
     $1,
     $2,
@@ -47,9 +50,10 @@ INSERT INTO catalog_products (
     $4,
     $5,
     $6,
-    $7
+    $7,
+    $8
 )
-RETURNING id, name, description, category_id, cover_image_url, images, tags, filter_dimensions, created_at, updated_at
+RETURNING id, name, description, category_id, cover_image_url, images, tags, filter_dimensions, created_at, updated_at, status
 `
 
 type CreateProductParams struct {
@@ -60,6 +64,7 @@ type CreateProductParams struct {
 	Images           []string  `db:"images" json:"images"`
 	Tags             []string  `db:"tags" json:"tags"`
 	FilterDimensions []string  `db:"filter_dimensions" json:"filter_dimensions"`
+	Status           string    `db:"status" json:"status"`
 }
 
 func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (CatalogProduct, error) {
@@ -71,6 +76,7 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (C
 		arg.Images,
 		arg.Tags,
 		arg.FilterDimensions,
+		arg.Status,
 	)
 	var i CatalogProduct
 	err := row.Scan(
@@ -84,6 +90,7 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (C
 		&i.FilterDimensions,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Status,
 	)
 	return i, err
 }
@@ -102,7 +109,7 @@ func (q *Queries) DeleteProduct(ctx context.Context, id uuid.UUID) (int64, error
 }
 
 const getProduct = `-- name: GetProduct :one
-SELECT id, name, description, category_id, cover_image_url, images, tags, filter_dimensions, created_at, updated_at
+SELECT id, name, description, category_id, cover_image_url, images, tags, filter_dimensions, created_at, updated_at, status
 FROM catalog_products
 WHERE id = $1
 `
@@ -121,22 +128,25 @@ func (q *Queries) GetProduct(ctx context.Context, id uuid.UUID) (CatalogProduct,
 		&i.FilterDimensions,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Status,
 	)
 	return i, err
 }
 
 const listProducts = `-- name: ListProducts :many
-SELECT id, name, description, category_id, cover_image_url, images, tags, filter_dimensions, created_at, updated_at
+SELECT id, name, description, category_id, cover_image_url, images, tags, filter_dimensions, created_at, updated_at, status
 FROM catalog_products
 WHERE ($1::text IS NULL OR name ILIKE '%' || $1 || '%')
   AND ($2::uuid IS NULL OR category_id = $2)
+  AND ($3::text IS NULL OR status = $3)
 ORDER BY created_at DESC
-LIMIT $4 OFFSET $3
+LIMIT $5 OFFSET $4
 `
 
 type ListProductsParams struct {
 	Q          *string     `db:"q" json:"q"`
 	CategoryID pgtype.UUID `db:"category_id" json:"category_id"`
+	Status     *string     `db:"status" json:"status"`
 	Offset     int32       `db:"offset" json:"offset"`
 	Limit      int32       `db:"limit" json:"limit"`
 }
@@ -145,6 +155,7 @@ func (q *Queries) ListProducts(ctx context.Context, arg ListProductsParams) ([]C
 	rows, err := q.db.Query(ctx, listProducts,
 		arg.Q,
 		arg.CategoryID,
+		arg.Status,
 		arg.Offset,
 		arg.Limit,
 	)
@@ -166,6 +177,7 @@ func (q *Queries) ListProducts(ctx context.Context, arg ListProductsParams) ([]C
 			&i.FilterDimensions,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Status,
 		); err != nil {
 			return nil, err
 		}
@@ -186,9 +198,10 @@ SET name = $2,
     images = $6,
     tags = $7,
     filter_dimensions = $8,
+    status = $9,
     updated_at = now()
 WHERE id = $1
-RETURNING id, name, description, category_id, cover_image_url, images, tags, filter_dimensions, created_at, updated_at
+RETURNING id, name, description, category_id, cover_image_url, images, tags, filter_dimensions, created_at, updated_at, status
 `
 
 type UpdateProductParams struct {
@@ -200,6 +213,7 @@ type UpdateProductParams struct {
 	Images           []string  `db:"images" json:"images"`
 	Tags             []string  `db:"tags" json:"tags"`
 	FilterDimensions []string  `db:"filter_dimensions" json:"filter_dimensions"`
+	Status           string    `db:"status" json:"status"`
 }
 
 func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (CatalogProduct, error) {
@@ -212,6 +226,7 @@ func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (C
 		arg.Images,
 		arg.Tags,
 		arg.FilterDimensions,
+		arg.Status,
 	)
 	var i CatalogProduct
 	err := row.Scan(
@@ -225,6 +240,7 @@ func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (C
 		&i.FilterDimensions,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Status,
 	)
 	return i, err
 }

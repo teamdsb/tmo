@@ -322,11 +322,13 @@ const toProductUpdatePayload = (product: ProductRecord) => {
     description: string | null;
     images: string[];
     name: string;
+    status: ProductStatusValue;
   } = {
     name: product.name,
     description: product.description.trim() || null,
     coverImageUrl: coverImageUrl || null,
-    images: coverImageUrl ? [coverImageUrl] : []
+    images: coverImageUrl ? [coverImageUrl] : [],
+    status: product.status
   };
   if (product.categoryId) {
     payload.categoryId = product.categoryId;
@@ -343,7 +345,6 @@ const toProductRecordFromDetail = (detail: any, fallback: ProductRecord, index =
       inventory: fallback.inventory,
       models: detail?.models,
       skus: detail?.skus,
-      status: fallback.status,
       tierPricing: fallback.tierPricing
     },
     index
@@ -1656,7 +1657,7 @@ export const ProductsPage = () => {
   const requestedProductIdRef = useRef(readProductIdFromUrl());
 
   const loadBackendProducts = useCallback(async () => {
-    const response = await fetchProducts({ page: 1, pageSize: 200 });
+    const response = await fetchProducts({ page: 1, pageSize: 200, status: 'ALL' });
     if (response.status !== 200 || !Array.isArray(response.data?.items)) {
       const serverMessage = extractResponseMessage(response);
       throw new Error(serverMessage || '商品列表加载失败，请稍后重试。');
@@ -2323,6 +2324,7 @@ export const ProductsPage = () => {
               description: draft.description || undefined,
               coverImageUrl: draft.coverImageUrl || undefined,
               images: draft.coverImageUrl ? [draft.coverImageUrl] : undefined,
+              status: draft.status,
               tags: [categoryLabel, '标准档']
             });
             if (response.status !== 201 || !response.data?.product) {

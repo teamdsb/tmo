@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
+	"github.com/teamdsb/tmo/services/commerce/internal/http/middleware"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/catalog"
 )
@@ -250,11 +251,17 @@ func TestGetCatalogProducts_Defaults(t *testing.T) {
 	if !gotList.CategoryID.Valid || gotList.CategoryID.Bytes != categoryID {
 		t.Fatalf("expected category filter %s, got %+v", categoryID.String(), gotList.CategoryID)
 	}
+	if gotList.Status == nil || *gotList.Status != "ACTIVE" {
+		t.Fatalf("expected active product status filter, got %#v", gotList.Status)
+	}
 	if gotCount.Q == nil || *gotCount.Q != q {
 		t.Fatalf("expected count q %q, got %#v", q, gotCount.Q)
 	}
 	if !gotCount.CategoryID.Valid || gotCount.CategoryID.Bytes != categoryID {
 		t.Fatalf("expected count category filter %s, got %+v", categoryID.String(), gotCount.CategoryID)
+	}
+	if gotCount.Status == nil || *gotCount.Status != "ACTIVE" {
+		t.Fatalf("expected active product count status filter, got %#v", gotCount.Status)
 	}
 
 	var response oapi.PagedProductList
@@ -272,6 +279,65 @@ func TestGetCatalogProducts_Defaults(t *testing.T) {
 	}
 	if response.Items[0].CoverImageUrl == nil || *response.Items[0].CoverImageUrl != cover {
 		t.Fatalf("expected cover url %q", cover)
+	}
+}
+
+func TestGetCatalogProducts_AllStatusRequiresAdminAndRemovesStatusFilter(t *testing.T) {
+	var gotList db.ListProductsParams
+	var gotCount db.CountProductsParams
+
+	store := &stubStore{
+		listProductsFn: func(ctx context.Context, arg db.ListProductsParams) ([]db.CatalogProduct, error) {
+			gotList = arg
+			return []db.CatalogProduct{}, nil
+		},
+		countProductsFn: func(ctx context.Context, arg db.CountProductsParams) (int64, error) {
+			gotCount = arg
+			return 0, nil
+		},
+	}
+
+	router := newTestRouter(store)
+	req := httptest.NewRequest(http.MethodGet, "/catalog/products?status=ALL", nil)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+	if gotList.Status != nil {
+		t.Fatalf("expected all-status list to omit db status filter, got %#v", gotList.Status)
+	}
+	if gotCount.Status != nil {
+		t.Fatalf("expected all-status count to omit db status filter, got %#v", gotCount.Status)
+	}
+}
+
+func TestGetCatalogProductsSpuId_InactiveProductRequiresAdmin(t *testing.T) {
+	productID := uuid.New()
+	store := &stubStore{
+		getProductFn: func(ctx context.Context, id uuid.UUID) (db.CatalogProduct, error) {
+			return db.CatalogProduct{
+				ID:         productID,
+				Name:       "Hidden Product",
+				CategoryID: uuid.New(),
+				Status:     "INACTIVE",
+			}, nil
+		},
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	oapi.RegisterHandlers(router, &Handler{
+		Auth:         middleware.NewAuthenticator(true, "secret", ""),
+		CatalogStore: store,
+	})
+	req := httptest.NewRequest(http.MethodGet, "/catalog/products/"+productID.String(), nil)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status 401, got %d", recorder.Code)
 	}
 }
 

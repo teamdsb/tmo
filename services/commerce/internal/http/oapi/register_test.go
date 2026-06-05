@@ -112,6 +112,10 @@ func (server *stubServer) PostCatalogProductsSpuIdSkus(context *gin.Context, spu
 	context.Status(http.StatusNotImplemented)
 }
 
+func (server *stubServer) PatchCatalogProductsSpuIdSkusSkuId(context *gin.Context, spuId openapi_types.UUID, skuId openapi_types.UUID) {
+	context.Status(http.StatusNotImplemented)
+}
+
 func (server *stubServer) GetOrders(context *gin.Context, params oapi.GetOrdersParams) {
 	context.Status(http.StatusNotImplemented)
 }

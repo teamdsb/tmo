@@ -453,6 +453,10 @@ func (s *Service) processGroup(ctx context.Context, group *groupExecution, resol
 	var product db.CatalogProduct
 	if len(matchedProductIDs) == 1 {
 		for productID := range matchedProductIDs {
+			existingProduct, getErr := queries.GetProduct(ctx, productID)
+			if getErr != nil {
+				return s.markGroupFailed(ctx, group.Rows, fmt.Sprintf("get product: %v", getErr))
+			}
 			product, err = queries.UpdateProduct(ctx, db.UpdateProductParams{
 				ID:               productID,
 				Name:             groupHead.ProductName,
@@ -462,6 +466,7 @@ func (s *Service) processGroup(ctx context.Context, group *groupExecution, resol
 				Images:           normalizedImages,
 				Tags:             normalizedTags,
 				FilterDimensions: normalizedFilterDimensions,
+				Status:           existingProduct.Status,
 			})
 		}
 		if err != nil {
@@ -476,6 +481,7 @@ func (s *Service) processGroup(ctx context.Context, group *groupExecution, resol
 			Images:           normalizedImages,
 			Tags:             normalizedTags,
 			FilterDimensions: normalizedFilterDimensions,
+			Status:           "DRAFT",
 		})
 		if err != nil {
 			return s.markGroupFailed(ctx, group.Rows, fmt.Sprintf("create product: %v", err))

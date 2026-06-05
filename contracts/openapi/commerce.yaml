@@ -154,6 +154,10 @@ paths:
           type: string
           format: uuid
       - in: query
+        name: status
+        schema:
+          "$ref": "#/components/schemas/ProductListStatus"
+      - in: query
         name: page
         schema:
           type: integer
@@ -1539,6 +1543,8 @@ components:
         categoryId:
           type: string
           format: uuid
+        status:
+          "$ref": "#/components/schemas/ProductStatus"
         tags:
           type: array
           items:
@@ -1547,6 +1553,20 @@ components:
       - id
       - name
       - categoryId
+      - status
+    ProductStatus:
+      type: string
+      enum:
+      - ACTIVE
+      - INACTIVE
+      - DRAFT
+    ProductListStatus:
+      type: string
+      enum:
+      - ACTIVE
+      - INACTIVE
+      - DRAFT
+      - ALL
     CreateCatalogProductRequest:
       type: object
       properties:
@@ -1571,6 +1591,8 @@ components:
           type: array
           items:
             type: string
+        status:
+          "$ref": "#/components/schemas/ProductStatus"
       required:
       - name
       - categoryId
@@ -1600,6 +1622,8 @@ components:
           type: array
           items:
             type: string
+        status:
+          "$ref": "#/components/schemas/ProductStatus"
     CreateSkuRequest:
       type: object
       properties:
@@ -1740,6 +1764,8 @@ components:
             categoryId:
               type: string
               format: uuid
+            status:
+              "$ref": "#/components/schemas/ProductStatus"
             filterDimensions:
               type: array
               description: For multi-level filtering, e.g., material -> length ->
@@ -1750,6 +1776,7 @@ components:
           - id
           - name
           - categoryId
+          - status
         skus:
           type: array
           items:

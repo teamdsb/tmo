@@ -94,6 +94,21 @@ const (
 	PriceInquiryStatusRESPONDED PriceInquiryStatus = "RESPONDED"
 )
 
+// Defines values for ProductListStatus.
+const (
+	ProductListStatusACTIVE   ProductListStatus = "ACTIVE"
+	ProductListStatusALL      ProductListStatus = "ALL"
+	ProductListStatusDRAFT    ProductListStatus = "DRAFT"
+	ProductListStatusINACTIVE ProductListStatus = "INACTIVE"
+)
+
+// Defines values for ProductStatus.
+const (
+	ProductStatusACTIVE   ProductStatus = "ACTIVE"
+	ProductStatusDRAFT    ProductStatus = "DRAFT"
+	ProductStatusINACTIVE ProductStatus = "INACTIVE"
+)
+
 // Defines values for TicketStatus.
 const (
 	TicketStatusCLOSED     TicketStatus = "CLOSED"
@@ -251,6 +266,7 @@ type CreateCatalogProductRequest struct {
 	FilterDimensions *[]string          `json:"filterDimensions,omitempty"`
 	Images           *[]string          `json:"images,omitempty"`
 	Name             string             `json:"name"`
+	Status           *ProductStatus     `json:"status,omitempty"`
 	Tags             *[]string          `json:"tags,omitempty"`
 }
 
@@ -519,9 +535,13 @@ type ProductDetail struct {
 		Id               openapi_types.UUID `json:"id"`
 		Images           *[]string          `json:"images,omitempty"`
 		Name             string             `json:"name"`
+		Status           ProductStatus      `json:"status"`
 	} `json:"product"`
 	Skus []SKU `json:"skus"`
 }
+
+// ProductListStatus defines model for ProductListStatus.
+type ProductListStatus string
 
 // ProductRequest defines model for ProductRequest.
 type ProductRequest struct {
@@ -546,12 +566,16 @@ type ProductRequestAsset struct {
 	Url         string `json:"url"`
 }
 
+// ProductStatus defines model for ProductStatus.
+type ProductStatus string
+
 // ProductSummary defines model for ProductSummary.
 type ProductSummary struct {
 	CategoryId    openapi_types.UUID `json:"categoryId"`
 	CoverImageUrl *string            `json:"coverImageUrl,omitempty"`
 	Id            openapi_types.UUID `json:"id"`
 	Name          string             `json:"name"`
+	Status        ProductStatus      `json:"status"`
 	Tags          *[]string          `json:"tags,omitempty"`
 }
 
@@ -597,6 +621,7 @@ type UpdateCatalogProductRequest struct {
 	FilterDimensions *[]string           `json:"filterDimensions,omitempty"`
 	Images           *[]string           `json:"images,omitempty"`
 	Name             *string             `json:"name,omitempty"`
+	Status           *ProductStatus      `json:"status,omitempty"`
 	Tags             *[]string           `json:"tags,omitempty"`
 }
 
@@ -705,6 +730,7 @@ type PatchCartItemsItemIdJSONBody struct {
 type GetCatalogProductsParams struct {
 	Q          *string             `form:"q,omitempty" json:"q,omitempty"`
 	CategoryId *openapi_types.UUID `form:"categoryId,omitempty" json:"categoryId,omitempty"`
+	Status     *ProductListStatus  `form:"status,omitempty" json:"status,omitempty"`
 	Page       *int                `form:"page,omitempty" json:"page,omitempty"`
 	PageSize   *int                `form:"pageSize,omitempty" json:"pageSize,omitempty"`
 }
@@ -1574,6 +1600,14 @@ func (siw *ServerInterfaceWrapper) GetCatalogProducts(c *gin.Context) {
 	err = runtime.BindQueryParameter("form", true, false, "categoryId", c.Request.URL.Query(), &params.CategoryId)
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter categoryId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "status", c.Request.URL.Query(), &params.Status)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter status: %w", err), http.StatusBadRequest)
 		return
 	}
 

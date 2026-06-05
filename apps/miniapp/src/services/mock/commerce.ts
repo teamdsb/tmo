@@ -159,6 +159,7 @@ const buildFallbackProductDetail = (spuId: string): ProductDetail => {
       id: spuId,
       name: '离线商品',
       categoryId: mockCategories[0]?.id ?? 'mock-category',
+      status: 'ACTIVE',
       images: [],
       description: '离线预览数据'
     },
@@ -267,10 +268,14 @@ export const createMockCommerceServices = (): CommerceServices => {
     },
     deleteCategory: async () => {},
     listProducts: async (params) => {
+      const status = params?.status ?? 'ACTIVE'
+      const statusFiltered = status === 'ALL'
+        ? mockProducts
+        : mockProducts.filter((item) => item.status === status)
       const filtered = applyQuery(
         params?.categoryId
-          ? mockProducts.filter((item) => item.categoryId === params.categoryId)
-          : mockProducts,
+          ? statusFiltered.filter((item) => item.categoryId === params.categoryId)
+          : statusFiltered,
         params?.q
       )
       return paginate(filtered, params?.page, params?.pageSize)

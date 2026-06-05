@@ -58,7 +58,15 @@ type patchProductRequest struct {
 	Images           *[]string              `json:"images"`
 	Tags             *[]string              `json:"tags"`
 	FilterDimensions *[]string              `json:"filterDimensions"`
+	Status           *string                `json:"status"`
 }
+
+const (
+	productStatusActive   = "ACTIVE"
+	productStatusInactive = "INACTIVE"
+	productStatusDraft    = "DRAFT"
+	productStatusAll      = "ALL"
+)
 
 func (h *Handler) GetCatalogCategories(c *gin.Context) {
 	categories, err := h.CatalogStore.ListCategories(c.Request.Context())
@@ -238,9 +246,29 @@ func (h *Handler) GetCatalogProducts(c *gin.Context, params oapi.GetCatalogProdu
 		categoryFilter = pgtype.UUID{Bytes: *params.CategoryId, Valid: true}
 	}
 
+	statusFilter := productStatusActive
+	if params.Status != nil {
+		normalizedStatus, ok := normalizeProductListStatus(string(*params.Status))
+		if !ok {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "status must be ACTIVE, INACTIVE, DRAFT, or ALL")
+			return
+		}
+		statusFilter = normalizedStatus
+	}
+	var statusParam *string
+	if statusFilter != productStatusAll {
+		statusParam = productStatusPtr(statusFilter)
+	}
+	if statusFilter != productStatusActive {
+		if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
+			return
+		}
+	}
+
 	products, err := h.CatalogStore.ListProducts(c.Request.Context(), db.ListProductsParams{
 		Q:          params.Q,
 		CategoryID: categoryFilter,
+		Status:     statusParam,
 		Offset:     offset32,
 		Limit:      limit32,
 	})
@@ -253,6 +281,7 @@ func (h *Handler) GetCatalogProducts(c *gin.Context, params oapi.GetCatalogProdu
 	total, err := h.CatalogStore.CountProducts(c.Request.Context(), db.CountProductsParams{
 		Q:          params.Q,
 		CategoryID: categoryFilter,
+		Status:     statusParam,
 	})
 	if err != nil {
 		h.logError("count products failed", err)
@@ -295,6 +324,15 @@ func (h *Handler) PostCatalogProducts(c *gin.Context) {
 	images := derefStringSlice(request.Images)
 	tags := derefStringSlice(request.Tags)
 	filters := derefStringSlice(request.FilterDimensions)
+	status := productStatusDraft
+	if request.Status != nil {
+		var ok bool
+		status, ok = normalizeProductStatus(string(*request.Status))
+		if !ok {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "status must be ACTIVE, INACTIVE, or DRAFT")
+			return
+		}
+	}
 
 	product, err := h.CatalogStore.CreateProduct(c.Request.Context(), db.CreateProductParams{
 		Name:             request.Name,
@@ -304,6 +342,7 @@ func (h *Handler) PostCatalogProducts(c *gin.Context) {
 		Images:           images,
 		Tags:             tags,
 		FilterDimensions: filters,
+		Status:           status,
 	})
 	if err != nil {
 		h.logError("create product failed", err)
@@ -331,6 +370,11 @@ func (h *Handler) GetCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 		h.logError("get product failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to fetch product")
 		return
+	}
+	if product.Status != productStatusActive {
+		if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
+			return
+		}
 	}
 
 	skus, err := h.CatalogStore.ListSkusByProduct(c.Request.Context(), product.ID)
@@ -381,7 +425,8 @@ func (h *Handler) PatchCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 		!request.CoverImageURL.Set &&
 		request.Images == nil &&
 		request.Tags == nil &&
-		request.FilterDimensions == nil {
+		request.FilterDimensions == nil &&
+		request.Status == nil {
 		h.writeError(c, http.StatusBadRequest, "invalid_request", "at least one field must be provided")
 		return
 	}
@@ -444,6 +489,16 @@ func (h *Handler) PatchCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 		copy(filterDimensions, *request.FilterDimensions)
 	}
 
+	status := existing.Status
+	if request.Status != nil {
+		var ok bool
+		status, ok = normalizeProductStatus(*request.Status)
+		if !ok {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "status must be ACTIVE, INACTIVE, or DRAFT")
+			return
+		}
+	}
+
 	product, err := h.CatalogStore.UpdateProduct(c.Request.Context(), db.UpdateProductParams{
 		ID:               uuid.UUID(spuId),
 		Name:             name,
@@ -453,6 +508,7 @@ func (h *Handler) PatchCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 		Images:           images,
 		Tags:             tags,
 		FilterDimensions: filterDimensions,
+		Status:           status,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -748,6 +804,7 @@ func productSummaryFromModel(product db.CatalogProduct) oapi.ProductSummary {
 		Id:         product.ID,
 		Name:       product.Name,
 		CategoryId: product.CategoryID,
+		Status:     oapi.ProductStatus(product.Status),
 	}
 	if product.CoverImageUrl != nil {
 		summary.CoverImageUrl = product.CoverImageUrl
@@ -777,6 +834,7 @@ func productDetailFromModel(product db.CatalogProduct, skus []db.CatalogSku, tie
 	detail.Product.Name = product.Name
 	detail.Product.CategoryId = product.CategoryID
 	detail.Product.Description = product.Description
+	detail.Product.Status = oapi.ProductStatus(product.Status)
 
 	tiersBySku := map[uuid.UUID][]db.CatalogPriceTier{}
 	for _, tier := range tiers {
@@ -793,6 +851,30 @@ func productDetailFromModel(product db.CatalogProduct, skus []db.CatalogSku, tie
 	}
 
 	return detail, nil
+}
+
+func normalizeProductStatus(value string) (string, bool) {
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case productStatusActive, "ENABLED", "ON_SHELF":
+		return productStatusActive, true
+	case productStatusInactive, "DISABLED", "OFF_SHELF":
+		return productStatusInactive, true
+	case productStatusDraft:
+		return productStatusDraft, true
+	default:
+		return "", false
+	}
+}
+
+func normalizeProductListStatus(value string) (string, bool) {
+	if strings.EqualFold(strings.TrimSpace(value), productStatusAll) {
+		return productStatusAll, true
+	}
+	return normalizeProductStatus(value)
+}
+
+func productStatusPtr(value string) *string {
+	return &value
 }
 
 func skuFromModel(sku db.CatalogSku, tiers []db.CatalogPriceTier) (oapi.SKU, error) {

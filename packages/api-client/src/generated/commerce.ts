@@ -73,8 +73,30 @@ export interface ProductSummary {
   name: string;
   coverImageUrl?: string;
   categoryId: string;
+  status: ProductStatus;
   tags?: string[];
 }
+
+export type ProductStatus = typeof ProductStatus[keyof typeof ProductStatus];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const ProductStatus = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+  DRAFT: 'DRAFT',
+} as const;
+
+export type ProductListStatus = typeof ProductListStatus[keyof typeof ProductListStatus];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const ProductListStatus = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+  DRAFT: 'DRAFT',
+  ALL: 'ALL',
+} as const;
 
 export interface CreateCatalogProductRequest {
   name: string;
@@ -84,6 +106,7 @@ export interface CreateCatalogProductRequest {
   images?: string[];
   tags?: string[];
   filterDimensions?: string[];
+  status?: ProductStatus;
 }
 
 export interface UpdateCatalogProductRequest {
@@ -96,6 +119,7 @@ export interface UpdateCatalogProductRequest {
   images?: string[];
   tags?: string[];
   filterDimensions?: string[];
+  status?: ProductStatus;
 }
 
 export type CreateSkuRequestAttributes = {[key: string]: string};
@@ -164,6 +188,7 @@ export type ProductDetailProduct = {
   description?: string;
   images?: string[];
   categoryId: string;
+  status: ProductStatus;
   /** For multi-level filtering, e.g., material -> length -> size */
   filterDimensions?: string[];
 };
@@ -894,6 +919,7 @@ export type GetCatalogCategories200 = {
 export type GetCatalogProductsParams = {
 q?: string;
 categoryId?: string;
+status?: ProductListStatus;
 /**
  * @minimum 1
  */

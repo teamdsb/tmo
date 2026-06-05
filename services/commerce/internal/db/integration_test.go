@@ -37,6 +37,7 @@ func TestCatalogQueries(t *testing.T) {
 		Images:           images,
 		Tags:             tags,
 		FilterDimensions: filters,
+		Status:           "ACTIVE",
 	})
 	if err != nil {
 		t.Fatalf("create product: %v", err)
