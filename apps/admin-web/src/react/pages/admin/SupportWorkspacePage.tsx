@@ -14,7 +14,7 @@ import {
 
 import { AdminTopbar } from '../../layout/AdminTopbar';
 import { getCurrentSession } from '../../../lib/auth';
-import { isMockMode } from '../../../lib/env';
+import { buildAppHref, isMockMode } from '../../../lib/env';
 import {
   claimAdminSupportConversation,
   fetchAdminSupportConversation,
@@ -77,6 +77,14 @@ const syncConversationIdToUrl = (conversationId) => {
   window.history.replaceState({}, '', `${url.pathname}${url.search}`);
 };
 
+const buildAdminProductDetailHref = (productId) => {
+  const normalizedProductId = String(productId || '').trim();
+  if (!normalizedProductId) {
+    return buildAppHref('/products.html');
+  }
+  return `${buildAppHref('/products.html')}?productId=${encodeURIComponent(normalizedProductId)}`;
+};
+
 const getCurrentRole = () => {
   return String(getCurrentSession()?.currentRole || '').trim().toUpperCase();
 };
@@ -125,6 +133,9 @@ const resolveStaffDisplayName = (staffOptions, userId, fallback = '-') => {
 const MessageBubble = ({ message }) => {
   const isCustomer = message.senderType === 'CUSTOMER';
   const isSystem = message.senderType === 'SYSTEM';
+  const productId = String(message.cardPayload?.productId || '').trim();
+  const productDetailHref = buildAdminProductDetailHref(productId);
+  const cardClassName = `mt-3 block w-full rounded-xl border p-3 text-left transition ${isCustomer ? 'border-slate-200 bg-slate-50' : 'border-blue-300 bg-blue-500/70'} ${productId ? (isCustomer ? 'hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/40' : 'hover:border-white/70 hover:bg-blue-400/80 focus:outline-none focus:ring-2 focus:ring-white/60') : ''}`;
 
   if (isSystem) {
     return (
@@ -144,12 +155,25 @@ const MessageBubble = ({ message }) => {
         ) : null}
         {message.textContent ? <p className="text-sm leading-6">{message.textContent}</p> : null}
         {message.cardPayload ? (
-          <div className={`mt-3 rounded-xl border p-3 ${isCustomer ? 'border-slate-200 bg-slate-50' : 'border-blue-300 bg-blue-500/70'}`}>
+          productId ? (
+            <a
+              className={cardClassName}
+              data-testid={`support-product-card-${productId}`}
+              href={productDetailHref}
+            >
+              <p className={`text-sm font-semibold ${isCustomer ? 'text-slate-900' : 'text-white'}`}>{message.cardPayload.title || '卡片消息'}</p>
+              {message.cardPayload.subtitle ? (
+                <p className={`mt-1 text-xs ${isCustomer ? 'text-slate-500' : 'text-blue-100'}`}>{message.cardPayload.subtitle}</p>
+              ) : null}
+            </a>
+          ) : (
+            <div className={cardClassName}>
             <p className={`text-sm font-semibold ${isCustomer ? 'text-slate-900' : 'text-white'}`}>{message.cardPayload.title || '卡片消息'}</p>
             {message.cardPayload.subtitle ? (
               <p className={`mt-1 text-xs ${isCustomer ? 'text-slate-500' : 'text-blue-100'}`}>{message.cardPayload.subtitle}</p>
             ) : null}
-          </div>
+            </div>
+          )
         ) : null}
         <div className={`mt-2 flex items-center gap-1 text-[11px] ${isCustomer ? 'text-slate-400' : 'text-blue-100'}`}>
           <span>{formatSupportTime(message.createdAt, true)}</span>

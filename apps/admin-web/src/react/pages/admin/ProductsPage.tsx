@@ -372,6 +372,26 @@ const extractResponseMessage = (response: unknown) => {
   return typeof data?.message === 'string' && data.message.trim() ? data.message.trim() : '';
 };
 
+const readProductIdFromUrl = () => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  return String(new URLSearchParams(window.location.search).get('productId') || '').trim();
+};
+
+const syncProductIdToUrl = (productId: string) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const url = new URL(window.location.href);
+  if (productId) {
+    url.searchParams.set('productId', productId);
+  } else {
+    url.searchParams.delete('productId');
+  }
+  window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+};
+
 const ToastMessage = ({ toast }: { toast: ToastState }) => {
   if (!toast) {
     return null;
@@ -1633,6 +1653,7 @@ export const ProductsPage = () => {
   const [editingProductDetail, setEditingProductDetail] = useState<ProductRecord | null>(null);
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
   const [displayCategoryManagerOpen, setDisplayCategoryManagerOpen] = useState(false);
+  const requestedProductIdRef = useRef(readProductIdFromUrl());
 
   const loadBackendProducts = useCallback(async () => {
     const response = await fetchProducts({ page: 1, pageSize: 200 });
@@ -1856,10 +1877,29 @@ export const ProductsPage = () => {
     });
   }, [context?.mode]);
 
-  const closeProductEditor = () => {
+  const closeProductEditor = useCallback(() => {
+    if (requestedProductIdRef.current) {
+      requestedProductIdRef.current = '';
+      syncProductIdToUrl('');
+    }
     setEditingProductId('');
     setEditingProductDetail(null);
-  };
+  }, []);
+
+  useEffect(() => {
+    const requestedProductId = requestedProductIdRef.current;
+    if (loadState !== 'ready' || !requestedProductId || editingProductId === requestedProductId) {
+      return;
+    }
+    const targetProduct = products.find((item) => item.id === requestedProductId);
+    if (!targetProduct) {
+      requestedProductIdRef.current = '';
+      syncProductIdToUrl('');
+      showToast('目标商品不存在或无法访问。', 'error');
+      return;
+    }
+    openProductEditor(targetProduct);
+  }, [editingProductId, loadState, openProductEditor, products]);
 
   const deleteProduct = async (product: ProductRecord) => {
     if (!window.confirm(`确定删除商品“${product.name}”吗？`)) {
