@@ -657,8 +657,8 @@ export const SupportWorkspacePage = () => {
         )}
       />
 
-      <div className="grid min-h-[calc(100vh-88px)] grid-cols-12 gap-4 p-4">
-        <section className="col-span-3 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div className="grid h-[calc(100vh-88px)] min-h-0 grid-cols-12 gap-4 overflow-hidden p-4">
+        <section className="col-span-3 flex min-h-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 px-5 py-4">
             <div className="flex items-center justify-between">
               <div>
@@ -680,7 +680,7 @@ export const SupportWorkspacePage = () => {
               ))}
             </div>
           </div>
-          <div className="max-h-[calc(100vh-220px)] overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {loading ? (
               <div className="px-5 py-6 text-sm text-slate-500">正在加载会话...</div>
             ) : conversations.length === 0 ? (
@@ -757,7 +757,7 @@ export const SupportWorkspacePage = () => {
             </div>
           </div>
 
-          <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50 px-6 py-5">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-slate-50 px-6 py-5">
             {conversationDetail?.messages?.length ? conversationDetail.messages.map((message) => (
               <div
                 key={message.id}
@@ -774,7 +774,7 @@ export const SupportWorkspacePage = () => {
             )}
           </div>
 
-          <div className="border-t border-slate-100 bg-white px-6 py-4">
+          <div className="shrink-0 border-t border-slate-100 bg-white px-6 py-4">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <button
                 type="button"
@@ -835,7 +835,7 @@ export const SupportWorkspacePage = () => {
           </div>
         </section>
 
-        <aside className="col-span-3 flex min-h-0 flex-col gap-4">
+        <aside className="col-span-3 flex min-h-0 flex-col gap-4 overflow-y-auto">
           <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm" data-testid="support-customer-card">
             <p className="text-sm font-semibold text-slate-900">客户资料</p>
             <dl className="mt-4 space-y-3 text-sm text-slate-600">
