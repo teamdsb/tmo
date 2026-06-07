@@ -99,7 +99,7 @@ const routeProductPageApis = async (page, options = {}) => {
   const patchStatus = options.patchStatus ?? 200;
   const uploadedImageUrl = options.uploadedImageUrl ?? 'http://127.0.0.1:5174/assets/media/catalog/products/test-upload.png';
   let serverProduct = { ...productSummary };
-  let serverDetail = JSON.parse(JSON.stringify(productDetail));
+  let serverDetail = JSON.parse(JSON.stringify(options.productDetail ?? productDetail));
 
   await page.route('**/api/bff/bootstrap', async (route) => {
     await route.fulfill({
@@ -151,7 +151,12 @@ const routeProductPageApis = async (page, options = {}) => {
       path: options.uploadPath
     });
   });
-  await page.route('**/api/catalog/products?page=1&pageSize=200', async (route) => {
+  await page.route('**/api/catalog/products**', async (route) => {
+    const url = new URL(route.request().url());
+    if (route.request().method() !== 'GET' || url.pathname !== '/api/catalog/products') {
+      await route.continue();
+      return;
+    }
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -343,6 +348,50 @@ test('product edit persists model fields through catalog SKU PATCH', async ({ pa
   await page.locator('[data-role="open-product-drawer"]').first().click();
   await expect(page.locator('#product-edit-drawer [data-field="model-code"]').first()).toHaveValue('12345678901234567890');
   await expect(page.locator('#product-edit-drawer [data-field="model-base-price"]').first()).toHaveValue('99.5');
+});
+
+test('product edit shows saved SKU price tiers and preserves them on SKU PATCH', async ({ page }) => {
+  await installDevSession(page);
+  await routeProductPageApis(page, {
+    productDetail: {
+      ...productDetail,
+      skus: [
+        {
+          ...productDetail.skus[0],
+          priceTiers: [
+            { minQty: 1, maxQty: 4, unitPriceFen: 10000 },
+            { minQty: 5, maxQty: 9, unitPriceFen: 9000 },
+            { minQty: 10, maxQty: null, unitPriceFen: 8000 }
+          ]
+        }
+      ]
+    }
+  });
+
+  await page.goto('/products.html');
+  await expect(page.getByText('旧商品名')).toBeVisible();
+  await page.locator('[data-role="open-product-drawer"]').first().click();
+
+  const tierRows = page.locator('#product-edit-drawer [data-role="tier-row"]');
+  await expect(tierRows).toHaveCount(2);
+  await expect(tierRows.nth(0).locator('[data-field="tier-min-qty"]')).toHaveValue('5');
+  await expect(tierRows.nth(0).locator('[data-field="tier-discount-rate"]')).toHaveValue('10');
+  await expect(tierRows.nth(1).locator('[data-field="tier-min-qty"]')).toHaveValue('10');
+  await expect(tierRows.nth(1).locator('[data-field="tier-discount-rate"]')).toHaveValue('20');
+
+  const skuPatchRequestPromise = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return request.method() === 'PATCH' && url.pathname === `/api/catalog/products/${productId}/skus/${skuId}`;
+  });
+  await page.locator('#product-edit-drawer button[type="submit"]').click();
+  const skuPatchRequest = await skuPatchRequestPromise;
+  const payload = skuPatchRequest.postDataJSON();
+
+  expect(payload.priceTiers).toEqual([
+    { minQty: 1, maxQty: 4, unitPriceFen: 10000 },
+    { minQty: 5, maxQty: 9, unitPriceFen: 9000 },
+    { minQty: 10, maxQty: null, unitPriceFen: 8000 }
+  ]);
 });
 
 test('product row can delete a catalog product', async ({ page }) => {

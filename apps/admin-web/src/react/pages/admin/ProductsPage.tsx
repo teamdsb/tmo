@@ -336,7 +336,34 @@ const toProductUpdatePayload = (product: ProductRecord) => {
   return payload;
 };
 
+const deriveTierPricingFromSkus = (skus: any): ProductTier[] => {
+  if (!Array.isArray(skus)) {
+    return [];
+  }
+  const skuWithTiers = skus.find((sku) => Array.isArray(sku?.priceTiers) && sku.priceTiers.length > 1);
+  if (!skuWithTiers) {
+    return [];
+  }
+  const tiers = skuWithTiers.priceTiers
+    .map((tier: any) => ({
+      minQty: Math.max(1, Math.round(Number(tier?.minQty) || 0)),
+      unitPriceFen: Math.max(0, Math.round(Number(tier?.unitPriceFen) || 0))
+    }))
+    .filter((tier: { minQty: number; unitPriceFen: number }) => tier.minQty >= 1 && tier.unitPriceFen > 0)
+    .sort((left: { minQty: number }, right: { minQty: number }) => left.minQty - right.minQty);
+  const baseTier = tiers[0];
+  if (!baseTier?.unitPriceFen) {
+    return [];
+  }
+  return tiers.slice(1).map((tier: { minQty: number; unitPriceFen: number }) => ({
+    minQty: tier.minQty,
+    discountRate: Number(Math.max(0, ((baseTier.unitPriceFen - tier.unitPriceFen) / baseTier.unitPriceFen) * 100).toFixed(2))
+  }));
+};
+
 const toProductRecordFromDetail = (detail: any, fallback: ProductRecord, index = 0): ProductRecord => {
+  const skus = detail?.skus;
+  const tierPricing = deriveTierPricingFromSkus(skus);
   return normalizeProduct(
     {
       ...fallback,
@@ -344,26 +371,39 @@ const toProductRecordFromDetail = (detail: any, fallback: ProductRecord, index =
       coverImageUrl: detail?.product?.coverImageUrl || fallback.coverImageUrl,
       inventory: fallback.inventory,
       models: detail?.models,
-      skus: detail?.skus,
-      tierPricing: fallback.tierPricing
+      skus,
+      tierPricing: tierPricing.length > 0 ? tierPricing : fallback.tierPricing
     },
     index
   );
 };
 
-const toSkuPayload = (model: ProductModel) => {
+const toSkuPayload = (model: ProductModel, tierPricing: ProductTier[]) => {
   const unitPriceFen = Math.max(0, Math.round((Number(model.basePrice) || 0) * 100));
+  const sortedTiers = [...tierPricing]
+    .map((tier) => ({
+      minQty: Math.max(MIN_TIER_QTY, Math.round(Number(tier.minQty) || 0)),
+      discountRate: Math.max(0, Math.min(MAX_TIER_DISCOUNT_RATE - 1, Number(tier.discountRate) || 0))
+    }))
+    .filter((tier) => tier.discountRate > 0)
+    .sort((left, right) => left.minQty - right.minQty);
+  const priceTiers = [
+    {
+      minQty: 1,
+      maxQty: sortedTiers.length > 0 ? sortedTiers[0].minQty - 1 : null,
+      unitPriceFen
+    },
+    ...sortedTiers.map((tier, index) => ({
+      minQty: tier.minQty,
+      maxQty: sortedTiers[index + 1] ? sortedTiers[index + 1].minQty - 1 : null,
+      unitPriceFen: Math.max(0, Math.round(unitPriceFen * (1 - tier.discountRate / 100)))
+    }))
+  ];
   return {
     name: model.name,
     skuCode: model.code || undefined,
     spec: model.name,
-    priceTiers: [
-      {
-        minQty: 1,
-        maxQty: null,
-        unitPriceFen
-      }
-    ],
+    priceTiers,
     isActive: true
   };
 };
@@ -2363,7 +2403,7 @@ export const ProductsPage = () => {
               throw new Error(serverMessage ? `保存失败：${serverMessage}` : '保存失败，请稍后重试。');
             }
             for (const model of updatedProduct.models) {
-              const payload = toSkuPayload(model);
+              const payload = toSkuPayload(model, updatedProduct.tierPricing);
               const skuResponse = model.id
                 ? await updateCatalogSku(updatedProduct.id, model.id, payload)
                 : await createCatalogSku(updatedProduct.id, payload);
