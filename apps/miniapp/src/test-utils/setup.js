@@ -145,6 +145,15 @@ jest.mock('@tarojs/taro', () => {
     })),
     getLaunchOptionsSync: jest.fn(() => ({ query: {} })),
     getStorageSync: jest.fn((key) => storage.get(key)),
+    getStorage: jest.fn((options) => Promise.resolve({ data: storage.get(options.key) })),
+    removeStorage: jest.fn((options) => {
+      storage.delete(options.key);
+      return Promise.resolve();
+    }),
+    setStorage: jest.fn((options) => {
+      storage.set(options.key, options.data);
+      return Promise.resolve();
+    }),
     removeStorageSync: jest.fn((key) => {
       storage.delete(key);
     }),
