@@ -69,6 +69,25 @@ describe('ProductDetail', () => {
     expect(screen.queryByText('标准配送')).not.toBeInTheDocument()
   })
 
+  it('does not expose raw category ids above the product title', async () => {
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValueOnce({
+      product: {
+        id: 'spu-raw-category',
+        name: '珍珠棉打包袋',
+        categoryId: '16161616 / 1616 / 1616 / 1616 / 161616161616',
+        images: [],
+        description: 'test'
+      },
+      skus: []
+    } as any)
+
+    render(<ProductDetail />)
+
+    expect((await screen.findAllByText('珍珠棉打包袋')).length).toBeGreaterThan(0)
+    expect(screen.queryByText('16161616 / 1616 / 1616 / 1616 / 161616161616')).not.toBeInTheDocument()
+    expect(document.querySelector('.detail-category-tag')).toBeNull()
+  })
+
 
   it('applies shared long-text protection to detail title and tier cards', async () => {
     jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValueOnce({

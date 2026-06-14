@@ -90,7 +90,6 @@ export default function ProductDetail() {
   const isFavorite = selectedSku ? favoriteIdSet.has(selectedSku.id) : false
   const productDescription = detail?.product?.description?.trim() ?? ''
   const displayPrice = useMemo(() => formatStartingPrice(skus), [skus])
-  const categoryLabel = useMemo(() => formatCategoryLabel(detail?.product?.categoryId), [detail?.product?.categoryId])
   const productSummary = useMemo(() => {
     if (productDescription) {
       return truncateText(productDescription, 38)
@@ -245,7 +244,6 @@ export default function ProductDetail() {
         <View className='product-header detail-surface-card u-shrinkable'>
           <View className='detail-header-top'>
             <View className='detail-header-badges'>
-              <Tag size='small' color='primary' className='detail-category-tag'>{categoryLabel}</Tag>
               <Tag size='small' variant='outlined' className='product-meta-tag'>可选规格 {skus.length}</Tag>
             </View>
             <TaroifyButton
@@ -373,24 +371,6 @@ export default function ProductDetail() {
       </FixedView>
     </View>
   )
-}
-
-const formatCategoryLabel = (categoryId?: string | null) => {
-  const raw = typeof categoryId === 'string' ? categoryId.trim() : ''
-  if (!raw) {
-    return '工业商品'
-  }
-
-  return raw
-    .split(/[-_]/)
-    .filter(Boolean)
-    .map((segment) => {
-      if (segment.length <= 2) {
-        return segment.toUpperCase()
-      }
-      return `${segment[0].toUpperCase()}${segment.slice(1)}`
-    })
-    .join(' / ')
 }
 
 const truncateText = (value: string, maxLength: number) => {
