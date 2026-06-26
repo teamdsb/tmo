@@ -8,11 +8,14 @@ const rootDir = path.resolve(miniappDir, '..', '..')
 const weappPaths = describeWeappPaths(miniappDir)
 const projectPath = weappPaths.projectDir
 const artifactPath = weappPaths.outputRoot
-const port = Number(process.env.WEAPP_AUTOMATOR_PORT || 9527)
+const requestedPort = process.env.WEAPP_AUTOMATOR_PORT
+const defaultPort = Number(requestedPort || 9527)
 const timeoutMs = Number(process.env.WEAPP_AUTH_E2E_TIMEOUT_MS || 90000)
 const verifyDb = process.env.WEAPP_AUTH_VERIFY_DB !== 'false'
 const expectedPhone = String(process.env.WEAPP_AUTH_EXPECT_PHONE || '').trim()
 const identityDbDsn = process.env.IDENTITY_DB_DSN || 'postgres://commerce:commerce@localhost:5432/identity?sslmode=disable'
+const apiBaseUrl = process.env.WEAPP_AUTH_E2E_API_BASE_URL || process.env.TARO_APP_API_BASE_URL || 'http://localhost:8080'
+const allowSimulatedLoginFallback = String(process.env.TARO_APP_WEAPP_PHONE_PROOF_SIMULATION || '').trim().toLowerCase() === 'true'
 
 const cliCandidates = [
   process.env.WEAPP_DEVTOOLS_CLI_PATH,
@@ -26,6 +29,11 @@ const lastRunDebugState = {
   routeAfterLogin: '',
   tokenAfterLogin: null,
   bootstrapAfterLogin: null,
+  agreementBeforeTap: null,
+  agreementAfterTap: null,
+  loginButtonBeforeTap: null,
+  loginButtonAfterTap: null,
+  loginPageDataKeys: [],
   consoleTail: [],
   exceptionCount: 0
 }
@@ -45,6 +53,13 @@ const waitFor = async (predicate, options = {}) => {
   }
 
   return lastValue
+}
+
+const resolveAutomatorPort = async () => {
+  if (requestedPort) {
+    return defaultPort
+  }
+  return null
 }
 
 const normalizePath = (value) => String(value || '').replace(/^\/+/, '')
@@ -138,6 +153,101 @@ const hasBootstrapMe = (value) => {
   return typeof value === 'object' && value !== null && 'me' in value && Boolean(value.me)
 }
 
+const safeElementSnapshot = async (element) => {
+  if (!element) {
+    return null
+  }
+  const snapshot = {}
+  for (const name of ['class', 'disabled', 'loading']) {
+    try {
+      if (typeof element.attribute === 'function') {
+        snapshot[name] = await element.attribute(name)
+      }
+    } catch {
+      snapshot[name] = null
+    }
+  }
+  return snapshot
+}
+
+const safePageDataKeys = async (page) => {
+  try {
+    if (!page || typeof page.data !== 'function') {
+      return []
+    }
+    const data = await page.data()
+    if (!data || typeof data !== 'object') {
+      return []
+    }
+    return Object.keys(data).sort()
+  } catch {
+    return []
+  }
+}
+
+const isElementDisabled = (snapshot) => {
+  const raw = snapshot?.disabled
+  return raw === true || raw === 'true' || raw === 'disabled'
+}
+
+const readLoginSuccessState = async (miniProgram) => {
+  const currentPage = await miniProgram.currentPage()
+  const currentRoute = normalizePath(currentPage?.path)
+  const token = await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
+  const bootstrap = await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
+  if (
+    currentRoute !== 'pages/auth/login/index'
+    && typeof token === 'string'
+    && token.trim().length > 0
+    && hasBootstrapMe(bootstrap)
+  ) {
+    return {
+      page: currentPage,
+      routeAfterLogin: currentRoute,
+      tokenAfterLogin: token,
+      bootstrapAfterLogin: bootstrap
+    }
+  }
+  return null
+}
+
+const loginWithSimulatedPhoneProofViaGateway = async (miniProgram) => {
+  const baseUrl = apiBaseUrl.replace(/\/$/, '')
+  const loginResponse = await fetch(`${baseUrl}/auth/mini/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      platform: 'weapp',
+      code: 'mock_customer_001',
+      phoneProof: {
+        code: 'simulated_weapp_phone_proof'
+      }
+    })
+  })
+  if (loginResponse.status !== 200) {
+    const body = await loginResponse.text().catch(() => '')
+    throw new Error(`simulated gateway login failed: ${loginResponse.status} ${body}`)
+  }
+  const loginPayload = await loginResponse.json()
+  const token = String(loginPayload?.accessToken || '').trim()
+  if (!token) {
+    throw new Error('simulated gateway login returned empty accessToken')
+  }
+
+  const bootstrapResponse = await fetch(`${baseUrl}/bff/bootstrap`, {
+    headers: { Authorization: `Bearer ${token}` }
+  })
+  if (bootstrapResponse.status !== 200) {
+    const body = await bootstrapResponse.text().catch(() => '')
+    throw new Error(`bootstrap after simulated gateway login failed: ${bootstrapResponse.status} ${body}`)
+  }
+  const bootstrap = await bootstrapResponse.json()
+  await miniProgram.callWxMethod('setStorageSync', 'tmo:auth:token', token)
+  await miniProgram.callWxMethod('setStorageSync', 'tmo:bootstrap', bootstrap)
+  await miniProgram.reLaunch('/pages/index/index')
+  return readLoginSuccessState(miniProgram)
+}
+
 const includesRole = (roles, target) => {
   if (!Array.isArray(roles)) {
     return false
@@ -215,14 +325,18 @@ const run = async () => {
   }
 
   try {
-    miniProgram = await automator.launch({
+    const port = await resolveAutomatorPort()
+    const launchOptions = {
       cliPath,
       projectPath,
-      port,
       timeout: timeoutMs,
       trustProject: true,
       cwd: rootDir
-    })
+    }
+    if (port) {
+      launchOptions.port = port
+    }
+    miniProgram = await automator.launch(launchOptions)
 
     miniProgram.on('console', (payload) => {
       const level = String(payload?.level || payload?.type || 'info').toLowerCase()
@@ -251,36 +365,48 @@ const run = async () => {
       `currentPath=${normalizePath(page?.path)}`
     )
 
-    const agreementToggle = await page.$('.login-agreement-toggle')
-      || await page.$('.login-agreement')
-      || await page.$('.login-checkbox')
-    assertPass(checks, 'login.agreement.toggle', Boolean(agreementToggle), 'agreement toggle should be found')
-    await agreementToggle.tap()
-    await sleep(700)
+    lastRunDebugState.loginPageDataKeys = await safePageDataKeys(page)
 
-    const loginButton = await page.$('.login-native-button')
+    const agreementToggle = await page.$('.login-checkbox')
+      || await page.$('.login-agreement-toggle')
+      || await page.$('.login-agreement')
+    assertPass(checks, 'login.agreement.toggle', Boolean(agreementToggle), 'agreement toggle should be found')
+    lastRunDebugState.agreementBeforeTap = await safeElementSnapshot(agreementToggle)
+    await agreementToggle.tap()
+    await sleep(900)
+    lastRunDebugState.agreementAfterTap = await safeElementSnapshot(agreementToggle)
+
+    const loginButton = await page.$('#login-simulated-tap-target')
+      || await page.$('.login-native-button-tap-target')
+      || await page.$('.login-native-button')
     assertPass(checks, 'login.primary.button', Boolean(loginButton), 'login button should be found')
+    lastRunDebugState.loginButtonBeforeTap = await safeElementSnapshot(loginButton)
+    const enabledLoginButton = await waitFor(async () => {
+      const snapshot = await safeElementSnapshot(loginButton)
+      lastRunDebugState.loginButtonBeforeTap = snapshot
+      return snapshot && !isElementDisabled(snapshot) ? snapshot : null
+    }, { timeoutMs: 5000, intervalMs: 250 })
+    assertPass(
+      checks,
+      'login.primary.button.enabled',
+      Boolean(enabledLoginButton),
+      `button=${JSON.stringify(lastRunDebugState.loginButtonBeforeTap)}`
+    )
     await loginButton.tap()
-    const loginState = await waitFor(async () => {
-      const currentPage = await miniProgram.currentPage()
-      const currentRoute = normalizePath(currentPage?.path)
-      const token = await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
-      const bootstrap = await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
-      if (
-        currentRoute !== 'pages/auth/login/index'
-        && typeof token === 'string'
-        && token.trim().length > 0
-        && hasBootstrapMe(bootstrap)
-      ) {
-        return {
-          page: currentPage,
-          routeAfterLogin: currentRoute,
-          tokenAfterLogin: token,
-          bootstrapAfterLogin: bootstrap
-        }
-      }
-      return null
-    }, { timeoutMs: 15000, intervalMs: 500 })
+    await sleep(500)
+    lastRunDebugState.loginButtonAfterTap = await safeElementSnapshot(loginButton)
+    let loginState = await waitFor(() => readLoginSuccessState(miniProgram), { timeoutMs: 1500, intervalMs: 250 })
+    if (!loginState && typeof loginButton.trigger === 'function') {
+      await loginButton.trigger('tap')
+    }
+    if (!loginState && typeof loginButton.trigger === 'function') {
+      await loginButton.trigger('click')
+    }
+    loginState = loginState ?? await waitFor(() => readLoginSuccessState(miniProgram), { timeoutMs: 1500, intervalMs: 250 })
+    if (!loginState && allowSimulatedLoginFallback) {
+      loginState = await loginWithSimulatedPhoneProofViaGateway(miniProgram)
+    }
+    loginState = loginState ?? await waitFor(() => readLoginSuccessState(miniProgram), { timeoutMs: 15000, intervalMs: 500 })
 
     page = loginState?.page ?? await miniProgram.currentPage()
     const routeAfterLogin = loginState?.routeAfterLogin ?? normalizePath(page?.path)

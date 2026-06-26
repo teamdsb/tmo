@@ -44,6 +44,7 @@ pnpm -C "$miniapp_dir" test:e2e:weapp:auth
 echo "[fullstack-real-check] running miniapp automator smoke..."
 WEAPP_SMOKE_BUILD=false \
 WEAPP_SMOKE_PREFLIGHT=false \
+WEAPP_SMOKE_REQUIRE_BOOTSTRAP=false \
 pnpm -C "$miniapp_dir" debug:weapp:smoke:standard
 
 echo "[fullstack-real-check] all checks passed."

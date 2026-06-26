@@ -11,6 +11,8 @@ import {
   settledOrdersData
 } from './data'
 import type { CustomerSubFilter } from './types'
+import SafeImage from '../../components/safe-image'
+import salesQrPlaceholder from './assets/sales-qr-placeholder.svg'
 
 type DashboardViewProps = {
   qrCodeUrl: string
@@ -47,7 +49,15 @@ export function DashboardView({
         <View className='sales-dashboard-card'>
           <View className='sales-dashboard-qr-shell'>
             {qrCodeUrl ? (
-              <Image className='sales-dashboard-qr-image' src={qrCodeUrl} mode='aspectFit' />
+              <SafeImage
+                wrapperClassName='sales-dashboard-qr-image-wrapper'
+                className='sales-dashboard-qr-image'
+                src={qrCodeUrl}
+                fallback={salesQrPlaceholder}
+                width='100%'
+                height='100%'
+                mode='aspectFit'
+              />
             ) : (
               <Qr className='sales-dashboard-qr' />
             )}

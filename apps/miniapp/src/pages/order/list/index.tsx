@@ -57,14 +57,14 @@ export default function OrderHistoryApp() {
   }, [activeTab, orders])
 
   return (
-    <View className='page page-compact-navbar'>
+    <View className='page page-compact-navbar order-history-page'>
       <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
         <Navbar.NavLeft onClick={handleBack} />
-        <Navbar.Title>订单记录</Navbar.Title>
+        <Navbar.Title>订单列表</Navbar.Title>
       </Navbar>
 
-      <View>
-        <Tabs value={activeTab} onChange={(value) => setActiveTab(String(value))}>
+      <View className='order-history-body'>
+        <Tabs className='order-history-tabs' value={activeTab} onChange={(value) => setActiveTab(String(value))}>
           {TABS.map((tab) => (
             <Tabs.TabPane key={tab.label} value={tab.label} title={tab.label}>
               <Cell.Group inset>

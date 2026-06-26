@@ -2,6 +2,9 @@
 set -euo pipefail
 
 base_url="${GATEWAY_BASE_URL:-http://localhost:8080}"
+smoke_auth_token="${COMMERCE_SMOKE_AUTH_TOKEN:-}"
+smoke_admin_username="${COMMERCE_SMOKE_ADMIN_USERNAME:-admin}"
+smoke_admin_password="${COMMERCE_SMOKE_ADMIN_PASSWORD:-admin123}"
 allow_empty_products_raw="${MINIAPP_HTTP_SMOKE_ALLOW_EMPTY_PRODUCTS:-false}"
 allow_empty_products="$(printf '%s' "$allow_empty_products_raw" | tr '[:upper:]' '[:lower:]')"
 allow_proxy_failure_raw="${MINIAPP_HTTP_SMOKE_ALLOW_PROXY_FAILURE:-false}"
@@ -32,6 +35,12 @@ request_upload_probe() {
   local url="$1"
   local file_path
   local resp
+  local headers=()
+
+  ensure_smoke_auth_token
+  if [[ -n "$smoke_auth_token" ]]; then
+    headers=(-H "Authorization: Bearer $smoke_auth_token")
+  fi
 
   file_path="$(mktemp "${TMPDIR:-/tmp}/tmo-upload-probe-XXXXXX")"
   node -e '
@@ -40,7 +49,7 @@ const out = process.argv[1]
 const data = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5XfS8AAAAASUVORK5CYII="
 fs.writeFileSync(out, Buffer.from(data, "base64"))
 ' "$file_path"
-  resp="$(curl -sS -X POST -F "file=@${file_path};type=image/png" -w "\n%{http_code}" "$url" || true)"
+  resp="$(curl -sS -X POST "${headers[@]}" -F "file=@${file_path};type=image/png" -w "\n%{http_code}" "$url" || true)"
   rm -f "$file_path"
 
   http_body="$(echo "$resp" | sed '$d')"
@@ -56,6 +65,47 @@ try {
   }
 } catch {}
 ')"
+}
+
+extract_json_token() {
+  printf '%s' "$1" | node -e '
+const fs = require("node:fs")
+const body = fs.readFileSync(0, "utf8")
+try {
+  const payload = JSON.parse(body)
+  if (typeof payload?.accessToken === "string") {
+    process.stdout.write(payload.accessToken.trim())
+  }
+} catch {}
+'
+}
+
+ensure_smoke_auth_token() {
+  if [[ -n "$smoke_auth_token" ]]; then
+    return
+  fi
+
+  local resp
+  local body
+  local code
+  resp="$(curl -sS -X POST \
+    -H 'Content-Type: application/json' \
+    -d "{\"username\":\"$smoke_admin_username\",\"password\":\"$smoke_admin_password\",\"role\":\"ADMIN\"}" \
+    -w "\n%{http_code}" \
+    "${base_url%/}/auth/password/login" || true)"
+  body="$(echo "$resp" | sed '$d')"
+  code="$(echo "$resp" | tail -n1)"
+  if [[ "$code" != "200" ]]; then
+    echo "[miniapp-http-smoke] admin login for authenticated upload failed: ${code}" >&2
+    echo "$body" >&2
+    exit 1
+  fi
+
+  smoke_auth_token="$(extract_json_token "$body")"
+  if [[ -z "$smoke_auth_token" ]]; then
+    echo "[miniapp-http-smoke] admin login returned empty accessToken." >&2
+    exit 1
+  fi
 }
 
 require_200() {

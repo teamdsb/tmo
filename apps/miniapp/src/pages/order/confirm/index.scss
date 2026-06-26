@@ -2,6 +2,11 @@
   background: #fff;
 }
 
+.order-confirm-page .app-navbar .taroify-navbar__content,
+.order-confirm-page .app-navbar .taroify-navbar__placeholder {
+  height: calc(var(--navbar-total-height, 64px) - 12px);
+}
+
 .order-confirm-page .app-navbar {
   font-size: calc(22px * var(--font-size-scale, 1));
 }
@@ -13,18 +18,18 @@
 }
 
 .order-confirm-content {
-  padding: 0 0 calc(148px + env(safe-area-inset-bottom));
-  padding-bottom: calc(148px + constant(safe-area-inset-bottom));
+  padding: 0 0 calc(124px + env(safe-area-inset-bottom));
+  padding-bottom: calc(124px + constant(safe-area-inset-bottom));
   background: #fff;
 }
 
 .order-confirm-section {
-  padding: 24px 22px;
+  padding: 18px 22px;
   background: #fff;
 }
 
 .order-confirm-section-divider {
-  height: 16px;
+  height: 10px;
   background: #f8fafc;
 }
 
@@ -33,7 +38,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .order-confirm-section-title {
@@ -54,9 +59,9 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 22px 20px;
+  padding: 16px 18px;
   border: 1px solid rgb(19 127 236 / 12%);
-  border-radius: 18px;
+  border-radius: 16px;
   background: linear-gradient(180deg, #f2f7ff 0%, #f8fbff 100%);
 }
 
@@ -64,19 +69,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 52px;
-  height: 52px;
+  width: 44px;
+  height: 44px;
   border-radius: 999px;
   background: rgb(19 127 236 / 10%);
   flex-shrink: 0;
 }
 
 .order-confirm-address-icon-dot {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 999px;
   background: #137fec;
-  box-shadow: 0 0 0 8px rgb(19 127 236 / 12%);
+  box-shadow: 0 0 0 7px rgb(19 127 236 / 12%);
 }
 
 .order-confirm-address-content {
@@ -111,18 +116,18 @@
 
 .order-confirm-item {
   display: flex;
-  gap: 18px;
+  gap: 16px;
   align-items: center;
 }
 
 .order-confirm-item + .order-confirm-item {
-  margin-top: 18px;
+  margin-top: 14px;
 }
 
 .order-confirm-item-image {
-  width: 112px;
-  height: 112px;
-  border-radius: 16px;
+  width: 104px;
+  height: 104px;
+  border-radius: 14px;
   overflow: hidden;
   flex-shrink: 0;
   background: #f1f5f9;
@@ -135,7 +140,7 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
 }
 
 .order-confirm-item-copy {
@@ -213,9 +218,9 @@
 
 .order-confirm-remark-input {
   width: 100%;
-  min-height: 118px;
-  margin-top: 14px;
-  padding: 20px 22px;
+  min-height: 92px;
+  margin-top: 12px;
+  padding: 16px 18px;
   border-radius: 14px;
   background: #f8fafc;
   font-size: calc(20px * var(--font-size-scale, 1));
@@ -232,11 +237,11 @@
 }
 
 .order-confirm-price-row + .order-confirm-price-row {
-  margin-top: 16px;
+  margin-top: 10px;
 }
 
 .order-confirm-price-row--total {
-  padding-top: 18px;
+  padding-top: 12px;
   border-top: 1px solid #f1f5f9;
 }
 
@@ -264,18 +269,20 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 20px 22px calc(20px + env(safe-area-inset-bottom));
-  padding-bottom: calc(20px + constant(safe-area-inset-bottom));
+  gap: 14px;
+  padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
+  padding-bottom: calc(14px + constant(safe-area-inset-bottom));
   border-top: 1px solid #f1f5f9;
   background: rgb(255 255 255 / 92%);
   backdrop-filter: blur(12px);
   box-shadow: 0 -8px 24px rgb(15 23 42 / 5%);
+  box-sizing: border-box;
 }
 
 .order-confirm-bottom-summary {
   min-width: 0;
   flex: 1;
+  overflow: hidden;
 }
 
 .order-confirm-bottom-label {
@@ -299,16 +306,17 @@
 }
 
 .order-confirm-bottom-value {
-  font-size: calc(42px * var(--font-size-scale, 1));
+  font-size: calc(36px * var(--font-size-scale, 1));
   font-weight: 700;
   line-height: 1.2;
   color: #137fec;
 }
 
 .order-confirm-submit-button {
+  flex: 0 0 176px;
   min-width: 176px;
-  height: 64px;
-  padding: 0 38px;
+  height: 58px;
+  padding: 0 28px;
   border-radius: 999px;
   font-size: calc(22px * var(--font-size-scale, 1));
   font-weight: 700;

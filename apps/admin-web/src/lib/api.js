@@ -1,16 +1,21 @@
 import {
+  deleteCatalogProductsSpuId,
   deleteCatalogCategoriesCategoryId,
   getCatalogCategories,
   getCatalogProducts,
+  getCatalogProductsSpuId,
   getInquiriesPrice,
   getInquiriesPriceInquiryId,
   getInquiriesPriceInquiryIdMessages,
   getOrders,
   getProductRequests,
   patchCatalogCategoriesCategoryId,
+  patchCatalogProductsSpuId,
+  patchCatalogProductsSpuIdSkusSkuId,
   patchInquiriesPriceInquiryId,
   postCatalogCategories,
   postCatalogProducts,
+  postCatalogProductsSpuIdSkus,
   postInquiriesPriceInquiryIdMessages,
   postShipmentsImportJobs,
   setApiClientConfig
@@ -175,8 +180,37 @@ export const fetchProducts = async (params = {}) => {
   return getCatalogProducts(params);
 };
 
+export const fetchProductDetail = async (spuId) => {
+  return getCatalogProductsSpuId(spuId);
+};
+
 export const createCatalogProduct = async (payload) => {
   return postCatalogProducts(payload);
+};
+
+export const updateCatalogProduct = async (spuId, payload) => {
+  return patchCatalogProductsSpuId(spuId, payload);
+};
+
+export const updateCatalogSku = async (spuId, skuId, payload) => {
+  return patchCatalogProductsSpuIdSkusSkuId(spuId, skuId, payload);
+};
+
+export const createCatalogSku = async (spuId, payload) => {
+  return postCatalogProductsSpuIdSkus(spuId, payload);
+};
+
+export const deleteCatalogProduct = async (spuId) => {
+  return deleteCatalogProductsSpuId(spuId);
+};
+
+export const uploadCatalogProductImage = async (file) => {
+  const form = new FormData();
+  form.append('file', file);
+  return requestRaw('/admin/catalog/products/assets', {
+    method: 'POST',
+    body: form
+  });
 };
 
 export const fetchCatalogCategories = async () => {

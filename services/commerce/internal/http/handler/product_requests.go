@@ -201,6 +201,18 @@ func (h *Handler) PostProductRequestsAssets(c *gin.Context) {
 		return
 	}
 
+	h.uploadMediaAsset(c, "product-requests", "product request asset upload")
+}
+
+func (h *Handler) PostAdminCatalogProductsAssets(c *gin.Context) {
+	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
+		return
+	}
+
+	h.uploadMediaAsset(c, filepath.Join("catalog", "products"), "catalog product asset upload")
+}
+
+func (h *Handler) uploadMediaAsset(c *gin.Context, mediaSubDir string, logContext string) {
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
 		h.writeError(c, http.StatusBadRequest, "invalid_request", "missing file")
@@ -237,12 +249,12 @@ func (h *Handler) PostProductRequestsAssets(c *gin.Context) {
 	localDir := strings.TrimSpace(h.MediaLocalOutputDir)
 	baseURL := strings.TrimSpace(h.MediaPublicBaseURL)
 	if localDir == "" || baseURL == "" {
-		h.logError("product request asset upload is not configured", nil)
+		h.logError(logContext+" is not configured", nil)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "media upload is not configured")
 		return
 	}
 
-	subDir := filepath.Join(localDir, "product-requests")
+	subDir := filepath.Join(localDir, mediaSubDir)
 	if err := os.MkdirAll(subDir, 0o755); err != nil {
 		h.logError("create media directory failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to save file")
@@ -302,7 +314,7 @@ func (h *Handler) PostProductRequestsAssets(c *gin.Context) {
 		return
 	}
 
-	publicURL := strings.TrimRight(baseURL, "/") + "/product-requests/" + fileName
+	publicURL := strings.TrimRight(baseURL, "/") + "/" + strings.Trim(filepath.ToSlash(mediaSubDir), "/") + "/" + fileName
 	c.JSON(http.StatusCreated, oapi.ProductRequestAsset{
 		Url:         publicURL,
 		ContentType: contentType,

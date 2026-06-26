@@ -90,7 +90,7 @@ func TestAdminProductImportJobCreateAndQuery(t *testing.T) {
 	})
 
 	req := multipartProductImportRequest(t, "/admin/products/import-jobs", workbook, imagesZip, "https://cdn.example.com/catalog")
-	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), "ADMIN", nil))
+	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), "BOSS", nil))
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, req)
 
@@ -122,7 +122,7 @@ func TestAdminProductImportJobCreateAndQuery(t *testing.T) {
 	}
 
 	req = httptest.NewRequest(http.MethodGet, "/admin/import-jobs/"+created.Id.String(), nil)
-	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), "ADMIN", nil))
+	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), "BOSS", nil))
 	recorder = httptest.NewRecorder()
 	router.ServeHTTP(recorder, req)
 
@@ -139,6 +139,43 @@ func TestAdminProductImportJobCreateAndQuery(t *testing.T) {
 	}
 	if fetched.ResultFileUrl == nil || *fetched.ResultFileUrl == "" {
 		t.Fatalf("expected resultFileUrl to be set")
+	}
+}
+
+func TestAdminProductImportJobRejectsNonAdminRoles(t *testing.T) {
+	pool := openHandlerTestPool(t)
+	resetCommerceTables(t, pool)
+	queries := db.New(pool)
+
+	ctx := context.Background()
+	category, err := queries.CreateCategory(ctx, db.CreateCategoryParams{
+		Name:     "Fasteners",
+		ParentID: pgtype.UUID{},
+		Sort:     1,
+	})
+	if err != nil {
+		t.Fatalf("create category: %v", err)
+	}
+
+	router, _ := newAuthRouterWithProductImport(pool, queries, t.TempDir(), "http://localhost:8080/assets/media")
+	workbook := buildAdminProductWorkbook(t, [][]string{
+		adminProductWorkbookRow(t, map[string]string{
+			"groupkey":    "sales-job",
+			"skucode":     "SALES-JOB-1",
+			"productname": "Sales Imported Product",
+			"skuname":     "Sales Imported SKU",
+			"categoryid":  category.ID.String(),
+			"pricetiers":  "1-:1000",
+		}),
+	})
+
+	req := multipartProductImportRequest(t, "/admin/products/import-jobs", workbook, nil, "")
+	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), "SALES", nil))
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected status 403, got %d: %s", recorder.Code, recorder.Body.String())
 	}
 }
 

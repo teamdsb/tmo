@@ -404,6 +404,27 @@ export const createMockSupportData = (): { conversations: SupportConversationSum
             asset: null,
             cardPayload: null,
             createdAt: '2026-03-10T09:58:00Z'
+          },
+          {
+            id: 'm-product-1',
+            conversationId: conversation.id,
+            senderType: 'CUSTOMER',
+            senderUserId: conversation.customerUserId,
+            senderRole: 'CUSTOMER',
+            messageType: 'PRODUCT_CARD',
+            textContent: '这个商品还有货吗？',
+            asset: null,
+            cardPayload: {
+              title: '不锈钢六角螺栓 A2',
+              subtitle: '点击查看商品详情',
+              imageUrl: '',
+              linkUrl: '/goods/spu-bolt-a2',
+              orderId: '',
+              productId: 'spu-bolt-a2',
+              status: '',
+              remark: ''
+            },
+            createdAt: '2026-03-10T10:02:00Z'
           }
         ],
         context: {

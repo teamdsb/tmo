@@ -23,7 +23,7 @@ type productRequestExportJobRequest struct {
 }
 
 func (h *Handler) PostAdminProductsImportJobs(c *gin.Context) {
-	claims, ok := h.requireRole(c, "ADMIN")
+	claims, ok := h.requireRole(c, "BOSS", "ADMIN")
 	if !ok {
 		return
 	}
@@ -90,7 +90,7 @@ func (h *Handler) PostAdminProductsImportJobs(c *gin.Context) {
 }
 
 func (h *Handler) PostAdminProductRequestsExportJobs(c *gin.Context) {
-	claims, ok := h.requireRole(c, "ADMIN")
+	claims, ok := h.requireRole(c, "BOSS", "ADMIN")
 	if !ok {
 		return
 	}
@@ -130,7 +130,7 @@ func (h *Handler) PostAdminProductRequestsExportJobs(c *gin.Context) {
 }
 
 func (h *Handler) GetAdminImportJobsJobId(c *gin.Context) {
-	_, ok := h.requireRole(c, "ADMIN")
+	_, ok := h.requireRole(c, "BOSS", "ADMIN")
 	if !ok {
 		return
 	}

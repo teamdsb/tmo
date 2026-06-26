@@ -1,12 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useDidShow } from '@tarojs/taro';
 import { commerceServices } from '../../services/commerce';
 import CategoryPage from './index';
 
 describe('CategoryPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (useDidShow as jest.Mock).mockImplementation(() => {});
     (commerceServices.catalog.listProducts as jest.Mock).mockResolvedValue({
       items: [
         { id: 'prod-1001', name: 'A4 办公用纸', coverImageUrl: '', tags: ['办公'] },
@@ -74,19 +76,21 @@ describe('CategoryPage', () => {
     expect(stylesheet).toContain('white-space: nowrap;');
     expect(stylesheet).toContain('.category-secondary-nav');
     expect(stylesheet).toContain('border-top: 1px solid #eef2f6;');
-    expect(stylesheet).toContain('padding: 20px 0 22px;');
-    expect(stylesheet).toContain('gap: 14px;');
-    expect(stylesheet).toContain('height: 42px;');
+    expect(stylesheet).toContain('padding: 14px 0 16px;');
+    expect(stylesheet).toContain('gap: 12px;');
+    expect(stylesheet).toContain('height: 36px;');
     expect(stylesheet).toContain('padding: 0 18px;');
     expect(stylesheet).toContain('font-size: calc(24rpx + var(--font-size-step-rpx, 0rpx));');
     expect(stylesheet).toContain('.category-primary-label');
     expect(stylesheet).toContain('font-size: calc(18rpx + var(--font-size-step-rpx, 0rpx));');
     expect(stylesheet).toContain('.category-primary-item');
     expect(stylesheet).toContain('min-width: 96px;');
-    expect(stylesheet).toContain('gap: 18px;');
-    expect(stylesheet).toContain('padding: 24px 16px 22px;');
+    expect(stylesheet).toContain('gap: 12px;');
+    expect(stylesheet).toContain('padding: 16px 16px 14px;');
     expect(stylesheet).toContain('width: 36px;');
-    expect(stylesheet).toContain('height: 8px;');
+    expect(stylesheet).toContain('height: 6px;');
+    expect(stylesheet).toContain('padding: 8px 12px calc(24px + var(--tabbar-safe-offset));');
+    expect(stylesheet).toContain('padding: 22px 12px 24px;');
     expect(searchStylesheet).toContain('.home-search-shell');
     expect(searchStylesheet).toContain('.home-search-input');
     expect(searchStylesheet).toContain('.home-search-placeholder');
@@ -154,5 +158,33 @@ describe('CategoryPage', () => {
     fireEvent.click(screen.getByText('铆接件'));
     expect(screen.getByText('开口型抽芯铆钉')).toBeInTheDocument();
     expect(screen.queryByText('镀锌膨胀螺栓')).not.toBeInTheDocument();
+  });
+
+  it('reloads category products when page is shown again', async () => {
+    let didShowCallback: (() => void) | undefined;
+    (useDidShow as jest.Mock).mockImplementation((callback) => {
+      didShowCallback = callback;
+    });
+    (commerceServices.catalog.listProducts as jest.Mock)
+      .mockResolvedValueOnce({
+        items: [{ id: 'cat-before-show', name: '旧分类商品', coverImageUrl: '', tags: ['旧'] }],
+        total: 1
+      })
+      .mockResolvedValueOnce({
+        items: [{ id: 'cat-after-show', name: '刷新后分类商品', coverImageUrl: '', tags: ['新'] }],
+        total: 1
+      });
+
+    render(<CategoryPage />);
+
+    expect(await screen.findByText('旧分类商品')).toBeInTheDocument();
+
+    await act(async () => {
+      didShowCallback?.();
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByText('刷新后分类商品')).toBeInTheDocument();
+    expect(commerceServices.catalog.listProducts).toHaveBeenCalledTimes(2);
   });
 });

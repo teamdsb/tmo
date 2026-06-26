@@ -113,7 +113,7 @@ describe('LoginPage', () => {
     expect(screen.getByText('批发合作伙伴')).toBeInTheDocument()
     expect(screen.getByText('验证身份以访问您的专属价格、账户信息及订单实时进度')).toBeInTheDocument()
     expect(screen.getByText('手机号登录')).toBeInTheDocument()
-    expect(screen.getByText('快速登录').closest('button')).toHaveClass('login-primary')
+    expect(screen.getByText('快速登录').closest('.login-primary')).toBeTruthy()
     expect(screen.getByText('暂不登录').closest('button')).toHaveClass('login-ghost')
     expect(screen.queryByText('测试登录')).not.toBeInTheDocument()
   })
@@ -274,6 +274,54 @@ describe('LoginPage', () => {
       title: '本地模拟账号与 seed 绑定冲突，请重启 identity 容器或更新后端后重试',
       icon: 'none'
     })
+  })
+
+  it('supports weapp simulated phone proof login and home redirect', async () => {
+    const {
+      LoginPage,
+      identityServices,
+      gatewayServices,
+      bootstrapServices,
+      Taro: runtimeTaro
+    } = loadLoginModule({
+      platform: 'weapp',
+      weappPhoneProofSimulation: true
+    })
+    const miniLoginSpy = jest.spyOn(identityServices.auth, 'miniLogin')
+    const bootstrapGetSpy = jest.spyOn(gatewayServices.bootstrap, 'get')
+    const saveBootstrapSpy = jest.spyOn(bootstrapServices, 'saveBootstrap')
+    const savePendingRoleSelectionSpy = jest.spyOn(bootstrapServices, 'savePendingRoleSelection')
+    bootstrapGetSpy.mockResolvedValue({
+      me: {
+        id: 'customer-1',
+        currentRole: 'CUSTOMER',
+        userType: 'customer',
+        roles: ['CUSTOMER'],
+        createdAt: '2026-01-01T00:00:00Z'
+      },
+      permissions: { items: [] },
+      featureFlags: {}
+    })
+
+    await renderLoginPage(LoginPage)
+    await agreeToTerms()
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('快速登录'))
+      await flushPromises()
+    })
+
+    expect(miniLoginSpy).toHaveBeenCalledWith({
+      role: undefined,
+      scene: undefined,
+      bindingToken: undefined,
+      phoneProof: { code: 'simulated_weapp_phone_proof' },
+      codeOverride: 'mock_customer_001'
+    })
+    expect(bootstrapGetSpy).toHaveBeenCalled()
+    expect(saveBootstrapSpy).toHaveBeenCalled()
+    expect(savePendingRoleSelectionSpy).toHaveBeenCalledWith(null)
+    expect(runtimeTaro.switchTab).toHaveBeenCalledWith({ url: '/pages/index/index' })
   })
 
   it('blocks isolated mock customer login until user agrees to terms', async () => {

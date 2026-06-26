@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import Taro from '@tarojs/taro';
+import Taro, { useDidShow } from '@tarojs/taro';
 import ProductCatalogApp from './index';
 import { commerceServices } from '../../services/commerce';
 
@@ -43,6 +43,7 @@ describe('ProductCatalogApp', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
+    (useDidShow as jest.Mock).mockImplementation(() => {});
     (commerceServices.catalog.listProducts as jest.Mock).mockImplementation(async () => ({
       items: defaultProducts,
       total: defaultProducts.length
@@ -236,5 +237,33 @@ describe('ProductCatalogApp', () => {
     await runSearchDebounce();
 
     expect(screen.queryByText('点击发布需求')).not.toBeInTheDocument();
+  });
+
+  it('reloads product list when page is shown again', async () => {
+    let didShowCallback: (() => void) | undefined;
+    (useDidShow as jest.Mock).mockImplementation((callback) => {
+      didShowCallback = callback;
+    });
+    (commerceServices.catalog.listProducts as jest.Mock)
+      .mockResolvedValueOnce({
+        items: [{ id: 'prod-before-show', name: '旧首页商品', coverImageUrl: '', tags: ['旧'] }],
+        total: 1
+      })
+      .mockResolvedValueOnce({
+        items: [{ id: 'prod-after-show', name: '刷新后首页商品', coverImageUrl: '', tags: ['新'] }],
+        total: 1
+      });
+
+    await renderCatalog();
+    await runSearchDebounce();
+    expect(await screen.findByText('旧首页商品')).toBeInTheDocument();
+
+    await act(async () => {
+      didShowCallback?.();
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByText('刷新后首页商品')).toBeInTheDocument();
+    expect(commerceServices.catalog.listProducts).toHaveBeenCalledTimes(2);
   });
 });

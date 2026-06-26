@@ -154,6 +154,10 @@ paths:
           type: string
           format: uuid
       - in: query
+        name: status
+        schema:
+          "$ref": "#/components/schemas/ProductListStatus"
+      - in: query
         name: page
         schema:
           type: integer
@@ -279,6 +283,39 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/SKU"
+  "/catalog/products/{spuId}/skus/{skuId}":
+    patch:
+      tags:
+      - Catalog
+      summary: Update SKU for product
+      parameters:
+      - in: path
+        name: spuId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: path
+        name: skuId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UpdateSkuRequest"
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/SKU"
+        '404':
+          "$ref": "#/components/responses/NotFound"
   "/wishlist":
     get:
       tags:
@@ -751,6 +788,30 @@ paths:
       tags:
       - ProductRequests
       summary: Upload product request asset
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+              - file
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ProductRequestAsset"
+  "/admin/catalog/products/assets":
+    post:
+      tags:
+      - Catalog
+      summary: Upload catalog product image asset
       requestBody:
         required: true
         content:
@@ -1482,6 +1543,8 @@ components:
         categoryId:
           type: string
           format: uuid
+        status:
+          "$ref": "#/components/schemas/ProductStatus"
         tags:
           type: array
           items:
@@ -1490,6 +1553,20 @@ components:
       - id
       - name
       - categoryId
+      - status
+    ProductStatus:
+      type: string
+      enum:
+      - ACTIVE
+      - INACTIVE
+      - DRAFT
+    ProductListStatus:
+      type: string
+      enum:
+      - ACTIVE
+      - INACTIVE
+      - DRAFT
+      - ALL
     CreateCatalogProductRequest:
       type: object
       properties:
@@ -1514,6 +1591,8 @@ components:
           type: array
           items:
             type: string
+        status:
+          "$ref": "#/components/schemas/ProductStatus"
       required:
       - name
       - categoryId
@@ -1543,7 +1622,34 @@ components:
           type: array
           items:
             type: string
+        status:
+          "$ref": "#/components/schemas/ProductStatus"
     CreateSkuRequest:
+      type: object
+      properties:
+        skuCode:
+          type: string
+        name:
+          type: string
+        spec:
+          type: string
+          description: Primary spec label used for matching (e.g., size/grade); store here and avoid duplicating in attributes
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+        priceTiers:
+          type: array
+          items:
+            "$ref": "#/components/schemas/PriceTier"
+        unit:
+          type: string
+        isActive:
+          type: boolean
+          default: true
+      required:
+      - name
+    UpdateSkuRequest:
       type: object
       properties:
         skuCode:
@@ -1658,6 +1764,8 @@ components:
             categoryId:
               type: string
               format: uuid
+            status:
+              "$ref": "#/components/schemas/ProductStatus"
             filterDimensions:
               type: array
               description: For multi-level filtering, e.g., material -> length ->
@@ -1668,6 +1776,7 @@ components:
           - id
           - name
           - categoryId
+          - status
         skus:
           type: array
           items:

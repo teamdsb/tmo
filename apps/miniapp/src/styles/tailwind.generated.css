@@ -121,10 +121,6 @@
   display: inline-flex
 }
 
-.grid {
-  display: grid
-}
-
 .h-1 {
   height: 8rpx
 }
@@ -243,10 +239,6 @@
 
 .animate-spin {
   animation: spin 1s linear infinite
-}
-
-.grid-cols-1 {
-  grid-template-columns: repeat(1, minmax(0, 1fr))
 }
 
 .flex-col {

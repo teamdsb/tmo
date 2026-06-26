@@ -8,7 +8,7 @@ import {
   OrdersOutlined,
   TodoList
 } from '@taroify/icons'
-import type { CreateProductRequest, ProductRequest } from '@tmo/api-client'
+import type { CreateProductRequest, Order, ProductRequest } from '@tmo/api-client'
 import type { BootstrapResponse } from '@tmo/gateway-api-client'
 import { ROUTES } from '../../routes'
 import { clearAuthSession, hasAuthToken, isUnauthorized } from '../../utils/auth'
@@ -24,13 +24,12 @@ import placeholderProductImage from '../../assets/images/placeholder-product.svg
 import { runtimeEnv } from '../../config/runtime-env'
 import {
   INITIAL_ADDRESSES_DATA,
-  INITIAL_ORDERS_DATA,
   PENDING_ORDER_STATUSES,
   createMineMenuItems,
   toOrderBadge
 } from './data'
 import { AddressView, DemandView, MineProfileView, OrderManagementView } from './components'
-import type { MenuItem, MineSubview, OrderBadges, OrderItem } from './types'
+import type { MenuItem, MineOrder, MineSubview, OrderBadges, OrderItem } from './types'
 
 export default function PersonalCenter() {
   const navbarStyle = getNavbarStyle()
@@ -42,6 +41,8 @@ export default function PersonalCenter() {
   const [switchingRole, setSwitchingRole] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState<MineSubview>('profile')
   const [initialOrderTab, setInitialOrderTab] = useState('全部')
+  const [orders, setOrders] = useState<MineOrder[]>([])
+  const [ordersLoading, setOrdersLoading] = useState(false)
   const [demands, setDemands] = useState<ProductRequest[]>([])
   const [editableDisplayName, setEditableDisplayName] = useState('')
   const [editableAvatarUrl, setEditableAvatarUrl] = useState('')
@@ -143,6 +144,31 @@ export default function PersonalCenter() {
     void refreshDemands()
   }, [currentPage, refreshDemands])
 
+  const refreshOrders = useCallback(async () => {
+    if (!bootstrap?.me) {
+      setOrders([])
+      return
+    }
+
+    setOrdersLoading(true)
+    try {
+      const response = await commerceServices.orders.list({ page: 1, pageSize: 20 })
+      setOrders((response.items ?? []).map(toMineOrder))
+    } catch (error) {
+      console.warn('order list refresh failed', error)
+      await Taro.showToast({ title: '加载订单失败', icon: 'none' })
+    } finally {
+      setOrdersLoading(false)
+    }
+  }, [bootstrap?.me])
+
+  useEffect(() => {
+    if (currentPage !== 'orders') {
+      return
+    }
+    void refreshOrders()
+  }, [currentPage, refreshOrders])
+
   const isLoggedIn = Boolean(bootstrap?.me)
   const displayName = editableDisplayName || bootstrap?.me?.displayName?.trim() || (isLoggedIn ? '企业用户' : '未登录')
   const currentRole = getCurrentRole(bootstrap)
@@ -164,46 +190,39 @@ export default function PersonalCenter() {
     ))
   }, [bootstrap?.me?.roles])
 
+  const openOrderList = useCallback((tab = '全部') => {
+    setInitialOrderTab(tab)
+    setCurrentPage('orders')
+  }, [])
+
   const orderItems: OrderItem[] = [
     {
       key: 'pending',
       label: '待处理',
       icon: OrdersOutlined,
       badge: orderBadges.pending,
-      onClick: () => {
-        setInitialOrderTab('待处理')
-        setCurrentPage('orders')
-      }
+      onClick: () => openOrderList('待处理')
     },
     {
       key: 'shipped',
       label: '已发货',
       icon: Logistics,
       badge: orderBadges.shipped,
-      onClick: () => {
-        setInitialOrderTab('已发货')
-        setCurrentPage('orders')
-      }
+      onClick: () => openOrderList('已发货')
     },
     {
       key: 'delivered',
       label: '已送达',
       icon: TodoList,
       badge: orderBadges.delivered,
-      onClick: () => {
-        setInitialOrderTab('已送达')
-        setCurrentPage('orders')
-      }
+      onClick: () => openOrderList('已送达')
     },
     {
       key: 'returns',
       label: '退换货',
       icon: Exchange,
       badge: orderBadges.returns,
-      onClick: () => {
-        setInitialOrderTab('退换货')
-        setCurrentPage('orders')
-      }
+      onClick: () => openOrderList('退换货')
     }
   ]
 
@@ -211,11 +230,12 @@ export default function PersonalCenter() {
     () =>
       createMineMenuItems((page) => {
         if (page === 'orders') {
-          setInitialOrderTab('待收货')
+          openOrderList('全部')
+          return
         }
         setCurrentPage(page)
       }, isSalesUser(bootstrap)),
-    [bootstrap]
+    [bootstrap, openOrderList]
   )
 
   const handleLogout = async () => {
@@ -269,8 +289,9 @@ export default function PersonalCenter() {
 
       {currentPage === 'orders' ? (
         <OrderManagementView
-          orders={INITIAL_ORDERS_DATA}
+          orders={orders}
           initialTab={initialOrderTab}
+          loading={ordersLoading}
           onBack={() => setCurrentPage('profile')}
         />
       ) : null}
@@ -300,10 +321,7 @@ export default function PersonalCenter() {
           debugRoleChoices={debugRoleChoices}
           currentRole={currentRole}
           switchingRole={switchingRole}
-          onOpenOrders={(tab) => {
-            setInitialOrderTab(tab)
-            setCurrentPage('orders')
-          }}
+          onOpenOrders={openOrderList}
           onMenuItemClick={(item) => {
             if (typeof item.action === 'function') {
               item.action()
@@ -320,4 +338,83 @@ export default function PersonalCenter() {
       ) : null}
     </View>
   )
+}
+
+const toMineOrder = (order: Order): MineOrder => {
+  const items = (order.items ?? []).map((item) => {
+    const sku = item.sku as any
+    const product = sku?.product ?? sku?.spu ?? {}
+    const image = product.coverImageUrl
+      ?? product.images?.[0]
+      ?? sku?.coverImageUrl
+      ?? sku?.imageUrl
+      ?? placeholderProductImage
+    const priceFen = typeof item.unitPriceFen === 'number'
+      ? item.unitPriceFen
+      : (sku?.priceTiers?.[0]?.unitPriceFen ?? 0)
+
+    return {
+      name: product.name || sku?.name || '订单商品',
+      specs: sku?.spec || sku?.skuCode || sku?.name || '默认规格',
+      price: priceFen / 100,
+      count: item.qty ?? 0,
+      image
+    }
+  })
+
+  const totalPrice = items.reduce((sum, item) => sum + item.price * item.count, 0)
+
+  return {
+    id: order.id,
+    status: toMineOrderStatus(order.status),
+    date: formatMineOrderDate(order.createdAt),
+    totalPrice,
+    items,
+    tracking: {
+      latest: toMineOrderTracking(order.status),
+      time: ''
+    }
+  }
+}
+
+const toMineOrderStatus = (status: Order['status']): string => {
+  switch (status) {
+    case 'SHIPPED':
+      return '已发货'
+    case 'DELIVERED':
+      return '已送达'
+    case 'PAID':
+      return '待收货'
+    case 'PAY_FAILED':
+      return '退换货'
+    default:
+      return '待处理'
+  }
+}
+
+const toMineOrderTracking = (status: Order['status']): string => {
+  switch (status) {
+    case 'SHIPPED':
+      return '商品已发货，可点击查看物流进度'
+    case 'DELIVERED':
+      return '订单已送达，如有问题可联系售后'
+    case 'PAID':
+      return '订单已支付，等待商家确认与发货安排'
+    default:
+      return '订单已提交，等待商家确认与发货安排'
+  }
+}
+
+const formatMineOrderDate = (value: string): string => {
+  const timestamp = Date.parse(value)
+  if (Number.isNaN(timestamp)) {
+    return value
+  }
+  return new Date(timestamp).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }

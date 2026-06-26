@@ -477,6 +477,7 @@ func seedCatalog(t *testing.T, queries *db.Queries) (db.CatalogSku, db.CatalogSk
 		Images:           []string{cover},
 		Tags:             []string{"steel", "pipe"},
 		FilterDimensions: []string{"material", "length"},
+		Status:           "ACTIVE",
 	})
 	if err != nil {
 		t.Fatalf("create product: %v", err)

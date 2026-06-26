@@ -1,12 +1,14 @@
 .DS_Store
 .env
 .env.*
+!apps/miniapp/.env.production
 *.log
 
 node_modules/
 dist/
 build/
 coverage/
+.superpowers/
 
 # Go
 bin/
@@ -14,6 +16,7 @@ bin/
 *.out
 vendor/
 tmp/air/
+tmp/
 
 # IDE
 .idea/

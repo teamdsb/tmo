@@ -11,6 +11,9 @@ gateway_base_url="${GATEWAY_BASE_URL:-http://localhost:8080}"
 identity_base_url="${IDENTITY_BASE_URL:-http://localhost:8081}"
 commerce_base_url="${COMMERCE_BASE_URL:-http://localhost:8082}"
 payment_base_url="${PAYMENT_BASE_URL:-http://localhost:8083}"
+smoke_auth_token="${COMMERCE_SMOKE_AUTH_TOKEN:-}"
+smoke_admin_username="${COMMERCE_SMOKE_ADMIN_USERNAME:-admin}"
+smoke_admin_password="${COMMERCE_SMOKE_ADMIN_PASSWORD:-admin123}"
 
 if ! command -v curl >/dev/null 2>&1; then
   echo "curl is required for health checks." >&2
@@ -34,7 +37,53 @@ request_with_body() {
 request_upload() {
   local url="$1"
   local file_path="$2"
-  curl -sS -X POST -F "file=@${file_path};type=image/png" -w "\n%{http_code}" "$url" || true
+  local headers=()
+  if [[ -n "$smoke_auth_token" ]]; then
+    headers=(-H "Authorization: Bearer $smoke_auth_token")
+  fi
+  curl -sS -X POST "${headers[@]}" -F "file=@${file_path};type=image/png" -w "\n%{http_code}" "$url" || true
+}
+
+extract_json_token() {
+  local body="$1"
+  printf '%s' "$body" | node -e '
+const fs = require("node:fs")
+const body = fs.readFileSync(0, "utf8")
+try {
+  const payload = JSON.parse(body)
+  if (typeof payload?.accessToken === "string") {
+    process.stdout.write(payload.accessToken.trim())
+  }
+} catch {}
+'
+}
+
+ensure_smoke_auth_token() {
+  if [[ -n "$smoke_auth_token" ]]; then
+    return
+  fi
+
+  local resp
+  local body
+  local code
+  resp="$(curl -sS -X POST \
+    -H 'Content-Type: application/json' \
+    -d "{\"username\":\"$smoke_admin_username\",\"password\":\"$smoke_admin_password\",\"role\":\"ADMIN\"}" \
+    -w "\n%{http_code}" \
+    "${gateway_base_url%/}/auth/password/login" || true)"
+  body="$(echo "$resp" | sed '$d')"
+  code="$(echo "$resp" | tail -n1)"
+  if [[ "$code" != "200" ]]; then
+    echo "[dev-stack-health] admin login for authenticated upload failed: ${code}" >&2
+    echo "$body" >&2
+    return 1
+  fi
+
+  smoke_auth_token="$(extract_json_token "$body")"
+  if [[ -z "$smoke_auth_token" ]]; then
+    echo "[dev-stack-health] admin login returned empty accessToken." >&2
+    return 1
+  fi
 }
 
 write_probe_png() {
@@ -145,6 +194,8 @@ wait_for_upload_and_readback() {
   local media_url=""
   local media_code=""
   local file_path
+
+  ensure_smoke_auth_token
 
   file_path="$(mktemp "${TMPDIR:-/tmp}/tmo-upload-probe-XXXXXX")"
   write_probe_png "$file_path"

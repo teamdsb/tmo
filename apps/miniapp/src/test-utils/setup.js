@@ -52,6 +52,7 @@ const mockComponent = (tag = 'div') => {
 };
 
 const joinClassName = (...values) => values.filter(Boolean).join(' ');
+const mockSalesQrDataUrl = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22256%22%20height%3D%22256%22%3E%3Crect%20width%3D%22256%22%20height%3D%22256%22%20fill%3D%22%23fff%22%2F%3E%3Crect%20x%3D%2232%22%20y%3D%2232%22%20width%3D%2248%22%20height%3D%2248%22%20fill%3D%22%230f172a%22%2F%3E%3Crect%20x%3D%22176%22%20y%3D%2232%22%20width%3D%2248%22%20height%3D%2248%22%20fill%3D%22%230f172a%22%2F%3E%3Crect%20x%3D%2232%22%20y%3D%22176%22%20width%3D%2248%22%20height%3D%2248%22%20fill%3D%22%230f172a%22%2F%3E%3C%2Fsvg%3E';
 
 jest.mock('@tarojs/components', () => {
   const Input = ({ onInput, onChange, confirmType, placeholderClass, ...props }) => (
@@ -144,6 +145,15 @@ jest.mock('@tarojs/taro', () => {
     })),
     getLaunchOptionsSync: jest.fn(() => ({ query: {} })),
     getStorageSync: jest.fn((key) => storage.get(key)),
+    getStorage: jest.fn((options) => Promise.resolve({ data: storage.get(options.key) })),
+    removeStorage: jest.fn((options) => {
+      storage.delete(options.key);
+      return Promise.resolve();
+    }),
+    setStorage: jest.fn((options) => {
+      storage.set(options.key, options.data);
+      return Promise.resolve();
+    }),
     removeStorageSync: jest.fn((key) => {
       storage.delete(key);
     }),
@@ -383,7 +393,7 @@ jest.mock('@tmo/identity-services', () => {
         get: jest.fn(async () => ({})),
         getPermissions: jest.fn(async () => ({})),
         getSalesQrCode: jest.fn(async () => ({
-          qrCodeUrl: 'https://example.com/mock-sales-qr.png',
+          qrCodeUrl: mockSalesQrDataUrl,
           scene: 'mock-sales-bind',
           platform: 'weapp',
           expiresAt: null

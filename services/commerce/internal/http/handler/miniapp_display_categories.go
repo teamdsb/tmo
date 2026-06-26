@@ -82,7 +82,7 @@ func (h *Handler) GetCatalogDisplayCategories(c *gin.Context) {
 }
 
 func (h *Handler) GetAdminMiniappDisplayCategories(c *gin.Context) {
-	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
 		return
 	}
 
@@ -97,7 +97,7 @@ func (h *Handler) GetAdminMiniappDisplayCategories(c *gin.Context) {
 }
 
 func (h *Handler) PutAdminMiniappDisplayCategories(c *gin.Context) {
-	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
 		return
 	}
 

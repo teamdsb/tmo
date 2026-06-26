@@ -1,14 +1,20 @@
-import { startTransition, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
+  createCatalogSku,
   createCatalogCategory,
   createCatalogProduct,
   deleteCatalogCategory,
+  deleteCatalogProduct,
   fetchCatalogCategories,
   fetchMiniappDisplayCategories,
+  fetchProductDetail,
   fetchProducts,
   replaceMiniappDisplayCategories,
-  updateCatalogCategory
+  updateCatalogSku,
+  updateCatalogCategory,
+  updateCatalogProduct,
+  uploadCatalogProductImage
 } from '../../../lib/api';
 import { ensureProtectedPage } from '../../../lib/guard';
 import { AdminTopbar } from '../../layout/AdminTopbar';
@@ -35,6 +41,7 @@ import {
   mergeImportedMockProducts,
   MIN_TIER_QTY,
   MODEL_CLASS_BADGE,
+  MOCK_PRODUCTS_STORAGE_KEY,
   NO_CATEGORY_FILTER,
   normalizeCategoryItem,
   normalizeDisplayCategoryItem,
@@ -50,7 +57,8 @@ import {
   type DisplayCategoryItem,
   type ProductModel,
   type ProductRecord,
-  type ProductTier
+  type ProductTier,
+  writeStoredJson
 } from './products-data';
 
 type PageContext = {
@@ -76,6 +84,10 @@ type ProductDraft = {
   status: ProductStatusValue;
 };
 
+const MAX_MODEL_CODE_DIGITS = 20;
+
+const sanitizeModelCode = (value: string) => value.replace(/\D/g, '').slice(0, MAX_MODEL_CODE_DIGITS);
+
 const readFileAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -89,6 +101,161 @@ const readFileAsDataUrl = (file: File) =>
     reader.onerror = () => reject(new Error('图片读取失败，请重试。'));
     reader.readAsDataURL(file);
   });
+
+type ProductImageUploaderProps = {
+  fileInputTestId?: string;
+  imageRole?: string;
+  onChange: (value: string) => void;
+  onError: (message: string) => void;
+  onPreview?: (value: string) => void;
+  uploadImage?: (file: File) => Promise<string>;
+  uploadTestId?: string;
+  value: string;
+};
+
+const ProductImageUploader = ({
+  fileInputTestId,
+  imageRole,
+  onChange,
+  onError,
+  onPreview,
+  uploadImage,
+  uploadTestId,
+  value
+}: ProductImageUploaderProps) => {
+  const [dragActive, setDragActive] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const applyCoverFile = async (file: File | null | undefined) => {
+    if (!file) {
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      onError('只能上传图片文件。');
+      return;
+    }
+    if (uploading) {
+      return;
+    }
+    try {
+      setUploading(true);
+      const imageUrl = uploadImage ? await uploadImage(file) : await readFileAsDataUrl(file);
+      onChange(imageUrl);
+      onError('');
+    } catch (error) {
+      onError(error instanceof Error ? error.message : '图片上传失败，请稍后重试。');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const resetImage = () => {
+    onChange('');
+    onError('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="space-y-2 text-sm text-slate-700">
+      <div className="flex items-center justify-between">
+        <span>封面图</span>
+        {value ? (
+          <button
+            className="text-xs font-medium text-slate-500 transition-colors hover:text-red-600"
+            onClick={resetImage}
+            type="button"
+          >
+            移除图片
+          </button>
+        ) : null}
+      </div>
+      <input
+        ref={fileInputRef}
+        accept="image/*"
+        className="hidden"
+        data-testid={fileInputTestId}
+        name="coverImageFile"
+        onChange={(event) => void applyCoverFile(event.target.files?.[0])}
+        type="file"
+      />
+      <button
+        className={`group relative flex min-h-44 w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed px-4 py-5 text-center transition ${
+          dragActive
+            ? 'border-primary bg-primary/5'
+            : 'border-slate-300 bg-slate-50 hover:border-primary/60 hover:bg-slate-50/80'
+        }`}
+        data-testid={uploadTestId}
+        onClick={() => fileInputRef.current?.click()}
+        onDragEnter={(event) => {
+          event.preventDefault();
+          setDragActive(true);
+        }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setDragActive(true);
+        }}
+        onDragLeave={(event) => {
+          event.preventDefault();
+          if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) {
+            return;
+          }
+          setDragActive(false);
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          setDragActive(false);
+          void applyCoverFile(event.dataTransfer.files?.[0]);
+        }}
+        type="button"
+      >
+        {value ? (
+          <>
+            <img
+              alt="封面图预览"
+              className="absolute inset-0 h-full w-full object-cover"
+              data-role={imageRole}
+              onClick={(event) => {
+                if (!onPreview) {
+                  return;
+                }
+                event.stopPropagation();
+                onPreview(value);
+              }}
+              src={value}
+            />
+            <div className="absolute inset-0 bg-slate-900/35" />
+            {onPreview ? (
+              <span
+                className="absolute right-3 top-3 z-10 rounded bg-slate-900/70 px-2 py-1 text-xs font-medium text-white shadow-sm"
+                data-role="open-image-preview"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onPreview(value);
+                }}
+              >
+                查看大图
+              </span>
+            ) : null}
+            <div className="relative z-10 rounded-full bg-white/92 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm">
+              {uploading ? '图片上传中...' : '重新拖入图片或点击更换'}
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="material-symbols-outlined mb-2 text-4xl text-slate-400 transition-colors group-hover:text-primary">
+              add_photo_alternate
+            </span>
+            <span className="text-sm font-semibold text-slate-800">{uploading ? '图片上传中...' : '拖动图片到这里即可添加'}</span>
+            <span className="mt-1 text-xs text-slate-500">也可点击选择本地图片，支持常见图片格式</span>
+          </>
+        )}
+      </button>
+    </div>
+  );
+};
 
 const cloneProduct = (product: ProductRecord): ProductRecord => ({
   ...product,
@@ -147,6 +314,125 @@ const toCategoryPayload = (item: CategoryItem) => ({
   parentId: item.parentId || null
 });
 
+const toProductUpdatePayload = (product: ProductRecord) => {
+  const coverImageUrl = product.coverImageUrl.trim();
+  const payload: {
+    categoryId?: string;
+    coverImageUrl: string | null;
+    description: string | null;
+    images: string[];
+    name: string;
+    status: ProductStatusValue;
+  } = {
+    name: product.name,
+    description: product.description.trim() || null,
+    coverImageUrl: coverImageUrl || null,
+    images: coverImageUrl ? [coverImageUrl] : [],
+    status: product.status
+  };
+  if (product.categoryId) {
+    payload.categoryId = product.categoryId;
+  }
+  return payload;
+};
+
+const deriveTierPricingFromSkus = (skus: any): ProductTier[] => {
+  if (!Array.isArray(skus)) {
+    return [];
+  }
+  const skuWithTiers = skus.find((sku) => Array.isArray(sku?.priceTiers) && sku.priceTiers.length > 1);
+  if (!skuWithTiers) {
+    return [];
+  }
+  const tiers = skuWithTiers.priceTiers
+    .map((tier: any) => ({
+      minQty: Math.max(1, Math.round(Number(tier?.minQty) || 0)),
+      unitPriceFen: Math.max(0, Math.round(Number(tier?.unitPriceFen) || 0))
+    }))
+    .filter((tier: { minQty: number; unitPriceFen: number }) => tier.minQty >= 1 && tier.unitPriceFen > 0)
+    .sort((left: { minQty: number }, right: { minQty: number }) => left.minQty - right.minQty);
+  const baseTier = tiers[0];
+  if (!baseTier?.unitPriceFen) {
+    return [];
+  }
+  return tiers.slice(1).map((tier: { minQty: number; unitPriceFen: number }) => ({
+    minQty: tier.minQty,
+    discountRate: Number(Math.max(0, ((baseTier.unitPriceFen - tier.unitPriceFen) / baseTier.unitPriceFen) * 100).toFixed(2))
+  }));
+};
+
+const toProductRecordFromDetail = (detail: any, fallback: ProductRecord, index = 0): ProductRecord => {
+  const skus = detail?.skus;
+  const tierPricing = deriveTierPricingFromSkus(skus);
+  return normalizeProduct(
+    {
+      ...fallback,
+      ...(detail?.product || {}),
+      coverImageUrl: detail?.product?.coverImageUrl || fallback.coverImageUrl,
+      inventory: fallback.inventory,
+      models: detail?.models,
+      skus,
+      tierPricing: tierPricing.length > 0 ? tierPricing : fallback.tierPricing
+    },
+    index
+  );
+};
+
+const toSkuPayload = (model: ProductModel, tierPricing: ProductTier[]) => {
+  const unitPriceFen = Math.max(0, Math.round((Number(model.basePrice) || 0) * 100));
+  const sortedTiers = [...tierPricing]
+    .map((tier) => ({
+      minQty: Math.max(MIN_TIER_QTY, Math.round(Number(tier.minQty) || 0)),
+      discountRate: Math.max(0, Math.min(MAX_TIER_DISCOUNT_RATE - 1, Number(tier.discountRate) || 0))
+    }))
+    .filter((tier) => tier.discountRate > 0)
+    .sort((left, right) => left.minQty - right.minQty);
+  const priceTiers = [
+    {
+      minQty: 1,
+      maxQty: sortedTiers.length > 0 ? sortedTiers[0].minQty - 1 : null,
+      unitPriceFen
+    },
+    ...sortedTiers.map((tier, index) => ({
+      minQty: tier.minQty,
+      maxQty: sortedTiers[index + 1] ? sortedTiers[index + 1].minQty - 1 : null,
+      unitPriceFen: Math.max(0, Math.round(unitPriceFen * (1 - tier.discountRate / 100)))
+    }))
+  ];
+  return {
+    name: model.name,
+    skuCode: model.code || undefined,
+    spec: model.name,
+    priceTiers,
+    isActive: true
+  };
+};
+
+const extractResponseMessage = (response: unknown) => {
+  const data = (response as { data?: { message?: unknown } } | null)?.data;
+  return typeof data?.message === 'string' && data.message.trim() ? data.message.trim() : '';
+};
+
+const readProductIdFromUrl = () => {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+  return String(new URLSearchParams(window.location.search).get('productId') || '').trim();
+};
+
+const syncProductIdToUrl = (productId: string) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const url = new URL(window.location.href);
+  if (productId) {
+    url.searchParams.set('productId', productId);
+  } else {
+    url.searchParams.delete('productId');
+  }
+  window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+};
+
 const ToastMessage = ({ toast }: { toast: ToastState }) => {
   if (!toast) {
     return null;
@@ -180,9 +466,10 @@ type CreateProductModalProps = {
   onClose: () => void;
   onSubmit: (draft: ProductDraft) => Promise<void>;
   open: boolean;
+  uploadImage?: (file: File) => Promise<string>;
 };
 
-const CreateProductModal = ({ categories, onClose, onSubmit, open }: CreateProductModalProps) => {
+const CreateProductModal = ({ categories, onClose, onSubmit, open, uploadImage }: CreateProductModalProps) => {
   const [draft, setDraft] = useState<ProductDraft>({
     name: '',
     categoryId: '',
@@ -192,26 +479,7 @@ const CreateProductModal = ({ categories, onClose, onSubmit, open }: CreateProdu
     description: ''
   });
   const [errorMessage, setErrorMessage] = useState('');
-  const [dragActive, setDragActive] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  const applyCoverFile = async (file: File | null | undefined) => {
-    if (!file) {
-      return;
-    }
-    if (!file.type.startsWith('image/')) {
-      setErrorMessage('只能上传图片文件。');
-      return;
-    }
-    try {
-      const dataUrl = await readFileAsDataUrl(file);
-      setDraft((current) => ({ ...current, coverImageUrl: dataUrl }));
-      setErrorMessage('');
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '图片读取失败，请稍后重试。');
-    }
-  };
 
   useEffect(() => {
     if (!open) {
@@ -226,11 +494,7 @@ const CreateProductModal = ({ categories, onClose, onSubmit, open }: CreateProdu
       description: ''
     });
     setErrorMessage('');
-    setDragActive(false);
     setSubmitting(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
   }, [open]);
 
   if (!open) {
@@ -339,80 +603,12 @@ const CreateProductModal = ({ categories, onClose, onSubmit, open }: CreateProdu
               </select>
             </label>
           </div>
-          <div className="space-y-2 text-sm text-slate-700">
-            <div className="flex items-center justify-between">
-              <span>封面图</span>
-              {draft.coverImageUrl ? (
-                <button
-                  className="text-xs font-medium text-slate-500 transition-colors hover:text-red-600"
-                  onClick={() => {
-                    setDraft((current) => ({ ...current, coverImageUrl: '' }));
-                    if (fileInputRef.current) {
-                      fileInputRef.current.value = '';
-                    }
-                  }}
-                  type="button"
-                >
-                  移除图片
-                </button>
-              ) : null}
-            </div>
-            <input
-              ref={fileInputRef}
-              accept="image/*"
-              className="hidden"
-              name="coverImageFile"
-              onChange={(event) => void applyCoverFile(event.target.files?.[0])}
-              type="file"
-            />
-            <button
-              className={`group relative flex min-h-44 w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed px-4 py-5 text-center transition ${
-                dragActive
-                  ? 'border-primary bg-primary/5'
-                  : 'border-slate-300 bg-slate-50 hover:border-primary/60 hover:bg-slate-50/80'
-              }`}
-              onClick={() => fileInputRef.current?.click()}
-              onDragEnter={(event) => {
-                event.preventDefault();
-                setDragActive(true);
-              }}
-              onDragOver={(event) => {
-                event.preventDefault();
-                setDragActive(true);
-              }}
-              onDragLeave={(event) => {
-                event.preventDefault();
-                if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                  return;
-                }
-                setDragActive(false);
-              }}
-              onDrop={(event) => {
-                event.preventDefault();
-                setDragActive(false);
-                void applyCoverFile(event.dataTransfer.files?.[0]);
-              }}
-              type="button"
-            >
-              {draft.coverImageUrl ? (
-                <>
-                  <img alt="封面图预览" className="absolute inset-0 h-full w-full object-cover" src={draft.coverImageUrl} />
-                  <div className="absolute inset-0 bg-slate-900/35" />
-                  <div className="relative z-10 rounded-full bg-white/92 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm">
-                    重新拖入图片或点击更换
-                  </div>
-                </>
-              ) : (
-                <>
-                  <span className="material-symbols-outlined mb-2 text-4xl text-slate-400 transition-colors group-hover:text-primary">
-                    add_photo_alternate
-                  </span>
-                  <span className="text-sm font-semibold text-slate-800">拖动图片到这里即可添加</span>
-                  <span className="mt-1 text-xs text-slate-500">也可点击选择本地图片，支持常见图片格式</span>
-                </>
-              )}
-            </button>
-          </div>
+          <ProductImageUploader
+            onChange={(coverImageUrl) => setDraft((current) => ({ ...current, coverImageUrl }))}
+            onError={setErrorMessage}
+            uploadImage={uploadImage}
+            value={draft.coverImageUrl}
+          />
           <label className="block space-y-1 text-sm text-slate-700">
             <span>商品简介</span>
             <textarea
@@ -453,25 +649,32 @@ const CreateProductModal = ({ categories, onClose, onSubmit, open }: CreateProdu
 type ProductEditDrawerProps = {
   categories: CategoryItem[];
   onClose: () => void;
-  onSave: (product: ProductRecord) => void;
+  onSave: (product: ProductRecord) => Promise<void>;
   open: boolean;
   product: ProductRecord | null;
+  uploadImage?: (file: File) => Promise<string>;
 };
 
-const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: ProductEditDrawerProps) => {
+const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadImage }: ProductEditDrawerProps) => {
   const [draft, setDraft] = useState<ProductRecord | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [modelRowKeys, setModelRowKeys] = useState<string[]>([]);
   const [previewUrl, setPreviewUrl] = useState('');
+  const modelRowKeyCounterRef = useRef(0);
 
   useEffect(() => {
     if (!open || !product) {
       setDraft(null);
+      setModelRowKeys([]);
       setErrorMessage('');
       setPreviewUrl('');
       return;
     }
     setDraft(cloneProduct(product));
+    setModelRowKeys(product.models.map((_, index) => `${product.id}-model-${index}`));
     setErrorMessage('');
+    setIsSaving(false);
     setPreviewUrl('');
   }, [open, product]);
 
@@ -518,7 +721,7 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
           <div>
             <h3 className="text-lg font-bold text-slate-900">编辑商品</h3>
-            <p className="text-xs text-slate-500">商品编辑当前仍保存为前端会话态。</p>
+            <p className="text-xs text-slate-500">保存后同步更新小程序商品目录。</p>
           </div>
           <button
             className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
@@ -535,9 +738,13 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
           data-role="drawer-form"
           onSubmit={(event) => {
             event.preventDefault();
+            if (isSaving) {
+              return;
+            }
             const name = draft.name.trim();
             const cleanedModels = draft.models
               .map((model, index) => ({
+                id: model.id,
                 name: model.name.trim(),
                 code: model.code.trim().toUpperCase() || `${DEFAULT_MODEL_CODE}-${index + 1}`,
                 basePrice: Math.max(0, Number(model.basePrice) || 0)
@@ -579,7 +786,9 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
               }
             }
 
-            onSave({
+            setIsSaving(true);
+            setErrorMessage('');
+            void onSave({
               ...draft,
               name,
               coverImageUrl: draft.coverImageUrl.trim(),
@@ -587,36 +796,23 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
               inventory: Math.max(0, Math.round(Number(draft.inventory) || 0)),
               models: cleanedModels,
               tierPricing: cleanedTiers
+            }).catch((error) => {
+              setErrorMessage(error instanceof Error ? error.message : '保存失败，请稍后重试。');
+            }).finally(() => {
+              setIsSaving(false);
             });
           }}
         >
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-            <div className="relative flex aspect-video items-center justify-center bg-slate-100">
-              {draft.coverImageUrl ? (
-                <img
-                  alt="商品预览图"
-                  className="h-full w-full cursor-zoom-in object-cover"
-                  data-role="drawer-preview-image"
-                  onClick={() => setPreviewUrl(draft.coverImageUrl)}
-                  src={draft.coverImageUrl}
-                />
-              ) : (
-                <div className="text-sm text-slate-400" data-role="drawer-preview-empty">
-                  暂无图片预览
-                </div>
-              )}
-              {draft.coverImageUrl ? (
-                <button
-                  className="absolute right-2 top-2 rounded bg-slate-900/70 px-2 py-1 text-xs font-medium text-white hover:bg-slate-900"
-                  data-role="open-image-preview"
-                  onClick={() => setPreviewUrl(draft.coverImageUrl)}
-                  type="button"
-                >
-                  查看大图
-                </button>
-              ) : null}
-            </div>
-          </div>
+          <ProductImageUploader
+            fileInputTestId="edit-product-cover-file"
+            imageRole="drawer-preview-image"
+            onChange={(coverImageUrl) => setDraft((current) => current ? { ...current, coverImageUrl } : current)}
+            onError={setErrorMessage}
+            onPreview={setPreviewUrl}
+            uploadImage={uploadImage}
+            uploadTestId="edit-product-cover-upload"
+            value={draft.coverImageUrl}
+          />
 
           <label className="block space-y-1 text-sm text-slate-700">
             <span>商品名称 *</span>
@@ -657,6 +853,9 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
                 className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
                 data-role="add-model-row"
                 onClick={() => {
+                  const nextKey = `${draft.id}-model-new-${modelRowKeyCounterRef.current}`;
+                  modelRowKeyCounterRef.current += 1;
+                  setModelRowKeys((current) => [...current, nextKey]);
                   setDraft((current) => current ? {
                     ...current,
                     models: [
@@ -678,7 +877,7 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
             <div className="space-y-2" data-role="model-list">
               {draft.models.map((model, index) => (
                 <div
-                  key={`${model.code}-${index}`}
+                  key={modelRowKeys[index] || `${draft.id}-model-${index}`}
                   className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-[1.2fr_1fr_1fr_auto]"
                   data-role="model-row"
                 >
@@ -697,7 +896,9 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
                     <input
                       className="w-full rounded-lg border-slate-300 text-sm uppercase focus:border-primary focus:ring-primary"
                       data-field="model-code"
-                      onChange={(event) => updateModel(index, { code: event.target.value })}
+                      inputMode="numeric"
+                      maxLength={MAX_MODEL_CODE_DIGITS}
+                      onChange={(event) => updateModel(index, { code: sanitizeModelCode(event.target.value) })}
                       type="text"
                       value={model.code}
                     />
@@ -719,6 +920,7 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
                     data-role="remove-model-row"
                     disabled={draft.models.length <= 1}
                     onClick={() => {
+                      setModelRowKeys((current) => current.length <= 1 ? current : current.filter((_, itemIndex) => itemIndex !== index));
                       setDraft((current) => current ? {
                         ...current,
                         models: current.models.length <= 1 ? current.models : current.models.filter((_, itemIndex) => itemIndex !== index)
@@ -850,18 +1052,6 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
           </div>
 
           <label className="block space-y-1 text-sm text-slate-700">
-            <span>封面图 URL</span>
-            <input
-              className="w-full rounded-lg border-slate-300 focus:border-primary focus:ring-primary"
-              name="coverImageUrl"
-              onChange={(event) => setDraft((current) => current ? { ...current, coverImageUrl: event.target.value } : current)}
-              placeholder="https://example.com/image.jpg"
-              type="url"
-              value={draft.coverImageUrl}
-            />
-          </label>
-
-          <label className="block space-y-1 text-sm text-slate-700">
             <span>商品简介</span>
             <textarea
               className="w-full rounded-lg border-slate-300 focus:border-primary focus:ring-primary"
@@ -881,13 +1071,18 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product }: Produ
             <button
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
               data-role="cancel-drawer"
+              disabled={isSaving}
               onClick={onClose}
               type="button"
             >
               取消
             </button>
-            <button className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark" type="submit">
-              保存（Mock）
+            <button
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-70"
+              disabled={isSaving}
+              type="submit"
+            >
+              {isSaving ? '保存中...' : '保存'}
             </button>
           </div>
         </form>
@@ -1200,15 +1395,15 @@ const DisplayCategoryManagerModal = ({ items, onClose, onSaveAll, open }: Displa
   return (
     <div
       id="display-category-manager-modal"
-      className="fixed inset-0 z-[93] flex items-center justify-center bg-slate-900/50 p-4"
+      className="fixed inset-0 z-[93] flex items-start justify-center overflow-y-auto bg-slate-900/50 px-4 py-6"
       onClick={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
         }
       }}
     >
-      <div className="w-full max-w-5xl rounded-xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+      <div className="flex max-h-[calc(100vh-3rem)] w-full max-w-5xl flex-col overflow-hidden rounded-xl bg-white shadow-xl">
+        <div className="shrink-0 flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <div>
             <h3 className="text-lg font-bold text-slate-900">展示类目管理</h3>
             <p className="text-xs text-slate-500">管理小程序首页的展示类目（Admin 改动会同步到小程序首页）。</p>
@@ -1222,7 +1417,7 @@ const DisplayCategoryManagerModal = ({ items, onClose, onSaveAll, open }: Displa
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
-        <div className="space-y-5 px-6 py-5">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
           <form
             className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-[2fr_1fr_110px_110px_auto]"
             data-role="create-display-category-form"
@@ -1496,8 +1691,19 @@ export const ProductsPage = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editingProductId, setEditingProductId] = useState('');
+  const [editingProductDetail, setEditingProductDetail] = useState<ProductRecord | null>(null);
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
   const [displayCategoryManagerOpen, setDisplayCategoryManagerOpen] = useState(false);
+  const requestedProductIdRef = useRef(readProductIdFromUrl());
+
+  const loadBackendProducts = useCallback(async () => {
+    const response = await fetchProducts({ page: 1, pageSize: 200, status: 'ALL' });
+    if (response.status !== 200 || !Array.isArray(response.data?.items)) {
+      const serverMessage = extractResponseMessage(response);
+      throw new Error(serverMessage || '商品列表加载失败，请稍后重试。');
+    }
+    return response.data.items.map((item, index) => normalizeProduct(item, index));
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -1559,13 +1765,14 @@ export const ProductsPage = () => {
 
         let loadedProducts: ProductRecord[] = [];
         if (nextContext.mode === 'dev') {
-          const response = await fetchProducts({ page: 1, pageSize: 200 });
-          loadedProducts =
-            response.status === 200 && Array.isArray(response.data?.items)
-              ? response.data.items.map((item, index) => normalizeProduct(item, index))
-              : [];
+          loadedProducts = await loadBackendProducts();
         } else {
-          loadedProducts = mergeImportedMockProducts(buildMockProducts(30));
+          const storedProducts = readStoredJson<unknown[]>(MOCK_PRODUCTS_STORAGE_KEY);
+          const mockBaseProducts = Array.isArray(storedProducts) && storedProducts.length > 0
+            ? storedProducts.map((item, index) => normalizeProduct(item, index))
+            : buildMockProducts(30);
+          loadedProducts = mergeImportedMockProducts(mockBaseProducts);
+          writeStoredJson(MOCK_PRODUCTS_STORAGE_KEY, loadedProducts);
         }
 
         if (!active) {
@@ -1590,7 +1797,49 @@ export const ProductsPage = () => {
     return () => {
       active = false;
     };
+  }, [loadBackendProducts]);
+
+  const refreshBackendProducts = useCallback(async () => {
+    if (context?.mode !== 'dev') {
+      return;
+    }
+    const loadedProducts = await loadBackendProducts();
+    setProducts(loadedProducts);
+  }, [context?.mode, loadBackendProducts]);
+
+  const uploadBackendCatalogProductImage = useCallback(async (file: File) => {
+    const response = await uploadCatalogProductImage(file);
+    const imageUrl = typeof response.data?.url === 'string' ? response.data.url.trim() : '';
+    if (response.status !== 201 || !imageUrl) {
+      const serverMessage = extractResponseMessage(response);
+      throw new Error(serverMessage ? `图片上传失败：${serverMessage}` : '图片上传失败，请稍后重试。');
+    }
+    return imageUrl;
   }, []);
+
+  useEffect(() => {
+    if (context?.mode !== 'dev') {
+      return;
+    }
+
+    let active = true;
+    const refresh = () => {
+      if (!active || document.visibilityState === 'hidden') {
+        return;
+      }
+      void refreshBackendProducts().catch((error) => {
+        console.warn('商品列表刷新失败', error);
+      });
+    };
+
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      active = false;
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [context?.mode, refreshBackendProducts]);
 
   useEffect(() => {
     if (!toast) {
@@ -1642,11 +1891,84 @@ export const ProductsPage = () => {
   const allSelectedOnPage = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
 
   const editingProduct = useMemo(() => {
+    if (editingProductDetail?.id === editingProductId) {
+      return editingProductDetail;
+    }
     return products.find((item) => item.id === editingProductId) || null;
-  }, [editingProductId, products]);
+  }, [editingProductDetail, editingProductId, products]);
 
   const showToast = (message: string, tone: 'error' | 'success' = 'success') => {
     setToast({ message, tone });
+  };
+
+  const openProductEditor = useCallback((product: ProductRecord) => {
+    setEditingProductDetail(null);
+    setEditingProductId(product.id);
+    if (context?.mode !== 'dev') {
+      return;
+    }
+    void fetchProductDetail(product.id).then((response) => {
+      if (response.status !== 200 || !response.data?.product) {
+        const serverMessage = extractResponseMessage(response);
+        throw new Error(serverMessage || '商品详情加载失败。');
+      }
+      setEditingProductDetail(toProductRecordFromDetail(response.data, product));
+    }).catch((error) => {
+      showToast(error instanceof Error ? error.message : '商品详情加载失败。', 'error');
+    });
+  }, [context?.mode]);
+
+  const closeProductEditor = useCallback(() => {
+    if (requestedProductIdRef.current) {
+      requestedProductIdRef.current = '';
+      syncProductIdToUrl('');
+    }
+    setEditingProductId('');
+    setEditingProductDetail(null);
+  }, []);
+
+  useEffect(() => {
+    const requestedProductId = requestedProductIdRef.current;
+    if (loadState !== 'ready' || !requestedProductId || editingProductId === requestedProductId) {
+      return;
+    }
+    const targetProduct = products.find((item) => item.id === requestedProductId);
+    if (!targetProduct) {
+      requestedProductIdRef.current = '';
+      syncProductIdToUrl('');
+      showToast('目标商品不存在或无法访问。', 'error');
+      return;
+    }
+    openProductEditor(targetProduct);
+  }, [editingProductId, loadState, openProductEditor, products]);
+
+  const deleteProduct = async (product: ProductRecord) => {
+    if (!window.confirm(`确定删除商品“${product.name}”吗？`)) {
+      return;
+    }
+    if (context?.mode === 'dev') {
+      const response = await deleteCatalogProduct(product.id);
+      if (response.status !== 204) {
+        const serverMessage = extractResponseMessage(response);
+        showToast(serverMessage ? `删除失败：${serverMessage}` : '删除失败，请稍后重试。', 'error');
+        return;
+      }
+      await refreshBackendProducts();
+      showToast('商品已删除。');
+      return;
+    }
+
+    setProducts((current) => {
+      const nextProducts = current.filter((item) => item.id !== product.id);
+      writeStoredJson(MOCK_PRODUCTS_STORAGE_KEY, nextProducts);
+      return nextProducts;
+    });
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      next.delete(product.id);
+      return next;
+    });
+    showToast('商品已删除。');
   };
 
   const persistCategories = (nextCategories: CategoryItem[], persistLocal: boolean) => {
@@ -1938,16 +2260,28 @@ export const ProductsPage = () => {
                               <ProductStatusBadge status={product.status} />
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <button
-                                className="inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:border-slate-200 hover:bg-slate-50 hover:text-primary"
-                                data-role="open-product-drawer"
-                                onClick={() => setEditingProductId(product.id)}
-                                title="编辑商品"
-                                type="button"
-                              >
-                                <span className="material-symbols-outlined text-base">edit</span>
-                                <span className="hidden sm:inline">编辑</span>
-                              </button>
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  className="inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:border-slate-200 hover:bg-slate-50 hover:text-primary"
+                                  data-role="open-product-drawer"
+                                  onClick={() => openProductEditor(product)}
+                                  title="编辑商品"
+                                  type="button"
+                                >
+                                  <span className="material-symbols-outlined text-base">edit</span>
+                                  <span className="hidden sm:inline">编辑</span>
+                                </button>
+                                <button
+                                  className="inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                                  data-role="delete-product"
+                                  onClick={() => void deleteProduct(product)}
+                                  title="删除商品"
+                                  type="button"
+                                >
+                                  <span className="material-symbols-outlined text-base">delete</span>
+                                  <span className="hidden sm:inline">删除</span>
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -2019,53 +2353,83 @@ export const ProductsPage = () => {
         categories={categories}
         onClose={() => setCreateModalOpen(false)}
         onSubmit={async (draft) => {
-          let nextProduct = createLocalProduct(draft);
-          if (context?.mode === 'dev' && draft.categoryId) {
-            try {
-              const categoryLabel = resolveCategoryLabel(draft.categoryId, categories);
-              const response = await createCatalogProduct({
-                name: draft.name,
-                categoryId: draft.categoryId,
-                description: draft.description || undefined,
-                coverImageUrl: draft.coverImageUrl || undefined,
-                images: draft.coverImageUrl ? [draft.coverImageUrl] : undefined,
-                tags: [categoryLabel, '标准档']
-              });
-              if (response.status !== 201 || !response.data?.product) {
-                throw new Error('后端创建失败，请稍后重试。');
-              }
-              nextProduct = normalizeProduct(
-                {
-                  ...response.data.product,
-                  coverImageUrl: response.data.product.images?.[0] || draft.coverImageUrl,
-                  inventory: draft.inventory,
-                  status: draft.status
-                },
-                products.length
-              );
-            } catch (error) {
-              showToast(`后端创建失败，已在前端暂存。原因：${error instanceof Error ? error.message : '未知错误'}`, 'error');
+          if (context?.mode === 'dev') {
+            if (!draft.categoryId) {
+              throw new Error('请选择类目后再创建商品。');
             }
+            const categoryLabel = resolveCategoryLabel(draft.categoryId, categories);
+            const response = await createCatalogProduct({
+              name: draft.name,
+              categoryId: draft.categoryId,
+              description: draft.description || undefined,
+              coverImageUrl: draft.coverImageUrl || undefined,
+              images: draft.coverImageUrl ? [draft.coverImageUrl] : undefined,
+              status: draft.status,
+              tags: [categoryLabel, '标准档']
+            });
+            if (response.status !== 201 || !response.data?.product) {
+              const serverMessage = extractResponseMessage(response);
+              throw new Error(serverMessage ? `后端创建失败：${serverMessage}` : '后端创建失败，请稍后重试。');
+            }
+            await refreshBackendProducts();
+            setCurrentPage(1);
+            setCreateModalOpen(false);
+            showToast('新建商品成功。');
+            return;
           }
 
-          setProducts((current) => [nextProduct, ...current]);
+          const nextProduct = createLocalProduct(draft);
+          setProducts((current) => {
+            const nextProducts = [nextProduct, ...current];
+            writeStoredJson(MOCK_PRODUCTS_STORAGE_KEY, nextProducts);
+            return nextProducts;
+          });
           setCurrentPage(1);
           setCreateModalOpen(false);
           showToast('新建商品成功。');
         }}
         open={createModalOpen}
+        uploadImage={context?.mode === 'dev' ? uploadBackendCatalogProductImage : undefined}
       />
 
       <ProductEditDrawer
         categories={categories}
-        onClose={() => setEditingProductId('')}
-        onSave={(updatedProduct) => {
-          setProducts((current) => current.map((item) => (item.id === updatedProduct.id ? cloneProduct(updatedProduct) : item)));
-          setEditingProductId('');
+        onClose={closeProductEditor}
+        onSave={async (updatedProduct) => {
+          if (context?.mode === 'dev') {
+            const response = await updateCatalogProduct(updatedProduct.id, toProductUpdatePayload(updatedProduct));
+            if (response.status !== 200 || !response.data?.product) {
+              const serverMessage = extractResponseMessage(response);
+              throw new Error(serverMessage ? `保存失败：${serverMessage}` : '保存失败，请稍后重试。');
+            }
+            for (const model of updatedProduct.models) {
+              const payload = toSkuPayload(model, updatedProduct.tierPricing);
+              const skuResponse = model.id
+                ? await updateCatalogSku(updatedProduct.id, model.id, payload)
+                : await createCatalogSku(updatedProduct.id, payload);
+              if (!((model.id && skuResponse.status === 200) || (!model.id && skuResponse.status === 201))) {
+                const serverMessage = extractResponseMessage(skuResponse);
+                throw new Error(serverMessage ? `型号保存失败：${serverMessage}` : '型号保存失败，请稍后重试。');
+              }
+            }
+            await refreshBackendProducts();
+            closeProductEditor();
+            showToast('保存成功。');
+            return;
+          }
+
+          const nextProduct = cloneProduct(updatedProduct);
+          setProducts((current) => {
+            const nextProducts = current.map((item) => (item.id === updatedProduct.id ? nextProduct : item));
+            writeStoredJson(MOCK_PRODUCTS_STORAGE_KEY, nextProducts);
+            return nextProducts;
+          });
+          closeProductEditor();
           showToast('保存成功。');
         }}
         open={Boolean(editingProductId)}
         product={editingProduct}
+        uploadImage={context?.mode === 'dev' ? uploadBackendCatalogProductImage : undefined}
       />
 
       <CategoryManagerModal

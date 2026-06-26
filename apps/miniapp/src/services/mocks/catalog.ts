@@ -43,6 +43,7 @@ const cloneDetail = (detail: ProductDetail): ProductDetail => ({
     id: detail.product.id,
     name: detail.product.name,
     categoryId: detail.product.categoryId,
+    status: detail.product.status ?? 'ACTIVE',
     description: detail.product.description,
     images: Array.isArray(detail.product.images) ? [...detail.product.images] : [],
     filterDimensions: Array.isArray(detail.product.filterDimensions)
@@ -71,6 +72,7 @@ const toProductSummary = (item: any): ProductSummary => ({
   id: String(item?.id || ''),
   name: String(item?.name || ''),
   categoryId: String(item?.categoryId || ''),
+  status: String(item?.status || 'ACTIVE') as ProductSummary['status'],
   tags: Array.isArray(item?.tags) ? [...item.tags] : [],
   coverImageUrl: item?.coverImageUrl ? String(item.coverImageUrl) : undefined
 })

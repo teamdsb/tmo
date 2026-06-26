@@ -261,6 +261,44 @@ func TestProductRequestAssetsUploadSuccessAndFailure(t *testing.T) {
 	}
 }
 
+func TestAdminCatalogProductAssetUpload(t *testing.T) {
+	tmpDir := t.TempDir()
+	router := newAuthRouterWithMedia(nil, tmpDir, "http://localhost:8080/assets/media")
+
+	pngData := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x00}
+	req := multipartFileRequest(t, http.MethodPost, "/admin/catalog/products/assets", "file", "cover.png", pngData)
+	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), "BOSS", nil))
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	var uploaded oapi.ProductRequestAsset
+	if err := json.Unmarshal(recorder.Body.Bytes(), &uploaded); err != nil {
+		t.Fatalf("decode upload response: %v", err)
+	}
+	if uploaded.ContentType != "image/png" {
+		t.Fatalf("expected image/png, got %s", uploaded.ContentType)
+	}
+	prefix := "http://localhost:8080/assets/media/catalog/products/"
+	if !strings.HasPrefix(uploaded.Url, prefix) {
+		t.Fatalf("expected url prefix %s, got %s", prefix, uploaded.Url)
+	}
+	fileName := strings.TrimPrefix(uploaded.Url, prefix)
+	if _, err := os.Stat(filepath.Join(tmpDir, "catalog", "products", fileName)); err != nil {
+		t.Fatalf("expected catalog product image written to disk: %v", err)
+	}
+
+	req = multipartFileRequest(t, http.MethodPost, "/admin/catalog/products/assets", "file", "cover.png", pngData)
+	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), "SALES", nil))
+	recorder = httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected status 403 for SALES, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+}
+
 func newAuthRouterWithMedia(store *db.Queries, mediaLocalDir, mediaBaseURL string) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := httpx.NewRouter()

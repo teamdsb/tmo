@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,6 +16,11 @@ import (
 )
 
 const defaultDSN = "postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable"
+
+const (
+	defaultMediaLocalOutputDir = "./infra/dev/media"
+	defaultMediaPublicBaseURL  = "http://localhost:8080/assets/media"
+)
 
 func main() {
 	if err := run(); err != nil {
@@ -50,6 +57,9 @@ func run() error {
 	}()
 
 	seed := buildCatalogSeed()
+	if err := ensureCatalogMediaAssets(seed.Products); err != nil {
+		return err
+	}
 
 	categoryCount := 0
 	displayCategoryCount := 0
@@ -155,6 +165,7 @@ type productSeed struct {
 	CategoryID       uuid.UUID
 	CoverImageURL    string
 	Images           []string
+	ImageFileName    string
 	Tags             []string
 	FilterDimensions []string
 	SKUs             []skuSeed
@@ -585,6 +596,7 @@ func buildCatalogSeed() catalogSeed {
 			},
 		},
 	}
+	applyManagedProductImages(products)
 
 	return catalogSeed{
 		Categories: []categorySeed{
@@ -630,6 +642,78 @@ func buildCatalogSeed() catalogSeed {
 			},
 		},
 	}
+}
+
+func applyManagedProductImages(products []productSeed) {
+	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("MEDIA_PUBLIC_BASE_URL")), "/")
+	if baseURL == "" {
+		baseURL = defaultMediaPublicBaseURL
+	}
+	for index := range products {
+		fileName := products[index].ImageFileName
+		if strings.TrimSpace(fileName) == "" {
+			fileName = products[index].ID.String() + ".svg"
+			products[index].ImageFileName = fileName
+		}
+		imageURL := baseURL + "/catalog/v3/" + fileName
+		products[index].CoverImageURL = imageURL
+		products[index].Images = []string{imageURL}
+	}
+}
+
+func ensureCatalogMediaAssets(products []productSeed) error {
+	outputDir := strings.TrimSpace(os.Getenv("MEDIA_LOCAL_OUTPUT_DIR"))
+	if outputDir == "" {
+		outputDir = defaultMediaLocalOutputDir
+	}
+	catalogDir := filepath.Join(outputDir, "catalog", "v3")
+	if err := os.MkdirAll(catalogDir, 0o755); err != nil {
+		return fmt.Errorf("create catalog media dir: %w", err)
+	}
+
+	for _, product := range products {
+		fileName := product.ImageFileName
+		if strings.TrimSpace(fileName) == "" {
+			fileName = product.ID.String() + ".svg"
+		}
+		if err := os.WriteFile(filepath.Join(catalogDir, fileName), []byte(renderProductImageSVG(product)), 0o644); err != nil {
+			return fmt.Errorf("write catalog media %s: %w", fileName, err)
+		}
+	}
+	return nil
+}
+
+func renderProductImageSVG(product productSeed) string {
+	return `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#edf6ff"/>
+    <stop offset="1" stop-color="#dbeafe"/>
+  </linearGradient>
+  <linearGradient id="steel" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#f9fbff"/>
+    <stop offset="0.5" stop-color="#b9c9df"/>
+    <stop offset="1" stop-color="#7890ae"/>
+  </linearGradient>
+  <linearGradient id="shadow" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#9db2ce" stop-opacity="0.22"/>
+    <stop offset="1" stop-color="#4d6f9d" stop-opacity="0.08"/>
+  </linearGradient>
+</defs>
+<rect width="640" height="640" fill="url(#bg)"/>
+<circle cx="512" cy="128" r="92" fill="#bfdbfe" opacity="0.55"/>
+<circle cx="122" cy="516" r="126" fill="#ffffff" opacity="0.5"/>
+<path d="M72 442c116-32 236-45 498-23" stroke="#c7d7ed" stroke-width="42" stroke-linecap="round" opacity="0.42"/>
+<g transform="translate(92 144)">
+  <rect x="22" y="154" width="438" height="66" rx="22" fill="url(#shadow)" transform="rotate(-12 241 187)"/>
+  <rect x="74" y="48" width="392" height="72" rx="20" fill="url(#steel)" transform="rotate(-12 270 84)"/>
+  <rect x="16" y="176" width="430" height="72" rx="22" fill="url(#steel)" transform="rotate(-12 231 212)"/>
+  <rect x="100" y="298" width="350" height="68" rx="20" fill="url(#steel)" transform="rotate(-12 275 332)"/>
+  <circle cx="456" cy="96" r="48" fill="#2f7eea"/>
+  <circle cx="456" cy="96" r="21" fill="#eaf3ff"/>
+  <path d="M84 78h142M52 206h184M132 328h148" stroke="#ffffff" stroke-width="11" stroke-linecap="round" opacity="0.78"/>
+</g>
+</svg>`
 }
 
 func newSKU(

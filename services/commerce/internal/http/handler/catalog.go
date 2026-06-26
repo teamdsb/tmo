@@ -58,7 +58,15 @@ type patchProductRequest struct {
 	Images           *[]string              `json:"images"`
 	Tags             *[]string              `json:"tags"`
 	FilterDimensions *[]string              `json:"filterDimensions"`
+	Status           *string                `json:"status"`
 }
+
+const (
+	productStatusActive   = "ACTIVE"
+	productStatusInactive = "INACTIVE"
+	productStatusDraft    = "DRAFT"
+	productStatusAll      = "ALL"
+)
 
 func (h *Handler) GetCatalogCategories(c *gin.Context) {
 	categories, err := h.CatalogStore.ListCategories(c.Request.Context())
@@ -92,7 +100,7 @@ func (h *Handler) GetCatalogCategoriesCategoryId(c *gin.Context, categoryId type
 }
 
 func (h *Handler) PostCatalogCategories(c *gin.Context) {
-	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
 		return
 	}
 
@@ -132,7 +140,7 @@ func (h *Handler) PostCatalogCategories(c *gin.Context) {
 }
 
 func (h *Handler) PatchCatalogCategoriesCategoryId(c *gin.Context, categoryId types.UUID) {
-	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
 		return
 	}
 
@@ -198,7 +206,7 @@ func (h *Handler) PatchCatalogCategoriesCategoryId(c *gin.Context, categoryId ty
 }
 
 func (h *Handler) DeleteCatalogCategoriesCategoryId(c *gin.Context, categoryId types.UUID) {
-	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
 		return
 	}
 
@@ -238,9 +246,29 @@ func (h *Handler) GetCatalogProducts(c *gin.Context, params oapi.GetCatalogProdu
 		categoryFilter = pgtype.UUID{Bytes: *params.CategoryId, Valid: true}
 	}
 
+	statusFilter := productStatusActive
+	if params.Status != nil {
+		normalizedStatus, ok := normalizeProductListStatus(string(*params.Status))
+		if !ok {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "status must be ACTIVE, INACTIVE, DRAFT, or ALL")
+			return
+		}
+		statusFilter = normalizedStatus
+	}
+	var statusParam *string
+	if statusFilter != productStatusAll {
+		statusParam = productStatusPtr(statusFilter)
+	}
+	if statusFilter != productStatusActive {
+		if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
+			return
+		}
+	}
+
 	products, err := h.CatalogStore.ListProducts(c.Request.Context(), db.ListProductsParams{
 		Q:          params.Q,
 		CategoryID: categoryFilter,
+		Status:     statusParam,
 		Offset:     offset32,
 		Limit:      limit32,
 	})
@@ -253,6 +281,7 @@ func (h *Handler) GetCatalogProducts(c *gin.Context, params oapi.GetCatalogProdu
 	total, err := h.CatalogStore.CountProducts(c.Request.Context(), db.CountProductsParams{
 		Q:          params.Q,
 		CategoryID: categoryFilter,
+		Status:     statusParam,
 	})
 	if err != nil {
 		h.logError("count products failed", err)
@@ -274,7 +303,7 @@ func (h *Handler) GetCatalogProducts(c *gin.Context, params oapi.GetCatalogProdu
 }
 
 func (h *Handler) PostCatalogProducts(c *gin.Context) {
-	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
 		return
 	}
 
@@ -295,6 +324,15 @@ func (h *Handler) PostCatalogProducts(c *gin.Context) {
 	images := derefStringSlice(request.Images)
 	tags := derefStringSlice(request.Tags)
 	filters := derefStringSlice(request.FilterDimensions)
+	status := productStatusDraft
+	if request.Status != nil {
+		var ok bool
+		status, ok = normalizeProductStatus(string(*request.Status))
+		if !ok {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "status must be ACTIVE, INACTIVE, or DRAFT")
+			return
+		}
+	}
 
 	product, err := h.CatalogStore.CreateProduct(c.Request.Context(), db.CreateProductParams{
 		Name:             request.Name,
@@ -304,6 +342,7 @@ func (h *Handler) PostCatalogProducts(c *gin.Context) {
 		Images:           images,
 		Tags:             tags,
 		FilterDimensions: filters,
+		Status:           status,
 	})
 	if err != nil {
 		h.logError("create product failed", err)
@@ -331,6 +370,11 @@ func (h *Handler) GetCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 		h.logError("get product failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to fetch product")
 		return
+	}
+	if product.Status != productStatusActive {
+		if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
+			return
+		}
 	}
 
 	skus, err := h.CatalogStore.ListSkusByProduct(c.Request.Context(), product.ID)
@@ -365,7 +409,7 @@ func (h *Handler) GetCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 }
 
 func (h *Handler) PatchCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
-	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
 		return
 	}
 
@@ -381,7 +425,8 @@ func (h *Handler) PatchCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 		!request.CoverImageURL.Set &&
 		request.Images == nil &&
 		request.Tags == nil &&
-		request.FilterDimensions == nil {
+		request.FilterDimensions == nil &&
+		request.Status == nil {
 		h.writeError(c, http.StatusBadRequest, "invalid_request", "at least one field must be provided")
 		return
 	}
@@ -444,6 +489,16 @@ func (h *Handler) PatchCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 		copy(filterDimensions, *request.FilterDimensions)
 	}
 
+	status := existing.Status
+	if request.Status != nil {
+		var ok bool
+		status, ok = normalizeProductStatus(*request.Status)
+		if !ok {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "status must be ACTIVE, INACTIVE, or DRAFT")
+			return
+		}
+	}
+
 	product, err := h.CatalogStore.UpdateProduct(c.Request.Context(), db.UpdateProductParams{
 		ID:               uuid.UUID(spuId),
 		Name:             name,
@@ -453,6 +508,7 @@ func (h *Handler) PatchCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 		Images:           images,
 		Tags:             tags,
 		FilterDimensions: filterDimensions,
+		Status:           status,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -496,7 +552,7 @@ func (h *Handler) PatchCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 }
 
 func (h *Handler) DeleteCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
-	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
 		return
 	}
 
@@ -514,8 +570,103 @@ func (h *Handler) DeleteCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 	c.Status(http.StatusNoContent)
 }
 
+func (h *Handler) PatchCatalogProductsSpuIdSkusSkuId(c *gin.Context, spuId types.UUID, skuId types.UUID) {
+	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
+		return
+	}
+
+	var request oapi.UpdateSkuRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
+		return
+	}
+	name := strings.TrimSpace(request.Name)
+	if name == "" {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "name is required")
+		return
+	}
+
+	existingSkus, err := h.CatalogStore.ListSkusByIDs(c.Request.Context(), []uuid.UUID{uuid.UUID(skuId)})
+	if err != nil {
+		h.logError("get sku failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update sku")
+		return
+	}
+	if len(existingSkus) == 0 || existingSkus[0].ProductID != uuid.UUID(spuId) {
+		h.writeError(c, http.StatusNotFound, "not_found", "sku not found")
+		return
+	}
+
+	attributes := map[string]string{}
+	if request.Attributes != nil {
+		attributes = *request.Attributes
+	}
+	spec := ""
+	if request.Spec != nil {
+		spec = strings.TrimSpace(*request.Spec)
+	}
+	if spec == "" {
+		if value, ok := attributes["spec"]; ok {
+			spec = strings.TrimSpace(value)
+		}
+	}
+	delete(attributes, "spec")
+	var specPtr *string
+	if spec != "" {
+		specPtr = &spec
+	}
+	attributesJSON, err := json.Marshal(attributes)
+	if err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid attributes")
+		return
+	}
+
+	isActive := true
+	if request.IsActive != nil {
+		isActive = *request.IsActive
+	}
+
+	sku, err := h.CatalogStore.UpdateSku(c.Request.Context(), db.UpdateSkuParams{
+		ID:         uuid.UUID(skuId),
+		SkuCode:    request.SkuCode,
+		Name:       name,
+		Spec:       specPtr,
+		Attributes: attributesJSON,
+		Unit:       request.Unit,
+		IsActive:   isActive,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			h.writeError(c, http.StatusNotFound, "not_found", "sku not found")
+			return
+		}
+		h.logError("update sku failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update sku")
+		return
+	}
+
+	if _, err := h.CatalogStore.DeletePriceTiersBySku(c.Request.Context(), sku.ID); err != nil {
+		h.logError("delete price tiers failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update sku")
+		return
+	}
+	tiers, ok := h.createPriceTiers(c, sku.ID, derefPriceTiers(request.PriceTiers))
+	if !ok {
+		return
+	}
+
+	response, err := skuFromModel(sku, tiers)
+	if err != nil {
+		h.logError("map sku failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update sku")
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 func (h *Handler) PostCatalogProductsSpuIdSkus(c *gin.Context, spuId types.UUID) {
-	if _, ok := h.requireRole(c, "ADMIN"); !ok {
+	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
 		return
 	}
 
@@ -573,27 +724,9 @@ func (h *Handler) PostCatalogProductsSpuIdSkus(c *gin.Context, spuId types.UUID)
 		return
 	}
 
-	tiers := make([]db.CatalogPriceTier, 0, len(derefPriceTiers(request.PriceTiers)))
-	for _, tier := range derefPriceTiers(request.PriceTiers) {
-		minQty := clampInt32(tier.MinQty)
-		var maxQty *int32
-		if tier.MaxQty != nil {
-			value := clampInt32(*tier.MaxQty)
-			maxQty = &value
-		}
-		unitPrice := sharedmoney.FromInt64(tier.UnitPriceFen)
-		createdTier, err := h.CatalogStore.CreatePriceTier(c.Request.Context(), db.CreatePriceTierParams{
-			SkuID:        sku.ID,
-			MinQty:       minQty,
-			MaxQty:       maxQty,
-			UnitPriceFen: unitPrice.Int64(),
-		})
-		if err != nil {
-			h.logError("create price tier failed", err)
-			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to create sku")
-			return
-		}
-		tiers = append(tiers, createdTier)
+	tiers, ok := h.createPriceTiers(c, sku.ID, derefPriceTiers(request.PriceTiers))
+	if !ok {
+		return
 	}
 
 	response, err := skuFromModel(sku, tiers)
@@ -604,6 +737,32 @@ func (h *Handler) PostCatalogProductsSpuIdSkus(c *gin.Context, spuId types.UUID)
 	}
 
 	c.JSON(http.StatusCreated, response)
+}
+
+func (h *Handler) createPriceTiers(c *gin.Context, skuID uuid.UUID, priceTiers []oapi.PriceTier) ([]db.CatalogPriceTier, bool) {
+	tiers := make([]db.CatalogPriceTier, 0, len(priceTiers))
+	for _, tier := range priceTiers {
+		minQty := clampInt32(tier.MinQty)
+		var maxQty *int32
+		if tier.MaxQty != nil {
+			value := clampInt32(*tier.MaxQty)
+			maxQty = &value
+		}
+		unitPrice := sharedmoney.FromInt64(tier.UnitPriceFen)
+		createdTier, err := h.CatalogStore.CreatePriceTier(c.Request.Context(), db.CreatePriceTierParams{
+			SkuID:        skuID,
+			MinQty:       minQty,
+			MaxQty:       maxQty,
+			UnitPriceFen: unitPrice.Int64(),
+		})
+		if err != nil {
+			h.logError("create price tier failed", err)
+			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to create sku")
+			return nil, false
+		}
+		tiers = append(tiers, createdTier)
+	}
+	return tiers, true
 }
 
 func (h *Handler) logError(message string, err error) {
@@ -645,6 +804,7 @@ func productSummaryFromModel(product db.CatalogProduct) oapi.ProductSummary {
 		Id:         product.ID,
 		Name:       product.Name,
 		CategoryId: product.CategoryID,
+		Status:     oapi.ProductStatus(product.Status),
 	}
 	if product.CoverImageUrl != nil {
 		summary.CoverImageUrl = product.CoverImageUrl
@@ -674,6 +834,7 @@ func productDetailFromModel(product db.CatalogProduct, skus []db.CatalogSku, tie
 	detail.Product.Name = product.Name
 	detail.Product.CategoryId = product.CategoryID
 	detail.Product.Description = product.Description
+	detail.Product.Status = oapi.ProductStatus(product.Status)
 
 	tiersBySku := map[uuid.UUID][]db.CatalogPriceTier{}
 	for _, tier := range tiers {
@@ -690,6 +851,30 @@ func productDetailFromModel(product db.CatalogProduct, skus []db.CatalogSku, tie
 	}
 
 	return detail, nil
+}
+
+func normalizeProductStatus(value string) (string, bool) {
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case productStatusActive, "ENABLED", "ON_SHELF":
+		return productStatusActive, true
+	case productStatusInactive, "DISABLED", "OFF_SHELF":
+		return productStatusInactive, true
+	case productStatusDraft:
+		return productStatusDraft, true
+	default:
+		return "", false
+	}
+}
+
+func normalizeProductListStatus(value string) (string, bool) {
+	if strings.EqualFold(strings.TrimSpace(value), productStatusAll) {
+		return productStatusAll, true
+	}
+	return normalizeProductStatus(value)
+}
+
+func productStatusPtr(value string) *string {
+	return &value
 }
 
 func skuFromModel(sku db.CatalogSku, tiers []db.CatalogPriceTier) (oapi.SKU, error) {

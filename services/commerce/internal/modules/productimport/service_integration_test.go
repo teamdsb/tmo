@@ -236,6 +236,7 @@ func TestServiceRunNextUpdatesExistingSkuBySkuCode(t *testing.T) {
 		Images:           []string{"https://old.example.com/old.png"},
 		Tags:             []string{"legacy"},
 		FilterDimensions: []string{"material"},
+		Status:           "ACTIVE",
 	})
 	if err != nil {
 		t.Fatalf("seed product: %v", err)

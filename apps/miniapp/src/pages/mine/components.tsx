@@ -18,9 +18,9 @@ import { orderTrackingRoute } from '../../routes'
 import { navigateTo } from '../../utils/navigation'
 import type {
   IconComponent,
+  MineOrder,
   MenuItem,
   MockAddress,
-  MockOrder,
   OrderItem
 } from './types'
 
@@ -98,18 +98,23 @@ function MenuLink({ item, compact = false, titleOverride, descriptionOverride, i
 type SubviewHeaderProps = {
   title: string
   onBack: () => void
+  showMore?: boolean
 }
 
-function SubviewHeader({ title, onBack }: SubviewHeaderProps) {
+function SubviewHeader({ title, onBack, showMore = true }: SubviewHeaderProps) {
   return (
     <View className='mine-modern-subview-header sticky top-0 z-20 flex items-center justify-between px-4 py-3'>
       <View className='mine-modern-icon-btn flex h-9 w-9 items-center justify-center rounded-full' onClick={onBack}>
         <ArrowLeft className='text-lg mine-modern-text' />
       </View>
       <Text className='text-base font-bold mine-modern-text'>{title}</Text>
-      <View className='mine-modern-icon-btn flex h-9 w-9 items-center justify-center rounded-full'>
-        <MoreOutlined className='text-base mine-modern-subtle' />
-      </View>
+      {showMore ? (
+        <View className='mine-modern-icon-btn flex h-9 w-9 items-center justify-center rounded-full'>
+          <MoreOutlined className='text-base mine-modern-subtle' />
+        </View>
+      ) : (
+        <View className='mine-modern-header-spacer' />
+      )}
     </View>
   )
 }
@@ -390,12 +395,13 @@ export function DemandView({ demands, onBack, onCreateDemand }: DemandViewProps)
 }
 
 type OrderManagementViewProps = {
-  orders: MockOrder[]
+  orders: MineOrder[]
   initialTab: string
+  loading?: boolean
   onBack: () => void
 }
 
-export function OrderManagementView({ orders, initialTab, onBack }: OrderManagementViewProps) {
+export function OrderManagementView({ orders, initialTab, loading = false, onBack }: OrderManagementViewProps) {
   const [activeTab, setActiveTab] = useState(initialTab)
   const orderTabs = ['全部', '待处理', '已发货', '已送达', '退换货']
   const filteredOrders = useMemo(() => {
@@ -409,9 +415,9 @@ export function OrderManagementView({ orders, initialTab, onBack }: OrderManagem
   }, [activeTab, orders])
 
   return (
-    <View className='mine-modern-subview'>
-      <SubviewHeader title='订单列表' onBack={onBack} />
-      <View className='mine-modern-subview-scroll no-scrollbar'>
+    <View className='mine-modern-subview mine-order-subview'>
+      <SubviewHeader title='订单列表' onBack={onBack} showMore={false} />
+      <View className='mine-modern-subview-scroll mine-order-subview-scroll no-scrollbar'>
         <View className='mine-order-tabs mb-4'>
           {orderTabs.map((tab) => (
             <View
@@ -469,7 +475,9 @@ export function OrderManagementView({ orders, initialTab, onBack }: OrderManagem
         )) : (
           <View className='mine-order-empty rounded-3xl p-6 text-center'>
             <RecordsOutlined className='mine-order-empty-icon text-2xl' />
-            <Text className='mine-order-empty-title mt-3 block text-sm font-semibold'>当前状态下暂无订单</Text>
+            <Text className='mine-order-empty-title mt-3 block text-sm font-semibold'>
+              {loading ? '正在加载订单...' : '当前状态下暂无订单'}
+            </Text>
             <Text className='mine-order-empty-copy mt-1 block text-xs'>切换其他状态或返回首页继续浏览商品</Text>
           </View>
         )}

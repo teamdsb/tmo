@@ -23,6 +23,7 @@ export default function SafeImage({
 
   return (
     <Image
+      key={resolvedSrc}
       {...rest}
       src={resolvedSrc}
       onError={(...args: any[]) => {

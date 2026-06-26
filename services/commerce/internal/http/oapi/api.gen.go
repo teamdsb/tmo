@@ -94,6 +94,21 @@ const (
 	PriceInquiryStatusRESPONDED PriceInquiryStatus = "RESPONDED"
 )
 
+// Defines values for ProductListStatus.
+const (
+	ProductListStatusACTIVE   ProductListStatus = "ACTIVE"
+	ProductListStatusALL      ProductListStatus = "ALL"
+	ProductListStatusDRAFT    ProductListStatus = "DRAFT"
+	ProductListStatusINACTIVE ProductListStatus = "INACTIVE"
+)
+
+// Defines values for ProductStatus.
+const (
+	ProductStatusACTIVE   ProductStatus = "ACTIVE"
+	ProductStatusDRAFT    ProductStatus = "DRAFT"
+	ProductStatusINACTIVE ProductStatus = "INACTIVE"
+)
+
 // Defines values for TicketStatus.
 const (
 	TicketStatusCLOSED     TicketStatus = "CLOSED"
@@ -251,6 +266,7 @@ type CreateCatalogProductRequest struct {
 	FilterDimensions *[]string          `json:"filterDimensions,omitempty"`
 	Images           *[]string          `json:"images,omitempty"`
 	Name             string             `json:"name"`
+	Status           *ProductStatus     `json:"status,omitempty"`
 	Tags             *[]string          `json:"tags,omitempty"`
 }
 
@@ -519,9 +535,13 @@ type ProductDetail struct {
 		Id               openapi_types.UUID `json:"id"`
 		Images           *[]string          `json:"images,omitempty"`
 		Name             string             `json:"name"`
+		Status           ProductStatus      `json:"status"`
 	} `json:"product"`
 	Skus []SKU `json:"skus"`
 }
+
+// ProductListStatus defines model for ProductListStatus.
+type ProductListStatus string
 
 // ProductRequest defines model for ProductRequest.
 type ProductRequest struct {
@@ -546,12 +566,16 @@ type ProductRequestAsset struct {
 	Url         string `json:"url"`
 }
 
+// ProductStatus defines model for ProductStatus.
+type ProductStatus string
+
 // ProductSummary defines model for ProductSummary.
 type ProductSummary struct {
 	CategoryId    openapi_types.UUID `json:"categoryId"`
 	CoverImageUrl *string            `json:"coverImageUrl,omitempty"`
 	Id            openapi_types.UUID `json:"id"`
 	Name          string             `json:"name"`
+	Status        ProductStatus      `json:"status"`
 	Tags          *[]string          `json:"tags,omitempty"`
 }
 
@@ -597,6 +621,7 @@ type UpdateCatalogProductRequest struct {
 	FilterDimensions *[]string           `json:"filterDimensions,omitempty"`
 	Images           *[]string           `json:"images,omitempty"`
 	Name             *string             `json:"name,omitempty"`
+	Status           *ProductStatus      `json:"status,omitempty"`
 	Tags             *[]string           `json:"tags,omitempty"`
 }
 
@@ -618,6 +643,19 @@ type UpdatePriceInquiryRequest struct {
 
 // UpdatePriceInquiryRequestStatus defines model for UpdatePriceInquiryRequest.Status.
 type UpdatePriceInquiryRequestStatus string
+
+// UpdateSkuRequest defines model for UpdateSkuRequest.
+type UpdateSkuRequest struct {
+	Attributes *map[string]string `json:"attributes,omitempty"`
+	IsActive   *bool              `json:"isActive,omitempty"`
+	Name       string             `json:"name"`
+	PriceTiers *[]PriceTier       `json:"priceTiers,omitempty"`
+	SkuCode    *string            `json:"skuCode,omitempty"`
+
+	// Spec Primary spec label used for matching (e.g., size/grade); store here and avoid duplicating in attributes
+	Spec *string `json:"spec,omitempty"`
+	Unit *string `json:"unit,omitempty"`
+}
 
 // UpdateTrackingRequest defines model for UpdateTrackingRequest.
 type UpdateTrackingRequest struct {
@@ -659,6 +697,11 @@ type Conflict = ErrorResponse
 // NotFound defines model for NotFound.
 type NotFound = ErrorResponse
 
+// PostAdminCatalogProductsAssetsMultipartBody defines parameters for PostAdminCatalogProductsAssets.
+type PostAdminCatalogProductsAssetsMultipartBody struct {
+	File openapi_types.File `json:"file"`
+}
+
 // GetAfterSalesTicketsParams defines parameters for GetAfterSalesTickets.
 type GetAfterSalesTicketsParams struct {
 	Status   *TicketStatus       `form:"status,omitempty" json:"status,omitempty"`
@@ -687,6 +730,7 @@ type PatchCartItemsItemIdJSONBody struct {
 type GetCatalogProductsParams struct {
 	Q          *string             `form:"q,omitempty" json:"q,omitempty"`
 	CategoryId *openapi_types.UUID `form:"categoryId,omitempty" json:"categoryId,omitempty"`
+	Status     *ProductListStatus  `form:"status,omitempty" json:"status,omitempty"`
 	Page       *int                `form:"page,omitempty" json:"page,omitempty"`
 	PageSize   *int                `form:"pageSize,omitempty" json:"pageSize,omitempty"`
 }
@@ -750,6 +794,9 @@ type PostAddressesJSONRequestBody = CreateUserAddressRequest
 // PatchAddressesAddressIdJSONRequestBody defines body for PatchAddressesAddressId for application/json ContentType.
 type PatchAddressesAddressIdJSONRequestBody = UpdateUserAddressRequest
 
+// PostAdminCatalogProductsAssetsMultipartRequestBody defines body for PostAdminCatalogProductsAssets for multipart/form-data ContentType.
+type PostAdminCatalogProductsAssetsMultipartRequestBody PostAdminCatalogProductsAssetsMultipartBody
+
 // PostAfterSalesTicketsJSONRequestBody defines body for PostAfterSalesTickets for application/json ContentType.
 type PostAfterSalesTicketsJSONRequestBody = CreateAfterSalesTicket
 
@@ -785,6 +832,9 @@ type PatchCatalogProductsSpuIdJSONRequestBody = UpdateCatalogProductRequest
 
 // PostCatalogProductsSpuIdSkusJSONRequestBody defines body for PostCatalogProductsSpuIdSkus for application/json ContentType.
 type PostCatalogProductsSpuIdSkusJSONRequestBody = CreateSkuRequest
+
+// PatchCatalogProductsSpuIdSkusSkuIdJSONRequestBody defines body for PatchCatalogProductsSpuIdSkusSkuId for application/json ContentType.
+type PatchCatalogProductsSpuIdSkusSkuIdJSONRequestBody = UpdateSkuRequest
 
 // PostInquiriesPriceJSONRequestBody defines body for PostInquiriesPrice for application/json ContentType.
 type PostInquiriesPriceJSONRequestBody = CreatePriceInquiry
@@ -827,6 +877,9 @@ type ServerInterface interface {
 	// Update current user's address
 	// (PATCH /addresses/{addressId})
 	PatchAddressesAddressId(c *gin.Context, addressId openapi_types.UUID)
+	// Upload catalog product image asset
+	// (POST /admin/catalog/products/assets)
+	PostAdminCatalogProductsAssets(c *gin.Context)
 	// List after-sales tickets
 	// (GET /after-sales/tickets)
 	GetAfterSalesTickets(c *gin.Context, params GetAfterSalesTicketsParams)
@@ -902,6 +955,9 @@ type ServerInterface interface {
 	// Create SKU for product
 	// (POST /catalog/products/{spuId}/skus)
 	PostCatalogProductsSpuIdSkus(c *gin.Context, spuId openapi_types.UUID)
+	// Update SKU for product
+	// (PATCH /catalog/products/{spuId}/skus/{skuId})
+	PatchCatalogProductsSpuIdSkusSkuId(c *gin.Context, spuId openapi_types.UUID, skuId openapi_types.UUID)
 	// List price inquiries
 	// (GET /inquiries/price)
 	GetInquiriesPrice(c *gin.Context, params GetInquiriesPriceParams)
@@ -1050,6 +1106,21 @@ func (siw *ServerInterfaceWrapper) PatchAddressesAddressId(c *gin.Context) {
 	}
 
 	siw.Handler.PatchAddressesAddressId(c, addressId)
+}
+
+// PostAdminCatalogProductsAssets operation middleware
+func (siw *ServerInterfaceWrapper) PostAdminCatalogProductsAssets(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAdminCatalogProductsAssets(c)
 }
 
 // GetAfterSalesTickets operation middleware
@@ -1532,6 +1603,14 @@ func (siw *ServerInterfaceWrapper) GetCatalogProducts(c *gin.Context) {
 		return
 	}
 
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "status", c.Request.URL.Query(), &params.Status)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter status: %w", err), http.StatusBadRequest)
+		return
+	}
+
 	// ------------- Optional query parameter "page" -------------
 
 	err = runtime.BindQueryParameter("form", true, false, "page", c.Request.URL.Query(), &params.Page)
@@ -1673,6 +1752,41 @@ func (siw *ServerInterfaceWrapper) PostCatalogProductsSpuIdSkus(c *gin.Context) 
 	}
 
 	siw.Handler.PostCatalogProductsSpuIdSkus(c, spuId)
+}
+
+// PatchCatalogProductsSpuIdSkusSkuId operation middleware
+func (siw *ServerInterfaceWrapper) PatchCatalogProductsSpuIdSkusSkuId(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "spuId" -------------
+	var spuId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "spuId", c.Param("spuId"), &spuId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter spuId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "skuId" -------------
+	var skuId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "skuId", c.Param("skuId"), &skuId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter skuId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PatchCatalogProductsSpuIdSkusSkuId(c, spuId, skuId)
 }
 
 // GetInquiriesPrice operation middleware
@@ -2235,6 +2349,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.POST(options.BaseURL+"/addresses", wrapper.PostAddresses)
 	router.DELETE(options.BaseURL+"/addresses/:addressId", wrapper.DeleteAddressesAddressId)
 	router.PATCH(options.BaseURL+"/addresses/:addressId", wrapper.PatchAddressesAddressId)
+	router.POST(options.BaseURL+"/admin/catalog/products/assets", wrapper.PostAdminCatalogProductsAssets)
 	router.GET(options.BaseURL+"/after-sales/tickets", wrapper.GetAfterSalesTickets)
 	router.POST(options.BaseURL+"/after-sales/tickets", wrapper.PostAfterSalesTickets)
 	router.GET(options.BaseURL+"/after-sales/tickets/:ticketId", wrapper.GetAfterSalesTicketsTicketId)
@@ -2260,6 +2375,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/catalog/products/:spuId", wrapper.GetCatalogProductsSpuId)
 	router.PATCH(options.BaseURL+"/catalog/products/:spuId", wrapper.PatchCatalogProductsSpuId)
 	router.POST(options.BaseURL+"/catalog/products/:spuId/skus", wrapper.PostCatalogProductsSpuIdSkus)
+	router.PATCH(options.BaseURL+"/catalog/products/:spuId/skus/:skuId", wrapper.PatchCatalogProductsSpuIdSkusSkuId)
 	router.GET(options.BaseURL+"/inquiries/price", wrapper.GetInquiriesPrice)
 	router.POST(options.BaseURL+"/inquiries/price", wrapper.PostInquiriesPrice)
 	router.GET(options.BaseURL+"/inquiries/price/:inquiryId", wrapper.GetInquiriesPriceInquiryId)

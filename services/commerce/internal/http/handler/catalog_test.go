@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
+	"github.com/teamdsb/tmo/services/commerce/internal/http/middleware"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/catalog"
 )
@@ -30,12 +31,14 @@ type stubStore struct {
 	updateCategoryFn        func(context.Context, db.UpdateCategoryParams) (db.CatalogCategory, error)
 	deleteCategoryFn        func(context.Context, uuid.UUID) (int64, error)
 	createSkuFn             func(context.Context, db.CreateSkuParams) (db.CatalogSku, error)
+	updateSkuFn             func(context.Context, db.UpdateSkuParams) (db.CatalogSku, error)
 	listSkusByProductFn     func(context.Context, uuid.UUID) ([]db.CatalogSku, error)
 	listSkusByIDsFn         func(context.Context, []uuid.UUID) ([]db.CatalogSku, error)
 	listSkusBySkuCodeFn     func(context.Context, *string) ([]db.CatalogSku, error)
 	listSkusByNameFn        func(context.Context, string) ([]db.CatalogSku, error)
 	listSkusByNameAndSpecFn func(context.Context, db.ListSkusByNameAndSpecParams) ([]db.CatalogSku, error)
 	createPriceTierFn       func(context.Context, db.CreatePriceTierParams) (db.CatalogPriceTier, error)
+	deletePriceTiersBySkuFn func(context.Context, uuid.UUID) (int64, error)
 	listPriceTiersBySkuFn   func(context.Context, uuid.UUID) ([]db.CatalogPriceTier, error)
 	listPriceTiersBySkusFn  func(context.Context, []uuid.UUID) ([]db.CatalogPriceTier, error)
 }
@@ -124,6 +127,13 @@ func (s *stubStore) CreateSku(ctx context.Context, arg db.CreateSkuParams) (db.C
 	return s.createSkuFn(ctx, arg)
 }
 
+func (s *stubStore) UpdateSku(ctx context.Context, arg db.UpdateSkuParams) (db.CatalogSku, error) {
+	if s.updateSkuFn == nil {
+		return db.CatalogSku{}, pgx.ErrTxClosed
+	}
+	return s.updateSkuFn(ctx, arg)
+}
+
 func (s *stubStore) ListSkusByProduct(ctx context.Context, productID uuid.UUID) ([]db.CatalogSku, error) {
 	if s.listSkusByProductFn == nil {
 		return nil, pgx.ErrTxClosed
@@ -164,6 +174,13 @@ func (s *stubStore) CreatePriceTier(ctx context.Context, arg db.CreatePriceTierP
 		return db.CatalogPriceTier{}, pgx.ErrTxClosed
 	}
 	return s.createPriceTierFn(ctx, arg)
+}
+
+func (s *stubStore) DeletePriceTiersBySku(ctx context.Context, skuID uuid.UUID) (int64, error) {
+	if s.deletePriceTiersBySkuFn == nil {
+		return 0, pgx.ErrTxClosed
+	}
+	return s.deletePriceTiersBySkuFn(ctx, skuID)
 }
 
 func (s *stubStore) ListPriceTiersBySku(ctx context.Context, skuID uuid.UUID) ([]db.CatalogPriceTier, error) {
@@ -234,11 +251,17 @@ func TestGetCatalogProducts_Defaults(t *testing.T) {
 	if !gotList.CategoryID.Valid || gotList.CategoryID.Bytes != categoryID {
 		t.Fatalf("expected category filter %s, got %+v", categoryID.String(), gotList.CategoryID)
 	}
+	if gotList.Status == nil || *gotList.Status != "ACTIVE" {
+		t.Fatalf("expected active product status filter, got %#v", gotList.Status)
+	}
 	if gotCount.Q == nil || *gotCount.Q != q {
 		t.Fatalf("expected count q %q, got %#v", q, gotCount.Q)
 	}
 	if !gotCount.CategoryID.Valid || gotCount.CategoryID.Bytes != categoryID {
 		t.Fatalf("expected count category filter %s, got %+v", categoryID.String(), gotCount.CategoryID)
+	}
+	if gotCount.Status == nil || *gotCount.Status != "ACTIVE" {
+		t.Fatalf("expected active product count status filter, got %#v", gotCount.Status)
 	}
 
 	var response oapi.PagedProductList
@@ -256,6 +279,65 @@ func TestGetCatalogProducts_Defaults(t *testing.T) {
 	}
 	if response.Items[0].CoverImageUrl == nil || *response.Items[0].CoverImageUrl != cover {
 		t.Fatalf("expected cover url %q", cover)
+	}
+}
+
+func TestGetCatalogProducts_AllStatusRequiresAdminAndRemovesStatusFilter(t *testing.T) {
+	var gotList db.ListProductsParams
+	var gotCount db.CountProductsParams
+
+	store := &stubStore{
+		listProductsFn: func(ctx context.Context, arg db.ListProductsParams) ([]db.CatalogProduct, error) {
+			gotList = arg
+			return []db.CatalogProduct{}, nil
+		},
+		countProductsFn: func(ctx context.Context, arg db.CountProductsParams) (int64, error) {
+			gotCount = arg
+			return 0, nil
+		},
+	}
+
+	router := newTestRouter(store)
+	req := httptest.NewRequest(http.MethodGet, "/catalog/products?status=ALL", nil)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", recorder.Code)
+	}
+	if gotList.Status != nil {
+		t.Fatalf("expected all-status list to omit db status filter, got %#v", gotList.Status)
+	}
+	if gotCount.Status != nil {
+		t.Fatalf("expected all-status count to omit db status filter, got %#v", gotCount.Status)
+	}
+}
+
+func TestGetCatalogProductsSpuId_InactiveProductRequiresAdmin(t *testing.T) {
+	productID := uuid.New()
+	store := &stubStore{
+		getProductFn: func(ctx context.Context, id uuid.UUID) (db.CatalogProduct, error) {
+			return db.CatalogProduct{
+				ID:         productID,
+				Name:       "Hidden Product",
+				CategoryID: uuid.New(),
+				Status:     "INACTIVE",
+			}, nil
+		},
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	oapi.RegisterHandlers(router, &Handler{
+		Auth:         middleware.NewAuthenticator(true, "secret", ""),
+		CatalogStore: store,
+	})
+	req := httptest.NewRequest(http.MethodGet, "/catalog/products/"+productID.String(), nil)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status 401, got %d", recorder.Code)
 	}
 }
 

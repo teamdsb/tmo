@@ -152,6 +152,7 @@ type CatalogProduct struct {
 	FilterDimensions []string           `db:"filter_dimensions" json:"filter_dimensions"`
 	CreatedAt        pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	Status           string             `db:"status" json:"status"`
 }
 
 type CatalogSku struct {
