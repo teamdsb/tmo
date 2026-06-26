@@ -610,7 +610,7 @@ export default function SupportChatPage() {
 
   return (
     <View className='page support-chat'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar support-chat__navbar'>
         <Navbar.NavLeft onClick={handleBack} />
         <Navbar.Title>{title}</Navbar.Title>
       </Navbar>
