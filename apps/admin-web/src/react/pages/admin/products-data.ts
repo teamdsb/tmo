@@ -156,8 +156,7 @@ const toStatus = (value: unknown): ProductStatus => {
 const normalizeModelCode = (value: unknown, fallback = DEFAULT_MODEL_CODE) => {
   const code = toText(value, fallback)
     .toUpperCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^A-Z0-9\-_]/g, '');
+    .replace(/\s+/g, '-');
   return code || fallback;
 };
 

@@ -86,7 +86,7 @@ type ProductDraft = {
 
 const MAX_MODEL_CODE_LENGTH = 20;
 
-const sanitizeModelCode = (value: string) => value.replace(/[^0-9a-z]/gi, '').toUpperCase().slice(0, MAX_MODEL_CODE_LENGTH);
+const sanitizeModelCode = (value: string) => value.toUpperCase().slice(0, MAX_MODEL_CODE_LENGTH);
 
 const readFileAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {

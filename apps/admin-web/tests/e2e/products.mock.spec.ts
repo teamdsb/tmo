@@ -80,7 +80,7 @@ test('product edit drawer uses image upload instead of cover URL input', async (
   );
 });
 
-test('product model code input keeps focus while accepting up to 20 alphanumeric characters', async ({ page }) => {
+test('product model code input keeps focus while accepting Chinese and symbols', async ({ page }) => {
   await loginMockBoss(page);
   await page.goto('/products.html', { waitUntil: 'domcontentloaded' });
 
@@ -91,9 +91,9 @@ test('product model code input keeps focus while accepting up to 20 alphanumeric
   await expect(modelCodeInput).toBeVisible();
   await modelCodeInput.fill('');
   await modelCodeInput.focus();
-  await page.keyboard.type('abc12345678901234567890xyz987');
+  await page.keyboard.type('型号-长460*宽240+(a)');
 
-  await expect(modelCodeInput).toHaveValue('ABC12345678901234567');
+  await expect(modelCodeInput).toHaveValue('型号-长460*宽240+(A)');
   await expect(modelCodeInput).toBeFocused();
 });
 
@@ -124,7 +124,7 @@ test('mock product edit persists after saving and reloading', async ({ page }) =
 
   await page.locator('#product-edit-drawer input[name="name"]').fill('保存校验商品');
   const modelCodeInput = page.locator('#product-edit-drawer [data-field="model-code"]').first();
-  await modelCodeInput.fill('sku-abc123');
+  await modelCodeInput.fill('型号-长460*宽240+(a)');
   await page.locator('#product-edit-drawer button[type="submit"]').click();
 
   await expect(page.locator('#product-edit-drawer')).toHaveCount(0);
@@ -133,5 +133,5 @@ test('mock product edit persists after saving and reloading', async ({ page }) =
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.getByText('保存校验商品')).toBeVisible();
   await page.locator('[data-role="open-product-drawer"]').first().click();
-  await expect(page.locator('#product-edit-drawer [data-field="model-code"]').first()).toHaveValue('SKUABC123');
+  await expect(page.locator('#product-edit-drawer [data-field="model-code"]').first()).toHaveValue('型号-长460*宽240+(A)');
 });
