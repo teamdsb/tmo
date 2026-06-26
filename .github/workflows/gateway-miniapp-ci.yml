@@ -139,7 +139,7 @@ jobs:
 
       - name: Setup pnpm
         if: steps.changes.outputs.fullstack_required == 'true'
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10
           run_install: false
@@ -310,7 +310,7 @@ jobs:
 
       - name: Setup pnpm
         if: steps.changes.outputs.fullstack_required == 'true'
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 10
           run_install: false
