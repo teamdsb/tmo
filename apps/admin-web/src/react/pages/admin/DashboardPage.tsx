@@ -368,7 +368,7 @@ const StaticDashboardView = () => {
           </div>
           <div className="mt-4">
             <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Revenue</h3>
-            <p className="text-2xl font-bold text-slate-900 dark:text-white">$48,294</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">¥48,294</p>
           </div>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">

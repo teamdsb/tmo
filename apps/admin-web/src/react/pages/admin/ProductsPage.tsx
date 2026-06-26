@@ -84,9 +84,9 @@ type ProductDraft = {
   status: ProductStatusValue;
 };
 
-const MAX_MODEL_CODE_DIGITS = 20;
+const MAX_MODEL_CODE_LENGTH = 20;
 
-const sanitizeModelCode = (value: string) => value.replace(/\D/g, '').slice(0, MAX_MODEL_CODE_DIGITS);
+const sanitizeModelCode = (value: string) => value.replace(/[^0-9a-z]/gi, '').toUpperCase().slice(0, MAX_MODEL_CODE_LENGTH);
 
 const readFileAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -505,11 +505,6 @@ const CreateProductModal = ({ categories, onClose, onSubmit, open, uploadImage }
     <div
       id="create-product-modal"
       className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/50 p-4"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
-      }}
     >
       <div className="w-full max-w-xl rounded-xl bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
@@ -660,19 +655,23 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [modelRowKeys, setModelRowKeys] = useState<string[]>([]);
+  const [tierRowKeys, setTierRowKeys] = useState<string[]>([]);
   const [previewUrl, setPreviewUrl] = useState('');
   const modelRowKeyCounterRef = useRef(0);
+  const tierRowKeyCounterRef = useRef(0);
 
   useEffect(() => {
     if (!open || !product) {
       setDraft(null);
       setModelRowKeys([]);
+      setTierRowKeys([]);
       setErrorMessage('');
       setPreviewUrl('');
       return;
     }
     setDraft(cloneProduct(product));
     setModelRowKeys(product.models.map((_, index) => `${product.id}-model-${index}`));
+    setTierRowKeys(product.tierPricing.map((_, index) => `${product.id}-tier-${index}`));
     setErrorMessage('');
     setIsSaving(false);
     setPreviewUrl('');
@@ -896,8 +895,8 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
                     <input
                       className="w-full rounded-lg border-slate-300 text-sm uppercase focus:border-primary focus:ring-primary"
                       data-field="model-code"
-                      inputMode="numeric"
-                      maxLength={MAX_MODEL_CODE_DIGITS}
+                      inputMode="text"
+                      maxLength={MAX_MODEL_CODE_LENGTH}
                       onChange={(event) => updateModel(index, { code: sanitizeModelCode(event.target.value) })}
                       type="text"
                       value={model.code}
@@ -945,6 +944,9 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
                 className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
                 data-role="add-tier-row"
                 onClick={() => {
+                  const nextKey = `${draft.id}-tier-new-${tierRowKeyCounterRef.current}`;
+                  tierRowKeyCounterRef.current += 1;
+                  setTierRowKeys((current) => [...current, nextKey]);
                   setDraft((current) => current ? {
                         ...current,
                         tierPricing: [
@@ -970,7 +972,7 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
                 const tierPrice = basePrice > 0 ? basePrice * (1 - tier.discountRate / 100) : 0;
                 return (
                   <div
-                    key={`${tier.minQty}-${index}`}
+                    key={tierRowKeys[index] || `${draft.id}-tier-${index}`}
                     className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-[1fr_1fr_auto]"
                     data-role="tier-row"
                   >
@@ -1008,6 +1010,7 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
                       className="mt-5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50"
                       data-role="remove-tier-row"
                       onClick={() => {
+                        setTierRowKeys((current) => current.filter((_, itemIndex) => itemIndex !== index));
                         setDraft((current) => current ? {
                           ...current,
                           tierPricing: current.tierPricing.filter((_, itemIndex) => itemIndex !== index)

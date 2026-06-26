@@ -28,7 +28,7 @@ describe('ExcelImportConfirmation', () => {
 
     expect((await screen.findAllByText('示例螺栓')).length).toBeGreaterThan(0)
     expect(screen.getByText('参考单价')).toBeInTheDocument()
-    expect(screen.getByText('2')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('2')).toBeInTheDocument()
   })
 
   it('shows the cart action buttons', async () => {
@@ -413,10 +413,12 @@ describe('ExcelImportConfirmation', () => {
     fireEvent.click(screen.getByText('+'))
 
     expect(updateItemQtySpy).toHaveBeenCalledWith('cart-1', 3)
-    expect(await screen.findByText('3')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('3')).toBeInTheDocument()
+    })
   })
 
-  it('supports quick qty change through action sheet', async () => {
+  it('updates cart item qty from free text input', async () => {
     jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({
       items: [
         {
@@ -457,10 +459,11 @@ describe('ExcelImportConfirmation', () => {
         { id: 'sku-bolt-a2-m8', spuId: 'spu-bolt-a2', name: 'M8 x 30', spec: 'M8 x 30', isActive: true }
       ]
     } as any)
-    jest.spyOn(Taro, 'showActionSheet').mockResolvedValueOnce({ tapIndex: 3 } as any)
 
     await renderCart()
-    fireEvent.click(screen.getByText('2'))
+    const qtyInput = screen.getByDisplayValue('2')
+    fireEvent.change(qtyInput, { target: { value: '10' } })
+    fireEvent.blur(qtyInput)
 
     await waitFor(() => {
       expect(updateItemQtySpy).toHaveBeenCalledWith('cart-1', 10)
@@ -586,7 +589,7 @@ describe('ExcelImportConfirmation', () => {
     fireEvent.click(screen.getAllByText('规格')[0])
 
     expect(await screen.findByText('购物车共有 1 件商品')).toBeInTheDocument()
-    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('3')).toBeInTheDocument()
   })
 
   it('removes cart item from card action', async () => {

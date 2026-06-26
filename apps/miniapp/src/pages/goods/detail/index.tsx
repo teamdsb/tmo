@@ -15,7 +15,7 @@ import SafeImage from '../../../components/safe-image'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { matchPriceTier } from '../../../utils/price-tier'
 import { ensureLoggedIn, isUnauthorized } from '../../../utils/auth'
-import { navigateTo, switchTabLike } from '../../../utils/navigation'
+import { switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
 import placeholderProductImage from '../../../assets/images/placeholder-product.svg'
 import { saveSupportComposeIntent } from '../../support/chat/compose-intent'
@@ -78,13 +78,19 @@ export default function ProductDetail() {
   }, [purchaseQty])
 
   const images = useMemo(() => {
-    if (!detail?.product?.images || detail.product.images.length === 0) {
+    const product = detail?.product
+    const validImages = Array.isArray(product?.images)
+      ? product.images.filter((image): image is string => typeof image === 'string' && image.trim().length > 0).map((image) => image.trim())
+      : []
+    const coverImageUrl = getProductCoverImageUrl(product)
+    const imageCandidates = [...validImages, coverImageUrl].filter((image): image is string => Boolean(image))
+    if (imageCandidates.length === 0) {
       return [placeholderProductImage]
     }
-    return detail.product.images
+    return imageCandidates
   }, [detail])
 
-  const skus = detail?.skus ?? []
+  const skus = useMemo(() => detail?.skus ?? [], [detail?.skus])
   const selectedSku = skus.find((sku) => sku.id === selectedSkuId) ?? null
   const favoriteIdSet = useMemo(() => new Set(favoriteSkuIds), [favoriteSkuIds])
   const isFavorite = selectedSku ? favoriteIdSet.has(selectedSku.id) : false
@@ -195,23 +201,28 @@ export default function ProductDetail() {
   }
 
   const handleInquiry = async () => {
-    if (!selectedSku || !detail?.product) {
+    if (!detail?.product) {
       return
     }
     const redirectTo = typeof spuId === 'string' ? goodsDetailRoute(spuId) : undefined
     const allowed = await ensureLoggedIn({ redirect: true, redirectTo })
     if (!allowed) return
+    const intent = {
+      kind: 'product_inquiry',
+      productId: detail.product.id,
+      productName: detail.product.name,
+      productImageUrl: images[0] === placeholderProductImage ? undefined : images[0],
+      message: `咨询报价：${detail.product.name}`
+    } as const
     try {
-      await saveSupportComposeIntent({
-        kind: 'product_inquiry',
-        productId: detail.product.id,
-        productName: detail.product.name,
-        productImageUrl: detail.product.images?.[0] || undefined,
-        message: `咨询报价：${detail.product.name}`
-      })
-      await navigateTo(ROUTES.supportChat)
+      await saveSupportComposeIntent(intent)
     } catch (error) {
-      console.warn('prepare support inquiry failed', error)
+      console.warn('save support inquiry intent failed', error)
+    }
+    try {
+      await openSupportChat()
+    } catch (error) {
+      console.warn('open support inquiry failed', error)
       await Taro.showToast({ title: '打开在线客服失败', icon: 'none' })
     }
   }
@@ -371,6 +382,29 @@ export default function ProductDetail() {
       </FixedView>
     </View>
   )
+}
+
+const getProductCoverImageUrl = (product: ProductDetail['product'] | null | undefined) => {
+  const coverImageUrl = (product as (ProductDetail['product'] & { coverImageUrl?: unknown }) | null | undefined)?.coverImageUrl
+  return typeof coverImageUrl === 'string' && coverImageUrl.trim() ? coverImageUrl.trim() : undefined
+}
+
+const openSupportChat = async () => {
+  try {
+    await Taro.navigateTo({ url: ROUTES.support })
+    return
+  } catch (navigateError) {
+    console.warn('navigate to support failed, trying redirect', navigateError)
+  }
+
+  try {
+    await Taro.redirectTo({ url: ROUTES.support })
+    return
+  } catch (redirectError) {
+    console.warn('redirect to support failed, trying relaunch', redirectError)
+  }
+
+  await Taro.reLaunch({ url: ROUTES.support })
 }
 
 const truncateText = (value: string, maxLength: number) => {

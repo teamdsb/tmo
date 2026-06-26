@@ -1,4 +1,4 @@
-@import "./styles/taroify-core.local.scss";
+@import url("./styles/taroify-core.local.scss");
 @import url("@taroify/icons/van/VanIcon.scss");
 @import url("./styles/taroify-icons.local.scss");
 @import url("@taroify/icons/styles/icon.scss");
@@ -850,7 +850,7 @@
 }
 
 .cart-item-stepper-btn,
-.cart-item-stepper-value {
+.cart-item-stepper-input {
   min-width: 64rpx;
   height: 64rpx;
   display: inline-flex;
@@ -858,8 +858,8 @@
   justify-content: center;
 }
 
-.cart-item-stepper-btn + .cart-item-stepper-value,
-.cart-item-stepper-value + .cart-item-stepper-btn {
+.cart-item-stepper-btn + .cart-item-stepper-input,
+.cart-item-stepper-input + .cart-item-stepper-btn {
   border-left: 1px solid #dbe3ef;
 }
 
@@ -874,15 +874,19 @@
 }
 
 .cart-item-stepper-btn--disabled,
-.cart-item-stepper-value--disabled {
+.cart-item-stepper-input--disabled {
   color: #cbd5e1;
 }
 
-.cart-item-stepper-value {
+.cart-item-stepper-input {
+  box-sizing: border-box;
+  width: 88rpx;
   padding: 0 10rpx;
   font-size: 28rpx;
   font-weight: 700;
   color: #0f172a;
+  text-align: center;
+  background: transparent;
 }
 
 .cart-bottom-bar {
@@ -1032,10 +1036,14 @@
 
 .product-card-image-wrapper {
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
+  inset: 0;
+}
+
+.product-card-image-wrapper .taroify-image,
+.product-card-image-wrapper .taroify-image__img {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .product-card--home .product-card-image {

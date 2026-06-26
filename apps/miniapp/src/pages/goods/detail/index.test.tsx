@@ -275,8 +275,112 @@ describe('ProductDetail', () => {
           message: '咨询报价：高精度工业控制阀'
         })
       }))
-      expect(Taro.navigateTo).toHaveBeenCalledWith({ url: ROUTES.supportChat })
+      expect(Taro.navigateTo).toHaveBeenCalledWith({ url: ROUTES.support })
     })
+  })
+
+  it('opens support chat for bargaining even when the product has no sku', async () => {
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValueOnce({
+      product: {
+        id: 'spu-no-sku',
+        name: '珍珠棉打包袋',
+        categoryId: 'packaging',
+        images: [],
+        description: '按需询价'
+      },
+      skus: []
+    } as any)
+
+    render(<ProductDetail />)
+
+    expect((await screen.findAllByText('珍珠棉打包袋')).length).toBeGreaterThan(0)
+    ;(Taro.setStorage as jest.Mock).mockClear()
+    ;(Taro.navigateTo as jest.Mock).mockClear()
+    fireEvent.click(screen.getByText('议价'))
+
+    await waitFor(() => {
+      expect(Taro.setStorage).toHaveBeenCalledWith(expect.objectContaining({
+        key: 'tmo:support:compose-intent',
+        data: expect.objectContaining({
+          kind: 'product_inquiry',
+          productId: 'spu-no-sku',
+          productName: '珍珠棉打包袋',
+          message: '咨询报价：珍珠棉打包袋'
+        })
+      }))
+      expect(Taro.navigateTo).toHaveBeenCalledWith({ url: ROUTES.support })
+    })
+  })
+
+  it('redirects to login before opening support when bargaining as guest', async () => {
+    await clearBootstrap()
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValueOnce({
+      product: {
+        id: 'spu-guest-inquiry',
+        name: '访客议价商品',
+        categoryId: 'packaging',
+        images: [],
+        description: '按需询价'
+      },
+      skus: []
+    } as any)
+    ;(Taro.navigateTo as jest.Mock).mockClear()
+    ;(Taro.reLaunch as jest.Mock).mockClear()
+
+    render(<ProductDetail />)
+
+    expect((await screen.findAllByText('访客议价商品')).length).toBeGreaterThan(0)
+    fireEvent.click(screen.getByText('议价'))
+
+    await waitFor(() => {
+      expect(Taro.navigateTo).toHaveBeenCalledWith(expect.objectContaining({
+        url: expect.stringContaining(ROUTES.authLogin)
+      }))
+    })
+    expect(Taro.navigateTo).not.toHaveBeenCalledWith({ url: ROUTES.support })
+  })
+
+  it('still opens support chat when inquiry intent storage fails', async () => {
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValueOnce({
+      product: {
+        id: 'spu-intent-fails',
+        name: '议价兜底商品',
+        categoryId: 'packaging',
+        images: [],
+        description: '按需询价'
+      },
+      skus: []
+    } as any)
+    ;(Taro.setStorage as jest.Mock).mockRejectedValueOnce(new Error('storage failed'))
+
+    render(<ProductDetail />)
+
+    expect((await screen.findAllByText('议价兜底商品')).length).toBeGreaterThan(0)
+    fireEvent.click(screen.getByText('议价'))
+
+    await waitFor(() => {
+      expect(Taro.navigateTo).toHaveBeenCalledWith({ url: ROUTES.support })
+    })
+  })
+
+  it('uses coverImageUrl as the detail hero image when images are empty', async () => {
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValueOnce({
+      product: {
+        id: 'spu-cover-only',
+        name: '只有封面图商品',
+        categoryId: 'packaging',
+        coverImageUrl: 'https://img.example.com/cover-only.png',
+        images: [],
+        description: '封面图兜底'
+      },
+      skus: []
+    } as any)
+
+    render(<ProductDetail />)
+    expect((await screen.findAllByText('只有封面图商品')).length).toBeGreaterThan(0)
+
+    const heroImage = document.querySelector('.detail-hero-frame img')
+    expect(heroImage).toHaveAttribute('src', 'https://img.example.com/cover-only.png')
   })
 
   it('keeps placeholder image available in hero area when product images are empty', async () => {

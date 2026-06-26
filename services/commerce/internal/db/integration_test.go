@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -76,6 +77,88 @@ func TestCatalogQueries(t *testing.T) {
 	}
 	if fetched.Name != "Steel Pipe" || fetched.CategoryID != categoryID {
 		t.Fatalf("unexpected fetched product: %+v", fetched)
+	}
+}
+
+func TestDeleteProductClearsCartAndWishlistReferencesForAllStatuses(t *testing.T) {
+	pool := openTestPool(t)
+	ctx := context.Background()
+
+	if _, err := pool.Exec(ctx, "TRUNCATE catalog_products CASCADE"); err != nil {
+		t.Fatalf("truncate catalog_products: %v", err)
+	}
+
+	queries := New(pool)
+	for _, status := range []string{"ACTIVE", "DRAFT"} {
+		t.Run(status, func(t *testing.T) {
+			product, err := queries.CreateProduct(ctx, CreateProductParams{
+				Name:             "Delete " + status,
+				Images:           []string{},
+				Tags:             []string{},
+				FilterDimensions: []string{},
+				Status:           status,
+			})
+			if err != nil {
+				t.Fatalf("create product: %v", err)
+			}
+
+			skuCode := "delete-" + status
+			sku, err := queries.CreateSku(ctx, CreateSkuParams{
+				ProductID:  product.ID,
+				SkuCode:    &skuCode,
+				Name:       product.Name,
+				Attributes: []byte("{}"),
+				IsActive:   true,
+			})
+			if err != nil {
+				t.Fatalf("create sku: %v", err)
+			}
+
+			ownerID := uuid.New()
+			if _, err := queries.UpsertCartItem(ctx, UpsertCartItemParams{
+				OwnerUserID: ownerID,
+				SkuID:       sku.ID,
+				Qty:         1,
+			}); err != nil {
+				t.Fatalf("create cart item: %v", err)
+			}
+			if err := queries.CreateWishlistItem(ctx, CreateWishlistItemParams{
+				OwnerUserID: ownerID,
+				SkuID:       sku.ID,
+			}); err != nil {
+				t.Fatalf("create wishlist item: %v", err)
+			}
+
+			affected, err := queries.DeleteProduct(ctx, product.ID)
+			if err != nil {
+				t.Fatalf("delete product: %v", err)
+			}
+			if affected != 1 {
+				t.Fatalf("expected 1 deleted product, got %d", affected)
+			}
+
+			if _, err := queries.GetProduct(ctx, product.ID); err == nil {
+				t.Fatalf("expected product to be deleted")
+			} else if err != pgx.ErrNoRows {
+				t.Fatalf("expected ErrNoRows after delete, got %v", err)
+			}
+
+			cartItems, err := queries.ListCartItems(ctx, ownerID)
+			if err != nil {
+				t.Fatalf("list cart items: %v", err)
+			}
+			if len(cartItems) != 0 {
+				t.Fatalf("expected cart references to be deleted, got %d", len(cartItems))
+			}
+
+			wishlistItems, err := queries.ListWishlistItems(ctx, ownerID)
+			if err != nil {
+				t.Fatalf("list wishlist items: %v", err)
+			}
+			if len(wishlistItems) != 0 {
+				t.Fatalf("expected wishlist references to be deleted, got %d", len(wishlistItems))
+			}
+		})
 	}
 }
 

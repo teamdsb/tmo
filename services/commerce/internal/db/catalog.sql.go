@@ -95,17 +95,34 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) (C
 	return i, err
 }
 
-const deleteProduct = `-- name: DeleteProduct :execrows
-DELETE FROM catalog_products
-WHERE id = $1
+const deleteProduct = `-- name: DeleteProduct :one
+WITH target_skus AS (
+    SELECT id
+    FROM catalog_skus
+    WHERE product_id = $1
+),
+deleted_cart_items AS (
+    DELETE FROM cart_items
+    WHERE sku_id IN (SELECT id FROM target_skus)
+),
+deleted_wishlist_items AS (
+    DELETE FROM wishlist_items
+    WHERE sku_id IN (SELECT id FROM target_skus)
+),
+deleted_product AS (
+    DELETE FROM catalog_products
+    WHERE id = $1
+    RETURNING 1
+)
+SELECT count(*)::bigint
+FROM deleted_product
 `
 
 func (q *Queries) DeleteProduct(ctx context.Context, id uuid.UUID) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteProduct, id)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+	row := q.db.QueryRow(ctx, deleteProduct, id)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const getProduct = `-- name: GetProduct :one

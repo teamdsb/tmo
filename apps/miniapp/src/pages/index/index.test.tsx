@@ -118,6 +118,8 @@ describe('ProductCatalogApp', () => {
     expect(stylesheet).toContain('.product-card--home');
     expect(stylesheet).toContain('.product-card-image-shell');
     expect(stylesheet).toContain('.product-card-image-wrapper');
+    expect(stylesheet).toContain('.product-card-image-wrapper .taroify-image');
+    expect(stylesheet).toContain('.product-card-image-wrapper .taroify-image__img');
     expect(stylesheet).toContain('-webkit-line-clamp: 2;');
     expect(stylesheet).toContain('overflow-wrap: anywhere;');
     expect(stylesheet).toContain('word-break: break-word;');

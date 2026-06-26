@@ -104,6 +104,10 @@ const safeText = (value: unknown, fallback = '--') => {
   return normalized || fallback;
 };
 
+const formatRmbText = (value: unknown, fallback = '¥0') => {
+  return safeText(value, fallback).replace(/^\$/, '¥');
+};
+
 const formatDate = (value?: string) => {
   if (!value) {
     return '--';
@@ -183,7 +187,7 @@ const fallbackMockOrders = (): AdminOrderRecord[] => [
       phone: '+1 (555) 123-4567',
       address: '加利福尼亚州旧金山市 Market St 100 号',
       orderCount: 54,
-      ltv: '$4.2k',
+      ltv: '¥4.2k',
       note: '若家中无人，请将包裹放在后门门廊。门禁码 1234。'
     },
     purchasedAt: '2023-10-24 09:15',
@@ -209,7 +213,7 @@ const fallbackMockOrders = (): AdminOrderRecord[] => [
       phone: '+1 (555) 118-2201',
       address: '加利福尼亚州奥克兰市 Broadway 22 号',
       orderCount: 12,
-      ltv: '$920',
+      ltv: '¥920',
       note: '工作日白天送达前请先电话联系。'
     },
     purchasedAt: '2023-10-23 08:20',
@@ -232,7 +236,7 @@ const fallbackMockOrders = (): AdminOrderRecord[] => [
       phone: '+1 (555) 045-1299',
       address: '加利福尼亚州萨克拉门托市 Pine St 8 号',
       orderCount: 1,
-      ltv: '$35.5',
+      ltv: '¥35.5',
       note: '无需电话，直接送货。'
     },
     purchasedAt: '2023-10-22 13:10',
@@ -255,7 +259,7 @@ const fallbackMockOrders = (): AdminOrderRecord[] => [
       phone: '+1 (555) 555-8888',
       address: '加利福尼亚州旧金山市 Howard St 188 号',
       orderCount: 7,
-      ltv: '$6.8k',
+      ltv: '¥6.8k',
       note: '签收人：前台管理员 David。'
     },
     purchasedAt: '2023-10-22 11:10',
@@ -278,7 +282,7 @@ const fallbackMockOrders = (): AdminOrderRecord[] => [
       phone: '+1 (555) 775-3900',
       address: '加利福尼亚州伯克利市 College Ave 90 号',
       orderCount: 33,
-      ltv: '$3.1k',
+      ltv: '¥3.1k',
       note: '商品外包装轻微破损，申请退货。'
     },
     purchasedAt: '2023-10-21 08:40',
@@ -301,7 +305,7 @@ const fallbackMockOrders = (): AdminOrderRecord[] => [
       phone: '+1 (555) 600-3333',
       address: '加利福尼亚州帕洛阿尔托市 Castro St 12 号',
       orderCount: 5,
-      ltv: '$540',
+      ltv: '¥540',
       note: '请在下午 5 点后配送。'
     },
     purchasedAt: '2023-10-21 03:40',
@@ -374,7 +378,7 @@ export const buildMockOrders = (): AdminOrderRecord[] => {
         phone: safeText(order.customer?.phone || order.address?.receiverPhone, '--'),
         address: safeText(order.address?.detail, '加利福尼亚州旧金山市 Market St 100 号'),
         orderCount: Number.isFinite(Number(order.customer?.orderCount)) ? Number(order.customer?.orderCount) : 0,
-        ltv: safeText(order.customer?.ltv, '$0'),
+        ltv: formatRmbText(order.customer?.ltv),
         note: safeText(order.customer?.note || order.remark, '暂无备注')
       },
       purchasedAt: safeText(adminMeta.purchasedAt, createdAt ? createdAt.replace('T', ' ').slice(0, 16) : ''),
@@ -441,6 +445,6 @@ export const countByTab = (orders: AdminOrderRecord[], tab: OrderTabKey) => {
 
 export const getStatusTone = (statusKey: string): OrderStatusTone => statusTone(statusKey);
 
-export const formatAmount = (amount: number) => `$${amount.toFixed(2)}`;
+export const formatAmount = (amount: number) => `¥${amount.toFixed(2)}`;
 
 export const getInitials = (name: string) => initials(name);
