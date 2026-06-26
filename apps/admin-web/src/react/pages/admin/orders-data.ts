@@ -430,7 +430,7 @@ export const buildDevOrders = (payload: OrdersApiPayload): AdminOrderRecord[] =>
         address: safeText(order.address?.detail, '--'),
         orderCount: 0,
         ltv: '--',
-        note: 'Dev 模式下暂未接入客户备注。'
+        note: '暂未接入客户备注。'
       },
       purchasedAt: safeText(order.createdAt, '--'),
       lineItems: buildLineItemsFromFixtureItems(order.items || []),

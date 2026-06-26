@@ -440,12 +440,12 @@ export function CartBottomBar({
 
   return (
     <FixedView position='bottom' placeholder>
-      <View className='cart-bottom-bar'>
+      <View className={`cart-bottom-bar ${importJob ? 'cart-bottom-bar--import' : ''}`}>
         {!importJob ? (
           <View className='cart-bottom-summary'>
             <View className='cart-bottom-summary-copy'>
               <Text className='cart-bottom-summary-label'>小计</Text>
-              <Text className='cart-bottom-summary-meta'>{`购物车共有 ${cartTotalItems} 件商品`}</Text>
+              <Text className='cart-bottom-summary-meta'>{`共 ${cartTotalItems} 件商品`}</Text>
             </View>
             <Text className='cart-bottom-summary-value'>
               {!cartHasPendingPrice ? formatFen(cartTotalFen) : '待确认报价'}
@@ -464,7 +464,7 @@ export function CartBottomBar({
             disabled={loading}
             onClick={!importJob ? onContinueBrowse : undefined}
           >
-            {importJob ? '保存草稿' : '立即购物'}
+            {importJob ? '保存草稿' : '继续购物'}
           </Button>
           <Button
             className={`cart-action cart-action-primary ${actionDisabled} ${checkoutDisabled ? 'cart-action-primary--disabled' : ''}`}

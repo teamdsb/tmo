@@ -33,6 +33,8 @@ export default function OrderDetail() {
   const firstItem = orderItems[0] ?? null
   const heroContent = getHeroContent(order)
   const detailRows = buildDetailRows(order)
+  const showContinuePay = canContinuePay(order)
+  const showRefreshPayment = canRefreshPayment(order)
 
   const handleBack = () => {
     Taro.navigateBack().catch(() => switchTabLike(ROUTES.orders))
@@ -211,17 +213,17 @@ export default function OrderDetail() {
         </View>
       </View>
 
-      <View className='order-detail-footer'>
-        {(canContinuePay(order) || canRefreshPayment(order)) ? (
+      <View className={`order-detail-footer ${(showContinuePay || showRefreshPayment) ? 'order-detail-footer--with-payment' : ''}`}>
+        {(showContinuePay || showRefreshPayment) ? (
           <View className='order-detail-footer-stack'>
-            {canContinuePay(order) ? (
-              <Button block color='primary' className='order-detail-footer-button' loading={paymentLoading} onClick={handlePay}>
-                继续支付
+            {showRefreshPayment ? (
+              <Button block variant='outlined' className='order-detail-footer-button order-detail-footer-button--refresh' loading={paymentLoading} onClick={handleRefreshPayment}>
+                刷新支付状态
               </Button>
             ) : null}
-            {canRefreshPayment(order) ? (
-              <Button block variant='outlined' className='order-detail-footer-button' loading={paymentLoading} onClick={handleRefreshPayment}>
-                刷新支付状态
+            {showContinuePay ? (
+              <Button block color='primary' className='order-detail-footer-button order-detail-footer-button--pay' loading={paymentLoading} onClick={handlePay}>
+                继续支付
               </Button>
             ) : null}
           </View>

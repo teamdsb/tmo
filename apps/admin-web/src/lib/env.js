@@ -56,4 +56,4 @@ export const storageKeys = {
   authState: 'tmo:admin:web:auth'
 };
 
-export const modeLabel = isDevMode ? 'dev' : 'mock';
+export const modeLabel = isDevMode ? '生产环境' : '演示环境';

@@ -35,7 +35,7 @@ describe('ExcelImportConfirmation', () => {
     await renderCart()
 
     expect(screen.getByText('小计')).toBeInTheDocument()
-    expect(screen.getByText('立即购物')).toBeInTheDocument()
+    expect(screen.getByText('继续购物')).toBeInTheDocument()
     expect(screen.getByText('去结算')).toBeInTheDocument()
   })
 
@@ -45,7 +45,7 @@ describe('ExcelImportConfirmation', () => {
 
     await renderCart()
 
-    expect(screen.getByText('购物车共有 0 件商品')).toBeInTheDocument()
+    expect(screen.getByText('共 0 件商品')).toBeInTheDocument()
     expect(screen.getByText('¥0.00')).toBeInTheDocument()
     expect(screen.getByText('您的购物车是空的')).toBeInTheDocument()
     expect(screen.getByText('看来您还没有添加任何商品。快去探索我们的最新系列吧。')).toBeInTheDocument()
@@ -63,22 +63,22 @@ describe('ExcelImportConfirmation', () => {
     expect(stylesheet).toContain('height: 220rpx;')
     expect(stylesheet).toContain('font-size: 44rpx;')
     expect(stylesheet).toContain('margin-top: 8rpx;')
-    expect(stylesheet).toContain('min-height: 72rpx;')
-    expect(stylesheet).toContain('font-size: 42rpx;')
-    expect(stylesheet).toContain('min-width: 156rpx;')
+    expect(stylesheet).toContain('min-height: 76rpx;')
+    expect(stylesheet).toContain('font-size: 38rpx;')
+    expect(stylesheet).toContain('min-width: 132rpx;')
   })
 
   it('keeps checkout bar readable on narrow screens', () => {
     const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../app.scss'), 'utf8')
 
     expect(stylesheet).toContain('align-items: center;')
-    expect(stylesheet).toContain('grid-template-columns: minmax(0, 1fr) auto;')
-    expect(stylesheet).toContain('min-width: 156rpx;')
-    expect(stylesheet).toContain('font-size: 42rpx;')
-    expect(stylesheet).toContain('width: 292rpx;')
-    expect(stylesheet).toContain('grid-template-columns: 132rpx 150rpx;')
-    expect(stylesheet).toContain('min-height: 72rpx;')
-    expect(stylesheet).toContain('padding: 0 12rpx;')
+    expect(stylesheet).toContain('grid-template-columns: minmax(0, 1fr) 282rpx;')
+    expect(stylesheet).toContain('max-width: 172rpx;')
+    expect(stylesheet).toContain('min-width: 132rpx;')
+    expect(stylesheet).toContain('font-size: 38rpx;')
+    expect(stylesheet).toContain('grid-template-columns: 1fr 1fr;')
+    expect(stylesheet).toContain('min-height: 76rpx;')
+    expect(stylesheet).toContain('padding: 0 10rpx;')
   })
 
   it('prefers product name from product detail for cart item title', async () => {

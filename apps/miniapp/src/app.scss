@@ -842,17 +842,18 @@
 .cart-item-stepper {
   display: inline-flex;
   align-items: center;
-  border-radius: 20rpx;
+  border-radius: 18rpx;
   overflow: hidden;
   border: 1px solid #dbe3ef;
-  background: #f8fafc;
+  background: #f9fbff;
   flex-shrink: 0;
+  box-shadow: inset 0 0 0 1rpx rgb(255 255 255 / 68%);
 }
 
 .cart-item-stepper-btn,
 .cart-item-stepper-input {
-  min-width: 64rpx;
-  height: 64rpx;
+  min-width: 58rpx;
+  height: 62rpx;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -868,7 +869,7 @@
 }
 
 .cart-item-stepper-btn-icon {
-  font-size: 34rpx;
+  font-size: 32rpx;
   line-height: 1;
   font-weight: 600;
 }
@@ -880,9 +881,9 @@
 
 .cart-item-stepper-input {
   box-sizing: border-box;
-  width: 88rpx;
-  padding: 0 10rpx;
-  font-size: 28rpx;
+  width: 126rpx;
+  padding: 0 8rpx;
+  font-size: 24rpx;
   font-weight: 700;
   color: #0f172a;
   text-align: center;
@@ -891,38 +892,44 @@
 
 .cart-bottom-bar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) 282rpx;
   align-items: center;
-  column-gap: 14rpx;
-  padding: 12rpx 16rpx calc(12rpx + env(safe-area-inset-bottom));
-  padding-bottom: calc(12rpx + constant(safe-area-inset-bottom));
-  background: rgb(255 255 255 / 96%);
+  column-gap: 18rpx;
+  min-height: 104rpx;
+  padding: 14rpx 18rpx calc(14rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(14rpx + constant(safe-area-inset-bottom));
+  background: rgb(255 255 255 / 98%);
   border-top: 1px solid #edf1f5;
-  box-shadow: 0 -10rpx 24rpx rgb(15 23 42 / 6%);
+  box-shadow: 0 -12rpx 30rpx rgb(15 23 42 / 8%);
 }
 
 .cart-bottom-summary {
   min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: flex-end;
-  column-gap: 10rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14rpx;
+  padding: 2rpx 0;
 }
 
 .cart-bottom-summary-copy {
+  flex: 0 1 auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4rpx;
+  gap: 3rpx;
 }
 
 .cart-bottom-summary-label {
-  font-size: 22rpx;
+  font-size: 21rpx;
+  line-height: 1.15;
   color: #94a3b8;
 }
 
 .cart-bottom-summary-meta {
-  font-size: 22rpx;
+  max-width: 172rpx;
+  font-size: 21rpx;
+  line-height: 1.2;
   color: #94a3b8;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -930,9 +937,10 @@
 }
 
 .cart-bottom-summary-value {
-  min-width: 156rpx;
-  font-size: 42rpx;
-  line-height: 1;
+  flex: 1 0 auto;
+  min-width: 132rpx;
+  font-size: 38rpx;
+  line-height: 1.05;
   font-weight: 800;
   color: #0f172a;
   white-space: nowrap;
@@ -946,12 +954,16 @@
   display: flex;
 }
 
+.cart-bottom-bar--import {
+  grid-template-columns: minmax(0, 1fr) 360rpx;
+}
+
 .cart-bottom-actions {
-  width: 292rpx;
+  width: 100%;
   display: grid;
-  grid-template-columns: 132rpx 150rpx;
+  grid-template-columns: 1fr 1fr;
   align-items: center;
-  column-gap: 10rpx;
+  column-gap: 12rpx;
 }
 
 .cart-bottom-actions .taroify-button,
@@ -963,16 +975,17 @@
 .cart-action {
   width: 100%;
   min-width: 0;
-  min-height: 72rpx;
-  padding: 0 12rpx;
-  border-radius: 18rpx;
+  height: 76rpx;
+  min-height: 76rpx;
+  padding: 0 10rpx;
+  border-radius: 20rpx;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  font-size: 27rpx;
+  font-size: 26rpx;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1;
   white-space: nowrap;
 }
 
@@ -981,9 +994,9 @@
 }
 
 .cart-action-primary {
-  background: #2a7be4;
+  background: linear-gradient(180deg, #3b82f6 0%, #256fe5 100%);
   color: #fff;
-  box-shadow: 0 14rpx 28rpx rgb(42 123 228 / 22%);
+  box-shadow: 0 14rpx 28rpx rgb(37 111 229 / 22%);
 }
 
 .cart-action-primary:active {
@@ -996,13 +1009,14 @@
 }
 
 .cart-action-secondary {
-  background: #fff;
-  color: #2f5ea8;
-  border: 1px solid #d7e1ee;
+  background: #f8fbff;
+  color: #24538f;
+  border: 1px solid #d7e4f2;
+  box-shadow: inset 0 0 0 1rpx rgb(255 255 255 / 78%);
 }
 
 .cart-action-secondary:active {
-  background: #f8fbff;
+  background: #edf6ff;
 }
 
 .product-card {
