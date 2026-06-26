@@ -97,6 +97,45 @@ test('product model code input keeps focus while accepting Chinese and symbols',
   await expect(modelCodeInput).toBeFocused();
 });
 
+test('product model code input does not persist IME pinyin while composing Chinese', async ({ page }) => {
+  await loginMockBoss(page);
+  await page.goto('/products.html', { waitUntil: 'domcontentloaded' });
+
+  await expect(page.locator('[data-role="open-product-drawer"]').first()).toBeVisible();
+  await page.locator('[data-role="open-product-drawer"]').first().click();
+
+  const modelCodeInput = page.locator('#product-edit-drawer [data-field="model-code"]').first();
+  await expect(modelCodeInput).toBeVisible();
+  await modelCodeInput.fill('5');
+  await modelCodeInput.focus();
+  await modelCodeInput.evaluate((node) => {
+    const input = node as HTMLInputElement;
+    input.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true, data: '' }));
+    input.value = '5a';
+    input.dispatchEvent(new InputEvent('input', {
+      bubbles: true,
+      composed: true,
+      data: 'a',
+      inputType: 'insertCompositionText',
+      isComposing: true
+    }));
+    input.dispatchEvent(new CompositionEvent('compositionupdate', { bubbles: true, data: 'a' }));
+    input.value = '5啊';
+    input.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '啊' }));
+    input.dispatchEvent(new InputEvent('input', {
+      bubbles: true,
+      composed: true,
+      data: '啊',
+      inputType: 'insertCompositionText',
+      isComposing: false
+    }));
+  });
+
+  await expect(modelCodeInput).toHaveValue('5啊');
+  await page.keyboard.type('b');
+  await expect(modelCodeInput).toHaveValue('5啊B');
+});
+
 test('product tier quantity input keeps focus while typing multiple digits', async ({ page }) => {
   await loginMockBoss(page);
   await page.goto('/products.html', { waitUntil: 'domcontentloaded' });
@@ -113,6 +152,34 @@ test('product tier quantity input keeps focus while typing multiple digits', asy
 
   await expect(tierMinQtyInput).toHaveValue('20000');
   await expect(tierMinQtyInput).toBeFocused();
+});
+
+test('product tier number inputs can be cleared before retyping', async ({ page }) => {
+  await loginMockBoss(page);
+  await page.goto('/products.html', { waitUntil: 'domcontentloaded' });
+
+  await expect(page.locator('[data-role="open-product-drawer"]').first()).toBeVisible();
+  await page.locator('[data-role="open-product-drawer"]').first().click();
+
+  await page.locator('#product-edit-drawer [data-role="add-tier-row"]').click();
+  const tierRow = page.locator('#product-edit-drawer [data-role="tier-row"]').first();
+  const tierMinQtyInput = tierRow.locator('[data-field="tier-min-qty"]');
+  const tierDiscountInput = tierRow.locator('[data-field="tier-discount-rate"]');
+
+  await tierMinQtyInput.focus();
+  await tierMinQtyInput.selectText();
+  await page.keyboard.press('Backspace');
+  await expect(tierMinQtyInput).toHaveValue('');
+  await page.keyboard.type('300');
+  await expect(tierMinQtyInput).toHaveValue('300');
+
+  await tierDiscountInput.focus();
+  await tierDiscountInput.selectText();
+  await page.keyboard.press('Backspace');
+  await expect(tierDiscountInput).toHaveValue('');
+  await page.keyboard.type('8.5');
+  await expect(tierDiscountInput).toHaveValue('8.5');
+  await expect(tierDiscountInput).toBeFocused();
 });
 
 test('mock product edit persists after saving and reloading', async ({ page }) => {

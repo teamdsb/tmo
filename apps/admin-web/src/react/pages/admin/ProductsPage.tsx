@@ -87,6 +87,16 @@ type ProductDraft = {
 const MAX_MODEL_CODE_LENGTH = 20;
 
 const sanitizeModelCode = (value: string) => value.toUpperCase().slice(0, MAX_MODEL_CODE_LENGTH);
+const sanitizeComposingModelCode = (value: string) => value.slice(0, MAX_MODEL_CODE_LENGTH);
+
+type EditableProductTier = {
+  discountRate: ProductTier['discountRate'] | '';
+  minQty: ProductTier['minQty'] | '';
+};
+
+type EditableProductRecord = Omit<ProductRecord, 'tierPricing'> & {
+  tierPricing: EditableProductTier[];
+};
 
 const readFileAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -258,6 +268,12 @@ const ProductImageUploader = ({
 };
 
 const cloneProduct = (product: ProductRecord): ProductRecord => ({
+  ...product,
+  models: product.models.map((model) => ({ ...model })),
+  tierPricing: product.tierPricing.map((tier) => ({ ...tier }))
+});
+
+const cloneProductForEdit = (product: ProductRecord): EditableProductRecord => ({
   ...product,
   models: product.models.map((model) => ({ ...model })),
   tierPricing: product.tierPricing.map((tier) => ({ ...tier }))
@@ -651,7 +667,7 @@ type ProductEditDrawerProps = {
 };
 
 const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadImage }: ProductEditDrawerProps) => {
-  const [draft, setDraft] = useState<ProductRecord | null>(null);
+  const [draft, setDraft] = useState<EditableProductRecord | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [modelRowKeys, setModelRowKeys] = useState<string[]>([]);
@@ -669,7 +685,7 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
       setPreviewUrl('');
       return;
     }
-    setDraft(cloneProduct(product));
+    setDraft(cloneProductForEdit(product));
     setModelRowKeys(product.models.map((_, index) => `${product.id}-model-${index}`));
     setTierRowKeys(product.tierPricing.map((_, index) => `${product.id}-tier-${index}`));
     setErrorMessage('');
@@ -693,7 +709,7 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
     });
   };
 
-  const updateTier = (index: number, patch: Partial<ProductTier>) => {
+  const updateTier = (index: number, patch: Partial<EditableProductTier>) => {
     setDraft((current) => {
       if (!current) {
         return current;
@@ -893,11 +909,19 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
                   <label className="space-y-1 text-xs text-slate-600">
                     <span>型号编码</span>
                     <input
-                      className="w-full rounded-lg border-slate-300 text-sm uppercase focus:border-primary focus:ring-primary"
+                      className="w-full rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary"
                       data-field="model-code"
                       inputMode="text"
                       maxLength={MAX_MODEL_CODE_LENGTH}
-                      onChange={(event) => updateModel(index, { code: sanitizeModelCode(event.target.value) })}
+                      onChange={(event) => {
+                        const isComposing = (event.nativeEvent as InputEvent).isComposing;
+                        updateModel(index, {
+                          code: isComposing
+                            ? sanitizeComposingModelCode(event.target.value)
+                            : sanitizeModelCode(event.target.value)
+                        });
+                      }}
+                      onCompositionEnd={(event) => updateModel(index, { code: sanitizeModelCode(event.currentTarget.value) })}
                       type="text"
                       value={model.code}
                     />
@@ -954,7 +978,7 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
                           {
                             minQty: Math.max(
                               MIN_TIER_QTY,
-                              ((current.tierPricing[current.tierPricing.length - 1]?.minQty) || MIN_TIER_QTY - 3) + 3
+                              (Number(current.tierPricing[current.tierPricing.length - 1]?.minQty) || MIN_TIER_QTY - 3) + 3
                             ),
                             discountRate: 0
                           }
@@ -969,7 +993,8 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
             <div className="space-y-2" data-role="tier-list">
               {draft.tierPricing.map((tier, index) => {
                 const basePrice = draft.models[0]?.basePrice || 0;
-                const tierPrice = basePrice > 0 ? basePrice * (1 - tier.discountRate / 100) : 0;
+                const discountRateValue = Number(tier.discountRate) || 0;
+                const tierPrice = basePrice > 0 ? basePrice * (1 - discountRateValue / 100) : 0;
                 return (
                   <div
                     key={tierRowKeys[index] || `${draft.id}-tier-${index}`}
@@ -982,7 +1007,9 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
                         className="w-full rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary"
                         data-field="tier-min-qty"
                         min={MIN_TIER_QTY}
-                        onChange={(event) => updateTier(index, { minQty: Number(event.target.value) || MIN_TIER_QTY })}
+                        onChange={(event) => updateTier(index, {
+                          minQty: event.target.value === '' ? '' : Number(event.target.value)
+                        })}
                         step="1"
                         type="number"
                         value={tier.minQty}
@@ -995,14 +1022,16 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
                         data-field="tier-discount-rate"
                         max={MAX_TIER_DISCOUNT_RATE}
                         min="0.1"
-                        onChange={(event) => updateTier(index, { discountRate: Number(event.target.value) || 0 })}
+                        onChange={(event) => updateTier(index, {
+                          discountRate: event.target.value === '' ? '' : Number(event.target.value)
+                        })}
                         step="0.1"
                         type="number"
                         value={tier.discountRate}
                       />
                       <p className="text-[11px] text-slate-400" data-role="tier-price-preview">
-                        {basePrice > 0 && tier.discountRate > 0
-                          ? `预估单价 ${formatCurrency(tierPrice)}（约 ${formatDiscountFold(tier.discountRate)}）`
+                        {basePrice > 0 && discountRateValue > 0
+                          ? `预估单价 ${formatCurrency(tierPrice)}（约 ${formatDiscountFold(discountRateValue)}）`
                           : '填写后自动预估折后单价'}
                       </p>
                     </label>
