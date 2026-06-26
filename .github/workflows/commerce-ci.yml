@@ -37,6 +37,9 @@ jobs:
         with:
           go-version: "stable"
           check-latest: true
+          cache-dependency-path: |
+            packages/go-shared/go.sum
+            services/commerce/go.sum
       - name: Test go-shared
         run: go test ./...
         working-directory: packages/go-shared

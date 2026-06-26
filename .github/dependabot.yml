@@ -7,7 +7,11 @@ updates:
       day: "monday"
       time: "03:00"
       timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 10
+    groups:
+      go-shared-go-modules:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 3
 
   - package-ecosystem: "gomod"
     directory: "/services/commerce"
@@ -16,7 +20,11 @@ updates:
       day: "monday"
       time: "03:00"
       timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 10
+    groups:
+      commerce-go-modules:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 3
 
   - package-ecosystem: "gomod"
     directory: "/services/gateway-bff"
@@ -25,7 +33,11 @@ updates:
       day: "monday"
       time: "03:00"
       timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 10
+    groups:
+      gateway-bff-go-modules:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 3
 
   - package-ecosystem: "gomod"
     directory: "/services/identity"
@@ -34,7 +46,11 @@ updates:
       day: "monday"
       time: "03:00"
       timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 10
+    groups:
+      identity-go-modules:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 3
 
   - package-ecosystem: "gomod"
     directory: "/services/payment"
@@ -43,7 +59,11 @@ updates:
       day: "monday"
       time: "03:00"
       timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 10
+    groups:
+      payment-go-modules:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 3
 
   - package-ecosystem: "docker"
     directory: "/services/commerce"
@@ -52,7 +72,11 @@ updates:
       day: "monday"
       time: "03:00"
       timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 10
+    groups:
+      commerce-docker:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 3
 
   - package-ecosystem: "docker"
     directory: "/services/gateway-bff"
@@ -61,7 +85,11 @@ updates:
       day: "monday"
       time: "03:00"
       timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 10
+    groups:
+      gateway-bff-docker:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 3
 
   - package-ecosystem: "docker"
     directory: "/services/identity"
@@ -70,7 +98,11 @@ updates:
       day: "monday"
       time: "03:00"
       timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 10
+    groups:
+      identity-docker:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 3
 
   - package-ecosystem: "docker"
     directory: "/services/payment"
@@ -79,7 +111,11 @@ updates:
       day: "monday"
       time: "03:00"
       timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 10
+    groups:
+      payment-docker:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 3
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -88,4 +124,8 @@ updates:
       day: "monday"
       time: "03:00"
       timezone: "Asia/Shanghai"
-    open-pull-requests-limit: 10
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 3
