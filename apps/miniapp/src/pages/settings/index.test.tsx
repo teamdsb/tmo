@@ -166,7 +166,8 @@ describe('SettingsPage', () => {
     expect(within(accountCard).getByText('张三')).toBeInTheDocument()
     expect(within(accountCard).getByText('13800138000')).toBeInTheDocument()
     expect(within(accountCard).getByText('SALES')).toBeInTheDocument()
-    expect(within(accountCard).getByText('CUSTOMER / SALES')).toBeInTheDocument()
+    expect(within(accountCard).queryByText('可用角色')).toBeNull()
+    expect(within(accountCard).queryByText('CUSTOMER / SALES')).toBeNull()
     expect(within(accountCard).getByText('业务员页面')).toBeInTheDocument()
     expect(within(accountCard).getByText('更改个人信息')).toBeInTheDocument()
     expect(within(basicCard).queryByText('业务员页面')).toBeNull()
@@ -228,7 +229,7 @@ describe('SettingsPage', () => {
     expect(screen.queryByText(/我们会在登录、下单、收货与售后流程中处理账号信息/)).toBeNull()
   })
 
-  it('shows version and environment summary and details', async () => {
+  it('shows only app version in the version card', async () => {
     const { SettingsPage } = loadSettingsPage({
       isIsolatedMock: false,
       gatewayBaseUrl: 'http://localhost:8080',
@@ -243,17 +244,12 @@ describe('SettingsPage', () => {
     })
 
     expect(screen.getByText('版本与环境信息')).toBeInTheDocument()
+    expect(screen.getByText('App 版本')).toBeInTheDocument()
     expect(screen.getByText('v1.0.0')).toBeInTheDocument()
-    expect(screen.getByText('Real')).toBeInTheDocument()
-    expect(screen.getByText('http://localhost:8080')).toBeInTheDocument()
-
-    await act(async () => {
-      fireEvent.click(screen.getByText('查看详情'))
-      await flushPromises()
-    })
-
-    expect(screen.getAllByText('http://localhost:8082').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('http://localhost:8081').length).toBeGreaterThan(0)
-    expect(screen.getByText('已开启')).toBeInTheDocument()
+    expect(screen.queryByText('运行模式')).toBeNull()
+    expect(screen.queryByText('接口环境')).toBeNull()
+    expect(screen.queryByText('Real')).toBeNull()
+    expect(screen.queryByText('http://localhost:8080')).toBeNull()
+    expect(screen.queryByText('查看详情')).toBeNull()
   })
 })
