@@ -285,6 +285,146 @@ test('product list groups statuses and leaves empty covers empty', async ({ page
   expect(await emptyCover.getAttribute('style')).toBeNull();
 });
 
+test('bulk status actions update selected products and filters clear selection', async ({ page }) => {
+  await installDevSession(page);
+  await routeProductPageApis(page);
+  const secondProductId = '22222222-3333-4444-5555-666666666666';
+  let items = [
+    { id: productId, name: '批量商品一', status: 'DRAFT', categoryId, coverImageUrl: '' },
+    { id: secondProductId, name: '批量商品二', status: 'DRAFT', categoryId, coverImageUrl: '' }
+  ];
+  const patchPayloads = [];
+
+  await page.route('**/api/catalog/products**', async (route) => {
+    const url = new URL(route.request().url());
+    if (route.request().method() === 'GET' && url.pathname === '/api/catalog/products') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items, page: 1, pageSize: 200, total: items.length })
+      });
+      return;
+    }
+    if (route.request().method() === 'PATCH' && url.pathname.startsWith('/api/catalog/products/')) {
+      const id = url.pathname.split('/').pop();
+      const payload = route.request().postDataJSON();
+      patchPayloads.push({ id, payload });
+      items = items.map((item) => item.id === id ? { ...item, status: payload.status } : item);
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(items.find((item) => item.id === id))
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto('/products.html');
+
+  for (const [role, status] of [
+    ['bulk-set-active', 'ACTIVE'],
+    ['bulk-set-draft', 'DRAFT'],
+    ['bulk-set-inactive', 'INACTIVE']
+  ]) {
+    await page.locator('[data-role="select-all-products"]').check();
+    await expect(page.locator('[data-role="bulk-selection-count"]')).toHaveText('已选择 2 项');
+    const startCount = patchPayloads.length;
+    await page.locator(`[data-role="${role}"]`).click();
+    await expect.poll(() => patchPayloads.slice(startCount).map((item) => item.payload.status)).toEqual([status, status]);
+    await expect(page.locator('[data-role="bulk-product-toolbar"]')).toHaveCount(0);
+  }
+
+  await page.locator('[data-role="select-all-products"]').check();
+  await expect(page.locator('[data-role="bulk-product-toolbar"]')).toBeVisible();
+  await page.locator('#products-status-filter').selectOption('DRAFT');
+  await expect(page.locator('[data-role="bulk-product-toolbar"]')).toHaveCount(0);
+});
+
+test('bulk selection persists across pages and search clears it', async ({ page }) => {
+  await installDevSession(page);
+  await routeProductPageApis(page);
+  const items = Array.from({ length: 11 }, (_, index) => ({
+    id: `00000000-0000-0000-0000-${String(index + 1).padStart(12, '0')}`,
+    name: `分页商品 ${String(index + 1).padStart(2, '0')}`,
+    status: 'ACTIVE',
+    categoryId,
+    coverImageUrl: ''
+  }));
+
+  await page.route('**/api/catalog/products**', async (route) => {
+    const url = new URL(route.request().url());
+    if (route.request().method() === 'GET' && url.pathname === '/api/catalog/products') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items, page: 1, pageSize: 200, total: items.length })
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto('/products.html');
+  await page.locator('[data-role="select-product-row"]').first().check();
+  await page.locator('[data-role="page-number"][data-page="2"]').click();
+  await page.locator('[data-role="select-product-row"]').first().check();
+  await expect(page.locator('[data-role="bulk-selection-count"]')).toHaveText('已选择 2 项');
+
+  await page.getByPlaceholder('按 SPU 名称或 SKU 编号搜索...').fill('不存在');
+  await expect(page.locator('[data-role="bulk-product-toolbar"]')).toHaveCount(0);
+});
+
+test('bulk delete confirms once and keeps only failed products selected', async ({ page }) => {
+  await installDevSession(page);
+  await routeProductPageApis(page);
+  const failedProductId = '33333333-4444-5555-6666-777777777777';
+  let items = [
+    { id: productId, name: '可删除商品一', status: 'ACTIVE', categoryId, coverImageUrl: '' },
+    { id: failedProductId, name: '删除失败商品', status: 'DRAFT', categoryId, coverImageUrl: '' },
+    { id: '44444444-5555-6666-7777-888888888888', name: '可删除商品二', status: 'INACTIVE', categoryId, coverImageUrl: '' }
+  ];
+  let confirmCount = 0;
+
+  await page.route('**/api/catalog/products**', async (route) => {
+    const url = new URL(route.request().url());
+    if (route.request().method() === 'GET' && url.pathname === '/api/catalog/products') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items, page: 1, pageSize: 200, total: items.length })
+      });
+      return;
+    }
+    if (route.request().method() === 'DELETE' && url.pathname.startsWith('/api/catalog/products/')) {
+      const id = url.pathname.split('/').pop();
+      if (id === failedProductId) {
+        await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: 'delete failed' }) });
+        return;
+      }
+      items = items.filter((item) => item.id !== id);
+      await route.fulfill({ status: 204 });
+      return;
+    }
+    await route.continue();
+  });
+
+  page.on('dialog', async (dialog) => {
+    confirmCount += 1;
+    await dialog.accept();
+  });
+
+  await page.goto('/products.html');
+  await page.locator('[data-role="select-all-products"]').check();
+  await page.locator('[data-role="bulk-delete-products"]').click();
+
+  await expect.poll(() => confirmCount).toBe(1);
+  await expect(page.getByText('批量删除完成：成功 2 项，失败 1 项。')).toBeVisible();
+  await expect(page.locator('tbody tr[data-product-id]')).toHaveCount(1);
+  await expect(page.locator(`[data-product-id="${failedProductId}"] [data-role="select-product-row"]`)).toBeChecked();
+  await expect(page.locator('[data-role="bulk-selection-count"]')).toHaveText('已选择 1 项');
+});
+
 test('category sort can be cleared and inserts at an occupied position', async ({ page }) => {
   await installDevSession(page);
   await routeProductPageApis(page);

@@ -201,6 +201,30 @@ describe('ProductCatalogApp', () => {
     expect(screen.queryByText('敬请期待')).not.toBeInTheDocument();
   });
 
+  it('renders every enabled display category beyond the first eight', async () => {
+    (commerceServices.catalog.listDisplayCategories as jest.Mock).mockResolvedValue({
+      items: [
+        { id: 'fasteners', name: '紧固件', iconKey: 'setting', sort: 1, enabled: true },
+        { id: 'electrical', name: '电气', iconKey: 'desktop', sort: 2, enabled: true },
+        { id: 'safety', name: '安全防护', iconKey: 'shield', sort: 3, enabled: true },
+        { id: 'tools', name: '工具', iconKey: 'setting', sort: 4, enabled: true },
+        { id: 'instrumentation', name: '仪器仪表', iconKey: 'apps', sort: 5, enabled: true },
+        { id: 'janitorial', name: '劳保清洁', iconKey: 'brush', sort: 6, enabled: true },
+        { id: 'office', name: '办公文具', iconKey: 'notes', sort: 7, enabled: true },
+        { id: 'packaging', name: '包装耗材', iconKey: 'apps', sort: 8, enabled: true },
+        { id: 'large-equipment', name: '大型设备', iconKey: 'apps', sort: 100, enabled: true },
+        { id: 'disabled', name: '已禁用类目', iconKey: 'apps', sort: 101, enabled: false }
+      ]
+    });
+
+    await renderCatalog();
+
+    expect(screen.getAllByTestId('home-category-item')).toHaveLength(9);
+    expect(screen.getByText('大型设备')).toBeInTheDocument();
+    expect(screen.queryByText('已禁用类目')).not.toBeInTheDocument();
+    expect(screen.queryByText('敬请期待')).not.toBeInTheDocument();
+  });
+
   it('shows demand hint when home search has no result and navigates to demand create', async () => {
     (commerceServices.catalog.listProducts as jest.Mock).mockImplementation(async ({ q } = {}) => {
       if (q) {
