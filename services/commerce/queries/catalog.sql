@@ -67,7 +67,14 @@ FROM catalog_products
 WHERE (sqlc.narg('q')::text IS NULL OR name ILIKE '%' || sqlc.narg('q') || '%')
   AND (sqlc.narg('category_id')::uuid IS NULL OR category_id = sqlc.narg('category_id'))
   AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status'))
-ORDER BY created_at DESC
+ORDER BY CASE status
+           WHEN 'ACTIVE' THEN 0
+           WHEN 'DRAFT' THEN 1
+           WHEN 'INACTIVE' THEN 2
+           ELSE 3
+         END,
+         created_at DESC,
+         id ASC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
 -- name: CountProducts :one

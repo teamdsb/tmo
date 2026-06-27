@@ -65,6 +65,12 @@ export const STATUS_FILTER_ITEMS: ReadonlyArray<{ label: string; value: string }
   { value: 'DRAFT', label: '状态：草稿' }
 ];
 
+const PRODUCT_STATUS_ORDER: Record<ProductStatus, number> = {
+  ACTIVE: 0,
+  DRAFT: 1,
+  INACTIVE: 2
+};
+
 export const DISPLAY_CATEGORY_ICON_ITEMS: ReadonlyArray<{ label: string; symbol: string; value: string }> = [
   { value: 'setting', label: '紧固/工业', symbol: 'settings' },
   { value: 'desktop', label: '电气/电子', symbol: 'desktop_windows' },
@@ -275,6 +281,10 @@ export const sortDisplayCategories = (items: DisplayCategoryItem[]) => {
   return [...items].sort((left, right) => left.sort - right.sort || left.name.localeCompare(right.name, 'zh-CN'));
 };
 
+export const sortProductsByStatus = (items: ProductRecord[]) => {
+  return [...items].sort((left, right) => PRODUCT_STATUS_ORDER[left.status] - PRODUCT_STATUS_ORDER[right.status]);
+};
+
 export const getDisplayIconOption = (iconKey: string) => {
   return DISPLAY_CATEGORY_ICON_ITEMS.find((item) => item.value === iconKey) || DISPLAY_CATEGORY_ICON_ITEMS[DISPLAY_CATEGORY_ICON_ITEMS.length - 1]!;
 };
@@ -315,7 +325,7 @@ export const normalizeProduct = (item: unknown, index = 0): ProductRecord => {
     id,
     name: toText(record.name, `模拟商品 ${index + 1}`),
     categoryId,
-    coverImageUrl: toText(record.coverImageUrl, MOCK_IMAGE_POOL[index % MOCK_IMAGE_POOL.length]),
+    coverImageUrl: toText(record.coverImageUrl, ''),
     description: toText(record.description, ''),
     inventory: Math.max(0, Math.round(toNumber(record.inventory ?? record.inventoryQty ?? record.stock, 0))),
     status: toStatus(record.status),

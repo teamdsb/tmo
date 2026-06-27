@@ -80,6 +80,58 @@ func TestCatalogQueries(t *testing.T) {
 	}
 }
 
+func TestListProductsOrdersByStatusThenNewest(t *testing.T) {
+	pool := openTestPool(t)
+	ctx := context.Background()
+
+	if _, err := pool.Exec(ctx, "TRUNCATE catalog_products CASCADE"); err != nil {
+		t.Fatalf("truncate catalog_products: %v", err)
+	}
+
+	queries := New(pool)
+	type productSeed struct {
+		name      string
+		status    string
+		createdAt time.Time
+	}
+	baseTime := time.Date(2026, time.June, 27, 8, 0, 0, 0, time.UTC)
+	seeds := []productSeed{
+		{name: "Draft newest overall", status: "DRAFT", createdAt: baseTime.Add(4 * time.Minute)},
+		{name: "Active older", status: "ACTIVE", createdAt: baseTime.Add(time.Minute)},
+		{name: "Inactive", status: "INACTIVE", createdAt: baseTime.Add(3 * time.Minute)},
+		{name: "Active newer", status: "ACTIVE", createdAt: baseTime.Add(2 * time.Minute)},
+	}
+	for _, seed := range seeds {
+		product, err := queries.CreateProduct(ctx, CreateProductParams{
+			Name:             seed.name,
+			Images:           []string{},
+			Tags:             []string{},
+			FilterDimensions: []string{},
+			Status:           seed.status,
+		})
+		if err != nil {
+			t.Fatalf("create %s: %v", seed.name, err)
+		}
+		if _, err := pool.Exec(ctx, "UPDATE catalog_products SET created_at = $2 WHERE id = $1", product.ID, seed.createdAt); err != nil {
+			t.Fatalf("set created_at for %s: %v", seed.name, err)
+		}
+	}
+
+	products, err := queries.ListProducts(ctx, ListProductsParams{Offset: 0, Limit: 10})
+	if err != nil {
+		t.Fatalf("list products: %v", err)
+	}
+	want := []string{"Active newer", "Active older", "Draft newest overall", "Inactive"}
+	if len(products) != len(want) {
+		t.Fatalf("expected %d products, got %d", len(want), len(products))
+	}
+	for index, name := range want {
+		if products[index].Name != name {
+			t.Fatalf("product %d: expected %q, got %q", index, name, products[index].Name)
+		}
+	}
+}
+
 func TestDeleteProductClearsCartAndWishlistReferencesForAllStatuses(t *testing.T) {
 	pool := openTestPool(t)
 	ctx := context.Background()

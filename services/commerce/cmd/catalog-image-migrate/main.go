@@ -30,7 +30,7 @@ const (
 	defaultOutputDir            = "./infra/dev/media"
 	defaultPublicBaseURL        = "http://localhost:8080/assets/media"
 	defaultDryRun               = true
-	defaultSourceAllowlistHosts = "images.unsplash.com"
+	defaultSourceAllowlistHosts = "images.unsplash.com,lh3.googleusercontent.com"
 )
 
 type productRow struct {
