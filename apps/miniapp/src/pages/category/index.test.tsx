@@ -34,6 +34,32 @@ describe('CategoryPage', () => {
     expect(await screen.findAllByText('¥185.00 起')).toHaveLength(4);
   });
 
+  it('adds top-level catalog categories missing from display configuration', async () => {
+    (commerceServices.catalog.listDisplayCategories as jest.Mock).mockResolvedValue({
+      items: [
+        { id: 'cat-fasteners', name: '紧固件', iconKey: 'setting', sort: 1, enabled: true },
+        { id: 'cat-electrical', name: '电气', iconKey: 'desktop', sort: 2, enabled: true }
+      ]
+    });
+    (commerceServices.catalog.listCategories as jest.Mock).mockResolvedValue({
+      items: [
+        { id: 'fasteners', name: '紧固件', parentId: null, sort: 1 },
+        { id: 'electrical', name: '电气', parentId: null, sort: 2 },
+        { id: 'large-equipment', name: '大型设备', parentId: null, sort: 9 },
+        { id: 'small-equipment', name: '小型设备', parentId: null, sort: 10 },
+        { id: 'large-child', name: '大型设备配件', parentId: 'large-equipment', sort: 11 }
+      ]
+    });
+
+    render(<CategoryPage />);
+
+    expect((await screen.findAllByText('紧固件')).length).toBeGreaterThan(0);
+    expect(await screen.findByText('大型设备')).toBeInTheDocument();
+    expect(await screen.findByText('小型设备')).toBeInTheDocument();
+    expect(screen.queryByText('大型设备配件')).toBeNull();
+    expect(document.querySelectorAll('.category-primary-label')).toHaveLength(4);
+  });
+
 
   it('keeps category product cards rendered for long titles', async () => {
     (commerceServices.catalog.listProducts as jest.Mock).mockResolvedValue({

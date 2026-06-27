@@ -277,6 +277,45 @@ export const sortCategories = (items: CategoryItem[]) => {
   return [...items].sort((left, right) => left.sort - right.sort || left.name.localeCompare(right.name, 'zh-CN'));
 };
 
+export const normalizeCategoryPositions = (items: CategoryItem[]) => {
+  return sortCategories(items).map((item, index) => ({ ...item, sort: index + 1 }));
+};
+
+export const insertCategoryAtPosition = (items: CategoryItem[], item: CategoryItem) => {
+  const normalized = normalizeCategoryPositions(items);
+  const target = Math.min(Math.max(1, Math.round(item.sort)), normalized.length + 1);
+  return sortCategories([
+    ...normalized.map((category) => category.sort >= target ? { ...category, sort: category.sort + 1 } : category),
+    { ...item, sort: target }
+  ]);
+};
+
+export const moveCategoryToPosition = (items: CategoryItem[], item: CategoryItem) => {
+  const normalized = normalizeCategoryPositions(items);
+  const current = normalized.find((category) => category.id === item.id);
+  if (!current) {
+    return insertCategoryAtPosition(normalized, item);
+  }
+
+  const target = Math.min(Math.max(1, Math.round(item.sort)), normalized.length);
+  return sortCategories(normalized.map((category) => {
+    if (category.id === item.id) {
+      return { ...item, sort: target };
+    }
+    if (target < current.sort && category.sort >= target && category.sort < current.sort) {
+      return { ...category, sort: category.sort + 1 };
+    }
+    if (target > current.sort && category.sort > current.sort && category.sort <= target) {
+      return { ...category, sort: category.sort - 1 };
+    }
+    return category;
+  }));
+};
+
+export const removeCategoryAndCompact = (items: CategoryItem[], categoryId: string) => {
+  return normalizeCategoryPositions(items.filter((item) => item.id !== categoryId));
+};
+
 export const sortDisplayCategories = (items: DisplayCategoryItem[]) => {
   return [...items].sort((left, right) => left.sort - right.sort || left.name.localeCompare(right.name, 'zh-CN'));
 };

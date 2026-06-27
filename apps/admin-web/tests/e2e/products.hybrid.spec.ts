@@ -285,6 +285,62 @@ test('product list groups statuses and leaves empty covers empty', async ({ page
   expect(await emptyCover.getAttribute('style')).toBeNull();
 });
 
+test('category sort can be cleared and inserts at an occupied position', async ({ page }) => {
+  await installDevSession(page);
+  await routeProductPageApis(page);
+  let categories = [
+    { id: categoryId, name: '紧固件', parentId: null, sort: 1 },
+    { id: 'bbbbbbbb-cccc-dddd-eeee-ffffffffffff', name: '电气', parentId: null, sort: 2 }
+  ];
+  let createPayload;
+  await page.route('**/api/catalog/categories**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname !== '/api/catalog/categories') {
+      await route.continue();
+      return;
+    }
+    if (route.request().method() === 'GET') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ items: categories })
+      });
+      return;
+    }
+    if (route.request().method() === 'POST') {
+      createPayload = route.request().postDataJSON();
+      categories = [
+        { id: 'cccccccc-dddd-eeee-ffff-000000000000', ...createPayload, parentId: null },
+        ...categories.map((item) => ({ ...item, sort: item.sort + 1 }))
+      ];
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify(categories[0])
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto('/products.html');
+  await page.locator('#manage-category-btn').click();
+  const modal = page.locator('#category-manager-modal');
+  const nameInput = modal.locator('form input[name="name"]');
+  const sortInput = modal.locator('form input[name="sort"]');
+
+  await nameInput.fill('键盘');
+  await sortInput.fill('');
+  await expect(sortInput).toHaveValue('');
+  await sortInput.fill('1');
+  await expect(sortInput).toHaveValue('1');
+  await modal.locator('form button[type="submit"]').click();
+
+  await expect.poll(() => createPayload?.sort).toBe(1);
+  await expect(modal.locator('[data-category-id="cccccccc-dddd-eeee-ffff-000000000000"] [data-role="category-sort"]')).toHaveValue('1');
+  await expect(modal.locator(`[data-category-id="${categoryId}"] [data-role="category-sort"]`)).toHaveValue('2');
+});
+
 test('product edit persists changes through catalog PATCH', async ({ page }) => {
   const uploadPath = await createUploadFixture();
   await installDevSession(page);
