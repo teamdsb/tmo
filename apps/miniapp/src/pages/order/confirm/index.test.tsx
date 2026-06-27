@@ -7,7 +7,7 @@ import { commerceServices } from '../../../services/commerce'
 import { listUserAddresses } from '../../../services/addresses'
 import { paymentServices, isPaymentCancelled } from '../../../services/payment'
 import { ensureLoggedIn } from '../../../utils/auth'
-import { navigateTo } from '../../../utils/navigation'
+import { navigateTo, switchTabLike } from '../../../utils/navigation'
 
 jest.mock('../../../services/addresses', () => ({
   listUserAddresses: jest.fn(),
@@ -228,7 +228,31 @@ describe('OrderConfirmPage', () => {
     expect(paymentServices.sessions.payForOrder).toHaveBeenCalledWith('order-1001')
     expect(commerceServices.orders.resetIdempotency).toHaveBeenCalled()
     expect(Taro.showToast).toHaveBeenCalledWith({ title: '支付成功', icon: 'success' })
+    expect(switchTabLike).toHaveBeenCalledWith('/pages/cart/index')
+    expect(navigateTo).not.toHaveBeenCalled()
+  })
+
+  it('keeps payment-confirming orders on the order detail page', async () => {
+    ;(paymentServices.sessions.payForOrder as jest.Mock).mockResolvedValue({
+      id: 'pay-1',
+      orderId: 'order-1001',
+      channel: 'wechat',
+      status: 'PAY_PENDING'
+    })
+
+    render(<OrderConfirmPage />)
+    await act(async () => {
+      await flushPromises()
+    })
+
+    fireEvent.click(screen.getByText('提交订单'))
+    await act(async () => {
+      await flushPromises()
+    })
+
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已提交，支付确认中', icon: 'none' })
     expect(navigateTo).toHaveBeenCalledWith('/pages/order/detail/index?id=order-1001')
+    expect(switchTabLike).not.toHaveBeenCalled()
   })
 
   it('navigates to existing order when idempotency key conflicts', async () => {

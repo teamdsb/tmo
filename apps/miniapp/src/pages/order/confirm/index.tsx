@@ -190,12 +190,14 @@ export default function OrderConfirmPage() {
 
       let toastTitle = '订单已提交'
       let toastIcon: 'success' | 'none' = 'success'
+      let paymentConfirmed = false
 
       try {
         const payment = await paymentServices.sessions.payForOrder(order.id)
         const paymentStatus = String(payment.status || '').toUpperCase()
         if (paymentStatus === 'PAID') {
           toastTitle = '支付成功'
+          paymentConfirmed = true
         } else {
           toastTitle = '订单已提交，支付确认中'
           toastIcon = 'none'
@@ -211,7 +213,11 @@ export default function OrderConfirmPage() {
       }
 
       await Taro.showToast({ title: toastTitle, icon: toastIcon })
-      await navigateTo(orderDetailRoute(order.id))
+      if (paymentConfirmed) {
+        await switchTabLike(ROUTES.cart)
+      } else {
+        await navigateTo(orderDetailRoute(order.id))
+      }
     } catch (error) {
       console.warn('submit order failed', error)
       const existingOrderId = getIdempotencyConflictOrderId(error)

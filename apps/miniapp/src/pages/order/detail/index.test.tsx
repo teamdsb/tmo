@@ -80,8 +80,8 @@ describe('OrderDetailPage', () => {
     expect(screen.getByText('商品清单')).toBeInTheDocument()
     expect(screen.getByText('继续支付')).toBeInTheDocument()
     expect(screen.getByText('刷新支付状态')).toBeInTheDocument()
-    expect(screen.getByText('返回商城')).toBeInTheDocument()
-    expect(screen.getByText('查看物流')).toBeInTheDocument()
+    expect(screen.getByText('返回购物车')).toBeInTheDocument()
+    expect(screen.queryByText('查看物流')).toBeNull()
   })
 
   it('refreshes payment status with latestPaymentId', async () => {
@@ -104,6 +104,8 @@ describe('OrderDetailPage', () => {
     })
 
     expect(paymentServices.sessions.recheck).toHaveBeenCalledWith('pay-2001')
+    expect(switchTabLike).toHaveBeenCalledWith('/pages/cart/index')
+    expect(commerceServices.orders.get).toHaveBeenCalledTimes(1)
   })
 
   it('keeps order paid locally after fake payment succeeds', async () => {
@@ -127,23 +129,13 @@ describe('OrderDetailPage', () => {
       await flushPromises()
     })
 
-    expect(await screen.findByText('支付成功')).toBeInTheDocument()
-    expect(screen.getAllByText('已支付').length).toBeGreaterThan(0)
-    expect(screen.queryByText('继续支付')).toBeNull()
-    expect(screen.queryByText('刷新支付状态')).toBeNull()
+    expect(switchTabLike).toHaveBeenCalledWith('/pages/cart/index')
+    expect(commerceServices.orders.get).toHaveBeenCalledTimes(1)
     expect(Taro.showToast).toHaveBeenCalledWith(expect.objectContaining({
       title: '支付成功',
       icon: 'success'
     }))
-
     view.unmount()
-    render(<OrderDetailPage />)
-    await act(async () => {
-      await flushPromises()
-    })
-
-    expect(screen.getAllByText('已支付').length).toBeGreaterThan(0)
-    expect(screen.queryByText('继续支付')).toBeNull()
   })
 
   it('shows paid hero and hides payment recovery actions for paid orders', async () => {
@@ -160,7 +152,7 @@ describe('OrderDetailPage', () => {
     expect(screen.getByText('支付成功')).toBeInTheDocument()
     expect(screen.queryByText('继续支付')).toBeNull()
     expect(screen.queryByText('刷新支付状态')).toBeNull()
-    expect(screen.getByText('返回商城')).toBeInTheDocument()
+    expect(screen.getByText('返回购物车')).toBeInTheDocument()
     expect(screen.getByText('查看物流')).toBeInTheDocument()
   })
 
@@ -203,10 +195,10 @@ describe('OrderDetailPage', () => {
       await flushPromises()
     })
 
-    fireEvent.click(screen.getByText('返回商城'))
+    fireEvent.click(screen.getByText('返回购物车'))
     fireEvent.click(screen.getByText('查看物流'))
 
-    expect(switchTabLike).toHaveBeenCalledWith('/pages/index/index')
+    expect(switchTabLike).toHaveBeenCalledWith('/pages/cart/index')
     expect(navigateTo).toHaveBeenCalledWith('/pages/order/tracking/index?id=order-2001')
   })
 })
