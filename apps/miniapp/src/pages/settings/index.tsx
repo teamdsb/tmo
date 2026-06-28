@@ -90,7 +90,6 @@ export default function SettingsPage() {
   const [bootstrap, setBootstrap] = useState<BootstrapResponse | null>(null)
   const [profilePhone, setProfilePhone] = useState('')
   const [expandedPolicy, setExpandedPolicy] = useState<PolicySectionKey | null>(null)
-  const [showEnvDetails, setShowEnvDetails] = useState(false)
   const [resettingMock, setResettingMock] = useState(false)
   const [mockLoggingIn, setMockLoggingIn] = useState(false)
 
@@ -121,26 +120,10 @@ export default function SettingsPage() {
   })
 
   const currentRole = useMemo(() => getCurrentRole(bootstrap), [bootstrap])
-  const normalizedRoles = useMemo(() => {
-    const roles = bootstrap?.me?.roles
-    if (!Array.isArray(roles)) {
-      return []
-    }
-    return Array.from(new Set(
-      roles
-        .filter((role): role is string => typeof role === 'string' && role.trim().length > 0)
-        .map((role) => role.trim().toUpperCase())
-    ))
-  }, [bootstrap])
   const isLoggedIn = Boolean(bootstrap?.me)
   const showSalesWorkbenchEntry = isLoggedIn && isSalesUser(bootstrap)
   const accountDisplayName = bootstrap?.me?.displayName?.trim() || '企业账号'
   const accountPhone = profilePhone || '未设置'
-  const modeLabel = runtimeEnv.isIsolatedMock ? 'Mock' : 'Real'
-  const gatewayBaseUrl = runtimeEnv.gatewayBaseUrl || '离线模式'
-  const environmentHint = runtimeEnv.isIsolatedMock
-    ? '离线 Mock 模式，不访问真实后端'
-    : gatewayBaseUrl
 
   const handleToggle = (key: keyof SettingsState) => {
     setSettings((prev) => ({ ...prev, [key]: !prev[key] }))
@@ -225,12 +208,6 @@ export default function SettingsPage() {
               <View className='px-1 py-2'>
                 <Text className='block text-xs text-slate-400'>当前角色</Text>
                 <Text className='mt-1 block text-sm text-slate-700'>{currentRole || '未识别'}</Text>
-              </View>
-              <View className='px-1 py-2'>
-                <Text className='block text-xs text-slate-400'>可用角色</Text>
-                <Text className='mt-1 block text-sm text-slate-700'>
-                  {normalizedRoles.length > 0 ? normalizedRoles.join(' / ') : '未配置'}
-                </Text>
               </View>
               {showSalesWorkbenchEntry ? (
                 <View className='mt-2 overflow-hidden rounded-2xl border border-slate-100'>
@@ -320,32 +297,6 @@ export default function SettingsPage() {
             <Text className='block text-xs text-slate-400'>App 版本</Text>
             <Text className='mt-1 block text-sm text-slate-700'>v{appVersion}</Text>
           </View>
-          <View className='mt-3 px-1'>
-            <Text className='block text-xs text-slate-400'>运行模式</Text>
-            <Text className='mt-1 block text-sm text-slate-700'>{modeLabel}</Text>
-          </View>
-          <View className='mt-3 px-1'>
-            <Text className='block text-xs text-slate-400'>接口环境</Text>
-            <Text className='mt-1 block text-sm text-slate-700'>{environmentHint}</Text>
-          </View>
-          <NativeButton
-            className='mt-4 w-full rounded-2xl border border-slate-200 py-3 text-sm text-slate-800'
-            onClick={() => setShowEnvDetails((prev) => !prev)}
-          >
-            {showEnvDetails ? '收起详情' : '查看详情'}
-          </NativeButton>
-          {showEnvDetails ? (
-            <View className='mt-4 rounded-2xl bg-slate-50 px-4 py-3'>
-              <Text className='text-xs text-slate-400'>Gateway</Text>
-              <Text className='mt-1 text-sm text-slate-700'>{runtimeEnv.gatewayBaseUrl || '离线模式'}</Text>
-              <Text className='mt-3 text-xs text-slate-400'>Commerce</Text>
-              <Text className='mt-1 text-sm text-slate-700'>{runtimeEnv.commerceBaseUrl || '离线模式'}</Text>
-              <Text className='mt-3 text-xs text-slate-400'>Identity</Text>
-              <Text className='mt-1 text-sm text-slate-700'>{runtimeEnv.identityBaseUrl || '离线模式'}</Text>
-              <Text className='mt-3 text-xs text-slate-400'>Fake Payment</Text>
-              <Text className='mt-1 text-sm text-slate-700'>{runtimeEnv.devFakePaymentEnabled ? '已开启' : '未开启'}</Text>
-            </View>
-          ) : null}
         </View>
       </View>
     </View>
