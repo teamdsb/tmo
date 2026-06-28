@@ -381,6 +381,16 @@ describe('ProductDetail', () => {
 
     const heroImage = document.querySelector('.detail-hero-frame img')
     expect(heroImage).toHaveAttribute('src', 'https://img.example.com/cover-only.png')
+
+    const source = fs.readFileSync(path.resolve(__dirname, './index.tsx'), 'utf8')
+    const stylesheet = fs.readFileSync(path.resolve(__dirname, './index.scss'), 'utf8')
+    expect(source).toContain("wrapperClassName='detail-hero-image-wrapper'")
+    expect(source).toContain("className='detail-hero-image-layer'")
+    expect(stylesheet).toContain('.detail-hero-image-layer {')
+    expect(stylesheet).toContain('position: absolute;')
+    expect(stylesheet).toContain('inset: 0;')
+    expect(stylesheet).toContain('.detail-hero-image-wrapper {')
+    expect(stylesheet).toContain('height: 100%;')
   })
 
   it('keeps placeholder image available in hero area when product images are empty', async () => {
