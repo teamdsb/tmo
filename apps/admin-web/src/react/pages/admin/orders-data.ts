@@ -5,6 +5,7 @@ export type OrderStatusTone = 'blue' | 'amber' | 'green' | 'gray' | 'red';
 
 export type OrderLineItem = {
   name: string;
+  productId?: string;
   qty: number;
   size: string;
 };
@@ -146,6 +147,7 @@ const buildLineItemsFromFixtureItems = (items: unknown[]): OrderLineItem[] => {
     const sku = (canonicalSkuById as Record<string, { name?: string; spec?: string }>)[skuId] || null;
     return {
       name: safeText(sku?.name, `商品 ${index + 1}`),
+      productId: safeText((sku as { spuId?: string } | null)?.spuId, ''),
       qty: Number.isFinite(Number((item as { qty?: number })?.qty)) ? Number((item as { qty?: number }).qty) : 1,
       size: safeText(sku?.spec, '默认')
     };
