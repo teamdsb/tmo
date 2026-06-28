@@ -130,7 +130,7 @@ export default function ProfileEditPage() {
 
   return (
     <View className='page min-h-screen bg-slate-100'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--secondary'>
         <Navbar.NavLeft onClick={() => void handleBack()} />
         <Navbar.Title>个人信息</Navbar.Title>
       </Navbar>

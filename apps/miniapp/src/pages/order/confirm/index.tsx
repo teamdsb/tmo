@@ -240,7 +240,7 @@ export default function OrderConfirmPage() {
 
   return (
     <View className='page order-confirm-page'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--secondary'>
         <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.cart))} />
         <Navbar.Title>确认订单</Navbar.Title>
       </Navbar>

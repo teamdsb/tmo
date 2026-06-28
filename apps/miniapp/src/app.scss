@@ -165,6 +165,15 @@
   padding-top: var(--navbar-top);
 }
 
+.app-navbar--secondary .taroify-navbar__content {
+  box-sizing: border-box;
+}
+
+.app-navbar--secondary .taroify-navbar__left,
+.app-navbar--secondary .taroify-navbar__right {
+  top: var(--navbar-top, 0);
+}
+
 .taroify-tabbar__placeholder {
   background: #fff;
 }
@@ -1165,15 +1174,6 @@
 
 .page-grid .taroify-grid-item__content::after {
   border: 0;
-}
-
-.order-history-page .app-navbar .taroify-navbar__content,
-.order-history-page .app-navbar .taroify-navbar__placeholder {
-  height: calc(var(--navbar-total-height, 64px) - 12px);
-}
-
-.order-history-page .app-navbar .taroify-navbar__content {
-  padding-top: max(calc(var(--navbar-top, 20px) - 6px), 0px);
 }
 
 .order-history-body {

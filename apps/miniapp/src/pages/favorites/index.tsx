@@ -95,7 +95,7 @@ export default function FavoritesPage() {
 
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--secondary'>
         <Navbar.NavLeft onClick={handleBack} />
         <Navbar.Title>收藏</Navbar.Title>
         <Navbar.NavRight>

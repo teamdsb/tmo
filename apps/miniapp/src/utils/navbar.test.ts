@@ -1,3 +1,6 @@
+import fs from 'node:fs'
+import path from 'node:path'
+
 describe('navbar metrics', () => {
   const loadModule = () => require('./navbar') as typeof import('./navbar')
   const loadTaro = () => require('@tarojs/taro').default as {
@@ -178,5 +181,47 @@ describe('navbar metrics', () => {
       '--navbar-total-height': '36px'
     })
     expect(getNavbarTotalHeight()).toBe(36)
+  })
+})
+
+describe('secondary navbar usage', () => {
+  const secondaryPageFiles = [
+    'pages/account/address/index.tsx',
+    'pages/import/index.tsx',
+    'pages/settings/index.tsx',
+    'pages/support/create/index.tsx',
+    'pages/demand/create/index.tsx',
+    'pages/tracking/batch/index.tsx',
+    'pages/support/support-customer-view.tsx',
+    'pages/support/support-sales-view.tsx',
+    'pages/favorites/index.tsx',
+    'pages/demand/list/index.tsx',
+    'pages/goods/detail/index.tsx',
+    'pages/profile/edit/index.tsx',
+    'pages/order/list/index.tsx',
+    'pages/demand/index.tsx',
+    'pages/order/tracking/detail/index.tsx',
+    'pages/support/chat/index.tsx',
+    'pages/goods/search/index.tsx',
+    'pages/order/detail/index.tsx',
+    'pages/order/confirm/index.tsx',
+    'pages/order/tracking/index.tsx'
+  ]
+
+  it.each(secondaryPageFiles)('%s uses the shared secondary navbar contract', (relativeFile) => {
+    const source = fs.readFileSync(path.resolve(__dirname, '..', relativeFile), 'utf8')
+
+    expect(source).toContain('app-navbar--secondary')
+    expect(source).not.toMatch(/<Navbar[^>]*safeArea=['"]top['"]/)
+  })
+
+  it('uses a single device-driven box model for secondary navbars', () => {
+    const stylesheet = fs.readFileSync(path.resolve(__dirname, '../app.scss'), 'utf8')
+
+    expect(stylesheet).toContain('.app-navbar--secondary .taroify-navbar__content {')
+    expect(stylesheet).toContain('box-sizing: border-box;')
+    expect(stylesheet).toContain('.app-navbar--secondary .taroify-navbar__left,')
+    expect(stylesheet).toContain('top: var(--navbar-top, 0);')
+    expect(stylesheet).not.toContain('height: calc(var(--navbar-total-height, 64px) - 12px);')
   })
 })

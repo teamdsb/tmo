@@ -111,9 +111,8 @@ export default function AddressList() {
         bordered
         fixed
         placeholder
-        safeArea='top'
         style={navbarStyle}
-        className='address-navbar app-navbar'
+        className='address-navbar app-navbar app-navbar--secondary'
       >
         <Navbar.NavLeft onClick={() => Taro.navigateBack()} />
         <Navbar.Title>收货地址</Navbar.Title>

@@ -7,16 +7,6 @@
     linear-gradient(180deg, #f6f9fc 0%, #e9eff5 100%);
 }
 
-.support-chat__navbar .taroify-navbar__content,
-.support-chat__navbar .taroify-navbar__placeholder {
-  height: calc(var(--navbar-total-height, calc(var(--navbar-height) + var(--navbar-top))) - 12px);
-  min-height: 78px;
-}
-
-.support-chat__navbar .taroify-navbar__content {
-  transform: translateY(-6px);
-}
-
 .support-chat__topbar {
   display: flex;
   align-items: flex-start;

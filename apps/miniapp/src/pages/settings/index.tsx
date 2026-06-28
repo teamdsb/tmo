@@ -183,7 +183,7 @@ export default function SettingsPage() {
 
   return (
     <View className='page bg-slate-100'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--secondary'>
         <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.mine))} />
         <Navbar.Title>系统设置</Navbar.Title>
       </Navbar>
