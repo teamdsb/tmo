@@ -13,15 +13,29 @@ import (
 )
 
 const createCategory = `-- name: CreateCategory :one
+WITH lock_category_sort AS MATERIALIZED (
+    SELECT pg_advisory_xact_lock(1984052701)
+), target_position AS MATERIALIZED (
+    SELECT LEAST(GREATEST($3::integer, 1), count(*)::integer + 1) AS sort
+    FROM catalog_categories
+    CROSS JOIN lock_category_sort
+), shifted AS (
+    UPDATE catalog_categories AS category
+    SET sort = category.sort + 1,
+        updated_at = now()
+    FROM target_position
+    WHERE category.sort >= target_position.sort
+    RETURNING category.id
+)
 INSERT INTO catalog_categories (
     name,
     parent_id,
     sort
-) VALUES (
+) SELECT
     $1,
     $2,
-    $3
-)
+    target_position.sort
+FROM target_position
 RETURNING id, name, parent_id, sort, created_at, updated_at
 `
 
@@ -45,17 +59,31 @@ func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) 
 	return i, err
 }
 
-const deleteCategory = `-- name: DeleteCategory :execrows
-DELETE FROM catalog_categories
-WHERE id = $1
+const deleteCategory = `-- name: DeleteCategory :one
+WITH lock_category_sort AS MATERIALIZED (
+    SELECT pg_advisory_xact_lock(1984052701)
+), deleted AS (
+    DELETE FROM catalog_categories AS category
+    USING lock_category_sort
+    WHERE category.id = $1
+    RETURNING category.sort
+), shifted AS (
+    UPDATE catalog_categories AS category
+    SET sort = category.sort - 1,
+        updated_at = now()
+    FROM deleted
+    WHERE category.sort > deleted.sort
+    RETURNING category.id
+)
+SELECT count(*)::bigint
+FROM deleted
 `
 
 func (q *Queries) DeleteCategory(ctx context.Context, id uuid.UUID) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteCategory, id)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+	row := q.db.QueryRow(ctx, deleteCategory, id)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const getCategory = `-- name: GetCategory :one
@@ -112,24 +140,63 @@ func (q *Queries) ListCategories(ctx context.Context) ([]CatalogCategory, error)
 }
 
 const updateCategory = `-- name: UpdateCategory :one
-UPDATE catalog_categories
-SET name = COALESCE($1::text, name),
+WITH lock_category_sort AS MATERIALIZED (
+    SELECT pg_advisory_xact_lock(1984052701)
+), current_category AS MATERIALIZED (
+    SELECT category.id, category.sort
+    FROM catalog_categories AS category
+    CROSS JOIN lock_category_sort
+    WHERE category.id = $4
+), target_position AS MATERIALIZED (
+    SELECT
+        current_category.id,
+        current_category.sort AS old_sort,
+        CASE
+            WHEN $5::integer IS NULL THEN current_category.sort
+            ELSE LEAST(GREATEST($5::integer, 1), count(*)::integer)
+        END AS new_sort
+    FROM current_category
+    CROSS JOIN catalog_categories
+    GROUP BY current_category.id, current_category.sort
+), shifted AS (
+    UPDATE catalog_categories AS category
+    SET sort = CASE
+            WHEN target_position.new_sort < target_position.old_sort THEN category.sort + 1
+            ELSE category.sort - 1
+        END,
+        updated_at = now()
+    FROM target_position
+    WHERE category.id <> target_position.id
+      AND (
+          (target_position.new_sort < target_position.old_sort
+              AND category.sort >= target_position.new_sort
+              AND category.sort < target_position.old_sort)
+          OR
+          (target_position.new_sort > target_position.old_sort
+              AND category.sort > target_position.old_sort
+              AND category.sort <= target_position.new_sort)
+      )
+    RETURNING category.id
+)
+UPDATE catalog_categories AS category
+SET name = COALESCE($1::text, category.name),
     parent_id = CASE
         WHEN $2::boolean THEN $3::uuid
-        ELSE parent_id
+        ELSE category.parent_id
     END,
-    sort = COALESCE($4::integer, sort),
+    sort = target_position.new_sort,
     updated_at = now()
-WHERE id = $5
-RETURNING id, name, parent_id, sort, created_at, updated_at
+FROM target_position
+WHERE category.id = target_position.id
+RETURNING category.id, category.name, category.parent_id, category.sort, category.created_at, category.updated_at
 `
 
 type UpdateCategoryParams struct {
 	Name        *string     `db:"name" json:"name"`
 	ParentIDSet bool        `db:"parent_id_set" json:"parent_id_set"`
 	ParentID    pgtype.UUID `db:"parent_id" json:"parent_id"`
-	Sort        *int32      `db:"sort" json:"sort"`
 	ID          uuid.UUID   `db:"id" json:"id"`
+	Sort        *int32      `db:"sort" json:"sort"`
 }
 
 func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) (CatalogCategory, error) {
@@ -137,8 +204,8 @@ func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) 
 		arg.Name,
 		arg.ParentIDSet,
 		arg.ParentID,
-		arg.Sort,
 		arg.ID,
+		arg.Sort,
 	)
 	var i CatalogCategory
 	err := row.Scan(

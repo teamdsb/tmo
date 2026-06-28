@@ -37,10 +37,12 @@ import {
   getDisplayIconSymbol,
   getModelClass,
   getStatusMeta,
+  insertCategoryAtPosition,
   MAX_TIER_DISCOUNT_RATE,
   mergeImportedMockProducts,
   MIN_TIER_QTY,
   MODEL_CLASS_BADGE,
+  moveCategoryToPosition,
   MOCK_PRODUCTS_STORAGE_KEY,
   NO_CATEGORY_FILTER,
   normalizeCategoryItem,
@@ -48,6 +50,7 @@ import {
   normalizeProduct,
   PRODUCTS_PAGE_SIZE,
   readStoredJson,
+  removeCategoryAndCompact,
   resolveCategoryLabel,
   sortCategories,
   sortDisplayCategories,
@@ -1157,18 +1160,24 @@ type CategoryManagerModalProps = {
   open: boolean;
 };
 
+type EditableCategoryItem = Omit<CategoryItem, 'sort'> & { sort: number | '' };
+
+const readCategorySortInput = (value: string): number | '' => value === '' ? '' : Number(value);
+
 const CategoryManagerModal = ({ categories, onClose, onCreate, onDelete, onUpdate, open }: CategoryManagerModalProps) => {
-  const [rows, setRows] = useState<CategoryItem[]>([]);
-  const [createDraft, setCreateDraft] = useState({ name: '', sort: 100, parentId: '' });
+  const [rows, setRows] = useState<EditableCategoryItem[]>([]);
+  const [createDraft, setCreateDraft] = useState<{ name: string; sort: number | ''; parentId: string }>({ name: '', sort: 1, parentId: '' });
   const [pendingId, setPendingId] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     if (!open) {
       return;
     }
     setRows(categories.map((item) => ({ ...item })));
-    setCreateDraft({ name: '', sort: 100, parentId: '' });
+    setCreateDraft({ name: '', sort: categories.length + 1, parentId: '' });
     setPendingId('');
+    setErrorMessage('');
   }, [categories, open]);
 
   if (!open) {
@@ -1206,16 +1215,20 @@ const CategoryManagerModal = ({ categories, onClose, onCreate, onDelete, onUpdat
             data-role="create-category-form"
             onSubmit={async (event) => {
               event.preventDefault();
-              if (!createDraft.name.trim()) {
+              if (!createDraft.name.trim() || createDraft.sort === '' || !Number.isInteger(createDraft.sort) || createDraft.sort < 1) {
+                setErrorMessage('请输入类目名称和大于 0 的整数排序。');
                 return;
               }
+              setErrorMessage('');
               setPendingId('create');
               try {
                 await onCreate({
                   name: createDraft.name.trim(),
-                  sort: Math.max(0, Math.round(Number(createDraft.sort) || 100)),
+                  sort: createDraft.sort,
                   parentId: createDraft.parentId || null
                 });
+              } catch (error) {
+                setErrorMessage(error instanceof Error ? error.message : '新增类目失败，请稍后重试。');
               } finally {
                 setPendingId('');
               }
@@ -1232,7 +1245,9 @@ const CategoryManagerModal = ({ categories, onClose, onCreate, onDelete, onUpdat
             <input
               className="rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary"
               name="sort"
-              onChange={(event) => setCreateDraft((current) => ({ ...current, sort: Number(event.target.value) || 100 }))}
+              min="1"
+              onChange={(event) => setCreateDraft((current) => ({ ...current, sort: readCategorySortInput(event.target.value) }))}
+              step="1"
               type="number"
               value={createDraft.sort}
             />
@@ -1258,6 +1273,7 @@ const CategoryManagerModal = ({ categories, onClose, onCreate, onDelete, onUpdat
               新增类目
             </button>
           </form>
+          {errorMessage ? <p className="text-sm text-red-600" data-role="category-error">{errorMessage}</p> : null}
           <div className="overflow-hidden rounded-xl border border-slate-200">
             <table className="w-full border-collapse text-left">
               <thead className="bg-slate-50">
@@ -1295,9 +1311,11 @@ const CategoryManagerModal = ({ categories, onClose, onCreate, onDelete, onUpdat
                           className="w-24 rounded-lg border-slate-300 text-sm focus:border-primary focus:ring-primary"
                           data-role="category-sort"
                           onChange={(event) => {
-                            const value = Number(event.target.value) || 0;
+                            const value = readCategorySortInput(event.target.value);
                             setRows((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, sort: value } : item)));
                           }}
+                          min="1"
+                          step="1"
                           type="number"
                           value={row.sort}
                         />
@@ -1329,14 +1347,21 @@ const CategoryManagerModal = ({ categories, onClose, onCreate, onDelete, onUpdat
                             data-role="save-category"
                             disabled={pendingId === row.id}
                             onClick={async () => {
+                              if (!row.name.trim() || row.sort === '' || !Number.isInteger(row.sort) || row.sort < 1) {
+                                setErrorMessage('请输入类目名称和大于 0 的整数排序。');
+                                return;
+                              }
+                              setErrorMessage('');
                               setPendingId(row.id);
                               try {
                                 await onUpdate({
                                   ...row,
                                   name: row.name.trim(),
                                   parentId: row.parentId || null,
-                                  sort: Math.max(0, Math.round(Number(row.sort) || 0))
+                                  sort: row.sort
                                 });
+                              } catch (error) {
+                                setErrorMessage(error instanceof Error ? error.message : '保存类目失败，请稍后重试。');
                               } finally {
                                 setPendingId('');
                               }
@@ -1738,6 +1763,21 @@ export const ProductsPage = () => {
     return response.data.items.map((item, index) => normalizeProduct(item, index));
   }, []);
 
+  const loadBackendCategories = useCallback(async () => {
+    const response = await fetchCatalogCategories();
+    if (response.status !== 200 || !Array.isArray(response.data?.items)) {
+      const serverMessage = extractResponseMessage(response);
+      throw new Error(serverMessage || '类目列表加载失败，请稍后重试。');
+    }
+    return sortCategories(response.data.items.map((item, index) => normalizeCategoryItem(item, index)));
+  }, []);
+
+  const refreshBackendCategories = useCallback(async () => {
+    const nextCategories = await loadBackendCategories();
+    setCategories(nextCategories);
+    return nextCategories;
+  }, [loadBackendCategories]);
+
   useEffect(() => {
     let active = true;
 
@@ -1757,14 +1797,10 @@ export const ProductsPage = () => {
           (async () => {
             if (nextContext.mode === 'dev') {
               try {
-                const response = await fetchCatalogCategories();
-                if (response.status === 200 && Array.isArray(response.data?.items)) {
-                  return sortCategories(response.data.items.map((item, index) => normalizeCategoryItem(item, index)));
-                }
+                return await loadBackendCategories();
               } catch {
                 return [];
               }
-              return [];
             }
 
             const stored = readStoredJson<unknown[]>(CATEGORY_STORAGE_KEY);
@@ -1830,7 +1866,7 @@ export const ProductsPage = () => {
     return () => {
       active = false;
     };
-  }, [loadBackendProducts]);
+  }, [loadBackendCategories, loadBackendProducts]);
 
   const refreshBackendProducts = useCallback(async () => {
     if (context?.mode !== 'dev') {
@@ -2478,18 +2514,15 @@ export const ProductsPage = () => {
             if (response.status !== 201 || !response.data?.id) {
               throw new Error('后端新增类目失败，请稍后重试。');
             }
-            persistCategories([...categories, normalizeCategoryItem(response.data, categories.length)], false);
+            await refreshBackendCategories();
           } else {
             persistCategories(
-              [
-                ...categories,
-                {
-                  id: `LOCAL-CAT-${Date.now()}`,
-                  name: item.name,
-                  sort: item.sort,
-                  parentId: item.parentId || null
-                }
-              ],
+              insertCategoryAtPosition(categories, {
+                id: `LOCAL-CAT-${Date.now()}`,
+                name: item.name,
+                sort: item.sort,
+                parentId: item.parentId || null
+              }),
               true
             );
           }
@@ -2501,11 +2534,14 @@ export const ProductsPage = () => {
             if (response.status !== 204) {
               throw new Error('后端删除类目失败，请稍后重试。');
             }
+            await refreshBackendCategories();
+          } else {
+            const nextCategories = removeCategoryAndCompact(
+              categories.map((item) => (item.parentId === categoryId ? { ...item, parentId: null } : item)),
+              categoryId
+            );
+            persistCategories(nextCategories, true);
           }
-          const nextCategories = categories
-            .filter((item) => item.id !== categoryId)
-            .map((item) => (item.parentId === categoryId ? { ...item, parentId: null } : item));
-          persistCategories(nextCategories, context?.mode !== 'dev');
           setProducts((current) => current.map((item) => (item.categoryId === categoryId ? { ...item, categoryId: '' } : item)));
           showToast('类目已删除。');
         }}
@@ -2522,12 +2558,9 @@ export const ProductsPage = () => {
             if (response.status !== 200 || !response.data?.id) {
               throw new Error('后端更新类目失败，请稍后重试。');
             }
-            persistCategories(
-              categories.map((category) => (category.id === item.id ? normalizeCategoryItem(response.data) : category)),
-              false
-            );
+            await refreshBackendCategories();
           } else {
-            persistCategories(categories.map((category) => (category.id === item.id ? { ...item, name: item.name.trim() } : category)), true);
+            persistCategories(moveCategoryToPosition(categories, { ...item, name: item.name.trim() }), true);
           }
           showToast('类目已更新。');
         }}

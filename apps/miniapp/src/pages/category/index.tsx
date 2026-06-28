@@ -135,7 +135,7 @@ const sortCategoriesByProductAvailability = (
 }
 
 const toDisplayCategoriesFromCatalog = (items: Category[]): DisplayCategory[] => {
-  return sortCategories(items).map((item, index) => ({
+  return sortCategories(items.filter((item) => !item.parentId)).map((item, index) => ({
     id: item.id,
     name: item.name,
     iconKey: resolveCategoryIconKey(item.name, index),
@@ -145,9 +145,11 @@ const toDisplayCategoriesFromCatalog = (items: Category[]): DisplayCategory[] =>
 }
 
 const toCategoryViewItems = (displayItems: DisplayCategory[], catalogItems: Category[]): CategoryViewItem[] => {
-  const catalogByName = new Map(catalogItems.map((item) => [item.name, item.id]))
-
-  return sortCategories(displayItems)
+  const topLevelCatalogItems = sortCategories(catalogItems.filter((item) => !item.parentId))
+  const catalogByName = new Map(topLevelCatalogItems.map((item) => [item.name, item.id]))
+  const representedCatalogIds = new Set(displayItems.map((item) => String(item.id)))
+  const representedNames = new Set(displayItems.map((item) => String(item.name)))
+  const configuredItems = sortCategories(displayItems)
     .filter((item) => item.enabled !== false)
     .map((item) => {
       const displayId = String(item.id)
@@ -159,6 +161,24 @@ const toCategoryViewItems = (displayItems: DisplayCategory[], catalogItems: Cate
         filterKey: FILTER_KEY_BY_DISPLAY_CATEGORY_ID[displayId] ?? FILTER_KEY_BY_CATEGORY_NAME[name] ?? displayId
       }
     })
+
+  const missingCatalogItems = topLevelCatalogItems
+    .filter((item) => !representedCatalogIds.has(String(item.id)) && !representedNames.has(String(item.name)))
+    .map((item, index) => {
+      const id = String(item.id)
+      const name = String(item.name)
+      return {
+        id,
+        name,
+        iconKey: resolveCategoryIconKey(name, displayItems.length + index),
+        sort: item.sort,
+        enabled: true,
+        catalogCategoryId: id,
+        filterKey: FILTER_KEY_BY_CATEGORY_NAME[name] ?? id
+      }
+    })
+
+  return sortCategories([...configuredItems, ...missingCatalogItems])
 }
 
 const matchesSecondaryFilter = (product: ProductSummary, filter: SecondaryFilter, categoryName: string): boolean => {
