@@ -239,13 +239,16 @@ export default function ProductDetail() {
       <View className='page-content detail-page-content'>
         <View className='detail-hero-card'>
           <View className='detail-hero-frame'>
-            <SafeImage
-              className='detail-hero-image'
-              width='100%'
-              height='100%'
-              mode='aspectFill'
-              src={images[0]}
-            />
+            <View className='detail-hero-image-layer'>
+              <SafeImage
+                wrapperClassName='detail-hero-image-wrapper'
+                className='detail-hero-image'
+                width='100%'
+                height='100%'
+                mode='aspectFill'
+                src={images[0]}
+              />
+            </View>
           </View>
           <Tag size='small' color='default' className='media-counter detail-hero-counter'>
             {images.length} 张
