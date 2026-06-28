@@ -74,6 +74,11 @@ type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 type ProductStatusValue = ProductRecord['status'];
 
+type BulkProductResult = {
+  failedIds: string[];
+  succeededIds: string[];
+};
+
 type ToastState = {
   message: string;
   tone: 'error' | 'success';
@@ -89,9 +94,42 @@ type ProductDraft = {
 };
 
 const MAX_MODEL_CODE_LENGTH = 20;
+const BULK_PRODUCT_CONCURRENCY = 5;
 
 const sanitizeModelCode = (value: string) => value.toUpperCase().slice(0, MAX_MODEL_CODE_LENGTH);
 const sanitizeComposingModelCode = (value: string) => value.slice(0, MAX_MODEL_CODE_LENGTH);
+
+const runBulkProductRequests = async (
+  productIds: string[],
+  request: (productId: string) => Promise<boolean>
+): Promise<BulkProductResult> => {
+  const succeededIds: string[] = [];
+  const failedIds: string[] = [];
+
+  for (let index = 0; index < productIds.length; index += BULK_PRODUCT_CONCURRENCY) {
+    const batch = productIds.slice(index, index + BULK_PRODUCT_CONCURRENCY);
+    const results = await Promise.all(batch.map(async (productId) => {
+      try {
+        return await request(productId);
+      } catch {
+        return false;
+      }
+    }));
+    results.forEach((succeeded, resultIndex) => {
+      const productId = batch[resultIndex];
+      if (!productId) {
+        return;
+      }
+      if (succeeded) {
+        succeededIds.push(productId);
+      } else {
+        failedIds.push(productId);
+      }
+    });
+  }
+
+  return { failedIds, succeededIds };
+};
 
 type EditableProductTier = {
   discountRate: ProductTier['discountRate'] | '';
@@ -1747,6 +1785,7 @@ export const ProductsPage = () => {
   const deferredSearchTerm = useDeferredValue(searchTerm);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkActionPending, setBulkActionPending] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editingProductId, setEditingProductId] = useState('');
   const [editingProductDetail, setEditingProductDetail] = useState<ProductRecord | null>(null);
@@ -1956,6 +1995,10 @@ export const ProductsPage = () => {
     }
   }, [currentPage, currentPageSafe]);
 
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [categoryFilter, searchTerm, statusFilter]);
+
   const pageIds = pagedProducts.map((product) => product.id);
   const allSelectedOnPage = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
 
@@ -2023,6 +2066,11 @@ export const ProductsPage = () => {
         return;
       }
       await refreshBackendProducts();
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        next.delete(product.id);
+        return next;
+      });
       showToast('商品已删除。');
       return;
     }
@@ -2038,6 +2086,81 @@ export const ProductsPage = () => {
       return next;
     });
     showToast('商品已删除。');
+  };
+
+  const showBulkResult = (label: string, result: BulkProductResult) => {
+    if (result.failedIds.length === 0) {
+      showToast(`${label}完成：成功 ${result.succeededIds.length} 项。`);
+      return;
+    }
+    showToast(`${label}完成：成功 ${result.succeededIds.length} 项，失败 ${result.failedIds.length} 项。`, 'error');
+  };
+
+  const updateSelectedProductStatus = async (status: ProductStatusValue, label: string) => {
+    const productIds = Array.from(selectedIds);
+    if (productIds.length === 0 || bulkActionPending) {
+      return;
+    }
+
+    setBulkActionPending(true);
+    try {
+      let result: BulkProductResult;
+      if (context?.mode === 'dev') {
+        result = await runBulkProductRequests(productIds, async (productId) => {
+          const response = await updateCatalogProduct(productId, { status });
+          return response.status === 200;
+        });
+        await refreshBackendProducts();
+      } else {
+        setProducts((current) => {
+          const nextProducts = current.map((product) => selectedIds.has(product.id) ? { ...product, status } : product);
+          writeStoredJson(MOCK_PRODUCTS_STORAGE_KEY, nextProducts);
+          return nextProducts;
+        });
+        result = { succeededIds: productIds, failedIds: [] };
+      }
+      setSelectedIds(new Set(result.failedIds));
+      showBulkResult(label, result);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : `${label}失败，请刷新后重试。`, 'error');
+    } finally {
+      setBulkActionPending(false);
+    }
+  };
+
+  const deleteSelectedProducts = async () => {
+    const productIds = Array.from(selectedIds);
+    if (productIds.length === 0 || bulkActionPending) {
+      return;
+    }
+    if (!window.confirm(`确定删除已选择的 ${productIds.length} 个商品吗？此操作不可恢复。`)) {
+      return;
+    }
+
+    setBulkActionPending(true);
+    try {
+      let result: BulkProductResult;
+      if (context?.mode === 'dev') {
+        result = await runBulkProductRequests(productIds, async (productId) => {
+          const response = await deleteCatalogProduct(productId);
+          return response.status === 204;
+        });
+        await refreshBackendProducts();
+      } else {
+        setProducts((current) => {
+          const nextProducts = current.filter((product) => !selectedIds.has(product.id));
+          writeStoredJson(MOCK_PRODUCTS_STORAGE_KEY, nextProducts);
+          return nextProducts;
+        });
+        result = { succeededIds: productIds, failedIds: [] };
+      }
+      setSelectedIds(new Set(result.failedIds));
+      showBulkResult('批量删除', result);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '批量删除失败，请刷新后重试。', 'error');
+    } finally {
+      setBulkActionPending(false);
+    }
   };
 
   const persistCategories = (nextCategories: CategoryItem[], persistLocal: boolean) => {
@@ -2215,6 +2338,65 @@ export const ProductsPage = () => {
             </div>
           </div>
         </div>
+
+        {selectedIds.size > 0 ? (
+          <div
+            className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 shadow-sm dark:border-blue-900 dark:bg-blue-950/40"
+            data-role="bulk-product-toolbar"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-blue-900 dark:text-blue-100" data-role="bulk-selection-count">
+                已选择 {selectedIds.size} 项
+              </span>
+              <button
+                className="text-sm font-medium text-blue-700 hover:text-blue-900 disabled:opacity-50 dark:text-blue-300"
+                disabled={bulkActionPending}
+                onClick={() => setSelectedIds(new Set())}
+                type="button"
+              >
+                取消选择
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                className="rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50"
+                data-role="bulk-set-active"
+                disabled={bulkActionPending}
+                onClick={() => void updateSelectedProductStatus('ACTIVE', '批量启用')}
+                type="button"
+              >
+                批量启用
+              </button>
+              <button
+                className="rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-sm font-medium text-amber-700 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
+                data-role="bulk-set-draft"
+                disabled={bulkActionPending}
+                onClick={() => void updateSelectedProductStatus('DRAFT', '批量转草稿')}
+                type="button"
+              >
+                批量转草稿
+              </button>
+              <button
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                data-role="bulk-set-inactive"
+                disabled={bulkActionPending}
+                onClick={() => void updateSelectedProductStatus('INACTIVE', '批量停用')}
+                type="button"
+              >
+                批量停用
+              </button>
+              <button
+                className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                data-role="bulk-delete-products"
+                disabled={bulkActionPending}
+                onClick={() => void deleteSelectedProducts()}
+                type="button"
+              >
+                批量删除
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-surface-light shadow-sm dark:border-slate-800 dark:bg-surface-dark">
           {loadState === 'loading' ? (

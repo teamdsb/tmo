@@ -129,7 +129,7 @@ export default function OrderDetail() {
 
   return (
     <View className='page order-detail-page'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar order-detail-navbar'>
+      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--secondary order-detail-navbar'>
         <Navbar.NavLeft onClick={handleBack} />
         <Navbar.Title>订单详情</Navbar.Title>
       </Navbar>

@@ -106,7 +106,6 @@ const buildQuickCategories = (categories: DisplayCategory[]): QuickCategoryItem[
       isPlaceholder: false,
       targetRoute: ROUTES.category
     }))
-    .slice(0, QUICK_CATEGORY_CAPACITY)
 
   const placeholders = Array.from({ length: Math.max(0, QUICK_CATEGORY_CAPACITY - enabledItems.length) }, (_, index) => ({
     id: `quick-category-placeholder-${index + 1}`,

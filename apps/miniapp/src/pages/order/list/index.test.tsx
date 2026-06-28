@@ -38,11 +38,11 @@ describe('OrderHistoryApp', () => {
     expect(shippedButton).toHaveClass('text-[#137fec]');
   });
 
-  it('uses compact order list spacing under the custom navbar', () => {
+  it('uses shared secondary navbar sizing and compact order list spacing', () => {
     const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../../app.scss'), 'utf8');
 
-    expect(stylesheet).toContain('.order-history-page .app-navbar .taroify-navbar__content');
-    expect(stylesheet).toContain('height: calc(var(--navbar-total-height, 64px) - 12px);');
+    expect(stylesheet).toContain('.app-navbar--secondary .taroify-navbar__content {');
+    expect(stylesheet).not.toContain('.order-history-page .app-navbar .taroify-navbar__content');
     expect(stylesheet).toContain('.order-history-body {');
     expect(stylesheet).toContain('padding: 18rpx 24rpx calc(126rpx + var(--tabbar-safe-offset));');
     expect(stylesheet).toContain('.order-history-tabs .taroify-tabs__wrap {');

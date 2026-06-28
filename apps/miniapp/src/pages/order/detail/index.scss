@@ -7,11 +7,6 @@
   background: #f8fafc;
 }
 
-.order-detail-page .app-navbar .taroify-navbar__content,
-.order-detail-page .app-navbar .taroify-navbar__placeholder {
-  height: calc(var(--navbar-total-height, 64px) - 12px);
-}
-
 .order-detail-navbar .taroify-navbar__title {
   font-size: calc(26px * var(--font-size-scale, 1));
   font-weight: 700;

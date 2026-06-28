@@ -2,11 +2,6 @@
   background: #fff;
 }
 
-.order-confirm-page .app-navbar .taroify-navbar__content,
-.order-confirm-page .app-navbar .taroify-navbar__placeholder {
-  height: calc(var(--navbar-total-height, 64px) - 12px);
-}
-
 .order-confirm-page .app-navbar {
   font-size: calc(22px * var(--font-size-scale, 1));
 }

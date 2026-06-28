@@ -146,9 +146,8 @@ describe('SupportChatPage', () => {
   it('keeps composer visible above bottom safe area', () => {
     const stylesheet = fs.readFileSync(path.resolve(__dirname, './index.scss'), 'utf8')
 
-    expect(stylesheet).toContain('.support-chat__navbar .taroify-navbar__content')
-    expect(stylesheet).toContain('height: calc(var(--navbar-total-height, calc(var(--navbar-height) + var(--navbar-top))) - 12px);')
-    expect(stylesheet).toContain('transform: translateY(-6px);')
+    expect(stylesheet).not.toContain('.support-chat__navbar .taroify-navbar__content')
+    expect(stylesheet).not.toContain('transform: translateY(-6px);')
     expect(stylesheet).toContain('padding: 12px 28px 10px;')
     expect(stylesheet).toContain('.support-chat__composer')
     expect(stylesheet).toContain('padding-bottom: calc(52px + env(safe-area-inset-bottom));')

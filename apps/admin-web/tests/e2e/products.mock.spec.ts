@@ -56,6 +56,52 @@ test('product delete works for active and draft products', async ({ page }) => {
   }
 });
 
+test('bulk status and delete actions persist in mock mode', async ({ page }) => {
+  await loginMockBoss(page);
+  await page.evaluate(() => {
+    window.localStorage.setItem('admin-web-mock-products', JSON.stringify([
+      {
+        id: 'bulk-mock-one',
+        name: '批量 Mock 商品一',
+        categoryId: 'fasteners',
+        coverImageUrl: '',
+        description: '',
+        inventory: 0,
+        models: [{ name: '默认型号', code: 'BULK-MOCK-ONE', basePrice: 1 }],
+        status: 'ACTIVE',
+        tierPricing: []
+      },
+      {
+        id: 'bulk-mock-two',
+        name: '批量 Mock 商品二',
+        categoryId: 'fasteners',
+        coverImageUrl: '',
+        description: '',
+        inventory: 0,
+        models: [{ name: '默认型号', code: 'BULK-MOCK-TWO', basePrice: 1 }],
+        status: 'DRAFT',
+        tierPricing: []
+      }
+    ]));
+  });
+  await page.goto('/products.html', { waitUntil: 'domcontentloaded' });
+
+  await page.locator('[data-role="select-all-products"]').check();
+  await page.locator('[data-role="bulk-set-inactive"]').click();
+  await expect(page.locator('tbody tr[data-product-id]').filter({ hasText: '停用' })).toHaveCount(2);
+  await expect.poll(() => page.evaluate(() => (
+    JSON.parse(window.localStorage.getItem('admin-web-mock-products') || '[]').map((item) => item.status)
+  ))).toEqual(['INACTIVE', 'INACTIVE']);
+
+  await page.locator('[data-role="select-all-products"]').check();
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.locator('[data-role="bulk-delete-products"]').click();
+  await expect(page.locator('tbody tr[data-product-id]')).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => (
+    JSON.parse(window.localStorage.getItem('admin-web-mock-products') || '[]').length
+  ))).toBe(0);
+});
+
 test('product edit drawer uses image upload instead of cover URL input', async ({ page }) => {
   await loginMockBoss(page);
   await page.goto('/products.html', { waitUntil: 'domcontentloaded' });

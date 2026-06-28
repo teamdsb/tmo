@@ -43,7 +43,7 @@ export default function SupportCustomerView({ onBack }: SupportCustomerViewProps
 
   return (
     <View className='page'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--secondary'>
         <Navbar.NavLeft onClick={onBack} />
         <Navbar.Title>客服支持</Navbar.Title>
       </Navbar>

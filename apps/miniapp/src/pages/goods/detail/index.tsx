@@ -231,7 +231,7 @@ export default function ProductDetail() {
 
   return (
     <View className='page page-detail'>
-      <Navbar bordered fixed placeholder safeArea='top' style={navbarStyle} className='app-navbar'>
+      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--secondary'>
         <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.home))} />
         <Navbar.Title>{detail?.product?.name ?? '商品详情'}</Navbar.Title>
       </Navbar>
