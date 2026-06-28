@@ -38,6 +38,7 @@ import {
   getModelClass,
   getStatusMeta,
   insertCategoryAtPosition,
+  MAX_PRODUCT_IMAGES,
   MAX_TIER_DISCOUNT_RATE,
   mergeImportedMockProducts,
   MIN_TIER_QTY,
@@ -86,8 +87,8 @@ type ToastState = {
 
 type ProductDraft = {
   categoryId: string;
-  coverImageUrl: string;
   description: string;
+  images: string[];
   inventory: number;
   name: string;
   status: ProductStatusValue;
@@ -154,169 +155,227 @@ const readFileAsDataUrl = (file: File) =>
     reader.readAsDataURL(file);
   });
 
-type ProductImageUploaderProps = {
+type ProductImageGalleryUploaderProps = {
   fileInputTestId?: string;
-  imageRole?: string;
-  onChange: (value: string) => void;
+  onChange: (value: string[]) => void;
   onError: (message: string) => void;
   onPreview?: (value: string) => void;
   uploadImage?: (file: File) => Promise<string>;
   uploadTestId?: string;
-  value: string;
+  value: string[];
 };
 
-const ProductImageUploader = ({
+const ProductImageGalleryUploader = ({
   fileInputTestId,
-  imageRole,
   onChange,
   onError,
   onPreview,
   uploadImage,
   uploadTestId,
   value
-}: ProductImageUploaderProps) => {
+}: ProductImageGalleryUploaderProps) => {
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [draggedImageIndex, setDraggedImageIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const applyCoverFile = async (file: File | null | undefined) => {
-    if (!file) {
+  const applyFiles = async (files: File[]) => {
+    if (files.length === 0 || uploading) {
       return;
     }
-    if (!file.type.startsWith('image/')) {
+    const remainingSlots = Math.max(0, MAX_PRODUCT_IMAGES - value.length);
+    if (remainingSlots === 0) {
+      onError(`每个商品最多上传 ${MAX_PRODUCT_IMAGES} 张图片。`);
+      return;
+    }
+    const imageFiles = files.filter((file) => file.type.startsWith('image/'));
+    const invalidCount = files.length - imageFiles.length;
+    const acceptedFiles = imageFiles.slice(0, remainingSlots);
+    const overflowCount = imageFiles.length - acceptedFiles.length;
+    if (acceptedFiles.length === 0) {
       onError('只能上传图片文件。');
       return;
     }
-    if (uploading) {
-      return;
-    }
+    let nextImages = [...value];
+    let succeeded = 0;
+    let failed = invalidCount;
     try {
       setUploading(true);
-      const imageUrl = uploadImage ? await uploadImage(file) : await readFileAsDataUrl(file);
-      onChange(imageUrl);
-      onError('');
-    } catch (error) {
-      onError(error instanceof Error ? error.message : '图片上传失败，请稍后重试。');
+      for (const file of acceptedFiles) {
+        try {
+          const imageUrl = uploadImage ? await uploadImage(file) : await readFileAsDataUrl(file);
+          if (!nextImages.includes(imageUrl)) {
+            nextImages = [...nextImages, imageUrl];
+            onChange(nextImages);
+          }
+          succeeded += 1;
+        } catch {
+          failed += 1;
+        }
+      }
+      const messages: string[] = [];
+      if (failed > 0) {
+        messages.push(`成功 ${succeeded} 张，失败 ${failed} 张`);
+      }
+      if (overflowCount > 0) {
+        messages.push(`超过上限的 ${overflowCount} 张未上传`);
+      }
+      onError(messages.join('；'));
     } finally {
       setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
-  const resetImage = () => {
-    onChange('');
+  const removeImage = (index: number) => {
+    onChange(value.filter((_, imageIndex) => imageIndex !== index));
     onError('');
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  };
+
+  const moveImage = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex || toIndex < 0 || toIndex >= value.length) {
+      return;
     }
+    const nextImages = [...value];
+    const [movedImage] = nextImages.splice(fromIndex, 1);
+    if (!movedImage) {
+      return;
+    }
+    nextImages.splice(toIndex, 0, movedImage);
+    onChange(nextImages);
+    onError('');
   };
 
   return (
     <div className="space-y-2 text-sm text-slate-700">
       <div className="flex items-center justify-between">
-        <span>封面图</span>
-        {value ? (
-          <button
-            className="text-xs font-medium text-slate-500 transition-colors hover:text-red-600"
-            onClick={resetImage}
-            type="button"
-          >
-            移除图片
-          </button>
-        ) : null}
+        <span>商品图片</span>
+        <span className="text-xs text-slate-500" data-role="product-image-count">{value.length}/{MAX_PRODUCT_IMAGES}</span>
       </div>
+      {value.length > 0 ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" data-role="product-image-gallery">
+          {value.map((imageUrl, index) => (
+            <div
+              className="group relative aspect-square overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
+              data-image-index={index}
+              data-role="product-image-item"
+              draggable
+              key={`${imageUrl}-${index}`}
+              onDragEnd={() => setDraggedImageIndex(null)}
+              onDragOver={(event) => event.preventDefault()}
+              onDragStart={() => setDraggedImageIndex(index)}
+              onDrop={(event) => {
+                event.preventDefault();
+                if (draggedImageIndex !== null) {
+                  moveImage(draggedImageIndex, index);
+                }
+                setDraggedImageIndex(null);
+              }}
+            >
+              <img
+                alt={`商品图片 ${index + 1}`}
+                className="h-full w-full object-cover"
+                data-role="product-image-preview"
+                onClick={() => onPreview?.(imageUrl)}
+                src={imageUrl}
+              />
+              {index === 0 ? (
+                <span className="absolute left-2 top-2 rounded bg-primary px-2 py-1 text-xs font-semibold text-white">封面</span>
+              ) : null}
+              <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-slate-900/65 p-1.5 opacity-0 transition group-hover:opacity-100">
+                <button
+                  aria-label={`图片 ${index + 1} 左移`}
+                  className="rounded bg-white/90 px-2 py-1 text-slate-700 disabled:opacity-40"
+                  data-role="move-image-left"
+                  disabled={index === 0}
+                  onClick={() => moveImage(index, index - 1)}
+                  type="button"
+                >←</button>
+                <button
+                  aria-label={`图片 ${index + 1} 右移`}
+                  className="rounded bg-white/90 px-2 py-1 text-slate-700 disabled:opacity-40"
+                  data-role="move-image-right"
+                  disabled={index === value.length - 1}
+                  onClick={() => moveImage(index, index + 1)}
+                  type="button"
+                >→</button>
+                <button
+                  aria-label={`删除图片 ${index + 1}`}
+                  className="rounded bg-red-500 px-2 py-1 text-white"
+                  data-role="remove-product-image"
+                  onClick={() => removeImage(index)}
+                  type="button"
+                >删除</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
       <input
         ref={fileInputRef}
         accept="image/*"
         className="hidden"
         data-testid={fileInputTestId}
-        name="coverImageFile"
-        onChange={(event) => void applyCoverFile(event.target.files?.[0])}
+        multiple
+        name="productImageFiles"
+        onChange={(event) => void applyFiles(Array.from(event.target.files || []))}
         type="file"
       />
-      <button
-        className={`group relative flex min-h-44 w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed px-4 py-5 text-center transition ${
-          dragActive
-            ? 'border-primary bg-primary/5'
-            : 'border-slate-300 bg-slate-50 hover:border-primary/60 hover:bg-slate-50/80'
-        }`}
-        data-testid={uploadTestId}
-        onClick={() => fileInputRef.current?.click()}
-        onDragEnter={(event) => {
-          event.preventDefault();
-          setDragActive(true);
-        }}
-        onDragOver={(event) => {
-          event.preventDefault();
-          setDragActive(true);
-        }}
-        onDragLeave={(event) => {
-          event.preventDefault();
-          if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) {
-            return;
-          }
-          setDragActive(false);
-        }}
-        onDrop={(event) => {
-          event.preventDefault();
-          setDragActive(false);
-          void applyCoverFile(event.dataTransfer.files?.[0]);
-        }}
-        type="button"
-      >
-        {value ? (
-          <>
-            <img
-              alt="封面图预览"
-              className="absolute inset-0 h-full w-full object-cover"
-              data-role={imageRole}
-              onClick={(event) => {
-                if (!onPreview) {
-                  return;
-                }
-                event.stopPropagation();
-                onPreview(value);
-              }}
-              src={value}
-            />
-            <div className="absolute inset-0 bg-slate-900/35" />
-            {onPreview ? (
-              <span
-                className="absolute right-3 top-3 z-10 rounded bg-slate-900/70 px-2 py-1 text-xs font-medium text-white shadow-sm"
-                data-role="open-image-preview"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onPreview(value);
-                }}
-              >
-                查看大图
-              </span>
-            ) : null}
-            <div className="relative z-10 rounded-full bg-white/92 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm">
-              {uploading ? '图片上传中...' : '重新拖入图片或点击更换'}
-            </div>
-          </>
-        ) : (
-          <>
+      {value.length < MAX_PRODUCT_IMAGES ? (
+        <button
+          className={`group relative flex min-h-28 w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-dashed px-4 py-4 text-center transition ${
+            dragActive
+              ? 'border-primary bg-primary/5'
+              : 'border-slate-300 bg-slate-50 hover:border-primary/60 hover:bg-slate-50/80'
+          }`}
+          data-testid={uploadTestId}
+          disabled={uploading}
+          onClick={() => fileInputRef.current?.click()}
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setDragActive(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setDragActive(true);
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) {
+              return;
+            }
+            setDragActive(false);
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragActive(false);
+            void applyFiles(Array.from(event.dataTransfer.files || []));
+          }}
+          type="button"
+        >
             <span className="material-symbols-outlined mb-2 text-4xl text-slate-400 transition-colors group-hover:text-primary">
               add_photo_alternate
             </span>
-            <span className="text-sm font-semibold text-slate-800">{uploading ? '图片上传中...' : '拖动图片到这里即可添加'}</span>
-            <span className="mt-1 text-xs text-slate-500">也可点击选择本地图片，支持常见图片格式</span>
-          </>
-        )}
-      </button>
+            <span className="text-sm font-semibold text-slate-800">{uploading ? '图片上传中...' : '拖动图片到这里，或点击选择多张图片'}</span>
+            <span className="mt-1 text-xs text-slate-500">按顺序上传，第一张自动作为封面</span>
+        </button>
+      ) : null}
     </div>
   );
 };
 
 const cloneProduct = (product: ProductRecord): ProductRecord => ({
   ...product,
+  images: [...product.images],
   models: product.models.map((model) => ({ ...model })),
   tierPricing: product.tierPricing.map((tier) => ({ ...tier }))
 });
 
 const cloneProductForEdit = (product: ProductRecord): EditableProductRecord => ({
   ...product,
+  images: [...product.images],
   models: product.models.map((model) => ({ ...model })),
   tierPricing: product.tierPricing.map((tier) => ({ ...tier }))
 });
@@ -373,7 +432,8 @@ const toCategoryPayload = (item: CategoryItem) => ({
 });
 
 const toProductUpdatePayload = (product: ProductRecord) => {
-  const coverImageUrl = product.coverImageUrl.trim();
+  const images = product.images.map((image) => image.trim()).filter(Boolean);
+  const coverImageUrl = images[0] || '';
   const payload: {
     categoryId?: string;
     coverImageUrl: string | null;
@@ -385,7 +445,7 @@ const toProductUpdatePayload = (product: ProductRecord) => {
     name: product.name,
     description: product.description.trim() || null,
     coverImageUrl: coverImageUrl || null,
-    images: coverImageUrl ? [coverImageUrl] : [],
+    images,
     status: product.status
   };
   if (product.categoryId) {
@@ -427,6 +487,7 @@ const toProductRecordFromDetail = (detail: any, fallback: ProductRecord, index =
       ...fallback,
       ...(detail?.product || {}),
       coverImageUrl: detail?.product?.coverImageUrl || fallback.coverImageUrl,
+      images: Array.isArray(detail?.product?.images) ? detail.product.images : fallback.images,
       inventory: fallback.inventory,
       models: detail?.models,
       skus,
@@ -533,7 +594,7 @@ const CreateProductModal = ({ categories, onClose, onSubmit, open, uploadImage }
     categoryId: '',
     inventory: 0,
     status: 'ACTIVE',
-    coverImageUrl: '',
+    images: [],
     description: ''
   });
   const [errorMessage, setErrorMessage] = useState('');
@@ -548,7 +609,7 @@ const CreateProductModal = ({ categories, onClose, onSubmit, open, uploadImage }
       categoryId: '',
       inventory: 0,
       status: 'ACTIVE',
-      coverImageUrl: '',
+      images: [],
       description: ''
     });
     setErrorMessage('');
@@ -584,6 +645,10 @@ const CreateProductModal = ({ categories, onClose, onSubmit, open, uploadImage }
               setErrorMessage('请先填写商品名称。');
               return;
             }
+            if (draft.images.length > MAX_PRODUCT_IMAGES) {
+              setErrorMessage(`每个商品最多上传 ${MAX_PRODUCT_IMAGES} 张图片。`);
+              return;
+            }
             setSubmitting(true);
             setErrorMessage('');
             try {
@@ -591,7 +656,7 @@ const CreateProductModal = ({ categories, onClose, onSubmit, open, uploadImage }
                 ...draft,
                 name: draft.name.trim(),
                 description: draft.description.trim(),
-                coverImageUrl: draft.coverImageUrl.trim(),
+                images: draft.images,
                 inventory: Math.max(0, Math.round(Number(draft.inventory) || 0))
               });
             } catch (error) {
@@ -656,11 +721,13 @@ const CreateProductModal = ({ categories, onClose, onSubmit, open, uploadImage }
               </select>
             </label>
           </div>
-          <ProductImageUploader
-            onChange={(coverImageUrl) => setDraft((current) => ({ ...current, coverImageUrl }))}
+          <ProductImageGalleryUploader
+            fileInputTestId="create-product-image-files"
+            onChange={(images) => setDraft((current) => ({ ...current, images }))}
             onError={setErrorMessage}
             uploadImage={uploadImage}
-            value={draft.coverImageUrl}
+            uploadTestId="create-product-image-upload"
+            value={draft.images}
           />
           <label className="block space-y-1 text-sm text-slate-700">
             <span>商品简介</span>
@@ -842,13 +909,18 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
                 return;
               }
             }
+            if (draft.images.length > MAX_PRODUCT_IMAGES) {
+              setErrorMessage(`每个商品最多上传 ${MAX_PRODUCT_IMAGES} 张图片。`);
+              return;
+            }
 
             setIsSaving(true);
             setErrorMessage('');
             void onSave({
               ...draft,
               name,
-              coverImageUrl: draft.coverImageUrl.trim(),
+              coverImageUrl: draft.images[0] || '',
+              images: draft.images,
               description: draft.description.trim(),
               inventory: Math.max(0, Math.round(Number(draft.inventory) || 0)),
               models: cleanedModels,
@@ -860,15 +932,18 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
             });
           }}
         >
-          <ProductImageUploader
+          <ProductImageGalleryUploader
             fileInputTestId="edit-product-cover-file"
-            imageRole="drawer-preview-image"
-            onChange={(coverImageUrl) => setDraft((current) => current ? { ...current, coverImageUrl } : current)}
+            onChange={(images) => setDraft((current) => current ? {
+              ...current,
+              coverImageUrl: images[0] || '',
+              images
+            } : current)}
             onError={setErrorMessage}
             onPreview={setPreviewUrl}
             uploadImage={uploadImage}
             uploadTestId="edit-product-cover-upload"
-            value={draft.coverImageUrl}
+            value={draft.images}
           />
 
           <label className="block space-y-1 text-sm text-slate-700">
@@ -2204,8 +2279,9 @@ export const ProductsPage = () => {
         id: `LOCAL-${Date.now()}`,
         name: draft.name,
         categoryId: draft.categoryId,
-        coverImageUrl: draft.coverImageUrl,
+        coverImageUrl: draft.images[0] || '',
         description: draft.description,
+        images: draft.images,
         inventory: draft.inventory,
         status: draft.status,
         models: [
@@ -2613,8 +2689,8 @@ export const ProductsPage = () => {
               name: draft.name,
               categoryId: draft.categoryId,
               description: draft.description || undefined,
-              coverImageUrl: draft.coverImageUrl || undefined,
-              images: draft.coverImageUrl ? [draft.coverImageUrl] : undefined,
+              coverImageUrl: draft.images[0] || undefined,
+              images: draft.images.length > 0 ? draft.images : undefined,
               status: draft.status,
               tags: [categoryLabel, '标准档']
             });

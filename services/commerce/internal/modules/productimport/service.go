@@ -750,6 +750,18 @@ func newImageResolver(job db.ProductImportJob, mediaLocalBase, mediaPublicBase s
 }
 
 func (r *imageResolver) ResolveGroup(coverRef string, imageRefs []string) (*string, []string, error) {
+	const maxProductImages = 9
+	uniqueRefs := make([]string, 0, len(imageRefs)+1)
+	for _, ref := range append([]string{coverRef}, imageRefs...) {
+		trimmed := strings.TrimSpace(ref)
+		if trimmed != "" && !slices.Contains(uniqueRefs, trimmed) {
+			uniqueRefs = append(uniqueRefs, trimmed)
+		}
+	}
+	if len(uniqueRefs) > maxProductImages {
+		return nil, nil, fmt.Errorf("product supports at most %d images", maxProductImages)
+	}
+
 	resolvedImages := make([]string, 0, len(imageRefs))
 	for _, ref := range imageRefs {
 		value, err := r.resolve(ref)
@@ -779,6 +791,9 @@ func (r *imageResolver) ResolveGroup(coverRef string, imageRefs []string) (*stri
 	}
 	if coverURL == nil && len(resolvedImages) > 0 {
 		coverURL = &resolvedImages[0]
+	}
+	if len(resolvedImages) > maxProductImages {
+		return nil, nil, fmt.Errorf("product supports at most %d images", maxProductImages)
 	}
 	return coverURL, resolvedImages, nil
 }

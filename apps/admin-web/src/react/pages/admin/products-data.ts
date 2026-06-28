@@ -24,6 +24,7 @@ export type ProductRecord = {
   coverImageUrl: string;
   description: string;
   id: string;
+  images: string[];
   inventory: number;
   models: ProductModel[];
   name: string;
@@ -57,6 +58,7 @@ export const MIN_TIER_QTY = 2;
 export const MAX_TIER_DISCOUNT_RATE = 90;
 export const DEFAULT_MODEL_NAME = '默认型号';
 export const DEFAULT_MODEL_CODE = 'STD';
+export const MAX_PRODUCT_IMAGES = 9;
 
 export const STATUS_FILTER_ITEMS: ReadonlyArray<{ label: string; value: string }> = [
   { value: '', label: '状态：全部' },
@@ -360,12 +362,19 @@ export const normalizeProduct = (item: unknown, index = 0): ProductRecord => {
   const id = toText(record.id, `MOCK-${String(index + 1).padStart(4, '0')}`);
   const categoryId = toText(record.categoryId, '');
   const models = normalizeModels(record, id);
+  const coverImageUrl = toText(record.coverImageUrl, '');
+  const imageCandidates = [
+    coverImageUrl,
+    ...(Array.isArray(record.images) ? record.images.map((image) => toText(image, '')) : [])
+  ].filter(Boolean);
+  const images = imageCandidates.filter((image, imageIndex) => imageCandidates.indexOf(image) === imageIndex);
   return {
     id,
     name: toText(record.name, `模拟商品 ${index + 1}`),
     categoryId,
-    coverImageUrl: toText(record.coverImageUrl, ''),
+    coverImageUrl: images[0] || '',
     description: toText(record.description, ''),
+    images,
     inventory: Math.max(0, Math.round(toNumber(record.inventory ?? record.inventoryQty ?? record.stock, 0))),
     status: toStatus(record.status),
     models,

@@ -1581,6 +1581,7 @@ components:
           type: string
         images:
           type: array
+          maxItems: 9
           items:
             type: string
         tags:
@@ -1612,6 +1613,7 @@ components:
           nullable: true
         images:
           type: array
+          maxItems: 9
           items:
             type: string
         tags:
@@ -1759,6 +1761,7 @@ components:
               type: string
             images:
               type: array
+              maxItems: 9
               items:
                 type: string
             categoryId:
