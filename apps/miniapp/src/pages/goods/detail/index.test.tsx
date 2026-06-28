@@ -393,6 +393,35 @@ describe('ProductDetail', () => {
     expect(stylesheet).toContain('height: 100%;')
   })
 
+  it('renders a deduplicated swipe gallery and updates the active image counter', async () => {
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValueOnce({
+      product: {
+        id: 'spu-gallery',
+        name: '多图商品',
+        categoryId: 'packaging',
+        coverImageUrl: 'https://img.example.com/cover.png',
+        images: [
+          'https://img.example.com/cover.png',
+          'https://img.example.com/detail-1.png',
+          'https://img.example.com/detail-2.png'
+        ],
+        description: '多图展示'
+      },
+      skus: []
+    } as any)
+
+    render(<ProductDetail />)
+    expect((await screen.findAllByText('多图商品')).length).toBeGreaterThan(0)
+
+    const swiper = document.querySelector('.detail-hero-swiper')
+    expect(swiper).not.toBeNull()
+    expect(document.querySelectorAll('.detail-hero-slide')).toHaveLength(3)
+    expect(screen.getByText('1/3')).toBeInTheDocument()
+
+    fireEvent.click(swiper as Element)
+    await waitFor(() => expect(screen.getByText('2/3')).toBeInTheDocument())
+  })
+
   it('keeps placeholder image available in hero area when product images are empty', async () => {
     jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValueOnce({
       product: {

@@ -62,10 +62,11 @@ type patchProductRequest struct {
 }
 
 const (
-	productStatusActive   = "ACTIVE"
-	productStatusInactive = "INACTIVE"
-	productStatusDraft    = "DRAFT"
-	productStatusAll      = "ALL"
+	maxCatalogProductImages = 9
+	productStatusActive     = "ACTIVE"
+	productStatusInactive   = "INACTIVE"
+	productStatusDraft      = "DRAFT"
+	productStatusAll        = "ALL"
 )
 
 func (h *Handler) GetCatalogCategories(c *gin.Context) {
@@ -322,6 +323,10 @@ func (h *Handler) PostCatalogProducts(c *gin.Context) {
 	}
 
 	images := derefStringSlice(request.Images)
+	if len(images) > maxCatalogProductImages {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "images supports at most 9 items")
+		return
+	}
 	tags := derefStringSlice(request.Tags)
 	filters := derefStringSlice(request.FilterDimensions)
 	status := productStatusDraft
@@ -475,6 +480,10 @@ func (h *Handler) PatchCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 	if request.Images != nil {
 		images = make([]string, len(*request.Images))
 		copy(images, *request.Images)
+	}
+	if len(images) > maxCatalogProductImages {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "images supports at most 9 items")
+		return
 	}
 
 	tags := existing.Tags

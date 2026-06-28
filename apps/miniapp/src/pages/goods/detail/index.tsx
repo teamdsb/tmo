@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { View, Text, Input, Button as TaroButton } from '@tarojs/components'
+import { View, Text, Input, Button as TaroButton, Swiper, SwiperItem } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Tag from '@taroify/core/tag'
@@ -33,6 +33,7 @@ export default function ProductDetail() {
   const [favoriteSkuIds, setFavoriteSkuIds] = useState<string[]>([])
   const [favoriteLoading, setFavoriteLoading] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [activeImageIndex, setActiveImageIndex] = useState(0)
   const navbarStyle = getNavbarStyle()
 
   const spuId = router.params?.id
@@ -77,17 +78,22 @@ export default function ProductDetail() {
     setPurchaseQtyInput(String(purchaseQty))
   }, [purchaseQty])
 
+  useEffect(() => {
+    setActiveImageIndex(0)
+  }, [detail?.product?.id])
+
   const images = useMemo(() => {
     const product = detail?.product
     const validImages = Array.isArray(product?.images)
       ? product.images.filter((image): image is string => typeof image === 'string' && image.trim().length > 0).map((image) => image.trim())
       : []
     const coverImageUrl = getProductCoverImageUrl(product)
-    const imageCandidates = [...validImages, coverImageUrl].filter((image): image is string => Boolean(image))
-    if (imageCandidates.length === 0) {
+    const imageCandidates = [coverImageUrl, ...validImages].filter((image): image is string => Boolean(image))
+    const uniqueImages = imageCandidates.filter((image, index) => imageCandidates.indexOf(image) === index)
+    if (uniqueImages.length === 0) {
       return [placeholderProductImage]
     }
-    return imageCandidates
+    return uniqueImages
   }, [detail])
 
   const skus = useMemo(() => detail?.skus ?? [], [detail?.skus])
@@ -240,18 +246,29 @@ export default function ProductDetail() {
         <View className='detail-hero-card'>
           <View className='detail-hero-frame'>
             <View className='detail-hero-image-layer'>
-              <SafeImage
-                wrapperClassName='detail-hero-image-wrapper'
-                className='detail-hero-image'
-                width='100%'
-                height='100%'
-                mode='aspectFill'
-                src={images[0]}
-              />
+              <Swiper
+                className='detail-hero-swiper'
+                current={activeImageIndex}
+                circular={images.length > 1}
+                onChange={(event) => setActiveImageIndex(event.detail.current)}
+              >
+                {images.map((imageUrl, index) => (
+                  <SwiperItem className='detail-hero-slide' key={`${imageUrl}-${index}`}>
+                    <SafeImage
+                      wrapperClassName='detail-hero-image-wrapper'
+                      className='detail-hero-image'
+                      width='100%'
+                      height='100%'
+                      mode='aspectFill'
+                      src={imageUrl}
+                    />
+                  </SwiperItem>
+                ))}
+              </Swiper>
             </View>
           </View>
           <Tag size='small' color='default' className='media-counter detail-hero-counter'>
-            {images.length} 张
+            {Math.min(activeImageIndex + 1, images.length)}/{images.length}
           </Tag>
         </View>
 

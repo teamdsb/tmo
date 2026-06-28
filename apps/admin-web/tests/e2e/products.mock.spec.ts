@@ -102,7 +102,7 @@ test('bulk status and delete actions persist in mock mode', async ({ page }) => 
   ))).toBe(0);
 });
 
-test('product edit drawer uses image upload instead of cover URL input', async ({ page }) => {
+test('product edit drawer uploads, reorders, removes, and persists multiple images', async ({ page }) => {
   await loginMockBoss(page);
   await page.goto('/products.html', { waitUntil: 'domcontentloaded' });
 
@@ -114,16 +114,61 @@ test('product edit drawer uses image upload instead of cover URL input', async (
   await expect(page.locator('#product-edit-drawer input[name="coverImageUrl"]')).toHaveCount(0);
   await expect(page.getByTestId('edit-product-cover-upload')).toBeVisible();
 
-  await page.getByTestId('edit-product-cover-file').setInputFiles({
-    name: 'cover.png',
-    mimeType: 'image/png',
-    buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
-  });
+  const imageItems = page.locator('#product-edit-drawer [data-role="product-image-item"]');
+  const existingImageCount = await imageItems.count();
+  for (let index = 0; index < existingImageCount; index += 1) {
+    await imageItems.first().hover();
+    await imageItems.first().locator('[data-role="remove-product-image"]').click();
+  }
 
-  await expect(page.locator('#product-edit-drawer [data-role="drawer-preview-image"]')).toHaveAttribute(
-    'src',
-    /^data:image\/png;base64,/
-  );
+  await page.getByTestId('edit-product-cover-file').setInputFiles([
+    { name: 'one.png', mimeType: 'image/png', buffer: Buffer.from([1, 2, 3]) },
+    { name: 'two.png', mimeType: 'image/png', buffer: Buffer.from([4, 5, 6]) },
+    { name: 'three.png', mimeType: 'image/png', buffer: Buffer.from([7, 8, 9]) }
+  ]);
+
+  await expect(imageItems).toHaveCount(3);
+  await expect(page.locator('#product-edit-drawer [data-role="product-image-count"]')).toHaveText('3/9');
+  await expect(imageItems.first().getByText('封面')).toBeVisible();
+
+  const originalSources = await imageItems.locator('[data-role="product-image-preview"]').evaluateAll((images) => (
+    images.map((image) => (image as HTMLImageElement).src)
+  ));
+  await imageItems.nth(2).dragTo(imageItems.first());
+  await expect(imageItems.first().locator('[data-role="product-image-preview"]')).toHaveAttribute('src', originalSources[2]);
+  await imageItems.first().hover();
+  await imageItems.first().locator('[data-role="move-image-right"]').click();
+  await expect(imageItems.first().locator('[data-role="product-image-preview"]')).toHaveAttribute('src', originalSources[0]);
+
+  await imageItems.last().hover();
+  await imageItems.last().locator('[data-role="remove-product-image"]').click();
+  await expect(imageItems).toHaveCount(2);
+  await page.locator('#product-edit-drawer button[type="submit"]').click();
+  await expect(page.locator('#product-edit-drawer')).toHaveCount(0);
+
+  await expect.poll(() => page.evaluate(() => {
+    const products = JSON.parse(window.localStorage.getItem('admin-web-mock-products') || '[]');
+    return products[0]?.images || [];
+  })).toEqual([originalSources[0], originalSources[2]]);
+});
+
+test('create product image uploader enforces the nine image limit', async ({ page }) => {
+  await loginMockBoss(page);
+  await page.goto('/products.html', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: /新建商品/ }).click();
+
+  const files = Array.from({ length: 10 }, (_, index) => ({
+    name: `image-${index + 1}.png`,
+    mimeType: 'image/png',
+    buffer: Buffer.from([index + 1])
+  }));
+  await page.getByTestId('create-product-image-files').setInputFiles(files);
+
+  const modal = page.locator('#create-product-modal');
+  await expect(modal.locator('[data-role="product-image-item"]')).toHaveCount(9);
+  await expect(modal.locator('[data-role="product-image-count"]')).toHaveText('9/9');
+  await expect(modal.getByText('超过上限的 1 张未上传')).toBeVisible();
+  await expect(page.getByTestId('create-product-image-upload')).toHaveCount(0);
 });
 
 test('product model code input keeps focus while accepting Chinese and symbols', async ({ page }) => {

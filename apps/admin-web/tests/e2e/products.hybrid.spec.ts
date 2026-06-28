@@ -97,7 +97,10 @@ const installDevSession = async (page) => {
 
 const routeProductPageApis = async (page, options = {}) => {
   const patchStatus = options.patchStatus ?? 200;
-  const uploadedImageUrl = options.uploadedImageUrl ?? 'http://127.0.0.1:5174/assets/media/catalog/products/test-upload.png';
+  const uploadedImageUrls = options.uploadedImageUrls ?? [
+    options.uploadedImageUrl ?? 'http://127.0.0.1:5174/assets/media/catalog/products/test-upload.png'
+  ];
+  let uploadIndex = 0;
   let serverProduct = { ...productSummary };
   let serverDetail = JSON.parse(JSON.stringify(options.productDetail ?? productDetail));
 
@@ -138,13 +141,15 @@ const routeProductPageApis = async (page, options = {}) => {
       await route.continue();
       return;
     }
+    const uploadedImageUrl = uploadedImageUrls[Math.min(uploadIndex, uploadedImageUrls.length - 1)];
+    uploadIndex += 1;
     await route.fulfill({
       status: 201,
       contentType: 'application/json',
       body: JSON.stringify({ url: uploadedImageUrl, contentType: 'image/png', size: 8 })
     });
   });
-  await page.route('**/assets/media/catalog/products/test-upload.png', async (route) => {
+  await page.route('**/assets/media/catalog/products/test-upload*.png', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'image/png',
@@ -484,7 +489,9 @@ test('category sort can be cleared and inserts at an occupied position', async (
 test('product edit persists changes through catalog PATCH', async ({ page }) => {
   const uploadPath = await createUploadFixture();
   await installDevSession(page);
-  await routeProductPageApis(page, { uploadPath });
+  const firstUploadUrl = 'http://127.0.0.1:5174/assets/media/catalog/products/test-upload-1.png';
+  const secondUploadUrl = 'http://127.0.0.1:5174/assets/media/catalog/products/test-upload-2.png';
+  await routeProductPageApis(page, { uploadPath, uploadedImageUrls: [firstUploadUrl, secondUploadUrl] });
 
   await page.goto('/products.html');
   await expect(page.getByText('旧商品名')).toBeVisible();
@@ -492,11 +499,12 @@ test('product edit persists changes through catalog PATCH', async ({ page }) => 
   await expect(page.locator('#product-edit-drawer')).toBeVisible();
 
   await page.locator('#product-edit-drawer input[name="name"]').fill('新商品名');
-  await page.getByTestId('edit-product-cover-file').setInputFiles(uploadPath);
-  await expect(page.locator('#product-edit-drawer [data-role="drawer-preview-image"]')).toHaveAttribute(
-    'src',
-    'http://127.0.0.1:5174/assets/media/catalog/products/test-upload.png'
-  );
+  await page.getByTestId('edit-product-cover-file').setInputFiles([uploadPath, uploadPath]);
+  const imageItems = page.locator('#product-edit-drawer [data-role="product-image-item"]');
+  await expect(imageItems).toHaveCount(3);
+  await expect(imageItems.nth(1).locator('[data-role="product-image-preview"]')).toHaveAttribute('src', firstUploadUrl);
+  await imageItems.nth(1).hover();
+  await imageItems.nth(1).locator('[data-role="move-image-left"]').click();
   const imageResponse = await page.evaluate(async () => {
     const response = await fetch('http://127.0.0.1:5174/assets/media/catalog/products/test-upload.png');
     return {
@@ -517,8 +525,12 @@ test('product edit persists changes through catalog PATCH', async ({ page }) => 
 
   expect(payload.name).toBe('新商品名');
   expect(payload.categoryId).toBe(categoryId);
-  expect(payload.coverImageUrl).toBe('http://127.0.0.1:5174/assets/media/catalog/products/test-upload.png');
-  expect(payload.images).toEqual([payload.coverImageUrl]);
+  expect(payload.coverImageUrl).toBe(firstUploadUrl);
+  expect(payload.images).toEqual([
+    firstUploadUrl,
+    'https://cdn.example.com/old.png',
+    secondUploadUrl
+  ]);
   await page.waitForResponse((response) => {
     const url = new URL(response.url());
     return response.status() === 200
@@ -529,7 +541,7 @@ test('product edit persists changes through catalog PATCH', async ({ page }) => 
   await expect(page.getByText('新商品名')).toBeVisible();
   await page.reload();
   await expect(page.getByText('新商品名')).toBeVisible();
-  await expect(page.locator(`[data-product-id="${productId}"] div[style*="test-upload.png"]`)).toBeVisible();
+  await expect(page.locator(`[data-product-id="${productId}"] div[style*="test-upload-1.png"]`)).toBeVisible();
 });
 
 test('product edit keeps drawer open when catalog PATCH fails', async ({ page }) => {
