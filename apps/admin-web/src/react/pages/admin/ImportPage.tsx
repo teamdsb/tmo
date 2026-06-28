@@ -421,7 +421,7 @@ export const ImportPage = () => {
                 </div>
                 <div className="rounded-2xl bg-slate-900 px-4 py-3 text-sm text-white">
                   <div className="text-slate-300">当前模式</div>
-                  <div className="mt-1 text-lg font-semibold">{context.mode === 'dev' ? 'real / dev' : 'mock'}</div>
+                  <div className="mt-1 text-lg font-semibold">{context.mode === 'dev' ? '生产环境' : '演示环境'}</div>
                 </div>
               </div>
 

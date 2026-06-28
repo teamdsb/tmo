@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
+
 const flushPromises = () => new Promise((resolve) => process.nextTick(resolve))
 const asMock = <T extends (...args: any[]) => any>(fn: T) => fn as unknown as jest.Mock
 const actualReact = jest.requireActual('react')

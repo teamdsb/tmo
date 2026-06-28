@@ -28,14 +28,14 @@ describe('ExcelImportConfirmation', () => {
 
     expect((await screen.findAllByText('示例螺栓')).length).toBeGreaterThan(0)
     expect(screen.getByText('参考单价')).toBeInTheDocument()
-    expect(screen.getByText('2')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('2')).toBeInTheDocument()
   })
 
   it('shows the cart action buttons', async () => {
     await renderCart()
 
     expect(screen.getByText('小计')).toBeInTheDocument()
-    expect(screen.getByText('立即购物')).toBeInTheDocument()
+    expect(screen.getByText('继续购物')).toBeInTheDocument()
     expect(screen.getByText('去结算')).toBeInTheDocument()
   })
 
@@ -45,7 +45,7 @@ describe('ExcelImportConfirmation', () => {
 
     await renderCart()
 
-    expect(screen.getByText('购物车共有 0 件商品')).toBeInTheDocument()
+    expect(screen.getByText('共 0 件商品')).toBeInTheDocument()
     expect(screen.getByText('¥0.00')).toBeInTheDocument()
     expect(screen.getByText('您的购物车是空的')).toBeInTheDocument()
     expect(screen.getByText('看来您还没有添加任何商品。快去探索我们的最新系列吧。')).toBeInTheDocument()
@@ -63,22 +63,22 @@ describe('ExcelImportConfirmation', () => {
     expect(stylesheet).toContain('height: 220rpx;')
     expect(stylesheet).toContain('font-size: 44rpx;')
     expect(stylesheet).toContain('margin-top: 8rpx;')
-    expect(stylesheet).toContain('min-height: 72rpx;')
-    expect(stylesheet).toContain('font-size: 42rpx;')
-    expect(stylesheet).toContain('min-width: 156rpx;')
+    expect(stylesheet).toContain('min-height: 76rpx;')
+    expect(stylesheet).toContain('font-size: 38rpx;')
+    expect(stylesheet).toContain('min-width: 132rpx;')
   })
 
   it('keeps checkout bar readable on narrow screens', () => {
     const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../app.scss'), 'utf8')
 
     expect(stylesheet).toContain('align-items: center;')
-    expect(stylesheet).toContain('grid-template-columns: minmax(0, 1fr) auto;')
-    expect(stylesheet).toContain('min-width: 156rpx;')
-    expect(stylesheet).toContain('font-size: 42rpx;')
-    expect(stylesheet).toContain('width: 292rpx;')
-    expect(stylesheet).toContain('grid-template-columns: 132rpx 150rpx;')
-    expect(stylesheet).toContain('min-height: 72rpx;')
-    expect(stylesheet).toContain('padding: 0 12rpx;')
+    expect(stylesheet).toContain('grid-template-columns: minmax(0, 1fr) 282rpx;')
+    expect(stylesheet).toContain('max-width: 172rpx;')
+    expect(stylesheet).toContain('min-width: 132rpx;')
+    expect(stylesheet).toContain('font-size: 38rpx;')
+    expect(stylesheet).toContain('grid-template-columns: 1fr 1fr;')
+    expect(stylesheet).toContain('min-height: 76rpx;')
+    expect(stylesheet).toContain('padding: 0 10rpx;')
   })
 
   it('prefers product name from product detail for cart item title', async () => {
@@ -413,10 +413,12 @@ describe('ExcelImportConfirmation', () => {
     fireEvent.click(screen.getByText('+'))
 
     expect(updateItemQtySpy).toHaveBeenCalledWith('cart-1', 3)
-    expect(await screen.findByText('3')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('3')).toBeInTheDocument()
+    })
   })
 
-  it('supports quick qty change through action sheet', async () => {
+  it('updates cart item qty from free text input', async () => {
     jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({
       items: [
         {
@@ -457,10 +459,11 @@ describe('ExcelImportConfirmation', () => {
         { id: 'sku-bolt-a2-m8', spuId: 'spu-bolt-a2', name: 'M8 x 30', spec: 'M8 x 30', isActive: true }
       ]
     } as any)
-    jest.spyOn(Taro, 'showActionSheet').mockResolvedValueOnce({ tapIndex: 3 } as any)
 
     await renderCart()
-    fireEvent.click(screen.getByText('2'))
+    const qtyInput = screen.getByDisplayValue('2')
+    fireEvent.change(qtyInput, { target: { value: '10' } })
+    fireEvent.blur(qtyInput)
 
     await waitFor(() => {
       expect(updateItemQtySpy).toHaveBeenCalledWith('cart-1', 10)
@@ -586,7 +589,7 @@ describe('ExcelImportConfirmation', () => {
     fireEvent.click(screen.getAllByText('规格')[0])
 
     expect(await screen.findByText('购物车共有 1 件商品')).toBeInTheDocument()
-    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('3')).toBeInTheDocument()
   })
 
   it('removes cart item from card action', async () => {

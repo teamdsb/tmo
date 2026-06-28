@@ -160,20 +160,114 @@ describe('CategoryPage', () => {
     expect(screen.queryByText('镀锌膨胀螺栓')).not.toBeInTheDocument();
   });
 
+  it('moves secondary filters with products before empty filters on category page only', async () => {
+    (commerceServices.catalog.listProducts as jest.Mock).mockResolvedValue({
+      items: [
+        { id: 'fastener-washer-1', name: '304 平垫圈', coverImageUrl: '', tags: ['紧固件'] },
+        { id: 'fastener-rivet-1', name: '开口型抽芯铆钉', coverImageUrl: '', tags: ['紧固件'] }
+      ],
+      total: 2
+    });
+
+    render(<CategoryPage />);
+
+    await screen.findByText('304 平垫圈');
+
+    const chipLabels = Array.from(document.querySelectorAll('.category-secondary-chip')).map((item) =>
+      item.textContent?.trim()
+    );
+
+    expect(chipLabels).toEqual(['全部商品', '垫圈卡簧', '铆接件', '螺栓螺母', '膨胀锚固']);
+  });
+
+  it('does not move packaging box filter ahead for pearl cotton packing bags', async () => {
+    (commerceServices.catalog.listDisplayCategories as jest.Mock).mockResolvedValue({
+      items: [
+        { id: 'packaging', name: '包装耗材', iconKey: 'apps', sort: 1, enabled: true }
+      ]
+    });
+    (commerceServices.catalog.listCategories as jest.Mock).mockResolvedValue({
+      items: [{ id: 'packaging', name: '包装耗材' }]
+    });
+    (commerceServices.catalog.listProducts as jest.Mock).mockResolvedValue({
+      items: [
+        { id: 'packaging-bag-1', name: '珍珠棉打包袋', coverImageUrl: '', tags: ['包装耗材'] }
+      ],
+      total: 1
+    });
+
+    render(<CategoryPage />);
+
+    await screen.findByText('珍珠棉打包袋');
+
+    const chipLabels = Array.from(document.querySelectorAll('.category-secondary-chip')).map((item) =>
+      item.textContent?.trim()
+    );
+
+    expect(chipLabels).toEqual(['全部商品', '胶带打包', '纸箱箱袋', '标签标识', '容器周转']);
+  });
+
+  it('moves primary categories with products before empty sibling categories', async () => {
+    (commerceServices.catalog.listDisplayCategories as jest.Mock).mockResolvedValue({
+      items: [
+        { id: 'fasteners', name: '紧固件', iconKey: 'setting', sort: 1, enabled: true },
+        { id: 'electrical', name: '电气', iconKey: 'desktop', sort: 2, enabled: true },
+        { id: 'packaging', name: '包装耗材', iconKey: 'apps', sort: 8, enabled: true }
+      ]
+    });
+    (commerceServices.catalog.listCategories as jest.Mock).mockResolvedValue({
+      items: [
+        { id: 'fasteners', name: '紧固件' },
+        { id: 'electrical', name: '电气' },
+        { id: 'packaging', name: '包装耗材' }
+      ]
+    });
+    (commerceServices.catalog.listProducts as jest.Mock).mockImplementation(async ({ categoryId } = {}) => {
+      if (categoryId === 'packaging') {
+        return {
+          items: [{ id: 'packaging-bag-1', name: '珍珠棉打包袋', coverImageUrl: '', tags: ['包装耗材'] }],
+          total: 1
+        };
+      }
+      return { items: [], total: 0 };
+    });
+
+    render(<CategoryPage />);
+
+    await waitFor(() => {
+      const primaryLabels = Array.from(document.querySelectorAll('.category-primary-label')).map((item) =>
+        item.textContent?.trim()
+      );
+      expect(primaryLabels).toEqual(['包装耗材', '紧固件', '电气']);
+    });
+    expect(await screen.findByText('珍珠棉打包袋')).toBeInTheDocument();
+  });
+
   it('reloads category products when page is shown again', async () => {
     let didShowCallback: (() => void) | undefined;
+    let categoryProductCalls = 0;
     (useDidShow as jest.Mock).mockImplementation((callback) => {
       didShowCallback = callback;
     });
-    (commerceServices.catalog.listProducts as jest.Mock)
-      .mockResolvedValueOnce({
-        items: [{ id: 'cat-before-show', name: '旧分类商品', coverImageUrl: '', tags: ['旧'] }],
-        total: 1
-      })
-      .mockResolvedValueOnce({
+    (commerceServices.catalog.listProducts as jest.Mock).mockImplementation(async ({ pageSize } = {}) => {
+      if (pageSize === 1) {
+        return {
+          items: [{ id: 'category-availability-probe', name: '探测商品', coverImageUrl: '', tags: ['探测'] }],
+          total: 1
+        };
+      }
+      categoryProductCalls += 1;
+      if (categoryProductCalls === 1) {
+        return {
+          items: [{ id: 'cat-before-show', name: '旧分类商品', coverImageUrl: '', tags: ['旧'] }],
+          total: 1
+        };
+      }
+      return {
         items: [{ id: 'cat-after-show', name: '刷新后分类商品', coverImageUrl: '', tags: ['新'] }],
         total: 1
-      });
+      };
+    });
 
     render(<CategoryPage />);
 
@@ -185,6 +279,9 @@ describe('CategoryPage', () => {
     });
 
     expect(await screen.findByText('刷新后分类商品')).toBeInTheDocument();
-    expect(commerceServices.catalog.listProducts).toHaveBeenCalledTimes(2);
+    const categoryProductRequests = (commerceServices.catalog.listProducts as jest.Mock).mock.calls.filter(
+      ([params]) => params?.pageSize === 40
+    );
+    expect(categoryProductRequests).toHaveLength(2);
   });
 });

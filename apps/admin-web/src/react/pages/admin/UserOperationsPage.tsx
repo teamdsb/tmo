@@ -1775,7 +1775,7 @@ export const UserOperationsPage = () => {
             <div className="flex items-center gap-2">
               {customerRefreshing ? <span className="text-xs text-text-secondary-light dark:text-text-secondary-dark">刷新中...</span> : null}
               <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-primary dark:bg-blue-900/40 dark:text-blue-300">
-                {isMockMode ? 'mock' : 'dev'}
+                {isMockMode ? '演示环境' : '生产环境'}
               </span>
             </div>
           </div>
@@ -1871,7 +1871,7 @@ export const UserOperationsPage = () => {
             <div className="flex items-center gap-2">
               {staffRefreshing ? <span className="text-xs text-text-secondary-light dark:text-text-secondary-dark">刷新中...</span> : null}
               <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-primary dark:bg-blue-900/40 dark:text-blue-300">
-                {isMockMode ? 'mock' : 'dev'}
+                {isMockMode ? '演示环境' : '生产环境'}
               </span>
             </div>
           </div>
@@ -1953,7 +1953,7 @@ export const UserOperationsPage = () => {
             <div className="flex items-center gap-2">
               {adminRefreshing ? <span className="text-xs text-text-secondary-light dark:text-text-secondary-dark">刷新中...</span> : null}
               <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-primary dark:bg-blue-900/40 dark:text-blue-300">
-                {isMockMode ? 'mock' : 'dev'}
+                {isMockMode ? '演示环境' : '生产环境'}
               </span>
             </div>
           </div>

@@ -11,6 +11,7 @@ const timeoutMs = Number(process.env.WEAPP_CATALOG_E2E_TIMEOUT_MS || 120000)
 const pageWaitMs = Number(process.env.WEAPP_CATALOG_E2E_PAGE_WAIT_MS || 8000)
 const apiBaseUrl = process.env.WEAPP_CATALOG_E2E_API_BASE_URL || 'http://localhost:8080'
 const allowSimulatedLoginFallback = String(process.env.TARO_APP_WEAPP_PHONE_PROOF_SIMULATION || '').trim().toLowerCase() === 'true'
+const skipLaunch = String(process.env.WEAPP_SKIP_LAUNCH || '').trim().toLowerCase() === 'true'
 
 const cliCandidates = [
   process.env.WEAPP_DEVTOOLS_CLI_PATH,
@@ -35,6 +36,7 @@ const lastRunDebugState = {
   detailDataKeys: [],
   productId: '',
   inquiryListCount: 0,
+  supportRouteAfterInquiry: '',
   consoleTail: [],
   exceptionCount: 0
 }
@@ -107,6 +109,24 @@ const hasBootstrapMe = (value) => {
   }
 
   return typeof value === 'object' && value !== null && 'me' in value && Boolean(value.me)
+}
+
+const parseStoredObject = (value) => {
+  if (!value) {
+    return null
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) {
+      return null
+    }
+    try {
+      return JSON.parse(trimmed)
+    } catch {
+      return null
+    }
+  }
+  return typeof value === 'object' ? value : null
 }
 
 const readLoginSuccessState = async (miniProgram) => {
@@ -338,6 +358,16 @@ const readCurrentPageData = async (page, timeout) => {
   return { data: lastData, keys: lastKeys }
 }
 
+const findFirstElement = async (page, selectors) => {
+  for (const selector of selectors) {
+    const element = await page.$(selector)
+    if (element) {
+      return element
+    }
+  }
+  return null
+}
+
 const requestJSON = async (url, token) => {
   const headers = token
     ? { Authorization: `Bearer ${token}` }
@@ -458,17 +488,21 @@ const run = async () => {
 
   try {
     const port = await resolveAutomatorPort()
-    const launchOptions = {
-      cliPath,
-      projectPath,
-      timeout: timeoutMs,
-      trustProject: true,
-      cwd: rootDir
+    if (skipLaunch) {
+      miniProgram = await automator.connect({ wsEndpoint: `ws://127.0.0.1:${port || defaultPort}` })
+    } else {
+      const launchOptions = {
+        cliPath,
+        projectPath,
+        timeout: timeoutMs,
+        trustProject: true,
+        cwd: rootDir
+      }
+      if (port) {
+        launchOptions.port = port
+      }
+      miniProgram = await automator.launch(launchOptions)
     }
-    if (port) {
-      launchOptions.port = port
-    }
-    miniProgram = await automator.launch(launchOptions)
 
     miniProgram.on('console', (payload) => {
       const level = String(payload?.level || payload?.type || 'info').toLowerCase()
@@ -546,16 +580,24 @@ const run = async () => {
     await inquiryButton.tap()
     await sleep(2600)
 
-    const inquiriesResp = await requestJSON(`${apiBaseUrl.replace(/\/$/, '')}/inquiries/price?page=1&pageSize=20`, token)
-    const inquiryItems = Array.isArray(inquiriesResp?.data?.items) ? inquiriesResp.data.items : []
-    lastRunDebugState.inquiryListCount = inquiryItems.length
-    assertPass(checks, 'inquiry.list.http.200', inquiriesResp?.statusCode === 200, `status=${String(inquiriesResp?.statusCode || 0)}`)
-    assertPass(checks, 'inquiry.list.non_empty', inquiryItems.length > 0, `items=${inquiryItems.length}`)
+    page = await miniProgram.currentPage()
+    const supportRoute = normalizePath(page?.path)
+    lastRunDebugState.supportRouteAfterInquiry = supportRoute
     assertPass(
       checks,
-      'inquiry.created.for.product',
-      inquiryItems.some((item) => typeof item?.skuId === 'string' && item.skuId.trim()),
-      `items=${inquiryItems.length}`
+      'detail.inquiry.opens.support.chat',
+      supportRoute === 'pages/support/chat/index' || supportRoute === 'pages/support/index',
+      `currentPath=${supportRoute || '-'}`
+    )
+    const supportInput = await findFirstElement(page, ['input.support-chat__input', '.support-chat__input'])
+    assertPass(checks, 'detail.inquiry.support.chat.input.visible', Boolean(supportInput), 'support chat input should be visible after inquiry navigation')
+
+    const composeIntent = parseStoredObject(await miniProgram.callWxMethod('getStorageSync', 'tmo:support:compose-intent'))
+    assertPass(
+      checks,
+      'detail.inquiry.compose.intent.product',
+      composeIntent?.kind === 'product_inquiry' && composeIntent?.productId === productId,
+      `intent=${JSON.stringify(composeIntent)} productId=${productId}`
     )
 
     const headersRuntimeError = consoleLogs.find((item) => /Headers is not defined/i.test(item.text))
@@ -598,7 +640,7 @@ const run = async () => {
       status: 'pass',
       checks,
       productId,
-      inquiryListCount: inquiryItems.length,
+      supportRouteAfterInquiry: supportRoute,
       consoleCount: consoleLogs.length,
       exceptionCount: exceptions.length
     }

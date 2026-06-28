@@ -96,8 +96,7 @@ const normalizeNullableString = (value) => {
 const normalizeModelCode = (value, fallback = 'MOCK-SKU') => {
   const code = normalizeText(value)
     .toUpperCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^A-Z0-9\-_]/g, '');
+    .replace(/\s+/g, '-');
   return code || fallback;
 };
 

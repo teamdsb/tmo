@@ -1,12 +1,13 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import Taro, { useDidShow } from '@tarojs/taro'
+import { ApiError } from '@tmo/commerce-services'
 
 import OrderConfirmPage from './index'
 import { commerceServices } from '../../../services/commerce'
 import { listUserAddresses } from '../../../services/addresses'
 import { paymentServices, isPaymentCancelled } from '../../../services/payment'
 import { ensureLoggedIn } from '../../../utils/auth'
-import { navigateTo } from '../../../utils/navigation'
+import { navigateTo, switchTabLike } from '../../../utils/navigation'
 
 jest.mock('../../../services/addresses', () => ({
   listUserAddresses: jest.fn(),
@@ -225,8 +226,81 @@ describe('OrderConfirmPage', () => {
       ]
     }))
     expect(paymentServices.sessions.payForOrder).toHaveBeenCalledWith('order-1001')
+    expect(commerceServices.orders.resetIdempotency).toHaveBeenCalled()
     expect(Taro.showToast).toHaveBeenCalledWith({ title: '支付成功', icon: 'success' })
+    expect(switchTabLike).toHaveBeenCalledWith('/pages/cart/index')
+    expect(navigateTo).not.toHaveBeenCalled()
+  })
+
+  it('keeps payment-confirming orders on the order detail page', async () => {
+    ;(paymentServices.sessions.payForOrder as jest.Mock).mockResolvedValue({
+      id: 'pay-1',
+      orderId: 'order-1001',
+      channel: 'wechat',
+      status: 'PAY_PENDING'
+    })
+
+    render(<OrderConfirmPage />)
+    await act(async () => {
+      await flushPromises()
+    })
+
+    fireEvent.click(screen.getByText('提交订单'))
+    await act(async () => {
+      await flushPromises()
+    })
+
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已提交，支付确认中', icon: 'none' })
     expect(navigateTo).toHaveBeenCalledWith('/pages/order/detail/index?id=order-1001')
+    expect(switchTabLike).not.toHaveBeenCalled()
+  })
+
+  it('navigates to existing order when idempotency key conflicts', async () => {
+    ;(commerceServices.orders.submit as jest.Mock).mockRejectedValueOnce(
+      new ApiError('duplicate idempotency key', 409, {
+        code: 'conflict',
+        details: { orderId: 'order-existing-1' }
+      })
+    )
+
+    render(<OrderConfirmPage />)
+    await act(async () => {
+      await flushPromises()
+    })
+
+    fireEvent.click(screen.getByText('提交订单'))
+    await act(async () => {
+      await flushPromises()
+    })
+
+    expect(commerceServices.orders.resetIdempotency).toHaveBeenCalled()
+    expect(paymentServices.sessions.payForOrder).not.toHaveBeenCalled()
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已生成', icon: 'none' })
+    expect(navigateTo).toHaveBeenCalledWith('/pages/order/detail/index?id=order-existing-1')
+  })
+
+  it('keeps submit failure toast when idempotency conflict has no order id', async () => {
+    ;(commerceServices.orders.submit as jest.Mock).mockRejectedValueOnce(
+      new ApiError('duplicate idempotency key', 409, {
+        code: 'conflict',
+        details: {}
+      })
+    )
+
+    render(<OrderConfirmPage />)
+    await act(async () => {
+      await flushPromises()
+    })
+
+    fireEvent.click(screen.getByText('提交订单'))
+    await act(async () => {
+      await flushPromises()
+    })
+
+    expect(commerceServices.orders.resetIdempotency).not.toHaveBeenCalled()
+    expect(paymentServices.sessions.payForOrder).not.toHaveBeenCalled()
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '提交失败', icon: 'none' })
+    expect(navigateTo).not.toHaveBeenCalled()
   })
 
   it('shows cancelled toast but still navigates to order detail', async () => {

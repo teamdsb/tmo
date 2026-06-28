@@ -328,7 +328,7 @@ test('product edit persists model fields through catalog SKU PATCH', async ({ pa
   await expect(modelPrice).toHaveValue('88');
 
   await modelName.fill('新型号');
-  await modelCode.fill('12345678901234567890');
+  await modelCode.fill('型号-长460*宽240+(a)');
   await modelPrice.fill('99.5');
 
   const skuPatchRequestPromise = page.waitForRequest((request) => {
@@ -340,13 +340,13 @@ test('product edit persists model fields through catalog SKU PATCH', async ({ pa
   const payload = skuPatchRequest.postDataJSON();
 
   expect(payload.name).toBe('新型号');
-  expect(payload.skuCode).toBe('12345678901234567890');
+  expect(payload.skuCode).toBe('型号-长460*宽240+(A)');
   expect(payload.spec).toBe('新型号');
   expect(payload.priceTiers).toEqual([{ minQty: 1, maxQty: null, unitPriceFen: 9950 }]);
   await expect(page.locator('#product-edit-drawer')).toHaveCount(0);
 
   await page.locator('[data-role="open-product-drawer"]').first().click();
-  await expect(page.locator('#product-edit-drawer [data-field="model-code"]').first()).toHaveValue('12345678901234567890');
+  await expect(page.locator('#product-edit-drawer [data-field="model-code"]').first()).toHaveValue('型号-长460*宽240+(A)');
   await expect(page.locator('#product-edit-drawer [data-field="model-base-price"]').first()).toHaveValue('99.5');
 });
 

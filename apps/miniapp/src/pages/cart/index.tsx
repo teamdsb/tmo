@@ -11,7 +11,7 @@ import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { getNavbarStyle } from '../../utils/navbar'
 import { getWindowSystemInfo } from '../../utils/system-info'
 import { CartBottomBar, CartListView, ImportResultView } from './components'
-import { getCartItemUnitPriceFen, getSkuLabel, normalizeSpuId, QUICK_CART_QTY_OPTIONS } from './helpers'
+import { getCartItemUnitPriceFen, getSkuLabel, normalizeSpuId } from './helpers'
 import { useCartProductDetails } from './hooks'
 import type { CartItem, ImportTab, SelectionMap } from './types'
 
@@ -270,29 +270,6 @@ export default function ExcelImportConfirmation() {
     }
   }
 
-  const handleQuickChangeCartItemQty = async (item: CartItem) => {
-    if (busyItemId === item.id) {
-      return
-    }
-
-    try {
-      const result = await Taro.showActionSheet({
-        itemList: QUICK_CART_QTY_OPTIONS.map((qty) => `${qty} 件`)
-      })
-      const nextQty = QUICK_CART_QTY_OPTIONS[result.tapIndex]
-      if (!nextQty || nextQty === item.qty) {
-        return
-      }
-      await handleChangeCartItemQty(item, nextQty)
-    } catch (error) {
-      if ((error as { errMsg?: string })?.errMsg?.includes('cancel')) {
-        return
-      }
-      console.warn('quick change cart qty failed', error)
-      await Taro.showToast({ title: '数量选择失败', icon: 'none' })
-    }
-  }
-
   const handleRemoveCartItem = async (item: CartItem) => {
     if (busyItemId === item.id) {
       return
@@ -361,7 +338,6 @@ export default function ExcelImportConfirmation() {
           productNameBySpuId={productNameBySpuId}
           onChangeCartItemQty={handleChangeCartItemQty}
           onChangeCartItemSku={handleChangeCartItemSku}
-          onQuickChangeCartItemQty={handleQuickChangeCartItemQty}
           onRemoveCartItem={handleRemoveCartItem}
         />
       )}

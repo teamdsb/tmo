@@ -4,9 +4,10 @@ import { createImportFixture, loginMockBoss } from './import-fixtures';
 
 test('mock import page persists imported products and queryable jobs', async ({ page }, testInfo) => {
   const productName = `Mock Import Product ${Date.now()}`;
+  const skuPrefix = `型号-长460*宽240+(a)-${Date.now()}`;
   const fixture = await createImportFixture(testInfo, {
     productName,
-    skuPrefix: `MOCK-${Date.now()}`,
+    skuPrefix,
     categoryId: 'apparel',
     withZip: true
   });
@@ -34,6 +35,9 @@ test('mock import page persists imported products and queryable jobs', async ({ 
     return { products, jobs };
   });
   expect(persisted.products.some((item: { name?: string }) => item?.name === productName)).toBeTruthy();
+  expect(persisted.products.some((item: { models?: Array<{ code?: string }> }) => (
+    Array.isArray(item?.models) && item.models.some((model) => model?.code === `${skuPrefix.toUpperCase()}-A`)
+  ))).toBeTruthy();
   expect(persisted.jobs.some((item: { id?: string }) => item?.id === jobId)).toBeTruthy();
 });
 

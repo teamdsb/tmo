@@ -1,3 +1,6 @@
+import { Platform } from '@tmo/shared/enums'
+import { ApiError, PaymentCancelledError, createPaymentServices } from '@tmo/payment-services'
+
 const mockSetPaymentApiClientConfig = jest.fn()
 const mockPostPaymentsWechatCreate = jest.fn()
 const mockPostPaymentsAlipayCreate = jest.fn()
@@ -26,9 +29,6 @@ jest.mock('@tmo/platform-adapter', () => ({
   removeStorage: () => mockRemoveStorage(),
   request: (payload: unknown) => mockRequest(payload)
 }))
-
-import { Platform } from '@tmo/shared/enums'
-import { ApiError, PaymentCancelledError, createPaymentServices } from '@tmo/payment-services'
 
 describe('payment-services', () => {
   beforeEach(() => {

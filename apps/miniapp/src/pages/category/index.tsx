@@ -24,6 +24,8 @@ type CategoryViewItem = DisplayCategory & {
   filterKey: string
 }
 
+type CategoryProductAvailability = Record<string, boolean>
+
 const FILTER_KEY_BY_DISPLAY_CATEGORY_ID: Record<string, string> = {
   'cat-fasteners': 'fasteners',
   'cat-electrical': 'electrical',
@@ -99,7 +101,7 @@ const SECONDARY_FILTERS_BY_CATEGORY: Record<string, SecondaryFilter[]> = {
   ],
   packaging: [
     { id: 'all', label: '全部商品', keywords: [] },
-    { id: 'boxes', label: '纸箱箱袋', keywords: ['纸箱', '箱', '袋'] },
+    { id: 'boxes', label: '纸箱箱袋', keywords: ['纸箱', '箱袋'] },
     { id: 'tape', label: '胶带打包', keywords: ['胶带', '打包'] },
     { id: 'labels', label: '标签标识', keywords: ['标签', '标识'] },
     { id: 'storage', label: '容器周转', keywords: ['水壶', '容器', '周转'] }
@@ -115,6 +117,20 @@ const sortCategories = <T extends { sort?: number }>(items: T[]): T[] => {
     const leftSort = typeof left.sort === 'number' ? left.sort : Number.MAX_SAFE_INTEGER
     const rightSort = typeof right.sort === 'number' ? right.sort : Number.MAX_SAFE_INTEGER
     return leftSort - rightSort
+  })
+}
+
+const sortCategoriesByProductAvailability = (
+  items: CategoryViewItem[],
+  availability: CategoryProductAvailability
+): CategoryViewItem[] => {
+  return sortCategories(items).sort((left, right) => {
+    const leftHasProducts = availability[left.id] === true
+    const rightHasProducts = availability[right.id] === true
+    if (leftHasProducts !== rightHasProducts) {
+      return leftHasProducts ? -1 : 1
+    }
+    return 0
   })
 }
 
@@ -159,6 +175,41 @@ const matchesSecondaryFilter = (product: ProductSummary, filter: SecondaryFilter
   return filter.keywords.some((keyword) => haystack.includes(keyword.toLowerCase()))
 }
 
+const hasProductNameForSecondaryFilter = (product: ProductSummary, filter: SecondaryFilter): boolean => {
+  if (filter.keywords.length === 0) {
+    return true
+  }
+
+  const productName = product.name.toLowerCase()
+  return filter.keywords.some((keyword) => productName.includes(keyword.toLowerCase()))
+}
+
+const sortSecondaryFiltersByProductAvailability = (
+  filters: SecondaryFilter[],
+  products: ProductSummary[]
+): SecondaryFilter[] => {
+  const [allFilter, ...restFilters] = filters
+  if (!allFilter || restFilters.length === 0) {
+    return filters
+  }
+
+  const sortedRestFilters = restFilters
+    .map((filter, index) => ({
+      filter,
+      index,
+      hasProducts: products.some((product) => hasProductNameForSecondaryFilter(product, filter))
+    }))
+    .sort((left, right) => {
+      if (left.hasProducts !== right.hasProducts) {
+        return left.hasProducts ? -1 : 1
+      }
+      return left.index - right.index
+    })
+    .map((item) => item.filter)
+
+  return [allFilter, ...sortedRestFilters]
+}
+
 export default function CategoryPage() {
   const navbarStyle = getNavbarStyle()
   const isH5 = process.env.TARO_ENV === 'h5'
@@ -168,20 +219,29 @@ export default function CategoryPage() {
   const [activeFilterId, setActiveFilterId] = useState('all')
   const [query, setQuery] = useState('')
   const [products, setProducts] = useState<ProductSummary[]>([])
+  const [categoryProductAvailability, setCategoryProductAvailability] = useState<CategoryProductAvailability>({})
   const [productsLoading, setProductsLoading] = useState(false)
   const categoriesRequestSeq = useRef(0)
   const productsRequestSeq = useRef(0)
+  const userSelectedCategoryRef = useRef(false)
   const productStartingPrices = useProductStartingPrices(products)
 
-  const sortedCategories = useMemo(() => sortCategories(categories), [categories])
+  const sortedCategories = useMemo(
+    () => sortCategoriesByProductAvailability(categories, categoryProductAvailability),
+    [categories, categoryProductAvailability]
+  )
 
   const activeCategory = useMemo(() => {
     return sortedCategories.find((item) => item.id === activeCategoryId) ?? null
   }, [activeCategoryId, sortedCategories])
 
   const secondaryFilters = useMemo(() => {
-    return SECONDARY_FILTERS_BY_CATEGORY[activeCategory?.filterKey ?? activeCategoryId] ?? [{ id: 'all', label: '全部商品', keywords: [] }]
-  }, [activeCategory, activeCategoryId])
+    const filters = SECONDARY_FILTERS_BY_CATEGORY[activeCategory?.filterKey ?? activeCategoryId] ?? [{ id: 'all', label: '全部商品', keywords: [] }]
+    if (!activeCategory) {
+      return filters
+    }
+    return sortSecondaryFiltersByProductAvailability(filters, products)
+  }, [activeCategory, activeCategoryId, products])
 
   const filteredProducts = useMemo(() => {
     const activeFilter = secondaryFilters.find((item) => item.id === activeFilterId) ?? secondaryFilters[0]
@@ -215,6 +275,40 @@ export default function CategoryPage() {
     })
   }, [])
 
+  const loadCategoryProductAvailability = useCallback(async (nextCategories: CategoryViewItem[], requestId: number) => {
+    if (nextCategories.length === 0) {
+      return
+    }
+
+    const entries = await Promise.all(
+      nextCategories.map(async (category) => {
+        try {
+          const response = await commerceServices.catalog.listProducts({
+            categoryId: category.catalogCategoryId,
+            page: 1,
+            pageSize: 1
+          })
+          return [category.id, Number(response.total ?? response.items?.length ?? 0) > 0] as const
+        } catch (error) {
+          console.warn('load category product availability failed', error)
+          return [category.id, false] as const
+        }
+      })
+    )
+
+    if (categoriesRequestSeq.current !== requestId) {
+      return
+    }
+
+    setCategoryProductAvailability((current) => {
+      const next = { ...current }
+      for (const [categoryId, hasProducts] of entries) {
+        next[categoryId] = hasProducts
+      }
+      return next
+    })
+  }, [])
+
   const loadCategories = useCallback(async (showLoading = true) => {
     const requestId = categoriesRequestSeq.current + 1
     categoriesRequestSeq.current = requestId
@@ -227,7 +321,9 @@ export default function CategoryPage() {
         commerceServices.catalog.listCategories()
       ])
       if (categoriesRequestSeq.current === requestId) {
-        applyCategories(toCategoryViewItems(displayResponse.items ?? [], catalogResponse.items ?? []))
+        const nextCategories = toCategoryViewItems(displayResponse.items ?? [], catalogResponse.items ?? [])
+        applyCategories(nextCategories)
+        void loadCategoryProductAvailability(nextCategories, requestId)
       }
     } catch (error) {
       console.warn('load display categories failed', error)
@@ -235,7 +331,9 @@ export default function CategoryPage() {
         const response = await commerceServices.catalog.listCategories()
         if (categoriesRequestSeq.current === requestId) {
           const catalogItems = response.items ?? []
-          applyCategories(toCategoryViewItems(toDisplayCategoriesFromCatalog(catalogItems), catalogItems))
+          const nextCategories = toCategoryViewItems(toDisplayCategoriesFromCatalog(catalogItems), catalogItems)
+          applyCategories(nextCategories)
+          void loadCategoryProductAvailability(nextCategories, requestId)
         }
       } catch (fallbackError) {
         console.warn('load categories failed', fallbackError)
@@ -248,7 +346,20 @@ export default function CategoryPage() {
         setCategoriesLoading(false)
       }
     }
-  }, [applyCategories])
+  }, [applyCategories, loadCategoryProductAvailability])
+
+  useEffect(() => {
+    if (userSelectedCategoryRef.current || sortedCategories.length === 0) {
+      return
+    }
+    const fixedSortFirstCategoryId = sortCategories(categories)[0]?.id ?? ''
+    setActiveCategoryId((prev) => {
+      if (prev && prev !== fixedSortFirstCategoryId && sortedCategories.some((item) => item.id === prev)) {
+        return prev
+      }
+      return sortedCategories[0]?.id ?? prev
+    })
+  }, [categories, sortedCategories])
 
   const loadCategoryProducts = useCallback(async (category: CategoryViewItem | null, keyword: string, showLoading = true) => {
     if (!category) {
@@ -319,7 +430,10 @@ export default function CategoryPage() {
               <View
                 key={entry.id}
                 className={`category-primary-item ${isActive ? 'is-active' : ''}`}
-                onClick={() => setActiveCategoryId(entry.id)}
+                onClick={() => {
+                  userSelectedCategoryRef.current = true
+                  setActiveCategoryId(entry.id)
+                }}
               >
                 <View className='category-primary-icon'>{renderCategoryIcon(iconKey)}</View>
                 <Text className='category-primary-label'>{entry.name}</Text>

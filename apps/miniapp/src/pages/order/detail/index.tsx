@@ -33,6 +33,9 @@ export default function OrderDetail() {
   const firstItem = orderItems[0] ?? null
   const heroContent = getHeroContent(order)
   const detailRows = buildDetailRows(order)
+  const showContinuePay = canContinuePay(order)
+  const showRefreshPayment = canRefreshPayment(order)
+  const showLogistics = canViewLogistics(order)
 
   const handleBack = () => {
     Taro.navigateBack().catch(() => switchTabLike(ROUTES.orders))
@@ -62,6 +65,7 @@ export default function OrderDetail() {
     }
 
     setPaymentLoading(true)
+    let paymentConfirmed = false
     try {
       const payment = await paymentServices.sessions.payForOrder(orderId)
       await saveDevFakePaymentOverride(createDevFakePaymentOverride(
@@ -73,6 +77,7 @@ export default function OrderDetail() {
         title: nextPaymentStatus === 'PAID' ? '支付成功' : '支付结果确认中',
         icon: nextPaymentStatus === 'PAID' ? 'success' : 'none'
       })
+      paymentConfirmed = nextPaymentStatus === 'PAID'
     } catch (error) {
       console.warn('continue pay failed', error)
       await Taro.showToast({
@@ -80,8 +85,14 @@ export default function OrderDetail() {
         icon: 'none'
       })
     } finally {
-      await loadOrder(orderId)
+      if (!paymentConfirmed) {
+        await loadOrder(orderId)
+      }
       setPaymentLoading(false)
+    }
+
+    if (paymentConfirmed) {
+      await switchTabLike(ROUTES.cart)
     }
   }
 
@@ -92,6 +103,7 @@ export default function OrderDetail() {
     }
 
     setPaymentLoading(true)
+    let paymentConfirmed = false
     try {
       const payment = await paymentServices.sessions.recheck(paymentId)
       const nextPaymentStatus = String(payment.status || '').toUpperCase()
@@ -99,14 +111,19 @@ export default function OrderDetail() {
         title: nextPaymentStatus === 'PAID' ? '支付成功' : '支付状态已刷新',
         icon: nextPaymentStatus === 'PAID' ? 'success' : 'none'
       })
+      paymentConfirmed = nextPaymentStatus === 'PAID'
     } catch (error) {
       console.warn('refresh payment failed', error)
       await Taro.showToast({ title: '刷新支付状态失败', icon: 'none' })
     } finally {
-      if (orderId && typeof orderId === 'string') {
+      if (!paymentConfirmed && orderId && typeof orderId === 'string') {
         await loadOrder(orderId)
       }
       setPaymentLoading(false)
+    }
+
+    if (paymentConfirmed) {
+      await switchTabLike(ROUTES.cart)
     }
   }
 
@@ -127,6 +144,17 @@ export default function OrderDetail() {
           <Text className={`order-detail-hero-badge order-detail-hero-badge--${heroContent.tone}`}>
             {heroContent.badge}
           </Text>
+          {showRefreshPayment ? (
+            <Button
+              size='small'
+              variant='text'
+              className='order-detail-hero-refresh'
+              loading={paymentLoading}
+              onClick={handleRefreshPayment}
+            >
+              刷新支付状态
+            </Button>
+          ) : null}
         </View>
 
         <View className='order-detail-card'>
@@ -212,32 +240,25 @@ export default function OrderDetail() {
       </View>
 
       <View className='order-detail-footer'>
-        {(canContinuePay(order) || canRefreshPayment(order)) ? (
-          <View className='order-detail-footer-stack'>
-            {canContinuePay(order) ? (
-              <Button block color='primary' className='order-detail-footer-button' loading={paymentLoading} onClick={handlePay}>
-                继续支付
-              </Button>
-            ) : null}
-            {canRefreshPayment(order) ? (
-              <Button block variant='outlined' className='order-detail-footer-button' loading={paymentLoading} onClick={handleRefreshPayment}>
-                刷新支付状态
-              </Button>
-            ) : null}
-          </View>
-        ) : null}
-        <View className='order-detail-footer-main'>
-          <Button block variant='outlined' className='order-detail-footer-secondary' onClick={() => switchTabLike(ROUTES.home)}>
-            返回商城
+        <View className={`order-detail-footer-main ${(!showContinuePay && !showLogistics) ? 'order-detail-footer-main--single' : ''}`}>
+          <Button block variant='outlined' className='order-detail-footer-secondary' onClick={() => switchTabLike(ROUTES.cart)}>
+            返回购物车
           </Button>
-          <Button
-            block
-            color='primary'
-            className='order-detail-footer-primary'
-            onClick={() => order?.id && navigateTo(orderTrackingRoute(order.id))}
-          >
-            查看物流
-          </Button>
+          {showContinuePay ? (
+            <Button block color='primary' className='order-detail-footer-primary' loading={paymentLoading} onClick={handlePay}>
+              继续支付
+            </Button>
+          ) : null}
+          {showLogistics ? (
+            <Button
+              block
+              color='primary'
+              className='order-detail-footer-primary'
+              onClick={() => order?.id && navigateTo(orderTrackingRoute(order.id))}
+            >
+              查看物流
+            </Button>
+          ) : null}
         </View>
       </View>
     </View>
@@ -390,6 +411,16 @@ const canRefreshPayment = (order: Order | null): boolean => {
     return false
   }
   return Boolean(readLatestPaymentId(order)) && readPaymentStatus(order).toUpperCase() !== 'PAID'
+}
+
+const canViewLogistics = (order: Order | null): boolean => {
+  if (!order) {
+    return false
+  }
+  if (readPaymentStatus(order).toUpperCase() === 'PAID') {
+    return true
+  }
+  return order.status === 'PAID' || order.status === 'SHIPPED' || order.status === 'DELIVERED'
 }
 
 const applyPaymentOverride = async (order: Order): Promise<Order> => {

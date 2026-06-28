@@ -56,7 +56,7 @@ const quoteVersions: readonly QuoteVersion[] = [
   {
     name: '版本3（当前）',
     date: '2023年10月24日',
-    amount: '$12,500.00',
+    amount: '¥12,500.00',
     validUntil: '2023年11月24日',
     status: '生效中',
     statusClass: 'bg-green-100 text-green-800',
@@ -65,7 +65,7 @@ const quoteVersions: readonly QuoteVersion[] = [
   {
     name: '版本2',
     date: '2023年10月20日',
-    amount: '$13,200.00',
+    amount: '¥13,200.00',
     validUntil: '2023年11月20日',
     status: '已过期',
     statusClass: 'bg-gray-100 text-gray-800'
@@ -73,7 +73,7 @@ const quoteVersions: readonly QuoteVersion[] = [
   {
     name: '版本1',
     date: '2023年10月15日',
-    amount: '$14,000.00',
+    amount: '¥14,000.00',
     validUntil: '2023年11月15日',
     status: '已驳回',
     statusClass: 'bg-red-100 text-red-800',
@@ -82,11 +82,11 @@ const quoteVersions: readonly QuoteVersion[] = [
 ];
 
 const summaryLines: readonly SummaryLine[] = [
-  { label: '人体工学办公椅（20件）', value: '$5,000.00' },
-  { label: '可升降办公桌（20件）', value: '$6,000.00' },
-  { label: '理线配件套装（20件）', value: '$500.00' },
-  { label: '运输与服务', value: '$1,000.00' },
-  { label: '合计', value: '$12,500.00', isTotal: true }
+  { label: '人体工学办公椅（20件）', value: '¥5,000.00' },
+  { label: '可升降办公桌（20件）', value: '¥6,000.00' },
+  { label: '理线配件套装（20件）', value: '¥500.00' },
+  { label: '运输与服务', value: '¥1,000.00' },
+  { label: '合计', value: '¥12,500.00', isTotal: true }
 ];
 
 const chatMessages: readonly ChatMessage[] = [

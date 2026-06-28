@@ -5,6 +5,7 @@ import Navbar from '@taroify/core/navbar'
 import Button from '@taroify/core/button'
 import FixedView from '@taroify/core/fixed-view'
 import type { Cart, UserAddress } from '@tmo/api-client'
+import { isApiError } from '@tmo/commerce-services'
 import { ROUTES, goodsDetailRoute, orderDetailRoute, withQuery } from '../../../routes'
 import SafeImage from '../../../components/safe-image'
 import { getNavbarStyle } from '../../../utils/navbar'
@@ -152,6 +153,9 @@ export default function OrderConfirmPage() {
   const submitDisabled = submitting || loadingData || !cartItems.length || !defaultAddress
 
   const handleSubmit = async () => {
+    if (submitting) {
+      return
+    }
     if (!cartItems.length) {
       await Taro.showToast({ title: '购物车为空', icon: 'none' })
       return
@@ -164,10 +168,11 @@ export default function OrderConfirmPage() {
       await Taro.showToast({ title: '当前商品数量未命中价格区间', icon: 'none' })
       return
     }
-    const allowed = await ensureLoggedIn({ redirect: true })
-    if (!allowed) return
     setSubmitting(true)
     try {
+      const allowed = await ensureLoggedIn({ redirect: true })
+      if (!allowed) return
+
       const order = await commerceServices.orders.submit({
         address: {
           receiverName: defaultAddress.receiverName,
@@ -181,14 +186,18 @@ export default function OrderConfirmPage() {
           qty: item.qty
         }))
       })
+      commerceServices.orders.resetIdempotency()
+
       let toastTitle = '订单已提交'
       let toastIcon: 'success' | 'none' = 'success'
+      let paymentConfirmed = false
 
       try {
         const payment = await paymentServices.sessions.payForOrder(order.id)
         const paymentStatus = String(payment.status || '').toUpperCase()
         if (paymentStatus === 'PAID') {
           toastTitle = '支付成功'
+          paymentConfirmed = true
         } else {
           toastTitle = '订单已提交，支付确认中'
           toastIcon = 'none'
@@ -204,9 +213,20 @@ export default function OrderConfirmPage() {
       }
 
       await Taro.showToast({ title: toastTitle, icon: toastIcon })
-      await navigateTo(orderDetailRoute(order.id))
+      if (paymentConfirmed) {
+        await switchTabLike(ROUTES.cart)
+      } else {
+        await navigateTo(orderDetailRoute(order.id))
+      }
     } catch (error) {
       console.warn('submit order failed', error)
+      const existingOrderId = getIdempotencyConflictOrderId(error)
+      if (existingOrderId) {
+        commerceServices.orders.resetIdempotency()
+        await Taro.showToast({ title: '订单已生成', icon: 'none' })
+        await navigateTo(orderDetailRoute(existingOrderId))
+        return
+      }
       await Taro.showToast({ title: '提交失败', icon: 'none' })
     } finally {
       setSubmitting(false)
@@ -368,3 +388,15 @@ const normalizeSpuId = (value: unknown): string => {
 const formatFen = (fen: number): string => `¥${(fen / 100).toFixed(2)}`
 
 const formatPriceNumber = (fen: number): string => (fen / 100).toFixed(2)
+
+const getIdempotencyConflictOrderId = (error: unknown): string => {
+  if (!isApiError(error) || error.statusCode !== 409) {
+    return ''
+  }
+  const details = error.details
+  if (!details || typeof details !== 'object') {
+    return ''
+  }
+  const orderId = (details as { orderId?: unknown }).orderId
+  return typeof orderId === 'string' ? orderId.trim() : ''
+}

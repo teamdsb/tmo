@@ -255,7 +255,7 @@ const LiveDashboardView = ({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Live Dashboard Summary</h2>
-            <p className="text-sm text-slate-500">All values are from backend endpoints in dev mode.</p>
+            <p className="text-sm text-slate-500">All values are from backend endpoints.</p>
           </div>
           <p className="text-xs text-slate-500">updated: {formatDateTime(summary?.generatedAt)}</p>
         </div>
@@ -325,7 +325,7 @@ const LiveDashboardView = ({
           <div className="rounded-xl border border-slate-200 bg-white p-5 text-slate-700">
             <h3 className="text-sm font-semibold text-slate-900">Role-based Access</h3>
             <p className="mt-2 text-sm text-slate-500">
-              No dedicated RBAC analytics endpoint is wired for dashboard cards in dev mode.
+              No dedicated RBAC analytics endpoint is wired for dashboard cards.
             </p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-5 text-slate-700">
@@ -368,7 +368,7 @@ const StaticDashboardView = () => {
           </div>
           <div className="mt-4">
             <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Revenue</h3>
-            <p className="text-2xl font-bold text-slate-900 dark:text-white">$48,294</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">¥48,294</p>
           </div>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">

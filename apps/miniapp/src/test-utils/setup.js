@@ -200,6 +200,18 @@ jest.mock('@tmo/platform-adapter', () => {
 });
 
 jest.mock('@tmo/commerce-services', () => {
+  class ApiError extends Error {
+    constructor(message, statusCode, options = {}) {
+      super(message);
+      this.name = 'ApiError';
+      this.statusCode = statusCode;
+      this.code = options.code;
+      this.requestId = options.requestId;
+      this.details = options.details;
+      this.raw = options.raw;
+    }
+  }
+
   const mockProducts = [
     { id: 'prod-1001', name: 'A4 办公用纸', coverImageUrl: '', tags: ['办公'] },
     { id: 'prod-1002', name: '钢制螺栓套装', coverImageUrl: '', tags: ['工业'] },
@@ -277,7 +289,8 @@ jest.mock('@tmo/commerce-services', () => {
         list: jest.fn(async () => ({ items: [mockOrder] })),
         stats: jest.fn(async () => ({ items: [{ status: 'SUBMITTED', count: 2 }] })),
         get: jest.fn(async () => mockOrder),
-        submit: jest.fn(async () => mockOrder)
+        submit: jest.fn(async () => mockOrder),
+        resetIdempotency: jest.fn()
       },
       addresses: {
         list: jest.fn(async () => ({ items: [] })),
@@ -340,7 +353,9 @@ jest.mock('@tmo/commerce-services', () => {
         getToken: jest.fn(async () => null),
         setToken: jest.fn(async () => ({}))
       }
-    })
+    }),
+    ApiError,
+    isApiError: (error) => error instanceof ApiError
   };
 });
 

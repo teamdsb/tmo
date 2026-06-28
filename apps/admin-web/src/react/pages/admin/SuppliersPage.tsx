@@ -324,7 +324,7 @@ const formatAmount = (amount: number | null) => {
   }
   return new Intl.NumberFormat('zh-CN', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'CNY',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(amount / 100);

@@ -15,7 +15,7 @@ export default {
     "at-rule-no-unknown": [
       true,
       {
-        ignoreAtRules: ["tailwind", "apply", "layer", "variants", "responsive", "screen"],
+        ignoreAtRules: ["tailwind", "apply", "layer", "variants", "responsive", "screen", "use"],
       },
     ],
     "selector-class-pattern": [

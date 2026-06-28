@@ -39,9 +39,27 @@ SET name = $2,
 WHERE id = $1
 RETURNING id, name, description, category_id, cover_image_url, images, tags, filter_dimensions, created_at, updated_at, status;
 
--- name: DeleteProduct :execrows
-DELETE FROM catalog_products
-WHERE id = $1;
+-- name: DeleteProduct :one
+WITH target_skus AS (
+    SELECT id
+    FROM catalog_skus
+    WHERE product_id = $1
+),
+deleted_cart_items AS (
+    DELETE FROM cart_items
+    WHERE sku_id IN (SELECT id FROM target_skus)
+),
+deleted_wishlist_items AS (
+    DELETE FROM wishlist_items
+    WHERE sku_id IN (SELECT id FROM target_skus)
+),
+deleted_product AS (
+    DELETE FROM catalog_products
+    WHERE id = $1
+    RETURNING 1
+)
+SELECT count(*)::bigint
+FROM deleted_product;
 
 -- name: ListProducts :many
 SELECT id, name, description, category_id, cover_image_url, images, tags, filter_dimensions, created_at, updated_at, status

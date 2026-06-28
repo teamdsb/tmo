@@ -874,7 +874,7 @@ export const TransferPage = () => {
                 <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">共 {total} 位客户，当前选中 {selectedCount} 位</p>
               </div>
               <span className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-primary dark:bg-blue-900/40 dark:text-blue-300">
-                {isMockMode ? 'mock' : 'dev'}
+                {isMockMode ? '演示环境' : '生产环境'}
               </span>
             </div>
 

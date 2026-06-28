@@ -1,4 +1,5 @@
-import { Button, Image, Text, View } from '@tarojs/components'
+import { useEffect, useState } from 'react'
+import { Button, Image, Input, Text, View } from '@tarojs/components'
 import FixedView from '@taroify/core/fixed-view'
 import { ArrowLeft } from '@taroify/icons'
 import type { CartImportJob, CartImportPendingItem, ProductSummary } from '@tmo/api-client'
@@ -177,8 +178,26 @@ type CartListViewProps = {
   productNameBySpuId: ProductNameMap
   onChangeCartItemQty: (item: CartItem, nextQty: number) => Promise<void>
   onChangeCartItemSku: (item: CartItem) => Promise<void>
-  onQuickChangeCartItemQty: (item: CartItem) => Promise<void>
   onRemoveCartItem: (item: CartItem) => Promise<void>
+}
+
+const getInputEventValue = (event: {
+  detail?: { value?: unknown }
+  target?: unknown
+  currentTarget?: unknown
+}) => {
+  const target = event.target as { value?: unknown } | undefined
+  const currentTarget = event.currentTarget as { value?: unknown } | undefined
+  const value = event.detail?.value ?? target?.value ?? currentTarget?.value
+  return typeof value === 'string' ? value : String(value ?? '')
+}
+
+const parseCartQtyInput = (value: string): number | null => {
+  const parsed = Number.parseInt(value.trim(), 10)
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return null
+  }
+  return parsed
 }
 
 export function CartListView({
@@ -193,10 +212,31 @@ export function CartListView({
   productNameBySpuId,
   onChangeCartItemQty,
   onChangeCartItemSku,
-  onQuickChangeCartItemQty,
   onRemoveCartItem
 }: CartListViewProps) {
   const isCartEmpty = cartItems.length === 0
+  const [qtyDraftById, setQtyDraftById] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    setQtyDraftById(Object.fromEntries(cartItems.map((item) => [item.id, String(item.qty)])))
+  }, [cartItems])
+
+  const updateQtyDraft = (item: CartItem, value: string) => {
+    setQtyDraftById((current) => ({ ...current, [item.id]: value }))
+  }
+
+  const commitQtyDraft = (item: CartItem) => {
+    const draftValue = qtyDraftById[item.id] ?? String(item.qty)
+    const nextQty = parseCartQtyInput(draftValue)
+    if (!nextQty) {
+      updateQtyDraft(item, String(item.qty))
+      return
+    }
+    if (nextQty === item.qty) {
+      return
+    }
+    void onChangeCartItemQty(item, nextQty)
+  }
 
   return (
     <View className='cart-screen'>
@@ -330,15 +370,22 @@ export function CartListView({
                             >
                               <Text className='cart-item-stepper-btn-icon'>-</Text>
                             </View>
-                            <View
-                              className={`cart-item-stepper-value ${isBusy ? 'cart-item-stepper-value--disabled' : ''}`}
-                              onClick={isBusy ? undefined : (event) => {
+                            <Input
+                              className={`cart-item-stepper-input ${isBusy ? 'cart-item-stepper-input--disabled' : ''}`}
+                              data-field='cart-item-qty'
+                              disabled={isBusy}
+                              type='number'
+                              value={qtyDraftById[item.id] ?? String(item.qty)}
+                              onClick={stopPropagation}
+                              onInput={(event) => {
                                 stopPropagation(event)
-                                void onQuickChangeCartItemQty(item)
+                                updateQtyDraft(item, getInputEventValue(event))
                               }}
-                            >
-                              <Text>{item.qty}</Text>
-                            </View>
+                              onBlur={(event) => {
+                                stopPropagation(event)
+                                commitQtyDraft(item)
+                              }}
+                            />
                             <View
                               className={`cart-item-stepper-btn ${isBusy ? 'cart-item-stepper-btn--disabled' : ''}`}
                               onClick={
@@ -393,12 +440,12 @@ export function CartBottomBar({
 
   return (
     <FixedView position='bottom' placeholder>
-      <View className='cart-bottom-bar'>
+      <View className={`cart-bottom-bar ${importJob ? 'cart-bottom-bar--import' : ''}`}>
         {!importJob ? (
           <View className='cart-bottom-summary'>
             <View className='cart-bottom-summary-copy'>
               <Text className='cart-bottom-summary-label'>小计</Text>
-              <Text className='cart-bottom-summary-meta'>{`购物车共有 ${cartTotalItems} 件商品`}</Text>
+              <Text className='cart-bottom-summary-meta'>{`共 ${cartTotalItems} 件商品`}</Text>
             </View>
             <Text className='cart-bottom-summary-value'>
               {!cartHasPendingPrice ? formatFen(cartTotalFen) : '待确认报价'}
@@ -417,7 +464,7 @@ export function CartBottomBar({
             disabled={loading}
             onClick={!importJob ? onContinueBrowse : undefined}
           >
-            {importJob ? '保存草稿' : '立即购物'}
+            {importJob ? '保存草稿' : '继续购物'}
           </Button>
           <Button
             className={`cart-action cart-action-primary ${actionDisabled} ${checkoutDisabled ? 'cart-action-primary--disabled' : ''}`}

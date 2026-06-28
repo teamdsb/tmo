@@ -2,6 +2,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import Taro from '@tarojs/taro'
 import fs from 'node:fs'
 import path from 'node:path'
+import { commerceServices } from '../../../services/commerce'
+import SupportChatPage from './index'
 
 jest.mock('../../../services/bootstrap', () => ({
   loadBootstrap: jest.fn(async () => ({
@@ -18,9 +20,6 @@ jest.mock('../../../utils/auth', () => ({
   ensureLoggedIn: jest.fn(async () => true),
   isUnauthorized: jest.fn(() => false)
 }))
-
-import { commerceServices } from '../../../services/commerce'
-import SupportChatPage from './index'
 
 const flushPromises = () => new Promise((resolve) => process.nextTick(resolve))
 
