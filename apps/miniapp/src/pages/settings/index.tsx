@@ -15,33 +15,17 @@ import { resetIsolatedMockState } from '../../services/mock/runtime'
 import { loadEditableProfile } from '../../services/profile'
 import { runtimeEnv } from '../../config/runtime-env'
 import { getCurrentRole, isSalesUser } from '../../utils/authz'
+import { POLICY_CONTENT, type PolicyKey } from '../../content/policies'
 
 type SettingsState = {
   notifications: boolean
   autoLogin: boolean
 }
 
-type PolicySectionKey = 'privacy' | 'terms' | 'data'
-
 const STORAGE_KEY = 'tmo.settings'
 const DEFAULT_SETTINGS: SettingsState = {
   notifications: true,
   autoLogin: true
-}
-
-const POLICY_CONTENT: Record<PolicySectionKey, { title: string; body: string }> = {
-  privacy: {
-    title: '隐私政策',
-    body: '我们会在登录、下单、收货与售后流程中处理账号信息、角色信息、订单与地址数据，用于完成身份识别、履约协同与客户服务。你可以通过退出登录、清除缓存或联系支持团队处理本地留存信息。'
-  },
-  terms: {
-    title: '服务条款',
-    body: '账号需按真实业务身份使用；询价、下单、支付与售后流程应遵守平台规则与企业采购约定。业务员工作台、Mock 调试能力及测试环境仅用于授权账号，不作为正式交易依据。'
-  },
-  data: {
-    title: '数据说明',
-    body: '小程序会本地缓存登录态、Bootstrap 信息与部分设置项。Mock 模式使用离线模拟数据，不访问真实后端；Real 模式会读取当前配置的接口环境。重置或清除缓存后，部分页面状态需要重新拉取。'
-  }
 }
 
 const appVersion = typeof miniappPackage?.version === 'string' && miniappPackage.version.trim()
@@ -89,7 +73,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS)
   const [bootstrap, setBootstrap] = useState<BootstrapResponse | null>(null)
   const [profilePhone, setProfilePhone] = useState('')
-  const [expandedPolicy, setExpandedPolicy] = useState<PolicySectionKey | null>(null)
+  const [expandedPolicy, setExpandedPolicy] = useState<PolicyKey | null>(null)
   const [resettingMock, setResettingMock] = useState(false)
   const [mockLoggingIn, setMockLoggingIn] = useState(false)
 
@@ -129,7 +113,7 @@ export default function SettingsPage() {
     setSettings((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
-  const handleTogglePolicy = (key: PolicySectionKey) => {
+  const handleTogglePolicy = (key: PolicyKey) => {
     setExpandedPolicy((prev) => (prev === key ? null : key))
   }
 
@@ -252,7 +236,7 @@ export default function SettingsPage() {
         <View data-testid='settings-policy-card' className='mt-6 rounded-3xl bg-white p-4 shadow-sm'>
           <Text className='px-1 text-xs tracking-wide text-slate-400'>隐私与协议</Text>
           <View className='mt-3 overflow-hidden rounded-2xl border border-slate-100'>
-            {(Object.entries(POLICY_CONTENT) as Array<[PolicySectionKey, { title: string; body: string }]>).map(([key, item]) => (
+            {(Object.entries(POLICY_CONTENT) as Array<[PolicyKey, { title: string; body: string }]>).map(([key, item]) => (
               <View key={key} className='border-b border-slate-100 last:border-b-0'>
                 <View className='flex items-center justify-between gap-4 px-4 py-4' onClick={() => handleTogglePolicy(key)}>
                   <Text className='text-base text-slate-900'>{item.title}</Text>

@@ -10,7 +10,7 @@ import { identityServices } from '../../../services/identity'
 import { fetchMiniLoginCapabilities, type MiniLoginCapabilities } from '../../../services/auth-capabilities'
 import { gatewayServices } from '../../../services/gateway'
 import { saveBootstrap, savePendingRoleSelection } from '../../../services/bootstrap'
-import { ROUTES } from '../../../routes'
+import { ROUTES, withQuery } from '../../../routes'
 import { clearAuthSession } from '../../../utils/auth'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { runtimeEnv } from '../../../config/runtime-env'
@@ -534,9 +534,21 @@ export default function LoginPage() {
               <View className={`login-checkbox ${agreed ? 'login-checkbox--checked' : ''}`} />
               <Text className='login-agreement-text'>
                 我已阅读并同意
-                <Text className='login-agreement-link'>隐私政策</Text>
+                <Text
+                  className='login-agreement-link'
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    void navigateTo(withQuery(ROUTES.policy, { type: 'privacy' }))
+                  }}
+                >隐私政策</Text>
                 与
-                <Text className='login-agreement-link'>服务条款</Text>
+                <Text
+                  className='login-agreement-link'
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    void navigateTo(withQuery(ROUTES.policy, { type: 'terms' }))
+                  }}
+                >服务条款</Text>
               </Text>
             </View>
           </View>
