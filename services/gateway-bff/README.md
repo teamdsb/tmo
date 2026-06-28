@@ -31,7 +31,7 @@ Minimal API gateway that routes identity + commerce behind a single base URL.
 
 - `GATEWAY_PUBLIC_BASE_URL` (default: `http://localhost:8080`)
 - `GATEWAY_MEDIA_LOCAL_DIR` (default: empty/disabled)
-- `GATEWAY_IMAGE_PROXY_ALLOWLIST` (default: `images.unsplash.com`)
+- `GATEWAY_IMAGE_PROXY_ALLOWLIST` (default: `images.unsplash.com,lh3.googleusercontent.com`)
 - `GATEWAY_IMAGE_PROXY_TIMEOUT` (default: `10s`)
 - `GATEWAY_IMAGE_PROXY_MAX_BYTES` (default: `8388608`)
 - `GATEWAY_IMAGE_PROXY_CACHE_MAX_AGE_SECONDS` (default: `3600`)

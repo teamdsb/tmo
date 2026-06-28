@@ -51,6 +51,7 @@ import {
   resolveCategoryLabel,
   sortCategories,
   sortDisplayCategories,
+  sortProductsByStatus,
   STATUS_BADGE_CLASS,
   STATUS_FILTER_ITEMS,
   type CategoryItem,
@@ -1883,7 +1884,7 @@ export const ProductsPage = () => {
 
   const filteredProducts = useMemo(() => {
     const keyword = deferredSearchTerm.trim().toLowerCase();
-    return products.filter((product) => {
+    return sortProductsByStatus(products.filter((product) => {
       if (categoryFilter === NO_CATEGORY_FILTER && product.categoryId) {
         return false;
       }
@@ -1903,7 +1904,7 @@ export const ProductsPage = () => {
         ...product.models.map((model) => `${model.name} ${model.code}`)
       ];
       return haystacks.some((value) => value.toLowerCase().includes(keyword));
-    });
+    }));
   }, [categories, categoryFilter, deferredSearchTerm, products, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PRODUCTS_PAGE_SIZE));

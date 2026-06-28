@@ -118,11 +118,11 @@ SELECT count(*)::bigint
 FROM deleted_product
 `
 
-func (q *Queries) DeleteProduct(ctx context.Context, id uuid.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, deleteProduct, id)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
+func (q *Queries) DeleteProduct(ctx context.Context, productID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, deleteProduct, productID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const getProduct = `-- name: GetProduct :one
@@ -156,7 +156,14 @@ FROM catalog_products
 WHERE ($1::text IS NULL OR name ILIKE '%' || $1 || '%')
   AND ($2::uuid IS NULL OR category_id = $2)
   AND ($3::text IS NULL OR status = $3)
-ORDER BY created_at DESC
+ORDER BY CASE status
+           WHEN 'ACTIVE' THEN 0
+           WHEN 'DRAFT' THEN 1
+           WHEN 'INACTIVE' THEN 2
+           ELSE 3
+         END,
+         created_at DESC,
+         id ASC
 LIMIT $5 OFFSET $4
 `
 

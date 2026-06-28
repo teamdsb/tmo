@@ -19,7 +19,7 @@ const (
 	defaultLogLevel                    = "info"
 	defaultUpstreamTimeout             = 10 * time.Second
 	defaultMaxBodyBytes                = 32 * 1024 * 1024
-	defaultImageProxyAllowlist         = "images.unsplash.com"
+	defaultImageProxyAllowlist         = "images.unsplash.com,lh3.googleusercontent.com"
 	defaultImageProxyTimeout           = 10 * time.Second
 	defaultImageProxyMaxBytes          = 8 * 1024 * 1024
 	defaultImageProxyCacheMaxAgeSecond = 3600

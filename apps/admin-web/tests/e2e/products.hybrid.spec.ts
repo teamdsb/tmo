@@ -246,6 +246,45 @@ const routeProductPageApis = async (page, options = {}) => {
   });
 };
 
+test('product list groups statuses and leaves empty covers empty', async ({ page }) => {
+  await installDevSession(page);
+  await routeProductPageApis(page);
+  await page.route('**/api/catalog/products**', async (route) => {
+    const url = new URL(route.request().url());
+    if (route.request().method() !== 'GET' || url.pathname !== '/api/catalog/products') {
+      await route.continue();
+      return;
+    }
+    const items = [
+      { id: 'draft-first', name: '草稿商品一', status: 'DRAFT', coverImageUrl: '' },
+      { id: 'active-empty-cover', name: '启用商品一', status: 'ACTIVE', coverImageUrl: '' },
+      { id: 'inactive-only', name: '停用商品', status: 'INACTIVE', coverImageUrl: '' },
+      { id: 'active-second', name: '启用商品二', status: 'ACTIVE', coverImageUrl: '' },
+      { id: 'draft-second', name: '草稿商品二', status: 'DRAFT', coverImageUrl: '' }
+    ];
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ items, page: 1, pageSize: 200, total: items.length })
+    });
+  });
+
+  await page.goto('/products.html');
+
+  const rowIds = await page.locator('tbody tr[data-product-id]').evaluateAll((rows) => (
+    rows.map((row) => row.getAttribute('data-product-id'))
+  ));
+  expect(rowIds).toEqual([
+    'active-empty-cover',
+    'active-second',
+    'draft-first',
+    'draft-second',
+    'inactive-only'
+  ]);
+  const emptyCover = page.locator('[data-product-id="active-empty-cover"] td').nth(1).locator('div').first();
+  expect(await emptyCover.getAttribute('style')).toBeNull();
+});
+
 test('product edit persists changes through catalog PATCH', async ({ page }) => {
   const uploadPath = await createUploadFixture();
   await installDevSession(page);
