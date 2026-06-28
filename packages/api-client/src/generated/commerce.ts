@@ -103,6 +103,7 @@ export interface CreateCatalogProductRequest {
   categoryId: string;
   description?: string;
   coverImageUrl?: string;
+  /** @maxItems 9 */
   images?: string[];
   tags?: string[];
   filterDimensions?: string[];
@@ -116,6 +117,7 @@ export interface UpdateCatalogProductRequest {
   description?: string | null;
   /** @nullable */
   coverImageUrl?: string | null;
+  /** @maxItems 9 */
   images?: string[];
   tags?: string[];
   filterDimensions?: string[];
@@ -186,6 +188,7 @@ export type ProductDetailProduct = {
   id: string;
   name: string;
   description?: string;
+  /** @maxItems 9 */
   images?: string[];
   categoryId: string;
   status: ProductStatus;
@@ -964,6 +967,10 @@ pageSize?: number;
 };
 
 export type GetProductRequestsParams = {
+/**
+ * Search by request ID, customer ID, name, specification, material, dimensions, color, quantity, or note
+ */
+q?: string;
 createdAfter?: string;
 createdBefore?: string;
 /**

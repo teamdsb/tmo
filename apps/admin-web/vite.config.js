@@ -50,6 +50,7 @@ export default defineConfig({
         orders: resolve(__dirname, 'orders.html'),
         import: resolve(__dirname, 'import.html'),
         inquiries: resolve(__dirname, 'inquiries.html'),
+        productRequests: resolve(__dirname, 'product-requests.html'),
         suppliers: resolve(__dirname, 'suppliers.html'),
         quoteWorkflow: resolve(__dirname, 'quote-workflow.html'),
         payments: resolve(__dirname, 'payments.html'),

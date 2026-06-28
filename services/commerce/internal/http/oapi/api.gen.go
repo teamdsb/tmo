@@ -767,6 +767,8 @@ type PostOrdersParams struct {
 
 // GetProductRequestsParams defines parameters for GetProductRequests.
 type GetProductRequestsParams struct {
+	// Q Search by request ID, customer ID, name, specification, material, dimensions, color, quantity, or note
+	Q             *string    `form:"q,omitempty" json:"q,omitempty"`
 	CreatedAfter  *time.Time `form:"createdAfter,omitempty" json:"createdAfter,omitempty"`
 	CreatedBefore *time.Time `form:"createdBefore,omitempty" json:"createdBefore,omitempty"`
 	Page          *int       `form:"page,omitempty" json:"page,omitempty"`
@@ -2174,6 +2176,14 @@ func (siw *ServerInterfaceWrapper) GetProductRequests(c *gin.Context) {
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetProductRequestsParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "q", c.Request.URL.Query(), &params.Q)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter q: %w", err), http.StatusBadRequest)
+		return
+	}
 
 	// ------------- Optional query parameter "createdAfter" -------------
 

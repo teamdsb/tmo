@@ -61,6 +61,18 @@ WHERE (sqlc.narg('created_by_user_id')::uuid IS NULL OR created_by_user_id = sql
   AND (sqlc.narg('owner_sales_user_id')::uuid IS NULL OR owner_sales_user_id = sqlc.narg('owner_sales_user_id'))
   AND (sqlc.narg('created_after')::timestamptz IS NULL OR created_at >= sqlc.narg('created_after'))
   AND (sqlc.narg('created_before')::timestamptz IS NULL OR created_at <= sqlc.narg('created_before'))
+  AND (
+    sqlc.narg('q')::text IS NULL
+    OR id::text ILIKE '%' || sqlc.narg('q')::text || '%'
+    OR created_by_user_id::text ILIKE '%' || sqlc.narg('q')::text || '%'
+    OR name ILIKE '%' || sqlc.narg('q')::text || '%'
+    OR COALESCE(spec, '') ILIKE '%' || sqlc.narg('q')::text || '%'
+    OR COALESCE(material, '') ILIKE '%' || sqlc.narg('q')::text || '%'
+    OR COALESCE(dimensions, '') ILIKE '%' || sqlc.narg('q')::text || '%'
+    OR COALESCE(color, '') ILIKE '%' || sqlc.narg('q')::text || '%'
+    OR COALESCE(qty, '') ILIKE '%' || sqlc.narg('q')::text || '%'
+    OR COALESCE(note, '') ILIKE '%' || sqlc.narg('q')::text || '%'
+  )
 ORDER BY created_at DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
@@ -70,7 +82,19 @@ FROM product_requests
 WHERE (sqlc.narg('created_by_user_id')::uuid IS NULL OR created_by_user_id = sqlc.narg('created_by_user_id'))
   AND (sqlc.narg('owner_sales_user_id')::uuid IS NULL OR owner_sales_user_id = sqlc.narg('owner_sales_user_id'))
   AND (sqlc.narg('created_after')::timestamptz IS NULL OR created_at >= sqlc.narg('created_after'))
-  AND (sqlc.narg('created_before')::timestamptz IS NULL OR created_at <= sqlc.narg('created_before'));
+  AND (sqlc.narg('created_before')::timestamptz IS NULL OR created_at <= sqlc.narg('created_before'))
+  AND (
+    sqlc.narg('q')::text IS NULL
+    OR id::text ILIKE '%' || sqlc.narg('q')::text || '%'
+    OR created_by_user_id::text ILIKE '%' || sqlc.narg('q')::text || '%'
+    OR name ILIKE '%' || sqlc.narg('q')::text || '%'
+    OR COALESCE(spec, '') ILIKE '%' || sqlc.narg('q')::text || '%'
+    OR COALESCE(material, '') ILIKE '%' || sqlc.narg('q')::text || '%'
+    OR COALESCE(dimensions, '') ILIKE '%' || sqlc.narg('q')::text || '%'
+    OR COALESCE(color, '') ILIKE '%' || sqlc.narg('q')::text || '%'
+    OR COALESCE(qty, '') ILIKE '%' || sqlc.narg('q')::text || '%'
+    OR COALESCE(note, '') ILIKE '%' || sqlc.narg('q')::text || '%'
+  );
 
 -- name: ListProductRequestExportRows :many
 SELECT

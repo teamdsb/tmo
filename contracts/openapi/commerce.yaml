@@ -737,6 +737,11 @@ paths:
       summary: List product requests ("can't find product")
       parameters:
       - in: query
+        name: q
+        description: Search by request ID, customer ID, name, specification, material, dimensions, color, quantity, or note
+        schema:
+          type: string
+      - in: query
         name: createdAfter
         schema:
           type: string

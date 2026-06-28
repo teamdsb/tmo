@@ -94,7 +94,14 @@ export const canAccessPath = (path, permissionMap) => {
     );
   }
   if (currentPath === '/exports.html') return hasPermission(permissionMap, 'product_request:export', 'SELF');
-  if (currentPath === '/inquiries.html' || currentPath === '/quote-workflow.html' || currentPath === '/suppliers.html') {
+  if (currentPath === '/product-requests.html') return hasPermission(permissionMap, 'product_request:read', 'SELF');
+  if (currentPath === '/inquiries.html' || currentPath === '/quote-workflow.html') {
+    return (
+      hasPermission(permissionMap, 'inquiry:read', 'SELF') ||
+      hasPermission(permissionMap, 'inquiry:manage', 'SELF')
+    );
+  }
+  if (currentPath === '/suppliers.html') {
     return (
       hasPermission(permissionMap, 'inquiry:read', 'SELF') ||
       hasPermission(permissionMap, 'inquiry:manage', 'SELF') ||

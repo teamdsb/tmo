@@ -37,7 +37,7 @@ func isCategoryForeignKeyViolation(err error) bool {
 }
 
 func (h *Handler) GetProductRequests(c *gin.Context, params oapi.GetProductRequestsParams) {
-	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "ADMIN")
+	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "ADMIN", "MANAGER", "BOSS")
 	if !ok {
 		return
 	}
@@ -73,12 +73,20 @@ func (h *Handler) GetProductRequests(c *gin.Context, params oapi.GetProductReque
 	if params.CreatedBefore != nil {
 		createdBefore = pgtype.Timestamptz{Time: *params.CreatedBefore, Valid: true}
 	}
+	var query *string
+	if params.Q != nil {
+		value := strings.TrimSpace(*params.Q)
+		if value != "" {
+			query = &value
+		}
+	}
 
 	requests, err := h.ProductRequestStore.ListProductRequests(c.Request.Context(), db.ListProductRequestsParams{
 		CreatedByUserID:  createdByFilter,
 		OwnerSalesUserID: ownerSalesFilter,
 		CreatedAfter:     createdAfter,
 		CreatedBefore:    createdBefore,
+		Q:                query,
 		Offset:           clampInt32(offset),
 		Limit:            clampInt32(pageSize),
 	})
@@ -93,6 +101,7 @@ func (h *Handler) GetProductRequests(c *gin.Context, params oapi.GetProductReque
 		OwnerSalesUserID: ownerSalesFilter,
 		CreatedAfter:     createdAfter,
 		CreatedBefore:    createdBefore,
+		Q:                query,
 	})
 	if err != nil {
 		h.logError("count product requests failed", err)

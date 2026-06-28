@@ -9,6 +9,7 @@ export type AdminRouteKey =
   | 'products'
   | 'orders'
   | 'logistics'
+  | 'productRequests'
   | 'sourcing'
   | 'users'
   | 'userOperations'
@@ -28,6 +29,7 @@ const navItems: NavItem[] = [
   { key: 'products', href: buildAppHref('/products.html'), icon: 'inventory_2', label: '商品' },
   { key: 'orders', href: buildAppHref('/orders.html'), icon: 'shopping_cart', label: '订单', badge: isDevMode ? '' : '12' },
   { key: 'logistics', href: buildAppHref('/import.html'), icon: 'local_shipping', label: '导入与导出' },
+  { key: 'productRequests', href: buildAppHref('/product-requests.html'), icon: 'assignment_add', label: '需求订单' },
   { key: 'sourcing', href: buildAppHref('/inquiries.html'), icon: 'assignment', label: '在线客服' },
   { key: 'users', href: buildAppHref('/transfer.html'), icon: 'group', label: '客户转移' },
   { key: 'userOperations', href: buildAppHref('/user-operations.html'), icon: 'supervisor_account', label: '用户运营' }

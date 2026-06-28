@@ -19,6 +19,18 @@ WHERE ($1::uuid IS NULL OR created_by_user_id = $1)
   AND ($2::uuid IS NULL OR owner_sales_user_id = $2)
   AND ($3::timestamptz IS NULL OR created_at >= $3)
   AND ($4::timestamptz IS NULL OR created_at <= $4)
+  AND (
+    $5::text IS NULL
+    OR id::text ILIKE '%' || $5::text || '%'
+    OR created_by_user_id::text ILIKE '%' || $5::text || '%'
+    OR name ILIKE '%' || $5::text || '%'
+    OR COALESCE(spec, '') ILIKE '%' || $5::text || '%'
+    OR COALESCE(material, '') ILIKE '%' || $5::text || '%'
+    OR COALESCE(dimensions, '') ILIKE '%' || $5::text || '%'
+    OR COALESCE(color, '') ILIKE '%' || $5::text || '%'
+    OR COALESCE(qty, '') ILIKE '%' || $5::text || '%'
+    OR COALESCE(note, '') ILIKE '%' || $5::text || '%'
+  )
 `
 
 type CountProductRequestsParams struct {
@@ -26,6 +38,7 @@ type CountProductRequestsParams struct {
 	OwnerSalesUserID pgtype.UUID        `db:"owner_sales_user_id" json:"owner_sales_user_id"`
 	CreatedAfter     pgtype.Timestamptz `db:"created_after" json:"created_after"`
 	CreatedBefore    pgtype.Timestamptz `db:"created_before" json:"created_before"`
+	Q                *string            `db:"q" json:"q"`
 }
 
 func (q *Queries) CountProductRequests(ctx context.Context, arg CountProductRequestsParams) (int64, error) {
@@ -34,6 +47,7 @@ func (q *Queries) CountProductRequests(ctx context.Context, arg CountProductRequ
 		arg.OwnerSalesUserID,
 		arg.CreatedAfter,
 		arg.CreatedBefore,
+		arg.Q,
 	)
 	var count int64
 	err := row.Scan(&count)
@@ -214,8 +228,20 @@ WHERE ($1::uuid IS NULL OR created_by_user_id = $1)
   AND ($2::uuid IS NULL OR owner_sales_user_id = $2)
   AND ($3::timestamptz IS NULL OR created_at >= $3)
   AND ($4::timestamptz IS NULL OR created_at <= $4)
+  AND (
+    $5::text IS NULL
+    OR id::text ILIKE '%' || $5::text || '%'
+    OR created_by_user_id::text ILIKE '%' || $5::text || '%'
+    OR name ILIKE '%' || $5::text || '%'
+    OR COALESCE(spec, '') ILIKE '%' || $5::text || '%'
+    OR COALESCE(material, '') ILIKE '%' || $5::text || '%'
+    OR COALESCE(dimensions, '') ILIKE '%' || $5::text || '%'
+    OR COALESCE(color, '') ILIKE '%' || $5::text || '%'
+    OR COALESCE(qty, '') ILIKE '%' || $5::text || '%'
+    OR COALESCE(note, '') ILIKE '%' || $5::text || '%'
+  )
 ORDER BY created_at DESC
-LIMIT $6 OFFSET $5
+LIMIT $7 OFFSET $6
 `
 
 type ListProductRequestsParams struct {
@@ -223,6 +249,7 @@ type ListProductRequestsParams struct {
 	OwnerSalesUserID pgtype.UUID        `db:"owner_sales_user_id" json:"owner_sales_user_id"`
 	CreatedAfter     pgtype.Timestamptz `db:"created_after" json:"created_after"`
 	CreatedBefore    pgtype.Timestamptz `db:"created_before" json:"created_before"`
+	Q                *string            `db:"q" json:"q"`
 	Offset           int32              `db:"offset" json:"offset"`
 	Limit            int32              `db:"limit" json:"limit"`
 }
@@ -233,6 +260,7 @@ func (q *Queries) ListProductRequests(ctx context.Context, arg ListProductReques
 		arg.OwnerSalesUserID,
 		arg.CreatedAfter,
 		arg.CreatedBefore,
+		arg.Q,
 		arg.Offset,
 		arg.Limit,
 	)

@@ -23,6 +23,7 @@ const resolveCurrentKey = (currentPath: string): Exclude<AdminRouteKey, 'general
   if (currentPath === '/payments.html') return 'orders';
   if (currentPath === '/import.html') return 'logistics';
   if (currentPath === '/exports.html') return 'logistics';
+  if (currentPath === '/product-requests.html') return 'productRequests';
   if (currentPath === '/inquiries.html') return 'sourcing';
   if (currentPath === '/suppliers.html') return 'sourcing';
   if (currentPath === '/quote-workflow.html') return 'sourcing';
