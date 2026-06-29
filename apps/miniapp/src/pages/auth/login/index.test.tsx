@@ -134,12 +134,12 @@ describe('LoginPage', () => {
     expect(document.querySelector('.login-checkbox')).not.toHaveClass('login-checkbox--checked')
   })
 
-  it('opens the service terms without toggling the agreement', async () => {
+  it('opens the user service agreement without toggling the agreement', async () => {
     const { LoginPage, Taro: runtimeTaro } = loadLoginModule()
     await renderLoginPage(LoginPage)
 
     await act(async () => {
-      fireEvent.click(screen.getByText('服务条款'))
+      fireEvent.click(screen.getByText('用户服务协议'))
       await flushPromises()
     })
 

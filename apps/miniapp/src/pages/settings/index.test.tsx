@@ -219,14 +219,14 @@ describe('SettingsPage', () => {
       fireEvent.click(screen.getByText('隐私政策'))
       await flushPromises()
     })
-    expect(screen.getByText(/我们会在登录、下单、收货与售后流程中处理账号信息/)).toBeInTheDocument()
+    expect(screen.getByText(/二、我们如何收集和使用个人信息/)).toBeInTheDocument()
 
     await act(async () => {
-      fireEvent.click(screen.getByText('服务条款'))
+      fireEvent.click(screen.getByText('用户服务协议'))
       await flushPromises()
     })
-    expect(screen.getByText(/账号需按真实业务身份使用/)).toBeInTheDocument()
-    expect(screen.queryByText(/我们会在登录、下单、收货与售后流程中处理账号信息/)).toBeNull()
+    expect(screen.getByText(/一、协议的范围与接受/)).toBeInTheDocument()
+    expect(screen.queryByText(/二、我们如何收集和使用个人信息/)).toBeNull()
   })
 
   it('shows only app version in the version card', async () => {

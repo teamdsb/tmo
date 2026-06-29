@@ -548,7 +548,7 @@ export default function LoginPage() {
                     event.stopPropagation()
                     void navigateTo(withQuery(ROUTES.policy, { type: 'terms' }))
                   }}
-                >服务条款</Text>
+                >用户服务协议</Text>
               </Text>
             </View>
           </View>

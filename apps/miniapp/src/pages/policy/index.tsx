@@ -6,6 +6,7 @@ import { isPolicyKey, POLICY_CONTENT } from '../../content/policies'
 import { ROUTES } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
 import { switchTabLike } from '../../utils/navigation'
+import './index.scss'
 
 export default function PolicyPage() {
   const router = useRouter()
@@ -19,10 +20,10 @@ export default function PolicyPage() {
         <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.authLogin))} />
         <Navbar.Title>{policy.title}</Navbar.Title>
       </Navbar>
-      <View className='page-content'>
-        <View className='rounded-3xl bg-white p-6 shadow-sm'>
-          <Text className='block text-xl font-semibold text-slate-900'>{policy.title}</Text>
-          <Text className='mt-5 block text-sm leading-7 text-slate-600'>{policy.body}</Text>
+      <View className='page-content policy-page-content'>
+        <View className='policy-card'>
+          <Text className='policy-title'>{policy.title}</Text>
+          <Text className='policy-body'>{policy.body}</Text>
         </View>
       </View>
     </View>
