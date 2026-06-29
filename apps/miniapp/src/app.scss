@@ -1195,16 +1195,10 @@
   padding: 0 18rpx;
 }
 
-.order-id {
+.order-date {
   font-size: var(--type-xs);
   font-weight: 700;
   color: #111418;
-  display: block;
-}
-
-.order-date {
-  font-size: 22rpx;
-  color: #617589;
   display: block;
 }
 
@@ -3498,12 +3492,12 @@
   box-shadow: 0 8px 18px rgb(15 23 42 / 5%);
 }
 
-.mine-order-id {
+.mine-order-date {
   color: #1f2937;
   font-size: 30rpx;
+  font-weight: 700;
 }
 
-.mine-order-date,
 .mine-order-spec,
 .mine-order-track-label {
   color: #8a94a6;

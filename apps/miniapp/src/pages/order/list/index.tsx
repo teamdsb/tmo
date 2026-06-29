@@ -72,7 +72,6 @@ export default function OrderHistoryApp() {
                   <Cell key={order.id} bordered={false}>
                     <Flex justify='between' align='center'>
                       <View>
-                        <Text className='order-id'>{order.id}</Text>
                         <Text className='order-date'>{formatDate(order.createdAt)}</Text>
                       </View>
                       <Tag size='small' color={statusTone(order.status)}>
