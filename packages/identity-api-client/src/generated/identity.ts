@@ -1206,6 +1206,60 @@ export const postAuthDebugSwitchRole = async (debugRoleSwitchRequest: DebugRoleS
 
 
 /**
+ * @summary Re-issue the current token with another assigned role.
+ */
+export type postAuthSwitchRoleResponse200 = {
+  data: AuthResponse
+  status: 200
+}
+
+export type postAuthSwitchRoleResponse400 = {
+  data: BadRequestResponse
+  status: 400
+}
+
+export type postAuthSwitchRoleResponse401 = {
+  data: UnauthorizedResponse
+  status: 401
+}
+
+export type postAuthSwitchRoleResponse403 = {
+  data: ForbiddenResponse
+  status: 403
+}
+
+export type postAuthSwitchRoleResponseSuccess = (postAuthSwitchRoleResponse200) & {
+  headers: Headers;
+};
+export type postAuthSwitchRoleResponseError = (postAuthSwitchRoleResponse400 | postAuthSwitchRoleResponse401 | postAuthSwitchRoleResponse403) & {
+  headers: Headers;
+};
+
+export type postAuthSwitchRoleResponse = (postAuthSwitchRoleResponseSuccess | postAuthSwitchRoleResponseError)
+
+export const getPostAuthSwitchRoleUrl = () => {
+
+
+
+
+  return `/auth/switch-role`
+}
+
+export const postAuthSwitchRole = async (debugRoleSwitchRequest: DebugRoleSwitchRequest, options?: RequestInit): Promise<postAuthSwitchRoleResponse> => {
+
+  return apiMutator<postAuthSwitchRoleResponse>(getPostAuthSwitchRoleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      debugRoleSwitchRequest,)
+  }
+);}
+
+
+
+/**
  * @summary Get current user
  */
 export type getMeResponse200 = {

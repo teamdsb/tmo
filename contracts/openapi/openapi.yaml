@@ -43,6 +43,8 @@ paths:
     $ref: "./identity.yaml#/paths/~1auth~1mini~1login"
   /auth/password/login:
     $ref: "./identity.yaml#/paths/~1auth~1password~1login"
+  /auth/switch-role:
+    $ref: "./identity.yaml#/paths/~1auth~1switch-role"
   /me:
     $ref: "./identity.yaml#/paths/~1me"
   /me/sales-qr-code:

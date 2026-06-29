@@ -616,7 +616,14 @@ func (h *Handler) PostAuthDebugSwitchRole(c *gin.Context) {
 		h.writeError(c, http.StatusNotFound, "not_found", "not found")
 		return
 	}
+	h.switchRole(c)
+}
 
+func (h *Handler) PostAuthSwitchRole(c *gin.Context) {
+	h.switchRole(c)
+}
+
+func (h *Handler) switchRole(c *gin.Context) {
 	claims, ok := h.requireClaims(c)
 	if !ok {
 		return

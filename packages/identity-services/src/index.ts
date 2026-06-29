@@ -4,7 +4,7 @@ import {
   getMe,
   getMePermissions,
   getMeSalesQrCode,
-  postAuthDebugSwitchRole,
+  postAuthSwitchRole,
   postAuthMiniLogin,
   postAuthPasswordLogin,
   setIdentityApiClientConfig,
@@ -183,7 +183,7 @@ export const createIdentityServices = (config: IdentityServicesConfig = {}): Ide
       return response.data
     },
     switchRole: async (input: DebugRoleSwitchInput): Promise<AuthResponse> => {
-      const response = await postAuthDebugSwitchRole({
+      const response = await postAuthSwitchRole({
         role: input.role
       })
       if (response.status !== 200) {

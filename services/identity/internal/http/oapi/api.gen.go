@@ -358,6 +358,9 @@ type PostAuthMiniLoginJSONRequestBody = MiniLoginRequest
 // PostAuthPasswordLoginJSONRequestBody defines body for PostAuthPasswordLogin for application/json ContentType.
 type PostAuthPasswordLoginJSONRequestBody = PasswordLoginRequest
 
+// PostAuthSwitchRoleJSONRequestBody defines body for PostAuthSwitchRole for application/json ContentType.
+type PostAuthSwitchRoleJSONRequestBody = DebugRoleSwitchRequest
+
 // PostRbacAuthorizeJSONRequestBody defines body for PostRbacAuthorize for application/json ContentType.
 type PostRbacAuthorizeJSONRequestBody = AuthorizeRequest
 
@@ -399,6 +402,9 @@ type ServerInterface interface {
 	// Admin web password login (BOSS/MANAGER/ADMIN/CS)
 	// (POST /auth/password/login)
 	PostAuthPasswordLogin(c *gin.Context)
+	// Re-issue the current token with another assigned role.
+	// (POST /auth/switch-role)
+	PostAuthSwitchRole(c *gin.Context)
 	// List customers (scope by role)
 	// (GET /customers)
 	GetCustomers(c *gin.Context, params GetCustomersParams)
@@ -653,6 +659,21 @@ func (siw *ServerInterfaceWrapper) PostAuthPasswordLogin(c *gin.Context) {
 	}
 
 	siw.Handler.PostAuthPasswordLogin(c)
+}
+
+// PostAuthSwitchRole operation middleware
+func (siw *ServerInterfaceWrapper) PostAuthSwitchRole(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAuthSwitchRole(c)
 }
 
 // GetCustomers operation middleware
@@ -1048,6 +1069,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/auth/mini/capabilities", wrapper.GetAuthMiniCapabilities)
 	router.POST(options.BaseURL+"/auth/mini/login", wrapper.PostAuthMiniLogin)
 	router.POST(options.BaseURL+"/auth/password/login", wrapper.PostAuthPasswordLogin)
+	router.POST(options.BaseURL+"/auth/switch-role", wrapper.PostAuthSwitchRole)
 	router.GET(options.BaseURL+"/customers", wrapper.GetCustomers)
 	router.GET(options.BaseURL+"/customers/:customerId", wrapper.GetCustomersCustomerId)
 	router.GET(options.BaseURL+"/me", wrapper.GetMe)
