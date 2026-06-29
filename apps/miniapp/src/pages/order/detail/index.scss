@@ -7,6 +7,11 @@
   background: #f8fafc;
 }
 
+.order-detail-page .app-navbar .taroify-navbar__content,
+.order-detail-page .app-navbar .taroify-navbar__placeholder {
+  height: calc(var(--navbar-total-height, 64px) - 12px);
+}
+
 .order-detail-navbar .taroify-navbar__title {
   font-size: calc(26px * var(--font-size-scale, 1));
   font-weight: 700;
@@ -106,6 +111,14 @@
   color: #3b82f6;
   font-size: calc(16px * var(--font-size-scale, 1));
   font-weight: 600;
+}
+
+.order-detail-hero-payment-note {
+  max-width: 420px;
+  margin-top: 14px;
+  font-size: calc(20px * var(--font-size-scale, 1));
+  line-height: 1.5;
+  color: #64748b;
 }
 
 .order-detail-card {

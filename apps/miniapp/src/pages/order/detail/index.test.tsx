@@ -5,6 +5,8 @@ import { removeStorage } from '@tmo/platform-adapter'
 import OrderDetailPage from './index'
 import { commerceServices } from '../../../services/commerce'
 import { paymentServices } from '../../../services/payment'
+import { loadDevFakePaymentOverride } from '../../../services/payment-dev-overrides'
+import { clearBootstrap, saveBootstrap } from '../../../services/bootstrap'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
 
 jest.mock('../../../services/payment', () => ({
@@ -59,6 +61,7 @@ describe('OrderDetailPage', () => {
   beforeEach(async () => {
     jest.clearAllMocks()
     setRouterParams({ id: 'order-2001' })
+    await clearBootstrap()
     await removeStorage('tmo:payment:dev-overrides')
   })
 
@@ -136,6 +139,59 @@ describe('OrderDetailPage', () => {
       icon: 'success'
     }))
     view.unmount()
+  })
+
+  it('does not persist dev fake override for normal payment ids', async () => {
+    ;(commerceServices.orders.get as jest.Mock).mockResolvedValue(buildOrder({ items: [] }))
+    ;(paymentServices.sessions.payForOrder as jest.Mock).mockResolvedValue({
+      id: 'pay-real-2001',
+      orderId: 'order-2001',
+      channel: 'wechat',
+      status: 'PAID',
+      paidAt: '2026-03-06T10:00:00Z',
+      updatedAt: '2026-03-06T10:00:00Z'
+    })
+
+    render(<OrderDetailPage />)
+    await act(async () => {
+      await flushPromises()
+    })
+
+    fireEvent.click(await screen.findByText('继续支付'))
+    await act(async () => {
+      await flushPromises()
+    })
+
+    await expect(loadDevFakePaymentOverride('order-2001')).resolves.toBeNull()
+  })
+
+  it('hides payment actions and explains unavailable payment when feature is disabled', async () => {
+    await saveBootstrap({
+      me: {
+        id: 'user-1',
+        displayName: '张三',
+        userType: 'customer',
+        roles: ['CUSTOMER'],
+        currentRole: 'CUSTOMER',
+        createdAt: '2026-03-06T00:00:00Z'
+      },
+      permissions: { items: [] },
+      featureFlags: {
+        paymentEnabled: false,
+        wechatPayEnabled: false,
+        alipayPayEnabled: false
+      }
+    })
+    ;(commerceServices.orders.get as jest.Mock).mockResolvedValue(buildOrder())
+
+    render(<OrderDetailPage />)
+    await act(async () => {
+      await flushPromises()
+    })
+
+    expect(screen.queryByText('继续支付')).toBeNull()
+    expect(screen.queryByText('刷新支付状态')).toBeNull()
+    expect(screen.getByText('支付暂未开通，请等待销售确认。')).toBeInTheDocument()
   })
 
   it('shows paid hero and hides payment recovery actions for paid orders', async () => {

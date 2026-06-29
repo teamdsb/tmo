@@ -79,6 +79,43 @@ describe('payment-services', () => {
     }))
   })
 
+  it('passes explicit idempotency key to create API', async () => {
+    mockPostPaymentsWechatCreate.mockResolvedValue({
+      status: 200,
+      data: {
+        paymentId: 'pay-explicit-key',
+        orderId: 'order-explicit-key',
+        channel: 'WECHAT',
+        status: 'PAY_PENDING',
+        expiresAt: '2026-03-06T10:15:00Z',
+        prepayId: 'prepay-explicit-key',
+        package: 'prepay_id=prepay-explicit-key',
+        nonceStr: 'nonce-explicit-key',
+        timeStamp: '1234567890',
+        signType: 'RSA',
+        paySign: 'sign-explicit-key'
+      }
+    })
+
+    const services = createPaymentServices({
+      baseUrl: 'https://payment.example.com',
+      requester: jest.fn()
+    })
+
+    await services.sessions.createForOrder('order-explicit-key', {
+      idempotencyKey: 'stable-order-payment-key'
+    })
+
+    expect(mockPostPaymentsWechatCreate).toHaveBeenCalledWith(
+      { orderId: 'order-explicit-key' },
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'Idempotency-Key': 'stable-order-payment-key'
+        })
+      })
+    )
+  })
+
   it('uses alipay create API on Alipay platform and normalizes tradeNo', async () => {
     mockGetPlatform.mockReturnValue(Platform.Alipay)
     mockPostPaymentsAlipayCreate.mockResolvedValue({

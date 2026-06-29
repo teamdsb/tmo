@@ -175,30 +175,35 @@ export default function ProductCatalogApp() {
 
   useEffect(() => {
     let cancelled = false
+
+    setCategoriesLoading(true)
+
     void (async () => {
-      setCategoriesLoading(true)
       try {
-        const data = await commerceServices.catalog.listDisplayCategories()
+        const data = await commerceServices.catalog.listCategories()
         if (!cancelled) {
-          setCategories(data.items ?? [])
+          setCategories(toDisplayCategoriesFromCatalog(data.items ?? []))
         }
       } catch (error) {
-        console.warn('load display categories failed, fallback catalog categories', error)
-        try {
-          const data = await commerceServices.catalog.listCategories()
-          if (!cancelled) {
-            setCategories(toDisplayCategoriesFromCatalog(data.items ?? []))
-          }
-        } catch (fallbackError) {
-          console.warn('load categories failed', fallbackError)
-          await Taro.showToast({ title: '加载分类失败', icon: 'none' })
-        }
+        console.warn('load catalog categories failed', error)
       } finally {
         if (!cancelled) {
           setCategoriesLoading(false)
         }
       }
     })()
+
+    void (async () => {
+      try {
+        const data = await commerceServices.catalog.listDisplayCategories()
+        if (!cancelled) {
+          setCategories(data.items ?? [])
+        }
+      } catch (error) {
+        console.warn('load display categories failed, keep catalog categories', error)
+      }
+    })()
+
     return () => {
       cancelled = true
     }

@@ -1,10 +1,10 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import SafeImage from './index'
 
 jest.mock('@taroify/core/image', () => {
   const React = require('react')
 
-  const MockTaroifyImage = ({ src, onError }: { src?: string; onError?: () => void }) => {
+  const MockTaroifyImage = ({ src, onError, onLoad }: { src?: string; onError?: () => void; onLoad?: () => void }) => {
     const [failed, setFailed] = React.useState(false)
 
     if (failed) {
@@ -16,6 +16,7 @@ jest.mock('@taroify/core/image', () => {
         alt=''
         data-testid='safe-image'
         src={src}
+        onLoad={onLoad}
         onError={() => {
           setFailed(true)
           onError?.()
@@ -28,6 +29,10 @@ jest.mock('@taroify/core/image', () => {
 })
 
 describe('SafeImage', () => {
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
   it('remounts the image component when falling back after a load error', () => {
     render(<SafeImage src='https://example.com/broken.png' fallback='fallback.png' />)
 
@@ -35,5 +40,19 @@ describe('SafeImage', () => {
 
     expect(screen.queryByTestId('failed-image')).not.toBeInTheDocument()
     expect(screen.getByTestId('safe-image')).toHaveAttribute('src', 'fallback.png')
+  })
+
+  it('falls back to the placeholder when a remote image does not load in time', async () => {
+    jest.useFakeTimers()
+    render(<SafeImage src='https://cdn.example.com/slow.png' data-testid='safe-image' />)
+
+    expect(screen.getByTestId('safe-image')).toHaveAttribute('src', 'https://cdn.example.com/slow.png')
+
+    await act(async () => {
+      jest.advanceTimersByTime(2600)
+      await Promise.resolve()
+    })
+
+    expect(screen.getByTestId('safe-image')).toHaveAttribute('src', 'test-file-stub')
   })
 })

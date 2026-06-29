@@ -143,8 +143,14 @@ paths:
     $ref: "./payment.yaml#/paths/~1payments~1wechat~1create"
   /payments/alipay/create:
     $ref: "./payment.yaml#/paths/~1payments~1alipay~1create"
+  /payments/{paymentId}:
+    $ref: "./payment.yaml#/paths/~1payments~1{paymentId}"
+  /payments/{paymentId}/recheck:
+    $ref: "./payment.yaml#/paths/~1payments~1{paymentId}~1recheck"
   /payments/wechat/notify:
     $ref: "./payment.yaml#/paths/~1payments~1wechat~1notify"
+  /payments/alipay/notify:
+    $ref: "./payment.yaml#/paths/~1payments~1alipay~1notify"
   /shipments/import-jobs:
     $ref: "./commerce.yaml#/paths/~1shipments~1import-jobs"
   /admin/sales-users:
