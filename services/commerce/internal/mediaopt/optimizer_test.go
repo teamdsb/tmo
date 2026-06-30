@@ -88,4 +88,11 @@ func TestWriteAtomicallyLeavesNoTemporaryFiles(t *testing.T) {
 	if len(entries) != 1 {
 		t.Fatalf("expected only target file, got %d entries", len(entries))
 	}
+	info, err := os.Stat(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != 0o644 {
+		t.Fatalf("expected public media permissions 0644, got %04o", got)
+	}
 }
