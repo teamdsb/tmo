@@ -53,7 +53,11 @@ func OptimizeProductDirectory(productDir, backupDir string, apply bool) (Directo
 			return report, fmt.Errorf("inspect %s: %w", path, err)
 		}
 		needsResize := originalWidth > DefaultMaxDimension || originalHeight > DefaultMaxDimension
-		if !needsResize && len(optimized.Data) >= len(original) {
+		minimumSavings := len(original) / 100
+		if minimumSavings < 1024 {
+			minimumSavings = 1024
+		}
+		if !needsResize && len(original)-len(optimized.Data) < minimumSavings {
 			continue
 		}
 		report.Candidates++

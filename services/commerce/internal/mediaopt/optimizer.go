@@ -85,6 +85,10 @@ func WriteAtomically(targetPath string, data []byte) error {
 		cleanup()
 		return err
 	}
+	if err := tmp.Chmod(0o644); err != nil {
+		cleanup()
+		return err
+	}
 	if err := tmp.Sync(); err != nil {
 		cleanup()
 		return err
