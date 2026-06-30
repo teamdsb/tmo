@@ -13,7 +13,8 @@ const steps = [
   { name: 'taro build', cmd: 'taro', args: ['build', '--type', 'weapp', '--no-check'] },
   { name: 'postprocess-weapp-project', cmd: process.execPath, args: [path.join(__dirname, 'postprocess-weapp-project.js')] },
   { name: 'verify-weapp-routes', cmd: process.execPath, args: [path.join(__dirname, 'verify-weapp-routes.js')] },
-  { name: 'verify-miniapp-api-base', cmd: process.execPath, args: [path.join(__dirname, 'verify-miniapp-api-base.js'), 'weapp'] }
+  { name: 'verify-miniapp-api-base', cmd: process.execPath, args: [path.join(__dirname, 'verify-miniapp-api-base.js'), 'weapp'] },
+  { name: 'sync-weapp-devtools', cmd: process.execPath, args: [path.join(__dirname, 'sync-weapp-devtools.js')] }
 ]
 
 console.log(`[build-weapp] mode=${mode} nodeEnv=${env.NODE_ENV} envFile=${envFile}`)

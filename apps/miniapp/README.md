@@ -27,6 +27,15 @@
     pnpm -C apps/miniapp build:jd
     pnpm -C apps/miniapp build:h5
 
+微信开发者工具请固定使用纯英文项目目录。每次微信构建完成后会自动同步到
+`~/.tmo/weapp-devtools`，也可以手动同步或直接打开：
+
+    pnpm -C apps/miniapp sync:weapp:devtools
+    pnpm -C apps/miniapp open:weapp
+
+如需使用其他纯英文目录，设置 `TMO_WEAPP_DEVTOOLS_PROJECT_DIR`。同步目标必须是真实目录，
+不能是软链接，也不能包含中文或其他非 ASCII 字符。
+
 说明：
 
 - `build:weapp:mock` / `build:alipay:mock` 用于纯模拟模式，读取 `apps/miniapp/.env.mock`，不访问后端。
