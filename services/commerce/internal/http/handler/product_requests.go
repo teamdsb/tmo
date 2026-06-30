@@ -37,7 +37,7 @@ func isCategoryForeignKeyViolation(err error) bool {
 }
 
 func (h *Handler) GetProductRequests(c *gin.Context, params oapi.GetProductRequestsParams) {
-	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "ADMIN")
+	claims, ok := h.requireRole(c, "CUSTOMER", "SALES", "CS", "MANAGER", "BOSS", "ADMIN")
 	if !ok {
 		return
 	}
