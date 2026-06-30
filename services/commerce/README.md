@@ -87,6 +87,15 @@ CATALOG_IMAGE_MIGRATE_DRY_RUN=false bash tools/scripts/catalog-image-migrate.sh
 
 默认会将图片写入 `infra/dev/media`，并将 URL 回写为 `http://localhost:8080/assets/media/...`（由 gateway-bff 提供静态访问）。
 
+压缩已迁移到 `catalog/products` 的历史 JPEG/PNG（默认 dry-run）：
+
+```bash
+go run ./cmd/catalog-image-optimize --media-root ../../infra/dev/media
+go run ./cmd/catalog-image-optimize --media-root ../../infra/dev/media --apply
+```
+
+`--apply` 会先在媒体根目录建立带 UTC 时间戳的备份目录，再原位替换图片，因此公开 URL 和数据库记录保持不变。
+
 ## Validation (smoke)
 
 ```bash

@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"image"
+	"image/color"
+	"image/png"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -373,7 +376,13 @@ func TestAdminCatalogProductAssetUpload(t *testing.T) {
 	tmpDir := t.TempDir()
 	router := newAuthRouterWithMedia(nil, tmpDir, "http://localhost:8080/assets/media")
 
-	pngData := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x00}
+	imageData := image.NewNRGBA(image.Rect(0, 0, 2, 2))
+	imageData.SetNRGBA(0, 0, color.NRGBA{R: 20, G: 40, B: 60, A: 128})
+	var pngBuffer bytes.Buffer
+	if err := png.Encode(&pngBuffer, imageData); err != nil {
+		t.Fatal(err)
+	}
+	pngData := pngBuffer.Bytes()
 	req := multipartFileRequest(t, http.MethodPost, "/admin/catalog/products/assets", "file", "cover.png", pngData)
 	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), "BOSS", nil))
 	recorder := httptest.NewRecorder()
