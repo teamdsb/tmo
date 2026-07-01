@@ -66,7 +66,7 @@ const joinClassName = (...values) => values.filter(Boolean).join(' ');
 const mockSalesQrDataUrl = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22256%22%20height%3D%22256%22%3E%3Crect%20width%3D%22256%22%20height%3D%22256%22%20fill%3D%22%23fff%22%2F%3E%3Crect%20x%3D%2232%22%20y%3D%2232%22%20width%3D%2248%22%20height%3D%2248%22%20fill%3D%22%230f172a%22%2F%3E%3Crect%20x%3D%22176%22%20y%3D%2232%22%20width%3D%2248%22%20height%3D%2248%22%20fill%3D%22%230f172a%22%2F%3E%3Crect%20x%3D%2232%22%20y%3D%22176%22%20width%3D%2248%22%20height%3D%2248%22%20fill%3D%22%230f172a%22%2F%3E%3C%2Fsvg%3E';
 
 jest.mock('@tarojs/components', () => {
-  const Input = ({ onInput, onChange, confirmType, placeholderClass, ...props }) => (
+  const Input = ({ onInput, onChange, onConfirm, confirmType, placeholderClass, ...props }) => (
     <input
       {...props}
       onChange={(event) => {
@@ -75,6 +75,11 @@ jest.mock('@tarojs/components', () => {
         }
         if (onChange) {
           onChange(event);
+        }
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' && onConfirm) {
+          onConfirm({ detail: { value: event.currentTarget.value } });
         }
       }}
     />
@@ -193,6 +198,11 @@ jest.mock('@tmo/platform-adapter', () => {
     getPlatform: jest.fn(() => 'weapp'),
     login: jest.fn(async () => ({ code: 'mock-login-code' })),
     getPhoneNumber: jest.fn(async () => ({ code: 'mock-phone-proof' })),
+    request: jest.fn(async () => ({
+      statusCode: 200,
+      data: {},
+      headers: {}
+    })),
     getStorage: jest.fn(async (key) => ({ data: storage.get(key) })),
     setStorage: jest.fn(async (key, value) => {
       storage.set(key, value);
@@ -424,6 +434,9 @@ jest.mock('@tmo/identity-services', () => {
           platform: 'weapp',
           expiresAt: null
         }))
+      },
+      customers: {
+        list: jest.fn(async () => ({ items: [], page: 1, pageSize: 20, total: 0 }))
       }
     }),
     ApiError,

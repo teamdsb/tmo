@@ -1,6 +1,7 @@
 import { getPhoneNumber as platformGetPhoneNumber, getPlatform, login as platformLogin, type PhoneProofResult } from '@tmo/platform-adapter'
 import { Platform } from '@tmo/shared/enums'
 import {
+  getCustomers,
   getMe,
   getMePermissions,
   getMeSalesQrCode,
@@ -11,11 +12,14 @@ import {
   type ApiClientConfig,
   type ApiClientRequester,
   type AuthResponse,
+  type Customer,
+  type GetCustomersParams,
   type MiniLoginRequest,
   type MiniLoginRequestPlatform,
   type MiniLoginRequestRole,
   type PasswordLoginRequest,
   type PermissionList,
+  type PagedCustomerList,
   type SalesQrCode,
   type User
 } from '@tmo/identity-api-client'
@@ -51,6 +55,9 @@ export interface IdentityServices {
     get: () => Promise<User>
     getPermissions: () => Promise<PermissionList>
     getSalesQrCode: () => Promise<SalesQrCode>
+  }
+  customers: {
+    list: (params?: GetCustomersParams) => Promise<PagedCustomerList>
   }
   tokens: TokenStore
 }
@@ -218,9 +225,20 @@ export const createIdentityServices = (config: IdentityServicesConfig = {}): Ide
     }
   }
 
+  const customers = {
+    list: async (params?: GetCustomersParams): Promise<PagedCustomerList> => {
+      const response = await getCustomers(params)
+      if (response.status !== 200) {
+        throw new ApiError('failed to fetch customers', response.status)
+      }
+      return response.data
+    }
+  }
+
   return {
     auth,
     me,
+    customers,
     tokens
   }
 }
@@ -257,5 +275,5 @@ const isRoleConflict = (error: unknown): error is RoleSelectionRequiredError => 
   return error instanceof RoleSelectionRequiredError
 }
 
-export type { IdentityServicesConfig }
+export type { Customer, GetCustomersParams, IdentityServicesConfig, PagedCustomerList }
 export { ApiError, isApiError }

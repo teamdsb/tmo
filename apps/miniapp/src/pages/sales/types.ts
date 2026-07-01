@@ -2,15 +2,6 @@ import type { ComponentType, CSSProperties } from 'react'
 
 export type SalesTab = 'dashboard' | 'customers' | 'orders' | 'accounting'
 
-export type Customer = {
-  id: number
-  initial: string
-  name: string
-  contact: string
-  active: string
-  orders: number
-}
-
 export type SettledOrder = {
   id: string
   company: string

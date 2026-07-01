@@ -18,7 +18,8 @@ export default defineConfig({
       '@tmo/api-client': resolve(__dirname, '../../packages/api-client/src/index.ts'),
       '@tmo/gateway-api-client': resolve(__dirname, '../../packages/gateway-api-client/src/index.ts'),
       '@tmo/identity-api-client': resolve(__dirname, '../../packages/identity-api-client/src/index.ts'),
-      '@tmo/openapi-client': resolve(__dirname, '../../packages/openapi-client/src/index.ts')
+      '@tmo/openapi-client': resolve(__dirname, '../../packages/openapi-client/src/index.ts'),
+      '@tmo/shared': resolve(__dirname, '../../packages/shared/src')
     }
   },
   server: {

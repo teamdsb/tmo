@@ -1,4 +1,5 @@
 import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { formatPhoneForDisplay } from '@tmo/shared/formatters';
 
 import {
   fetchAdminCustomers,
@@ -480,7 +481,7 @@ const CustomerRow = memo(({ customer, isPending, onUpdateRole }: CustomerRowProp
     <tr className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30" data-testid={`customer-row-${customer.id}`}>
       <td className="px-4 py-3">
         <p className="font-medium text-text-primary-light dark:text-text-primary-dark">{customer.displayName}</p>
-        <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{customer.phone || '-'}</p>
+        <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{formatPhoneForDisplay(customer.phone, '-')}</p>
         <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{customer.id}</p>
         <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">
           {customer.roles.join(' · ').toLowerCase()} · {getRoleLabel(currentRole)}
@@ -488,7 +489,7 @@ const CustomerRow = memo(({ customer, isPending, onUpdateRole }: CustomerRowProp
       </td>
       <td className="px-4 py-3">
         <p className="text-text-primary-light dark:text-text-primary-dark">{customer.ownerSales?.displayName || '未分配'}</p>
-        <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{customer.ownerSales?.phone || '-'}</p>
+        <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{formatPhoneForDisplay(customer.ownerSales?.phone, '-')}</p>
       </td>
       <td className="px-4 py-3">
         <div className="flex flex-wrap gap-1">

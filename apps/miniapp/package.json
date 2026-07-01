@@ -52,6 +52,8 @@
     "test:e2e:weapp:catalog-real": "node scripts/weapp-catalog-real-e2e.js",
     "test:e2e:weapp:catalog-real:dev": "pnpm run build:weapp:dev && pnpm run test:e2e:weapp:catalog-real",
     "test:e2e:weapp:support-real": "node scripts/weapp-support-real-e2e.js",
+    "test:e2e:weapp:sales-customers-real": "node scripts/weapp-sales-customers-real-e2e.js",
+    "test:e2e:weapp:sales-customers-real:dev": "pnpm run build:weapp:dev && pnpm run test:e2e:weapp:sales-customers-real",
     "dev:weapp": "node scripts/dev-weapp.js dev",
     "dev:weapp:dev": "node scripts/dev-weapp.js dev",
     "dev:weapp:mock": "node scripts/dev-weapp.js mock",
@@ -105,6 +107,7 @@
     "@tmo/payment-api-client": "workspace:*",
     "@tmo/payment-services": "workspace:*",
     "@tmo/platform-adapter": "workspace:*",
+    "@tmo/shared": "workspace:*",
     "lucide-react": "^0.469.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0"

@@ -4,6 +4,11 @@
     "module": "ESNext",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "moduleResolution": "Bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@tmo/shared": ["../../packages/shared/src/index.ts"],
+      "@tmo/shared/*": ["../../packages/shared/src/*"]
+    },
     "jsx": "react-jsx",
     "allowJs": true,
     "checkJs": false,
