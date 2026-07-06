@@ -103,6 +103,7 @@ export interface CreateCatalogProductRequest {
   categoryId: string;
   description?: string;
   coverImageUrl?: string;
+  /** @maxItems 9 */
   images?: string[];
   tags?: string[];
   filterDimensions?: string[];
@@ -116,6 +117,7 @@ export interface UpdateCatalogProductRequest {
   description?: string | null;
   /** @nullable */
   coverImageUrl?: string | null;
+  /** @maxItems 9 */
   images?: string[];
   tags?: string[];
   filterDimensions?: string[];
@@ -186,6 +188,7 @@ export type ProductDetailProduct = {
   id: string;
   name: string;
   description?: string;
+  /** @maxItems 9 */
   images?: string[];
   categoryId: string;
   status: ProductStatus;
@@ -334,6 +337,8 @@ export interface Order {
   id: string;
   status: OrderStatus;
   paymentStatus: OrderPaymentStatus;
+  /** @nullable */
+  ownerSalesUserId?: string | null;
   latestPaymentId?: string;
   /** @nullable */
   paymentChannel?: string | null;
@@ -344,6 +349,36 @@ export interface Order {
   remark?: string;
   createdAt: string;
   updatedAt?: string;
+}
+
+export interface UpdateOrderFulfillmentRequest {
+  ownerSalesUserId: string;
+  /**
+   * @minLength 1
+   * @maxLength 1000
+   */
+  note: string;
+  confirmOfflinePayment: boolean;
+}
+
+export interface OrderAdminEvent {
+  id: string;
+  orderId: string;
+  actorUserId: string;
+  action: string;
+  note: string;
+  previousStatus: OrderStatus;
+  newStatus: OrderStatus;
+  previousPaymentStatus: OrderPaymentStatus;
+  newPaymentStatus: OrderPaymentStatus;
+  /** @nullable */
+  previousOwnerSalesUserId?: string | null;
+  newOwnerSalesUserId: string;
+  createdAt: string;
+}
+
+export interface OrderAdminEventList {
+  items: OrderAdminEvent[];
 }
 
 export type OrderPaymentStatus = typeof OrderPaymentStatus[keyof typeof OrderPaymentStatus];
@@ -2451,6 +2486,114 @@ export const getGetOrdersOrderIdUrl = (orderId: string,) => {
 export const getOrdersOrderId = async (orderId: string, options?: RequestInit): Promise<getOrdersOrderIdResponse> => {
 
   return apiMutator<getOrdersOrderIdResponse>(getGetOrdersOrderIdUrl(orderId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+/**
+ * @summary Confirm offline payment and assign, or reassign, an order
+ */
+export type patchAdminOrdersOrderIdFulfillmentResponse200 = {
+  data: Order
+  status: 200
+}
+
+export type patchAdminOrdersOrderIdFulfillmentResponse400 = {
+  data: BadRequestResponse
+  status: 400
+}
+
+export type patchAdminOrdersOrderIdFulfillmentResponse403 = {
+  data: ForbiddenResponse
+  status: 403
+}
+
+export type patchAdminOrdersOrderIdFulfillmentResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type patchAdminOrdersOrderIdFulfillmentResponse409 = {
+  data: ConflictResponse
+  status: 409
+}
+
+export type patchAdminOrdersOrderIdFulfillmentResponseSuccess = (patchAdminOrdersOrderIdFulfillmentResponse200) & {
+  headers: Headers;
+};
+export type patchAdminOrdersOrderIdFulfillmentResponseError = (patchAdminOrdersOrderIdFulfillmentResponse400 | patchAdminOrdersOrderIdFulfillmentResponse403 | patchAdminOrdersOrderIdFulfillmentResponse404 | patchAdminOrdersOrderIdFulfillmentResponse409) & {
+  headers: Headers;
+};
+
+export type patchAdminOrdersOrderIdFulfillmentResponse = (patchAdminOrdersOrderIdFulfillmentResponseSuccess | patchAdminOrdersOrderIdFulfillmentResponseError)
+
+export const getPatchAdminOrdersOrderIdFulfillmentUrl = (orderId: string,) => {
+
+
+
+
+  return `/admin/orders/${orderId}/fulfillment`
+}
+
+export const patchAdminOrdersOrderIdFulfillment = async (orderId: string,
+    updateOrderFulfillmentRequest: UpdateOrderFulfillmentRequest, options?: RequestInit): Promise<patchAdminOrdersOrderIdFulfillmentResponse> => {
+
+  return apiMutator<patchAdminOrdersOrderIdFulfillmentResponse>(getPatchAdminOrdersOrderIdFulfillmentUrl(orderId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateOrderFulfillmentRequest,)
+  }
+);}
+
+
+
+/**
+ * @summary List administrative order events
+ */
+export type getAdminOrdersOrderIdEventsResponse200 = {
+  data: OrderAdminEventList
+  status: 200
+}
+
+export type getAdminOrdersOrderIdEventsResponse403 = {
+  data: ForbiddenResponse
+  status: 403
+}
+
+export type getAdminOrdersOrderIdEventsResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type getAdminOrdersOrderIdEventsResponseSuccess = (getAdminOrdersOrderIdEventsResponse200) & {
+  headers: Headers;
+};
+export type getAdminOrdersOrderIdEventsResponseError = (getAdminOrdersOrderIdEventsResponse403 | getAdminOrdersOrderIdEventsResponse404) & {
+  headers: Headers;
+};
+
+export type getAdminOrdersOrderIdEventsResponse = (getAdminOrdersOrderIdEventsResponseSuccess | getAdminOrdersOrderIdEventsResponseError)
+
+export const getGetAdminOrdersOrderIdEventsUrl = (orderId: string,) => {
+
+
+
+
+  return `/admin/orders/${orderId}/events`
+}
+
+export const getAdminOrdersOrderIdEvents = async (orderId: string, options?: RequestInit): Promise<getAdminOrdersOrderIdEventsResponse> => {
+
+  return apiMutator<getAdminOrdersOrderIdEventsResponse>(getGetAdminOrdersOrderIdEventsUrl(orderId),
   {
     ...options,
     method: 'GET'
