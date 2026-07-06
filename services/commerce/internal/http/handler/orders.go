@@ -556,6 +556,10 @@ func orderFromModel(order db.Order, items []oapi.OrderItem) (oapi.Order, error) 
 		paymentID := types.UUID(order.LatestPaymentID.Bytes)
 		response.LatestPaymentId = &paymentID
 	}
+	if order.OwnerSalesUserID.Valid {
+		ownerID := types.UUID(order.OwnerSalesUserID.Bytes)
+		response.OwnerSalesUserId = &ownerID
+	}
 	if order.PaymentChannel != nil {
 		response.PaymentChannel = order.PaymentChannel
 	}

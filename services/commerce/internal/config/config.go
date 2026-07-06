@@ -14,6 +14,7 @@ const (
 	defaultJWTSecret         = "dev-secret"
 	defaultJWTIssuer         = ""
 	defaultInternalSyncToken = "dev-payment-sync-token"
+	defaultIdentityBaseURL   = "http://localhost:8081"
 )
 
 type Config struct {
@@ -26,6 +27,7 @@ type Config struct {
 	MediaLocalOutputDir string
 	MediaPublicBaseURL  string
 	InternalSyncToken   string
+	IdentityBaseURL     string
 }
 
 func Load() Config {
@@ -39,5 +41,6 @@ func Load() Config {
 		MediaLocalOutputDir: sharedconfig.String("MEDIA_LOCAL_OUTPUT_DIR", defaultMediaLocalOutputDir),
 		MediaPublicBaseURL:  sharedconfig.String("MEDIA_PUBLIC_BASE_URL", defaultMediaPublicBaseURL),
 		InternalSyncToken:   sharedconfig.String("COMMERCE_INTERNAL_SYNC_TOKEN", defaultInternalSyncToken),
+		IdentityBaseURL:     sharedconfig.String("COMMERCE_IDENTITY_BASE_URL", defaultIdentityBaseURL),
 	}
 }

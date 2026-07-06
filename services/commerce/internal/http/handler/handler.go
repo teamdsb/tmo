@@ -39,5 +39,6 @@ type Handler struct {
 	InternalSyncToken    string
 	DB                   *pgxpool.Pool
 	Auth                 *middleware.Authenticator
+	SalesValidator       SalesAssigneeValidator
 	Logger               *slog.Logger
 }

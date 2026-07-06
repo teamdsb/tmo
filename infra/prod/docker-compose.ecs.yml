@@ -117,6 +117,7 @@ services:
       COMMERCE_JWT_SECRET: ${COMMERCE_JWT_SECRET:?set COMMERCE_JWT_SECRET in env file}
       COMMERCE_JWT_ISSUER: ${COMMERCE_JWT_ISSUER:-tmo-identity}
       COMMERCE_INTERNAL_SYNC_TOKEN: ${COMMERCE_INTERNAL_SYNC_TOKEN:?set COMMERCE_INTERNAL_SYNC_TOKEN in env file}
+      COMMERCE_IDENTITY_BASE_URL: ${COMMERCE_IDENTITY_BASE_URL:-http://identity:8081}
       MEDIA_LOCAL_OUTPUT_DIR: ${MEDIA_LOCAL_OUTPUT_DIR:-/data/media}
       MEDIA_PUBLIC_BASE_URL: ${MEDIA_PUBLIC_BASE_URL:?set MEDIA_PUBLIC_BASE_URL in env file}
     ports:
@@ -126,6 +127,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      identity:
+        condition: service_started
     logging:
       options:
         max-size: "10m"

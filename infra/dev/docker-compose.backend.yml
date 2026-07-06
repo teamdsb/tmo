@@ -48,6 +48,7 @@ services:
       COMMERCE_JWT_SECRET: "${COMMERCE_JWT_SECRET:-${IDENTITY_JWT_SECRET:-dev-secret}}"
       COMMERCE_JWT_ISSUER: "${COMMERCE_JWT_ISSUER:-${IDENTITY_JWT_ISSUER:-tmo-identity}}"
       COMMERCE_INTERNAL_SYNC_TOKEN: "${COMMERCE_INTERNAL_SYNC_TOKEN:-dev-payment-sync-token}"
+      COMMERCE_IDENTITY_BASE_URL: "${COMMERCE_IDENTITY_BASE_URL:-http://identity:8081}"
       MEDIA_LOCAL_OUTPUT_DIR: "${MEDIA_LOCAL_OUTPUT_DIR:-/data/media}"
       MEDIA_PUBLIC_BASE_URL: "${MEDIA_PUBLIC_BASE_URL:-http://localhost:8080/assets/media}"
     ports:
@@ -57,6 +58,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      identity:
+        condition: service_started
 
   payment:
     build:
