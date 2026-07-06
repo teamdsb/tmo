@@ -172,7 +172,14 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 	}
 	err = shareddb.WithTx(ctx, h.DB, func(tx pgx.Tx) error {
 		q := db.New(tx)
-		cartItems, err := q.ListCartItems(ctx, claims.UserID)
+		cartItemIDs := make([]uuid.UUID, 0, len(orderItems))
+		for _, item := range orderItems {
+			cartItemIDs = append(cartItemIDs, item.sourceCartItemID)
+		}
+		cartItems, err := q.ListCartItemsByIDsForUpdate(ctx, db.ListCartItemsByIDsForUpdateParams{
+			OwnerUserID: claims.UserID,
+			Ids:         cartItemIDs,
+		})
 		if err != nil {
 			return err
 		}
@@ -212,6 +219,25 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 				SourceCartItemID: pgtype.UUID{Bytes: item.sourceCartItemID, Valid: true},
 				Qty:              item.qty,
 				UnitPriceFen:     item.unitPriceFen.Int64(),
+			}); err != nil {
+				return err
+			}
+
+			cartItem := cartByID[item.sourceCartItemID]
+			remainingQty := cartItem.Qty - item.qty
+			if remainingQty > 0 {
+				if _, err := q.UpdateCartItemQty(ctx, db.UpdateCartItemQtyParams{
+					ID:          cartItem.ID,
+					Qty:         remainingQty,
+					OwnerUserID: claims.UserID,
+				}); err != nil {
+					return err
+				}
+				continue
+			}
+			if err := q.DeleteCartItem(ctx, db.DeleteCartItemParams{
+				ID:          cartItem.ID,
+				OwnerUserID: claims.UserID,
 			}); err != nil {
 				return err
 			}
