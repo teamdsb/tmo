@@ -2,6 +2,12 @@
 
 这个文件只记录会影响后续 agent 判断的近期仓库变化，不承担发布说明、项目周报或任务流水账职责。
 
+## 2026-07-06
+
+- Admin 订单履约新增受控线下收款与派单：`order:manage / ALL` 仅授予 BOSS、MANAGER、ADMIN；Commerce 仍强制检查角色，并向 Identity 复核负责人是 active SALES。
+  影响面：订单负责人、付款摘要和审计事件在一个事务中更新；发货及终态订单不可改派。
+  建议阅读：`docs/context/rbac.md`、`docs/context/product-requirements.md`、`contracts/openapi/commerce.yaml`
+
 ## 2026-03-08
 
 - 重组 `docs/` 为 `context/`、`runbooks/`、`decisions/`、`execplans/` 四层结构，并新增 `docs/README.md` 作为总入口。
