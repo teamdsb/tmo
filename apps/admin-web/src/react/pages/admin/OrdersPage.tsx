@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { fetchOrders } from '../../../lib/api';
+import { fetchOrderAdminEvents, fetchOrders, fetchStaffUsers, updateOrderFulfillment } from '../../../lib/api';
 import { ensureProtectedPage } from '../../../lib/guard';
+import { hasPermission, normalizePermissionMap } from '../../../lib/permissions';
 import { AdminTopbar } from '../../layout/AdminTopbar';
 import {
   buildDevOrders,
@@ -23,6 +24,8 @@ type PageContext = {
 } | null;
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
+type SalesUser = { id: string; displayName?: string; roles?: string[]; status?: string };
+type AdminEvent = { id: string; action: string; note: string; createdAt: string; newOwnerSalesUserId: string };
 
 const STATUS_BADGE_CLASS: Record<OrderStatusTone, { badge: string; dot: string }> = {
   blue: {
@@ -98,18 +101,17 @@ const StatusBadge = ({ statusKey, statusLabel }: { statusKey: string; statusLabe
 
 const getPaymentMeta = (order: AdminOrderRecord): { statusLabel: string; tone: OrderStatusTone; transactionId: string } => {
   const transactionId = `TXN-${order.id.replace(/[^A-Za-z0-9]/g, '').toUpperCase()}`;
-  const normalizedStatus = order.statusKey.toUpperCase();
-
-  if (normalizedStatus === 'DELIVERED' || normalizedStatus === 'IN_TRANSIT' || normalizedStatus === 'DISPATCHED') {
+  const paymentStatus = String(order.paymentStatus || 'UNPAID').toUpperCase();
+  if (paymentStatus === 'PAID') {
     return { statusLabel: '已支付', tone: 'green', transactionId };
   }
-  if (normalizedStatus === 'SUBMITTED') {
+  if (paymentStatus === 'PAY_PENDING') {
     return { statusLabel: '待支付', tone: 'amber', transactionId };
   }
-  if (normalizedStatus === 'RETURNING' || normalizedStatus === 'RETURNED') {
-    return { statusLabel: '已退款', tone: 'red', transactionId };
+  if (paymentStatus === 'PAY_FAILED') {
+    return { statusLabel: '支付失败', tone: 'red', transactionId };
   }
-  return { statusLabel: '待创建', tone: 'blue', transactionId };
+  return { statusLabel: '未支付', tone: 'gray', transactionId };
 };
 
 type OrderDetailDrawerProps = {
@@ -209,7 +211,7 @@ const OrderDetailDrawer = ({ onClose, onSave, order }: OrderDetailDrawerProps) =
       <aside className="fixed right-0 top-0 z-[101] h-screen w-full max-w-lg overflow-y-auto border-l border-slate-200 bg-white shadow-2xl">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
           <div>
-            <h3 className="text-lg font-bold text-slate-900">订单详情（可编辑）</h3>
+            <h3 className="text-lg font-bold text-slate-900">订单详情（只读）</h3>
             <p className="text-xs text-slate-500" data-role="detail-order-id">订单号：{draft.id}</p>
           </div>
           <button
@@ -223,6 +225,7 @@ const OrderDetailDrawer = ({ onClose, onSave, order }: OrderDetailDrawerProps) =
         </div>
 
         <div className="space-y-5 px-5 py-4">
+          <fieldset className="space-y-5" disabled>
           <section className="rounded-xl border border-slate-200 p-4">
             <h4 className="text-sm font-semibold text-slate-900">买家信息</h4>
             <div className="mt-3 grid grid-cols-1 gap-3 text-sm text-slate-700">
@@ -381,6 +384,7 @@ const OrderDetailDrawer = ({ onClose, onSave, order }: OrderDetailDrawerProps) =
             </div>
           </section>
 
+          </fieldset>
           {errorMessage ? (
             <p className="text-sm text-red-600" data-role="detail-form-error">{errorMessage}</p>
           ) : null}
@@ -392,14 +396,7 @@ const OrderDetailDrawer = ({ onClose, onSave, order }: OrderDetailDrawerProps) =
               onClick={onClose}
               type="button"
             >
-              取消
-            </button>
-            <button
-              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark"
-              onClick={handleSave}
-              type="button"
-            >
-              保存修改
+              关闭
             </button>
           </div>
         </div>
@@ -428,6 +425,12 @@ export const OrdersPage = () => {
   const [selectedId, setSelectedId] = useState('');
   const [editingOrderId, setEditingOrderId] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [salesUsers, setSalesUsers] = useState<SalesUser[]>([]);
+  const [events, setEvents] = useState<AdminEvent[]>([]);
+  const [ownerSalesUserId, setOwnerSalesUserId] = useState('');
+  const [fulfillmentNote, setFulfillmentNote] = useState('');
+  const [fulfillmentError, setFulfillmentError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -466,13 +469,20 @@ export const OrdersPage = () => {
               });
             })()
           : Promise.resolve(buildMockOrders());
+        const nextSales = context.mode === 'dev'
+          ? fetchStaffUsers({ role: 'SALES', status: 'active', page: 1, pageSize: 100 }).then((response) => {
+              if (response.status !== 200) throw new Error('加载业务员失败');
+              return ((response.data as { items?: SalesUser[] })?.items || []).filter((item) => item.status === 'active' && item.roles?.includes('SALES'));
+            })
+          : Promise.resolve([{ id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', displayName: 'Mock 业务员', roles: ['SALES'], status: 'active' }]);
 
-        const resolvedOrders = await nextOrders;
+        const [resolvedOrders, resolvedSales] = await Promise.all([nextOrders, nextSales]);
         if (cancelled) {
           return;
         }
 
         setOrders(resolvedOrders);
+        setSalesUsers(resolvedSales);
         const defaultTab = resolvedOrders.some((order) => order.tab === 'shipped')
           ? 'shipped'
           : (ORDER_TABS.find((tab) => resolvedOrders.some((order) => order.tab === tab.key))?.key || 'submitted');
@@ -522,6 +532,50 @@ export const OrdersPage = () => {
 
   const selectedOrder = filteredOrders.find((order) => order.id === selectedId) || pageItems[0] || null;
   const editingOrder = orders.find((order) => order.id === editingOrderId) || null;
+  const session = (context?.session || {}) as { currentRole?: string; permissions?: { items?: unknown[] } };
+  const currentRole = String(session.currentRole || '').toUpperCase();
+  const canManageOrders = ['BOSS', 'MANAGER', 'ADMIN'].includes(currentRole)
+    && hasPermission(normalizePermissionMap(session.permissions), 'order:manage', 'ALL');
+  const terminalOrder = selectedOrder ? ['SHIPPED', 'DELIVERED', 'CANCELLED', 'CLOSED', 'DISPATCHED', 'RETURNING', 'RETURNED'].includes(selectedOrder.statusKey.toUpperCase()) : true;
+  const confirmOfflinePayment = selectedOrder?.paymentStatus !== 'PAID';
+
+  useEffect(() => {
+    setOwnerSalesUserId(selectedOrder?.ownerSalesUserId || '');
+    setFulfillmentNote('');
+    setFulfillmentError('');
+    if (!selectedOrder || !canManageOrders) { setEvents([]); return; }
+    if (context?.mode === 'mock') { return; }
+    let cancelled = false;
+    void fetchOrderAdminEvents(selectedOrder.id).then((response) => {
+      if (!cancelled && response.status === 200) setEvents(((response.data as { items?: AdminEvent[] })?.items || []));
+    });
+    return () => { cancelled = true; };
+  }, [canManageOrders, context?.mode, selectedOrder?.id]);
+
+  const submitFulfillment = async () => {
+    if (!selectedOrder || !ownerSalesUserId || !fulfillmentNote.trim()) { setFulfillmentError('请选择业务员并填写备注。'); return; }
+    setIsSubmitting(true); setFulfillmentError('');
+    try {
+      if (context?.mode === 'mock') {
+        const now = new Date().toISOString();
+        setOrders((current) => current.map((order) => order.id === selectedOrder.id ? { ...order, statusKey: 'CONFIRMED', statusLabel: '已确认', tab: 'confirmed', paymentStatus: 'PAID', paymentChannel: confirmOfflinePayment ? 'OFFLINE' : order.paymentChannel, ownerSalesUserId } : order));
+        setEvents((current) => [{ id: crypto.randomUUID(), action: confirmOfflinePayment ? 'OFFLINE_PAYMENT_AND_ASSIGN' : (selectedOrder.ownerSalesUserId ? 'REASSIGN' : 'ASSIGN'), note: fulfillmentNote.trim(), createdAt: now, newOwnerSalesUserId: ownerSalesUserId }, ...current]);
+        setActiveTab('confirmed'); setFulfillmentNote(''); return;
+      }
+      const response = await updateOrderFulfillment(selectedOrder.id, { ownerSalesUserId, note: fulfillmentNote.trim(), confirmOfflinePayment }, crypto.randomUUID());
+      if (response.status !== 200) throw new Error(String((response.data as { message?: string })?.message || '更新订单失败'));
+      const refreshedResponse = await fetchOrders({ page: 1, pageSize: 20 });
+      if (refreshedResponse.status !== 200) throw new Error('订单已更新，但刷新订单列表失败');
+      const refreshedOrders = buildDevOrders(refreshedResponse.data as { items?: unknown[]; total?: number });
+      const updated = refreshedOrders.find((order) => order.id === selectedOrder.id) || buildDevOrders({ items: [response.data] })[0];
+      setOrders(refreshedOrders);
+      setActiveTab(updated.tab); setSelectedId(updated.id); setFulfillmentNote('');
+      const eventsResponse = await fetchOrderAdminEvents(updated.id);
+      if (eventsResponse.status === 200) setEvents(((eventsResponse.data as { items?: AdminEvent[] })?.items || []));
+    } catch (error) {
+      setFulfillmentError(error instanceof Error ? error.message : '更新订单失败');
+    } finally { setIsSubmitting(false); }
+  };
 
   const updateOrder = (nextOrder: AdminOrderRecord) => {
     setOrders((current) => current.map((order) => (order.id === nextOrder.id ? nextOrder : order)));
@@ -720,6 +774,33 @@ export const OrdersPage = () => {
                   </div>
 
                   <div className="flex min-h-0 flex-col gap-6 lg:col-span-1">
+                    {canManageOrders && selectedOrder ? (
+                      <div className="rounded-xl border border-border-light bg-surface-light p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark" data-role="order-fulfillment-panel">
+                        <h3 className="text-lg font-bold text-text-main dark:text-text-main-dark">订单派发</h3>
+                        <p className="mt-1 text-xs text-text-sub">付款状态：{getPaymentMeta(selectedOrder).statusLabel} · 渠道：{selectedOrder.paymentChannel || '--'}</p>
+                        {terminalOrder ? <p className="mt-4 text-sm text-amber-700">订单已进入终态或发货阶段，不能再派单。</p> : (
+                          <div className="mt-4 space-y-3">
+                            <label className="block text-xs text-text-sub">业务员
+                              <select className="mt-1 w-full rounded-lg border-slate-300 text-sm" data-role="fulfillment-sales" onChange={(event) => setOwnerSalesUserId(event.target.value)} value={ownerSalesUserId}>
+                                <option value="">请选择 active SALES</option>
+                                {salesUsers.map((user) => <option key={user.id} value={user.id}>{user.displayName || user.id}</option>)}
+                              </select>
+                            </label>
+                            <label className="block text-xs text-text-sub">{confirmOfflinePayment ? '收款备注' : (selectedOrder.ownerSalesUserId ? '改派备注' : '派单备注')}
+                              <textarea className="mt-1 w-full rounded-lg border-slate-300 text-sm" data-role="fulfillment-note" onChange={(event) => setFulfillmentNote(event.target.value)} rows={3} value={fulfillmentNote} />
+                            </label>
+                            {fulfillmentError ? <p className="text-sm text-red-600" data-role="fulfillment-error">{fulfillmentError}</p> : null}
+                            <button className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50" data-role="submit-fulfillment" disabled={isSubmitting} onClick={() => void submitFulfillment()} type="button">
+                              {isSubmitting ? '提交中…' : confirmOfflinePayment ? '确认线下收款并派单' : selectedOrder.ownerSalesUserId ? '改派' : '派单'}
+                            </button>
+                          </div>
+                        )}
+                        <div className="mt-5 border-t border-slate-200 pt-4" data-role="order-admin-events">
+                          <h4 className="text-sm font-semibold">审计时间线</h4>
+                          {events.length ? events.map((event) => <div className="mt-3 text-xs text-text-sub" key={event.id}><p className="font-medium text-text-main">{event.action}</p><p>{event.note}</p><p>{new Date(event.createdAt).toLocaleString()}</p></div>) : <p className="mt-2 text-xs text-text-sub">暂无管理操作记录</p>}
+                        </div>
+                      </div>
+                    ) : null}
                     <div className="rounded-xl border border-border-light bg-surface-light p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark">
                       <div className="mb-6 flex items-center justify-between">
                         <h3 className="text-lg font-bold text-text-main dark:text-text-main-dark">物流详情</h3>
