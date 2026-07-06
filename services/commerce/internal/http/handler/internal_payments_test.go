@@ -18,7 +18,7 @@ import (
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 )
 
-func TestPostInternalOrdersOrderIdPaymentStatusKeepsCartUntilPaid(t *testing.T) {
+func TestPostInternalOrdersOrderIdPaymentStatusDoesNotMutateCart(t *testing.T) {
 	pool := openHandlerTestPool(t)
 	resetCommerceTables(t, pool)
 
@@ -102,12 +102,12 @@ func TestPostInternalOrdersOrderIdPaymentStatusKeepsCartUntilPaid(t *testing.T) 
 	if err != nil {
 		t.Fatalf("paid status: list cart items: %v", err)
 	}
-	if len(items) != 0 {
-		t.Fatalf("expected cart item to be removed after paid, got %#v", items)
+	if len(items) != 1 || items[0].ID != cartItem.ID || items[0].Qty != 2 {
+		t.Fatalf("expected paid status to leave cart unchanged, got %#v", items)
 	}
 }
 
-func TestPostInternalOrdersOrderIdPaymentStatusDoesNotDoubleClearCartOnRepeatedPaid(t *testing.T) {
+func TestPostInternalOrdersOrderIdPaymentStatusRepeatedPaidDoesNotMutateCart(t *testing.T) {
 	pool := openHandlerTestPool(t)
 	resetCommerceTables(t, pool)
 
@@ -173,8 +173,8 @@ func TestPostInternalOrdersOrderIdPaymentStatusDoesNotDoubleClearCartOnRepeatedP
 	if err != nil {
 		t.Fatalf("list cart items: %v", err)
 	}
-	if len(items) != 1 || items[0].Qty != 1 {
-		t.Fatalf("expected one cart item with qty 1 remaining, got %#v", items)
+	if len(items) != 1 || items[0].Qty != 3 {
+		t.Fatalf("expected repeated paid status to leave cart unchanged, got %#v", items)
 	}
 }
 

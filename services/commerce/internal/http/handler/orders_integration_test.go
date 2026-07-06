@@ -25,7 +25,7 @@ import (
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 )
 
-func TestPostOrdersKeepsCartItemsUntilPaymentSucceeds(t *testing.T) {
+func TestPostOrdersRemovesOrderedCartItemsAfterOrderSucceeds(t *testing.T) {
 	pool := openHandlerTestPool(t)
 	resetCommerceTables(t, pool)
 
@@ -66,11 +66,11 @@ func TestPostOrdersKeepsCartItemsUntilPaymentSucceeds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list cart items: %v", err)
 	}
-	if len(items) != 2 {
-		t.Fatalf("expected 2 cart items remaining, got %d", len(items))
+	if len(items) != 1 {
+		t.Fatalf("expected 1 unsubmitted cart item remaining, got %d", len(items))
 	}
-	if items[0].ID != cartItemA.ID || items[1].ID != cartItemB.ID {
-		t.Fatalf("expected original cart items to remain, got %#v", items)
+	if items[0].ID != cartItemB.ID || items[0].Qty != cartItemB.Qty {
+		t.Fatalf("expected only the unsubmitted cart item to remain, got %#v", items)
 	}
 }
 

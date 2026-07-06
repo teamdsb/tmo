@@ -139,65 +139,6 @@ func (h *Handler) syncOrderPaymentSummary(ctx context.Context, orderID uuid.UUID
 			return nil
 		}
 
-		orderItems, err := q.ListOrderItems(ctx, orderID)
-		if err != nil {
-			return err
-		}
-
-		sourceIDs := make([]uuid.UUID, 0, len(orderItems))
-		for _, item := range orderItems {
-			if item.SourceCartItemID.Valid {
-				sourceIDs = append(sourceIDs, item.SourceCartItemID.Bytes)
-			}
-		}
-		if len(sourceIDs) == 0 {
-			return nil
-		}
-
-		cartItems, err := q.ListCartItemsByIDsForUpdate(ctx, db.ListCartItemsByIDsForUpdateParams{
-			OwnerUserID: order.CustomerID,
-			Ids:         uniqueUUIDs(sourceIDs),
-		})
-		if err != nil {
-			return err
-		}
-
-		cartByID := make(map[uuid.UUID]db.CartItem, len(cartItems))
-		for _, item := range cartItems {
-			cartByID[item.ID] = item
-		}
-
-		for _, item := range orderItems {
-			if !item.SourceCartItemID.Valid {
-				continue
-			}
-			cartItem, ok := cartByID[item.SourceCartItemID.Bytes]
-			if !ok || cartItem.SkuID != item.SkuID {
-				continue
-			}
-
-			nextQty := cartItem.Qty - item.Qty
-			if nextQty > 0 {
-				updatedCartItem, err := q.UpdateCartItemQty(ctx, db.UpdateCartItemQtyParams{
-					ID:          cartItem.ID,
-					Qty:         nextQty,
-					OwnerUserID: order.CustomerID,
-				})
-				if err != nil {
-					return err
-				}
-				cartByID[updatedCartItem.ID] = updatedCartItem
-				continue
-			}
-			if err := q.DeleteCartItem(ctx, db.DeleteCartItemParams{
-				ID:          cartItem.ID,
-				OwnerUserID: order.CustomerID,
-			}); err != nil {
-				return err
-			}
-			delete(cartByID, cartItem.ID)
-		}
-
 		return nil
 	})
 	if err != nil {

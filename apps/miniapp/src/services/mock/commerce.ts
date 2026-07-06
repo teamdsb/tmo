@@ -452,21 +452,34 @@ export const createMockCommerceServices = (): CommerceServices => {
         updatedAt: createdAt
       } as Order, initialPayment)
 
-      await updateIsolatedMockState((state) => ({
-        ...state,
-        orders: [order, ...state.orders],
-        paymentSessionsByOrderId: {
-          ...state.paymentSessionsByOrderId,
-          [order.id]: initialPayment
-        },
-        trackingByOrderId: {
-          ...state.trackingByOrderId,
-          [order.id]: {
-            orderId: order.id,
-            shipments: []
+      await updateIsolatedMockState((state) => {
+        const orderedQtyBySkuId = new Map<string, number>()
+        request.items.forEach((item) => {
+          const qty = normalizeQty(item.qty)
+          orderedQtyBySkuId.set(item.skuId, (orderedQtyBySkuId.get(item.skuId) ?? 0) + qty)
+        })
+        const cartEntries = state.cartEntries.flatMap((entry) => {
+          const remainingQty = entry.qty - (orderedQtyBySkuId.get(entry.skuId) ?? 0)
+          return remainingQty > 0 ? [{ ...entry, qty: remainingQty }] : []
+        })
+
+        return {
+          ...state,
+          cartEntries,
+          orders: [order, ...state.orders],
+          paymentSessionsByOrderId: {
+            ...state.paymentSessionsByOrderId,
+            [order.id]: initialPayment
+          },
+          trackingByOrderId: {
+            ...state.trackingByOrderId,
+            [order.id]: {
+              orderId: order.id,
+              shipments: []
+            }
           }
         }
-      }))
+      })
 
       return order
     },
