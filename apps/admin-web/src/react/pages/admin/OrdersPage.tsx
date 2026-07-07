@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { fetchOrders } from '../../../lib/api';
+import { fetchOrders, fetchProducts } from '../../../lib/api';
 import { ensureProtectedPage } from '../../../lib/guard';
 import { AdminTopbar } from '../../layout/AdminTopbar';
 import {
@@ -16,6 +16,14 @@ import {
   type OrderStatusTone,
   type OrderTabKey
 } from './orders-data';
+import {
+  buildMockProducts,
+  mergeImportedMockProducts,
+  MOCK_PRODUCTS_STORAGE_KEY,
+  normalizeProduct,
+  readStoredJson,
+  type ProductRecord
+} from './products-data';
 
 type PageContext = {
   mode: 'dev' | 'mock';
@@ -116,16 +124,32 @@ type OrderDetailDrawerProps = {
   onClose: () => void;
   onSave: (order: AdminOrderRecord) => void;
   order: AdminOrderRecord | null;
+  products: ProductRecord[];
 };
 
-const OrderDetailDrawer = ({ onClose, onSave, order }: OrderDetailDrawerProps) => {
+const OrderDetailDrawer = ({ onClose, onSave, order, products }: OrderDetailDrawerProps) => {
   const [draft, setDraft] = useState<AdminOrderRecord | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [openProductPickerIndex, setOpenProductPickerIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    setDraft(order ? cloneOrder(order) : null);
+    if (!order) {
+      setDraft(null);
+    } else {
+      const nextOrder = cloneOrder(order);
+      nextOrder.lineItems = nextOrder.lineItems.map((item) => {
+        const matchedProduct = products.find((product) => (
+          product.id === item.productId || product.name === item.name
+        ));
+        return matchedProduct
+          ? { ...item, name: matchedProduct.name, productId: matchedProduct.id }
+          : item;
+      });
+      setDraft(nextOrder);
+    }
     setErrorMessage('');
-  }, [order]);
+    setOpenProductPickerIndex(null);
+  }, [order, products]);
 
   if (!draft) {
     return null;
@@ -149,7 +173,7 @@ const OrderDetailDrawer = ({ onClose, onSave, order }: OrderDetailDrawerProps) =
       const remaining = current.lineItems.filter((_, itemIndex) => itemIndex !== index);
       return {
         ...current,
-        lineItems: remaining.length > 0 ? remaining : [{ name: '', qty: 1, size: '默认' }]
+        lineItems: remaining.length > 0 ? remaining : [{ name: '', productId: '', qty: 1, size: '默认' }]
       };
     });
   };
@@ -157,7 +181,7 @@ const OrderDetailDrawer = ({ onClose, onSave, order }: OrderDetailDrawerProps) =
   const addLineItem = () => {
     setDraft((current) => (
       current
-        ? { ...current, lineItems: [...current.lineItems, { name: '', qty: 1, size: '默认' }] }
+        ? { ...current, lineItems: [...current.lineItems, { name: '', productId: '', qty: 1, size: '默认' }] }
         : current
     ));
   };
@@ -168,21 +192,28 @@ const OrderDetailDrawer = ({ onClose, onSave, order }: OrderDetailDrawerProps) =
     const buyerName = draft.customer.name.trim();
     const buyerPhone = draft.customer.phone.trim();
     const buyerAddress = draft.customer.address.trim();
-    const lineItems = draft.lineItems
-      .map((item) => ({
-        name: item.name.trim(),
+    const invalidProductIndex = draft.lineItems.findIndex((item) => !products.some((product) => (
+      product.id === item.productId || (!item.productId && product.name === item.name.trim())
+    )));
+    const lineItems = draft.lineItems.map((item) => {
+      const selectedProduct = products.find((product) => (
+        product.id === item.productId || (!item.productId && product.name === item.name.trim())
+      ));
+      return {
+        name: selectedProduct?.name || '',
+        productId: selectedProduct?.id || '',
         qty: Number.isFinite(Number(item.qty)) && Number(item.qty) > 0 ? Number(item.qty) : 1,
         size: item.size.trim() || '默认'
-      }))
-      .filter((item) => item.name);
+      };
+    });
 
     if (!buyerName || !buyerPhone || !buyerAddress) {
       setErrorMessage('请补全买家姓名、联系电话和地址。');
       return;
     }
 
-    if (lineItems.length === 0) {
-      setErrorMessage('至少保留一条商品明细。');
+    if (lineItems.length === 0 || invalidProductIndex >= 0) {
+      setErrorMessage(`第 ${Math.max(0, invalidProductIndex) + 1} 条商品明细请选择现有商品。`);
       return;
     }
 
@@ -334,15 +365,65 @@ const OrderDetailDrawer = ({ onClose, onSave, order }: OrderDetailDrawerProps) =
                   key={`${draft.id}-line-item-${index}`}
                 >
                   <div className="grid grid-cols-12 gap-2">
-                    <label className="col-span-6 text-xs text-slate-500">
-                      商品名
+                    <label className="relative col-span-6 text-xs text-slate-500">
+                      选择商品
                       <input
+                        aria-autocomplete="list"
+                        aria-expanded={openProductPickerIndex === index}
                         className="mt-1 w-full rounded-md border-slate-300 bg-white text-sm focus:border-primary focus:ring-primary"
-                        data-role="detail-item-name"
-                        onChange={(event) => updateLineItem(index, { name: event.target.value })}
-                        type="text"
+                        data-role="detail-item-product-search"
+                        onChange={(event) => {
+                          updateLineItem(index, { name: event.target.value, productId: '' });
+                          setOpenProductPickerIndex(index);
+                        }}
+                        onFocus={() => setOpenProductPickerIndex(index)}
+                        onBlur={() => {
+                          window.setTimeout(() => {
+                            setOpenProductPickerIndex((current) => current === index ? null : current);
+                          }, 0);
+                        }}
+                        placeholder="搜索商品名称或 SPU 编号"
+                        role="combobox"
+                        type="search"
                         value={item.name}
                       />
+                      {openProductPickerIndex === index ? (
+                        <div
+                          className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl"
+                          data-role="detail-product-options"
+                          role="listbox"
+                        >
+                          {products.filter((product) => {
+                            const query = item.name.trim().toLowerCase();
+                            return !query || product.name.toLowerCase().includes(query) || product.id.toLowerCase().includes(query);
+                          }).slice(0, 30).map((product) => (
+                            <button
+                              className="flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm text-slate-700 hover:bg-primary/5 hover:text-primary"
+                              data-product-id={product.id}
+                              data-role="detail-product-option"
+                              key={product.id}
+                              onClick={() => {
+                                updateLineItem(index, { name: product.name, productId: product.id });
+                                setOpenProductPickerIndex(null);
+                                setErrorMessage('');
+                              }}
+                              onMouseDown={(event) => event.preventDefault()}
+                              type="button"
+                            >
+                              <span className="min-w-0 truncate font-medium">{product.name}</span>
+                              <span className="shrink-0 text-[10px] text-slate-400">{product.id}</span>
+                            </button>
+                          ))}
+                          {products.length === 0 ? (
+                            <p className="px-3 py-3 text-xs text-slate-500">暂无可选商品，请先在商品中心新增商品。</p>
+                          ) : products.every((product) => {
+                            const query = item.name.trim().toLowerCase();
+                            return query && !product.name.toLowerCase().includes(query) && !product.id.toLowerCase().includes(query);
+                          }) ? (
+                            <p className="px-3 py-3 text-xs text-slate-500">没有匹配的现有商品。</p>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </label>
                     <label className="col-span-3 text-xs text-slate-500">
                       数量
@@ -423,6 +504,7 @@ export const OrdersPage = () => {
   const [ready, setReady] = useState(false);
   const [loadState, setLoadState] = useState<LoadState>('idle');
   const [orders, setOrders] = useState<AdminOrderRecord[]>([]);
+  const [products, setProducts] = useState<ProductRecord[]>([]);
   const [activeTab, setActiveTab] = useState<OrderTabKey>('shipped');
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState('');
@@ -456,29 +538,44 @@ export const OrdersPage = () => {
       setErrorMessage('');
 
       try {
-        const nextOrders = context.mode === 'dev'
-          ? (() => {
-              return fetchOrders({ page: 1, pageSize: 20 }).then((response) => {
-                if (response.status !== 200 || !response.data) {
-                  throw new Error('加载 /orders 失败');
+        const [nextOrders, nextProducts] = await Promise.all([
+          context.mode === 'dev'
+            ? (() => {
+                return fetchOrders({ page: 1, pageSize: 20 }).then((response) => {
+                  if (response.status !== 200 || !response.data) {
+                    throw new Error('加载 /orders 失败');
+                  }
+                  return buildDevOrders(response.data as { items?: unknown[]; total?: number });
+                });
+              })()
+            : Promise.resolve(buildMockOrders()),
+          context.mode === 'dev'
+            ? fetchProducts({ page: 1, pageSize: 200, status: 'ALL' }).then((response) => {
+                if (response.status !== 200 || !Array.isArray(response.data?.items)) {
+                  throw new Error('加载现有商品失败');
                 }
-                return buildDevOrders(response.data as { items?: unknown[]; total?: number });
-              });
-            })()
-          : Promise.resolve(buildMockOrders());
-
-        const resolvedOrders = await nextOrders;
+                return response.data.items.map((item, index) => normalizeProduct(item, index));
+              })
+            : Promise.resolve((() => {
+                const storedProducts = readStoredJson<unknown[]>(MOCK_PRODUCTS_STORAGE_KEY);
+                const baseProducts = Array.isArray(storedProducts) && storedProducts.length > 0
+                  ? storedProducts.map((item, index) => normalizeProduct(item, index))
+                  : buildMockProducts(30);
+                return mergeImportedMockProducts(baseProducts);
+              })())
+        ]);
         if (cancelled) {
           return;
         }
 
-        setOrders(resolvedOrders);
-        const defaultTab = resolvedOrders.some((order) => order.tab === 'shipped')
+        setOrders(nextOrders);
+        setProducts(nextProducts);
+        const defaultTab = nextOrders.some((order) => order.tab === 'shipped')
           ? 'shipped'
-          : (ORDER_TABS.find((tab) => resolvedOrders.some((order) => order.tab === tab.key))?.key || 'submitted');
+          : (ORDER_TABS.find((tab) => nextOrders.some((order) => order.tab === tab.key))?.key || 'submitted');
         setActiveTab(defaultTab);
         setPage(1);
-        setSelectedId(resolvedOrders.find((order) => order.tab === defaultTab)?.id || resolvedOrders[0]?.id || '');
+        setSelectedId(nextOrders.find((order) => order.tab === defaultTab)?.id || nextOrders[0]?.id || '');
         setLoadState('ready');
       } catch (error) {
         if (cancelled) {
@@ -822,6 +919,7 @@ export const OrdersPage = () => {
         onClose={() => setEditingOrderId('')}
         onSave={updateOrder}
         order={editingOrder}
+        products={products}
       />
     </div>
   );

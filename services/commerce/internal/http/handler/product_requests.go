@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
+	"github.com/teamdsb/tmo/services/commerce/internal/mediaopt"
 )
 
 const maxProductRequestAssetSize int64 = 5 * 1024 * 1024
@@ -73,12 +75,20 @@ func (h *Handler) GetProductRequests(c *gin.Context, params oapi.GetProductReque
 	if params.CreatedBefore != nil {
 		createdBefore = pgtype.Timestamptz{Time: *params.CreatedBefore, Valid: true}
 	}
+	var query *string
+	if params.Q != nil {
+		value := strings.TrimSpace(*params.Q)
+		if value != "" {
+			query = &value
+		}
+	}
 
 	requests, err := h.ProductRequestStore.ListProductRequests(c.Request.Context(), db.ListProductRequestsParams{
 		CreatedByUserID:  createdByFilter,
 		OwnerSalesUserID: ownerSalesFilter,
 		CreatedAfter:     createdAfter,
 		CreatedBefore:    createdBefore,
+		Q:                query,
 		Offset:           clampInt32(offset),
 		Limit:            clampInt32(pageSize),
 	})
@@ -93,6 +103,7 @@ func (h *Handler) GetProductRequests(c *gin.Context, params oapi.GetProductReque
 		OwnerSalesUserID: ownerSalesFilter,
 		CreatedAfter:     createdAfter,
 		CreatedBefore:    createdBefore,
+		Q:                query,
 	})
 	if err != nil {
 		h.logError("count product requests failed", err)
@@ -258,6 +269,39 @@ func (h *Handler) uploadMediaAsset(c *gin.Context, mediaSubDir string, logContex
 	if err := os.MkdirAll(subDir, 0o755); err != nil {
 		h.logError("create media directory failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to save file")
+		return
+	}
+
+	isCatalogProductImage := filepath.Clean(mediaSubDir) == filepath.Join("catalog", "products") &&
+		(contentType == "image/jpeg" || contentType == "image/png")
+	if isCatalogProductImage {
+		data, readErr := mediaopt.ReadAllLimited(io.MultiReader(bytes.NewReader(sniff), file), maxProductRequestAssetSize)
+		if readErr != nil {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "file exceeds 5MB limit")
+			return
+		}
+		optimized, optimizeErr := mediaopt.Optimize(data, contentType, mediaopt.DefaultMaxDimension)
+		if optimizeErr != nil {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", optimizeErr.Error())
+			return
+		}
+		if int64(len(optimized.Data)) > maxProductRequestAssetSize {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "optimized image exceeds 5MB limit")
+			return
+		}
+		fileName := uuid.NewString() + optimized.Extension
+		localPath := filepath.Join(subDir, fileName)
+		if writeErr := mediaopt.WriteAtomically(localPath, optimized.Data); writeErr != nil {
+			h.logError("write optimized media file failed", writeErr)
+			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to save file")
+			return
+		}
+		publicURL := strings.TrimRight(baseURL, "/") + "/" + strings.Trim(filepath.ToSlash(mediaSubDir), "/") + "/" + fileName
+		c.JSON(http.StatusCreated, oapi.ProductRequestAsset{
+			Url:         publicURL,
+			ContentType: optimized.ContentType,
+			Size:        int64(len(optimized.Data)),
+		})
 		return
 	}
 

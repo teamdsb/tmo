@@ -1,10 +1,47 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import Taro from '@tarojs/taro'
+import { gatewayServices } from '../../services/gateway'
+import { identityServices } from '../../services/identity'
 import SalesPage from './index'
 
 describe('SalesPage', () => {
+  beforeEach(() => {
+    ;(gatewayServices.bootstrap.get as jest.Mock).mockResolvedValue({
+      me: {
+        displayName: '张三',
+        currentRole: 'SALES',
+        roles: ['CUSTOMER', 'SALES']
+      }
+    })
+  })
+
+  it('switches an assigned customer identity to SALES before requesting the QR code', async () => {
+    ;(gatewayServices.bootstrap.get as jest.Mock)
+      .mockResolvedValueOnce({
+        me: {
+          displayName: '张三',
+          currentRole: 'CUSTOMER',
+          roles: ['CUSTOMER', 'SALES']
+        }
+      })
+      .mockResolvedValue({
+        me: {
+          displayName: '张三',
+          currentRole: 'SALES',
+          roles: ['CUSTOMER', 'SALES']
+        }
+      })
+
+    render(<SalesPage />)
+
+    await waitFor(() => {
+      expect(identityServices.auth.switchRole).toHaveBeenCalledWith({ role: 'SALES' })
+    })
+    expect(identityServices.me.getSalesQrCode).toHaveBeenCalled()
+    expect(await screen.findByText('SALES')).toBeInTheDocument()
+  })
 
   it('applies shared long-text protection to sales order titles', () => {
     render(<SalesPage />)

@@ -465,6 +465,47 @@ func TestDebugSwitchRoleReissuesTokenForAssignedRole(t *testing.T) {
 	}
 }
 
+func TestSwitchRoleReissuesTokenForAssignedRole(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedMultiRole(ctx, pool); err != nil {
+		t.Fatalf("seed multi role: %v", err)
+	}
+
+	loginResp := doJSON(t, router, http.MethodPost, "/auth/mini/login", map[string]interface{}{
+		"platform": "weapp",
+		"code":     "mock_multi_001",
+		"role":     "CUSTOMER",
+	}, "")
+	if loginResp.Code != http.StatusOK {
+		t.Fatalf("expected login 200, got %d: %s", loginResp.Code, loginResp.Body.String())
+	}
+
+	var loginAuth oapi.AuthResponse
+	if err := json.NewDecoder(loginResp.Body).Decode(&loginAuth); err != nil {
+		t.Fatalf("decode login response: %v", err)
+	}
+
+	switchResp := doJSON(t, router, http.MethodPost, "/auth/switch-role", map[string]interface{}{
+		"role": "SALES",
+	}, loginAuth.AccessToken)
+	if switchResp.Code != http.StatusOK {
+		t.Fatalf("expected switch 200, got %d: %s", switchResp.Code, switchResp.Body.String())
+	}
+
+	var switched oapi.AuthResponse
+	if err := json.NewDecoder(switchResp.Body).Decode(&switched); err != nil {
+		t.Fatalf("decode switch response: %v", err)
+	}
+	if switched.User.CurrentRole != "SALES" {
+		t.Fatalf("expected switched currentRole SALES, got %q", switched.User.CurrentRole)
+	}
+}
+
 func TestDebugSwitchRoleRejectsUnassignedRole(t *testing.T) {
 	router, pool := setupTestRouter(t)
 	ctx := context.Background()

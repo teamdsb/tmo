@@ -1,4 +1,4 @@
-import { type CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Text, View } from '@tarojs/components'
 import { useDidShow } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
@@ -8,10 +8,10 @@ import { AccountingView, CustomersView, DashboardView, OrdersView } from './view
 import { ROUTES } from '../../routes'
 import { switchTabLike } from '../../utils/navigation'
 import { getNavbarStyle, getNavbarTotalHeight } from '../../utils/navbar'
-import { loadBootstrap } from '../../services/bootstrap'
+import { loadBootstrap, saveBootstrap } from '../../services/bootstrap'
 import { gatewayServices } from '../../services/gateway'
 import { identityServices } from '../../services/identity'
-import { getCurrentRole } from '../../utils/authz'
+import { getCurrentRole, hasRole } from '../../utils/authz'
 
 type SalesQrCode = Awaited<ReturnType<typeof identityServices.me.getSalesQrCode>>
 
@@ -22,6 +22,7 @@ export default function SalesPage() {
   const [salesRole, setSalesRole] = useState('客户经理')
   const [qrLoading, setQrLoading] = useState(false)
   const [qrError, setQrError] = useState('')
+  const refreshInFlight = useRef(false)
   const isH5 = process.env.TARO_ENV === 'h5'
   const navbarStyle = getNavbarStyle()
   const pageStyle = navbarStyle as CSSProperties
@@ -31,24 +32,41 @@ export default function SalesPage() {
     return platform === 'alipay' ? '支付宝' : '微信'
   }, [salesQrCode?.platform])
 
-  const refreshSalesContext = useCallback(async () => {
-    let cachedBootstrap = await loadBootstrap()
-    try {
-      const freshBootstrap = await gatewayServices.bootstrap.get()
-      cachedBootstrap = freshBootstrap
-    } catch (error) {
-      console.warn('refresh sales bootstrap failed', error)
+  const refreshSalesDashboard = useCallback(async () => {
+    if (refreshInFlight.current) {
+      return
     }
-    const nextSalesName = cachedBootstrap?.me?.displayName?.trim() || '业务员'
-    const nextSalesRole = getCurrentRole(cachedBootstrap) || '客户经理'
-    setSalesName(nextSalesName)
-    setSalesRole(nextSalesRole)
-  }, [])
-
-  const refreshSalesQrCode = useCallback(async () => {
+    refreshInFlight.current = true
     setQrLoading(true)
     setQrError('')
     try {
+      let bootstrap = await loadBootstrap()
+      try {
+        bootstrap = await gatewayServices.bootstrap.get()
+      } catch (error) {
+        console.warn('refresh sales bootstrap failed', error)
+      }
+
+      if (!hasRole(bootstrap, 'SALES')) {
+        setSalesName(bootstrap?.me?.displayName?.trim() || '业务员')
+        setSalesRole(getCurrentRole(bootstrap) || '未识别')
+        setSalesQrCode(null)
+        setQrError('当前账号未分配业务员身份，无法生成推广二维码。')
+        return
+      }
+
+      if (getCurrentRole(bootstrap) !== 'SALES') {
+        await identityServices.auth.switchRole({ role: 'SALES' })
+        bootstrap = await gatewayServices.bootstrap.get()
+        await saveBootstrap(bootstrap)
+      }
+
+      if (getCurrentRole(bootstrap) !== 'SALES') {
+        throw new Error('sales role switch did not take effect')
+      }
+
+      setSalesName(bootstrap?.me?.displayName?.trim() || '业务员')
+      setSalesRole('SALES')
       const nextQr = await identityServices.me.getSalesQrCode()
       setSalesQrCode(nextQr)
     } catch (error) {
@@ -57,17 +75,16 @@ export default function SalesPage() {
       setQrError('二维码生成失败，请确认当前账号为业务员并稍后重试。')
     } finally {
       setQrLoading(false)
+      refreshInFlight.current = false
     }
   }, [])
 
   useEffect(() => {
-    void refreshSalesContext()
-    void refreshSalesQrCode()
-  }, [refreshSalesContext, refreshSalesQrCode])
+    void refreshSalesDashboard()
+  }, [refreshSalesDashboard])
 
   useDidShow(() => {
-    void refreshSalesContext()
-    void refreshSalesQrCode()
+    void refreshSalesDashboard()
   })
 
   return (
@@ -97,7 +114,7 @@ export default function SalesPage() {
               qrScene={salesQrCode?.scene || ''}
               salesName={salesName}
               salesRole={salesRole}
-              onRefreshQr={() => void refreshSalesQrCode()}
+              onRefreshQr={() => void refreshSalesDashboard()}
             />
           ) : null}
           {activeTab === 'customers' ? <CustomersView /> : null}

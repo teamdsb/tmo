@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"image"
+	"image/color"
+	"image/png"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -156,6 +160,7 @@ func TestProductRequestsPermissions(t *testing.T) {
 	router := newAuthIntegrationRouter(pool, queries)
 
 	customerID := uuid.New()
+	otherCustomerID := uuid.New()
 	salesA := uuid.New()
 	salesB := uuid.New()
 
@@ -177,6 +182,15 @@ func TestProductRequestsPermissions(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("seed request B: %v", err)
 	}
+	if _, err := queries.CreateProductRequest(context.Background(), db.CreateProductRequestParams{
+		CreatedByUserID:    otherCustomerID,
+		OwnerSalesUserID:   pgtype.UUID{Bytes: salesB, Valid: true},
+		Name:               "C",
+		CategoryID:         pgtype.UUID{},
+		ReferenceImageUrls: []string{},
+	}); err != nil {
+		t.Fatalf("seed request C: %v", err)
+	}
 
 	req := httptest.NewRequest(http.MethodGet, "/product-requests", nil)
 	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, salesA, "SALES", nil))
@@ -193,6 +207,36 @@ func TestProductRequestsPermissions(t *testing.T) {
 		t.Fatalf("expected sales to see 1 owned item, got %d", len(list.Items))
 	}
 
+	for _, role := range []string{"CS", "ADMIN", "MANAGER", "BOSS"} {
+		req = httptest.NewRequest(http.MethodGet, "/product-requests", nil)
+		req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), role, nil))
+		recorder = httptest.NewRecorder()
+		router.ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("expected status 200 for %s, got %d: %s", role, recorder.Code, recorder.Body.String())
+		}
+		if err := json.Unmarshal(recorder.Body.Bytes(), &list); err != nil {
+			t.Fatalf("decode %s list response: %v", role, err)
+		}
+		if len(list.Items) != 3 {
+			t.Fatalf("expected %s to see all 3 items, got %d", role, len(list.Items))
+		}
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/product-requests", nil)
+	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, customerID, "CUSTOMER", nil))
+	recorder = httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected customer status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &list); err != nil {
+		t.Fatalf("decode customer list response: %v", err)
+	}
+	if len(list.Items) != 2 {
+		t.Fatalf("expected customer to see 2 own items, got %d", len(list.Items))
+	}
+
 	req = httptest.NewRequest(http.MethodPost, "/product-requests", bytes.NewBufferString(`{"name":"x"}`))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, salesA, "SALES", nil))
@@ -201,6 +245,73 @@ func TestProductRequestsPermissions(t *testing.T) {
 	if recorder.Code != http.StatusForbidden {
 		t.Fatalf("expected status 403 for sales create, got %d: %s", recorder.Code, recorder.Body.String())
 	}
+}
+
+func TestProductRequestsSearchCombinesWithDatesAndPagination(t *testing.T) {
+	pool := openHandlerTestPool(t)
+	resetCommerceTables(t, pool)
+	queries := db.New(pool)
+	router := newAuthIntegrationRouter(pool, queries)
+
+	customerID := uuid.New()
+	oldRequest, err := queries.CreateProductRequest(context.Background(), db.CreateProductRequestParams{
+		CreatedByUserID:    customerID,
+		Name:               "Old stainless request",
+		Material:           stringPointer("stainless steel"),
+		CategoryID:         pgtype.UUID{},
+		ReferenceImageUrls: []string{},
+	})
+	if err != nil {
+		t.Fatalf("seed old request: %v", err)
+	}
+	matchingRequest, err := queries.CreateProductRequest(context.Background(), db.CreateProductRequestParams{
+		CreatedByUserID:    customerID,
+		Name:               "Custom enclosure",
+		Material:           stringPointer("stainless steel"),
+		CategoryID:         pgtype.UUID{},
+		ReferenceImageUrls: []string{},
+	})
+	if err != nil {
+		t.Fatalf("seed matching request: %v", err)
+	}
+	if _, err := queries.CreateProductRequest(context.Background(), db.CreateProductRequestParams{
+		CreatedByUserID:    customerID,
+		Name:               "Aluminium enclosure",
+		Material:           stringPointer("aluminium"),
+		CategoryID:         pgtype.UUID{},
+		ReferenceImageUrls: []string{},
+	}); err != nil {
+		t.Fatalf("seed non-matching request: %v", err)
+	}
+
+	oldTime := time.Date(2026, time.May, 1, 8, 0, 0, 0, time.UTC)
+	matchTime := time.Date(2026, time.June, 15, 8, 0, 0, 0, time.UTC)
+	if _, err := pool.Exec(context.Background(), `UPDATE product_requests SET created_at = $2 WHERE id = $1`, oldRequest.ID, oldTime); err != nil {
+		t.Fatalf("age old request: %v", err)
+	}
+	if _, err := pool.Exec(context.Background(), `UPDATE product_requests SET created_at = $2 WHERE id = $1`, matchingRequest.ID, matchTime); err != nil {
+		t.Fatalf("date matching request: %v", err)
+	}
+
+	url := "/product-requests?q=stainless&createdAfter=2026-06-01T00:00:00Z&createdBefore=2026-06-30T23:59:59Z&page=1&pageSize=1"
+	req := httptest.NewRequest(http.MethodGet, url, nil)
+	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), "ADMIN", nil))
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	var list oapi.PagedProductRequestList
+	if err := json.Unmarshal(recorder.Body.Bytes(), &list); err != nil {
+		t.Fatalf("decode filtered list: %v", err)
+	}
+	if list.Total != 1 || len(list.Items) != 1 || list.Items[0].Id != matchingRequest.ID {
+		t.Fatalf("expected only matching request %s, got total=%d items=%+v", matchingRequest.ID, list.Total, list.Items)
+	}
+}
+
+func stringPointer(value string) *string {
+	return &value
 }
 
 func TestProductRequestAssetsUploadSuccessAndFailure(t *testing.T) {
@@ -265,7 +376,13 @@ func TestAdminCatalogProductAssetUpload(t *testing.T) {
 	tmpDir := t.TempDir()
 	router := newAuthRouterWithMedia(nil, tmpDir, "http://localhost:8080/assets/media")
 
-	pngData := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x00}
+	imageData := image.NewNRGBA(image.Rect(0, 0, 2, 2))
+	imageData.SetNRGBA(0, 0, color.NRGBA{R: 20, G: 40, B: 60, A: 128})
+	var pngBuffer bytes.Buffer
+	if err := png.Encode(&pngBuffer, imageData); err != nil {
+		t.Fatal(err)
+	}
+	pngData := pngBuffer.Bytes()
 	req := multipartFileRequest(t, http.MethodPost, "/admin/catalog/products/assets", "file", "cover.png", pngData)
 	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), "BOSS", nil))
 	recorder := httptest.NewRecorder()

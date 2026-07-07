@@ -1,3 +1,5 @@
+import fs from 'fs'
+import path from 'path'
 import { render, screen } from '@testing-library/react'
 import { useDidShow } from '@tarojs/taro'
 import { commerceServices } from '../../services/commerce'
@@ -43,12 +45,23 @@ describe('FavoritesPage', () => {
   })
 
   it('renders favorite product image, product name, and sku model details', async () => {
-    render(<FavoritesPage />)
+    const { container } = render(<FavoritesPage />)
 
     expect(await screen.findByText('不锈钢六角螺栓 A2')).toBeInTheDocument()
     expect(screen.getByText('型号 M8 x 30')).toBeInTheDocument()
     expect(screen.getByText('M8 x 30 / A2-70')).toBeInTheDocument()
     expect(screen.getByRole('img')).toHaveAttribute('src', 'https://img.example.com/bolt.png')
     expect(commerceServices.catalog.getProductDetail).toHaveBeenCalledWith('spu-bolt-a2')
+    expect(container.querySelector('.favorite-card-tier')).toBeInTheDocument()
+    expect(container.querySelectorAll('.favorite-card-action')).toHaveLength(3)
+  })
+
+  it('uses the shared rounded card and button language', () => {
+    const stylesheet = fs.readFileSync(path.resolve(__dirname, './index.scss'), 'utf8')
+
+    expect(stylesheet).toContain('.favorite-card-action')
+    expect(stylesheet).toContain('border-radius: 20rpx;')
+    expect(stylesheet).toContain('border-radius: 28rpx;')
+    expect(stylesheet).toContain('grid-template-columns: 1fr 1fr 1.45fr;')
   })
 })

@@ -19,6 +19,7 @@ export const ROUTES = {
   import: '/pages/import/index',
   trackingBatch: '/pages/tracking/batch/index',
   settings: '/pages/settings/index',
+  policy: '/pages/policy/index',
   sales: '/pages/sales/index',
   support: '/pages/support/index',
   supportChat: '/pages/support/chat/index',

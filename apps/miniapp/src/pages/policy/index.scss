@@ -1,0 +1,29 @@
+.policy-page-content {
+  padding: 24rpx 24rpx 48rpx;
+}
+
+.policy-card {
+  padding: 36rpx 32rpx 48rpx;
+  border-radius: 32rpx;
+  background: #fff;
+  box-shadow: 0 8rpx 28rpx rgb(15 23 42 / 5%);
+}
+
+.policy-title {
+  display: block;
+  color: #0f172a;
+  font-size: 36rpx;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.policy-body {
+  display: block;
+  margin-top: 28rpx;
+  color: #475569;
+  font-size: 28rpx;
+  line-height: 1.9;
+  text-align: justify;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

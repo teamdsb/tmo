@@ -18,7 +18,10 @@ describe('OrderHistoryApp', () => {
 
     expect(screen.getByText('全部')).toBeInTheDocument();
     expect(screen.getByText('待处理')).toBeInTheDocument();
-    expect(await screen.findByText('ORD-88291')).toBeInTheDocument();
+    expect(screen.queryByText('ORD-88291')).not.toBeInTheDocument();
+    const orderDate = document.querySelector('.order-date');
+    expect(orderDate).toBeInTheDocument();
+    expect(orderDate).toHaveClass('order-date');
   });
 
   it('switches active tab', async () => {

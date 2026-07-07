@@ -1,0 +1,74 @@
+.role-select-page {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  background: linear-gradient(180deg, #f8fbff 0%, #f3f6fa 100%);
+}
+
+.role-select-main {
+  display: flex;
+  box-sizing: border-box;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx 32rpx calc(40rpx + env(safe-area-inset-bottom));
+}
+
+.role-select-card {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 640rpx;
+  padding: 48rpx 36rpx;
+  border: 1rpx solid #e3ebf5;
+  border-radius: 32rpx;
+  background: #fff;
+  box-shadow: 0 18rpx 48rpx rgb(15 56 110 / 10%);
+}
+
+.role-select-card--empty {
+  text-align: center;
+}
+
+.role-select-title,
+.role-select-subtitle {
+  display: block;
+  text-align: center;
+}
+
+.role-select-title {
+  font-size: 40rpx;
+  font-weight: 700;
+  line-height: 1.4;
+  color: #172b4d;
+}
+
+.role-select-subtitle {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #7b8da3;
+}
+
+.role-select-options {
+  display: flex;
+  margin-top: 40rpx;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.role-select-option {
+  padding: 24rpx;
+  border: 1rpx solid #e3ebf5;
+  border-radius: 24rpx;
+  background: #f8fbff;
+}
+
+.role-select-option-label {
+  display: block;
+  margin-bottom: 18rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  color: #273b55;
+}

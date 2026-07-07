@@ -94,7 +94,7 @@ export default function FavoritesPage() {
   }
 
   return (
-    <View className='page'>
+    <View className='page favorites-page'>
       <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--secondary'>
         <Navbar.NavLeft onClick={handleBack} />
         <Navbar.Title>收藏</Navbar.Title>
@@ -104,14 +104,16 @@ export default function FavoritesPage() {
           </Text>
         </Navbar.NavRight>
       </Navbar>
-      <View className='page-content'>
+      <View className='page-content favorites-content'>
         {items.length === 0 ? (
-          <Empty>
-            <Empty.Image src='default' />
-            <Empty.Description>
-              {loading ? '正在加载收藏...' : '暂无收藏，保存后方便再次查看。'}
-            </Empty.Description>
-          </Empty>
+          <View className='favorites-empty-card'>
+            <Empty>
+              <Empty.Image src='default' />
+              <Empty.Description>
+                {loading ? '正在加载收藏...' : '暂无收藏，保存后方便再次查看。'}
+              </Empty.Description>
+            </Empty>
+          </View>
         ) : (
           <View className='favorites-list'>
             {items.map((item) => {
@@ -140,7 +142,7 @@ export default function FavoritesPage() {
                     <View className='favorite-card-copy'>
                       <View className='favorite-card-heading'>
                         <Text className='favorite-card-title'>{productName}</Text>
-                        <Tag size='small' variant='outlined' color='primary'>
+                        <Tag className='favorite-card-tier' size='small' variant='outlined' color='primary'>
                           {primaryTier ? formatTierLabel(primaryTier) : '报价'}
                         </Tag>
                       </View>
@@ -151,28 +153,29 @@ export default function FavoritesPage() {
 
                   <View className='favorite-card-actions'>
                     <Button
+                      className='favorite-card-action favorite-card-action--detail'
                       size='small'
                       variant='outlined'
                       onClick={() => navigateTo(goodsDetailRoute(item.sku.spuId))}
                     >
                       查看
                     </Button>
-                    <View className='favorite-card-action-group'>
-                      <Button
-                        size='small'
-                        variant='outlined'
-                        onClick={() => void handleRemove(item.sku.id)}
-                      >
-                        移除
-                      </Button>
-                      <Button
-                        size='small'
-                        color='primary'
-                        onClick={() => void handleAddToCart(item.sku.id)}
-                      >
-                        加入购物车
-                      </Button>
-                    </View>
+                    <Button
+                      className='favorite-card-action favorite-card-action--remove'
+                      size='small'
+                      variant='outlined'
+                      onClick={() => void handleRemove(item.sku.id)}
+                    >
+                      移除
+                    </Button>
+                    <Button
+                      className='favorite-card-action favorite-card-action--cart'
+                      size='small'
+                      color='primary'
+                      onClick={() => void handleAddToCart(item.sku.id)}
+                    >
+                      加入购物车
+                    </Button>
                   </View>
                 </View>
               )

@@ -119,6 +119,36 @@ describe('LoginPage', () => {
     expect(screen.queryByText('测试登录')).not.toBeInTheDocument()
   })
 
+  it('opens the privacy policy without toggling the agreement', async () => {
+    const { LoginPage, Taro: runtimeTaro } = loadLoginModule()
+    await renderLoginPage(LoginPage)
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('隐私政策'))
+      await flushPromises()
+    })
+
+    expect(runtimeTaro.navigateTo).toHaveBeenCalledWith({
+      url: '/pages/policy/index?type=privacy'
+    })
+    expect(document.querySelector('.login-checkbox')).not.toHaveClass('login-checkbox--checked')
+  })
+
+  it('opens the user service agreement without toggling the agreement', async () => {
+    const { LoginPage, Taro: runtimeTaro } = loadLoginModule()
+    await renderLoginPage(LoginPage)
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('用户服务协议'))
+      await flushPromises()
+    })
+
+    expect(runtimeTaro.navigateTo).toHaveBeenCalledWith({
+      url: '/pages/policy/index?type=terms'
+    })
+    expect(document.querySelector('.login-checkbox')).not.toHaveClass('login-checkbox--checked')
+  })
+
   it('renders isolated mock role login actions', async () => {
     const { LoginPage } = loadLoginModule({ platform: 'alipay', isIsolatedMock: true })
     await renderLoginPage(LoginPage)

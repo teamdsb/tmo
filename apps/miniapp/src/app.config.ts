@@ -23,6 +23,7 @@ export default defineAppConfig({
     'pages/import/index',
     'pages/tracking/batch/index',
     'pages/settings/index',
+    'pages/policy/index',
     'pages/sales/index',
     'pages/support/index',
     'pages/support/chat/index',

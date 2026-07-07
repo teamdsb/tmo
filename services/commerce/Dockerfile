@@ -16,12 +16,15 @@ COPY packages/go-shared ./packages/go-shared
 COPY services ./services
 
 RUN cd services/commerce && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-	go build -trimpath -ldflags "-s -w" -o /out/commerce ./cmd/commerce
+	go build -trimpath -ldflags "-s -w" -o /out/commerce ./cmd/commerce && \
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+	go build -trimpath -ldflags "-s -w" -o /out/catalog-image-optimize ./cmd/catalog-image-optimize
 
 ARG GCR_MIRROR_PREFIX=
 FROM ${GCR_MIRROR_PREFIX}gcr.io/distroless/base-debian12:nonroot
 
 COPY --from=build /out/commerce /app/commerce
+COPY --from=build /out/catalog-image-optimize /app/catalog-image-optimize
 
 USER nonroot:nonroot
 EXPOSE 8080

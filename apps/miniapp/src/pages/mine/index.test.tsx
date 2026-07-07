@@ -288,7 +288,10 @@ describe('PersonalCenter', () => {
     fireEvent.click(screen.getByText('查看全部'))
 
     expect(await screen.findByText('订单列表')).toBeInTheDocument()
-    expect(await screen.findByText('ORD-88291')).toBeInTheDocument()
+    const orderDate = document.querySelector('.mine-order-date')
+    expect(orderDate).toBeInTheDocument()
+    expect(orderDate).toHaveClass('font-bold')
+    expect(screen.queryByText('ORD-88291')).not.toBeInTheDocument()
     expect(screen.getAllByText('工业阀门').length).toBeGreaterThan(0)
     expect(Taro.navigateTo).not.toHaveBeenCalledWith({
       url: '/pages/order/list/index'
@@ -354,7 +357,8 @@ describe('PersonalCenter', () => {
     })
 
     expect(await screen.findByText('订单列表')).toBeInTheDocument()
-    expect(screen.getByText('ORD-88291')).toBeInTheDocument()
+    expect(document.querySelector('.mine-order-date')).toHaveClass('font-bold')
+    expect(screen.queryByText('ORD-88291')).not.toBeInTheDocument()
     expect(Taro.navigateTo).not.toHaveBeenCalledWith({
       url: '/pages/order/list/index'
     })

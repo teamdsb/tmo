@@ -439,8 +439,7 @@ export function OrderManagementView({ orders, initialTab, loading = false, onBac
           >
             <View className='mb-3 flex items-start justify-between gap-3'>
               <View className='min-w-0 flex-1'>
-                <Text className='mine-order-id block text-sm font-bold'>{order.id}</Text>
-                <Text className='mine-order-date mt-1 block text-xs'>{order.date}</Text>
+                <Text className='mine-order-date block text-sm font-bold'>{order.date}</Text>
               </View>
               <View className='mine-order-status'>
                 <Text className='mine-order-status-text'>{order.status}</Text>

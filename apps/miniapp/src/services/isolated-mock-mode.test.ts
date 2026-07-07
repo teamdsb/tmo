@@ -76,6 +76,9 @@ describe('isolated mock mode', () => {
     expect(createdOrder.latestPaymentId).toBeTruthy()
     expect(createdOrder.paymentStatus).toBe('PAY_PENDING')
 
+    const cartAfterOrder = await commerceServices.cart.getCart()
+    expect(cartAfterOrder.items).toEqual([])
+
     const payment = await paymentServices.sessions.payForOrder(createdOrder.id)
     expect(payment.status).toBe('PAID')
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Button from '@taroify/core/button'
-import Cell from '@taroify/core/cell'
+import Navbar from '@taroify/core/navbar'
 import Taro from '@tarojs/taro'
 
 import { RoleSelectionRequiredError, type MiniLoginInput } from '@tmo/identity-services'
@@ -14,7 +14,10 @@ import {
   savePendingRoleSelection
 } from '../../../services/bootstrap'
 import { ROUTES } from '../../../routes'
+import { getNavbarStyle } from '../../../utils/navbar'
 import { switchTabLike } from '../../../utils/navigation'
+
+import './index.scss'
 
 const ROLE_LABELS: Record<string, string> = {
   CUSTOMER: '客户',
@@ -22,6 +25,7 @@ const ROLE_LABELS: Record<string, string> = {
 }
 
 export default function RoleSelectPage() {
+  const navbarStyle = getNavbarStyle()
   const [roles, setRoles] = useState<string[]>([])
   const [pendingContext, setPendingContext] = useState<{ scene?: string; bindingToken?: string } | null>(null)
   const [loadingRole, setLoadingRole] = useState<string | null>(null)
@@ -82,11 +86,15 @@ export default function RoleSelectPage() {
 
   if (entries.length === 0) {
     return (
-      <View className='page'>
-        <View className='page-content'>
-          <Text className='section-title'>需要选择角色</Text>
-          <Text className='section-subtitle'>未发现可用角色，请重新打开应用。</Text>
-          <View className='placeholder-actions'>
+      <View className='page role-select-page'>
+        <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--secondary'>
+          <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.authLogin))} />
+          <Navbar.Title>选择角色</Navbar.Title>
+        </Navbar>
+        <View className='role-select-main'>
+          <View className='role-select-card role-select-card--empty'>
+            <Text className='role-select-title'>需要选择角色</Text>
+            <Text className='role-select-subtitle'>未发现可用角色，请重新打开应用。</Text>
             <Button color='primary' onClick={() => switchTabLike(ROUTES.home)}>
               返回首页
             </Button>
@@ -97,28 +105,32 @@ export default function RoleSelectPage() {
   }
 
   return (
-    <View className='page'>
-      <View className='page-content'>
-        <Text className='section-title'>选择角色</Text>
-        <Text className='section-subtitle'>请选择要进入的角色。</Text>
+    <View className='page role-select-page'>
+      <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--secondary'>
+        <Navbar.NavLeft onClick={() => Taro.navigateBack().catch(() => switchTabLike(ROUTES.authLogin))} />
+        <Navbar.Title>选择角色</Navbar.Title>
+      </Navbar>
+      <View className='role-select-main'>
+        <View className='role-select-card'>
+          <Text className='role-select-title'>选择登录身份</Text>
+          <Text className='role-select-subtitle'>请选择本次进入应用使用的身份</Text>
+          <View className='role-select-options'>
+            {entries.map((entry) => (
+              <View className='role-select-option' key={entry.code}>
+                <Text className='role-select-option-label'>{entry.label}</Text>
+                <Button
+                  block
+                  color='primary'
+                  loading={loadingRole === entry.code}
+                  onClick={() => handleSelect(entry.code)}
+                >
+                  以{entry.label}身份进入
+                </Button>
+              </View>
+            ))}
+          </View>
+        </View>
       </View>
-      <Cell.Group inset>
-        {entries.map((entry) => (
-          <Cell key={entry.code} clickable>
-            <View className='flex flex-col gap-2'>
-              <Text className='text-sm font-semibold'>{entry.label}</Text>
-              <Button
-                size='small'
-                color='primary'
-                loading={loadingRole === entry.code}
-                onClick={() => handleSelect(entry.code)}
-              >
-                继续
-              </Button>
-            </View>
-          </Cell>
-        ))}
-      </Cell.Group>
     </View>
   )
 }
