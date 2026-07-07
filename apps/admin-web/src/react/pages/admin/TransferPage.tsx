@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { formatPhoneForDisplay } from '@tmo/shared/formatters';
 
 import {
   batchTransferCustomers,
@@ -911,11 +912,11 @@ export const TransferPage = () => {
                         </td>
                         <td className="px-4 py-3">
                           <p className="font-medium text-text-primary-light dark:text-text-primary-dark">{customer.displayName}</p>
-                          <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{customer.phone || '-'}</p>
+                          <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{formatPhoneForDisplay(customer.phone, '-')}</p>
                         </td>
                         <td className="px-4 py-3">
                           <p className="text-text-primary-light dark:text-text-primary-dark">{customer.ownerSales?.displayName || '未分配'}</p>
-                          <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{customer.ownerSales?.phone || '-'}</p>
+                          <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{formatPhoneForDisplay(customer.ownerSales?.phone, '-')}</p>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-wrap gap-1">

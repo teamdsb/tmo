@@ -30,6 +30,9 @@ importers:
       '@tmo/identity-api-client':
         specifier: workspace:*
         version: link:../../packages/identity-api-client
+      '@tmo/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
@@ -154,6 +157,9 @@ importers:
       '@tmo/platform-adapter':
         specifier: workspace:*
         version: link:../../packages/platform-adapter
+      '@tmo/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@18.3.1)

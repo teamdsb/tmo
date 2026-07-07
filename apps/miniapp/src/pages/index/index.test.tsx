@@ -225,6 +225,36 @@ describe('ProductCatalogApp', () => {
     expect(screen.queryByText('敬请期待')).not.toBeInTheDocument();
   });
 
+  it('renders catalog categories immediately when display categories never resolve', async () => {
+    let resolveDisplayCategories: (value: { items: never[] }) => void = () => undefined;
+    (commerceServices.catalog.listCategories as jest.Mock).mockResolvedValue({
+      items: [
+        { id: 'fasteners', name: '紧固件' },
+        { id: 'electrical', name: '电气' },
+        { id: 'safety', name: '安全防护' },
+        { id: 'tools', name: '工具' },
+        { id: 'instrumentation', name: '仪器仪表' },
+        { id: 'janitorial', name: '劳保清洁' },
+        { id: 'office', name: '办公文具' },
+        { id: 'packaging', name: '包装耗材' }
+      ]
+    });
+    (commerceServices.catalog.listDisplayCategories as jest.Mock).mockImplementation(() => new Promise<{ items: never[] }>((resolve) => {
+      resolveDisplayCategories = resolve;
+    }));
+
+    render(<ProductCatalogApp />);
+
+    expect(commerceServices.catalog.listCategories).toHaveBeenCalled();
+    expect(await screen.findByText('包装耗材')).toBeInTheDocument();
+    expect(screen.queryByText('敬请期待')).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveDisplayCategories({ items: [] });
+      await Promise.resolve();
+    });
+  });
+
   it('shows demand hint when home search has no result and navigates to demand create', async () => {
     (commerceServices.catalog.listProducts as jest.Mock).mockImplementation(async ({ q } = {}) => {
       if (q) {

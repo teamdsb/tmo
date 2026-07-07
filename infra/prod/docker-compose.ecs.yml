@@ -23,7 +23,7 @@ services:
 
   identity-migrate:
     profiles: ["tools"]
-    image: golang:1.26
+    image: ${DOCKERHUB_MIRROR_PREFIX:-}golang:1.26-alpine
     working_dir: /workspace
     environment:
       GOPROXY: ${BUILD_GOPROXY:-https://proxy.golang.org,direct}
@@ -39,7 +39,7 @@ services:
 
   commerce-migrate:
     profiles: ["tools"]
-    image: golang:1.26
+    image: ${DOCKERHUB_MIRROR_PREFIX:-}golang:1.26-alpine
     working_dir: /workspace
     environment:
       GOPROXY: ${BUILD_GOPROXY:-https://proxy.golang.org,direct}
@@ -151,8 +151,8 @@ services:
       PAYMENT_LOG_LEVEL: ${PAYMENT_LOG_LEVEL:-info}
       PAYMENT_AUTH_ENABLED: ${PAYMENT_AUTH_ENABLED:-false}
       PAYMENT_DB_DSN: ${PAYMENT_DB_DSN:?set PAYMENT_DB_DSN in env file}
-      PAYMENT_JWT_SECRET: ${PAYMENT_JWT_SECRET:-${IDENTITY_JWT_SECRET}}
-      PAYMENT_JWT_ISSUER: ${PAYMENT_JWT_ISSUER:-${IDENTITY_JWT_ISSUER:-tmo-identity}}
+      PAYMENT_JWT_SECRET: ${PAYMENT_JWT_SECRET}
+      PAYMENT_JWT_ISSUER: ${PAYMENT_JWT_ISSUER}
       PAYMENT_IDENTITY_BASE_URL: http://identity:8081
       PAYMENT_COMMERCE_BASE_URL: http://commerce:8082
       PAYMENT_COMMERCE_SYNC_TOKEN: ${PAYMENT_COMMERCE_SYNC_TOKEN:?set PAYMENT_COMMERCE_SYNC_TOKEN in env file}

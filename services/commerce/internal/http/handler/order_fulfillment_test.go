@@ -28,12 +28,12 @@ func TestResolveOrderFulfillmentTransition(t *testing.T) {
 			name:           "offline payment confirms an unpaid order",
 			order:          db.Order{Status: "SUBMITTED", PaymentStatus: "UNPAID"},
 			confirmOffline: true, wantStatus: "CONFIRMED", wantPayment: "PAID",
-			wantChannel: stringPointer("OFFLINE"), wantClearPayID: true,
+			wantChannel: stringPointerForFulfillment("OFFLINE"), wantClearPayID: true,
 		},
 		{
 			name:       "online paid order can be assigned without rewriting payment",
-			order:      db.Order{Status: "PAID", PaymentStatus: "PAID", PaymentChannel: stringPointer("WECHAT"), LatestPaymentID: pgtype.UUID{Bytes: onlinePaymentID, Valid: true}, PaidAt: paidAt},
-			wantStatus: "CONFIRMED", wantPayment: "PAID", wantChannel: stringPointer("WECHAT"),
+			order:      db.Order{Status: "PAID", PaymentStatus: "PAID", PaymentChannel: stringPointerForFulfillment("WECHAT"), LatestPaymentID: pgtype.UUID{Bytes: onlinePaymentID, Valid: true}, PaidAt: paidAt},
+			wantStatus: "CONFIRMED", wantPayment: "PAID", wantChannel: stringPointerForFulfillment("WECHAT"),
 		},
 		{
 			name:       "confirmed paid order can be reassigned",
@@ -100,7 +100,7 @@ func TestFulfillmentAction(t *testing.T) {
 	}
 }
 
-func stringPointer(value string) *string { return &value }
+func stringPointerForFulfillment(value string) *string { return &value }
 func stringValue(value *string) string {
 	if value == nil {
 		return ""

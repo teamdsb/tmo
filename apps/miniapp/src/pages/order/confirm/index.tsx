@@ -15,6 +15,7 @@ import { ensureLoggedIn } from '../../../utils/auth'
 import { commerceServices } from '../../../services/commerce'
 import { clearSelectedUserAddressId, getSelectedUserAddressId, listUserAddresses } from '../../../services/addresses'
 import { isPaymentCancelled, paymentServices } from '../../../services/payment'
+import { buildOrderPaymentIdempotencyKey, resolvePaymentAvailability } from '../../../services/payment-availability'
 import './index.scss'
 
 export default function OrderConfirmPage() {
@@ -191,25 +192,32 @@ export default function OrderConfirmPage() {
       let toastTitle = '订单已提交'
       let toastIcon: 'success' | 'none' = 'success'
       let paymentConfirmed = false
+      const paymentAvailability = await resolvePaymentAvailability()
 
-      try {
-        const payment = await paymentServices.sessions.payForOrder(order.id)
-        const paymentStatus = String(payment.status || '').toUpperCase()
-        if (paymentStatus === 'PAID') {
-          toastTitle = '支付成功'
-          paymentConfirmed = true
-        } else {
-          toastTitle = '订单已提交，支付确认中'
+      if (!paymentAvailability.available) {
+        toastTitle = '订单已提交，待销售确认'
+      } else {
+        try {
+          const payment = await paymentServices.sessions.payForOrder(order.id, {
+            idempotencyKey: buildOrderPaymentIdempotencyKey(order.id)
+          })
+          const paymentStatus = String(payment.status || '').toUpperCase()
+          if (paymentStatus === 'PAID') {
+            toastTitle = '支付成功'
+            paymentConfirmed = true
+          } else {
+            toastTitle = '订单已提交，支付确认中'
+            toastIcon = 'none'
+          }
+        } catch (paymentError) {
+          console.warn('pay order failed', paymentError)
+          if (isPaymentCancelled(paymentError)) {
+            toastTitle = '支付已取消，可稍后继续支付'
+          } else {
+            toastTitle = '支付未完成，请重试或刷新状态'
+          }
           toastIcon = 'none'
         }
-      } catch (paymentError) {
-        console.warn('pay order failed', paymentError)
-        if (isPaymentCancelled(paymentError)) {
-          toastTitle = '订单已提交，支付已取消'
-        } else {
-          toastTitle = '订单已提交，待确认支付'
-        }
-        toastIcon = 'none'
       }
 
       await Taro.showToast({ title: toastTitle, icon: toastIcon })

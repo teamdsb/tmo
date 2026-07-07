@@ -282,6 +282,20 @@ bash tools/scripts/miniapp-customer-evidence.sh
 - `MINIAPP_CUSTOMER_EVIDENCE_GATEWAY_BASE_URL`：默认 `http://localhost:8080`
 - `MINIAPP_CUSTOMER_EVIDENCE_ADMIN_USERNAME` / `MINIAPP_CUSTOMER_EVIDENCE_ADMIN_PASSWORD`：默认 `admin/admin123`
 
+## 业务员真实客户列表 E2E
+
+构建微信小程序后，使用业务员账号跑真实接口链路：
+
+```bash
+TARO_APP_API_BASE_URL=https://test.example.com \
+WEAPP_SALES_E2E_API_BASE_URL=https://test.example.com \
+WEAPP_SALES_E2E_USERNAME=3059 \
+WEAPP_SALES_E2E_PASSWORD='<from-secret-store>' \
+pnpm run test:e2e:weapp:sales-customers-real:dev
+```
+
+也可以只传 `WEAPP_SALES_E2E_ACCESS_TOKEN`，或复用开发者工具中已登录的业务员会话。默认断言显示“用户5622、4556、4435、1446”、不显示“用户3059”，并检查中国手机号以 `+86 ` 展示。可通过 `WEAPP_SALES_E2E_EXPECTED_NAMES` 和 `WEAPP_SALES_E2E_EXCLUDED_NAMES` 覆盖。成功时会在 `tmp/e2e/sales-customers/` 生成截图与 JSON 结果，失败时保留失败截图。
+
 ## 微信真实 Catalog / Inquiry E2E
 
 该 E2E 用于验证“真实登录后继续读取真实首页/分类/商品详情，并完成一次真实询价动作”主链路，脚本在 `apps/miniapp/scripts/weapp-catalog-real-e2e.js`。

@@ -7,7 +7,6 @@ import {
   OrdersOutlined
 } from '@taroify/icons'
 import type {
-  Customer,
   CustomerSubFilter,
   CustomerSubOrder,
   NavItem,
@@ -18,13 +17,6 @@ import type {
 
 export const PROFILE_IMAGE_URL =
   'https://lh3.googleusercontent.com/aida-public/AB6AXuDS-Ii8-RYQWRHi7NRn7ujP4nBj5b27SqsnQlr_jvCr1fNZ90Xa8PTUAgyVff7zsjkZ-CVcpfqpAFImVPrHYYkc7sQ2SK11qP1fyuoHScxGlRWJWip7l6hx-vy7vDIPO79FUnu-avStjGabIojNzp5t-Cm_8yomJTd7f4VrGZgGKs65ExahSrNzzSFs0bhWkesNgUYkN4W8o2VLTqF7AICOtosah3hqXwPjHUarAXV6Gr2wFfDyN2jCHHgOG2BTs8jfp5Cd8GXDHu8'
-
-export const customersData: Customer[] = [
-  { id: 1, initial: 'A', name: 'Acme 集团', contact: '张伟', active: '2天前', orders: 3 },
-  { id: 2, initial: 'G', name: '环球贸易科技', contact: '李娜', active: '1周前', orders: 2 },
-  { id: 3, initial: 'S', name: '星辰实业', contact: '王建国', active: '今天', orders: 2 },
-  { id: 4, initial: 'I', name: '创新动力', contact: '赵小龙', active: '3天前', orders: 1 }
-]
 
 export const settledOrdersData: SettledOrder[] = [
   { id: 'ORD-2023-089', company: '星辰实业', date: '8月24日', amount: '$12,450', commission: '+$622.50' },

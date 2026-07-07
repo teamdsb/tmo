@@ -20,6 +20,7 @@
     "@tmo/api-client": "workspace:*",
     "@tmo/gateway-api-client": "workspace:*",
     "@tmo/identity-api-client": "workspace:*",
+    "@tmo/shared": "workspace:*",
     "jszip": "^3.10.1",
     "lucide-react": "^0.469.0",
     "react": "^18.3.1",

@@ -166,6 +166,40 @@ export const createMockIdentityServices = (): IdentityServices => {
         }
       }
     },
+    customers: {
+      list: async (params = {}) => {
+        await ensureAuthorized()
+        const allCustomers = [
+          {
+            id: 'mock-customer-001',
+            displayName: 'Customer Dev',
+            phone: '+8613800138000',
+            ownerSalesUserId: 'mock_sales_001',
+            createdAt: '2026-01-01T00:00:00Z'
+          },
+          {
+            id: 'mock-customer-002',
+            displayName: '多角色客户',
+            phone: null,
+            ownerSalesUserId: 'mock_sales_001',
+            createdAt: '2026-01-02T00:00:00Z'
+          }
+        ]
+        const query = String(params.q || '').trim().toLowerCase()
+        const items = query
+          ? allCustomers.filter((customer) => (
+            customer.displayName.toLowerCase().includes(query)
+            || String(customer.phone || '').toLowerCase().includes(query)
+          ))
+          : allCustomers
+        return {
+          items,
+          page: params.page || 1,
+          pageSize: params.pageSize || 20,
+          total: items.length
+        }
+      }
+    },
     tokens
   }
 }

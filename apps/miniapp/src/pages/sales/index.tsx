@@ -14,6 +14,7 @@ import { identityServices } from '../../services/identity'
 import { getCurrentRole, hasRole } from '../../utils/authz'
 
 type SalesQrCode = Awaited<ReturnType<typeof identityServices.me.getSalesQrCode>>
+type SalesCustomer = Awaited<ReturnType<typeof identityServices.customers.list>>['items'][number]
 
 export default function SalesPage() {
   const [activeTab, setActiveTab] = useState<SalesTab>('dashboard')
@@ -23,6 +24,9 @@ export default function SalesPage() {
   const [qrLoading, setQrLoading] = useState(false)
   const [qrError, setQrError] = useState('')
   const refreshInFlight = useRef(false)
+  const [customers, setCustomers] = useState<SalesCustomer[]>([])
+  const [customersLoading, setCustomersLoading] = useState(false)
+  const [customersError, setCustomersError] = useState('')
   const isH5 = process.env.TARO_ENV === 'h5'
   const navbarStyle = getNavbarStyle()
   const pageStyle = navbarStyle as CSSProperties
@@ -79,12 +83,41 @@ export default function SalesPage() {
     }
   }, [])
 
+  const refreshSalesCustomers = useCallback(async (query = '') => {
+    setCustomersLoading(true)
+    setCustomersError('')
+    try {
+      const normalizedQuery = query.trim()
+      const result = await identityServices.customers.list({
+        page: 1,
+        pageSize: 20,
+        ...(normalizedQuery ? { q: normalizedQuery } : {})
+      })
+      setCustomers(result.items)
+    } catch (error) {
+      console.warn('load sales customers failed', error)
+      setCustomers([])
+      setCustomersError('客户加载失败，请稍后重试。')
+    } finally {
+      setCustomersLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     void refreshSalesDashboard()
   }, [refreshSalesDashboard])
 
+  useEffect(() => {
+    if (activeTab === 'customers') {
+      void refreshSalesCustomers()
+    }
+  }, [activeTab, refreshSalesCustomers])
+
   useDidShow(() => {
     void refreshSalesDashboard()
+    if (activeTab === 'customers') {
+      void refreshSalesCustomers()
+    }
   })
 
   return (
@@ -117,7 +150,14 @@ export default function SalesPage() {
               onRefreshQr={() => void refreshSalesDashboard()}
             />
           ) : null}
-          {activeTab === 'customers' ? <CustomersView /> : null}
+          {activeTab === 'customers' ? (
+            <CustomersView
+              customers={customers}
+              error={customersError}
+              loading={customersLoading}
+              onSearch={(query) => void refreshSalesCustomers(query)}
+            />
+          ) : null}
           {activeTab === 'orders' ? <OrdersView /> : null}
           {activeTab === 'accounting' ? <AccountingView /> : null}
         </View>
@@ -130,6 +170,7 @@ export default function SalesPage() {
             return (
               <View
                 key={key}
+                id={`sales-tab-${key}`}
                 onClick={() => setActiveTab(key)}
                 className={`flex flex-1 flex-col items-center justify-end gap-1 ${active ? 'sales-primary-text' : 'text-slate-500'}`}
               >

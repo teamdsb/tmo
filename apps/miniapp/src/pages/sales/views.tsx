@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Image, Input, Text, View } from '@tarojs/components'
 import { ArrowDown, ArrowRight, Qr, Search, TodoList } from '@taroify/icons'
+import type { Customer } from '@tmo/identity-services'
+import { formatPhoneForDisplay } from '@tmo/shared/formatters'
 import {
   accountingListIcon,
   accountingSummaryCards,
   customerSubFilters,
-  customersData,
   getStatusTone,
   ordersListData,
   settledOrdersData
@@ -81,7 +82,28 @@ export function DashboardView({
   )
 }
 
-export function CustomersView() {
+type CustomersViewProps = {
+  customers: Customer[]
+  error: string
+  loading: boolean
+  onSearch: (query: string) => void
+}
+
+const formatCreatedAt = (createdAt: string): string => {
+  const date = new Date(createdAt)
+  if (Number.isNaN(date.getTime())) {
+    return '未知'
+  }
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+}
+
+export function CustomersView({ customers, error, loading, onSearch }: CustomersViewProps) {
+  const [query, setQuery] = useState('')
+
   return (
     <View className='sales-screen sales-customers-screen'>
       <View className='sales-page-header'>
@@ -99,27 +121,35 @@ export function CustomersView() {
           className='sales-search-input'
           placeholder='搜索客户...'
           confirmType='search'
+          value={query}
+          onInput={(event) => setQuery(event.detail.value)}
+          onConfirm={() => onSearch(query)}
         />
       </View>
 
-      <View className='sales-list-stack'>
-        {customersData.map((customer) => (
-          <View key={customer.id} className='sales-customer-card'>
+      <View className='sales-list-stack' id='sales-customer-list'>
+        {loading ? <Text className='sales-empty-copy'>正在加载客户...</Text> : null}
+        {!loading && error ? <Text className='sales-empty-copy'>{error}</Text> : null}
+        {!loading && !error && customers.length === 0 ? (
+          <Text className='sales-empty-copy'>{query.trim() ? '未找到匹配客户' : '暂无客户'}</Text>
+        ) : null}
+        {!loading && !error ? customers.map((customer) => (
+          <View key={customer.id} className='sales-customer-card' id={`sales-customer-${customer.id}`}>
             <View className='sales-customer-leading'>
               <View className='sales-customer-avatar'>
-                <Text className='sales-customer-avatar-text'>{customer.initial}</Text>
+                <Text className='sales-customer-avatar-text'>{customer.displayName.trim().slice(0, 1) || '客'}</Text>
               </View>
               <View className='sales-customer-body'>
-                <Text className='sales-customer-name'>{customer.name}</Text>
-                <Text className='sales-customer-contact'>{customer.contact}</Text>
+                <Text className='sales-customer-name'>{customer.displayName.trim() || '未命名客户'}</Text>
+                <Text className='sales-customer-contact'>{formatPhoneForDisplay(customer.phone)}</Text>
                 <Text className='sales-customer-meta'>
-                  最近活跃: {customer.active} · 共 {customer.orders} 笔订单
+                  创建时间：{formatCreatedAt(customer.createdAt)}
                 </Text>
               </View>
             </View>
             <ArrowRight className='sales-customer-chevron' />
           </View>
-        ))}
+        )) : null}
       </View>
     </View>
   )
