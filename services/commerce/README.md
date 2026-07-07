@@ -129,6 +129,7 @@ Errors are returned as JSON in the shape:
 - `COMMERCE_HTTP_ADDR` (default `:8080`)
 - `COMMERCE_DB_DSN` (default local Postgres)
 - `COMMERCE_LOG_LEVEL` (`debug`, `info`, `warn`, `error`)
+- `COMMERCE_IDENTITY_BASE_URL` (default `http://localhost:8081`; used to validate order assignees)
 - `CATALOG_IMAGE_AUDIT_TIMEOUT` (default `30s`)
 - `CATALOG_IMAGE_MIGRATE_DRY_RUN` (default `true`)
 - `CATALOG_IMAGE_MIGRATE_LIMIT` (default `0`, means all products)

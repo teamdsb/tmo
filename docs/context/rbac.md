@@ -54,6 +54,7 @@ Catalog / Shopping:
 - cart:manage
 - order:create
 - order:read
+- order:manage
 - tracking:read
 
 Requests / After-sales / Negotiation:
@@ -126,17 +127,20 @@ Admin / Ops:
 - 角色说明：管理员/超管（技术管理员）
 - 工作端：admin-web
 - ALL permissions with ALL scope
+- `order:manage (ALL)` 允许确认线下收款、派单和发货前改派。
 
 ### BOSS
 - 角色说明：全业务全权限（ALL）
 - 工作端：admin-web
 - ALL permissions with ALL scope
+- `order:manage (ALL)` 允许确认线下收款、派单和发货前改派。
 
 ### MANAGER
 - 角色说明：运营管理与人员/客户管理（ALL）
 - 工作端：admin-web
 - catalog:read (ALL)
 - order:read (ALL)
+- order:manage (ALL)
 - tracking:read (ALL)
 - inquiry:manage (ALL)
 - product_request:read (ALL)

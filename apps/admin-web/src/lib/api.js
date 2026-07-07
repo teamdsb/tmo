@@ -233,6 +233,18 @@ export const fetchOrders = async (params = {}) => {
   return getOrders(params);
 };
 
+export const updateOrderFulfillment = async (orderId, payload, idempotencyKey) => {
+  return requestRaw(`/admin/orders/${encodeURIComponent(orderId)}/fulfillment`, {
+    method: 'PATCH',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: payload
+  });
+};
+
+export const fetchOrderAdminEvents = async (orderId) => {
+  return requestRaw(`/admin/orders/${encodeURIComponent(orderId)}/events`);
+};
+
 export const fetchInquiries = async (params = {}) => {
   return getInquiriesPrice(params);
 };

@@ -215,6 +215,22 @@ type Order struct {
 	PaidAt           pgtype.Timestamptz `db:"paid_at" json:"paid_at"`
 }
 
+type OrderAdminEvent struct {
+	ID                       uuid.UUID          `db:"id" json:"id"`
+	OrderID                  uuid.UUID          `db:"order_id" json:"order_id"`
+	IdempotencyKey           string             `db:"idempotency_key" json:"idempotency_key"`
+	ActorUserID              uuid.UUID          `db:"actor_user_id" json:"actor_user_id"`
+	Action                   string             `db:"action" json:"action"`
+	Note                     string             `db:"note" json:"note"`
+	PreviousStatus           string             `db:"previous_status" json:"previous_status"`
+	NewStatus                string             `db:"new_status" json:"new_status"`
+	PreviousPaymentStatus    string             `db:"previous_payment_status" json:"previous_payment_status"`
+	NewPaymentStatus         string             `db:"new_payment_status" json:"new_payment_status"`
+	PreviousOwnerSalesUserID pgtype.UUID        `db:"previous_owner_sales_user_id" json:"previous_owner_sales_user_id"`
+	NewOwnerSalesUserID      uuid.UUID          `db:"new_owner_sales_user_id" json:"new_owner_sales_user_id"`
+	CreatedAt                pgtype.Timestamptz `db:"created_at" json:"created_at"`
+}
+
 type OrderItem struct {
 	ID               uuid.UUID          `db:"id" json:"id"`
 	OrderID          uuid.UUID          `db:"order_id" json:"order_id"`

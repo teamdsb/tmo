@@ -686,6 +686,68 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Order"
+  "/admin/orders/{orderId}/fulfillment":
+    patch:
+      tags:
+      - Orders
+      summary: Confirm offline payment and assign, or reassign, an order
+      parameters:
+      - in: path
+        name: orderId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - in: header
+        name: Idempotency-Key
+        required: true
+        schema:
+          type: string
+          minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/UpdateOrderFulfillmentRequest"
+      responses:
+        '200':
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Order"
+        '400':
+          "$ref": "#/components/responses/BadRequest"
+        '403':
+          "$ref": "#/components/responses/Forbidden"
+        '404':
+          "$ref": "#/components/responses/NotFound"
+        '409':
+          "$ref": "#/components/responses/Conflict"
+  "/admin/orders/{orderId}/events":
+    get:
+      tags:
+      - Orders
+      summary: List administrative order events
+      parameters:
+      - in: path
+        name: orderId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Administrative event timeline
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/OrderAdminEventList"
+        '403':
+          "$ref": "#/components/responses/Forbidden"
+        '404':
+          "$ref": "#/components/responses/NotFound"
   "/orders/{orderId}/tracking":
     get:
       tags:
@@ -2032,6 +2094,10 @@ components:
           "$ref": "#/components/schemas/OrderStatus"
         paymentStatus:
           "$ref": "#/components/schemas/OrderPaymentStatus"
+        ownerSalesUserId:
+          type: string
+          format: uuid
+          nullable: true
         latestPaymentId:
           type: string
           format: uuid
@@ -2062,6 +2128,77 @@ components:
       - paymentStatus
       - items
       - createdAt
+    UpdateOrderFulfillmentRequest:
+      type: object
+      properties:
+        ownerSalesUserId:
+          type: string
+          format: uuid
+        note:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        confirmOfflinePayment:
+          type: boolean
+      required:
+      - ownerSalesUserId
+      - note
+      - confirmOfflinePayment
+    OrderAdminEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        actorUserId:
+          type: string
+          format: uuid
+        action:
+          type: string
+        note:
+          type: string
+        previousStatus:
+          "$ref": "#/components/schemas/OrderStatus"
+        newStatus:
+          "$ref": "#/components/schemas/OrderStatus"
+        previousPaymentStatus:
+          "$ref": "#/components/schemas/OrderPaymentStatus"
+        newPaymentStatus:
+          "$ref": "#/components/schemas/OrderPaymentStatus"
+        previousOwnerSalesUserId:
+          type: string
+          format: uuid
+          nullable: true
+        newOwnerSalesUserId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+      required:
+      - id
+      - orderId
+      - actorUserId
+      - action
+      - note
+      - previousStatus
+      - newStatus
+      - previousPaymentStatus
+      - newPaymentStatus
+      - newOwnerSalesUserId
+      - createdAt
+    OrderAdminEventList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            "$ref": "#/components/schemas/OrderAdminEvent"
+      required:
+      - items
     OrderPaymentStatus:
       type: string
       enum:

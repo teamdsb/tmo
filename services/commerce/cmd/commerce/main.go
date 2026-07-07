@@ -96,6 +96,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		InternalSyncToken:    cfg.InternalSyncToken,
 		DB:                   pool,
 		Auth:                 auth,
+		SalesValidator:       handler.NewIdentityClient(cfg.IdentityBaseURL, nil),
 		Logger:               logger,
 	}
 	(&productimport.Worker{

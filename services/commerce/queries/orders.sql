@@ -90,3 +90,32 @@ SET status = $2,
     updated_at = now()
 WHERE id = $1
 RETURNING *;
+
+-- name: UpdateOrderFulfillment :one
+UPDATE orders
+SET status = $2,
+    payment_status = $3,
+    latest_payment_id = $4,
+    payment_channel = $5,
+    paid_at = $6,
+    owner_sales_user_id = $7,
+    updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: CreateOrderAdminEvent :one
+INSERT INTO order_admin_events (
+    order_id, idempotency_key, actor_user_id, action, note,
+    previous_status, new_status, previous_payment_status, new_payment_status,
+    previous_owner_sales_user_id, new_owner_sales_user_id
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+RETURNING *;
+
+-- name: GetOrderAdminEventByIdempotencyKey :one
+SELECT * FROM order_admin_events
+WHERE order_id = $1 AND idempotency_key = $2;
+
+-- name: ListOrderAdminEvents :many
+SELECT * FROM order_admin_events
+WHERE order_id = $1
+ORDER BY created_at DESC, id DESC;

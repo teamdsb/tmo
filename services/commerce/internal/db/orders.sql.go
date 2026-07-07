@@ -94,6 +94,62 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 	return i, err
 }
 
+const createOrderAdminEvent = `-- name: CreateOrderAdminEvent :one
+INSERT INTO order_admin_events (
+    order_id, idempotency_key, actor_user_id, action, note,
+    previous_status, new_status, previous_payment_status, new_payment_status,
+    previous_owner_sales_user_id, new_owner_sales_user_id
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+RETURNING id, order_id, idempotency_key, actor_user_id, action, note, previous_status, new_status, previous_payment_status, new_payment_status, previous_owner_sales_user_id, new_owner_sales_user_id, created_at
+`
+
+type CreateOrderAdminEventParams struct {
+	OrderID                  uuid.UUID   `db:"order_id" json:"order_id"`
+	IdempotencyKey           string      `db:"idempotency_key" json:"idempotency_key"`
+	ActorUserID              uuid.UUID   `db:"actor_user_id" json:"actor_user_id"`
+	Action                   string      `db:"action" json:"action"`
+	Note                     string      `db:"note" json:"note"`
+	PreviousStatus           string      `db:"previous_status" json:"previous_status"`
+	NewStatus                string      `db:"new_status" json:"new_status"`
+	PreviousPaymentStatus    string      `db:"previous_payment_status" json:"previous_payment_status"`
+	NewPaymentStatus         string      `db:"new_payment_status" json:"new_payment_status"`
+	PreviousOwnerSalesUserID pgtype.UUID `db:"previous_owner_sales_user_id" json:"previous_owner_sales_user_id"`
+	NewOwnerSalesUserID      uuid.UUID   `db:"new_owner_sales_user_id" json:"new_owner_sales_user_id"`
+}
+
+func (q *Queries) CreateOrderAdminEvent(ctx context.Context, arg CreateOrderAdminEventParams) (OrderAdminEvent, error) {
+	row := q.db.QueryRow(ctx, createOrderAdminEvent,
+		arg.OrderID,
+		arg.IdempotencyKey,
+		arg.ActorUserID,
+		arg.Action,
+		arg.Note,
+		arg.PreviousStatus,
+		arg.NewStatus,
+		arg.PreviousPaymentStatus,
+		arg.NewPaymentStatus,
+		arg.PreviousOwnerSalesUserID,
+		arg.NewOwnerSalesUserID,
+	)
+	var i OrderAdminEvent
+	err := row.Scan(
+		&i.ID,
+		&i.OrderID,
+		&i.IdempotencyKey,
+		&i.ActorUserID,
+		&i.Action,
+		&i.Note,
+		&i.PreviousStatus,
+		&i.NewStatus,
+		&i.PreviousPaymentStatus,
+		&i.NewPaymentStatus,
+		&i.PreviousOwnerSalesUserID,
+		&i.NewOwnerSalesUserID,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const createOrderItem = `-- name: CreateOrderItem :one
 INSERT INTO order_items (
     order_id,
@@ -168,6 +224,37 @@ func (q *Queries) GetOrder(ctx context.Context, id uuid.UUID) (Order, error) {
 	return i, err
 }
 
+const getOrderAdminEventByIdempotencyKey = `-- name: GetOrderAdminEventByIdempotencyKey :one
+SELECT id, order_id, idempotency_key, actor_user_id, action, note, previous_status, new_status, previous_payment_status, new_payment_status, previous_owner_sales_user_id, new_owner_sales_user_id, created_at FROM order_admin_events
+WHERE order_id = $1 AND idempotency_key = $2
+`
+
+type GetOrderAdminEventByIdempotencyKeyParams struct {
+	OrderID        uuid.UUID `db:"order_id" json:"order_id"`
+	IdempotencyKey string    `db:"idempotency_key" json:"idempotency_key"`
+}
+
+func (q *Queries) GetOrderAdminEventByIdempotencyKey(ctx context.Context, arg GetOrderAdminEventByIdempotencyKeyParams) (OrderAdminEvent, error) {
+	row := q.db.QueryRow(ctx, getOrderAdminEventByIdempotencyKey, arg.OrderID, arg.IdempotencyKey)
+	var i OrderAdminEvent
+	err := row.Scan(
+		&i.ID,
+		&i.OrderID,
+		&i.IdempotencyKey,
+		&i.ActorUserID,
+		&i.Action,
+		&i.Note,
+		&i.PreviousStatus,
+		&i.NewStatus,
+		&i.PreviousPaymentStatus,
+		&i.NewPaymentStatus,
+		&i.PreviousOwnerSalesUserID,
+		&i.NewOwnerSalesUserID,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getOrderByIdempotencyKey = `-- name: GetOrderByIdempotencyKey :one
 SELECT id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at
 FROM orders
@@ -226,6 +313,46 @@ func (q *Queries) GetOrderForUpdate(ctx context.Context, id uuid.UUID) (Order, e
 		&i.PaidAt,
 	)
 	return i, err
+}
+
+const listOrderAdminEvents = `-- name: ListOrderAdminEvents :many
+SELECT id, order_id, idempotency_key, actor_user_id, action, note, previous_status, new_status, previous_payment_status, new_payment_status, previous_owner_sales_user_id, new_owner_sales_user_id, created_at FROM order_admin_events
+WHERE order_id = $1
+ORDER BY created_at DESC, id DESC
+`
+
+func (q *Queries) ListOrderAdminEvents(ctx context.Context, orderID uuid.UUID) ([]OrderAdminEvent, error) {
+	rows, err := q.db.Query(ctx, listOrderAdminEvents, orderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []OrderAdminEvent
+	for rows.Next() {
+		var i OrderAdminEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrderID,
+			&i.IdempotencyKey,
+			&i.ActorUserID,
+			&i.Action,
+			&i.Note,
+			&i.PreviousStatus,
+			&i.NewStatus,
+			&i.PreviousPaymentStatus,
+			&i.NewPaymentStatus,
+			&i.PreviousOwnerSalesUserID,
+			&i.NewOwnerSalesUserID,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listOrderItems = `-- name: ListOrderItems :many
@@ -359,6 +486,58 @@ func (q *Queries) ListOrders(ctx context.Context, arg ListOrdersParams) ([]Order
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateOrderFulfillment = `-- name: UpdateOrderFulfillment :one
+UPDATE orders
+SET status = $2,
+    payment_status = $3,
+    latest_payment_id = $4,
+    payment_channel = $5,
+    paid_at = $6,
+    owner_sales_user_id = $7,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at
+`
+
+type UpdateOrderFulfillmentParams struct {
+	ID               uuid.UUID          `db:"id" json:"id"`
+	Status           string             `db:"status" json:"status"`
+	PaymentStatus    string             `db:"payment_status" json:"payment_status"`
+	LatestPaymentID  pgtype.UUID        `db:"latest_payment_id" json:"latest_payment_id"`
+	PaymentChannel   *string            `db:"payment_channel" json:"payment_channel"`
+	PaidAt           pgtype.Timestamptz `db:"paid_at" json:"paid_at"`
+	OwnerSalesUserID pgtype.UUID        `db:"owner_sales_user_id" json:"owner_sales_user_id"`
+}
+
+func (q *Queries) UpdateOrderFulfillment(ctx context.Context, arg UpdateOrderFulfillmentParams) (Order, error) {
+	row := q.db.QueryRow(ctx, updateOrderFulfillment,
+		arg.ID,
+		arg.Status,
+		arg.PaymentStatus,
+		arg.LatestPaymentID,
+		arg.PaymentChannel,
+		arg.PaidAt,
+		arg.OwnerSalesUserID,
+	)
+	var i Order
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.CustomerID,
+		&i.OwnerSalesUserID,
+		&i.Address,
+		&i.Remark,
+		&i.IdempotencyKey,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PaymentStatus,
+		&i.LatestPaymentID,
+		&i.PaymentChannel,
+		&i.PaidAt,
+	)
+	return i, err
 }
 
 const updateOrderPaymentSummary = `-- name: UpdateOrderPaymentSummary :one

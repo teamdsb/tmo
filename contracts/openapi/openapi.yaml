@@ -107,6 +107,10 @@ paths:
     $ref: "./commerce.yaml#/paths/~1orders"
   /orders/{orderId}:
     $ref: "./commerce.yaml#/paths/~1orders~1{orderId}"
+  /admin/orders/{orderId}/fulfillment:
+    $ref: "./commerce.yaml#/paths/~1admin~1orders~1{orderId}~1fulfillment"
+  /admin/orders/{orderId}/events:
+    $ref: "./commerce.yaml#/paths/~1admin~1orders~1{orderId}~1events"
   /orders/stats:
     $ref: "./commerce.yaml#/paths/~1orders~1stats"
   /addresses:

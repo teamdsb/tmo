@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { loginMockBoss } from './import-fixtures';
+import { loginAsCs, loginMockBoss } from './import-fixtures';
 
 test('mock orders page displays monetary values with RMB symbols', async ({ page }) => {
   await loginMockBoss(page);
@@ -12,24 +12,32 @@ test('mock orders page displays monetary values with RMB symbols', async ({ page
   await expect(page.locator('body')).not.toContainText('$');
 });
 
-test('order detail selects line item products from the existing catalog', async ({ page }) => {
+test('boss confirms offline payment and sees an audit event', async ({ page }) => {
   await loginMockBoss(page);
   await page.goto('/orders.html');
+  await page.locator('[data-role="order-tab"][data-tab="submitted"]').click();
+  await expect(page.locator('[data-role="order-fulfillment-panel"]')).toBeVisible();
+  await page.locator('[data-role="submit-fulfillment"]').click();
+  await expect(page.locator('[data-role="fulfillment-error"]')).toContainText('请选择业务员并填写备注');
+  await page.locator('[data-role="fulfillment-sales"]').selectOption({ index: 1 });
+  await page.locator('[data-role="fulfillment-note"]').fill('门店现金收款，已核验');
+  await page.locator('[data-role="submit-fulfillment"]').click();
+  await expect(page.locator('[data-role="order-admin-events"]')).toContainText('门店现金收款，已核验');
+  await expect(page.locator('[data-role="order-fulfillment-panel"]')).toContainText('已支付');
+});
 
+test('CS can read orders but cannot see fulfillment controls', async ({ page }) => {
+  await loginAsCs(page);
+  await page.goto('/orders.html');
+  await expect(page.locator('[data-role="orders-body"]')).toBeVisible();
+  await expect(page.locator('[data-role="order-fulfillment-panel"]')).toHaveCount(0);
+});
+
+test('order detail drawer is read only', async ({ page }) => {
+  await loginMockBoss(page);
+  await page.goto('/orders.html');
   await page.locator('[data-role="view-order"]').first().click();
-  await expect(page.getByText('订单详情（可编辑）')).toBeVisible();
-  await expect(page.locator('[data-role="detail-item-name"]')).toHaveCount(0);
-
-  await page.locator('[data-role="detail-add-item"]').click();
-  const newItem = page.locator('[data-role="detail-line-item-row"]').last();
-  const productSearch = newItem.locator('[data-role="detail-item-product-search"]');
-  await productSearch.fill('跑步');
-  const option = newItem.locator('[data-role="detail-product-option"]').filter({ hasText: '跑步水壶' }).first();
-  await expect(option).toBeVisible();
-  await option.click();
-  await expect(productSearch).toHaveValue('跑步水壶');
-
-  await productSearch.fill('不存在的自定义商品');
-  await page.getByRole('button', { name: '保存修改' }).click();
-  await expect(page.locator('[data-role="detail-form-error"]')).toContainText('请选择现有商品');
+  await expect(page.getByText('订单详情（只读）')).toBeVisible();
+  await expect(page.locator('[data-role="detail-buyer-name"]')).toBeDisabled();
+  await expect(page.getByRole('button', { name: '保存修改' })).toHaveCount(0);
 });

@@ -25,6 +25,116 @@ import (
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 )
 
+type allowSalesValidator struct{}
+
+func (allowSalesValidator) ValidateActiveSales(context.Context, string, uuid.UUID) error { return nil }
+
+func TestAdminOrderFulfillmentRejectsUnauthorizedRoles(t *testing.T) {
+	for _, role := range []string{"CS", "SALES", "CUSTOMER"} {
+		t.Run(role, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			router := httpx.NewRouter()
+			oapi.RegisterHandlers(router, &Handler{Auth: middleware.NewAuthenticator(true, testJWTSecret, testJWTIssuer)})
+			body := `{"ownerSalesUserId":"11111111-1111-1111-1111-111111111111","note":"paid in cash","confirmOfflinePayment":true}`
+			req := httptest.NewRequest(http.MethodPatch, "/admin/orders/22222222-2222-2222-2222-222222222222/fulfillment", strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Idempotency-Key", "role-check")
+			req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), role, nil))
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, req)
+			if recorder.Code != http.StatusForbidden {
+				t.Fatalf("expected 403, got %d: %s", recorder.Code, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestAdminOrderFulfillmentAllowsManagementRoles(t *testing.T) {
+	for _, role := range []string{"BOSS", "MANAGER", "ADMIN"} {
+		t.Run(role, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			router := httpx.NewRouter()
+			oapi.RegisterHandlers(router, &Handler{Auth: middleware.NewAuthenticator(true, testJWTSecret, testJWTIssuer), SalesValidator: allowSalesValidator{}})
+			body := `{"ownerSalesUserId":"11111111-1111-1111-1111-111111111111","note":"paid in cash","confirmOfflinePayment":true}`
+			req := httptest.NewRequest(http.MethodPatch, "/admin/orders/22222222-2222-2222-2222-222222222222/fulfillment", strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Idempotency-Key", "role-check")
+			req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), role, nil))
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, req)
+			if recorder.Code == http.StatusForbidden {
+				t.Fatalf("management role %s was rejected", role)
+			}
+		})
+	}
+}
+
+func TestAdminOrderFulfillmentOfflinePaymentIsAtomicAndIdempotent(t *testing.T) {
+	pool := openHandlerTestPool(t)
+	resetCommerceTables(t, pool)
+	queries := db.New(pool)
+	sku, _ := seedCatalog(t, queries)
+	customerID, salesID, actorID := uuid.New(), uuid.New(), uuid.New()
+	order := seedOrderWithItem(t, queries, customerID, nil, sku.ID)
+	router := newAuthIntegrationRouter(pool, queries)
+	body := fmt.Sprintf(`{"ownerSalesUserId":"%s","note":"cash received at branch","confirmOfflinePayment":true}`, salesID)
+	request := func(key string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPatch, "/admin/orders/"+order.ID.String()+"/fulfillment", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Idempotency-Key", key)
+		req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, actorID, "MANAGER", nil))
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, req)
+		return recorder
+	}
+	responses := make(chan *httptest.ResponseRecorder, 2)
+	go func() { responses <- request("offline-1") }()
+	go func() { responses <- request("offline-1") }()
+	for range 2 {
+		response := <-responses
+		if response.Code != http.StatusOK {
+			t.Fatalf("concurrent idempotent request expected 200, got %d: %s", response.Code, response.Body.String())
+		}
+	}
+	stored, err := queries.GetOrder(context.Background(), order.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != "CONFIRMED" || stored.PaymentStatus != "PAID" || stored.PaymentChannel == nil || *stored.PaymentChannel != "OFFLINE" || !stored.PaidAt.Valid || stored.LatestPaymentID.Valid || !stored.OwnerSalesUserID.Valid || stored.OwnerSalesUserID.Bytes != salesID {
+		t.Fatalf("unexpected stored order: %#v", stored)
+	}
+	events, err := queries.ListOrderAdminEvents(context.Background(), order.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 1 || events[0].Action != "OFFLINE_PAYMENT_AND_ASSIGN" || events[0].ActorUserID != actorID {
+		t.Fatalf("unexpected events: %#v", events)
+	}
+	second := request("offline-1")
+	if second.Code != http.StatusOK {
+		t.Fatalf("idempotent retry expected 200, got %d: %s", second.Code, second.Body.String())
+	}
+	events, _ = queries.ListOrderAdminEvents(context.Background(), order.ID)
+	if len(events) != 1 {
+		t.Fatalf("expected one event after retry, got %d", len(events))
+	}
+
+	salesReq := httptest.NewRequest(http.MethodGet, "/orders/"+order.ID.String(), nil)
+	salesReq.Header.Set("Authorization", "Bearer "+makeAuthToken(t, salesID, "SALES", nil))
+	salesRecorder := httptest.NewRecorder()
+	router.ServeHTTP(salesRecorder, salesReq)
+	if salesRecorder.Code != http.StatusOK {
+		t.Fatalf("assigned sales cannot see order: %d %s", salesRecorder.Code, salesRecorder.Body.String())
+	}
+	otherReq := httptest.NewRequest(http.MethodGet, "/orders/"+order.ID.String(), nil)
+	otherReq.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), "SALES", nil))
+	otherRecorder := httptest.NewRecorder()
+	router.ServeHTTP(otherRecorder, otherReq)
+	if otherRecorder.Code != http.StatusNotFound {
+		t.Fatalf("other sales expected 404, got %d", otherRecorder.Code)
+	}
+}
+
 func TestPostOrdersRemovesOrderedCartItemsAfterOrderSucceeds(t *testing.T) {
 	pool := openHandlerTestPool(t)
 	resetCommerceTables(t, pool)
@@ -564,6 +674,7 @@ func newAuthIntegrationRouter(pool *pgxpool.Pool, store *db.Queries) *gin.Engine
 		SupportStore:        store,
 		DB:                  pool,
 		Auth:                authenticator,
+		SalesValidator:      allowSalesValidator{},
 	})
 	return router
 }

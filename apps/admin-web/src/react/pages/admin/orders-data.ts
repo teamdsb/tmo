@@ -40,6 +40,9 @@ export type AdminOrderRecord = {
   purchasedAt: string;
   lineItems: OrderLineItem[];
   timeline: OrderTimelineItem[];
+  paymentStatus?: string;
+  paymentChannel?: string;
+  ownerSalesUserId?: string;
 };
 
 export type OrdersApiPayload = {
@@ -337,6 +340,9 @@ export const buildMockOrders = (): AdminOrderRecord[] => {
       customer?: { email?: string; ltv?: string; member?: string; name?: string; note?: string; orderCount?: number; phone?: string };
       id?: string;
       items?: unknown[];
+      ownerSalesUserId?: string;
+      paymentChannel?: string;
+      paymentStatus?: string;
       remark?: string;
       status?: string;
       tracking?: { shipments?: Array<{ waybillNo?: string }> };
@@ -385,7 +391,10 @@ export const buildMockOrders = (): AdminOrderRecord[] => {
       },
       purchasedAt: safeText(adminMeta.purchasedAt, createdAt ? createdAt.replace('T', ' ').slice(0, 16) : ''),
       lineItems,
-      timeline
+      timeline,
+      paymentStatus: safeText(order.paymentStatus, 'UNPAID').toUpperCase(),
+      paymentChannel: safeText(order.paymentChannel, '--'),
+      ownerSalesUserId: safeText(order.ownerSalesUserId, '')
     });
   });
 };
@@ -399,6 +408,9 @@ export const buildDevOrders = (payload: OrdersApiPayload): AdminOrderRecord[] =>
       customer?: { email?: string; name?: string; phone?: string };
       id?: string;
       items?: Array<{ qty?: number; unitPriceFen?: number; skuId?: string }>;
+      ownerSalesUserId?: string;
+      paymentChannel?: string;
+      paymentStatus?: string;
       status?: string;
       tracking?: { shipments?: Array<{ carrier?: string; shippedAt?: string; waybillNo?: string }> };
     };
@@ -436,7 +448,10 @@ export const buildDevOrders = (payload: OrdersApiPayload): AdminOrderRecord[] =>
       },
       purchasedAt: safeText(order.createdAt, '--'),
       lineItems: buildLineItemsFromFixtureItems(order.items || []),
-      timeline: buildTimelineFromTracking(order.tracking)
+      timeline: buildTimelineFromTracking(order.tracking),
+      paymentStatus: safeText(order.paymentStatus, 'UNPAID').toUpperCase(),
+      paymentChannel: safeText(order.paymentChannel, '--'),
+      ownerSalesUserId: safeText(order.ownerSalesUserId, '')
     });
   });
 };

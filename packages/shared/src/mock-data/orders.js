@@ -27,7 +27,10 @@ const createFixture = ({
   customer,
   items,
   tracking,
-  admin
+  admin,
+  paymentStatus = ['CONFIRMED', 'PAID', 'SHIPPED', 'DELIVERED', 'CLOSED'].includes(String(status).toUpperCase()) ? 'PAID' : 'UNPAID',
+  paymentChannel = null,
+  ownerSalesUserId = null
 }) => ({
   id,
   status,
@@ -38,7 +41,10 @@ const createFixture = ({
   customer,
   items,
   tracking: tracking || { orderId: id, shipments: [] },
-  admin
+  admin,
+  paymentStatus,
+  paymentChannel,
+  ownerSalesUserId
 });
 
 export const canonicalOrderFixtures = [

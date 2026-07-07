@@ -400,17 +400,39 @@ type MessageSenderType string
 
 // Order defines model for Order.
 type Order struct {
-	Address         *Address            `json:"address,omitempty"`
-	CreatedAt       time.Time           `json:"createdAt"`
-	Id              openapi_types.UUID  `json:"id"`
-	Items           []OrderItem         `json:"items"`
-	LatestPaymentId *openapi_types.UUID `json:"latestPaymentId,omitempty"`
-	PaidAt          *time.Time          `json:"paidAt"`
-	PaymentChannel  *string             `json:"paymentChannel"`
-	PaymentStatus   OrderPaymentStatus  `json:"paymentStatus"`
-	Remark          *string             `json:"remark,omitempty"`
-	Status          OrderStatus         `json:"status"`
-	UpdatedAt       *time.Time          `json:"updatedAt,omitempty"`
+	Address          *Address            `json:"address,omitempty"`
+	CreatedAt        time.Time           `json:"createdAt"`
+	Id               openapi_types.UUID  `json:"id"`
+	Items            []OrderItem         `json:"items"`
+	LatestPaymentId  *openapi_types.UUID `json:"latestPaymentId,omitempty"`
+	OwnerSalesUserId *openapi_types.UUID `json:"ownerSalesUserId"`
+	PaidAt           *time.Time          `json:"paidAt"`
+	PaymentChannel   *string             `json:"paymentChannel"`
+	PaymentStatus    OrderPaymentStatus  `json:"paymentStatus"`
+	Remark           *string             `json:"remark,omitempty"`
+	Status           OrderStatus         `json:"status"`
+	UpdatedAt        *time.Time          `json:"updatedAt,omitempty"`
+}
+
+// OrderAdminEvent defines model for OrderAdminEvent.
+type OrderAdminEvent struct {
+	Action                   string              `json:"action"`
+	ActorUserId              openapi_types.UUID  `json:"actorUserId"`
+	CreatedAt                time.Time           `json:"createdAt"`
+	Id                       openapi_types.UUID  `json:"id"`
+	NewOwnerSalesUserId      openapi_types.UUID  `json:"newOwnerSalesUserId"`
+	NewPaymentStatus         OrderPaymentStatus  `json:"newPaymentStatus"`
+	NewStatus                OrderStatus         `json:"newStatus"`
+	Note                     string              `json:"note"`
+	OrderId                  openapi_types.UUID  `json:"orderId"`
+	PreviousOwnerSalesUserId *openapi_types.UUID `json:"previousOwnerSalesUserId"`
+	PreviousPaymentStatus    OrderPaymentStatus  `json:"previousPaymentStatus"`
+	PreviousStatus           OrderStatus         `json:"previousStatus"`
+}
+
+// OrderAdminEventList defines model for OrderAdminEventList.
+type OrderAdminEventList struct {
+	Items []OrderAdminEvent `json:"items"`
 }
 
 // OrderItem defines model for OrderItem.
@@ -632,6 +654,13 @@ type UpdateCategoryRequest struct {
 	Sort     *int                `json:"sort,omitempty"`
 }
 
+// UpdateOrderFulfillmentRequest defines model for UpdateOrderFulfillmentRequest.
+type UpdateOrderFulfillmentRequest struct {
+	ConfirmOfflinePayment bool               `json:"confirmOfflinePayment"`
+	Note                  string             `json:"note"`
+	OwnerSalesUserId      openapi_types.UUID `json:"ownerSalesUserId"`
+}
+
 // UpdatePriceInquiryRequest defines model for UpdatePriceInquiryRequest.
 type UpdatePriceInquiryRequest struct {
 	AssignedSalesUserId *openapi_types.UUID `json:"assignedSalesUserId"`
@@ -691,8 +720,14 @@ type WishlistItem struct {
 	Sku       SKU       `json:"sku"`
 }
 
+// BadRequest defines model for BadRequest.
+type BadRequest = ErrorResponse
+
 // Conflict defines model for Conflict.
 type Conflict = ErrorResponse
+
+// Forbidden defines model for Forbidden.
+type Forbidden = ErrorResponse
 
 // NotFound defines model for NotFound.
 type NotFound = ErrorResponse
@@ -700,6 +735,11 @@ type NotFound = ErrorResponse
 // PostAdminCatalogProductsAssetsMultipartBody defines parameters for PostAdminCatalogProductsAssets.
 type PostAdminCatalogProductsAssetsMultipartBody struct {
 	File openapi_types.File `json:"file"`
+}
+
+// PatchAdminOrdersOrderIdFulfillmentParams defines parameters for PatchAdminOrdersOrderIdFulfillment.
+type PatchAdminOrdersOrderIdFulfillmentParams struct {
+	IdempotencyKey string `json:"Idempotency-Key"`
 }
 
 // GetAfterSalesTicketsParams defines parameters for GetAfterSalesTickets.
@@ -799,6 +839,9 @@ type PatchAddressesAddressIdJSONRequestBody = UpdateUserAddressRequest
 // PostAdminCatalogProductsAssetsMultipartRequestBody defines body for PostAdminCatalogProductsAssets for multipart/form-data ContentType.
 type PostAdminCatalogProductsAssetsMultipartRequestBody PostAdminCatalogProductsAssetsMultipartBody
 
+// PatchAdminOrdersOrderIdFulfillmentJSONRequestBody defines body for PatchAdminOrdersOrderIdFulfillment for application/json ContentType.
+type PatchAdminOrdersOrderIdFulfillmentJSONRequestBody = UpdateOrderFulfillmentRequest
+
 // PostAfterSalesTicketsJSONRequestBody defines body for PostAfterSalesTickets for application/json ContentType.
 type PostAfterSalesTicketsJSONRequestBody = CreateAfterSalesTicket
 
@@ -882,6 +925,12 @@ type ServerInterface interface {
 	// Upload catalog product image asset
 	// (POST /admin/catalog/products/assets)
 	PostAdminCatalogProductsAssets(c *gin.Context)
+	// List administrative order events
+	// (GET /admin/orders/{orderId}/events)
+	GetAdminOrdersOrderIdEvents(c *gin.Context, orderId openapi_types.UUID)
+	// Confirm offline payment and assign, or reassign, an order
+	// (PATCH /admin/orders/{orderId}/fulfillment)
+	PatchAdminOrdersOrderIdFulfillment(c *gin.Context, orderId openapi_types.UUID, params PatchAdminOrdersOrderIdFulfillmentParams)
 	// List after-sales tickets
 	// (GET /after-sales/tickets)
 	GetAfterSalesTickets(c *gin.Context, params GetAfterSalesTicketsParams)
@@ -1123,6 +1172,85 @@ func (siw *ServerInterfaceWrapper) PostAdminCatalogProductsAssets(c *gin.Context
 	}
 
 	siw.Handler.PostAdminCatalogProductsAssets(c)
+}
+
+// GetAdminOrdersOrderIdEvents operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminOrdersOrderIdEvents(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "orderId" -------------
+	var orderId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "orderId", c.Param("orderId"), &orderId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter orderId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAdminOrdersOrderIdEvents(c, orderId)
+}
+
+// PatchAdminOrdersOrderIdFulfillment operation middleware
+func (siw *ServerInterfaceWrapper) PatchAdminOrdersOrderIdFulfillment(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "orderId" -------------
+	var orderId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "orderId", c.Param("orderId"), &orderId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter orderId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PatchAdminOrdersOrderIdFulfillmentParams
+
+	headers := c.Request.Header
+
+	// ------------- Required header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for Idempotency-Key, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter Idempotency-Key: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.IdempotencyKey = IdempotencyKey
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Header parameter Idempotency-Key is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PatchAdminOrdersOrderIdFulfillment(c, orderId, params)
 }
 
 // GetAfterSalesTickets operation middleware
@@ -2360,6 +2488,8 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.DELETE(options.BaseURL+"/addresses/:addressId", wrapper.DeleteAddressesAddressId)
 	router.PATCH(options.BaseURL+"/addresses/:addressId", wrapper.PatchAddressesAddressId)
 	router.POST(options.BaseURL+"/admin/catalog/products/assets", wrapper.PostAdminCatalogProductsAssets)
+	router.GET(options.BaseURL+"/admin/orders/:orderId/events", wrapper.GetAdminOrdersOrderIdEvents)
+	router.PATCH(options.BaseURL+"/admin/orders/:orderId/fulfillment", wrapper.PatchAdminOrdersOrderIdFulfillment)
 	router.GET(options.BaseURL+"/after-sales/tickets", wrapper.GetAfterSalesTickets)
 	router.POST(options.BaseURL+"/after-sales/tickets", wrapper.PostAfterSalesTickets)
 	router.GET(options.BaseURL+"/after-sales/tickets/:ticketId", wrapper.GetAfterSalesTicketsTicketId)
