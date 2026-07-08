@@ -588,3 +588,37 @@ func (q *Queries) UpdateOrderPaymentSummary(ctx context.Context, arg UpdateOrder
 	)
 	return i, err
 }
+
+const updateOrderStatus = `-- name: UpdateOrderStatus :one
+UPDATE orders
+SET status = $2,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at
+`
+
+type UpdateOrderStatusParams struct {
+	ID     uuid.UUID `db:"id" json:"id"`
+	Status string    `db:"status" json:"status"`
+}
+
+func (q *Queries) UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) (Order, error) {
+	row := q.db.QueryRow(ctx, updateOrderStatus, arg.ID, arg.Status)
+	var i Order
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.CustomerID,
+		&i.OwnerSalesUserID,
+		&i.Address,
+		&i.Remark,
+		&i.IdempotencyKey,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PaymentStatus,
+		&i.LatestPaymentID,
+		&i.PaymentChannel,
+		&i.PaidAt,
+	)
+	return i, err
+}

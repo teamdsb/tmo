@@ -503,6 +503,80 @@ export const createMockCommerceServices = (): CommerceServices => {
       }
       return order
     },
+    ship: async (orderId, request) => {
+      let updated: Order | null = null
+      const shippedAt = request.shippedAt || nowIso()
+      const waybillNo = request.waybillNo.trim()
+      if (!waybillNo) {
+        throw new Error('waybillNo is required')
+      }
+      await updateIsolatedMockState((state) => {
+        const order = state.orders.find((item) => item.id === orderId)
+        if (!order) {
+          throw new Error(`order not found: ${orderId}`)
+        }
+        if (order.status !== OrderStatus.CONFIRMED || order.paymentStatus !== 'PAID') {
+          throw new Error('order must be confirmed and paid before shipping')
+        }
+        const timestamp = nowIso()
+        updated = {
+          ...order,
+          status: OrderStatus.SHIPPED,
+          updatedAt: timestamp
+        }
+        const currentTracking = state.trackingByOrderId[orderId] ?? { orderId, shipments: [] }
+        const nextShipment = {
+          carrier: request.carrier ?? null,
+          waybillNo,
+          shippedAt
+        }
+        const existingShipmentIndex = currentTracking.shipments.findIndex((shipment) => shipment.waybillNo === waybillNo)
+        const shipments = existingShipmentIndex >= 0
+          ? currentTracking.shipments.map((shipment, index) => (index === existingShipmentIndex ? nextShipment : shipment))
+          : [...currentTracking.shipments, nextShipment]
+
+        return {
+          ...state,
+          orders: state.orders.map((item) => (item.id === orderId ? updated as Order : item)),
+          trackingByOrderId: {
+            ...state.trackingByOrderId,
+            [orderId]: {
+              orderId,
+              shipments
+            }
+          }
+        }
+      })
+      if (!updated) {
+        throw new Error(`order not found: ${orderId}`)
+      }
+      return updated
+    },
+    confirmReceipt: async (orderId) => {
+      let updated: Order | null = null
+      await updateIsolatedMockState((state) => {
+        const order = state.orders.find((item) => item.id === orderId)
+        if (!order) {
+          throw new Error(`order not found: ${orderId}`)
+        }
+        if (order.status !== OrderStatus.SHIPPED) {
+          throw new Error('order must be shipped before receipt confirmation')
+        }
+        updated = {
+          ...order,
+          status: OrderStatus.DELIVERED,
+          updatedAt: nowIso()
+        }
+        return {
+          ...state,
+          orders: state.orders.map((item) => (item.id === orderId ? updated as Order : item))
+        }
+      })
+      if (!updated) {
+        throw new Error(`order not found: ${orderId}`)
+      }
+      return updated
+    },
     resetIdempotency: () => {}
   }
 

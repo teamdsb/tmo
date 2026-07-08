@@ -4,7 +4,7 @@ import Taro, { useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Button from '@taroify/core/button'
 import type { Order, OrderItem, OrderStatus } from '@tmo/api-client'
-import { ROUTES, orderTrackingRoute } from '../../../routes'
+import { ROUTES, orderSuccessRoute, orderTrackingRoute } from '../../../routes'
 import SafeImage from '../../../components/safe-image'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
@@ -24,6 +24,8 @@ import {
   type PaymentAvailability
 } from '../../../services/payment-availability'
 import './index.scss'
+
+const orderPaymentResultToastDuration = 3000
 
 export default function OrderDetail() {
   const router = useRouter()
@@ -104,7 +106,8 @@ export default function OrderDetail() {
       const nextPaymentStatus = String(payment.status || '').toUpperCase()
       await Taro.showToast({
         title: nextPaymentStatus === 'PAID' ? '支付成功' : '支付结果确认中',
-        icon: nextPaymentStatus === 'PAID' ? 'success' : 'none'
+        icon: nextPaymentStatus === 'PAID' ? 'success' : 'none',
+        duration: orderPaymentResultToastDuration
       })
       paymentConfirmed = nextPaymentStatus === 'PAID'
     } catch (error) {
@@ -121,7 +124,7 @@ export default function OrderDetail() {
     }
 
     if (paymentConfirmed) {
-      await switchTabLike(ROUTES.cart)
+      await navigateTo(orderSuccessRoute(orderId, 'paid'))
     }
   }
 
@@ -138,7 +141,8 @@ export default function OrderDetail() {
       const nextPaymentStatus = String(payment.status || '').toUpperCase()
       await Taro.showToast({
         title: nextPaymentStatus === 'PAID' ? '支付成功' : '支付状态已刷新',
-        icon: nextPaymentStatus === 'PAID' ? 'success' : 'none'
+        icon: nextPaymentStatus === 'PAID' ? 'success' : 'none',
+        duration: orderPaymentResultToastDuration
       })
       paymentConfirmed = nextPaymentStatus === 'PAID'
     } catch (error) {
@@ -151,8 +155,8 @@ export default function OrderDetail() {
       setPaymentLoading(false)
     }
 
-    if (paymentConfirmed) {
-      await switchTabLike(ROUTES.cart)
+    if (paymentConfirmed && orderId && typeof orderId === 'string') {
+      await navigateTo(orderSuccessRoute(orderId, 'paid'))
     }
   }
 

@@ -8,6 +8,7 @@ export const ROUTES = {
   goodsDetail: '/pages/goods/detail/index',
   favorites: '/pages/favorites/index',
   orderDetail: '/pages/order/detail/index',
+  orderSuccess: '/pages/order/success/index',
   orderTracking: '/pages/order/tracking/index',
   shipmentTrackingDetail: '/pages/order/tracking/detail/index',
   orderConfirm: '/pages/order/confirm/index',
@@ -48,6 +49,10 @@ export const goodsDetailRoute = (id: string | number) => {
 
 export const orderDetailRoute = (id: string | number) => {
   return withQuery(ROUTES.orderDetail, { id })
+}
+
+export const orderSuccessRoute = (id: string | number, payment?: string) => {
+  return withQuery(ROUTES.orderSuccess, { id, payment })
 }
 
 export const orderTrackingRoute = (id: string | number) => {

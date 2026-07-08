@@ -686,6 +686,64 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Order"
+  "/orders/{orderId}/confirm-receipt":
+    post:
+      tags:
+      - Orders
+      summary: Confirm receipt for a shipped order
+      parameters:
+      - in: path
+        name: orderId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Order"
+        '403':
+          "$ref": "#/components/responses/Forbidden"
+        '404':
+          "$ref": "#/components/responses/NotFound"
+        '409':
+          "$ref": "#/components/responses/Conflict"
+  "/admin/orders/{orderId}/ship":
+    post:
+      tags:
+      - Orders
+      summary: Ship a confirmed paid order
+      parameters:
+      - in: path
+        name: orderId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ShipOrderRequest"
+      responses:
+        '200':
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Order"
+        '400':
+          "$ref": "#/components/responses/BadRequest"
+        '403':
+          "$ref": "#/components/responses/Forbidden"
+        '404':
+          "$ref": "#/components/responses/NotFound"
+        '409':
+          "$ref": "#/components/responses/Conflict"
   "/admin/orders/{orderId}/fulfillment":
     patch:
       tags:
@@ -2144,6 +2202,21 @@ components:
       - ownerSalesUserId
       - note
       - confirmOfflinePayment
+    ShipOrderRequest:
+      type: object
+      properties:
+        carrier:
+          type: string
+          nullable: true
+        waybillNo:
+          type: string
+          minLength: 1
+        shippedAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - waybillNo
     OrderAdminEvent:
       type: object
       properties:

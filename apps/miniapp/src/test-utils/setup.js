@@ -130,6 +130,7 @@ jest.mock('@tarojs/taro', () => {
   const storage = new Map();
   const Taro = {
     showToast: jest.fn(() => Promise.resolve()),
+    showModal: jest.fn(() => Promise.resolve({ confirm: true, cancel: false })),
     showActionSheet: jest.fn(() => Promise.resolve({ tapIndex: 0 })),
     chooseImage: jest.fn(() => Promise.resolve({ tempFilePaths: ['/tmp/mock.png'] })),
     request: jest.fn(() => Promise.resolve({ statusCode: 200, data: {} })),
@@ -311,6 +312,8 @@ jest.mock('@tmo/commerce-services', () => {
         stats: jest.fn(async () => ({ items: [{ status: 'SUBMITTED', count: 2 }] })),
         get: jest.fn(async () => mockOrder),
         submit: jest.fn(async () => mockOrder),
+        ship: jest.fn(async () => mockOrder),
+        confirmReceipt: jest.fn(async () => ({ ...mockOrder, status: 'DELIVERED' })),
         resetIdempotency: jest.fn()
       },
       addresses: {

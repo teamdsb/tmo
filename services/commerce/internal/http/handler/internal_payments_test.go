@@ -418,6 +418,10 @@ func (s *internalPaymentOrderStoreStub) GetOrder(context.Context, uuid.UUID) (db
 	return db.Order{}, pgx.ErrTxClosed
 }
 
+func (s *internalPaymentOrderStoreStub) GetOrderForUpdate(context.Context, uuid.UUID) (db.Order, error) {
+	return db.Order{}, pgx.ErrTxClosed
+}
+
 func (s *internalPaymentOrderStoreStub) ListOrderItems(ctx context.Context, orderID uuid.UUID) ([]db.OrderItem, error) {
 	if s.listItemsFn == nil {
 		return nil, pgx.ErrTxClosed
@@ -435,4 +439,8 @@ func (s *internalPaymentOrderStoreStub) UpdateOrderPaymentSummary(ctx context.Co
 		return db.Order{}, pgx.ErrTxClosed
 	}
 	return s.updateFn(ctx, arg)
+}
+
+func (s *internalPaymentOrderStoreStub) UpdateOrderStatus(context.Context, db.UpdateOrderStatusParams) (db.Order, error) {
+	return db.Order{}, pgx.ErrTxClosed
 }

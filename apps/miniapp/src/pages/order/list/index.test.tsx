@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import Taro from '@tarojs/taro';
+import { commerceServices } from '../../../services/commerce';
 import OrderHistoryApp from './index';
 
 const flushPromises = () => new Promise((resolve) => process.nextTick(resolve));
@@ -13,6 +15,10 @@ const renderOrderHistory = async () => {
 };
 
 describe('OrderHistoryApp', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('renders tabs and order cards', async () => {
     await renderOrderHistory();
 
@@ -39,6 +45,23 @@ describe('OrderHistoryApp', () => {
     fireEvent.click(shippedButton);
 
     expect(shippedButton).toHaveClass('text-[#137fec]');
+  });
+
+  it('confirms receipt for shipped orders and refreshes the list', async () => {
+    await renderOrderHistory();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('确认收货'));
+      await flushPromises();
+    });
+
+    expect(Taro.showModal).toHaveBeenCalledWith({
+      title: '确认收货',
+      content: '确认已收到该订单商品？'
+    });
+    expect(commerceServices.orders.confirmReceipt).toHaveBeenCalledWith('ORD-88291');
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '已确认收货', icon: 'success' });
+    expect(commerceServices.orders.list).toHaveBeenCalledTimes(2);
   });
 
   it('uses shared secondary navbar sizing and compact order list spacing', () => {

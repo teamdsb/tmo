@@ -399,9 +399,10 @@ type OrderManagementViewProps = {
   initialTab: string
   loading?: boolean
   onBack: () => void
+  onConfirmReceipt: (orderId: string) => void
 }
 
-export function OrderManagementView({ orders, initialTab, loading = false, onBack }: OrderManagementViewProps) {
+export function OrderManagementView({ orders, initialTab, loading = false, onBack, onConfirmReceipt }: OrderManagementViewProps) {
   const [activeTab, setActiveTab] = useState(initialTab)
   const orderTabs = ['全部', '待处理', '已发货', '已送达', '退换货']
   const filteredOrders = useMemo(() => {
@@ -470,6 +471,17 @@ export function OrderManagementView({ orders, initialTab, loading = false, onBac
                 <Text className='block mt-2 text-xs mine-modern-primary'>点击查看物流</Text>
               </View>
             </View>
+            {order.sourceStatus === 'SHIPPED' ? (
+              <NativeButton
+                className='mt-3 w-full rounded-2xl border border-blue-100 bg-blue-50 py-2 text-sm font-semibold text-blue-700'
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onConfirmReceipt(order.id)
+                }}
+              >
+                确认收货
+              </NativeButton>
+            ) : null}
           </View>
         )) : (
           <View className='mine-order-empty rounded-3xl p-6 text-center'>

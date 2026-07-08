@@ -283,6 +283,27 @@ export default function PersonalCenter() {
     await Taro.showToast({ title: '已提交需求', icon: 'success' })
   }, [])
 
+  const handleConfirmReceipt = useCallback(async (orderId: string) => {
+    const result = await Taro.showModal({
+      title: '确认收货',
+      content: '确认已收到该订单商品？'
+    })
+    if (!result.confirm) {
+      return
+    }
+
+    try {
+      await commerceServices.orders.confirmReceipt(orderId)
+      const refreshTask = Promise.all([refreshOrderBadges(), refreshOrders()])
+      await Taro.showToast({ title: '已确认收货', icon: 'success' })
+      await refreshTask
+      setInitialOrderTab('已送达')
+    } catch (error) {
+      console.warn('confirm receipt failed', error)
+      await Taro.showToast({ title: '确认收货失败', icon: 'none' })
+    }
+  }, [refreshOrderBadges, refreshOrders])
+
   return (
     <View className='page font-sans mine-modern' style={isH5 ? navbarStyle : undefined}>
       {isH5 ? <Navbar bordered fixed placeholder style={navbarStyle} className='app-navbar app-navbar--primary'></Navbar> : null}
@@ -293,6 +314,7 @@ export default function PersonalCenter() {
           initialTab={initialOrderTab}
           loading={ordersLoading}
           onBack={() => setCurrentPage('profile')}
+          onConfirmReceipt={(orderId) => void handleConfirmReceipt(orderId)}
         />
       ) : null}
 
@@ -367,6 +389,7 @@ const toMineOrder = (order: Order): MineOrder => {
   return {
     id: order.id,
     status: toMineOrderStatus(order.status),
+    sourceStatus: order.status,
     date: formatMineOrderDate(order.createdAt),
     totalPrice,
     items,

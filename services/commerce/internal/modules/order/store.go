@@ -14,7 +14,9 @@ type Store interface {
 	CountOrders(ctx context.Context, arg db.CountOrdersParams) (int64, error)
 	ListOrderStatusStats(ctx context.Context, arg db.ListOrderStatusStatsParams) ([]db.ListOrderStatusStatsRow, error)
 	GetOrder(ctx context.Context, id uuid.UUID) (db.Order, error)
+	GetOrderForUpdate(ctx context.Context, id uuid.UUID) (db.Order, error)
 	ListOrderItems(ctx context.Context, orderID uuid.UUID) ([]db.OrderItem, error)
 	GetOrderByIdempotencyKey(ctx context.Context, arg db.GetOrderByIdempotencyKeyParams) (db.Order, error)
 	UpdateOrderPaymentSummary(ctx context.Context, arg db.UpdateOrderPaymentSummaryParams) (db.Order, error)
+	UpdateOrderStatus(ctx context.Context, arg db.UpdateOrderStatusParams) (db.Order, error)
 }

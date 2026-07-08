@@ -103,6 +103,13 @@ SET status = $2,
 WHERE id = $1
 RETURNING *;
 
+-- name: UpdateOrderStatus :one
+UPDATE orders
+SET status = $2,
+    updated_at = now()
+WHERE id = $1
+RETURNING *;
+
 -- name: CreateOrderAdminEvent :one
 INSERT INTO order_admin_events (
     order_id, idempotency_key, actor_user_id, action, note,

@@ -107,7 +107,8 @@ describe('OrderDetailPage', () => {
     })
 
     expect(paymentServices.sessions.recheck).toHaveBeenCalledWith('pay-2001')
-    expect(switchTabLike).toHaveBeenCalledWith('/pages/cart/index')
+    expect(navigateTo).toHaveBeenCalledWith('/pages/order/success/index?id=order-2001&payment=paid')
+    expect(switchTabLike).not.toHaveBeenCalled()
     expect(commerceServices.orders.get).toHaveBeenCalledTimes(1)
   })
 
@@ -132,11 +133,13 @@ describe('OrderDetailPage', () => {
       await flushPromises()
     })
 
-    expect(switchTabLike).toHaveBeenCalledWith('/pages/cart/index')
+    expect(navigateTo).toHaveBeenCalledWith('/pages/order/success/index?id=order-2001&payment=paid')
+    expect(switchTabLike).not.toHaveBeenCalled()
     expect(commerceServices.orders.get).toHaveBeenCalledTimes(1)
     expect(Taro.showToast).toHaveBeenCalledWith(expect.objectContaining({
       title: '支付成功',
-      icon: 'success'
+      icon: 'success',
+      duration: 3000
     }))
     view.unmount()
   })
