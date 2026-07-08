@@ -2968,6 +2968,13 @@ components:
           type: integer
         staffUnreadCount:
           type: integer
+        queuedAt:
+          type: string
+          format: date-time
+        assignedAt:
+          type: string
+          format: date-time
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -2985,6 +2992,7 @@ components:
       - lastMessageAt
       - customerUnreadCount
       - staffUnreadCount
+      - queuedAt
       - createdAt
       - updatedAt
     PagedSupportConversationList:

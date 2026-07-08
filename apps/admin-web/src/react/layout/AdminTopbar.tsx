@@ -223,7 +223,7 @@ export const AdminTopbar = ({
                 <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-800">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">客服新消息</p>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">客服通知</p>
                       <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                         {supportNotifications.unreadCount > 0 ? `当前待处理 ${supportNotifications.unreadCount} 条消息` : '当前没有待处理的新消息'}
                       </p>
@@ -261,13 +261,13 @@ export const AdminTopbar = ({
                         <span className="mt-1 block truncate text-xs text-slate-500 dark:text-slate-400">
                           {item.lastMessagePreview || '你有一条新的客服消息'}
                         </span>
-                        <span className="mt-2 inline-flex rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-600 dark:bg-rose-500/10 dark:text-rose-300">
-                          待回复 {item.staffUnreadCount}
+                        <span className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${item.status === 'OPEN_UNASSIGNED' ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300'}`}>
+                          {item.status === 'OPEN_UNASSIGNED' ? '待领取' : `待回复 ${item.staffUnreadCount}`}
                         </span>
                       </span>
                     </button>
                   )) : (
-                    <div className="px-4 py-6 text-sm text-slate-500 dark:text-slate-400">当前没有未读客服消息。</div>
+                    <div className="px-4 py-6 text-sm text-slate-500 dark:text-slate-400">当前没有客服通知。</div>
                   )}
                 </div>
               </div>
@@ -371,7 +371,9 @@ export const AdminTopbar = ({
             <span className="mt-1 inline-flex size-2.5 shrink-0 rounded-full bg-red-500" />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                {supportNotifications.latestToast.title} 发来新消息
+                {supportNotifications.latestToast.kind === 'queue_overdue'
+                  ? `${supportNotifications.latestToast.title} 等待接入超时`
+                  : `${supportNotifications.latestToast.title} 发来新消息`}
               </p>
               <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
                 {supportNotifications.latestToast.preview}

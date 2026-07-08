@@ -12,6 +12,8 @@ export type SupportConversationSummary = {
   lastMessageAt: string;
   customerUnreadCount: number;
   staffUnreadCount: number;
+  queuedAt: string;
+  assignedAt: string;
   createdAt: string;
   updatedAt: string;
   closedAt: string;
@@ -146,6 +148,8 @@ export const normalizeSupportConversation = (input: unknown): SupportConversatio
     lastMessageAt: safeText(item?.lastMessageAt, safeText(item?.createdAt, MOCK_NOW)),
     customerUnreadCount: toNumber(item?.customerUnreadCount),
     staffUnreadCount: toNumber(item?.staffUnreadCount),
+    queuedAt: safeText(item?.queuedAt, safeText(item?.createdAt, MOCK_NOW)),
+    assignedAt: safeText(item?.assignedAt),
     createdAt: safeText(item?.createdAt, MOCK_NOW),
     updatedAt: safeText(item?.updatedAt, safeText(item?.createdAt, MOCK_NOW)),
     closedAt: safeText(item?.closedAt)
@@ -374,14 +378,16 @@ export const createMockSupportData = (): { conversations: SupportConversationSum
     customerDisplayName: '宁波远航供应链',
     customerPhone: '13700137000',
     ownerSalesUserId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-    assigneeUserId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-    assigneeRole: 'CS',
-    status: 'OPEN_ASSIGNED',
+    assigneeUserId: '',
+    assigneeRole: '',
+    status: 'OPEN_UNASSIGNED',
     lastMessageType: 'TEXT',
     lastMessagePreview: '请帮我确认这笔订单什么时候发出。',
     lastMessageAt: MOCK_NOW,
     customerUnreadCount: 1,
     staffUnreadCount: 0,
+    queuedAt: '2026-03-10T09:00:00Z',
+    assignedAt: '',
     createdAt: '2026-03-10T09:00:00Z',
     updatedAt: MOCK_NOW,
     closedAt: ''

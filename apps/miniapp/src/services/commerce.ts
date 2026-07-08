@@ -9,7 +9,8 @@ const createCommerceServicesRuntime = (): CommerceServices => {
 
   return createCommerceServices({
     baseUrl: requireCommerceBaseUrl(),
-    devToken: runtimeEnv.commerceDevToken
+    devToken: runtimeEnv.commerceDevToken,
+    timeoutMs: 10_000
   })
 }
 

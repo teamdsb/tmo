@@ -76,6 +76,8 @@ type supportConversationView struct {
 	LastMessageAt       time.Time  `json:"lastMessageAt"`
 	CustomerUnreadCount int        `json:"customerUnreadCount"`
 	StaffUnreadCount    int        `json:"staffUnreadCount"`
+	QueuedAt            time.Time  `json:"queuedAt"`
+	AssignedAt          *time.Time `json:"assignedAt,omitempty"`
 	CreatedAt           time.Time  `json:"createdAt"`
 	UpdatedAt           time.Time  `json:"updatedAt"`
 	ClosedAt            *time.Time `json:"closedAt,omitempty"`
@@ -159,14 +161,18 @@ func (h *Handler) GetSupportConversationsCurrent(c *gin.Context) {
 		return
 	}
 
-	conversation, err := h.ensureActiveSupportConversation(c.Request.Context(), claims)
+	conversation, created, err := h.ensureActiveSupportConversation(c.Request.Context(), claims)
 	if err != nil {
 		h.logError("ensure support conversation failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to load support conversation")
 		return
 	}
 
-	c.JSON(http.StatusOK, supportConversationFromModel(conversation))
+	payload := supportConversationFromModel(conversation)
+	if created {
+		publishSupportEvent(h.SupportHub, "conversation.created", conversation, payload)
+	}
+	c.JSON(http.StatusOK, payload)
 }
 
 func (h *Handler) GetSupportConversationsConversationIdMessages(c *gin.Context) {
@@ -500,22 +506,24 @@ func (h *Handler) PostAdminSupportConversationsConversationIdTransfer(c *gin.Con
 	c.JSON(http.StatusOK, payload)
 }
 
-func (h *Handler) ensureActiveSupportConversation(ctx context.Context, claims middleware.Claims) (db.SupportConversation, error) {
+func (h *Handler) ensureActiveSupportConversation(ctx context.Context, claims middleware.Claims) (db.SupportConversation, bool, error) {
 	if h.DB == nil {
-		return db.SupportConversation{}, errors.New("db pool is nil")
+		return db.SupportConversation{}, false, errors.New("db pool is nil")
 	}
 	conversation, err := h.SupportStore.GetActiveSupportConversationByCustomer(ctx, claims.UserID)
 	if err == nil {
 		if !supportConversationSnapshotNeedsRepair(conversation, claims) {
-			return conversation, nil
+			return conversation, false, nil
 		}
-		return h.updateSupportConversationSnapshot(ctx, conversation, claims)
+		updated, updateErr := h.updateSupportConversationSnapshot(ctx, conversation, claims)
+		return updated, false, updateErr
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
-		return db.SupportConversation{}, err
+		return db.SupportConversation{}, false, err
 	}
 
 	var created db.SupportConversation
+	wasCreated := false
 	err = shareddb.WithTx(ctx, h.DB, func(tx pgx.Tx) error {
 		queries := db.New(tx)
 		existing, getErr := queries.GetActiveSupportConversationByCustomer(ctx, claims.UserID)
@@ -539,6 +547,7 @@ func (h *Handler) ensureActiveSupportConversation(ctx context.Context, claims mi
 			Status:              supportConversationStatusOpenUnassigned,
 			Column10:            nil,
 		})
+		inserted := createErr == nil
 		if createErr != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(createErr, &pgErr) && pgErr.Code == "23505" {
@@ -552,12 +561,13 @@ func (h *Handler) ensureActiveSupportConversation(ctx context.Context, claims mi
 		}
 
 		created = record
+		wasCreated = inserted
 		if _, _, sysErr := h.createSupportSystemMessageTx(ctx, queries, record, "您好，我是在线客服。请发送文字、图片、订单或商品卡片。"); sysErr != nil {
 			return sysErr
 		}
 		return nil
 	})
-	return created, err
+	return created, wasCreated, err
 }
 
 func (h *Handler) updateSupportConversationSnapshot(ctx context.Context, conversation db.SupportConversation, claims middleware.Claims) (db.SupportConversation, error) {
@@ -1008,6 +1018,8 @@ func supportConversationFromModel(model db.SupportConversation) supportConversat
 		LastMessageAt:       model.LastMessageAt.Time,
 		CustomerUnreadCount: int(model.CustomerUnreadCount),
 		StaffUnreadCount:    int(model.StaffUnreadCount),
+		QueuedAt:            model.QueuedAt.Time,
+		AssignedAt:          timePtrFromPg(model.AssignedAt),
 		CreatedAt:           model.CreatedAt.Time,
 		UpdatedAt:           model.UpdatedAt.Time,
 		ClosedAt:            timePtrFromPg(model.ClosedAt),

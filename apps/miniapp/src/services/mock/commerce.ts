@@ -761,6 +761,7 @@ export const createMockCommerceServices = (): CommerceServices => {
       lastMessageAt: nowIso(),
       customerUnreadCount: 0,
       staffUnreadCount: 0,
+      queuedAt: nowIso(),
       createdAt: nowIso(),
       updatedAt: nowIso()
     }),
@@ -797,6 +798,7 @@ export const createMockCommerceServices = (): CommerceServices => {
       lastMessageAt: nowIso(),
       customerUnreadCount: 0,
       staffUnreadCount: 0,
+      queuedAt: nowIso(),
       createdAt: nowIso(),
       updatedAt: nowIso()
     }),
@@ -818,6 +820,7 @@ export const createMockCommerceServices = (): CommerceServices => {
         lastMessageAt: nowIso(),
         customerUnreadCount: 0,
         staffUnreadCount: 0,
+        queuedAt: nowIso(),
         createdAt: nowIso(),
         updatedAt: nowIso()
       },
@@ -843,6 +846,8 @@ export const createMockCommerceServices = (): CommerceServices => {
       lastMessageAt: nowIso(),
       customerUnreadCount: 0,
       staffUnreadCount: 0,
+      queuedAt: nowIso(),
+      assignedAt: nowIso(),
       createdAt: nowIso(),
       updatedAt: nowIso()
     }),
@@ -857,6 +862,7 @@ export const createMockCommerceServices = (): CommerceServices => {
       lastMessageAt: nowIso(),
       customerUnreadCount: 0,
       staffUnreadCount: 0,
+      queuedAt: nowIso(),
       createdAt: nowIso(),
       updatedAt: nowIso()
     }),
@@ -873,6 +879,8 @@ export const createMockCommerceServices = (): CommerceServices => {
       lastMessageAt: nowIso(),
       customerUnreadCount: 0,
       staffUnreadCount: 0,
+      queuedAt: nowIso(),
+      assignedAt: nowIso(),
       createdAt: nowIso(),
       updatedAt: nowIso()
     })
