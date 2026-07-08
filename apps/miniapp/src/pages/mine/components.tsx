@@ -431,7 +431,9 @@ export function OrderManagementView({ orders, initialTab, loading = false, onBac
           ))}
         </View>
 
-        {filteredOrders.length > 0 ? filteredOrders.map((order) => (
+        {filteredOrders.length > 0 ? filteredOrders.map((order) => {
+          const canConfirmReceipt = order.sourceStatus === 'SHIPPED' || order.sourceStatus === 'DISPATCHED' || order.status === '已发货'
+          return (
           <View
             key={order.id}
             className='mine-order-card mb-3 rounded-3xl p-4'
@@ -471,7 +473,7 @@ export function OrderManagementView({ orders, initialTab, loading = false, onBac
                 <Text className='block mt-2 text-xs mine-modern-primary'>点击查看物流</Text>
               </View>
             </View>
-            {order.sourceStatus === 'SHIPPED' ? (
+            {canConfirmReceipt ? (
               <NativeButton
                 className='mt-3 w-full rounded-2xl border border-blue-100 bg-blue-50 py-2 text-sm font-semibold text-blue-700'
                 onClick={(event) => {
@@ -483,7 +485,7 @@ export function OrderManagementView({ orders, initialTab, loading = false, onBac
               </NativeButton>
             ) : null}
           </View>
-        )) : (
+        )}) : (
           <View className='mine-order-empty rounded-3xl p-6 text-center'>
             <RecordsOutlined className='mine-order-empty-icon text-2xl' />
             <Text className='mine-order-empty-title mt-3 block text-sm font-semibold'>

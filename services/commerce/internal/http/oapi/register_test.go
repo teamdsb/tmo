@@ -140,6 +140,10 @@ func (server *stubServer) PostAdminOrdersOrderIdShip(context *gin.Context, order
 	context.Status(http.StatusNotImplemented)
 }
 
+func (server *stubServer) PostAdminOrdersOrderIdConfirmDelivery(context *gin.Context, orderId openapi_types.UUID) {
+	context.Status(http.StatusNotImplemented)
+}
+
 func (server *stubServer) GetAdminOrdersOrderIdEvents(context *gin.Context, orderId openapi_types.UUID) {
 	context.Status(http.StatusNotImplemented)
 }

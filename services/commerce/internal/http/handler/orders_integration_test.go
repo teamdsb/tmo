@@ -283,6 +283,94 @@ func TestCustomerConfirmReceiptRequiresOwnedShippedOrder(t *testing.T) {
 	}
 }
 
+func TestAdminConfirmDeliveryMarksShippedOrderDelivered(t *testing.T) {
+	pool := openHandlerTestPool(t)
+	resetCommerceTables(t, pool)
+	queries := db.New(pool)
+	sku, _ := seedCatalog(t, queries)
+	order := seedOrderWithItem(t, queries, uuid.New(), nil, sku.ID)
+	if _, err := queries.UpdateOrderStatus(context.Background(), db.UpdateOrderStatusParams{
+		ID:     order.ID,
+		Status: string(oapi.OrderStatusSHIPPED),
+	}); err != nil {
+		t.Fatalf("prepare shipped order: %v", err)
+	}
+
+	router := newAuthIntegrationRouter(pool, queries)
+	req := httptest.NewRequest(http.MethodPost, "/admin/orders/"+order.ID.String()+"/confirm-delivery", nil)
+	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), "MANAGER", nil))
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	stored, err := queries.GetOrder(context.Background(), order.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != string(oapi.OrderStatusDELIVERED) {
+		t.Fatalf("expected DELIVERED, got %s", stored.Status)
+	}
+
+	second := httptest.NewRequest(http.MethodPost, "/admin/orders/"+order.ID.String()+"/confirm-delivery", nil)
+	second.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), "MANAGER", nil))
+	secondRecorder := httptest.NewRecorder()
+	router.ServeHTTP(secondRecorder, second)
+	if secondRecorder.Code != http.StatusConflict {
+		t.Fatalf("second confirm expected 409, got %d: %s", secondRecorder.Code, secondRecorder.Body.String())
+	}
+}
+
+func TestAutoDeliverShippedOrdersUsesSevenDayCutoff(t *testing.T) {
+	pool := openHandlerTestPool(t)
+	resetCommerceTables(t, pool)
+	queries := db.New(pool)
+	sku, _ := seedCatalog(t, queries)
+	oldOrder := seedOrderWithItem(t, queries, uuid.New(), nil, sku.ID)
+	newOrder := seedOrderWithItem(t, queries, uuid.New(), nil, sku.ID)
+	for _, order := range []db.Order{oldOrder, newOrder} {
+		if _, err := queries.UpdateOrderStatus(context.Background(), db.UpdateOrderStatusParams{
+			ID:     order.ID,
+			Status: string(oapi.OrderStatusSHIPPED),
+		}); err != nil {
+			t.Fatalf("prepare shipped order: %v", err)
+		}
+	}
+	if _, err := queries.UpsertTrackingShipment(context.Background(), db.UpsertTrackingShipmentParams{
+		OrderID:   oldOrder.ID,
+		WaybillNo: "OLD-1",
+		ShippedAt: pgtype.Timestamptz{Time: time.Now().UTC().Add(-8 * 24 * time.Hour), Valid: true},
+	}); err != nil {
+		t.Fatalf("seed old shipment: %v", err)
+	}
+	if _, err := queries.UpsertTrackingShipment(context.Background(), db.UpsertTrackingShipmentParams{
+		OrderID:   newOrder.ID,
+		WaybillNo: "NEW-1",
+		ShippedAt: pgtype.Timestamptz{Time: time.Now().UTC().Add(-2 * 24 * time.Hour), Valid: true},
+	}); err != nil {
+		t.Fatalf("seed new shipment: %v", err)
+	}
+
+	delivered, err := queries.AutoDeliverShippedOrders(context.Background(), db.AutoDeliverShippedOrdersParams{
+		Status:    string(oapi.OrderStatusSHIPPED),
+		Status_2:  string(oapi.OrderStatusDELIVERED),
+		ShippedAt: pgtype.Timestamptz{Time: time.Now().UTC().Add(-7 * 24 * time.Hour), Valid: true},
+	})
+	if err != nil {
+		t.Fatalf("auto deliver: %v", err)
+	}
+	if len(delivered) != 1 || delivered[0].ID != oldOrder.ID {
+		t.Fatalf("expected only old order delivered, got %#v", delivered)
+	}
+	stillShipped, err := queries.GetOrder(context.Background(), newOrder.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stillShipped.Status != string(oapi.OrderStatusSHIPPED) {
+		t.Fatalf("expected new order to remain SHIPPED, got %s", stillShipped.Status)
+	}
+}
+
 func TestPostOrdersRemovesOrderedCartItemsAfterOrderSucceeds(t *testing.T) {
 	pool := openHandlerTestPool(t)
 	resetCommerceTables(t, pool)

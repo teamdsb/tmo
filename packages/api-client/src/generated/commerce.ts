@@ -2623,6 +2623,59 @@ export const postAdminOrdersOrderIdShip = async (orderId: string,
 
 
 /**
+ * @summary Confirm delivery for a shipped order
+ */
+export type postAdminOrdersOrderIdConfirmDeliveryResponse200 = {
+  data: Order
+  status: 200
+}
+
+export type postAdminOrdersOrderIdConfirmDeliveryResponse403 = {
+  data: ForbiddenResponse
+  status: 403
+}
+
+export type postAdminOrdersOrderIdConfirmDeliveryResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type postAdminOrdersOrderIdConfirmDeliveryResponse409 = {
+  data: ConflictResponse
+  status: 409
+}
+
+export type postAdminOrdersOrderIdConfirmDeliveryResponseSuccess = (postAdminOrdersOrderIdConfirmDeliveryResponse200) & {
+  headers: Headers;
+};
+export type postAdminOrdersOrderIdConfirmDeliveryResponseError = (postAdminOrdersOrderIdConfirmDeliveryResponse403 | postAdminOrdersOrderIdConfirmDeliveryResponse404 | postAdminOrdersOrderIdConfirmDeliveryResponse409) & {
+  headers: Headers;
+};
+
+export type postAdminOrdersOrderIdConfirmDeliveryResponse = (postAdminOrdersOrderIdConfirmDeliveryResponseSuccess | postAdminOrdersOrderIdConfirmDeliveryResponseError)
+
+export const getPostAdminOrdersOrderIdConfirmDeliveryUrl = (orderId: string,) => {
+
+
+
+
+  return `/admin/orders/${orderId}/confirm-delivery`
+}
+
+export const postAdminOrdersOrderIdConfirmDelivery = async (orderId: string, options?: RequestInit): Promise<postAdminOrdersOrderIdConfirmDeliveryResponse> => {
+
+  return apiMutator<postAdminOrdersOrderIdConfirmDeliveryResponse>(getPostAdminOrdersOrderIdConfirmDeliveryUrl(orderId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+/**
  * @summary Confirm offline payment and assign, or reassign, an order
  */
 export type patchAdminOrdersOrderIdFulfillmentResponse200 = {

@@ -95,3 +95,53 @@ test('hybrid shipment moves a confirmed paid order to shipped', async ({ page })
   await expect(page.locator('[data-role="tracking-number"]')).toContainText('SF123456');
   await expect(page.locator('[data-role="shipping-badge-label"]')).toContainText('已发出');
 });
+
+test('hybrid delivery moves a shipped order to delivered', async ({ page }) => {
+  let delivered = false;
+  await page.route(/\/(?:api\/)?orders(?:\?|$)/, (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      items: [{
+        id: orderId,
+        status: delivered ? 'DELIVERED' : 'SHIPPED',
+        paymentStatus: 'PAID',
+        paymentChannel: 'WECHAT',
+        ownerSalesUserId: salesId,
+        tracking: { shipments: [{ carrier: '顺丰', waybillNo: 'SF123456', shippedAt: '2026-07-06T10:05:00Z' }] },
+        address: { receiverName: '客户', receiverPhone: '1', detail: '地址' },
+        items: [],
+        createdAt: '2026-07-06T10:00:00Z'
+      }],
+      page: 1,
+      pageSize: 20,
+      total: 1
+    })
+  }));
+  await page.route(`**/api/admin/orders/${orderId}/events`, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [] }) }));
+  await page.route(`**/api/admin/orders/${orderId}/confirm-delivery`, async (route) => {
+    delivered = true;
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: orderId,
+        status: 'DELIVERED',
+        paymentStatus: 'PAID',
+        paymentChannel: 'WECHAT',
+        ownerSalesUserId: salesId,
+        tracking: { shipments: [{ carrier: '顺丰', waybillNo: 'SF123456', shippedAt: '2026-07-06T10:05:00Z' }] },
+        address: { receiverName: '客户', receiverPhone: '1', detail: '地址' },
+        items: [],
+        createdAt: '2026-07-06T10:00:00Z'
+      })
+    });
+  });
+
+  await page.goto('/orders.html');
+  await expect(page.locator('[data-role="order-shipment-panel"]')).toContainText('确认已送达');
+  await page.locator('[data-role="submit-delivery"]').click();
+
+  await expect(page.locator('[data-role="order-tab"][data-tab="delivered"]')).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('[data-role="shipping-badge-label"]')).toContainText('配送完成');
+});

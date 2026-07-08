@@ -400,9 +400,10 @@ const toMineOrder = (order: Order): MineOrder => {
   }
 }
 
-const toMineOrderStatus = (status: Order['status']): string => {
+const toMineOrderStatus = (status: Order['status'] | string): string => {
   switch (status) {
     case 'SHIPPED':
+    case 'DISPATCHED':
       return '已发货'
     case 'DELIVERED':
       return '已送达'
@@ -415,9 +416,10 @@ const toMineOrderStatus = (status: Order['status']): string => {
   }
 }
 
-const toMineOrderTracking = (status: Order['status']): string => {
+const toMineOrderTracking = (status: Order['status'] | string): string => {
   switch (status) {
     case 'SHIPPED':
+    case 'DISPATCHED':
       return '商品已发货，可点击查看物流进度'
     case 'DELIVERED':
       return '订单已送达，如有问题可联系售后'

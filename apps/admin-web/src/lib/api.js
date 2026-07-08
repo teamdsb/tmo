@@ -248,6 +248,12 @@ export const shipOrder = async (orderId, payload) => {
   });
 };
 
+export const confirmOrderDelivery = async (orderId) => {
+  return requestRaw(`/admin/orders/${encodeURIComponent(orderId)}/confirm-delivery`, {
+    method: 'POST'
+  });
+};
+
 export const fetchOrderAdminEvents = async (orderId) => {
   return requestRaw(`/admin/orders/${encodeURIComponent(orderId)}/events`);
 };

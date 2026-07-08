@@ -552,7 +552,7 @@ export const createMockCommerceServices = (): CommerceServices => {
       }
       return updated
     },
-    confirmReceipt: async (orderId) => {
+    confirmDelivery: async (orderId) => {
       let updated: Order | null = null
       await updateIsolatedMockState((state) => {
         const order = state.orders.find((item) => item.id === orderId)
@@ -577,6 +577,7 @@ export const createMockCommerceServices = (): CommerceServices => {
       }
       return updated
     },
+    confirmReceipt: async (orderId) => orders.confirmDelivery(orderId),
     resetIdempotency: () => {}
   }
 

@@ -2,6 +2,7 @@ import {
   getOrders,
   getOrdersStats,
   getOrdersOrderId,
+  postAdminOrdersOrderIdConfirmDelivery,
   postAdminOrdersOrderIdShip,
   postOrders,
   postOrdersOrderIdConfirmReceipt,
@@ -21,6 +22,7 @@ export interface OrdersService {
   stats: () => Promise<OrderStatsResponse>
   get: (orderId: string) => Promise<Order>
   ship: (orderId: string, request: ShipOrderRequest) => Promise<Order>
+  confirmDelivery: (orderId: string) => Promise<Order>
   confirmReceipt: (orderId: string) => Promise<Order>
   resetIdempotency: () => void
 }
@@ -46,6 +48,7 @@ export const createOrdersService = (idempotency: OrderIdempotency): OrdersServic
     stats: async () => (await getOrdersStats()).data,
     get: async (orderId) => (await getOrdersOrderId(orderId)).data,
     ship: async (orderId, request) => (await postAdminOrdersOrderIdShip(orderId, request)).data as Order,
+    confirmDelivery: async (orderId) => (await postAdminOrdersOrderIdConfirmDelivery(orderId)).data as Order,
     confirmReceipt: async (orderId) => (await postOrdersOrderIdConfirmReceipt(orderId)).data as Order,
     resetIdempotency: () => idempotency.reset()
   }

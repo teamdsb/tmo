@@ -133,7 +133,7 @@ export default function OrderHistoryApp() {
                       >
                         物流
                       </Button>
-                      {order.status === 'SHIPPED' ? (
+                      {isShippedStatus(order.status) ? (
                         <Button
                           size='small'
                           color='success'
@@ -176,7 +176,9 @@ const formatOrderTotal = (order: Order) => {
   return `¥${(totalFen / 100).toFixed(2)}`
 }
 
-const statusLabel = (status: OrderStatus) => {
+const isShippedStatus = (status: OrderStatus | string) => status === 'SHIPPED' || status === 'DISPATCHED'
+
+const statusLabel = (status: OrderStatus | string) => {
   switch (status) {
     case 'SUBMITTED':
       return '已提交'
@@ -189,6 +191,7 @@ const statusLabel = (status: OrderStatus) => {
     case 'PAY_FAILED':
       return '支付失败'
     case 'SHIPPED':
+    case 'DISPATCHED':
       return '已发货'
     case 'DELIVERED':
       return '已送达'
@@ -197,12 +200,13 @@ const statusLabel = (status: OrderStatus) => {
   }
 }
 
-const statusTone = (status: OrderStatus): 'info' | 'warning' | 'success' => {
+const statusTone = (status: OrderStatus | string): 'info' | 'warning' | 'success' => {
   switch (status) {
     case 'SUBMITTED':
     case 'PAY_PENDING':
       return 'warning'
     case 'SHIPPED':
+    case 'DISPATCHED':
       return 'info'
     case 'DELIVERED':
       return 'success'

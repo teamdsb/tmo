@@ -935,6 +935,9 @@ type ServerInterface interface {
 	// Upload catalog product image asset
 	// (POST /admin/catalog/products/assets)
 	PostAdminCatalogProductsAssets(c *gin.Context)
+	// Confirm delivery for a shipped order
+	// (POST /admin/orders/{orderId}/confirm-delivery)
+	PostAdminOrdersOrderIdConfirmDelivery(c *gin.Context, orderId openapi_types.UUID)
 	// List administrative order events
 	// (GET /admin/orders/{orderId}/events)
 	GetAdminOrdersOrderIdEvents(c *gin.Context, orderId openapi_types.UUID)
@@ -1188,6 +1191,32 @@ func (siw *ServerInterfaceWrapper) PostAdminCatalogProductsAssets(c *gin.Context
 	}
 
 	siw.Handler.PostAdminCatalogProductsAssets(c)
+}
+
+// PostAdminOrdersOrderIdConfirmDelivery operation middleware
+func (siw *ServerInterfaceWrapper) PostAdminOrdersOrderIdConfirmDelivery(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "orderId" -------------
+	var orderId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "orderId", c.Param("orderId"), &orderId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter orderId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAdminOrdersOrderIdConfirmDelivery(c, orderId)
 }
 
 // GetAdminOrdersOrderIdEvents operation middleware
@@ -2556,6 +2585,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.DELETE(options.BaseURL+"/addresses/:addressId", wrapper.DeleteAddressesAddressId)
 	router.PATCH(options.BaseURL+"/addresses/:addressId", wrapper.PatchAddressesAddressId)
 	router.POST(options.BaseURL+"/admin/catalog/products/assets", wrapper.PostAdminCatalogProductsAssets)
+	router.POST(options.BaseURL+"/admin/orders/:orderId/confirm-delivery", wrapper.PostAdminOrdersOrderIdConfirmDelivery)
 	router.GET(options.BaseURL+"/admin/orders/:orderId/events", wrapper.GetAdminOrdersOrderIdEvents)
 	router.PATCH(options.BaseURL+"/admin/orders/:orderId/fulfillment", wrapper.PatchAdminOrdersOrderIdFulfillment)
 	router.POST(options.BaseURL+"/admin/orders/:orderId/ship", wrapper.PostAdminOrdersOrderIdShip)

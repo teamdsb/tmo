@@ -153,3 +153,51 @@ func (h *Handler) PostOrdersOrderIdConfirmReceipt(c *gin.Context, orderID types.
 	}
 	c.JSON(http.StatusOK, response)
 }
+
+func (h *Handler) PostAdminOrdersOrderIdConfirmDelivery(c *gin.Context, orderID types.UUID) {
+	if _, ok := h.requireRole(c, "PROCUREMENT", "CS", "MANAGER", "BOSS", "ADMIN"); !ok {
+		return
+	}
+	if h.DB == nil {
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to confirm delivery")
+		return
+	}
+
+	ctx := c.Request.Context()
+	var updated db.Order
+	err := shareddb.WithTx(ctx, h.DB, func(tx pgx.Tx) error {
+		q := db.New(tx)
+		current, err := q.GetOrderForUpdate(ctx, uuid.UUID(orderID))
+		if err != nil {
+			return err
+		}
+		if !strings.EqualFold(current.Status, string(oapi.OrderStatusSHIPPED)) {
+			return errInvalidReceiptTransition
+		}
+		updated, err = q.UpdateOrderStatus(ctx, db.UpdateOrderStatusParams{
+			ID:     current.ID,
+			Status: string(oapi.OrderStatusDELIVERED),
+		})
+		return err
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			h.writeError(c, http.StatusNotFound, "not_found", "order not found")
+		case errors.Is(err, errInvalidReceiptTransition):
+			h.writeError(c, http.StatusConflict, "invalid_order_state", err.Error())
+		default:
+			h.logError("admin confirm delivery failed", err)
+			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to confirm delivery")
+		}
+		return
+	}
+
+	response, err := h.orderResponse(ctx, updated)
+	if err != nil {
+		h.logError("map delivered order failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to fetch updated order")
+		return
+	}
+	c.JSON(http.StatusOK, response)
+}

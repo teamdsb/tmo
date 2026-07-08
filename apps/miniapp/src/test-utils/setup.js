@@ -313,6 +313,7 @@ jest.mock('@tmo/commerce-services', () => {
         get: jest.fn(async () => mockOrder),
         submit: jest.fn(async () => mockOrder),
         ship: jest.fn(async () => mockOrder),
+        confirmDelivery: jest.fn(async () => ({ ...mockOrder, status: 'DELIVERED' })),
         confirmReceipt: jest.fn(async () => ({ ...mockOrder, status: 'DELIVERED' })),
         resetIdempotency: jest.fn()
       },
