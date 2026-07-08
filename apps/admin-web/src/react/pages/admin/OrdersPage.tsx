@@ -1053,6 +1053,16 @@ export const OrdersPage = () => {
                                 className="mt-1 w-full rounded-lg border-slate-300 text-sm"
                                 data-role="shipment-waybill"
                                 onChange={(event) => setShipWaybillNo(event.target.value)}
+                                onBlur={() => {
+                                  if (!shipWaybillNo.trim() && selectedOrder) {
+                                    setShipWaybillNo(`MOCK-${selectedOrder.id.replace(/[^A-Za-z0-9]/g, '').slice(-10).toUpperCase()}`);
+                                  }
+                                }}
+                                onFocus={() => {
+                                  if (shipWaybillNo.startsWith('MOCK-')) {
+                                    setShipWaybillNo('');
+                                  }
+                                }}
                                 value={shipWaybillNo}
                               />
                             </label>

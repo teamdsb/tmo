@@ -88,6 +88,9 @@ test('hybrid shipment moves a confirmed paid order to shipped', async ({ page })
 
   await page.goto('/orders.html');
   await expect(page.locator('[data-role="order-shipment-panel"]')).toContainText('确认发货');
+  await expect(page.locator('[data-role="shipment-waybill"]')).toHaveValue('MOCK-1111111111');
+  await page.locator('[data-role="shipment-waybill"]').click();
+  await expect(page.locator('[data-role="shipment-waybill"]')).toHaveValue('');
   await page.locator('[data-role="shipment-carrier"]').fill('顺丰');
   await page.locator('[data-role="shipment-waybill"]').fill('SF123456');
   await page.locator('[data-role="submit-shipment"]').click();

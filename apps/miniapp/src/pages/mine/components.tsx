@@ -470,20 +470,20 @@ export function OrderManagementView({ orders, initialTab, loading = false, onBac
               <View className='text-right'>
                 <Text className='mine-order-total-label block text-xs'>订单金额</Text>
                 <Text className='mine-order-total mt-1 block text-base font-bold'>￥{order.totalPrice.toFixed(2)}</Text>
+                {canConfirmReceipt ? (
+                  <NativeButton
+                    className='mt-2 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700'
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onConfirmReceipt(order.id)
+                    }}
+                  >
+                    确认收货
+                  </NativeButton>
+                ) : null}
                 <Text className='block mt-2 text-xs mine-modern-primary'>点击查看物流</Text>
               </View>
             </View>
-            {canConfirmReceipt ? (
-              <NativeButton
-                className='mt-3 w-full rounded-2xl border border-blue-100 bg-blue-50 py-2 text-sm font-semibold text-blue-700'
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onConfirmReceipt(order.id)
-                }}
-              >
-                确认收货
-              </NativeButton>
-            ) : null}
           </View>
         )}) : (
           <View className='mine-order-empty rounded-3xl p-6 text-center'>

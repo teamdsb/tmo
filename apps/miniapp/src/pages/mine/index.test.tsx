@@ -358,6 +358,7 @@ describe('PersonalCenter', () => {
 
     expect(await screen.findByText('订单列表')).toBeInTheDocument()
     expect(document.querySelector('.mine-order-date')).toHaveClass('font-bold')
+    expect(screen.getByText('确认收货')).toBeInTheDocument()
     expect(screen.queryByText('ORD-88291')).not.toBeInTheDocument()
     expect(Taro.navigateTo).not.toHaveBeenCalledWith({
       url: '/pages/order/list/index'
