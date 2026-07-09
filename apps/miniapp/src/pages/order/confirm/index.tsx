@@ -364,7 +364,7 @@ export default function OrderConfirmPage() {
         </View>
       </View>
 
-      <FixedView position='bottom' placeholder>
+      <FixedView position='bottom' safeArea='bottom' placeholder>
         <View className='order-confirm-bottom-bar'>
           <View className='order-confirm-bottom-summary'>
             <Text className='order-confirm-bottom-label'>{`合计：共 ${totalQty} 件`}</Text>
