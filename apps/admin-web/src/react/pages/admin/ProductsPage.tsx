@@ -475,7 +475,9 @@ const deriveTierPricingFromSkus = (skus: any): ProductTier[] => {
   }
   return tiers.slice(1).map((tier: { minQty: number; unitPriceFen: number }) => ({
     minQty: tier.minQty,
-    discountRate: Number(Math.max(0, ((baseTier.unitPriceFen - tier.unitPriceFen) / baseTier.unitPriceFen) * 100).toFixed(2))
+    // Price tiers are persisted in whole fen, so deriving two decimal places
+    // exposes cent-rounding noise (for example 6% becomes 6.21% at ¥1.45).
+    discountRate: Math.round(Math.max(0, ((baseTier.unitPriceFen - tier.unitPriceFen) / baseTier.unitPriceFen) * 100))
   }));
 };
 

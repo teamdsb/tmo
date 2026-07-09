@@ -641,6 +641,32 @@ test('product edit shows saved SKU price tiers and preserves them on SKU PATCH',
   ]);
 });
 
+test('product edit restores integer discount rates after tier prices are rounded to fen', async ({ page }) => {
+  await installDevSession(page);
+  await routeProductPageApis(page, {
+    productDetail: {
+      ...productDetail,
+      skus: [
+        {
+          ...productDetail.skus[0],
+          priceTiers: [
+            { minQty: 1, maxQty: 499, unitPriceFen: 145 },
+            { minQty: 500, maxQty: 999, unitPriceFen: 136 },
+            { minQty: 1000, maxQty: null, unitPriceFen: 142 }
+          ]
+        }
+      ]
+    }
+  });
+
+  await page.goto('/products.html');
+  await page.locator('[data-role="open-product-drawer"]').first().click();
+
+  const tierRows = page.locator('#product-edit-drawer [data-role="tier-row"]');
+  await expect(tierRows.nth(0).locator('[data-field="tier-discount-rate"]')).toHaveValue('6');
+  await expect(tierRows.nth(1).locator('[data-field="tier-discount-rate"]')).toHaveValue('2');
+});
+
 test('product row can delete a catalog product', async ({ page }) => {
   await installDevSession(page);
   await routeProductPageApis(page);
