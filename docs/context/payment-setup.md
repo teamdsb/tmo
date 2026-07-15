@@ -20,6 +20,16 @@
 
 ## 微信支付
 
+### B2B 门店助手支付
+
+本项目的微信小程序支付入口使用 B2B 门店助手，而不是普通的 `wx.requestPayment`。小程序已配置门店助手插件 `wx69b7451feb427f0e`，支付会调用 `wx.requestCommonPayment`，并只接受支付服务返回的 `commonPayParams`。
+
+启用前必须在微信公众平台添加并审核门店助手插件，且付款用户已经在插件中完成门店认证和授权。B2B 商户号也必须已开通并关联该小程序。
+
+支付服务的 `WechatB2BProvider` 是商户专属的服务端适配点：它必须使用微信提供的 B2B 下单/签名协议和仅存放在部署 Secret 中的凭证，为每笔订单生成 `signData`、`mode: retail_pay_goods`、`paySig` 与 `signature`。这些参数不可写进前端、配置文件或代码常量。当前仓库不会伪造它们；没有部署此提供方时，`POST /payments/wechat/b2b/create` 会明确拒绝请求，而非创建一个不可拉起的支付会话。
+
+普通 `POST /payments/wechat/create` 与 `wx.requestPayment` 仅适用于另行完成的普通微信支付接入，不能作为 B2B 门店助手支付的替代。
+
 ### 官方依据
 
 - 小程序拉起支付：<https://developers.weixin.qq.com/miniprogram/dev/api/payment/wx.requestPayment.html>

@@ -1,4 +1,10 @@
 export default defineAppConfig({
+  plugins: {
+    'bb-plugin': {
+      version: 'latest',
+      provider: 'wx69b7451feb427f0e'
+    }
+  },
   lazyCodeLoading: 'requiredComponents',
   pages: [
     'pages/index/index',

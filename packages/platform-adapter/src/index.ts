@@ -8,6 +8,7 @@ import type {
   ChooseImageResult,
   LoginResult,
   PhoneProofResult,
+  CommonPayOptions,
   PayOptions,
   PayResult,
   RequestMethod,
@@ -82,6 +83,13 @@ export const pay = async (options: PayOptions): Promise<PayResult> => {
     default:
       return Promise.reject(new Error('pay is not supported on this platform'))
   }
+}
+
+export const commonPay = async (options: CommonPayOptions): Promise<PayResult> => {
+  if (getPlatform() !== Platform.Weapp) {
+    return Promise.reject(new Error('common payment is only supported on WeChat mini programs'))
+  }
+  return weapp.commonPay(options)
 }
 
 export const chooseImage = async (options?: ChooseImageOptions): Promise<ChooseImageResult> => {
@@ -169,6 +177,7 @@ export type {
   ChooseImageResult,
   LoginResult,
   PhoneProofResult,
+  CommonPayOptions,
   PayOptions,
   PayResult,
   RequestMethod,

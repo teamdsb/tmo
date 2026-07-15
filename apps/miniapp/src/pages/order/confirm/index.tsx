@@ -202,6 +202,7 @@ export default function OrderConfirmPage() {
       } else {
         try {
           const payment = await paymentServices.sessions.payForOrder(order.id, {
+            channel: paymentAvailability.channel,
             idempotencyKey: buildOrderPaymentIdempotencyKey(order.id)
           })
           const paymentStatus = String(payment.status || '').toUpperCase()
