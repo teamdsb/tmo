@@ -6,7 +6,7 @@ import Button from '@taroify/core/button'
 import FixedView from '@taroify/core/fixed-view'
 import type { Cart, UserAddress } from '@tmo/api-client'
 import { isApiError } from '@tmo/commerce-services'
-import { ROUTES, goodsDetailRoute, orderDetailRoute, withQuery } from '../../../routes'
+import { ROUTES, goodsDetailRoute, orderSuccessRoute, withQuery } from '../../../routes'
 import SafeImage from '../../../components/safe-image'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { matchPriceTier } from '../../../utils/price-tier'
@@ -17,6 +17,8 @@ import { clearSelectedUserAddressId, getSelectedUserAddressId, listUserAddresses
 import { isPaymentCancelled, paymentServices } from '../../../services/payment'
 import { buildOrderPaymentIdempotencyKey, resolvePaymentAvailability } from '../../../services/payment-availability'
 import './index.scss'
+
+const orderResultToastDuration = 3000
 
 export default function OrderConfirmPage() {
   const navbarStyle = getNavbarStyle()
@@ -191,11 +193,12 @@ export default function OrderConfirmPage() {
 
       let toastTitle = '订单已提交'
       let toastIcon: 'success' | 'none' = 'success'
-      let paymentConfirmed = false
+      let paymentResult = 'created'
       const paymentAvailability = await resolvePaymentAvailability()
 
       if (!paymentAvailability.available) {
         toastTitle = '订单已提交，待销售确认'
+        paymentResult = 'unavailable'
       } else {
         try {
           const payment = await paymentServices.sessions.payForOrder(order.id, {
@@ -204,35 +207,34 @@ export default function OrderConfirmPage() {
           const paymentStatus = String(payment.status || '').toUpperCase()
           if (paymentStatus === 'PAID') {
             toastTitle = '支付成功'
-            paymentConfirmed = true
+            paymentResult = 'paid'
           } else {
             toastTitle = '订单已提交，支付确认中'
             toastIcon = 'none'
+            paymentResult = 'pending'
           }
         } catch (paymentError) {
           console.warn('pay order failed', paymentError)
           if (isPaymentCancelled(paymentError)) {
             toastTitle = '支付已取消，可稍后继续支付'
+            paymentResult = 'cancelled'
           } else {
             toastTitle = '支付未完成，请重试或刷新状态'
+            paymentResult = 'failed'
           }
           toastIcon = 'none'
         }
       }
 
-      await Taro.showToast({ title: toastTitle, icon: toastIcon })
-      if (paymentConfirmed) {
-        await switchTabLike(ROUTES.cart)
-      } else {
-        await navigateTo(orderDetailRoute(order.id))
-      }
+      await Taro.showToast({ title: toastTitle, icon: toastIcon, duration: orderResultToastDuration })
+      await navigateTo(orderSuccessRoute(order.id, paymentResult))
     } catch (error) {
       console.warn('submit order failed', error)
       const existingOrderId = getIdempotencyConflictOrderId(error)
       if (existingOrderId) {
         commerceServices.orders.resetIdempotency()
-        await Taro.showToast({ title: '订单已生成', icon: 'none' })
-        await navigateTo(orderDetailRoute(existingOrderId))
+        await Taro.showToast({ title: '订单已生成', icon: 'none', duration: orderResultToastDuration })
+        await navigateTo(orderSuccessRoute(existingOrderId, 'created'))
         return
       }
       await Taro.showToast({ title: '提交失败', icon: 'none' })
@@ -362,7 +364,7 @@ export default function OrderConfirmPage() {
         </View>
       </View>
 
-      <FixedView position='bottom' placeholder>
+      <FixedView position='bottom' safeArea='bottom' placeholder>
         <View className='order-confirm-bottom-bar'>
           <View className='order-confirm-bottom-summary'>
             <Text className='order-confirm-bottom-label'>{`合计：共 ${totalQty} 件`}</Text>

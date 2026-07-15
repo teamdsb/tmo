@@ -361,6 +361,15 @@ export interface UpdateOrderFulfillmentRequest {
   confirmOfflinePayment: boolean;
 }
 
+export interface ShipOrderRequest {
+  /** @nullable */
+  carrier?: string | null;
+  /** @minLength 1 */
+  waybillNo: string;
+  /** @nullable */
+  shippedAt?: string | null;
+}
+
 export interface OrderAdminEvent {
   id: string;
   orderId: string;
@@ -2493,6 +2502,172 @@ export const getOrdersOrderId = async (orderId: string, options?: RequestInit): 
   {
     ...options,
     method: 'GET'
+
+
+  }
+);}
+
+
+
+/**
+ * @summary Confirm receipt for a shipped order
+ */
+export type postOrdersOrderIdConfirmReceiptResponse200 = {
+  data: Order
+  status: 200
+}
+
+export type postOrdersOrderIdConfirmReceiptResponse403 = {
+  data: ForbiddenResponse
+  status: 403
+}
+
+export type postOrdersOrderIdConfirmReceiptResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type postOrdersOrderIdConfirmReceiptResponse409 = {
+  data: ConflictResponse
+  status: 409
+}
+
+export type postOrdersOrderIdConfirmReceiptResponseSuccess = (postOrdersOrderIdConfirmReceiptResponse200) & {
+  headers: Headers;
+};
+export type postOrdersOrderIdConfirmReceiptResponseError = (postOrdersOrderIdConfirmReceiptResponse403 | postOrdersOrderIdConfirmReceiptResponse404 | postOrdersOrderIdConfirmReceiptResponse409) & {
+  headers: Headers;
+};
+
+export type postOrdersOrderIdConfirmReceiptResponse = (postOrdersOrderIdConfirmReceiptResponseSuccess | postOrdersOrderIdConfirmReceiptResponseError)
+
+export const getPostOrdersOrderIdConfirmReceiptUrl = (orderId: string,) => {
+
+
+
+
+  return `/orders/${orderId}/confirm-receipt`
+}
+
+export const postOrdersOrderIdConfirmReceipt = async (orderId: string, options?: RequestInit): Promise<postOrdersOrderIdConfirmReceiptResponse> => {
+
+  return apiMutator<postOrdersOrderIdConfirmReceiptResponse>(getPostOrdersOrderIdConfirmReceiptUrl(orderId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+/**
+ * @summary Ship a confirmed paid order
+ */
+export type postAdminOrdersOrderIdShipResponse200 = {
+  data: Order
+  status: 200
+}
+
+export type postAdminOrdersOrderIdShipResponse400 = {
+  data: BadRequestResponse
+  status: 400
+}
+
+export type postAdminOrdersOrderIdShipResponse403 = {
+  data: ForbiddenResponse
+  status: 403
+}
+
+export type postAdminOrdersOrderIdShipResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type postAdminOrdersOrderIdShipResponse409 = {
+  data: ConflictResponse
+  status: 409
+}
+
+export type postAdminOrdersOrderIdShipResponseSuccess = (postAdminOrdersOrderIdShipResponse200) & {
+  headers: Headers;
+};
+export type postAdminOrdersOrderIdShipResponseError = (postAdminOrdersOrderIdShipResponse400 | postAdminOrdersOrderIdShipResponse403 | postAdminOrdersOrderIdShipResponse404 | postAdminOrdersOrderIdShipResponse409) & {
+  headers: Headers;
+};
+
+export type postAdminOrdersOrderIdShipResponse = (postAdminOrdersOrderIdShipResponseSuccess | postAdminOrdersOrderIdShipResponseError)
+
+export const getPostAdminOrdersOrderIdShipUrl = (orderId: string,) => {
+
+
+
+
+  return `/admin/orders/${orderId}/ship`
+}
+
+export const postAdminOrdersOrderIdShip = async (orderId: string,
+    shipOrderRequest: ShipOrderRequest, options?: RequestInit): Promise<postAdminOrdersOrderIdShipResponse> => {
+
+  return apiMutator<postAdminOrdersOrderIdShipResponse>(getPostAdminOrdersOrderIdShipUrl(orderId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      shipOrderRequest,)
+  }
+);}
+
+
+
+/**
+ * @summary Confirm delivery for a shipped order
+ */
+export type postAdminOrdersOrderIdConfirmDeliveryResponse200 = {
+  data: Order
+  status: 200
+}
+
+export type postAdminOrdersOrderIdConfirmDeliveryResponse403 = {
+  data: ForbiddenResponse
+  status: 403
+}
+
+export type postAdminOrdersOrderIdConfirmDeliveryResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type postAdminOrdersOrderIdConfirmDeliveryResponse409 = {
+  data: ConflictResponse
+  status: 409
+}
+
+export type postAdminOrdersOrderIdConfirmDeliveryResponseSuccess = (postAdminOrdersOrderIdConfirmDeliveryResponse200) & {
+  headers: Headers;
+};
+export type postAdminOrdersOrderIdConfirmDeliveryResponseError = (postAdminOrdersOrderIdConfirmDeliveryResponse403 | postAdminOrdersOrderIdConfirmDeliveryResponse404 | postAdminOrdersOrderIdConfirmDeliveryResponse409) & {
+  headers: Headers;
+};
+
+export type postAdminOrdersOrderIdConfirmDeliveryResponse = (postAdminOrdersOrderIdConfirmDeliveryResponseSuccess | postAdminOrdersOrderIdConfirmDeliveryResponseError)
+
+export const getPostAdminOrdersOrderIdConfirmDeliveryUrl = (orderId: string,) => {
+
+
+
+
+  return `/admin/orders/${orderId}/confirm-delivery`
+}
+
+export const postAdminOrdersOrderIdConfirmDelivery = async (orderId: string, options?: RequestInit): Promise<postAdminOrdersOrderIdConfirmDeliveryResponse> => {
+
+  return apiMutator<postAdminOrdersOrderIdConfirmDeliveryResponse>(getPostAdminOrdersOrderIdConfirmDeliveryUrl(orderId),
+  {
+    ...options,
+    method: 'POST'
 
 
   }

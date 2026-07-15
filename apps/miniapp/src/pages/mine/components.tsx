@@ -399,9 +399,10 @@ type OrderManagementViewProps = {
   initialTab: string
   loading?: boolean
   onBack: () => void
+  onConfirmReceipt: (orderId: string) => void
 }
 
-export function OrderManagementView({ orders, initialTab, loading = false, onBack }: OrderManagementViewProps) {
+export function OrderManagementView({ orders, initialTab, loading = false, onBack, onConfirmReceipt }: OrderManagementViewProps) {
   const [activeTab, setActiveTab] = useState(initialTab)
   const orderTabs = ['全部', '待处理', '已发货', '已送达', '退换货']
   const filteredOrders = useMemo(() => {
@@ -430,7 +431,9 @@ export function OrderManagementView({ orders, initialTab, loading = false, onBac
           ))}
         </View>
 
-        {filteredOrders.length > 0 ? filteredOrders.map((order) => (
+        {filteredOrders.length > 0 ? filteredOrders.map((order) => {
+          const canConfirmReceipt = order.sourceStatus === 'SHIPPED' || order.sourceStatus === 'DISPATCHED' || order.status === '已发货'
+          return (
           <View
             key={order.id}
             className='mine-order-card mb-3 rounded-3xl p-4'
@@ -467,11 +470,22 @@ export function OrderManagementView({ orders, initialTab, loading = false, onBac
               <View className='text-right'>
                 <Text className='mine-order-total-label block text-xs'>订单金额</Text>
                 <Text className='mine-order-total mt-1 block text-base font-bold'>￥{order.totalPrice.toFixed(2)}</Text>
+                {canConfirmReceipt ? (
+                  <NativeButton
+                    className='mt-2 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700'
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onConfirmReceipt(order.id)
+                    }}
+                  >
+                    确认收货
+                  </NativeButton>
+                ) : null}
                 <Text className='block mt-2 text-xs mine-modern-primary'>点击查看物流</Text>
               </View>
             </View>
           </View>
-        )) : (
+        )}) : (
           <View className='mine-order-empty rounded-3xl p-6 text-center'>
             <RecordsOutlined className='mine-order-empty-icon text-2xl' />
             <Text className='mine-order-empty-title mt-3 block text-sm font-semibold'>

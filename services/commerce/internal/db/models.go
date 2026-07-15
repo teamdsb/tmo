@@ -339,6 +339,8 @@ type SupportConversation struct {
 	ClosedAt            pgtype.Timestamptz `db:"closed_at" json:"closed_at"`
 	CustomerDisplayName *string            `db:"customer_display_name" json:"customer_display_name"`
 	CustomerPhone       *string            `db:"customer_phone" json:"customer_phone"`
+	QueuedAt            pgtype.Timestamptz `db:"queued_at" json:"queued_at"`
+	AssignedAt          pgtype.Timestamptz `db:"assigned_at" json:"assigned_at"`
 }
 
 type SupportConversationTransfer struct {

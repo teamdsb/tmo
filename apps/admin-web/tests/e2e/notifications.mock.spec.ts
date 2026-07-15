@@ -16,10 +16,33 @@ const mockConversation = {
   lastMessageAt: '2026-03-11T12:30:00Z',
   customerUnreadCount: 0,
   staffUnreadCount: 2,
+  queuedAt: '2026-03-10T09:00:00Z',
+  assignedAt: '2026-03-10T09:01:00Z',
   createdAt: '2026-03-10T09:00:00Z',
   updatedAt: '2026-03-11T12:30:00Z',
   closedAt: ''
 };
+
+test('queue timeout notification is emitted only once for the same queue entry', async ({ page }) => {
+  await loginMockBoss(page);
+  await page.goto('/dashboard.html');
+
+  const overdueConversation = {
+    ...mockConversation,
+    id: 'queue-overdue-once',
+    status: 'OPEN_UNASSIGNED',
+    assigneeUserId: '',
+    assigneeRole: '',
+    staffUnreadCount: 0,
+    queuedAt: new Date(Date.now() - 31_000).toISOString()
+  };
+  await dispatchMockUnread(page, overdueConversation);
+  await expect(page.getByTestId('admin-support-notification-toast')).toContainText('等待接入超时');
+  await expect(page.getByTestId('admin-support-notification-toast')).toHaveCount(0, { timeout: 6_000 });
+
+  await dispatchMockUnread(page, overdueConversation);
+  await expect(page.getByTestId('admin-support-notification-toast')).toHaveCount(0);
+});
 
 const dispatchMockUnread = async (page, conversation = mockConversation) => {
   await page.waitForFunction(() => Boolean(window.__TMO_ADMIN_SUPPORT_NOTIFICATIONS__?.dispatchMockUpdate));

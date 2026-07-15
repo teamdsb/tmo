@@ -195,11 +195,8 @@ export default function ProductDetail() {
     const allowed = await ensureLoggedIn({ redirect: true, redirectTo })
     if (!allowed) return
     try {
-      const cart = await commerceServices.cart.addItem(selectedSku.id, purchaseQty)
-      const count = Array.isArray(cart.items)
-        ? cart.items.reduce((total, item) => total + item.qty, 0)
-        : 0
-      await Taro.showToast({ title: count > 0 ? `已加入购物车（${purchaseQty}）` : '已加入购物车', icon: 'success' })
+      await commerceServices.cart.addItem(selectedSku.id, purchaseQty)
+      await Taro.showToast({ title: '已加入购物车', icon: 'success' })
     } catch (error) {
       console.warn('add to cart failed', error)
       await Taro.showToast({ title: '加入失败', icon: 'none' })

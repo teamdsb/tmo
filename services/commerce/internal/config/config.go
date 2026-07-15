@@ -1,6 +1,10 @@
 package config
 
-import sharedconfig "github.com/teamdsb/tmo/packages/go-shared/config"
+import (
+	"time"
+
+	sharedconfig "github.com/teamdsb/tmo/packages/go-shared/config"
+)
 
 const (
 	defaultHTTPAddr = ":8080"
@@ -15,6 +19,8 @@ const (
 	defaultJWTIssuer         = ""
 	defaultInternalSyncToken = "dev-payment-sync-token"
 	defaultIdentityBaseURL   = "http://localhost:8081"
+	defaultAutoDeliveryAfter = 7 * 24 * time.Hour
+	defaultAutoDeliveryEvery = time.Hour
 )
 
 type Config struct {
@@ -28,6 +34,8 @@ type Config struct {
 	MediaPublicBaseURL  string
 	InternalSyncToken   string
 	IdentityBaseURL     string
+	AutoDeliveryAfter   time.Duration
+	AutoDeliveryEvery   time.Duration
 }
 
 func Load() Config {
@@ -42,5 +50,7 @@ func Load() Config {
 		MediaPublicBaseURL:  sharedconfig.String("MEDIA_PUBLIC_BASE_URL", defaultMediaPublicBaseURL),
 		InternalSyncToken:   sharedconfig.String("COMMERCE_INTERNAL_SYNC_TOKEN", defaultInternalSyncToken),
 		IdentityBaseURL:     sharedconfig.String("COMMERCE_IDENTITY_BASE_URL", defaultIdentityBaseURL),
+		AutoDeliveryAfter:   sharedconfig.Duration("COMMERCE_AUTO_DELIVERY_AFTER", defaultAutoDeliveryAfter),
+		AutoDeliveryEvery:   sharedconfig.Duration("COMMERCE_AUTO_DELIVERY_EVERY", defaultAutoDeliveryEvery),
 	}
 }

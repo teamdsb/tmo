@@ -17,11 +17,12 @@ UPDATE support_conversations
 SET assignee_user_id = $2,
     assignee_role = $3,
     status = 'OPEN_ASSIGNED',
+    assigned_at = now(),
     updated_at = now()
 WHERE id = $1
   AND closed_at IS NULL
   AND (assignee_user_id IS NULL OR assignee_user_id = $2)
-RETURNING id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone
+RETURNING id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone, queued_at, assigned_at
 `
 
 type ClaimSupportConversationParams struct {
@@ -50,6 +51,8 @@ func (q *Queries) ClaimSupportConversation(ctx context.Context, arg ClaimSupport
 		&i.ClosedAt,
 		&i.CustomerDisplayName,
 		&i.CustomerPhone,
+		&i.QueuedAt,
+		&i.AssignedAt,
 	)
 	return i, err
 }
@@ -140,7 +143,7 @@ INSERT INTO support_conversations (
     $9,
     COALESCE($10, now())
 )
-RETURNING id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone
+RETURNING id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone, queued_at, assigned_at
 `
 
 type CreateSupportConversationParams struct {
@@ -187,6 +190,8 @@ func (q *Queries) CreateSupportConversation(ctx context.Context, arg CreateSuppo
 		&i.ClosedAt,
 		&i.CustomerDisplayName,
 		&i.CustomerPhone,
+		&i.QueuedAt,
+		&i.AssignedAt,
 	)
 	return i, err
 }
@@ -360,7 +365,7 @@ func (q *Queries) CreateSupportMessageAsset(ctx context.Context, arg CreateSuppo
 }
 
 const getActiveSupportConversationByCustomer = `-- name: GetActiveSupportConversationByCustomer :one
-SELECT id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone
+SELECT id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone, queued_at, assigned_at
 FROM support_conversations
 WHERE customer_user_id = $1
   AND closed_at IS NULL
@@ -388,12 +393,14 @@ func (q *Queries) GetActiveSupportConversationByCustomer(ctx context.Context, cu
 		&i.ClosedAt,
 		&i.CustomerDisplayName,
 		&i.CustomerPhone,
+		&i.QueuedAt,
+		&i.AssignedAt,
 	)
 	return i, err
 }
 
 const getSupportConversation = `-- name: GetSupportConversation :one
-SELECT id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone
+SELECT id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone, queued_at, assigned_at
 FROM support_conversations
 WHERE id = $1
 `
@@ -418,6 +425,8 @@ func (q *Queries) GetSupportConversation(ctx context.Context, id uuid.UUID) (Sup
 		&i.ClosedAt,
 		&i.CustomerDisplayName,
 		&i.CustomerPhone,
+		&i.QueuedAt,
+		&i.AssignedAt,
 	)
 	return i, err
 }
@@ -445,7 +454,7 @@ func (q *Queries) GetSupportMessageAsset(ctx context.Context, id uuid.UUID) (Sup
 }
 
 const listSupportConversations = `-- name: ListSupportConversations :many
-SELECT id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone
+SELECT id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone, queued_at, assigned_at
 FROM support_conversations
 WHERE ($1::uuid IS NULL OR assignee_user_id = $1)
   AND (
@@ -518,6 +527,8 @@ func (q *Queries) ListSupportConversations(ctx context.Context, arg ListSupportC
 			&i.ClosedAt,
 			&i.CustomerDisplayName,
 			&i.CustomerPhone,
+			&i.QueuedAt,
+			&i.AssignedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -579,7 +590,7 @@ UPDATE support_conversations
 SET customer_unread_count = 0,
     updated_at = now()
 WHERE id = $1
-RETURNING id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone
+RETURNING id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone, queued_at, assigned_at
 `
 
 func (q *Queries) MarkSupportConversationReadForCustomer(ctx context.Context, id uuid.UUID) (SupportConversation, error) {
@@ -602,6 +613,8 @@ func (q *Queries) MarkSupportConversationReadForCustomer(ctx context.Context, id
 		&i.ClosedAt,
 		&i.CustomerDisplayName,
 		&i.CustomerPhone,
+		&i.QueuedAt,
+		&i.AssignedAt,
 	)
 	return i, err
 }
@@ -611,7 +624,7 @@ UPDATE support_conversations
 SET staff_unread_count = 0,
     updated_at = now()
 WHERE id = $1
-RETURNING id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone
+RETURNING id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone, queued_at, assigned_at
 `
 
 func (q *Queries) MarkSupportConversationReadForStaff(ctx context.Context, id uuid.UUID) (SupportConversation, error) {
@@ -634,6 +647,8 @@ func (q *Queries) MarkSupportConversationReadForStaff(ctx context.Context, id uu
 		&i.ClosedAt,
 		&i.CustomerDisplayName,
 		&i.CustomerPhone,
+		&i.QueuedAt,
+		&i.AssignedAt,
 	)
 	return i, err
 }
@@ -643,10 +658,12 @@ UPDATE support_conversations
 SET assignee_user_id = NULL,
     assignee_role = NULL,
     status = 'OPEN_UNASSIGNED',
+    queued_at = now(),
+    assigned_at = NULL,
     updated_at = now()
 WHERE id = $1
   AND closed_at IS NULL
-RETURNING id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone
+RETURNING id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone, queued_at, assigned_at
 `
 
 func (q *Queries) ReleaseSupportConversation(ctx context.Context, id uuid.UUID) (SupportConversation, error) {
@@ -669,6 +686,8 @@ func (q *Queries) ReleaseSupportConversation(ctx context.Context, id uuid.UUID) 
 		&i.ClosedAt,
 		&i.CustomerDisplayName,
 		&i.CustomerPhone,
+		&i.QueuedAt,
+		&i.AssignedAt,
 	)
 	return i, err
 }
@@ -678,10 +697,11 @@ UPDATE support_conversations
 SET assignee_user_id = $2,
     assignee_role = $3,
     status = 'OPEN_ASSIGNED',
+    assigned_at = now(),
     updated_at = now()
 WHERE id = $1
   AND closed_at IS NULL
-RETURNING id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone
+RETURNING id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone, queued_at, assigned_at
 `
 
 type TransferSupportConversationParams struct {
@@ -710,6 +730,8 @@ func (q *Queries) TransferSupportConversation(ctx context.Context, arg TransferS
 		&i.ClosedAt,
 		&i.CustomerDisplayName,
 		&i.CustomerPhone,
+		&i.QueuedAt,
+		&i.AssignedAt,
 	)
 	return i, err
 }
@@ -724,7 +746,7 @@ SET last_message_type = $2,
     status = $7,
     updated_at = now()
 WHERE id = $1
-RETURNING id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone
+RETURNING id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone, queued_at, assigned_at
 `
 
 type UpdateSupportConversationAfterMessageParams struct {
@@ -765,6 +787,8 @@ func (q *Queries) UpdateSupportConversationAfterMessage(ctx context.Context, arg
 		&i.ClosedAt,
 		&i.CustomerDisplayName,
 		&i.CustomerPhone,
+		&i.QueuedAt,
+		&i.AssignedAt,
 	)
 	return i, err
 }
@@ -775,7 +799,7 @@ SET customer_display_name = COALESCE($1::text, customer_display_name),
     customer_phone = COALESCE($2::text, customer_phone),
     updated_at = now()
 WHERE id = $3
-RETURNING id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone
+RETURNING id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone, queued_at, assigned_at
 `
 
 type UpdateSupportConversationCustomerSnapshotParams struct {
@@ -804,6 +828,8 @@ func (q *Queries) UpdateSupportConversationCustomerSnapshot(ctx context.Context,
 		&i.ClosedAt,
 		&i.CustomerDisplayName,
 		&i.CustomerPhone,
+		&i.QueuedAt,
+		&i.AssignedAt,
 	)
 	return i, err
 }

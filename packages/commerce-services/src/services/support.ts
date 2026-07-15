@@ -17,6 +17,8 @@ export interface SupportConversation {
   lastMessageAt: string
   customerUnreadCount: number
   staffUnreadCount: number
+  queuedAt: string
+  assignedAt?: string
   createdAt: string
   updatedAt: string
   closedAt?: string

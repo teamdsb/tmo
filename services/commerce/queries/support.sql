@@ -102,6 +102,7 @@ UPDATE support_conversations
 SET assignee_user_id = $2,
     assignee_role = $3,
     status = 'OPEN_ASSIGNED',
+    assigned_at = now(),
     updated_at = now()
 WHERE id = $1
   AND closed_at IS NULL
@@ -113,6 +114,8 @@ UPDATE support_conversations
 SET assignee_user_id = NULL,
     assignee_role = NULL,
     status = 'OPEN_UNASSIGNED',
+    queued_at = now(),
+    assigned_at = NULL,
     updated_at = now()
 WHERE id = $1
   AND closed_at IS NULL
@@ -123,6 +126,7 @@ UPDATE support_conversations
 SET assignee_user_id = $2,
     assignee_role = $3,
     status = 'OPEN_ASSIGNED',
+    assigned_at = now(),
     updated_at = now()
 WHERE id = $1
   AND closed_at IS NULL

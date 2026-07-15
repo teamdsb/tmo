@@ -103,6 +103,26 @@ SET status = $2,
 WHERE id = $1
 RETURNING *;
 
+-- name: UpdateOrderStatus :one
+UPDATE orders
+SET status = $2,
+    updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: AutoDeliverShippedOrders :many
+UPDATE orders o
+SET status = $2,
+    updated_at = now()
+WHERE o.status = $1
+  AND EXISTS (
+    SELECT 1
+    FROM order_tracking_shipments s
+    WHERE s.order_id = o.id
+      AND s.shipped_at <= $3
+  )
+RETURNING o.*;
+
 -- name: CreateOrderAdminEvent :one
 INSERT INTO order_admin_events (
     order_id, idempotency_key, actor_user_id, action, note,

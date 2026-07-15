@@ -616,6 +616,13 @@ type SKU struct {
 	Unit  *string            `json:"unit,omitempty"`
 }
 
+// ShipOrderRequest defines model for ShipOrderRequest.
+type ShipOrderRequest struct {
+	Carrier   *string    `json:"carrier"`
+	ShippedAt *time.Time `json:"shippedAt"`
+	WaybillNo string     `json:"waybillNo"`
+}
+
 // TicketStatus defines model for TicketStatus.
 type TicketStatus string
 
@@ -842,6 +849,9 @@ type PostAdminCatalogProductsAssetsMultipartRequestBody PostAdminCatalogProducts
 // PatchAdminOrdersOrderIdFulfillmentJSONRequestBody defines body for PatchAdminOrdersOrderIdFulfillment for application/json ContentType.
 type PatchAdminOrdersOrderIdFulfillmentJSONRequestBody = UpdateOrderFulfillmentRequest
 
+// PostAdminOrdersOrderIdShipJSONRequestBody defines body for PostAdminOrdersOrderIdShip for application/json ContentType.
+type PostAdminOrdersOrderIdShipJSONRequestBody = ShipOrderRequest
+
 // PostAfterSalesTicketsJSONRequestBody defines body for PostAfterSalesTickets for application/json ContentType.
 type PostAfterSalesTicketsJSONRequestBody = CreateAfterSalesTicket
 
@@ -925,12 +935,18 @@ type ServerInterface interface {
 	// Upload catalog product image asset
 	// (POST /admin/catalog/products/assets)
 	PostAdminCatalogProductsAssets(c *gin.Context)
+	// Confirm delivery for a shipped order
+	// (POST /admin/orders/{orderId}/confirm-delivery)
+	PostAdminOrdersOrderIdConfirmDelivery(c *gin.Context, orderId openapi_types.UUID)
 	// List administrative order events
 	// (GET /admin/orders/{orderId}/events)
 	GetAdminOrdersOrderIdEvents(c *gin.Context, orderId openapi_types.UUID)
 	// Confirm offline payment and assign, or reassign, an order
 	// (PATCH /admin/orders/{orderId}/fulfillment)
 	PatchAdminOrdersOrderIdFulfillment(c *gin.Context, orderId openapi_types.UUID, params PatchAdminOrdersOrderIdFulfillmentParams)
+	// Ship a confirmed paid order
+	// (POST /admin/orders/{orderId}/ship)
+	PostAdminOrdersOrderIdShip(c *gin.Context, orderId openapi_types.UUID)
 	// List after-sales tickets
 	// (GET /after-sales/tickets)
 	GetAfterSalesTickets(c *gin.Context, params GetAfterSalesTicketsParams)
@@ -1039,6 +1055,9 @@ type ServerInterface interface {
 	// Get my order detail
 	// (GET /orders/{orderId})
 	GetOrdersOrderId(c *gin.Context, orderId openapi_types.UUID)
+	// Confirm receipt for a shipped order
+	// (POST /orders/{orderId}/confirm-receipt)
+	PostOrdersOrderIdConfirmReceipt(c *gin.Context, orderId openapi_types.UUID)
 	// Get tracking info (waybill numbers)
 	// (GET /orders/{orderId}/tracking)
 	GetOrdersOrderIdTracking(c *gin.Context, orderId openapi_types.UUID)
@@ -1174,6 +1193,32 @@ func (siw *ServerInterfaceWrapper) PostAdminCatalogProductsAssets(c *gin.Context
 	siw.Handler.PostAdminCatalogProductsAssets(c)
 }
 
+// PostAdminOrdersOrderIdConfirmDelivery operation middleware
+func (siw *ServerInterfaceWrapper) PostAdminOrdersOrderIdConfirmDelivery(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "orderId" -------------
+	var orderId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "orderId", c.Param("orderId"), &orderId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter orderId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAdminOrdersOrderIdConfirmDelivery(c, orderId)
+}
+
 // GetAdminOrdersOrderIdEvents operation middleware
 func (siw *ServerInterfaceWrapper) GetAdminOrdersOrderIdEvents(c *gin.Context) {
 
@@ -1251,6 +1296,32 @@ func (siw *ServerInterfaceWrapper) PatchAdminOrdersOrderIdFulfillment(c *gin.Con
 	}
 
 	siw.Handler.PatchAdminOrdersOrderIdFulfillment(c, orderId, params)
+}
+
+// PostAdminOrdersOrderIdShip operation middleware
+func (siw *ServerInterfaceWrapper) PostAdminOrdersOrderIdShip(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "orderId" -------------
+	var orderId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "orderId", c.Param("orderId"), &orderId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter orderId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAdminOrdersOrderIdShip(c, orderId)
 }
 
 // GetAfterSalesTickets operation middleware
@@ -2243,6 +2314,32 @@ func (siw *ServerInterfaceWrapper) GetOrdersOrderId(c *gin.Context) {
 	siw.Handler.GetOrdersOrderId(c, orderId)
 }
 
+// PostOrdersOrderIdConfirmReceipt operation middleware
+func (siw *ServerInterfaceWrapper) PostOrdersOrderIdConfirmReceipt(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "orderId" -------------
+	var orderId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "orderId", c.Param("orderId"), &orderId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter orderId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostOrdersOrderIdConfirmReceipt(c, orderId)
+}
+
 // GetOrdersOrderIdTracking operation middleware
 func (siw *ServerInterfaceWrapper) GetOrdersOrderIdTracking(c *gin.Context) {
 
@@ -2488,8 +2585,10 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.DELETE(options.BaseURL+"/addresses/:addressId", wrapper.DeleteAddressesAddressId)
 	router.PATCH(options.BaseURL+"/addresses/:addressId", wrapper.PatchAddressesAddressId)
 	router.POST(options.BaseURL+"/admin/catalog/products/assets", wrapper.PostAdminCatalogProductsAssets)
+	router.POST(options.BaseURL+"/admin/orders/:orderId/confirm-delivery", wrapper.PostAdminOrdersOrderIdConfirmDelivery)
 	router.GET(options.BaseURL+"/admin/orders/:orderId/events", wrapper.GetAdminOrdersOrderIdEvents)
 	router.PATCH(options.BaseURL+"/admin/orders/:orderId/fulfillment", wrapper.PatchAdminOrdersOrderIdFulfillment)
+	router.POST(options.BaseURL+"/admin/orders/:orderId/ship", wrapper.PostAdminOrdersOrderIdShip)
 	router.GET(options.BaseURL+"/after-sales/tickets", wrapper.GetAfterSalesTickets)
 	router.POST(options.BaseURL+"/after-sales/tickets", wrapper.PostAfterSalesTickets)
 	router.GET(options.BaseURL+"/after-sales/tickets/:ticketId", wrapper.GetAfterSalesTicketsTicketId)
@@ -2526,6 +2625,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.POST(options.BaseURL+"/orders", wrapper.PostOrders)
 	router.GET(options.BaseURL+"/orders/stats", wrapper.GetOrdersStats)
 	router.GET(options.BaseURL+"/orders/:orderId", wrapper.GetOrdersOrderId)
+	router.POST(options.BaseURL+"/orders/:orderId/confirm-receipt", wrapper.PostOrdersOrderIdConfirmReceipt)
 	router.GET(options.BaseURL+"/orders/:orderId/tracking", wrapper.GetOrdersOrderIdTracking)
 	router.POST(options.BaseURL+"/orders/:orderId/tracking", wrapper.PostOrdersOrderIdTracking)
 	router.GET(options.BaseURL+"/product-requests", wrapper.GetProductRequests)

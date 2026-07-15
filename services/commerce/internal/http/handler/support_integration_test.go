@@ -41,6 +41,9 @@ func TestSupportCurrentConversationCreatesSnapshotAndAdminCanReadSource(t *testi
 	if current["customerPhone"] != "+15550000003" {
 		t.Fatalf("expected customerPhone +15550000003, got %#v", current["customerPhone"])
 	}
+	if current["queuedAt"] == nil {
+		t.Fatalf("expected queuedAt in current conversation, got %#v", current)
+	}
 
 	stored, err := queries.GetActiveSupportConversationByCustomer(context.Background(), customerID)
 	if err != nil {
@@ -51,6 +54,9 @@ func TestSupportCurrentConversationCreatesSnapshotAndAdminCanReadSource(t *testi
 	}
 	if stored.CustomerPhone == nil || *stored.CustomerPhone != "+15550000003" {
 		t.Fatalf("expected stored customerPhone +15550000003, got %#v", stored.CustomerPhone)
+	}
+	if !stored.QueuedAt.Valid {
+		t.Fatalf("expected stored queuedAt")
 	}
 
 	listReq := httptest.NewRequest(http.MethodGet, "/admin/support/conversations?scope=unassigned", nil)
@@ -97,6 +103,37 @@ func TestSupportCurrentConversationCreatesSnapshotAndAdminCanReadSource(t *testi
 	}
 	if conversation["customerPhone"] != "+15550000003" {
 		t.Fatalf("expected detail customerPhone +15550000003, got %#v", conversation["customerPhone"])
+	}
+
+	csID := uuid.New()
+	claimReq := httptest.NewRequest(http.MethodPost, "/admin/support/conversations/"+stored.ID.String()+"/claim", nil)
+	claimReq.Header.Set("Authorization", "Bearer "+makeAuthToken(t, csID, "CS", nil))
+	claimRecorder := httptest.NewRecorder()
+	router.ServeHTTP(claimRecorder, claimReq)
+	if claimRecorder.Code != http.StatusOK {
+		t.Fatalf("expected claim status 200, got %d: %s", claimRecorder.Code, claimRecorder.Body.String())
+	}
+	var claimed map[string]any
+	if err := json.Unmarshal(claimRecorder.Body.Bytes(), &claimed); err != nil {
+		t.Fatalf("decode claimed conversation: %v", err)
+	}
+	if claimed["status"] != supportConversationStatusOpenAssigned || claimed["assignedAt"] == nil {
+		t.Fatalf("expected assigned conversation timestamps, got %#v", claimed)
+	}
+
+	releaseReq := httptest.NewRequest(http.MethodPost, "/admin/support/conversations/"+stored.ID.String()+"/release", nil)
+	releaseReq.Header.Set("Authorization", "Bearer "+makeAuthToken(t, csID, "CS", nil))
+	releaseRecorder := httptest.NewRecorder()
+	router.ServeHTTP(releaseRecorder, releaseReq)
+	if releaseRecorder.Code != http.StatusOK {
+		t.Fatalf("expected release status 200, got %d: %s", releaseRecorder.Code, releaseRecorder.Body.String())
+	}
+	var released map[string]any
+	if err := json.Unmarshal(releaseRecorder.Body.Bytes(), &released); err != nil {
+		t.Fatalf("decode released conversation: %v", err)
+	}
+	if released["status"] != supportConversationStatusOpenUnassigned || released["assignedAt"] != nil || released["queuedAt"] == nil {
+		t.Fatalf("expected requeued conversation timestamps, got %#v", released)
 	}
 }
 

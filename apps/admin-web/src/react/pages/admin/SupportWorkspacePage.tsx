@@ -56,6 +56,7 @@ const normalizeConversations = (payload) => {
 };
 
 const SUPPORT_NAVIGATION_EVENT = 'tmo:admin-support:navigate';
+const SUPPORT_QUEUE_OVERDUE_MS = 30_000;
 
 const readConversationIdFromUrl = () => {
   if (typeof window === 'undefined') {
@@ -102,6 +103,21 @@ const getDefaultSupportScope = () => {
     return 'unassigned';
   }
   return 'all';
+};
+
+const getQueueWaitMs = (conversation, now = Date.now()) => {
+  if (String(conversation?.status || '').toUpperCase() !== 'OPEN_UNASSIGNED') {
+    return 0;
+  }
+  const queuedAt = Date.parse(String(conversation?.queuedAt || conversation?.createdAt || ''));
+  return Number.isFinite(queuedAt) ? Math.max(0, now - queuedAt) : 0;
+};
+
+const formatQueueWait = (waitMs) => {
+  const totalSeconds = Math.floor(waitMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0 ? `${minutes}分${seconds}秒` : `${seconds}秒`;
 };
 
 const roleCanRelease = (conversation) => {
@@ -200,6 +216,7 @@ export const SupportWorkspacePage = () => {
   const [sending, setSending] = useState(false);
   const [sendingState, setSendingState] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
+  const [queueClock, setQueueClock] = useState(() => Date.now());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const lastNotificationRevisionRef = useRef(0);
   const readingConversationIdRef = useRef('');
@@ -208,6 +225,23 @@ export const SupportWorkspacePage = () => {
   const activeConversation = useMemo(() => {
     return conversations.find((item) => item.id === activeConversationId) || null;
   }, [activeConversationId, conversations]);
+
+  const displayedConversations = useMemo(() => {
+    return [...conversations].sort((left, right) => {
+      const leftWait = getQueueWaitMs(left, queueClock);
+      const rightWait = getQueueWaitMs(right, queueClock);
+      const leftOverdue = leftWait >= SUPPORT_QUEUE_OVERDUE_MS;
+      const rightOverdue = rightWait >= SUPPORT_QUEUE_OVERDUE_MS;
+      if (leftOverdue !== rightOverdue) return leftOverdue ? -1 : 1;
+      if (leftWait !== rightWait) return rightWait - leftWait;
+      return (Date.parse(right.lastMessageAt) || 0) - (Date.parse(left.lastMessageAt) || 0);
+    });
+  }, [conversations, queueClock]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setQueueClock(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const ownerSalesLabel = useMemo(() => {
     return resolveStaffDisplayName(staffOptions, activeConversation?.ownerSalesUserId, '未分配');
@@ -685,7 +719,10 @@ export const SupportWorkspacePage = () => {
               <div className="px-5 py-6 text-sm text-slate-500">正在加载会话...</div>
             ) : conversations.length === 0 ? (
               <div className="px-5 py-6 text-sm text-slate-500">当前没有匹配会话</div>
-            ) : conversations.map((conversation) => (
+            ) : displayedConversations.map((conversation) => {
+              const queueWaitMs = getQueueWaitMs(conversation, queueClock);
+              const isQueueOverdue = queueWaitMs >= SUPPORT_QUEUE_OVERDUE_MS;
+              return (
               <button
                 key={conversation.id}
                 type="button"
@@ -695,7 +732,7 @@ export const SupportWorkspacePage = () => {
                   void markConversationRead(conversation.id);
                 }}
                 data-testid={`support-conversation-${conversation.id}`}
-                className={`flex w-full items-start gap-3 border-b border-slate-100 px-5 py-4 text-left transition hover:bg-slate-50 ${conversation.id === activeConversationId ? 'bg-blue-50' : 'bg-white'}`}
+                className={`flex w-full items-start gap-3 border-b px-5 py-4 text-left transition hover:bg-slate-50 ${isQueueOverdue ? 'border-amber-200 bg-amber-50' : 'border-slate-100'} ${conversation.id === activeConversationId ? 'ring-1 ring-inset ring-blue-300' : ''}`}
               >
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-600">
                   <Headphones className="h-5 w-5" />
@@ -718,10 +755,19 @@ export const SupportWorkspacePage = () => {
                         待回复 {conversation.staffUnreadCount}
                       </span>
                     ) : null}
+                    {queueWaitMs > 0 ? (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${isQueueOverdue ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600'}`}
+                        data-testid={`support-conversation-wait-${conversation.id}`}
+                      >
+                        {isQueueOverdue ? '等待超时 ' : '已等待 '}{formatQueueWait(queueWaitMs)}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
               </button>
-            ))}
+              );
+            })}
           </div>
         </section>
 

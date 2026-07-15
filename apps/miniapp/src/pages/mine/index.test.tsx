@@ -358,9 +358,37 @@ describe('PersonalCenter', () => {
 
     expect(await screen.findByText('订单列表')).toBeInTheDocument()
     expect(document.querySelector('.mine-order-date')).toHaveClass('font-bold')
+    expect(screen.getByText('确认收货')).toBeInTheDocument()
     expect(screen.queryByText('ORD-88291')).not.toBeInTheDocument()
     expect(Taro.navigateTo).not.toHaveBeenCalledWith({
       url: '/pages/order/list/index'
+    })
+  })
+
+  it('confirms receipt from shipped orders without opening tracking', async () => {
+    await renderPersonalCenter()
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('已发货'))
+      await flushPromises()
+    })
+
+    await act(async () => {
+      fireEvent.click(await screen.findByText('确认收货'))
+      await flushPromises()
+    })
+
+    expect(Taro.showModal).toHaveBeenCalledWith({
+      title: '确认收货',
+      content: '确认已收到该订单商品？'
+    })
+    expect(commerceServices.orders.confirmReceipt).toHaveBeenCalledWith('ORD-88291')
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '已确认收货', icon: 'success' })
+    await waitFor(() => {
+      expect(asMock(commerceServices.orders.list).mock.calls.length).toBeGreaterThanOrEqual(3)
+    })
+    expect(Taro.navigateTo).not.toHaveBeenCalledWith({
+      url: '/pages/order/tracking/index?orderId=ORD-88291'
     })
   })
 })

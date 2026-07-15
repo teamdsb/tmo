@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
@@ -25,25 +25,52 @@ export default function OrderHistoryApp() {
   const [activeTab, setActiveTab] = useState(TABS[0].label)
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(false)
+  const [confirmingOrderId, setConfirmingOrderId] = useState<string | null>(null)
   const navbarStyle = getNavbarStyle()
 
   const handleBack = () => {
     Taro.navigateBack().catch(() => switchTabLike(ROUTES.mine))
   }
-  useEffect(() => {
-    void (async () => {
-      setLoading(true)
-      try {
-        const response = await commerceServices.orders.list({ page: 1, pageSize: 20 })
-        setOrders(response.items ?? [])
-      } catch (error) {
-        console.warn('load orders failed', error)
-        await Taro.showToast({ title: '加载订单失败', icon: 'none' })
-      } finally {
-        setLoading(false)
-      }
-    })()
+
+  const loadOrders = useCallback(async () => {
+    setLoading(true)
+    try {
+      const response = await commerceServices.orders.list({ page: 1, pageSize: 20 })
+      setOrders(response.items ?? [])
+    } catch (error) {
+      console.warn('load orders failed', error)
+      await Taro.showToast({ title: '加载订单失败', icon: 'none' })
+    } finally {
+      setLoading(false)
+    }
   }, [])
+
+  useEffect(() => {
+    void loadOrders()
+  }, [loadOrders])
+
+  const handleConfirmReceipt = async (order: Order) => {
+    const result = await Taro.showModal({
+      title: '确认收货',
+      content: '确认已收到该订单商品？'
+    })
+    if (!result.confirm) {
+      return
+    }
+
+    setConfirmingOrderId(order.id)
+    try {
+      await commerceServices.orders.confirmReceipt(order.id)
+      await Taro.showToast({ title: '已确认收货', icon: 'success' })
+      await loadOrders()
+      setActiveTab('已完成')
+    } catch (error) {
+      console.warn('confirm receipt failed', error)
+      await Taro.showToast({ title: '确认收货失败', icon: 'none' })
+    } finally {
+      setConfirmingOrderId(null)
+    }
+  }
 
   const filteredOrders = useMemo(() => {
     const tab = TABS.find((item) => item.label === activeTab)
@@ -106,6 +133,16 @@ export default function OrderHistoryApp() {
                       >
                         物流
                       </Button>
+                      {isShippedStatus(order.status) ? (
+                        <Button
+                          size='small'
+                          color='success'
+                          loading={confirmingOrderId === order.id}
+                          onClick={() => void handleConfirmReceipt(order)}
+                        >
+                          确认收货
+                        </Button>
+                      ) : null}
                     </Flex>
                   </Cell>
                 ))}
@@ -139,7 +176,9 @@ const formatOrderTotal = (order: Order) => {
   return `¥${(totalFen / 100).toFixed(2)}`
 }
 
-const statusLabel = (status: OrderStatus) => {
+const isShippedStatus = (status: OrderStatus | string) => status === 'SHIPPED' || status === 'DISPATCHED'
+
+const statusLabel = (status: OrderStatus | string) => {
   switch (status) {
     case 'SUBMITTED':
       return '已提交'
@@ -152,6 +191,7 @@ const statusLabel = (status: OrderStatus) => {
     case 'PAY_FAILED':
       return '支付失败'
     case 'SHIPPED':
+    case 'DISPATCHED':
       return '已发货'
     case 'DELIVERED':
       return '已送达'
@@ -160,12 +200,13 @@ const statusLabel = (status: OrderStatus) => {
   }
 }
 
-const statusTone = (status: OrderStatus): 'info' | 'warning' | 'success' => {
+const statusTone = (status: OrderStatus | string): 'info' | 'warning' | 'success' => {
   switch (status) {
     case 'SUBMITTED':
     case 'PAY_PENDING':
       return 'warning'
     case 'SHIPPED':
+    case 'DISPATCHED':
       return 'info'
     case 'DELIVERED':
       return 'success'

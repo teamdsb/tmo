@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button, Image, Input, ScrollView, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
@@ -8,9 +8,7 @@ import { AddOutlined, ChatOutlined, PhotoOutlined } from '@taroify/icons'
 import './index.scss'
 
 import { commerceServices } from '../../../services/commerce'
-import { loadBootstrap } from '../../../services/bootstrap'
-import { ensureLoggedIn, isUnauthorized } from '../../../utils/auth'
-import { isCustomerUser, isSalesUser } from '../../../utils/authz'
+import { isUnauthorized } from '../../../utils/auth'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { goodsDetailRoute, orderDetailRoute, ROUTES } from '../../../routes'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
@@ -46,6 +44,27 @@ type SocketController = {
   close: () => void
 }
 
+const SOCKET_CONNECT_TIMEOUT_MS = 8_000
+const SOCKET_RETRY_DELAYS_MS = [5_000, 15_000, 30_000]
+const SUPPORT_QUEUE_OVERDUE_MS = 30_000
+const SUPPORT_INIT_TIMEOUT_MS = 10_000
+
+const withTimeout = <T,>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> => {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), timeoutMs)
+    promise.then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (error) => {
+        clearTimeout(timer)
+        reject(error)
+      }
+    )
+  })
+}
+
 const buildWsUrl = (baseUrl: string, token?: string) => {
   const normalized = baseUrl.replace(/\/+$/, '')
   const query = token ? `?token=${encodeURIComponent(token)}` : ''
@@ -58,9 +77,10 @@ const buildWsUrl = (baseUrl: string, token?: string) => {
   return normalized + `/ws/support${query}`
 }
 
-const connectSupportSocket = async (
+export const connectSupportSocket = async (
   onEnvelope: (value: SupportSocketEnvelope) => void,
-  onState: (value: 'connecting' | 'connected' | 'disconnected') => void
+  onState: (value: 'connecting' | 'connected' | 'disconnected') => void,
+  connectTimeoutMs = SOCKET_CONNECT_TIMEOUT_MS
 ): Promise<SocketController | null> => {
   const token = await commerceServices.tokens.getToken()
   if (!token) {
@@ -72,9 +92,28 @@ const connectSupportSocket = async (
 
   if (process.env.TARO_ENV === 'h5' && typeof WebSocket !== 'undefined') {
     const socket = new WebSocket(url, [])
-    socket.onopen = () => onState('connected')
-    socket.onclose = () => onState('disconnected')
-    socket.onerror = () => onState('disconnected')
+    let opened = false
+    let closedByClient = false
+    const connectTimer = setTimeout(() => {
+      if (!opened) {
+        onState('disconnected')
+        closedByClient = true
+        socket.close()
+      }
+    }, connectTimeoutMs)
+    socket.onopen = () => {
+      opened = true
+      clearTimeout(connectTimer)
+      onState('connected')
+    }
+    socket.onclose = () => {
+      clearTimeout(connectTimer)
+      if (!closedByClient) onState('disconnected')
+    }
+    socket.onerror = () => {
+      clearTimeout(connectTimer)
+      if (!closedByClient) onState('disconnected')
+    }
     socket.onmessage = (event) => {
       try {
         onEnvelope(JSON.parse(String(event.data)) as SupportSocketEnvelope)
@@ -83,7 +122,11 @@ const connectSupportSocket = async (
       }
     }
     return {
-      close: () => socket.close()
+      close: () => {
+        closedByClient = true
+        clearTimeout(connectTimer)
+        socket.close()
+      }
     }
   }
 
@@ -94,9 +137,28 @@ const connectSupportSocket = async (
     }
   })
 
-  task.onOpen(() => onState('connected'))
-  task.onClose(() => onState('disconnected'))
-  task.onError(() => onState('disconnected'))
+  let opened = false
+  let closedByClient = false
+  const connectTimer = setTimeout(() => {
+    if (!opened) {
+      onState('disconnected')
+      closedByClient = true
+      void task.close({})
+    }
+  }, connectTimeoutMs)
+  task.onOpen(() => {
+    opened = true
+    clearTimeout(connectTimer)
+    onState('connected')
+  })
+  task.onClose(() => {
+    clearTimeout(connectTimer)
+    if (!closedByClient) onState('disconnected')
+  })
+  task.onError(() => {
+    clearTimeout(connectTimer)
+    if (!closedByClient) onState('disconnected')
+  })
   task.onMessage((event) => {
     try {
       onEnvelope(JSON.parse(String(event.data)) as SupportSocketEnvelope)
@@ -107,6 +169,8 @@ const connectSupportSocket = async (
 
   return {
     close: () => {
+      closedByClient = true
+      clearTimeout(connectTimer)
       void task.close({})
     }
   }
@@ -141,9 +205,9 @@ const conversationStatusLabel = (status?: string) => {
 }
 
 const socketStatusLabel = (state: 'connecting' | 'connected' | 'disconnected') => {
-  if (state === 'connected') return '实时连接中'
-  if (state === 'connecting') return '连接中'
-  return '实时中断，已切换轮询'
+  if (state === 'connected') return '消息实时连接'
+  if (state === 'connecting') return '消息通道连接中'
+  return '实时连接不可用，消息将自动刷新'
 }
 
 export default function SupportChatPage() {
@@ -160,10 +224,10 @@ export default function SupportChatPage() {
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
   const [recentProducts, setRecentProducts] = useState<RecentProduct[]>([])
   const [pageError, setPageError] = useState('')
+  const [initializationAttempt, setInitializationAttempt] = useState(0)
+  const [clock, setClock] = useState(() => Date.now())
   const [composeIntent, setComposeIntent] = useState<SupportComposeIntent | null>(null)
   const [sendingIntentProduct, setSendingIntentProduct] = useState(false)
-  const socketRef = useRef<SocketController | null>(null)
-
   useEffect(() => {
     if (!conversation?.id || socketState !== 'disconnected') {
       return undefined
@@ -185,66 +249,42 @@ export default function SupportChatPage() {
     return () => clearInterval(timer)
   }, [conversation?.id, socketState])
 
-  const title = useMemo(() => {
-    if (conversation?.assigneeRole) {
-      return `在线客服 · ${conversation.assigneeRole}`
-    }
-    return '在线客服'
-  }, [conversation?.assigneeRole])
-
   useEffect(() => {
-    let cancelled = false
+    if (!conversation?.id) {
+      return undefined
+    }
 
-    const init = async () => {
-      const loggedIn = await ensureLoggedIn()
-      if (!loggedIn || cancelled) {
-        return
+    let cancelled = false
+    let controller: SocketController | null = null
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
+    let retryIndex = 0
+
+    const connect = async () => {
+      if (cancelled) return
+      if (retryTimer) {
+        clearTimeout(retryTimer)
+        retryTimer = null
+      }
+      controller?.close()
+      controller = null
+
+      const scheduleRetry = () => {
+        if (cancelled || retryTimer) return
+        const delay = SOCKET_RETRY_DELAYS_MS[Math.min(retryIndex, SOCKET_RETRY_DELAYS_MS.length - 1)]
+        retryIndex += 1
+        retryTimer = setTimeout(() => {
+          retryTimer = null
+          void connect()
+        }, delay)
       }
 
-      setLoading(true)
-      setInitializingConversation(true)
-      setLoadingMessages(true)
-      setPageError('')
       try {
-        const bootstrap = await loadBootstrap()
-        if (isSalesUser(bootstrap) || !isCustomerUser(bootstrap)) {
-          if (!cancelled) {
-            await Taro.showToast({ title: '当前身份请使用客服支持页', icon: 'none' })
-            await navigateTo(ROUTES.support)
-          }
-          return
-        }
-        const currentConversation = await commerceServices.support.getCurrentConversation()
-        if (cancelled) {
-          return
-        }
-        setConversation(currentConversation)
-        setInitializingConversation(false)
-
-        const [messageList, orders, products] = await Promise.all([
-          commerceServices.support.listMessages(currentConversation.id, { page: 1, pageSize: 100 }),
-          commerceServices.orders.list({ page: 1, pageSize: 5 }),
-          commerceServices.catalog.listProducts({ page: 1, pageSize: 6 })
-        ])
-
-        if (cancelled) {
-          return
-        }
-
-        setMessages(messageList.items ?? [])
-        setRecentOrders(orders.items ?? [])
-        setRecentProducts(products.items ?? [])
-        setLoadingMessages(false)
-        await commerceServices.support.markRead(currentConversation.id)
-
-        const socket = await connectSupportSocket((envelope) => {
-          if (!envelope?.type) {
-            return
-          }
-          if (envelope.data?.conversation?.id === currentConversation.id) {
+        controller = await connectSupportSocket((envelope) => {
+          if (!envelope?.type) return
+          if (envelope.data?.conversation?.id === conversation.id) {
             setConversation(envelope.data.conversation)
           }
-          if (envelope.type === 'message.created' && envelope.data?.message?.conversationId === currentConversation.id) {
+          if (envelope.type === 'message.created' && envelope.data?.message?.conversationId === conversation.id) {
             const nextMessage = envelope.data.message
             setMessages((currentItems) => {
               const nextItems = currentItems.filter((item) => !(
@@ -255,17 +295,106 @@ export default function SupportChatPage() {
               return [...nextItems, nextMessage]
             })
           }
-        }, setSocketState)
-        if (!cancelled) {
-          socketRef.current = socket
-          if (bootstrap?.me?.displayName) {
-            void bootstrap
+        }, (nextState) => {
+          if (cancelled) return
+          setSocketState(nextState)
+          if (nextState === 'connected') {
+            retryIndex = 0
+          } else if (nextState === 'disconnected') {
+            scheduleRetry()
           }
+        })
+        if (!controller) {
+          setSocketState('disconnected')
+          scheduleRetry()
         }
+      } catch (error) {
+        console.warn('connect support socket failed', error)
+        if (!cancelled) {
+          setSocketState('disconnected')
+          scheduleRetry()
+        }
+      }
+    }
+
+    void connect()
+    return () => {
+      cancelled = true
+      if (retryTimer) clearTimeout(retryTimer)
+      controller?.close()
+    }
+  }, [conversation?.id])
+
+  useEffect(() => {
+    const timer = setInterval(() => setClock(Date.now()), 1_000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const title = useMemo(() => {
+    if (conversation?.assigneeRole) {
+      return `在线客服 · ${conversation.assigneeRole}`
+    }
+    return '在线客服'
+  }, [conversation?.assigneeRole])
+
+  const queueWaitSeconds = useMemo(() => {
+    if (!conversation || String(conversation.status).toUpperCase() !== 'OPEN_UNASSIGNED') return 0
+    const queuedAt = Date.parse(conversation.queuedAt || conversation.createdAt || '')
+    if (Number.isNaN(queuedAt)) return 0
+    return Math.max(0, Math.floor((clock - queuedAt) / 1_000))
+  }, [clock, conversation])
+  const queueOverdue = queueWaitSeconds * 1_000 >= SUPPORT_QUEUE_OVERDUE_MS
+
+  useEffect(() => {
+    let cancelled = false
+
+    const init = async () => {
+      setLoading(true)
+      setInitializingConversation(true)
+      setLoadingMessages(true)
+      setPageError('')
+      try {
+        const currentConversation = await withTimeout(
+          commerceServices.support.getCurrentConversation(),
+          SUPPORT_INIT_TIMEOUT_MS,
+          'support conversation initialization timed out'
+        )
+        if (cancelled) {
+          return
+        }
+        setConversation(currentConversation)
+        setInitializingConversation(false)
+        setLoading(false)
+
+        void commerceServices.support.listMessages(currentConversation.id, { page: 1, pageSize: 100 })
+          .then((messageList) => {
+            if (!cancelled) setMessages(messageList.items ?? [])
+          })
+          .catch((error) => console.warn('load support messages failed', error))
+          .finally(() => {
+            if (!cancelled) setLoadingMessages(false)
+          })
+        void commerceServices.support.markRead(currentConversation.id)
+          .catch((error) => console.warn('mark support conversation read failed', error))
+        void commerceServices.orders.list({ page: 1, pageSize: 5 })
+          .then((orders) => {
+            if (!cancelled) setRecentOrders(orders.items ?? [])
+          })
+          .catch((error) => console.warn('load support recent orders failed', error))
+        void commerceServices.catalog.listProducts({ page: 1, pageSize: 6 })
+          .then((products) => {
+            if (!cancelled) setRecentProducts(products.items ?? [])
+          })
+          .catch((error) => console.warn('load support recent products failed', error))
       } catch (error) {
         if (isUnauthorized(error)) {
           await Taro.showToast({ title: '登录已失效，请重新登录', icon: 'none' })
           await navigateTo(ROUTES.authLogin)
+          return
+        }
+        if (typeof error === 'object' && error !== null && 'statusCode' in error && error.statusCode === 403) {
+          await Taro.showToast({ title: '当前身份请使用客服支持页', icon: 'none' })
+          await navigateTo(ROUTES.support)
           return
         }
         console.warn('load support chat failed', error)
@@ -286,10 +415,29 @@ export default function SupportChatPage() {
 
     return () => {
       cancelled = true
-      socketRef.current?.close()
-      socketRef.current = null
     }
-  }, [])
+  }, [initializationAttempt])
+
+  const handleRefreshConversation = async () => {
+    if (!conversation?.id) {
+      setInitializationAttempt((current) => current + 1)
+      return
+    }
+    try {
+      const currentConversation = await withTimeout(
+        commerceServices.support.getCurrentConversation(),
+        SUPPORT_INIT_TIMEOUT_MS,
+        'support conversation refresh timed out'
+      )
+      setConversation(currentConversation)
+      const messageList = await commerceServices.support.listMessages(currentConversation.id, { page: 1, pageSize: 100 })
+      setMessages(messageList.items ?? [])
+      setPageError('')
+    } catch (error) {
+      console.warn('refresh support conversation failed', error)
+      await Taro.showToast({ title: '刷新失败，请稍后重试', icon: 'none' })
+    }
+  }
 
   const sendComposeIntent = async (
     currentConversation: NonNullable<typeof conversation>,
@@ -630,12 +778,29 @@ export default function SupportChatPage() {
       {pageError ? (
         <View className='support-chat__notice support-chat__notice--error'>
           <Text>{pageError}</Text>
+          <Button size='mini' onClick={() => setInitializationAttempt((current) => current + 1)}>重新连接</Button>
         </View>
       ) : null}
 
       {initializingConversation ? (
         <View className='support-chat__notice'>
           <Text>正在建立客服会话，请稍候…</Text>
+        </View>
+      ) : null}
+
+      {conversation && String(conversation.status).toUpperCase() === 'OPEN_UNASSIGNED' ? (
+        <View className={`support-chat__notice ${queueOverdue ? 'support-chat__notice--warning' : ''}`}>
+          <Text>
+            {queueOverdue
+              ? '客服繁忙，您可以继续留言，客服接入后会回复。'
+              : `正在等待客服接入，已等待 ${queueWaitSeconds} 秒。`}
+          </Text>
+          <View className='support-chat__notice-actions'>
+            {queueOverdue ? (
+              <Button size='mini' onClick={() => void navigateTo(ROUTES.supportCreate)}>创建售后工单</Button>
+            ) : null}
+            <Button size='mini' onClick={() => void handleRefreshConversation()}>刷新接入状态</Button>
+          </View>
         </View>
       ) : null}
 

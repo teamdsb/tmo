@@ -13,6 +13,60 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const autoDeliverShippedOrders = `-- name: AutoDeliverShippedOrders :many
+UPDATE orders o
+SET status = $2,
+    updated_at = now()
+WHERE o.status = $1
+  AND EXISTS (
+    SELECT 1
+    FROM order_tracking_shipments s
+    WHERE s.order_id = o.id
+      AND s.shipped_at <= $3
+  )
+RETURNING o.id, o.status, o.customer_id, o.owner_sales_user_id, o.address, o.remark, o.idempotency_key, o.created_at, o.updated_at, o.payment_status, o.latest_payment_id, o.payment_channel, o.paid_at
+`
+
+type AutoDeliverShippedOrdersParams struct {
+	Status    string             `db:"status" json:"status"`
+	Status_2  string             `db:"status_2" json:"status_2"`
+	ShippedAt pgtype.Timestamptz `db:"shipped_at" json:"shipped_at"`
+}
+
+func (q *Queries) AutoDeliverShippedOrders(ctx context.Context, arg AutoDeliverShippedOrdersParams) ([]Order, error) {
+	rows, err := q.db.Query(ctx, autoDeliverShippedOrders, arg.Status, arg.Status_2, arg.ShippedAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.Status,
+			&i.CustomerID,
+			&i.OwnerSalesUserID,
+			&i.Address,
+			&i.Remark,
+			&i.IdempotencyKey,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.PaymentStatus,
+			&i.LatestPaymentID,
+			&i.PaymentChannel,
+			&i.PaidAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countOrders = `-- name: CountOrders :one
 SELECT count(*)
 FROM orders
@@ -570,6 +624,40 @@ func (q *Queries) UpdateOrderPaymentSummary(ctx context.Context, arg UpdateOrder
 		arg.PaymentChannel,
 		arg.PaidAt,
 	)
+	var i Order
+	err := row.Scan(
+		&i.ID,
+		&i.Status,
+		&i.CustomerID,
+		&i.OwnerSalesUserID,
+		&i.Address,
+		&i.Remark,
+		&i.IdempotencyKey,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PaymentStatus,
+		&i.LatestPaymentID,
+		&i.PaymentChannel,
+		&i.PaidAt,
+	)
+	return i, err
+}
+
+const updateOrderStatus = `-- name: UpdateOrderStatus :one
+UPDATE orders
+SET status = $2,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at
+`
+
+type UpdateOrderStatusParams struct {
+	ID     uuid.UUID `db:"id" json:"id"`
+	Status string    `db:"status" json:"status"`
+}
+
+func (q *Queries) UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusParams) (Order, error) {
+	row := q.db.QueryRow(ctx, updateOrderStatus, arg.ID, arg.Status)
 	var i Order
 	err := row.Scan(
 		&i.ID,

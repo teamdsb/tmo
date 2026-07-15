@@ -17,6 +17,7 @@ import (
 	httpserver "github.com/teamdsb/tmo/services/commerce/internal/http"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/handler"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/middleware"
+	ordermodule "github.com/teamdsb/tmo/services/commerce/internal/modules/order"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/productimport"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/productrequestexport"
 
@@ -106,6 +107,12 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	(&productrequestexport.Worker{
 		Runner: productRequestExportService,
 		Logger: logger,
+	}).Start(ctx)
+	(&ordermodule.AutoDeliveryWorker{
+		Store:         store,
+		After:         cfg.AutoDeliveryAfter,
+		CheckInterval: cfg.AutoDeliveryEvery,
+		Logger:        logger,
 	}).Start(ctx)
 
 	router := httpserver.NewRouter(apiHandler, logger, func(checkCtx context.Context) error {

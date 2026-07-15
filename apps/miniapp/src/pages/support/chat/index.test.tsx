@@ -3,7 +3,7 @@ import Taro from '@tarojs/taro'
 import fs from 'node:fs'
 import path from 'node:path'
 import { commerceServices } from '../../../services/commerce'
-import SupportChatPage from './index'
+import SupportChatPage, { connectSupportSocket } from './index'
 
 jest.mock('../../../services/bootstrap', () => ({
   loadBootstrap: jest.fn(async () => ({
@@ -48,7 +48,9 @@ describe('SupportChatPage', () => {
       status: 'OPEN_UNASSIGNED',
       assigneeRole: '',
       customerDisplayName: '客户A',
-      customerPhone: '+15550000003'
+      customerPhone: '+15550000003',
+      queuedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString()
     })
     supportService.listMessages.mockResolvedValue({ items: [] })
     supportService.markRead.mockResolvedValue({})
@@ -82,6 +84,52 @@ describe('SupportChatPage', () => {
     expect(screen.getByText('待接入客服')).toBeInTheDocument()
     expect(screen.getByText(/连接中/)).toBeInTheDocument()
     expect(screen.getByText('客服通道已就绪，发送第一条消息开始沟通。')).toBeInTheDocument()
+  })
+
+  it('allows chatting while optional support data is still loading', async () => {
+    ;(commerceServices.orders.list as jest.Mock).mockReturnValue(new Promise(() => {}))
+    ;(commerceServices.catalog.listProducts as jest.Mock).mockReturnValue(new Promise(() => {}))
+
+    render(<SupportChatPage />)
+
+    await screen.findByText('待接入客服')
+    expect(screen.queryByText('正在建立会话...')).not.toBeInTheDocument()
+    expect(screen.getByPlaceholderText('请输入您要咨询的内容...')).not.toBeDisabled()
+  })
+
+  it('shows the busy fallback after the conversation waits over 30 seconds', async () => {
+    supportService.getCurrentConversation.mockResolvedValue({
+      id: 'conv-1',
+      status: 'OPEN_UNASSIGNED',
+      assigneeRole: '',
+      customerDisplayName: '客户A',
+      customerPhone: '+15550000003',
+      queuedAt: new Date(Date.now() - 31_000).toISOString(),
+      createdAt: new Date(Date.now() - 31_000).toISOString()
+    })
+
+    render(<SupportChatPage />)
+
+    expect(await screen.findByText('客服繁忙，您可以继续留言，客服接入后会回复。')).toBeInTheDocument()
+    expect(screen.getByText('创建售后工单')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('请输入您要咨询的内容...')).not.toBeDisabled()
+  })
+
+  it('falls back when the realtime socket does not open before the deadline', async () => {
+    ;(globalThis as any).WebSocket = class {
+      onopen: null | (() => void) = null
+      onclose: null | (() => void) = null
+      onerror: null | (() => void) = null
+      onmessage: null | ((event: { data: string }) => void) = null
+      close() {}
+    }
+    const states: string[] = []
+
+    const controller = await connectSupportSocket(() => {}, (state) => states.push(state), 1)
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
+    expect(states).toEqual(['connecting', 'disconnected'])
+    controller?.close()
   })
 
   it('keeps failed text message and retries in place', async () => {
@@ -154,6 +202,11 @@ describe('SupportChatPage', () => {
     expect(stylesheet).toContain('padding-bottom: calc(52px + constant(safe-area-inset-bottom));')
     expect(stylesheet).toContain('.support-chat__messages')
     expect(stylesheet).toContain('padding-bottom: calc(42px + env(safe-area-inset-bottom));')
+    expect(stylesheet).toContain('box-sizing: border-box;')
+    expect(stylesheet).toContain('overflow-x: hidden;')
+    expect(stylesheet).toContain('padding: 0 12px;')
+    expect(stylesheet).toContain('max-width: 80%;')
+    expect(stylesheet).toContain('max-width: 100%;')
     expect(stylesheet).toContain('.support-chat__row--customer')
     expect(stylesheet).toContain('margin-left: auto;')
     expect(stylesheet).toContain('overflow-wrap: anywhere;')

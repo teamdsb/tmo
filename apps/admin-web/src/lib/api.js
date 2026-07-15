@@ -241,6 +241,19 @@ export const updateOrderFulfillment = async (orderId, payload, idempotencyKey) =
   });
 };
 
+export const shipOrder = async (orderId, payload) => {
+  return requestRaw(`/admin/orders/${encodeURIComponent(orderId)}/ship`, {
+    method: 'POST',
+    body: payload
+  });
+};
+
+export const confirmOrderDelivery = async (orderId) => {
+  return requestRaw(`/admin/orders/${encodeURIComponent(orderId)}/confirm-delivery`, {
+    method: 'POST'
+  });
+};
+
 export const fetchOrderAdminEvents = async (orderId) => {
   return requestRaw(`/admin/orders/${encodeURIComponent(orderId)}/events`);
 };

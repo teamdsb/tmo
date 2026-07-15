@@ -231,9 +231,9 @@ describe('OrderConfirmPage', () => {
       idempotencyKey: 'order-payment-order-1001'
     })
     expect(commerceServices.orders.resetIdempotency).toHaveBeenCalled()
-    expect(Taro.showToast).toHaveBeenCalledWith({ title: '支付成功', icon: 'success' })
-    expect(switchTabLike).toHaveBeenCalledWith('/pages/cart/index')
-    expect(navigateTo).not.toHaveBeenCalled()
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '支付成功', icon: 'success', duration: 3000 })
+    expect(navigateTo).toHaveBeenCalledWith('/pages/order/success/index?id=order-1001&payment=paid')
+    expect(switchTabLike).not.toHaveBeenCalled()
   })
 
   it('keeps payment-confirming orders on the order detail page', async () => {
@@ -254,8 +254,8 @@ describe('OrderConfirmPage', () => {
       await flushPromises()
     })
 
-    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已提交，支付确认中', icon: 'none' })
-    expect(navigateTo).toHaveBeenCalledWith('/pages/order/detail/index?id=order-1001')
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已提交，支付确认中', icon: 'none', duration: 3000 })
+    expect(navigateTo).toHaveBeenCalledWith('/pages/order/success/index?id=order-1001&payment=pending')
     expect(switchTabLike).not.toHaveBeenCalled()
   })
 
@@ -279,8 +279,8 @@ describe('OrderConfirmPage', () => {
 
     expect(commerceServices.orders.resetIdempotency).toHaveBeenCalled()
     expect(paymentServices.sessions.payForOrder).not.toHaveBeenCalled()
-    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已生成', icon: 'none' })
-    expect(navigateTo).toHaveBeenCalledWith('/pages/order/detail/index?id=order-existing-1')
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已生成', icon: 'none', duration: 3000 })
+    expect(navigateTo).toHaveBeenCalledWith('/pages/order/success/index?id=order-existing-1&payment=created')
   })
 
   it('keeps submit failure toast when idempotency conflict has no order id', async () => {
@@ -337,8 +337,8 @@ describe('OrderConfirmPage', () => {
 
     expect(commerceServices.orders.submit).toHaveBeenCalled()
     expect(paymentServices.sessions.payForOrder).not.toHaveBeenCalled()
-    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已提交，待销售确认', icon: 'success' })
-    expect(navigateTo).toHaveBeenCalledWith('/pages/order/detail/index?id=order-1001')
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已提交，待销售确认', icon: 'success', duration: 3000 })
+    expect(navigateTo).toHaveBeenCalledWith('/pages/order/success/index?id=order-1001&payment=unavailable')
   })
 
   it('shows cancelled toast but still navigates to order detail', async () => {
@@ -355,8 +355,8 @@ describe('OrderConfirmPage', () => {
       await flushPromises()
     })
 
-    expect(Taro.showToast).toHaveBeenCalledWith({ title: '支付已取消，可稍后继续支付', icon: 'none' })
-    expect(navigateTo).toHaveBeenCalledWith('/pages/order/detail/index?id=order-1001')
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '支付已取消，可稍后继续支付', icon: 'none', duration: 3000 })
+    expect(navigateTo).toHaveBeenCalledWith('/pages/order/success/index?id=order-1001&payment=cancelled')
   })
 
   it('shows pending toast when payment invocation fails', async () => {
@@ -373,7 +373,7 @@ describe('OrderConfirmPage', () => {
       await flushPromises()
     })
 
-    expect(Taro.showToast).toHaveBeenCalledWith({ title: '支付未完成，请重试或刷新状态', icon: 'none' })
-    expect(navigateTo).toHaveBeenCalledWith('/pages/order/detail/index?id=order-1001')
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '支付未完成，请重试或刷新状态', icon: 'none', duration: 3000 })
+    expect(navigateTo).toHaveBeenCalledWith('/pages/order/success/index?id=order-1001&payment=failed')
   })
 })

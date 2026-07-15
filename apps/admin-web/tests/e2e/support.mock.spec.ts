@@ -15,6 +15,7 @@ test('mock support workspace shows customer card and priority cues', async ({ pa
   await expect(firstConversation).toContainText('宁波远航供应链');
   await expect(firstConversation).toContainText('13700137000');
   await expect(firstConversation).toContainText('归属销售 张销售');
+  await expect(firstConversation).toContainText('等待超时');
   await expect(page.getByTestId('support-active-customer-name')).toContainText('宁波远航供应链');
 });
 

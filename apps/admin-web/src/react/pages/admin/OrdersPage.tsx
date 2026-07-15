@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import {
+  confirmOrderDelivery,
   fetchOrderAdminEvents,
   fetchOrders,
   fetchProducts,
   fetchStaffUsers,
+  shipOrder,
   updateOrderFulfillment
 } from '../../../lib/api';
 import { ensureProtectedPage } from '../../../lib/guard';
@@ -519,6 +521,12 @@ export const OrdersPage = () => {
   const [fulfillmentNote, setFulfillmentNote] = useState('');
   const [fulfillmentError, setFulfillmentError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [shipCarrier, setShipCarrier] = useState('');
+  const [shipWaybillNo, setShipWaybillNo] = useState('');
+  const [shipError, setShipError] = useState('');
+  const [isShipping, setIsShipping] = useState(false);
+  const [deliveryError, setDeliveryError] = useState('');
+  const [isDelivering, setIsDelivering] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -639,11 +647,17 @@ export const OrdersPage = () => {
     && hasPermission(normalizePermissionMap(session.permissions), 'order:manage', 'ALL');
   const terminalOrder = selectedOrder ? ['SHIPPED', 'DELIVERED', 'CANCELLED', 'CLOSED', 'DISPATCHED', 'RETURNING', 'RETURNED'].includes(selectedOrder.statusKey.toUpperCase()) : true;
   const confirmOfflinePayment = selectedOrder?.paymentStatus !== 'PAID';
+  const canShipOrder = Boolean(selectedOrder && selectedOrder.statusKey.toUpperCase() === 'CONFIRMED' && selectedOrder.paymentStatus === 'PAID');
+  const canConfirmDelivery = Boolean(selectedOrder && ['SHIPPED', 'DISPATCHED', 'IN_TRANSIT'].includes(selectedOrder.statusKey.toUpperCase()));
 
   useEffect(() => {
     setOwnerSalesUserId(selectedOrder?.ownerSalesUserId || '');
     setFulfillmentNote('');
     setFulfillmentError('');
+    setShipCarrier('');
+    setShipWaybillNo(selectedOrder ? `MOCK-${selectedOrder.id.replace(/[^A-Za-z0-9]/g, '').slice(-10).toUpperCase()}` : '');
+    setShipError('');
+    setDeliveryError('');
     if (!selectedOrder || !canManageOrders) { setEvents([]); return; }
     if (context?.mode === 'mock') { return; }
     let cancelled = false;
@@ -676,6 +690,123 @@ export const OrdersPage = () => {
     } catch (error) {
       setFulfillmentError(error instanceof Error ? error.message : '更新订单失败');
     } finally { setIsSubmitting(false); }
+  };
+
+  const submitShipment = async () => {
+    if (!selectedOrder) {
+      return;
+    }
+    const waybillNo = shipWaybillNo.trim();
+    if (!waybillNo) {
+      setShipError('请填写运单号。');
+      return;
+    }
+    setIsShipping(true);
+    setShipError('');
+    try {
+      if (context?.mode === 'mock') {
+        const shippedAt = new Date().toISOString();
+        setOrders((current) => current.map((order) => order.id === selectedOrder.id ? {
+          ...order,
+          statusKey: 'DISPATCHED',
+          statusLabel: '已发出',
+          tab: 'shipped',
+          trackingNumber: waybillNo,
+          shippingBadge: '已发出',
+          timeline: [
+            { title: '已发出', detail: `${shipCarrier.trim() || '平台配送'} • ${new Date(shippedAt).toLocaleString()}` },
+            ...order.timeline
+          ]
+        } : order));
+        setActiveTab('shipped');
+        setShipCarrier('');
+        setShipWaybillNo('');
+        return;
+      }
+      const response = await shipOrder(selectedOrder.id, {
+        carrier: shipCarrier.trim() || null,
+        waybillNo,
+        shippedAt: new Date().toISOString()
+      });
+      if (response.status !== 200) {
+        throw new Error(String((response.data as { message?: string })?.message || '确认发货失败'));
+      }
+      const refreshedResponse = await fetchOrders({ page: 1, pageSize: 20 });
+      if (refreshedResponse.status !== 200) {
+        throw new Error('订单已发货，但刷新订单列表失败');
+      }
+      const refreshedOrders = buildDevOrders(refreshedResponse.data as { items?: unknown[]; total?: number });
+      const updated = refreshedOrders.find((order) => order.id === selectedOrder.id) || buildDevOrders({ items: [response.data] })[0];
+      const patchedOrders = refreshedOrders.map((order) => order.id === selectedOrder.id ? {
+        ...order,
+        trackingNumber: order.trackingNumber === '--' ? waybillNo : order.trackingNumber,
+        timeline: order.timeline.length > 0 ? order.timeline : [
+          { title: '已发出', detail: `${shipCarrier.trim() || '平台配送'} • ${new Date().toLocaleString()}` }
+        ]
+      } : order);
+      setOrders(patchedOrders);
+      setActiveTab(updated.tab);
+      setSelectedId(updated.id);
+      setShipCarrier('');
+      setShipWaybillNo('');
+    } catch (error) {
+      setShipError(error instanceof Error ? error.message : '确认发货失败');
+    } finally {
+      setIsShipping(false);
+    }
+  };
+
+  const submitDelivery = async () => {
+    if (!selectedOrder) {
+      return;
+    }
+    setIsDelivering(true);
+    setDeliveryError('');
+    try {
+      if (context?.mode === 'mock') {
+        setOrders((current) => current.map((order) => order.id === selectedOrder.id ? {
+          ...order,
+          statusKey: 'DELIVERED',
+          statusLabel: '已送达',
+          tab: 'delivered',
+          shippingBadge: '配送完成',
+          timeline: [
+            { title: '已送达', detail: `管理员确认 • ${new Date().toLocaleString()}` },
+            ...order.timeline
+          ]
+        } : order));
+        setActiveTab('delivered');
+        setSelectedId(selectedOrder.id);
+        return;
+      }
+      const response = await confirmOrderDelivery(selectedOrder.id);
+      if (response.status !== 200) {
+        throw new Error(String((response.data as { message?: string })?.message || '确认送达失败'));
+      }
+      const refreshedResponse = await fetchOrders({ page: 1, pageSize: 20 });
+      if (refreshedResponse.status !== 200) {
+        throw new Error('订单已送达，但刷新订单列表失败');
+      }
+      const refreshedOrders = buildDevOrders(refreshedResponse.data as { items?: unknown[]; total?: number });
+      const updated = refreshedOrders.find((order) => order.id === selectedOrder.id) || buildDevOrders({ items: [response.data] })[0];
+      const patchedOrders = refreshedOrders.map((order) => order.id === selectedOrder.id ? {
+        ...order,
+        statusKey: 'DELIVERED',
+        statusLabel: '已送达',
+        tab: 'delivered',
+        shippingBadge: '配送完成',
+        timeline: order.timeline.length > 0 ? order.timeline : [
+          { title: '已送达', detail: `管理员确认 • ${new Date().toLocaleString()}` }
+        ]
+      } : order);
+      setOrders(patchedOrders);
+      setActiveTab(updated.tab);
+      setSelectedId(updated.id);
+    } catch (error) {
+      setDeliveryError(error instanceof Error ? error.message : '确认送达失败');
+    } finally {
+      setIsDelivering(false);
+    }
   };
 
   const updateOrder = (nextOrder: AdminOrderRecord) => {
@@ -900,6 +1031,69 @@ export const OrdersPage = () => {
                           <h4 className="text-sm font-semibold">审计时间线</h4>
                           {events.length ? events.map((event) => <div className="mt-3 text-xs text-text-sub" key={event.id}><p className="font-medium text-text-main">{event.action}</p><p>{event.note}</p><p>{new Date(event.createdAt).toLocaleString()}</p></div>) : <p className="mt-2 text-xs text-text-sub">暂无管理操作记录</p>}
                         </div>
+                      </div>
+                    ) : null}
+                    {canManageOrders && selectedOrder ? (
+                      <div className="rounded-xl border border-border-light bg-surface-light p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark" data-role="order-shipment-panel">
+                        <h3 className="text-lg font-bold text-text-main dark:text-text-main-dark">订单推进</h3>
+                        <p className="mt-1 text-xs text-text-sub">已确认订单可发货，已发货订单可确认送达。</p>
+                        {canShipOrder ? (
+                          <div className="mt-4 space-y-3">
+                            <label className="block text-xs text-text-sub">承运商
+                              <input
+                                className="mt-1 w-full rounded-lg border-slate-300 text-sm"
+                                data-role="shipment-carrier"
+                                onChange={(event) => setShipCarrier(event.target.value)}
+                                placeholder="例如：顺丰 / 德邦"
+                                value={shipCarrier}
+                              />
+                            </label>
+                            <label className="block text-xs text-text-sub">运单号
+                              <input
+                                className="mt-1 w-full rounded-lg border-slate-300 text-sm"
+                                data-role="shipment-waybill"
+                                onChange={(event) => setShipWaybillNo(event.target.value)}
+                                onBlur={() => {
+                                  if (!shipWaybillNo.trim() && selectedOrder) {
+                                    setShipWaybillNo(`MOCK-${selectedOrder.id.replace(/[^A-Za-z0-9]/g, '').slice(-10).toUpperCase()}`);
+                                  }
+                                }}
+                                onFocus={() => {
+                                  if (shipWaybillNo.startsWith('MOCK-')) {
+                                    setShipWaybillNo('');
+                                  }
+                                }}
+                                value={shipWaybillNo}
+                              />
+                            </label>
+                            {shipError ? <p className="text-sm text-red-600" data-role="shipment-error">{shipError}</p> : null}
+                            <button
+                              className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                              data-role="submit-shipment"
+                              disabled={isShipping}
+                              onClick={() => void submitShipment()}
+                              type="button"
+                            >
+                              {isShipping ? '提交中…' : '确认发货'}
+                            </button>
+                          </div>
+                        ) : canConfirmDelivery ? (
+                          <div className="mt-4 space-y-3">
+                            <p className="text-sm text-text-sub">当前订单已发货，可由管理员确认进入已送达。</p>
+                            {deliveryError ? <p className="text-sm text-red-600" data-role="delivery-error">{deliveryError}</p> : null}
+                            <button
+                              className="w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                              data-role="submit-delivery"
+                              disabled={isDelivering}
+                              onClick={() => void submitDelivery()}
+                              type="button"
+                            >
+                              {isDelivering ? '提交中…' : '确认已送达'}
+                            </button>
+                          </div>
+                        ) : (
+                          <p className="mt-4 text-sm text-amber-700">当前订单没有可执行的推进动作。</p>
+                        )}
                       </div>
                     ) : null}
                     <div className="rounded-xl border border-border-light bg-surface-light p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark">

@@ -12,6 +12,7 @@ import {
 type AdminSupportToast = {
   key: string;
   conversationId: string;
+  kind: 'message' | 'queue_overdue';
   title: string;
   preview: string;
 };
@@ -31,6 +32,7 @@ type ApplyOptions = {
 
 const MOCK_UPDATE_EVENT = 'tmo:admin-support:mock-update';
 const POLL_INTERVAL_MS = 5000;
+const SUPPORT_QUEUE_OVERDUE_MS = 30_000;
 const SUPPORT_NOTIFICATION_ROLES = new Set(['CS', 'MANAGER', 'BOSS', 'ADMIN']);
 
 const EMPTY_STATE: AdminSupportNotificationState = {
@@ -55,7 +57,7 @@ const buildStateFromItems = (
   previous: AdminSupportNotificationState,
   latestToast: AdminSupportToast | null
 ): AdminSupportNotificationState => {
-  const sortedItems = sortConversations(items.filter((item) => item.staffUnreadCount > 0));
+  const sortedItems = sortConversations(items);
   const unreadCount = sortedItems.reduce((total, item) => total + Math.max(0, Number(item.staffUnreadCount) || 0), 0);
   return {
     enabled: previous.enabled,
@@ -106,6 +108,7 @@ const getToastCandidate = (previousItems: SupportConversationSummary[], nextItem
   return {
     key: `${latest.id}:${latest.staffUnreadCount}:${latest.lastMessageAt}`,
     conversationId: latest.id,
+    kind: 'message',
     title,
     preview
   };
@@ -122,6 +125,22 @@ const normalizeConversationItems = (payload: unknown) => {
     .filter((item): item is SupportConversationSummary => Boolean(item));
 };
 
+const queueNotificationKey = (item: SupportConversationSummary) => `${item.id}:${item.queuedAt || item.createdAt}`;
+
+const isQueueOverdue = (item: SupportConversationSummary, now = Date.now()) => {
+  if (String(item.status).toUpperCase() !== 'OPEN_UNASSIGNED') {
+    return false;
+  }
+  const queuedAt = Date.parse(item.queuedAt || item.createdAt || '');
+  return Number.isFinite(queuedAt) && now - queuedAt >= SUPPORT_QUEUE_OVERDUE_MS;
+};
+
+const mergeConversationItems = (...groups: SupportConversationSummary[][]) => {
+  const byId = new Map<string, SupportConversationSummary>();
+  groups.flat().forEach((item) => byId.set(item.id, { ...byId.get(item.id), ...item }));
+  return [...byId.values()];
+};
+
 const createStore = () => {
   let state = EMPTY_STATE;
   const subscribers = new Set<() => void>();
@@ -129,6 +148,7 @@ const createStore = () => {
   let pollTimer: number | null = null;
   let started = false;
   let mockCleanup: (() => void) | null = null;
+  const notifiedOverdueQueues = new Set<string>();
 
   const emit = () => {
     subscribers.forEach((subscriber) => subscriber());
@@ -167,6 +187,7 @@ const createStore = () => {
       mockCleanup();
       mockCleanup = null;
     }
+    notifiedOverdueQueues.clear();
     started = false;
   };
 
@@ -181,21 +202,39 @@ const createStore = () => {
 
   const applyItems = (items: SupportConversationSummary[], options: ApplyOptions = {}) => {
     const emitToast = options.emitToast !== false;
-    const nextToast = state.initialized && emitToast ? getToastCandidate(state.items, items) : null;
+    let nextToast = state.initialized && emitToast ? getToastCandidate(state.items, items) : null;
+    const overdueItems = sortConversations(items.filter((item) => isQueueOverdue(item)));
+    if (!state.initialized || !emitToast) {
+      overdueItems.forEach((item) => notifiedOverdueQueues.add(queueNotificationKey(item)));
+    } else if (!nextToast) {
+      const overdue = overdueItems.find((item) => !notifiedOverdueQueues.has(queueNotificationKey(item)));
+      if (overdue) {
+        nextToast = {
+          key: `queue-overdue:${queueNotificationKey(overdue)}`,
+          conversationId: overdue.id,
+          kind: 'queue_overdue',
+          title: overdue.customerDisplayName || `客户 ${overdue.customerUserId.slice(0, 8)}`,
+          preview: '待领取客服会话已等待超过30秒'
+        };
+      }
+    }
+    overdueItems.forEach((item) => notifiedOverdueQueues.add(queueNotificationKey(item)));
     setState(buildStateFromItems(items, state, nextToast));
     updateDebugBridge();
   };
 
-  const loadUnreadItems = async () => {
-    const response = await fetchAdminSupportConversations({
-      page: 1,
-      pageSize: 50,
-      scope: 'unread'
-    });
-    if (response.status !== 200) {
-      throw new Error(response?.data?.message || '加载客服通知失败');
+  const loadNotificationItems = async () => {
+    const [unreadResponse, unassignedResponse] = await Promise.all([
+      fetchAdminSupportConversations({ page: 1, pageSize: 50, scope: 'unread' }),
+      fetchAdminSupportConversations({ page: 1, pageSize: 50, scope: 'unassigned' })
+    ]);
+    if (unreadResponse.status !== 200 || unassignedResponse.status !== 200) {
+      throw new Error(unreadResponse?.data?.message || unassignedResponse?.data?.message || '加载客服通知失败');
     }
-    return normalizeConversationItems(response.data);
+    return mergeConversationItems(
+      normalizeConversationItems(unreadResponse.data),
+      normalizeConversationItems(unassignedResponse.data)
+    );
   };
 
   const startMockMode = () => {
@@ -220,12 +259,7 @@ const createStore = () => {
       return;
     }
     socket = new WebSocket(buildWsUrl(token));
-    socket.onopen = () => {
-      if (pollTimer) {
-        window.clearInterval(pollTimer);
-        pollTimer = null;
-      }
-    };
+    socket.onopen = () => {};
     socket.onmessage = () => {
       void store.refresh({ emitToast: true });
     };
@@ -279,6 +313,7 @@ const createStore = () => {
         return;
       }
       void store.refresh({ emitToast: false });
+      startPolling();
       startRealtime();
     },
     async refresh(options: ApplyOptions = {}) {
@@ -294,7 +329,7 @@ const createStore = () => {
     }
     return;
   }
-      const items = isMockMode ? state.items : await loadUnreadItems();
+      const items = isMockMode ? state.items : await loadNotificationItems();
       applyItems(items, options);
     },
     dismissToast() {
@@ -312,7 +347,7 @@ const createStore = () => {
         return;
       }
       const nextItems = state.items.filter((item) => item.id !== conversation.id);
-      if (conversation.staffUnreadCount > 0) {
+      if (conversation.staffUnreadCount > 0 || conversation.status === 'OPEN_UNASSIGNED') {
         nextItems.push(conversation);
       }
       applyItems(nextItems, { emitToast: false });
