@@ -228,6 +228,7 @@ describe('OrderConfirmPage', () => {
       ]
     }))
     expect(paymentServices.sessions.payForOrder).toHaveBeenCalledWith('order-1001', {
+      channel: 'wechat_b2b',
       idempotencyKey: 'order-payment-order-1001'
     })
     expect(commerceServices.orders.resetIdempotency).toHaveBeenCalled()

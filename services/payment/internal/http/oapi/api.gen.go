@@ -20,8 +20,9 @@ const (
 
 // Defines values for PaymentChannel.
 const (
-	ALIPAY PaymentChannel = "ALIPAY"
-	WECHAT PaymentChannel = "WECHAT"
+	ALIPAY    PaymentChannel = "ALIPAY"
+	WECHAT    PaymentChannel = "WECHAT"
+	WECHATB2B PaymentChannel = "WECHAT_B2B"
 )
 
 // Defines values for PaymentClientResult.
@@ -86,6 +87,18 @@ type PaymentRecheckRequest struct {
 // PaymentStatus defines model for PaymentStatus.
 type PaymentStatus string
 
+// WechatB2BPayCreateResponse defines model for WechatB2BPayCreateResponse.
+type WechatB2BPayCreateResponse struct {
+	Channel PaymentChannel `json:"channel"`
+
+	// CommonPayParams Opaque parameters passed unchanged to wx.requestCommonPayment.
+	CommonPayParams map[string]interface{} `json:"commonPayParams"`
+	ExpiresAt       time.Time              `json:"expiresAt"`
+	OrderId         openapi_types.UUID     `json:"orderId"`
+	PaymentId       openapi_types.UUID     `json:"paymentId"`
+	Status          PaymentStatus          `json:"status"`
+}
+
 // WechatPayCreateResponse defines model for WechatPayCreateResponse.
 type WechatPayCreateResponse struct {
 	Channel   PaymentChannel     `json:"channel"`
@@ -123,6 +136,17 @@ type PostPaymentsAlipayCreateParams struct {
 // PostPaymentsAlipayNotifyJSONBody defines parameters for PostPaymentsAlipayNotify.
 type PostPaymentsAlipayNotifyJSONBody map[string]interface{}
 
+// PostPaymentsWechatB2bCreateJSONBody defines parameters for PostPaymentsWechatB2bCreate.
+type PostPaymentsWechatB2bCreateJSONBody struct {
+	OrderId         openapi_types.UUID `json:"orderId"`
+	WechatLoginCode string             `json:"wechatLoginCode"`
+}
+
+// PostPaymentsWechatB2bCreateParams defines parameters for PostPaymentsWechatB2bCreate.
+type PostPaymentsWechatB2bCreateParams struct {
+	IdempotencyKey *string `json:"Idempotency-Key,omitempty"`
+}
+
 // PostPaymentsWechatCreateJSONBody defines parameters for PostPaymentsWechatCreate.
 type PostPaymentsWechatCreateJSONBody struct {
 	OrderId openapi_types.UUID `json:"orderId"`
@@ -142,6 +166,9 @@ type PostPaymentsAlipayCreateJSONRequestBody PostPaymentsAlipayCreateJSONBody
 // PostPaymentsAlipayNotifyJSONRequestBody defines body for PostPaymentsAlipayNotify for application/json ContentType.
 type PostPaymentsAlipayNotifyJSONRequestBody PostPaymentsAlipayNotifyJSONBody
 
+// PostPaymentsWechatB2bCreateJSONRequestBody defines body for PostPaymentsWechatB2bCreate for application/json ContentType.
+type PostPaymentsWechatB2bCreateJSONRequestBody PostPaymentsWechatB2bCreateJSONBody
+
 // PostPaymentsWechatCreateJSONRequestBody defines body for PostPaymentsWechatCreate for application/json ContentType.
 type PostPaymentsWechatCreateJSONRequestBody PostPaymentsWechatCreateJSONBody
 
@@ -159,6 +186,9 @@ type ServerInterface interface {
 	// Alipay callback (no auth, signature verified)
 	// (POST /payments/alipay/notify)
 	PostPaymentsAlipayNotify(c *gin.Context)
+	// Create a WeChat B2B store-assistant payment for an order
+	// (POST /payments/wechat/b2b/create)
+	PostPaymentsWechatB2bCreate(c *gin.Context, params PostPaymentsWechatB2bCreateParams)
 	// Create WeChat payment for an order (behind feature flag)
 	// (POST /payments/wechat/create)
 	PostPaymentsWechatCreate(c *gin.Context, params PostPaymentsWechatCreateParams)
@@ -234,6 +264,47 @@ func (siw *ServerInterfaceWrapper) PostPaymentsAlipayNotify(c *gin.Context) {
 	}
 
 	siw.Handler.PostPaymentsAlipayNotify(c)
+}
+
+// PostPaymentsWechatB2bCreate operation middleware
+func (siw *ServerInterfaceWrapper) PostPaymentsWechatB2bCreate(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PostPaymentsWechatB2bCreateParams
+
+	headers := c.Request.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandler(c, fmt.Errorf("Expected one value for Idempotency-Key, got %d", n), http.StatusBadRequest)
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false})
+		if err != nil {
+			siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter Idempotency-Key: %w", err), http.StatusBadRequest)
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostPaymentsWechatB2bCreate(c, params)
 }
 
 // PostPaymentsWechatCreate operation middleware
@@ -371,6 +442,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 
 	router.POST(options.BaseURL+"/payments/alipay/create", wrapper.PostPaymentsAlipayCreate)
 	router.POST(options.BaseURL+"/payments/alipay/notify", wrapper.PostPaymentsAlipayNotify)
+	router.POST(options.BaseURL+"/payments/wechat/b2b/create", wrapper.PostPaymentsWechatB2bCreate)
 	router.POST(options.BaseURL+"/payments/wechat/create", wrapper.PostPaymentsWechatCreate)
 	router.POST(options.BaseURL+"/payments/wechat/notify", wrapper.PostPaymentsWechatNotify)
 	router.GET(options.BaseURL+"/payments/:paymentId", wrapper.GetPaymentsPaymentId)

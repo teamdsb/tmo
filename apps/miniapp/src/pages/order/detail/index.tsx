@@ -95,6 +95,7 @@ export default function OrderDetail() {
     let paymentConfirmed = false
     try {
       const payment = await paymentServices.sessions.payForOrder(orderId, {
+        channel: paymentAvailability?.channel,
         idempotencyKey: buildOrderPaymentIdempotencyKey(orderId)
       })
       if (isDevFakePaymentId(payment.id)) {

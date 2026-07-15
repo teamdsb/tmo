@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -12,12 +13,27 @@ import (
 )
 
 type Handler struct {
-	Logger       *slog.Logger
-	Auth         *middleware.Authenticator
-	Flags        FeatureFlagsProvider
-	Store        PaymentStore
-	Commerce     *CommerceClient
-	ProviderMode string
+	Logger            *slog.Logger
+	Auth              *middleware.Authenticator
+	Flags             FeatureFlagsProvider
+	Store             PaymentStore
+	Commerce          *CommerceClient
+	ProviderMode      string
+	WechatB2BProvider WechatB2BProvider
+}
+
+// WechatB2BProvider creates the signed payload required by the WeChat B2B
+// Store Assistant API. Its implementation belongs to the merchant-specific
+// integration because the protocol credentials must never reach a miniapp.
+type WechatB2BProvider interface {
+	CreateCommonPayParams(ctx context.Context, request WechatB2BPaymentRequest) (map[string]interface{}, error)
+}
+
+type WechatB2BPaymentRequest struct {
+	OrderID   uuid.UUID
+	AmountFen int64
+	ExpiresAt time.Time
+	LoginCode string
 }
 
 type PaymentStore interface {

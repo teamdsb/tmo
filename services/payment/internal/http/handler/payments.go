@@ -28,8 +28,9 @@ const (
 	paymentStatusFailed    = "PAY_FAILED"
 	paymentStatusCancelled = "CANCELLED"
 
-	paymentChannelWechat = "WECHAT"
-	paymentChannelAlipay = "ALIPAY"
+	paymentChannelWechat    = "WECHAT"
+	paymentChannelWechatB2B = "WECHAT_B2B"
+	paymentChannelAlipay    = "ALIPAY"
 )
 
 type normalizedNotifyPayload struct {
@@ -38,6 +39,8 @@ type normalizedNotifyPayload struct {
 	ProviderTradeNo *string
 	EventType       string
 }
+
+type wechatB2BLoginCodeContextKey struct{}
 
 func (h *Handler) PostPaymentsWechatCreate(c *gin.Context, params oapi.PostPaymentsWechatCreateParams) {
 	claims, ok := h.requireUser(c)
@@ -60,6 +63,27 @@ func (h *Handler) PostPaymentsWechatCreate(c *gin.Context, params oapi.PostPayme
 		return
 	}
 
+	c.JSON(http.StatusOK, response)
+}
+
+func (h *Handler) PostPaymentsWechatB2bCreate(c *gin.Context, params oapi.PostPaymentsWechatB2bCreateParams) {
+	claims, ok := h.requireUser(c)
+	if !ok {
+		return
+	}
+
+	var request oapi.PostPaymentsWechatB2bCreateJSONBody
+	if err := c.ShouldBindJSON(&request); err != nil {
+		apierrors.Write(c, http.StatusBadRequest, apierrors.APIError{Code: "invalid_request", Message: "invalid request body"})
+		return
+	}
+
+	c.Set("wechatB2BLoginCode", request.WechatLoginCode)
+	response, err := h.createPaymentSession(c, claims, uuid.UUID(request.OrderId), paymentChannelWechatB2B, params.IdempotencyKey)
+	if err != nil {
+		h.writePaymentError(c, err)
+		return
+	}
 	c.JSON(http.StatusOK, response)
 }
 
@@ -233,6 +257,9 @@ func (h *Handler) createPaymentSession(c *gin.Context, claims middleware.Claims,
 	if channel == paymentChannelWechat && !flags.WechatPayEnabled {
 		return nil, errForbidden("wechat pay is disabled")
 	}
+	if channel == paymentChannelWechatB2B && !flags.WechatPayEnabled {
+		return nil, errForbidden("wechat b2b pay is disabled")
+	}
 	if channel == paymentChannelAlipay && !flags.AlipayPayEnabled {
 		return nil, errForbidden("alipay is disabled")
 	}
@@ -267,8 +294,15 @@ func (h *Handler) createPaymentSession(c *gin.Context, claims middleware.Claims,
 	now := time.Now().UTC()
 	expiresAt := now.Add(15 * time.Minute)
 	amount := calculateOrderAmount(order)
-	responsePayload, providerTradeNo, providerPrepayID, rawPayload, err := buildProviderPayload(channel, orderID, now, expiresAt)
+	providerContext := c.Request.Context()
+	if channel == paymentChannelWechatB2B {
+		providerContext = context.WithValue(providerContext, wechatB2BLoginCodeContextKey{}, c.GetString("wechatB2BLoginCode"))
+	}
+	responsePayload, providerTradeNo, providerPrepayID, rawPayload, err := h.buildProviderPayload(providerContext, channel, orderID, amount, now, expiresAt)
 	if err != nil {
+		if channel == paymentChannelWechatB2B {
+			return nil, errConflict(err.Error())
+		}
 		return nil, errInternal("build payment payload failed")
 	}
 
@@ -463,6 +497,12 @@ func createResponseFromPayment(payment db.Payment) (interface{}, error) {
 			return nil, errInternal("decode wechat payment payload failed")
 		}
 		return response, nil
+	case paymentChannelWechatB2B:
+		var response oapi.WechatB2BPayCreateResponse
+		if err := json.Unmarshal(payment.ProviderPayload, &response); err != nil {
+			return nil, errInternal("decode wechat b2b payment payload failed")
+		}
+		return response, nil
 	case paymentChannelAlipay:
 		var response oapi.AlipayPayCreateResponse
 		if err := json.Unmarshal(payment.ProviderPayload, &response); err != nil {
@@ -479,6 +519,9 @@ func hydrateCreateResponseIDs(paymentID uuid.UUID, payload interface{}) interfac
 	case oapi.WechatPayCreateResponse:
 		response.PaymentId = paymentID
 		return response
+	case oapi.WechatB2BPayCreateResponse:
+		response.PaymentId = paymentID
+		return response
 	case oapi.AlipayPayCreateResponse:
 		response.PaymentId = paymentID
 		return response
@@ -487,7 +530,7 @@ func hydrateCreateResponseIDs(paymentID uuid.UUID, payload interface{}) interfac
 	}
 }
 
-func buildProviderPayload(channel string, orderID uuid.UUID, now time.Time, expiresAt time.Time) (interface{}, *string, *string, json.RawMessage, error) {
+func (h *Handler) buildProviderPayload(ctx context.Context, channel string, orderID uuid.UUID, amountFen int64, now time.Time, expiresAt time.Time) (interface{}, *string, *string, json.RawMessage, error) {
 	switch channel {
 	case paymentChannelWechat:
 		prepayID := "prepay_" + uuid.NewString()
@@ -507,6 +550,21 @@ func buildProviderPayload(channel string, orderID uuid.UUID, now time.Time, expi
 		raw, err := json.Marshal(response)
 		prepayValue := prepayID
 		return response, nil, &prepayValue, raw, err
+	case paymentChannelWechatB2B:
+		if h.WechatB2BProvider == nil {
+			return nil, nil, nil, nil, fmt.Errorf("wechat b2b provider is not configured")
+		}
+		loginCode, _ := ctx.Value(wechatB2BLoginCodeContextKey{}).(string)
+		params, err := h.WechatB2BProvider.CreateCommonPayParams(ctx, WechatB2BPaymentRequest{OrderID: orderID, AmountFen: amountFen, ExpiresAt: expiresAt, LoginCode: loginCode})
+		if err != nil {
+			return nil, nil, nil, nil, fmt.Errorf("create wechat b2b parameters: %w", err)
+		}
+		if len(params) == 0 {
+			return nil, nil, nil, nil, fmt.Errorf("wechat b2b provider returned empty payment parameters")
+		}
+		response := oapi.WechatB2BPayCreateResponse{OrderId: orderID, Channel: oapi.WECHATB2B, Status: oapi.PaymentStatus(paymentStatusPending), ExpiresAt: expiresAt, CommonPayParams: params}
+		raw, err := json.Marshal(response)
+		return response, nil, nil, raw, err
 	case paymentChannelAlipay:
 		tradeNo := "trade_" + uuid.NewString()
 		response := oapi.AlipayPayCreateResponse{
