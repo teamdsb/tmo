@@ -114,7 +114,7 @@ jobs:
           echo "fullstack_required=$fullstack_required"
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: "stable"
           check-latest: true
@@ -146,7 +146,7 @@ jobs:
 
       - name: Setup Node.js
         if: steps.changes.outputs.fullstack_required == 'true'
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: "pnpm"
@@ -297,7 +297,7 @@ jobs:
 
       - name: Setup Go
         if: steps.changes.outputs.fullstack_required == 'true'
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: "stable"
           check-latest: true
@@ -317,7 +317,7 @@ jobs:
 
       - name: Setup Node.js
         if: steps.changes.outputs.fullstack_required == 'true'
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: "pnpm"
