@@ -147,6 +147,8 @@ paths:
     $ref: "./commerce.yaml#/paths/~1support~1conversations~1{conversationId}~1read"
   /payments/wechat/create:
     $ref: "./payment.yaml#/paths/~1payments~1wechat~1create"
+  /payments/wechat/b2b/create:
+    $ref: "./payment.yaml#/paths/~1payments~1wechat~1b2b~1create"
   /payments/alipay/create:
     $ref: "./payment.yaml#/paths/~1payments~1alipay~1create"
   /payments/{paymentId}:
@@ -786,6 +788,7 @@ components:
       properties:
         paymentEnabled: { type: boolean, default: false }
         wechatPayEnabled: { type: boolean, default: false }
+        wechatB2bEnabled: { type: boolean, default: false }
         alipayPayEnabled: { type: boolean, default: false }
       additionalProperties: false
 

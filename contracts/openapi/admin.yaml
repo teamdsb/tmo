@@ -2545,6 +2545,9 @@ components:
         wechatPayEnabled:
           type: boolean
           default: false
+        wechatB2bEnabled:
+          type: boolean
+          default: false
         alipayPayEnabled:
           type: boolean
           default: false

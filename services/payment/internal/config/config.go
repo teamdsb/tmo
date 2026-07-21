@@ -19,6 +19,7 @@ const (
 	defaultFeatureFlagsTimeout = 2 * time.Second
 	defaultPaymentEnabled      = false
 	defaultWechatPayEnabled    = false
+	defaultWechatB2bEnabled    = false
 	defaultAlipayPayEnabled    = false
 	defaultCommerceSyncToken   = "dev-payment-sync-token"
 	defaultProviderMode        = "mock"
@@ -39,6 +40,7 @@ type Config struct {
 	FeatureFlagsTimeout time.Duration
 	PaymentEnabled      bool
 	WechatPayEnabled    bool
+	WechatB2bEnabled    bool
 	AlipayPayEnabled    bool
 }
 
@@ -58,6 +60,7 @@ func Load() Config {
 		FeatureFlagsTimeout: sharedconfig.Duration("PAYMENT_FEATURE_FLAGS_TIMEOUT", defaultFeatureFlagsTimeout),
 		PaymentEnabled:      sharedconfig.Bool("PAYMENT_ENABLED", defaultPaymentEnabled),
 		WechatPayEnabled:    sharedconfig.Bool("PAYMENT_WECHAT_PAY_ENABLED", defaultWechatPayEnabled),
+		WechatB2bEnabled:    sharedconfig.Bool("PAYMENT_WECHAT_B2B_ENABLED", defaultWechatB2bEnabled),
 		AlipayPayEnabled:    sharedconfig.Bool("PAYMENT_ALIPAY_PAY_ENABLED", defaultAlipayPayEnabled),
 	}
 }

@@ -22,10 +22,10 @@ export const resolvePaymentAvailability = async (): Promise<PaymentAvailability>
   }
 
   if (platform === Platform.Weapp) {
-    if (flags?.wechatPayEnabled === false) {
-      return unavailable('微信支付暂未开通，请等待销售确认。')
+    if (flags?.wechatPayEnabled === false || flags?.wechatB2bEnabled !== true) {
+	  return unavailable('微信 B2B 支付暂未开通，请等待销售确认。')
     }
-    return available('wechat')
+    return available('wechat_b2b')
   }
 
   if (platform === Platform.Alipay) {

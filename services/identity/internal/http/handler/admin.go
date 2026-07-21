@@ -50,12 +50,14 @@ var errInvalidCustomerRoleRequest = errors.New("invalid customer role request")
 type featureFlagsResponse struct {
 	PaymentEnabled   bool `json:"paymentEnabled"`
 	WechatPayEnabled bool `json:"wechatPayEnabled"`
+	WechatB2bEnabled bool `json:"wechatB2bEnabled"`
 	AlipayPayEnabled bool `json:"alipayPayEnabled"`
 }
 
 type featureFlagsPatch struct {
 	PaymentEnabled   *bool `json:"paymentEnabled,omitempty"`
 	WechatPayEnabled *bool `json:"wechatPayEnabled,omitempty"`
+	WechatB2bEnabled *bool `json:"wechatB2bEnabled,omitempty"`
 	AlipayPayEnabled *bool `json:"alipayPayEnabled,omitempty"`
 }
 
@@ -237,6 +239,7 @@ func (h *Handler) GetAdminConfigFeatureFlags(c *gin.Context) {
 	c.JSON(http.StatusOK, featureFlagsResponse{
 		PaymentEnabled:   flags.PaymentEnabled,
 		WechatPayEnabled: flags.WechatPayEnabled,
+		WechatB2bEnabled: flags.WechatB2bEnabled,
 		AlipayPayEnabled: flags.AlipayPayEnabled,
 	})
 }
@@ -268,6 +271,10 @@ func (h *Handler) PatchAdminConfigFeatureFlags(c *gin.Context) {
 	if request.WechatPayEnabled != nil {
 		wechatEnabled = *request.WechatPayEnabled
 	}
+	wechatB2bEnabled := current.WechatB2bEnabled
+	if request.WechatB2bEnabled != nil {
+		wechatB2bEnabled = *request.WechatB2bEnabled
+	}
 	alipayEnabled := current.AlipayPayEnabled
 	if request.AlipayPayEnabled != nil {
 		alipayEnabled = *request.AlipayPayEnabled
@@ -276,6 +283,7 @@ func (h *Handler) PatchAdminConfigFeatureFlags(c *gin.Context) {
 	updated, err := h.Store.UpdateFeatureFlags(c.Request.Context(), db.UpdateFeatureFlagsParams{
 		PaymentEnabled:   paymentEnabled,
 		WechatPayEnabled: wechatEnabled,
+		WechatB2bEnabled: wechatB2bEnabled,
 		AlipayPayEnabled: alipayEnabled,
 	})
 	if err != nil {
@@ -287,12 +295,14 @@ func (h *Handler) PatchAdminConfigFeatureFlags(c *gin.Context) {
 	h.recordAudit(c, &claims.UserID, "config.feature_flags.update", "feature_flags", nil, map[string]interface{}{
 		"paymentEnabled":   updated.PaymentEnabled,
 		"wechatPayEnabled": updated.WechatPayEnabled,
+		"wechatB2bEnabled": updated.WechatB2bEnabled,
 		"alipayPayEnabled": updated.AlipayPayEnabled,
 	})
 
 	c.JSON(http.StatusOK, featureFlagsResponse{
 		PaymentEnabled:   updated.PaymentEnabled,
 		WechatPayEnabled: updated.WechatPayEnabled,
+		WechatB2bEnabled: updated.WechatB2bEnabled,
 		AlipayPayEnabled: updated.AlipayPayEnabled,
 	})
 }

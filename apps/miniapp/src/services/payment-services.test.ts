@@ -3,11 +3,13 @@ import { ApiError, PaymentCancelledError, createPaymentServices } from '@tmo/pay
 
 const mockSetPaymentApiClientConfig = jest.fn()
 const mockPostPaymentsWechatCreate = jest.fn()
+const mockPostPaymentsWechatB2bCreate = jest.fn()
 const mockPostPaymentsAlipayCreate = jest.fn()
 const mockGetPaymentsPaymentId = jest.fn()
 const mockPostPaymentsPaymentIdRecheck = jest.fn()
 const mockGetPlatform = jest.fn()
 const mockPay = jest.fn()
+const mockCommonPay = jest.fn()
 const mockGetStorage = jest.fn(async () => ({ data: null }))
 const mockSetStorage = jest.fn(async () => {})
 const mockRemoveStorage = jest.fn(async () => {})
@@ -16,6 +18,7 @@ const mockRequest = jest.fn()
 jest.mock('@tmo/payment-api-client', () => ({
   setPaymentApiClientConfig: (config: unknown) => mockSetPaymentApiClientConfig(config),
   postPaymentsWechatCreate: (payload: unknown, options?: unknown) => mockPostPaymentsWechatCreate(payload, options),
+  postPaymentsWechatB2bCreate: (payload: unknown, options?: unknown) => mockPostPaymentsWechatB2bCreate(payload, options),
   postPaymentsAlipayCreate: (payload: unknown, options?: unknown) => mockPostPaymentsAlipayCreate(payload, options),
   getPaymentsPaymentId: (paymentId: string) => mockGetPaymentsPaymentId(paymentId),
   postPaymentsPaymentIdRecheck: (paymentId: string) => mockPostPaymentsPaymentIdRecheck(paymentId)
@@ -24,6 +27,7 @@ jest.mock('@tmo/payment-api-client', () => ({
 jest.mock('@tmo/platform-adapter', () => ({
   getPlatform: () => mockGetPlatform(),
   pay: (payload: unknown) => mockPay(payload),
+  commonPay: (payload: unknown) => mockCommonPay(payload),
   getStorage: () => mockGetStorage(),
   setStorage: () => mockSetStorage(),
   removeStorage: () => mockRemoveStorage(),
@@ -35,23 +39,19 @@ describe('payment-services', () => {
     jest.clearAllMocks()
     mockGetPlatform.mockReturnValue(Platform.Weapp)
     mockPay.mockResolvedValue({ resultCode: '9000' })
+    mockCommonPay.mockResolvedValue({})
   })
 
-  it('uses wechat create API and normalizes response', async () => {
-    mockPostPaymentsWechatCreate.mockResolvedValue({
+  it('uses WeChat B2B create API and normalizes opaque common payment params', async () => {
+    mockPostPaymentsWechatB2bCreate.mockResolvedValue({
       status: 200,
       data: {
         paymentId: 'pay-1',
         orderId: 'order-1',
-        channel: 'WECHAT',
+        channel: 'WECHAT_B2B',
         status: 'PAY_PENDING',
         expiresAt: '2026-03-06T10:15:00Z',
-        prepayId: 'prepay-1',
-        package: 'prepay_id=prepay-1',
-        nonceStr: 'nonce-1',
-        timeStamp: '1234567890',
-        signType: 'RSA',
-        paySign: 'sign-1'
+        commonPayParams: { requestType: 'B2B_STORE_ASSISTANT', signedData: 'opaque' }
       }
     })
 
@@ -62,7 +62,7 @@ describe('payment-services', () => {
 
     const session = await services.sessions.createForOrder('order-1')
 
-    expect(mockPostPaymentsWechatCreate).toHaveBeenCalledWith(
+    expect(mockPostPaymentsWechatB2bCreate).toHaveBeenCalledWith(
       { orderId: 'order-1' },
       expect.objectContaining({
         headers: expect.objectContaining({
@@ -73,27 +73,22 @@ describe('payment-services', () => {
     expect(session).toEqual(expect.objectContaining({
       id: 'pay-1',
       orderId: 'order-1',
-      channel: 'wechat',
+      channel: 'wechat_b2b',
       status: 'PAY_PENDING',
-      prepayId: 'prepay-1'
+      commonPayParams: { requestType: 'B2B_STORE_ASSISTANT', signedData: 'opaque' }
     }))
   })
 
   it('passes explicit idempotency key to create API', async () => {
-    mockPostPaymentsWechatCreate.mockResolvedValue({
+    mockPostPaymentsWechatB2bCreate.mockResolvedValue({
       status: 200,
       data: {
         paymentId: 'pay-explicit-key',
         orderId: 'order-explicit-key',
-        channel: 'WECHAT',
+        channel: 'WECHAT_B2B',
         status: 'PAY_PENDING',
         expiresAt: '2026-03-06T10:15:00Z',
-        prepayId: 'prepay-explicit-key',
-        package: 'prepay_id=prepay-explicit-key',
-        nonceStr: 'nonce-explicit-key',
-        timeStamp: '1234567890',
-        signType: 'RSA',
-        paySign: 'sign-explicit-key'
+        commonPayParams: { requestType: 'B2B_STORE_ASSISTANT' }
       }
     })
 
@@ -106,7 +101,7 @@ describe('payment-services', () => {
       idempotencyKey: 'stable-order-payment-key'
     })
 
-    expect(mockPostPaymentsWechatCreate).toHaveBeenCalledWith(
+    expect(mockPostPaymentsWechatB2bCreate).toHaveBeenCalledWith(
       { orderId: 'order-explicit-key' },
       expect.objectContaining({
         headers: expect.objectContaining({
@@ -150,7 +145,7 @@ describe('payment-services', () => {
   })
 
   it('wraps non-2xx create response as ApiError', async () => {
-    mockPostPaymentsWechatCreate.mockResolvedValue({
+    mockPostPaymentsWechatB2bCreate.mockResolvedValue({
       status: 403,
       data: {
         code: 'feature_disabled',
@@ -172,23 +167,18 @@ describe('payment-services', () => {
   })
 
   it('converts cancel result to PaymentCancelledError', async () => {
-    mockPostPaymentsWechatCreate.mockResolvedValue({
+    mockPostPaymentsWechatB2bCreate.mockResolvedValue({
       status: 200,
       data: {
         paymentId: 'pay-4',
         orderId: 'order-4',
-        channel: 'WECHAT',
+        channel: 'WECHAT_B2B',
         status: 'PAY_PENDING',
         expiresAt: '2026-03-06T10:15:00Z',
-        prepayId: 'prepay-4',
-        package: 'prepay_id=prepay-4',
-        nonceStr: 'nonce-4',
-        timeStamp: '1234567890',
-        signType: 'RSA',
-        paySign: 'sign-4'
+        commonPayParams: { requestType: 'B2B_STORE_ASSISTANT' }
       }
     })
-    mockPay.mockRejectedValue({ resultCode: '6001', message: 'cancel' })
+    mockCommonPay.mockRejectedValue({ resultCode: '6001', message: 'cancel' })
 
     const services = createPaymentServices({
       baseUrl: 'https://payment.example.com',
@@ -196,6 +186,7 @@ describe('payment-services', () => {
     })
 
     await expect(services.sessions.payForOrder('order-4')).rejects.toBeInstanceOf(PaymentCancelledError)
+    expect(mockCommonPay).toHaveBeenCalledWith({ payload: { requestType: 'B2B_STORE_ASSISTANT' } })
   })
 
   it('normalizes payment detail on get and recheck', async () => {

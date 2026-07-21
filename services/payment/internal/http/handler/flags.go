@@ -14,6 +14,7 @@ import (
 type FeatureFlags struct {
 	PaymentEnabled   bool `json:"paymentEnabled"`
 	WechatPayEnabled bool `json:"wechatPayEnabled"`
+	WechatB2bEnabled bool `json:"wechatB2bEnabled"`
 	AlipayPayEnabled bool `json:"alipayPayEnabled"`
 }
 

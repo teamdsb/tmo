@@ -82,16 +82,18 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	flagsProvider := handler.NewIdentityFlagsProvider(cfg.IdentityBaseURL, cfg.FeatureFlagsTimeout, handler.FeatureFlags{
 		PaymentEnabled:   cfg.PaymentEnabled,
 		WechatPayEnabled: cfg.WechatPayEnabled,
+		WechatB2bEnabled: cfg.WechatB2bEnabled,
 		AlipayPayEnabled: cfg.AlipayPayEnabled,
 	}, logger)
 
 	apiHandler := &handler.Handler{
-		Logger:       logger,
-		Auth:         auth,
-		Flags:        flagsProvider,
-		Store:        db.New(pool),
-		Commerce:     handler.NewCommerceClient(cfg.CommerceBaseURL, cfg.CommerceSyncToken),
-		ProviderMode: cfg.ProviderMode,
+		Logger:              logger,
+		Auth:                auth,
+		Flags:               flagsProvider,
+		Store:               db.New(pool),
+		Commerce:            handler.NewCommerceClient(cfg.CommerceBaseURL, cfg.CommerceSyncToken),
+		ProviderMode:        cfg.ProviderMode,
+		WechatB2bConfigured: cfg.WechatB2bEnabled,
 	}
 
 	router := httpserver.NewRouter(apiHandler, logger, func(checkCtx context.Context) error {

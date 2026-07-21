@@ -37,10 +37,11 @@ func TestPostPaymentsWechatCreateCreatesPaymentAndSyncsOrder(t *testing.T) {
 	defer commerce.Close()
 
 	router := newTestRouter(&Handler{
-		Flags:        StaticFlagsProvider{Flags: FeatureFlags{PaymentEnabled: true, WechatPayEnabled: true, AlipayPayEnabled: true}},
-		Store:        store,
-		Commerce:     NewCommerceClient(commerce.URL(), "sync-token"),
-		ProviderMode: "mock",
+		Flags:               StaticFlagsProvider{Flags: FeatureFlags{PaymentEnabled: true, WechatPayEnabled: true, AlipayPayEnabled: true}},
+		Store:               store,
+		Commerce:            NewCommerceClient(commerce.URL(), "sync-token"),
+		ProviderMode:        "mock",
+		WechatB2bConfigured: true,
 	})
 
 	req := httptest.NewRequest(http.MethodPost, "/payments/wechat/create", strings.NewReader(`{"orderId":"`+orderID.String()+`"}`))
@@ -89,6 +90,67 @@ func TestPostPaymentsWechatCreateCreatesPaymentAndSyncsOrder(t *testing.T) {
 	}
 	if commerce.syncRequests[0].Status != paymentStatusPending {
 		t.Fatalf("expected PAY_PENDING sync, got %#v", commerce.syncRequests[0])
+	}
+}
+
+func TestPostPaymentsWechatB2BCreateReturnsCommonPaymentParams(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	orderID := uuid.MustParse("abababab-abab-abab-abab-abababababab")
+	store := newPaymentStoreStub()
+	commerce := newCommerceServerStub(CommerceOrder{
+		ID:            orderID.String(),
+		Status:        "SUBMITTED",
+		PaymentStatus: "UNPAID",
+		Items:         []CommerceOrderItem{{Qty: 2, UnitPriceFen: 1200}},
+	})
+	defer commerce.Close()
+
+	router := newTestRouter(&Handler{
+		Flags: StaticFlagsProvider{Flags: FeatureFlags{
+			PaymentEnabled:   true,
+			WechatPayEnabled: true,
+			WechatB2bEnabled: true,
+			AlipayPayEnabled: true,
+		}},
+		Store:               store,
+		Commerce:            NewCommerceClient(commerce.URL(), "sync-token"),
+		ProviderMode:        "mock",
+		WechatB2bConfigured: true,
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/payments/wechat/b2b/create", strings.NewReader(`{"orderId":"`+orderID.String()+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "idem-b2b-create-1")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var response struct {
+		PaymentID       string                 `json:"paymentId"`
+		OrderID         string                 `json:"orderId"`
+		Channel         string                 `json:"channel"`
+		CommonPayParams map[string]interface{} `json:"commonPayParams"`
+		PrepayID        *string                `json:"prepayId"`
+		Package         *string                `json:"package"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if response.PaymentID == "" || response.OrderID != orderID.String() || response.Channel != paymentChannelWechatB2B {
+		t.Fatalf("unexpected b2b response: %#v", response)
+	}
+	if response.CommonPayParams["requestType"] != "B2B_STORE_ASSISTANT" {
+		t.Fatalf("expected opaque common payment params, got %#v", response.CommonPayParams)
+	}
+	if response.PrepayID != nil || response.Package != nil {
+		t.Fatalf("b2b response must not expose requestPayment fields: %#v", response)
+	}
+	if len(store.payments) != 1 || store.payments[uuid.MustParse(response.PaymentID)].Channel != paymentChannelWechatB2B {
+		t.Fatalf("expected one b2b payment, got %#v", store.payments)
 	}
 }
 

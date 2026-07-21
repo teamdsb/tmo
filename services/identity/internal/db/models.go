@@ -45,6 +45,7 @@ type FeatureFlag struct {
 	WechatPayEnabled bool               `db:"wechat_pay_enabled" json:"wechat_pay_enabled"`
 	AlipayPayEnabled bool               `db:"alipay_pay_enabled" json:"alipay_pay_enabled"`
 	UpdatedAt        pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	WechatB2bEnabled bool               `db:"wechat_b2b_enabled" json:"wechat_b2b_enabled"`
 }
 
 type Permission struct {

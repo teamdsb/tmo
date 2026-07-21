@@ -20,6 +20,18 @@
 
 ## 微信支付
 
+### B2B 门店助手支付（本小程序生产路径）
+
+本小程序的服务类目为 `商家自营 > B2B（商品批发/门店管理）`，微信端不得再调用
+`wx.requestPayment` 或 `/payments/wechat/create`。B2B 支付使用以下链路：
+
+1. 在公众平台 `行业能力 > B2B 门店助手 > 支付管理` 完成 B2B 商户号开通、签约，并确认与小程序的关联状态为“已关联”。
+2. 商户管理员从 B2B 商户号基本配置取得现网 AppKey，并把 AppKey、商户证书/私钥和回调验签材料仅写入部署平台的密钥管理。
+3. 仅在真实 B2B 下单与签名提供方已配置、订单管理/发货信息录入已验收后，才将 identity 中的 `wechatB2bEnabled` 和 payment 的 `PAYMENT_WECHAT_B2B_ENABLED` 设为 `true`。
+4. miniapp 调用 `POST /payments/wechat/b2b/create`，将响应中的 `commonPayParams` 不变传给 `wx.requestCommonPayment`；成功回调后仍调用 `/payments/{paymentId}/recheck`，以通知或查单结果作为最终状态。
+
+`commonPayParams` 是 B2B 平台协议的签名参数，不得由小程序拼装、记录到日志或长期存储。当前仓库的 `mock` provider 只生成测试参数；生产环境必须接入商户开通后提供的 B2B 下单、查单与通知验签协议，未完成前保持开关关闭。
+
 ### 官方依据
 
 - 小程序拉起支付：<https://developers.weixin.qq.com/miniprogram/dev/api/payment/wx.requestPayment.html>

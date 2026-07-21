@@ -12,12 +12,13 @@ import (
 )
 
 type Handler struct {
-	Logger       *slog.Logger
-	Auth         *middleware.Authenticator
-	Flags        FeatureFlagsProvider
-	Store        PaymentStore
-	Commerce     *CommerceClient
-	ProviderMode string
+	Logger              *slog.Logger
+	Auth                *middleware.Authenticator
+	Flags               FeatureFlagsProvider
+	Store               PaymentStore
+	Commerce            *CommerceClient
+	ProviderMode        string
+	WechatB2bConfigured bool
 }
 
 type PaymentStore interface {
