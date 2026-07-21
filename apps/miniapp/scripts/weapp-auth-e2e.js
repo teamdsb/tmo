@@ -6,8 +6,10 @@ const { describeWeappPaths } = require('./weapp-paths')
 const miniappDir = path.resolve(__dirname, '..')
 const rootDir = path.resolve(miniappDir, '..', '..')
 const weappPaths = describeWeappPaths(miniappDir)
-const projectPath = weappPaths.projectDir
 const artifactPath = weappPaths.outputRoot
+const projectPath = process.env.WEAPP_AUTH_PROJECT_PATH
+  ? path.resolve(process.env.WEAPP_AUTH_PROJECT_PATH)
+  : artifactPath
 const requestedPort = process.env.WEAPP_AUTOMATOR_PORT
 const defaultPort = Number(requestedPort || 9527)
 const timeoutMs = Number(process.env.WEAPP_AUTH_E2E_TIMEOUT_MS || 90000)
@@ -16,6 +18,7 @@ const expectedPhone = String(process.env.WEAPP_AUTH_EXPECT_PHONE || '').trim()
 const identityDbDsn = process.env.IDENTITY_DB_DSN || 'postgres://commerce:commerce@localhost:5432/identity?sslmode=disable'
 const apiBaseUrl = process.env.WEAPP_AUTH_E2E_API_BASE_URL || process.env.TARO_APP_API_BASE_URL || 'http://localhost:8080'
 const allowSimulatedLoginFallback = String(process.env.TARO_APP_WEAPP_PHONE_PROOF_SIMULATION || '').trim().toLowerCase() === 'true'
+const policyOnly = String(process.env.WEAPP_AUTH_POLICY_ONLY || '').trim().toLowerCase() === 'true'
 
 const cliCandidates = [
   process.env.WEAPP_DEVTOOLS_CLI_PATH,
@@ -31,6 +34,7 @@ const lastRunDebugState = {
   bootstrapAfterLogin: null,
   agreementBeforeTap: null,
   agreementAfterTap: null,
+  policyLinks: {},
   loginButtonBeforeTap: null,
   loginButtonAfterTap: null,
   loginPageDataKeys: [],
@@ -367,7 +371,80 @@ const run = async () => {
 
     lastRunDebugState.loginPageDataKeys = await safePageDataKeys(page)
 
-    const agreementToggle = await page.$('.login-checkbox')
+    for (const policy of [
+      { id: 'login-policy-privacy', type: 'privacy' },
+      { id: 'login-policy-terms', type: 'terms' }
+    ]) {
+      const link = await page.$(`#${policy.id}`)
+      assertPass(checks, `login.policy.${policy.type}.visible`, Boolean(link), `#${policy.id} should be found`)
+      const size = await link.size()
+      const height = Number.parseFloat(String(size?.height || '0'))
+      lastRunDebugState.policyLinks[policy.type] = { size }
+      assertPass(
+        checks,
+        `login.policy.${policy.type}.tap_height`,
+        Number.isFinite(height) && height >= 40,
+        `height=${String(size?.height || 0)}`
+      )
+
+      const checkboxBeforePolicy = await page.$('.login-checkbox')
+      const checkboxClassBeforePolicy = await checkboxBeforePolicy?.attribute('class')
+      await link.tap()
+      const policyPage = await waitFor(async () => {
+        const currentPage = await miniProgram.currentPage()
+        return normalizePath(currentPage?.path) === 'pages/policy/index' ? currentPage : null
+      }, { timeoutMs: 5000, intervalMs: 200 })
+      assertPass(
+        checks,
+        `login.policy.${policy.type}.route`,
+        Boolean(policyPage),
+        `currentPath=${normalizePath((await miniProgram.currentPage())?.path)}`
+      )
+      assertPass(
+        checks,
+        `login.policy.${policy.type}.query`,
+        policyPage?.query?.type === policy.type,
+        `query=${JSON.stringify(policyPage?.query || {})}`
+      )
+
+      await sleep(1000)
+      await miniProgram.callWxMethod('navigateBack', { delta: 1 })
+      await sleep(1200)
+      page = await waitFor(async () => {
+        const currentPage = await miniProgram.currentPage()
+        return normalizePath(currentPage?.path) === 'pages/auth/login/index' ? currentPage : null
+      }, { timeoutMs: 5000, intervalMs: 200 })
+      assertPass(
+        checks,
+        `login.policy.${policy.type}.back_to_login`,
+        Boolean(page),
+        `currentPath=${normalizePath((await miniProgram.currentPage())?.path)}`
+      )
+      const checkboxAfterPolicy = await page.$('.login-checkbox')
+      const checkboxClassAfterPolicy = await checkboxAfterPolicy?.attribute('class')
+      assertPass(
+        checks,
+        `login.policy.${policy.type}.agreement_unchanged`,
+        checkboxClassAfterPolicy === checkboxClassBeforePolicy,
+        `before=${checkboxClassBeforePolicy} after=${checkboxClassAfterPolicy}`
+      )
+    }
+
+    if (policyOnly) {
+      assertPass(checks, 'runtime.no.exception', exceptions.length === 0, `exceptions=${exceptions.length}`)
+      console.log(JSON.stringify({
+        status: 'pass',
+        mode: 'policy-only',
+        checks,
+        policyLinks: lastRunDebugState.policyLinks,
+        consoleCount: consoleLogs.length,
+        exceptionCount: exceptions.length
+      }, null, 2))
+      console.log('WEAPP_AUTH_POLICY_E2E:PASS')
+      return
+    }
+
+    const agreementToggle = await page.$('#login-agreement-toggle')
       || await page.$('.login-agreement-toggle')
       || await page.$('.login-agreement')
     assertPass(checks, 'login.agreement.toggle', Boolean(agreementToggle), 'agreement toggle should be found')
