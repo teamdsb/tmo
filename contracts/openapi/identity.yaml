@@ -452,7 +452,8 @@ paths:
           type: string
           enum:
           - ADMIN
-          - BOSS
+          - MANAGER
+          - CS
       - in: query
         name: page
         schema:
@@ -475,6 +476,31 @@ paths:
           "$ref": "#/components/responses/Unauthorized"
         '403':
           "$ref": "#/components/responses/Forbidden"
+    post:
+      tags:
+      - RBAC
+      summary: Create an admin web password account (BOSS only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/CreateAdminUserRequest"
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/AdminUser"
+        '400':
+          "$ref": "#/components/responses/BadRequest"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+        '403':
+          "$ref": "#/components/responses/Forbidden"
+        '409':
+          "$ref": "#/components/responses/Conflict"
   "/admin/users/{userId}":
     patch:
       tags:
@@ -500,6 +526,35 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/AdminUser"
+        '400':
+          "$ref": "#/components/responses/BadRequest"
+        '401':
+          "$ref": "#/components/responses/Unauthorized"
+        '403':
+          "$ref": "#/components/responses/Forbidden"
+        '404':
+          "$ref": "#/components/responses/NotFound"
+  "/admin/users/{userId}/reset-password":
+    post:
+      tags:
+      - RBAC
+      summary: Reset an admin web account password (BOSS only)
+      parameters:
+      - in: path
+        name: userId
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              "$ref": "#/components/schemas/ResetAdminUserPasswordRequest"
+      responses:
+        '204':
+          description: Password reset
         '400':
           "$ref": "#/components/responses/BadRequest"
         '401':
@@ -916,6 +971,8 @@ components:
           format: uuid
         displayName:
           type: string
+        username:
+          type: string
         phone:
           type: string
           nullable: true
@@ -923,6 +980,7 @@ components:
           type: string
           enum:
           - admin
+          - staff
         roles:
           type: array
           items:
@@ -937,6 +995,7 @@ components:
           format: date-time
       required:
       - id
+      - username
       - userType
       - roles
       - status
@@ -969,12 +1028,52 @@ components:
             type: string
             enum:
             - ADMIN
-            - BOSS
+            - MANAGER
+            - CS
+        username:
+          type: string
+        displayName:
+          type: string
+        phone:
+          type: string
+          nullable: true
         status:
           "$ref": "./common.yaml#/components/schemas/UserStatus"
         disabledReason:
           type: string
           nullable: true
+    CreateAdminUserRequest:
+      type: object
+      required:
+      - username
+      - displayName
+      - role
+      - password
+      properties:
+        username:
+          type: string
+        displayName:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum:
+          - ADMIN
+          - MANAGER
+          - CS
+        password:
+          type: string
+          format: password
+    ResetAdminUserPasswordRequest:
+      type: object
+      required:
+      - password
+      properties:
+        password:
+          type: string
+          format: password
     PagedStaffList:
       type: object
       properties:

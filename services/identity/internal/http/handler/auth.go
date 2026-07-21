@@ -160,7 +160,7 @@ func (h *Handler) PostAuthMiniLogin(c *gin.Context) {
 		ownerSalesUserID = &owner
 	}
 
-	token, expiresAt, err := h.Auth.Issue(user.ID, selectedRole, roles, string(userType), ownerSalesUserID, user.DisplayName, user.Phone)
+	token, expiresAt, err := h.Auth.Issue(user.ID, selectedRole, roles, string(userType), ownerSalesUserID, user.DisplayName, user.Phone, user.CredentialVersion)
 	if err != nil {
 		h.logError("issue token failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "login failed")
@@ -596,7 +596,7 @@ func (h *Handler) PostAuthPasswordLogin(c *gin.Context) {
 		h.writeError(c, http.StatusUnauthorized, "unauthorized", "invalid credentials")
 		return
 	}
-	token, expiresAt, err := h.Auth.Issue(user.ID, selectedRole, roles, string(userType), nil, user.DisplayName, user.Phone)
+	token, expiresAt, err := h.Auth.Issue(user.ID, selectedRole, roles, string(userType), nil, user.DisplayName, user.Phone, user.CredentialVersion)
 	if err != nil {
 		h.logError("issue token failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "login failed")
@@ -680,7 +680,7 @@ func (h *Handler) switchRole(c *gin.Context) {
 		ownerSalesUserID = &owner
 	}
 
-	token, expiresAt, err := h.Auth.Issue(user.ID, targetRole, roles, string(userType), ownerSalesUserID, user.DisplayName, user.Phone)
+	token, expiresAt, err := h.Auth.Issue(user.ID, targetRole, roles, string(userType), ownerSalesUserID, user.DisplayName, user.Phone, user.CredentialVersion)
 	if err != nil {
 		h.logError("issue token failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to switch role")

@@ -2,6 +2,12 @@
 
 这个文件只记录会影响后续 agent 判断的近期仓库变化，不承担发布说明、项目周报或任务流水账职责。
 
+## 2026-07-09
+
+- 用户运营中心新增 BOSS 专属后台密码账号管理，可创建、编辑、重置密码和停启单角色 `ADMIN`、`MANAGER`、`CS` 账号。
+  影响面：Identity JWT 新增凭证版本并在每次鉴权时核验；停用或重置密码会立即撤销旧会话，BOSS 账号不在受管列表中。
+  建议阅读：`docs/context/rbac.md`、`contracts/openapi/identity.yaml`
+
 ## 2026-07-06
 
 - Admin 订单履约新增受控线下收款与派单：`order:manage / ALL` 仅授予 BOSS、MANAGER、ADMIN；Commerce 仍强制检查角色，并向 Identity 复核负责人是 active SALES。

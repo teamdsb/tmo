@@ -1174,6 +1174,9 @@ func TestAdminUsersList(t *testing.T) {
 	if err := seedRole(ctx, pool, managerID, "MANAGER"); err != nil {
 		t.Fatalf("seed manager role: %v", err)
 	}
+	if err := seedPassword(ctx, pool, managerID, "manager-list", "manager123"); err != nil {
+		t.Fatalf("seed manager password: %v", err)
+	}
 
 	bossID := uuid.New()
 	if err := seedUser(ctx, pool, bossID, "Boss", "admin"); err != nil {
@@ -1209,20 +1212,13 @@ func TestAdminUsersList(t *testing.T) {
 	if err := json.NewDecoder(listResp.Body).Decode(&listPayload); err != nil {
 		t.Fatalf("decode list admin users: %v", err)
 	}
-	if listPayload.Total < 2 {
+	if listPayload.Total != 2 {
 		t.Fatalf("expected at least 2 admin users, got %d", listPayload.Total)
 	}
-	foundBoss := false
 	for _, item := range listPayload.Items {
 		if containsRole(item.Roles, "BOSS") {
-			foundBoss = true
-			if !containsRole(item.Roles, "ADMIN") {
-				t.Fatalf("expected BOSS user to include normalized ADMIN role, got %#v", item.Roles)
-			}
+			t.Fatalf("BOSS accounts must not be exposed in managed users")
 		}
-	}
-	if !foundBoss {
-		t.Fatalf("expected boss user in admin users list")
 	}
 
 	filteredResp := doJSON(t, router, http.MethodGet, "/admin/users?page=1&pageSize=20&role=ADMIN", nil, adminAuth.AccessToken)
@@ -1249,7 +1245,7 @@ func TestAdminUsersList(t *testing.T) {
 	}
 }
 
-func TestPatchAdminUserNormalizesBossRoleAndSupportsDemotion(t *testing.T) {
+func TestPatchAdminUserRequiresCurrentBoss(t *testing.T) {
 	router, pool := setupTestRouter(t)
 	ctx := context.Background()
 
@@ -1280,36 +1276,11 @@ func TestPatchAdminUserNormalizesBossRoleAndSupportsDemotion(t *testing.T) {
 		t.Fatalf("decode admin auth: %v", err)
 	}
 
-	promoteResp := doJSON(t, router, http.MethodPatch, "/admin/users/"+targetID.String(), map[string]interface{}{
-		"roles": []string{"BOSS"},
+	updateResp := doJSON(t, router, http.MethodPatch, "/admin/users/"+targetID.String(), map[string]interface{}{
+		"roles": []string{"CS"},
 	}, adminAuth.AccessToken)
-	if promoteResp.Code != http.StatusOK {
-		t.Fatalf("expected promote boss 200, got %d: %s", promoteResp.Code, promoteResp.Body.String())
-	}
-	var promotePayload struct {
-		Roles []string `json:"roles"`
-	}
-	if err := json.NewDecoder(promoteResp.Body).Decode(&promotePayload); err != nil {
-		t.Fatalf("decode promote payload: %v", err)
-	}
-	if !containsRole(promotePayload.Roles, "ADMIN") || !containsRole(promotePayload.Roles, "BOSS") {
-		t.Fatalf("expected normalized admin+boss roles, got %#v", promotePayload.Roles)
-	}
-
-	demoteResp := doJSON(t, router, http.MethodPatch, "/admin/users/"+targetID.String(), map[string]interface{}{
-		"roles": []string{"ADMIN"},
-	}, adminAuth.AccessToken)
-	if demoteResp.Code != http.StatusOK {
-		t.Fatalf("expected demote boss 200, got %d: %s", demoteResp.Code, demoteResp.Body.String())
-	}
-	var demotePayload struct {
-		Roles []string `json:"roles"`
-	}
-	if err := json.NewDecoder(demoteResp.Body).Decode(&demotePayload); err != nil {
-		t.Fatalf("decode demote payload: %v", err)
-	}
-	if !containsRole(demotePayload.Roles, "ADMIN") || containsRole(demotePayload.Roles, "BOSS") {
-		t.Fatalf("expected demoted admin-only roles, got %#v", demotePayload.Roles)
+	if updateResp.Code != http.StatusForbidden {
+		t.Fatalf("expected non-BOSS update 403, got %d: %s", updateResp.Code, updateResp.Body.String())
 	}
 }
 
@@ -1347,8 +1318,90 @@ func TestPatchAdminUserRejectsDisablingBossAccount(t *testing.T) {
 	disableResp := doJSON(t, router, http.MethodPatch, "/admin/users/"+targetID.String(), map[string]interface{}{
 		"status": "disabled",
 	}, adminAuth.AccessToken)
-	if disableResp.Code != http.StatusBadRequest {
-		t.Fatalf("expected disable boss 400, got %d: %s", disableResp.Code, disableResp.Body.String())
+	if disableResp.Code != http.StatusForbidden {
+		t.Fatalf("expected disable boss 403, got %d: %s", disableResp.Code, disableResp.Body.String())
+	}
+}
+
+func TestBossCreatesUpdatesAndRevokesManagedPasswordAccount(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	bossID := uuid.New()
+	if err := seedUser(ctx, pool, bossID, "Boss", "admin"); err != nil {
+		t.Fatalf("seed boss: %v", err)
+	}
+	if err := seedRole(ctx, pool, bossID, "BOSS"); err != nil {
+		t.Fatalf("seed boss role: %v", err)
+	}
+	if err := seedPassword(ctx, pool, bossID, "boss-managed-test", "boss12345"); err != nil {
+		t.Fatalf("seed boss password: %v", err)
+	}
+	bossLogin := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": "boss-managed-test", "password": "boss12345",
+	}, "")
+	if bossLogin.Code != http.StatusOK {
+		t.Fatalf("boss login: %d %s", bossLogin.Code, bossLogin.Body.String())
+	}
+	var bossAuth oapi.AuthResponse
+	if err := json.NewDecoder(bossLogin.Body).Decode(&bossAuth); err != nil {
+		t.Fatalf("decode boss auth: %v", err)
+	}
+
+	create := doJSON(t, router, http.MethodPost, "/admin/users", map[string]interface{}{
+		"username": "managed.cs", "displayName": "Managed CS", "role": "CS", "password": "initial123",
+	}, bossAuth.AccessToken)
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create managed account: %d %s", create.Code, create.Body.String())
+	}
+	var created struct {
+		ID       string `json:"id"`
+		Username string `json:"username"`
+	}
+	if err := json.NewDecoder(create.Body).Decode(&created); err != nil {
+		t.Fatalf("decode created account: %v", err)
+	}
+	managedLogin := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": "managed.cs", "password": "initial123",
+	}, "")
+	if managedLogin.Code != http.StatusOK {
+		t.Fatalf("managed login: %d %s", managedLogin.Code, managedLogin.Body.String())
+	}
+	var managedAuth oapi.AuthResponse
+	if err := json.NewDecoder(managedLogin.Body).Decode(&managedAuth); err != nil {
+		t.Fatalf("decode managed auth: %v", err)
+	}
+
+	update := doJSON(t, router, http.MethodPatch, "/admin/users/"+created.ID, map[string]interface{}{
+		"username": "managed.manager", "displayName": "Managed Manager", "phone": "+15550000123", "roles": []string{"MANAGER"},
+	}, bossAuth.AccessToken)
+	if update.Code != http.StatusOK {
+		t.Fatalf("update managed account: %d %s", update.Code, update.Body.String())
+	}
+	oldUsernameLogin := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": "managed.cs", "password": "initial123",
+	}, "")
+	if oldUsernameLogin.Code != http.StatusUnauthorized {
+		t.Fatalf("old username should fail, got %d", oldUsernameLogin.Code)
+	}
+
+	reset := doJSON(t, router, http.MethodPost, "/admin/users/"+created.ID+"/reset-password", map[string]interface{}{
+		"password": "replacement123",
+	}, bossAuth.AccessToken)
+	if reset.Code != http.StatusNoContent {
+		t.Fatalf("reset password: %d %s", reset.Code, reset.Body.String())
+	}
+	staleSession := doJSON(t, router, http.MethodGet, "/me", nil, managedAuth.AccessToken)
+	if staleSession.Code != http.StatusUnauthorized {
+		t.Fatalf("stale session should be revoked, got %d", staleSession.Code)
+	}
+	newLogin := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": "managed.manager", "password": "replacement123",
+	}, "")
+	if newLogin.Code != http.StatusOK {
+		t.Fatalf("new credentials login: %d %s", newLogin.Code, newLogin.Body.String())
 	}
 }
 

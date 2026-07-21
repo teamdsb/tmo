@@ -19,6 +19,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	openapi_types "github.com/oapi-codegen/runtime/types"
+	"golang.org/x/crypto/bcrypt"
 
 	shareddb "github.com/teamdsb/tmo/packages/go-shared/db"
 	"github.com/teamdsb/tmo/services/identity/internal/db"
@@ -115,6 +116,7 @@ type pagedSalesUsersResponse struct {
 
 type adminUserSummary struct {
 	ID          string   `json:"id"`
+	Username    string   `json:"username"`
 	DisplayName string   `json:"displayName"`
 	Phone       *string  `json:"phone"`
 	UserType    string   `json:"userType"`
@@ -132,10 +134,17 @@ type pagedAdminUsersResponse struct {
 }
 
 type updateAdminUserRequest struct {
-	Roles          *[]string `json:"roles,omitempty"`
-	Status         *string   `json:"status,omitempty"`
-	DisabledReason *string   `json:"disabledReason,omitempty"`
+	Roles          *[]string       `json:"roles,omitempty"`
+	Username       *string         `json:"username,omitempty"`
+	DisplayName    *string         `json:"displayName,omitempty"`
+	Phone          json.RawMessage `json:"phone,omitempty"`
+	Status         *string         `json:"status,omitempty"`
+	DisabledReason *string         `json:"disabledReason,omitempty"`
 }
+
+const minManagedPasswordLength = 8
+
+var managedUsernamePattern = regexp.MustCompile(`^[A-Za-z0-9._-]{3,64}$`)
 
 type customerTagResponse struct {
 	ID     string `json:"id"`
@@ -213,9 +222,10 @@ type updateCustomerRoleResponse struct {
 	UpdatedAt string   `json:"updatedAt"`
 }
 
-func adminUserSummaryFromModel(user db.User, roles []string) adminUserSummary {
+func adminUserSummaryFromModel(user db.User, username string, roles []string) adminUserSummary {
 	return adminUserSummary{
 		ID:          user.ID.String(),
+		Username:    username,
 		DisplayName: safeString(user.DisplayName, "未命名用户"),
 		Phone:       user.Phone,
 		UserType:    strings.ToLower(strings.TrimSpace(user.UserType)),
@@ -224,6 +234,26 @@ func adminUserSummaryFromModel(user db.User, roles []string) adminUserSummary {
 		CreatedAt:   user.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt:   user.UpdatedAt.Time.Format(time.RFC3339),
 	}
+}
+
+func isManagedAdminRole(role string) bool {
+	switch strings.ToUpper(strings.TrimSpace(role)) {
+	case "ADMIN", "MANAGER", "CS":
+		return true
+	default:
+		return false
+	}
+}
+
+func validateManagedPassword(password string) bool {
+	return utf8.RuneCountInString(password) >= minManagedPasswordLength
+}
+
+func managedUserType(role string) string {
+	if strings.EqualFold(strings.TrimSpace(role), "ADMIN") {
+		return "admin"
+	}
+	return "staff"
 }
 
 func (h *Handler) GetAdminConfigFeatureFlags(c *gin.Context) {
@@ -386,7 +416,13 @@ func (h *Handler) GetAdminUsers(c *gin.Context, _ oapi.GetAdminUsersParams) {
 			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to list admin users")
 			return
 		}
-		items = append(items, adminUserSummaryFromModel(user, roles))
+		password, err := h.Store.GetUserPasswordByUserID(c.Request.Context(), user.ID)
+		if err != nil {
+			h.logError("get admin username failed", err)
+			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to list admin users")
+			return
+		}
+		items = append(items, adminUserSummaryFromModel(user, password.Username, roles))
 	}
 
 	c.JSON(http.StatusOK, pagedAdminUsersResponse{
@@ -397,8 +433,81 @@ func (h *Handler) GetAdminUsers(c *gin.Context, _ oapi.GetAdminUsersParams) {
 	})
 }
 
+func (h *Handler) PostAdminUsers(c *gin.Context) {
+	claims, ok := h.requireCurrentBoss(c)
+	if !ok {
+		return
+	}
+
+	var request oapi.CreateAdminUserRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
+		return
+	}
+	username := strings.TrimSpace(request.Username)
+	displayName := strings.TrimSpace(request.DisplayName)
+	role := strings.ToUpper(strings.TrimSpace(string(request.Role)))
+	password := request.Password
+	if !managedUsernamePattern.MatchString(username) || displayName == "" || !isManagedAdminRole(role) || !validateManagedPassword(password) {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid account fields")
+		return
+	}
+	var phone *string
+	if request.Phone != nil {
+		trimmed := strings.TrimSpace(*request.Phone)
+		if trimmed != "" {
+			phone = &trimmed
+		}
+	}
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to create admin user")
+		return
+	}
+
+	var created db.User
+	err = shareddb.WithTx(c.Request.Context(), h.DB, func(tx pgx.Tx) error {
+		q := h.Store.WithTx(tx)
+		userID := uuid.New()
+		createdUser, err := q.CreateUser(c.Request.Context(), db.CreateUserParams{
+			ID:               userID,
+			DisplayName:      &displayName,
+			Phone:            phone,
+			UserType:         managedUserType(role),
+			OwnerSalesUserID: pgtype.UUID{},
+		})
+		if err != nil {
+			return err
+		}
+		if err := q.AddUserRole(c.Request.Context(), db.AddUserRoleParams{UserID: userID, Role: role}); err != nil {
+			return err
+		}
+		if err := q.UpsertUserPassword(c.Request.Context(), db.UpsertUserPasswordParams{
+			UserID: userID, Username: username, PasswordHash: string(passwordHash),
+		}); err != nil {
+			return err
+		}
+		created = createdUser
+		return nil
+	})
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			h.writeError(c, http.StatusConflict, "conflict", "username already exists")
+			return
+		}
+		h.logError("create admin user failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to create admin user")
+		return
+	}
+	h.recordAudit(c, &claims.UserID, "admin_user.create", "admin_user", &created.ID, map[string]interface{}{
+		"username": username, "role": role,
+	})
+	c.JSON(http.StatusCreated, adminUserSummaryFromModel(created, username, []string{role}))
+}
+
 func (h *Handler) PatchAdminUsersUserId(c *gin.Context, userId openapi_types.UUID) {
-	claims, _, ok := h.requirePermission(c, "rbac:manage", "ALL")
+	claims, ok := h.requireCurrentBoss(c)
 	if !ok {
 		return
 	}
@@ -410,7 +519,7 @@ func (h *Handler) PatchAdminUsersUserId(c *gin.Context, userId openapi_types.UUI
 		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
 		return
 	}
-	if request.Roles == nil && request.Status == nil && request.DisabledReason == nil {
+	if request.Roles == nil && request.Username == nil && request.DisplayName == nil && len(request.Phone) == 0 && request.Status == nil && request.DisabledReason == nil {
 		h.writeError(c, http.StatusBadRequest, "invalid_request", "at least one field is required")
 		return
 	}
@@ -425,30 +534,69 @@ func (h *Handler) PatchAdminUsersUserId(c *gin.Context, userId openapi_types.UUI
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update admin user")
 		return
 	}
-	if strings.ToLower(strings.TrimSpace(user.UserType)) != "admin" {
-		h.writeError(c, http.StatusNotFound, "not_found", "admin user not found")
-		return
-	}
-
 	currentRoles, err := h.Store.ListUserRoles(c.Request.Context(), user.ID)
 	if err != nil {
 		h.logError("list admin user roles failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update admin user")
 		return
 	}
-	currentRoles = normalizeAdminRoles(currentRoles)
+	if containsRole(normalizeRoles(currentRoles), "BOSS") {
+		h.writeError(c, http.StatusForbidden, "forbidden", "boss account cannot be managed")
+		return
+	}
+	currentRoles = normalizeRoles(currentRoles)
+	if len(currentRoles) != 1 || !isManagedAdminRole(currentRoles[0]) {
+		h.writeError(c, http.StatusNotFound, "not_found", "admin user not found")
+		return
+	}
 
 	nextRoles := currentRoles
 	if request.Roles != nil {
-		nextRoles = normalizeAdminRoles(*request.Roles)
-		if len(nextRoles) == 0 {
-			h.writeError(c, http.StatusBadRequest, "invalid_request", "roles is required")
+		nextRoles = normalizeRoles(*request.Roles)
+		if len(nextRoles) != 1 {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "exactly one role is required")
 			return
 		}
 		for _, role := range nextRoles {
-			if !isAdminRole(role) {
+			if !isManagedAdminRole(role) {
 				h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid admin role")
 				return
+			}
+		}
+	}
+	passwordRow, err := h.Store.GetUserPasswordByUserID(c.Request.Context(), user.ID)
+	if err != nil {
+		h.writeError(c, http.StatusNotFound, "not_found", "admin user not found")
+		return
+	}
+	username := passwordRow.Username
+	if request.Username != nil {
+		username = strings.TrimSpace(*request.Username)
+		if !managedUsernamePattern.MatchString(username) {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid username")
+			return
+		}
+	}
+	displayName := safeString(user.DisplayName, "")
+	if request.DisplayName != nil {
+		displayName = strings.TrimSpace(*request.DisplayName)
+		if displayName == "" {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "displayName is required")
+			return
+		}
+	}
+	phone := user.Phone
+	if len(request.Phone) > 0 {
+		phone = nil
+		if string(request.Phone) != "null" {
+			var phoneValue string
+			if err := json.Unmarshal(request.Phone, &phoneValue); err != nil {
+				h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid phone")
+				return
+			}
+			trimmed := strings.TrimSpace(phoneValue)
+			if trimmed != "" {
+				phone = &trimmed
 			}
 		}
 	}
@@ -477,6 +625,20 @@ func (h *Handler) PatchAdminUsersUserId(c *gin.Context, userId openapi_types.UUI
 
 	err = shareddb.WithTx(c.Request.Context(), h.DB, func(tx pgx.Tx) error {
 		q := h.Store.WithTx(tx)
+		if request.Username != nil {
+			if err := q.UpdateUserPassword(c.Request.Context(), db.UpdateUserPasswordParams{
+				UserID: user.ID, Username: username, PasswordHash: passwordRow.PasswordHash,
+			}); err != nil {
+				return err
+			}
+		}
+		if request.DisplayName != nil || len(request.Phone) > 0 {
+			if _, err := q.UpdateManagedUserProfile(c.Request.Context(), db.UpdateManagedUserProfileParams{
+				ID: user.ID, DisplayName: &displayName, Phone: phone,
+			}); err != nil {
+				return err
+			}
+		}
 		if request.Roles != nil {
 			if err := q.DeleteUserRoles(c.Request.Context(), user.ID); err != nil {
 				return err
@@ -488,6 +650,14 @@ func (h *Handler) PatchAdminUsersUserId(c *gin.Context, userId openapi_types.UUI
 				}); err != nil {
 					return err
 				}
+			}
+			if _, err := q.UpdateManagedUserType(c.Request.Context(), db.UpdateManagedUserTypeParams{
+				ID: user.ID, UserType: managedUserType(nextRoles[0]),
+			}); err != nil {
+				return err
+			}
+			if _, err := q.IncrementCredentialVersion(c.Request.Context(), user.ID); err != nil {
+				return err
 			}
 		}
 		if status != "" {
@@ -503,6 +673,11 @@ func (h *Handler) PatchAdminUsersUserId(c *gin.Context, userId openapi_types.UUI
 		return nil
 	})
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			h.writeError(c, http.StatusConflict, "conflict", "username already exists")
+			return
+		}
 		h.logError("update admin user failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update admin user")
 		return
@@ -520,14 +695,63 @@ func (h *Handler) PatchAdminUsersUserId(c *gin.Context, userId openapi_types.UUI
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update admin user")
 		return
 	}
-	updatedRoles = normalizeAdminRoles(updatedRoles)
+	updatedRoles = normalizeRoles(updatedRoles)
 
 	h.recordAudit(c, &claims.UserID, "admin_user.update", "admin_user", &updated.ID, map[string]interface{}{
-		"roles":  updatedRoles,
-		"status": updated.Status,
+		"roles": updatedRoles, "status": updated.Status, "username": username,
 	})
 
-	c.JSON(http.StatusOK, adminUserSummaryFromModel(updated, updatedRoles))
+	c.JSON(http.StatusOK, adminUserSummaryFromModel(updated, username, updatedRoles))
+}
+
+func (h *Handler) PostAdminUsersUserIdResetPassword(c *gin.Context, userId openapi_types.UUID) {
+	claims, ok := h.requireCurrentBoss(c)
+	if !ok {
+		return
+	}
+	var request oapi.ResetAdminUserPasswordRequest
+	if err := c.ShouldBindJSON(&request); err != nil || !validateManagedPassword(request.Password) {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "password must be at least 8 characters")
+		return
+	}
+	userID := uuid.UUID(userId)
+	_, err := h.Store.GetUserByID(c.Request.Context(), userID)
+	if err != nil {
+		h.writeError(c, http.StatusNotFound, "not_found", "admin user not found")
+		return
+	}
+	roles, err := h.Store.ListUserRoles(c.Request.Context(), userID)
+	if err != nil || containsRole(normalizeRoles(roles), "BOSS") || len(roles) != 1 || !isManagedAdminRole(roles[0]) {
+		h.writeError(c, http.StatusForbidden, "forbidden", "account cannot be managed")
+		return
+	}
+	passwordRow, err := h.Store.GetUserPasswordByUserID(c.Request.Context(), userID)
+	if err != nil {
+		h.writeError(c, http.StatusNotFound, "not_found", "admin user not found")
+		return
+	}
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(request.Password), bcrypt.DefaultCost)
+	if err != nil {
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to reset password")
+		return
+	}
+	err = shareddb.WithTx(c.Request.Context(), h.DB, func(tx pgx.Tx) error {
+		q := h.Store.WithTx(tx)
+		if err := q.UpdateUserPassword(c.Request.Context(), db.UpdateUserPasswordParams{
+			UserID: userID, Username: passwordRow.Username, PasswordHash: string(passwordHash),
+		}); err != nil {
+			return err
+		}
+		_, err := q.IncrementCredentialVersion(c.Request.Context(), userID)
+		return err
+	})
+	if err != nil {
+		h.logError("reset admin password failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to reset password")
+		return
+	}
+	h.recordAudit(c, &claims.UserID, "admin_user.password_reset", "admin_user", &userID, map[string]interface{}{})
+	c.Status(http.StatusNoContent)
 }
 
 func (h *Handler) PostAdminCustomersCustomerIdPromoteToSales(c *gin.Context) {

@@ -27,6 +27,18 @@ func (h *Handler) requireBoss(c *gin.Context) (auth.Claims, bool) {
 	}
 }
 
+func (h *Handler) requireCurrentBoss(c *gin.Context) (auth.Claims, bool) {
+	claims, ok := h.requireClaims(c)
+	if !ok {
+		return auth.Claims{}, false
+	}
+	if strings.ToUpper(strings.TrimSpace(claims.Role)) != "BOSS" {
+		h.writeError(c, http.StatusForbidden, "forbidden", "permission denied")
+		return auth.Claims{}, false
+	}
+	return claims, true
+}
+
 func (h *Handler) requirePermission(c *gin.Context, permissionCode string, requiredScope string) (auth.Claims, string, bool) {
 	claims, ok := h.requireClaims(c)
 	if !ok {

@@ -401,10 +401,24 @@ export const fetchAdminUsers = async (params = {}) => {
   return requestRaw(`/admin/users${buildQueryString(params)}`);
 };
 
+export const createAdminUser = async (payload) => {
+  return requestRaw('/admin/users', {
+    method: 'POST',
+    body: payload
+  });
+};
+
 export const patchAdminUser = async (userId, payload) => {
   return requestRaw(`/admin/users/${userId}`, {
     method: 'PATCH',
     body: payload
+  });
+};
+
+export const resetAdminUserPassword = async (userId, password) => {
+  return requestRaw(`/admin/users/${userId}/reset-password`, {
+    method: 'POST',
+    body: { password }
   });
 };
 

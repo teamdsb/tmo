@@ -17,14 +17,15 @@ var (
 )
 
 type Claims struct {
-	UserID           uuid.UUID
-	Role             string
-	Roles            []string
-	UserType         string
-	OwnerSalesUserID *uuid.UUID
-	DisplayName      *string
-	Phone            *string
-	ExpiresAt        time.Time
+	UserID            uuid.UUID
+	Role              string
+	Roles             []string
+	UserType          string
+	OwnerSalesUserID  *uuid.UUID
+	DisplayName       *string
+	Phone             *string
+	CredentialVersion int64
+	ExpiresAt         time.Time
 }
 
 type TokenManager struct {
@@ -41,15 +42,16 @@ func NewTokenManager(secret, issuer string, ttl time.Duration) *TokenManager {
 	}
 }
 
-func (m *TokenManager) Issue(userID uuid.UUID, role string, roles []string, userType string, ownerSalesUserID *uuid.UUID, displayName *string, phone *string) (string, time.Time, error) {
+func (m *TokenManager) Issue(userID uuid.UUID, role string, roles []string, userType string, ownerSalesUserID *uuid.UUID, displayName *string, phone *string, credentialVersion int64) (string, time.Time, error) {
 	now := time.Now()
 	expiresAt := now.Add(m.ttl)
 
 	claims := jwt.MapClaims{
-		"sub":  userID.String(),
-		"role": role,
-		"exp":  expiresAt.Unix(),
-		"iat":  now.Unix(),
+		"sub":               userID.String(),
+		"role":              role,
+		"exp":               expiresAt.Unix(),
+		"iat":               now.Unix(),
+		"credentialVersion": credentialVersion,
 	}
 	if m.issuer != "" {
 		claims["iss"] = m.issuer
@@ -165,6 +167,9 @@ func (m *TokenManager) Parse(raw string) (Claims, error) {
 		if phone != "" {
 			claims.Phone = &phone
 		}
+	}
+	if version, ok := mapClaims["credentialVersion"].(float64); ok {
+		claims.CredentialVersion = int64(version)
 	}
 
 	if expRaw, ok := mapClaims["exp"].(float64); ok {

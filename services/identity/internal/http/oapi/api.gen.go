@@ -21,6 +21,14 @@ const (
 // Defines values for AdminUserUserType.
 const (
 	AdminUserUserTypeAdmin AdminUserUserType = "admin"
+	AdminUserUserTypeStaff AdminUserUserType = "staff"
+)
+
+// Defines values for CreateAdminUserRequestRole.
+const (
+	CreateAdminUserRequestRoleADMIN   CreateAdminUserRequestRole = "ADMIN"
+	CreateAdminUserRequestRoleCS      CreateAdminUserRequestRole = "CS"
+	CreateAdminUserRequestRoleMANAGER CreateAdminUserRequestRole = "MANAGER"
 )
 
 // Defines values for CreateStaffBindingRequestPlatform.
@@ -45,14 +53,16 @@ const (
 
 // Defines values for UpdateAdminUserRequestRoles.
 const (
-	UpdateAdminUserRequestRolesADMIN UpdateAdminUserRequestRoles = "ADMIN"
-	UpdateAdminUserRequestRolesBOSS  UpdateAdminUserRequestRoles = "BOSS"
+	UpdateAdminUserRequestRolesADMIN   UpdateAdminUserRequestRoles = "ADMIN"
+	UpdateAdminUserRequestRolesCS      UpdateAdminUserRequestRoles = "CS"
+	UpdateAdminUserRequestRolesMANAGER UpdateAdminUserRequestRoles = "MANAGER"
 )
 
 // Defines values for GetAdminUsersParamsRole.
 const (
-	GetAdminUsersParamsRoleADMIN GetAdminUsersParamsRole = "ADMIN"
-	GetAdminUsersParamsRoleBOSS  GetAdminUsersParamsRole = "BOSS"
+	ADMIN   GetAdminUsersParamsRole = "ADMIN"
+	CS      GetAdminUsersParamsRole = "CS"
+	MANAGER GetAdminUsersParamsRole = "MANAGER"
 )
 
 // Defines values for GetMeSalesQrCodeParamsPlatform.
@@ -71,6 +81,7 @@ type AdminUser struct {
 	Status      externalRef0.UserStatus `json:"status"`
 	UpdatedAt   time.Time               `json:"updatedAt"`
 	UserType    AdminUserUserType       `json:"userType"`
+	Username    string                  `json:"username"`
 }
 
 // AdminUserUserType defines model for AdminUser.UserType.
@@ -104,6 +115,18 @@ type AuthorizeResponse struct {
 	Allowed        bool             `json:"allowed"`
 	EffectiveScope *PermissionScope `json:"effectiveScope,omitempty"`
 }
+
+// CreateAdminUserRequest defines model for CreateAdminUserRequest.
+type CreateAdminUserRequest struct {
+	DisplayName string                     `json:"displayName"`
+	Password    string                     `json:"password"`
+	Phone       *string                    `json:"phone"`
+	Role        CreateAdminUserRequestRole `json:"role"`
+	Username    string                     `json:"username"`
+}
+
+// CreateAdminUserRequestRole defines model for CreateAdminUserRequest.Role.
+type CreateAdminUserRequestRole string
 
 // CreateStaffBindingRequest defines model for CreateStaffBindingRequest.
 type CreateStaffBindingRequest struct {
@@ -217,6 +240,11 @@ type PermissionList struct {
 // PermissionScope defines model for PermissionScope.
 type PermissionScope string
 
+// ResetAdminUserPasswordRequest defines model for ResetAdminUserPasswordRequest.
+type ResetAdminUserPasswordRequest struct {
+	Password string `json:"password"`
+}
+
 // Role defines model for Role.
 type Role struct {
 	Code        string           `json:"code"`
@@ -269,8 +297,11 @@ type StaffUser struct {
 // UpdateAdminUserRequest defines model for UpdateAdminUserRequest.
 type UpdateAdminUserRequest struct {
 	DisabledReason *string                        `json:"disabledReason"`
+	DisplayName    *string                        `json:"displayName,omitempty"`
+	Phone          *string                        `json:"phone"`
 	Roles          *[]UpdateAdminUserRequestRoles `json:"roles,omitempty"`
 	Status         *externalRef0.UserStatus       `json:"status,omitempty"`
+	Username       *string                        `json:"username,omitempty"`
 }
 
 // UpdateAdminUserRequestRoles defines model for UpdateAdminUserRequest.Roles.
@@ -346,8 +377,14 @@ type GetStaffParams struct {
 	PageSize *int    `form:"pageSize,omitempty" json:"pageSize,omitempty"`
 }
 
+// PostAdminUsersJSONRequestBody defines body for PostAdminUsers for application/json ContentType.
+type PostAdminUsersJSONRequestBody = CreateAdminUserRequest
+
 // PatchAdminUsersUserIdJSONRequestBody defines body for PatchAdminUsersUserId for application/json ContentType.
 type PatchAdminUsersUserIdJSONRequestBody = UpdateAdminUserRequest
+
+// PostAdminUsersUserIdResetPasswordJSONRequestBody defines body for PostAdminUsersUserIdResetPassword for application/json ContentType.
+type PostAdminUsersUserIdResetPasswordJSONRequestBody = ResetAdminUserPasswordRequest
 
 // PostAuthDebugSwitchRoleJSONRequestBody defines body for PostAuthDebugSwitchRole for application/json ContentType.
 type PostAuthDebugSwitchRoleJSONRequestBody = DebugRoleSwitchRequest
@@ -384,9 +421,15 @@ type ServerInterface interface {
 	// List admin web users
 	// (GET /admin/users)
 	GetAdminUsers(c *gin.Context, params GetAdminUsersParams)
+	// Create an admin web password account (BOSS only)
+	// (POST /admin/users)
+	PostAdminUsers(c *gin.Context)
 	// Update admin web user roles or status
 	// (PATCH /admin/users/{userId})
 	PatchAdminUsersUserId(c *gin.Context, userId openapi_types.UUID)
+	// Reset an admin web account password (BOSS only)
+	// (POST /admin/users/{userId}/reset-password)
+	PostAdminUsersUserIdResetPassword(c *gin.Context, userId openapi_types.UUID)
 	// List audit logs
 	// (GET /audit-logs)
 	GetAuditLogs(c *gin.Context, params GetAuditLogsParams)
@@ -521,6 +564,21 @@ func (siw *ServerInterfaceWrapper) GetAdminUsers(c *gin.Context) {
 	siw.Handler.GetAdminUsers(c, params)
 }
 
+// PostAdminUsers operation middleware
+func (siw *ServerInterfaceWrapper) PostAdminUsers(c *gin.Context) {
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAdminUsers(c)
+}
+
 // PatchAdminUsersUserId operation middleware
 func (siw *ServerInterfaceWrapper) PatchAdminUsersUserId(c *gin.Context) {
 
@@ -545,6 +603,32 @@ func (siw *ServerInterfaceWrapper) PatchAdminUsersUserId(c *gin.Context) {
 	}
 
 	siw.Handler.PatchAdminUsersUserId(c, userId)
+}
+
+// PostAdminUsersUserIdResetPassword operation middleware
+func (siw *ServerInterfaceWrapper) PostAdminUsersUserIdResetPassword(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "userId" -------------
+	var userId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "userId", c.Param("userId"), &userId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter userId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BearerAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostAdminUsersUserIdResetPassword(c, userId)
 }
 
 // GetAuditLogs operation middleware
@@ -1063,7 +1147,9 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	}
 
 	router.GET(options.BaseURL+"/admin/users", wrapper.GetAdminUsers)
+	router.POST(options.BaseURL+"/admin/users", wrapper.PostAdminUsers)
 	router.PATCH(options.BaseURL+"/admin/users/:userId", wrapper.PatchAdminUsersUserId)
+	router.POST(options.BaseURL+"/admin/users/:userId/reset-password", wrapper.PostAdminUsersUserIdResetPassword)
 	router.GET(options.BaseURL+"/audit-logs", wrapper.GetAuditLogs)
 	router.POST(options.BaseURL+"/auth/debug/switch-role", wrapper.PostAuthDebugSwitchRole)
 	router.GET(options.BaseURL+"/auth/mini/capabilities", wrapper.GetAuthMiniCapabilities)
