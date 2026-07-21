@@ -26,7 +26,7 @@ test('product edit drawer uses image upload instead of cover URL input', async (
   );
 });
 
-test('product model code input keeps focus while accepting up to 20 digits', async ({ page }) => {
+test('product model code input keeps focus while accepting letters and digits', async ({ page }) => {
   await loginMockBoss(page);
   await page.goto('/products.html', { waitUntil: 'domcontentloaded' });
 
@@ -37,9 +37,9 @@ test('product model code input keeps focus while accepting up to 20 digits', asy
   await expect(modelCodeInput).toBeVisible();
   await modelCodeInput.fill('');
   await modelCodeInput.focus();
-  await page.keyboard.type('abc12345678901234567890xyz987');
+  await page.keyboard.type('abc123xyz987');
 
-  await expect(modelCodeInput).toHaveValue('12345678901234567890');
+  await expect(modelCodeInput).toHaveValue('ABC123XYZ987');
   await expect(modelCodeInput).toBeFocused();
 });
 
@@ -52,7 +52,7 @@ test('mock product edit persists after saving and reloading', async ({ page }) =
 
   await page.locator('#product-edit-drawer input[name="name"]').fill('保存校验商品');
   const modelCodeInput = page.locator('#product-edit-drawer [data-field="model-code"]').first();
-  await modelCodeInput.fill('12345678901234567890');
+  await modelCodeInput.fill('AB123CD456');
   await page.locator('#product-edit-drawer button[type="submit"]').click();
 
   await expect(page.locator('#product-edit-drawer')).toHaveCount(0);
@@ -61,5 +61,5 @@ test('mock product edit persists after saving and reloading', async ({ page }) =
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.getByText('保存校验商品')).toBeVisible();
   await page.locator('[data-role="open-product-drawer"]').first().click();
-  await expect(page.locator('#product-edit-drawer [data-field="model-code"]').first()).toHaveValue('12345678901234567890');
+  await expect(page.locator('#product-edit-drawer [data-field="model-code"]').first()).toHaveValue('AB123CD456');
 });

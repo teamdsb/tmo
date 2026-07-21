@@ -84,9 +84,9 @@ type ProductDraft = {
   status: ProductStatusValue;
 };
 
-const MAX_MODEL_CODE_DIGITS = 20;
+const MAX_MODEL_CODE_LENGTH = 20;
 
-const sanitizeModelCode = (value: string) => value.replace(/\D/g, '').slice(0, MAX_MODEL_CODE_DIGITS);
+const sanitizeModelCode = (value: string) => value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, MAX_MODEL_CODE_LENGTH);
 
 const readFileAsDataUrl = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -896,8 +896,8 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
                     <input
                       className="w-full rounded-lg border-slate-300 text-sm uppercase focus:border-primary focus:ring-primary"
                       data-field="model-code"
-                      inputMode="numeric"
-                      maxLength={MAX_MODEL_CODE_DIGITS}
+                      inputMode="text"
+                      maxLength={MAX_MODEL_CODE_LENGTH}
                       onChange={(event) => updateModel(index, { code: sanitizeModelCode(event.target.value) })}
                       type="text"
                       value={model.code}
