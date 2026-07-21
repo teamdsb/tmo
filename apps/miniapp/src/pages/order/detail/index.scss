@@ -103,6 +103,14 @@
   color: #ef4444;
 }
 
+.order-detail-hero-payment-note {
+  max-width: 420px;
+  margin-top: 14px;
+  font-size: calc(20px * var(--font-size-scale, 1));
+  line-height: 1.5;
+  color: #64748b;
+}
+
 .order-detail-card {
   margin-top: 16px;
   padding: 22px;

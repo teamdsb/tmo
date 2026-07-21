@@ -12,11 +12,17 @@ import { commerceServices } from '../../../services/commerce'
 import {
   clearDevFakePaymentOverride,
   createDevFakePaymentOverride,
+  isDevFakePaymentId,
   loadDevFakePaymentOverride,
   saveDevFakePaymentOverride,
   type DevFakePaymentOverride
 } from '../../../services/payment-dev-overrides'
 import { isPaymentCancelled, paymentServices } from '../../../services/payment'
+import {
+  buildOrderPaymentIdempotencyKey,
+  resolvePaymentAvailability,
+  type PaymentAvailability
+} from '../../../services/payment-availability'
 import './index.scss'
 
 export default function OrderDetail() {
@@ -26,6 +32,7 @@ export default function OrderDetail() {
   const [loading, setLoading] = useState(false)
   const [paymentLoading, setPaymentLoading] = useState(false)
   const [itemsExpanded, setItemsExpanded] = useState(false)
+  const [paymentAvailability, setPaymentAvailability] = useState<PaymentAvailability | null>(null)
 
   const orderId = router.params?.id
   const orderItems = useMemo(() => order?.items ?? [], [order])
@@ -56,18 +63,39 @@ export default function OrderDetail() {
     void loadOrder(orderId)
   }, [orderId])
 
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const availability = await resolvePaymentAvailability()
+      if (!cancelled) {
+        setPaymentAvailability(availability)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const handlePay = async () => {
     if (!orderId || typeof orderId !== 'string') {
+      return
+    }
+    if (paymentAvailability?.available === false) {
+      await Taro.showToast({ title: '支付暂未开通，请等待销售确认', icon: 'none' })
       return
     }
 
     setPaymentLoading(true)
     try {
-      const payment = await paymentServices.sessions.payForOrder(orderId)
-      await saveDevFakePaymentOverride(createDevFakePaymentOverride(
-        orderId,
-        payment.paidAt ?? payment.updatedAt ?? new Date().toISOString()
-      ))
+      const payment = await paymentServices.sessions.payForOrder(orderId, {
+        idempotencyKey: buildOrderPaymentIdempotencyKey(orderId)
+      })
+      if (isDevFakePaymentId(payment.id)) {
+        await saveDevFakePaymentOverride(createDevFakePaymentOverride(
+          orderId,
+          payment.paidAt ?? payment.updatedAt ?? new Date().toISOString()
+        ))
+      }
       const nextPaymentStatus = String(payment.status || '').toUpperCase()
       await Taro.showToast({
         title: nextPaymentStatus === 'PAID' ? '支付成功' : '支付结果确认中',
@@ -127,6 +155,9 @@ export default function OrderDetail() {
           <Text className={`order-detail-hero-badge order-detail-hero-badge--${heroContent.tone}`}>
             {heroContent.badge}
           </Text>
+          {order && paymentAvailability?.available === false && readPaymentStatus(order).toUpperCase() !== 'PAID' ? (
+            <Text className='order-detail-hero-payment-note'>{paymentAvailability.unavailableMessage}</Text>
+          ) : null}
         </View>
 
         <View className='order-detail-card'>
@@ -212,7 +243,7 @@ export default function OrderDetail() {
       </View>
 
       <View className='order-detail-footer'>
-        {(canContinuePay(order) || canRefreshPayment(order)) ? (
+        {paymentAvailability?.available !== false && (canContinuePay(order) || canRefreshPayment(order)) ? (
           <View className='order-detail-footer-stack'>
             {canContinuePay(order) ? (
               <Button block color='primary' className='order-detail-footer-button' loading={paymentLoading} onClick={handlePay}>

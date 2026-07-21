@@ -7,6 +7,7 @@ import { listUserAddresses } from '../../../services/addresses'
 import { paymentServices, isPaymentCancelled } from '../../../services/payment'
 import { ensureLoggedIn } from '../../../utils/auth'
 import { navigateTo } from '../../../utils/navigation'
+import { saveBootstrap, clearBootstrap } from '../../../services/bootstrap'
 
 jest.mock('../../../services/addresses', () => ({
   listUserAddresses: jest.fn(),
@@ -64,8 +65,9 @@ const defaultAddress = {
 }
 
 describe('OrderConfirmPage', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks()
+    await clearBootstrap()
     ;(useDidShow as jest.Mock).mockImplementation(() => {})
     ;(ensureLoggedIn as jest.Mock).mockResolvedValue(true)
     ;(listUserAddresses as jest.Mock).mockResolvedValue([defaultAddress])
@@ -224,8 +226,44 @@ describe('OrderConfirmPage', () => {
         })
       ]
     }))
-    expect(paymentServices.sessions.payForOrder).toHaveBeenCalledWith('order-1001')
+    expect(paymentServices.sessions.payForOrder).toHaveBeenCalledWith('order-1001', {
+      idempotencyKey: 'order-payment-order-1001'
+    })
     expect(Taro.showToast).toHaveBeenCalledWith({ title: '支付成功', icon: 'success' })
+    expect(navigateTo).toHaveBeenCalledWith('/pages/order/detail/index?id=order-1001')
+  })
+
+  it('submits order without invoking payment when payment feature is disabled', async () => {
+    await saveBootstrap({
+      me: {
+        id: 'user-1',
+        displayName: '张三',
+        userType: 'customer',
+        roles: ['CUSTOMER'],
+        currentRole: 'CUSTOMER',
+        createdAt: '2026-03-06T00:00:00Z'
+      },
+      permissions: { items: [] },
+      featureFlags: {
+        paymentEnabled: false,
+        wechatPayEnabled: false,
+        alipayPayEnabled: false
+      }
+    })
+
+    render(<OrderConfirmPage />)
+    await act(async () => {
+      await flushPromises()
+    })
+
+    fireEvent.click(screen.getByText('提交订单'))
+    await act(async () => {
+      await flushPromises()
+    })
+
+    expect(commerceServices.orders.submit).toHaveBeenCalled()
+    expect(paymentServices.sessions.payForOrder).not.toHaveBeenCalled()
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已提交，待销售确认', icon: 'success' })
     expect(navigateTo).toHaveBeenCalledWith('/pages/order/detail/index?id=order-1001')
   })
 
@@ -243,7 +281,7 @@ describe('OrderConfirmPage', () => {
       await flushPromises()
     })
 
-    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已提交，支付已取消', icon: 'none' })
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '支付已取消，可稍后继续支付', icon: 'none' })
     expect(navigateTo).toHaveBeenCalledWith('/pages/order/detail/index?id=order-1001')
   })
 
@@ -261,7 +299,7 @@ describe('OrderConfirmPage', () => {
       await flushPromises()
     })
 
-    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已提交，待确认支付', icon: 'none' })
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '支付未完成，请重试或刷新状态', icon: 'none' })
     expect(navigateTo).toHaveBeenCalledWith('/pages/order/detail/index?id=order-1001')
   })
 })
