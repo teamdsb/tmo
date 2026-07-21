@@ -112,6 +112,7 @@ type User struct {
 	PaymentTermDays        *int32             `db:"payment_term_days" json:"payment_term_days"`
 	PaymentTermCustomLabel *string            `db:"payment_term_custom_label" json:"payment_term_custom_label"`
 	AvatarUrl              *string            `db:"avatar_url" json:"avatar_url"`
+	CredentialVersion      int64              `db:"credential_version" json:"credential_version"`
 }
 
 type UserIdentity struct {

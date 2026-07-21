@@ -313,11 +313,13 @@ export type AdminUserUserType = typeof AdminUserUserType[keyof typeof AdminUserU
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const AdminUserUserType = {
   admin: 'admin',
+  staff: 'staff',
 } as const;
 
 export interface AdminUser {
   id: string;
   displayName?: string;
+  username: string;
   /** @nullable */
   phone?: string | null;
   userType: AdminUserUserType;
@@ -340,14 +342,42 @@ export type UpdateAdminUserRequestRolesItem = typeof UpdateAdminUserRequestRoles
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const UpdateAdminUserRequestRolesItem = {
   ADMIN: 'ADMIN',
-  BOSS: 'BOSS',
+  MANAGER: 'MANAGER',
+  CS: 'CS',
 } as const;
 
 export interface UpdateAdminUserRequest {
   roles?: UpdateAdminUserRequestRolesItem[];
+  username?: string;
+  displayName?: string;
+  /** @nullable */
+  phone?: string | null;
   status?: UserStatus;
   /** @nullable */
   disabledReason?: string | null;
+}
+
+export type CreateAdminUserRequestRole = typeof CreateAdminUserRequestRole[keyof typeof CreateAdminUserRequestRole];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const CreateAdminUserRequestRole = {
+  ADMIN: 'ADMIN',
+  MANAGER: 'MANAGER',
+  CS: 'CS',
+} as const;
+
+export interface CreateAdminUserRequest {
+  username: string;
+  displayName: string;
+  /** @nullable */
+  phone?: string | null;
+  role: CreateAdminUserRequestRole;
+  password: string;
+}
+
+export interface ResetAdminUserPasswordRequest {
+  password: string;
 }
 
 export interface PagedStaffList {
@@ -975,7 +1005,8 @@ export type GetAdminUsersRole = typeof GetAdminUsersRole[keyof typeof GetAdminUs
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const GetAdminUsersRole = {
   ADMIN: 'ADMIN',
-  BOSS: 'BOSS',
+  MANAGER: 'MANAGER',
+  CS: 'CS',
 } as const;
 
 export type GetAuditLogsParams = {
@@ -1024,7 +1055,7 @@ export type postAuthMiniLoginResponse409 = {
   data: ConflictResponse
   status: 409
 }
-    
+
 export type postAuthMiniLoginResponseSuccess = (postAuthMiniLoginResponse200) & {
   headers: Headers;
 };
@@ -1037,15 +1068,15 @@ export type postAuthMiniLoginResponse = (postAuthMiniLoginResponseSuccess | post
 export const getPostAuthMiniLoginUrl = () => {
 
 
-  
+
 
   return `/auth/mini/login`
 }
 
 export const postAuthMiniLogin = async (miniLoginRequest: MiniLoginRequest, options?: RequestInit): Promise<postAuthMiniLoginResponse> => {
-  
+
   return apiMutator<postAuthMiniLoginResponse>(getPostAuthMiniLoginUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1063,7 +1094,7 @@ export type getAuthMiniCapabilitiesResponse200 = {
   data: MiniLoginCapabilities
   status: 200
 }
-    
+
 export type getAuthMiniCapabilitiesResponseSuccess = (getAuthMiniCapabilitiesResponse200) & {
   headers: Headers;
 };
@@ -1074,19 +1105,19 @@ export type getAuthMiniCapabilitiesResponse = (getAuthMiniCapabilitiesResponseSu
 export const getGetAuthMiniCapabilitiesUrl = () => {
 
 
-  
+
 
   return `/auth/mini/capabilities`
 }
 
 export const getAuthMiniCapabilities = async ( options?: RequestInit): Promise<getAuthMiniCapabilitiesResponse> => {
-  
+
   return apiMutator<getAuthMiniCapabilitiesResponse>(getGetAuthMiniCapabilitiesUrl(),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1114,7 +1145,7 @@ export type postAuthPasswordLoginResponse409 = {
   data: ConflictResponse
   status: 409
 }
-    
+
 export type postAuthPasswordLoginResponseSuccess = (postAuthPasswordLoginResponse200) & {
   headers: Headers;
 };
@@ -1127,15 +1158,15 @@ export type postAuthPasswordLoginResponse = (postAuthPasswordLoginResponseSucces
 export const getPostAuthPasswordLoginUrl = () => {
 
 
-  
+
 
   return `/auth/password/login`
 }
 
 export const postAuthPasswordLogin = async (passwordLoginRequest: PasswordLoginRequest, options?: RequestInit): Promise<postAuthPasswordLoginResponse> => {
-  
+
   return apiMutator<postAuthPasswordLoginResponse>(getPostAuthPasswordLoginUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1173,7 +1204,7 @@ export type postAuthDebugSwitchRoleResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type postAuthDebugSwitchRoleResponseSuccess = (postAuthDebugSwitchRoleResponse200) & {
   headers: Headers;
 };
@@ -1186,15 +1217,15 @@ export type postAuthDebugSwitchRoleResponse = (postAuthDebugSwitchRoleResponseSu
 export const getPostAuthDebugSwitchRoleUrl = () => {
 
 
-  
+
 
   return `/auth/debug/switch-role`
 }
 
 export const postAuthDebugSwitchRole = async (debugRoleSwitchRequest: DebugRoleSwitchRequest, options?: RequestInit): Promise<postAuthDebugSwitchRoleResponse> => {
-  
+
   return apiMutator<postAuthDebugSwitchRoleResponse>(getPostAuthDebugSwitchRoleUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1271,7 +1302,7 @@ export type getMeResponse401 = {
   data: UnauthorizedResponse
   status: 401
 }
-    
+
 export type getMeResponseSuccess = (getMeResponse200) & {
   headers: Headers;
 };
@@ -1284,19 +1315,19 @@ export type getMeResponse = (getMeResponseSuccess | getMeResponseError)
 export const getGetMeUrl = () => {
 
 
-  
+
 
   return `/me`
 }
 
 export const getMe = async ( options?: RequestInit): Promise<getMeResponse> => {
-  
+
   return apiMutator<getMeResponse>(getGetMeUrl(),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1309,7 +1340,7 @@ export type getMeSalesQrCodeResponse200 = {
   data: SalesQrCode
   status: 200
 }
-    
+
 export type getMeSalesQrCodeResponseSuccess = (getMeSalesQrCodeResponse200) & {
   headers: Headers;
 };
@@ -1321,7 +1352,7 @@ export const getGetMeSalesQrCodeUrl = (params?: GetMeSalesQrCodeParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -1333,13 +1364,13 @@ export const getGetMeSalesQrCodeUrl = (params?: GetMeSalesQrCodeParams,) => {
 }
 
 export const getMeSalesQrCode = async (params?: GetMeSalesQrCodeParams, options?: RequestInit): Promise<getMeSalesQrCodeResponse> => {
-  
+
   return apiMutator<getMeSalesQrCodeResponse>(getGetMeSalesQrCodeUrl(params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1357,7 +1388,7 @@ export type getMePermissionsResponse401 = {
   data: UnauthorizedResponse
   status: 401
 }
-    
+
 export type getMePermissionsResponseSuccess = (getMePermissionsResponse200) & {
   headers: Headers;
 };
@@ -1370,19 +1401,19 @@ export type getMePermissionsResponse = (getMePermissionsResponseSuccess | getMeP
 export const getGetMePermissionsUrl = () => {
 
 
-  
+
 
   return `/me/permissions`
 }
 
 export const getMePermissions = async ( options?: RequestInit): Promise<getMePermissionsResponse> => {
-  
+
   return apiMutator<getMePermissionsResponse>(getGetMePermissionsUrl(),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1405,7 +1436,7 @@ export type getRbacPermissionsResponse403 = {
   data: ForbiddenResponse
   status: 403
 }
-    
+
 export type getRbacPermissionsResponseSuccess = (getRbacPermissionsResponse200) & {
   headers: Headers;
 };
@@ -1418,19 +1449,19 @@ export type getRbacPermissionsResponse = (getRbacPermissionsResponseSuccess | ge
 export const getGetRbacPermissionsUrl = () => {
 
 
-  
+
 
   return `/rbac/permissions`
 }
 
 export const getRbacPermissions = async ( options?: RequestInit): Promise<getRbacPermissionsResponse> => {
-  
+
   return apiMutator<getRbacPermissionsResponse>(getGetRbacPermissionsUrl(),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1458,7 +1489,7 @@ export type postRbacPermissionsResponse403 = {
   data: ForbiddenResponse
   status: 403
 }
-    
+
 export type postRbacPermissionsResponseSuccess = (postRbacPermissionsResponse201) & {
   headers: Headers;
 };
@@ -1471,15 +1502,15 @@ export type postRbacPermissionsResponse = (postRbacPermissionsResponseSuccess | 
 export const getPostRbacPermissionsUrl = () => {
 
 
-  
+
 
   return `/rbac/permissions`
 }
 
 export const postRbacPermissions = async (permissionCreateRequest: PermissionCreateRequest, options?: RequestInit): Promise<postRbacPermissionsResponse> => {
-  
+
   return apiMutator<postRbacPermissionsResponse>(getPostRbacPermissionsUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1507,7 +1538,7 @@ export type getRbacRolesResponse403 = {
   data: ForbiddenResponse
   status: 403
 }
-    
+
 export type getRbacRolesResponseSuccess = (getRbacRolesResponse200) & {
   headers: Headers;
 };
@@ -1520,19 +1551,19 @@ export type getRbacRolesResponse = (getRbacRolesResponseSuccess | getRbacRolesRe
 export const getGetRbacRolesUrl = () => {
 
 
-  
+
 
   return `/rbac/roles`
 }
 
 export const getRbacRoles = async ( options?: RequestInit): Promise<getRbacRolesResponse> => {
-  
+
   return apiMutator<getRbacRolesResponse>(getGetRbacRolesUrl(),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1565,7 +1596,7 @@ export type putRbacRolesRolePermissionsResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type putRbacRolesRolePermissionsResponseSuccess = (putRbacRolesRolePermissionsResponse204) & {
   headers: Headers;
 };
@@ -1578,16 +1609,16 @@ export type putRbacRolesRolePermissionsResponse = (putRbacRolesRolePermissionsRe
 export const getPutRbacRolesRolePermissionsUrl = (role: string,) => {
 
 
-  
+
 
   return `/rbac/roles/${role}/permissions`
 }
 
 export const putRbacRolesRolePermissions = async (role: string,
     rolePermissionsUpdate: RolePermissionsUpdate, options?: RequestInit): Promise<putRbacRolesRolePermissionsResponse> => {
-  
+
   return apiMutator<putRbacRolesRolePermissionsResponse>(getPutRbacRolesRolePermissionsUrl(role),
-  {      
+  {
     ...options,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1615,7 +1646,7 @@ export type postRbacAuthorizeResponse401 = {
   data: UnauthorizedResponse
   status: 401
 }
-    
+
 export type postRbacAuthorizeResponseSuccess = (postRbacAuthorizeResponse200) & {
   headers: Headers;
 };
@@ -1628,15 +1659,15 @@ export type postRbacAuthorizeResponse = (postRbacAuthorizeResponseSuccess | post
 export const getPostRbacAuthorizeUrl = () => {
 
 
-  
+
 
   return `/rbac/authorize`
 }
 
 export const postRbacAuthorize = async (authorizeRequest: AuthorizeRequest, options?: RequestInit): Promise<postRbacAuthorizeResponse> => {
-  
+
   return apiMutator<postRbacAuthorizeResponse>(getPostRbacAuthorizeUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1669,7 +1700,7 @@ export type postStaffResponse403 = {
   data: ForbiddenResponse
   status: 403
 }
-    
+
 export type postStaffResponseSuccess = (postStaffResponse201) & {
   headers: Headers;
 };
@@ -1682,15 +1713,15 @@ export type postStaffResponse = (postStaffResponseSuccess | postStaffResponseErr
 export const getPostStaffUrl = () => {
 
 
-  
+
 
   return `/staff`
 }
 
 export const postStaff = async (createStaffRequest: CreateStaffRequest, options?: RequestInit): Promise<postStaffResponse> => {
-  
+
   return apiMutator<postStaffResponse>(getPostStaffUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1718,7 +1749,7 @@ export type getStaffResponse403 = {
   data: ForbiddenResponse
   status: 403
 }
-    
+
 export type getStaffResponseSuccess = (getStaffResponse200) & {
   headers: Headers;
 };
@@ -1732,7 +1763,7 @@ export const getGetStaffUrl = (params?: GetStaffParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -1744,13 +1775,13 @@ export const getGetStaffUrl = (params?: GetStaffParams,) => {
 }
 
 export const getStaff = async (params?: GetStaffParams, options?: RequestInit): Promise<getStaffResponse> => {
-  
+
   return apiMutator<getStaffResponse>(getGetStaffUrl(params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1778,7 +1809,7 @@ export type getStaffStaffIdResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type getStaffStaffIdResponseSuccess = (getStaffStaffIdResponse200) & {
   headers: Headers;
 };
@@ -1791,19 +1822,19 @@ export type getStaffStaffIdResponse = (getStaffStaffIdResponseSuccess | getStaff
 export const getGetStaffStaffIdUrl = (staffId: string,) => {
 
 
-  
+
 
   return `/staff/${staffId}`
 }
 
 export const getStaffStaffId = async (staffId: string, options?: RequestInit): Promise<getStaffStaffIdResponse> => {
-  
+
   return apiMutator<getStaffStaffIdResponse>(getGetStaffStaffIdUrl(staffId),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1836,7 +1867,7 @@ export type patchStaffStaffIdResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type patchStaffStaffIdResponseSuccess = (patchStaffStaffIdResponse200) & {
   headers: Headers;
 };
@@ -1849,16 +1880,16 @@ export type patchStaffStaffIdResponse = (patchStaffStaffIdResponseSuccess | patc
 export const getPatchStaffStaffIdUrl = (staffId: string,) => {
 
 
-  
+
 
   return `/staff/${staffId}`
 }
 
 export const patchStaffStaffId = async (staffId: string,
     updateStaffRequest: UpdateStaffRequest, options?: RequestInit): Promise<patchStaffStaffIdResponse> => {
-  
+
   return apiMutator<patchStaffStaffIdResponse>(getPatchStaffStaffIdUrl(staffId),
-  {      
+  {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1896,7 +1927,7 @@ export type postStaffStaffIdBindingsResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type postStaffStaffIdBindingsResponseSuccess = (postStaffStaffIdBindingsResponse201) & {
   headers: Headers;
 };
@@ -1909,16 +1940,16 @@ export type postStaffStaffIdBindingsResponse = (postStaffStaffIdBindingsResponse
 export const getPostStaffStaffIdBindingsUrl = (staffId: string,) => {
 
 
-  
+
 
   return `/staff/${staffId}/bindings`
 }
 
 export const postStaffStaffIdBindings = async (staffId: string,
     createStaffBindingRequest: CreateStaffBindingRequest, options?: RequestInit): Promise<postStaffStaffIdBindingsResponse> => {
-  
+
   return apiMutator<postStaffStaffIdBindingsResponse>(getPostStaffStaffIdBindingsUrl(staffId),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1946,7 +1977,7 @@ export type getAdminUsersResponse403 = {
   data: ForbiddenResponse
   status: 403
 }
-    
+
 export type getAdminUsersResponseSuccess = (getAdminUsersResponse200) & {
   headers: Headers;
 };
@@ -1960,7 +1991,7 @@ export const getGetAdminUsersUrl = (params?: GetAdminUsersParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -1972,13 +2003,72 @@ export const getGetAdminUsersUrl = (params?: GetAdminUsersParams,) => {
 }
 
 export const getAdminUsers = async (params?: GetAdminUsersParams, options?: RequestInit): Promise<getAdminUsersResponse> => {
-  
+
   return apiMutator<getAdminUsersResponse>(getGetAdminUsersUrl(params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
+  }
+);}
+
+
+
+/**
+ * @summary Create an admin web password account (BOSS only)
+ */
+export type postAdminUsersResponse201 = {
+  data: AdminUser
+  status: 201
+}
+
+export type postAdminUsersResponse400 = {
+  data: BadRequestResponse
+  status: 400
+}
+
+export type postAdminUsersResponse401 = {
+  data: UnauthorizedResponse
+  status: 401
+}
+
+export type postAdminUsersResponse403 = {
+  data: ForbiddenResponse
+  status: 403
+}
+
+export type postAdminUsersResponse409 = {
+  data: ConflictResponse
+  status: 409
+}
+
+export type postAdminUsersResponseSuccess = (postAdminUsersResponse201) & {
+  headers: Headers;
+};
+export type postAdminUsersResponseError = (postAdminUsersResponse400 | postAdminUsersResponse401 | postAdminUsersResponse403 | postAdminUsersResponse409) & {
+  headers: Headers;
+};
+
+export type postAdminUsersResponse = (postAdminUsersResponseSuccess | postAdminUsersResponseError)
+
+export const getPostAdminUsersUrl = () => {
+
+
+
+
+  return `/admin/users`
+}
+
+export const postAdminUsers = async (createAdminUserRequest: CreateAdminUserRequest, options?: RequestInit): Promise<postAdminUsersResponse> => {
+
+  return apiMutator<postAdminUsersResponse>(getPostAdminUsersUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createAdminUserRequest,)
   }
 );}
 
@@ -2011,7 +2101,7 @@ export type patchAdminUsersUserIdResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type patchAdminUsersUserIdResponseSuccess = (patchAdminUsersUserIdResponse200) & {
   headers: Headers;
 };
@@ -2024,21 +2114,81 @@ export type patchAdminUsersUserIdResponse = (patchAdminUsersUserIdResponseSucces
 export const getPatchAdminUsersUserIdUrl = (userId: string,) => {
 
 
-  
+
 
   return `/admin/users/${userId}`
 }
 
 export const patchAdminUsersUserId = async (userId: string,
     updateAdminUserRequest: UpdateAdminUserRequest, options?: RequestInit): Promise<patchAdminUsersUserIdResponse> => {
-  
+
   return apiMutator<patchAdminUsersUserIdResponse>(getPatchAdminUsersUserIdUrl(userId),
-  {      
+  {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
       updateAdminUserRequest,)
+  }
+);}
+
+
+
+/**
+ * @summary Reset an admin web account password (BOSS only)
+ */
+export type postAdminUsersUserIdResetPasswordResponse204 = {
+  data: void
+  status: 204
+}
+
+export type postAdminUsersUserIdResetPasswordResponse400 = {
+  data: BadRequestResponse
+  status: 400
+}
+
+export type postAdminUsersUserIdResetPasswordResponse401 = {
+  data: UnauthorizedResponse
+  status: 401
+}
+
+export type postAdminUsersUserIdResetPasswordResponse403 = {
+  data: ForbiddenResponse
+  status: 403
+}
+
+export type postAdminUsersUserIdResetPasswordResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
+
+export type postAdminUsersUserIdResetPasswordResponseSuccess = (postAdminUsersUserIdResetPasswordResponse204) & {
+  headers: Headers;
+};
+export type postAdminUsersUserIdResetPasswordResponseError = (postAdminUsersUserIdResetPasswordResponse400 | postAdminUsersUserIdResetPasswordResponse401 | postAdminUsersUserIdResetPasswordResponse403 | postAdminUsersUserIdResetPasswordResponse404) & {
+  headers: Headers;
+};
+
+export type postAdminUsersUserIdResetPasswordResponse = (postAdminUsersUserIdResetPasswordResponseSuccess | postAdminUsersUserIdResetPasswordResponseError)
+
+export const getPostAdminUsersUserIdResetPasswordUrl = (userId: string,) => {
+
+
+
+
+  return `/admin/users/${userId}/reset-password`
+}
+
+export const postAdminUsersUserIdResetPassword = async (userId: string,
+    resetAdminUserPasswordRequest: ResetAdminUserPasswordRequest, options?: RequestInit): Promise<postAdminUsersUserIdResetPasswordResponse> => {
+
+  return apiMutator<postAdminUsersUserIdResetPasswordResponse>(getPostAdminUsersUserIdResetPasswordUrl(userId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      resetAdminUserPasswordRequest,)
   }
 );}
 
@@ -2061,7 +2211,7 @@ export type getAuditLogsResponse403 = {
   data: ForbiddenResponse
   status: 403
 }
-    
+
 export type getAuditLogsResponseSuccess = (getAuditLogsResponse200) & {
   headers: Headers;
 };
@@ -2075,7 +2225,7 @@ export const getGetAuditLogsUrl = (params?: GetAuditLogsParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -2087,13 +2237,13 @@ export const getGetAuditLogsUrl = (params?: GetAuditLogsParams,) => {
 }
 
 export const getAuditLogs = async (params?: GetAuditLogsParams, options?: RequestInit): Promise<getAuditLogsResponse> => {
-  
+
   return apiMutator<getAuditLogsResponse>(getGetAuditLogsUrl(params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -2116,7 +2266,7 @@ export type getCustomersResponse403 = {
   data: ForbiddenResponse
   status: 403
 }
-    
+
 export type getCustomersResponseSuccess = (getCustomersResponse200) & {
   headers: Headers;
 };
@@ -2130,7 +2280,7 @@ export const getGetCustomersUrl = (params?: GetCustomersParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -2142,13 +2292,13 @@ export const getGetCustomersUrl = (params?: GetCustomersParams,) => {
 }
 
 export const getCustomers = async (params?: GetCustomersParams, options?: RequestInit): Promise<getCustomersResponse> => {
-  
+
   return apiMutator<getCustomersResponse>(getGetCustomersUrl(params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -2171,7 +2321,7 @@ export type getCustomersCustomerIdResponse403 = {
   data: ForbiddenResponse
   status: 403
 }
-    
+
 export type getCustomersCustomerIdResponseSuccess = (getCustomersCustomerIdResponse200) & {
   headers: Headers;
 };
@@ -2184,18 +2334,18 @@ export type getCustomersCustomerIdResponse = (getCustomersCustomerIdResponseSucc
 export const getGetCustomersCustomerIdUrl = (customerId: string,) => {
 
 
-  
+
 
   return `/customers/${customerId}`
 }
 
 export const getCustomersCustomerId = async (customerId: string, options?: RequestInit): Promise<getCustomersCustomerIdResponse> => {
-  
+
   return apiMutator<getCustomersCustomerIdResponse>(getGetCustomersCustomerIdUrl(customerId),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}

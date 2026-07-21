@@ -2,6 +2,7 @@ import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useStat
 import { formatPhoneForDisplay } from '@tmo/shared/formatters';
 
 import {
+  createAdminUser,
   fetchAdminCustomers,
   fetchAdminCustomerTags,
   fetchAdminSalesUsers,
@@ -10,7 +11,8 @@ import {
   patchAdminCustomerRole,
   patchAdminUser,
   patchStaffRoles,
-  patchStaffStatus
+  patchStaffStatus,
+  resetAdminUserPassword
 } from '../../../lib/api';
 import { getCurrentSession } from '../../../lib/auth';
 import { isMockMode } from '../../../lib/env';
@@ -66,7 +68,9 @@ type StaffUser = {
 
 type AdminUser = {
   id: string;
+  username: string;
   displayName: string;
+  phone: string;
   roles: string[];
   status: string;
   userType: string;
@@ -82,7 +86,7 @@ const MANAGER_ROLE = 'MANAGER';
 const ADMIN_ROLE = 'ADMIN';
 const BOSS_ROLE = 'BOSS';
 const STAFF_ROLE_BLOCKS = [SALES_ROLE, CS_ROLE, MANAGER_ROLE] as const;
-const ADMIN_ROLE_BLOCKS = [ADMIN_ROLE, BOSS_ROLE] as const;
+const ADMIN_ROLE_BLOCKS = [ADMIN_ROLE, MANAGER_ROLE, CS_ROLE] as const;
 
 const ROLE_LABELS: Record<string, string> = {
   [CUSTOMER_ROLE]: '客户',
@@ -232,21 +236,14 @@ const resolveStaffPrimaryRole = (roles: string[]) => {
 };
 
 const normalizeAdminRoles = (roles: string[]) => {
-  const normalized = normalizeRoleList(roles).map((role) => role.toUpperCase());
-  if (normalized.includes(BOSS_ROLE) && !normalized.includes(ADMIN_ROLE)) {
-    normalized.push(ADMIN_ROLE);
-  }
-  return Array.from(new Set(normalized)).sort();
+  return Array.from(new Set(normalizeRoleList(roles).map((role) => role.toUpperCase())));
 };
 
-const resolveAdminPrimaryRole = (roles: string[]) => (hasRole(roles, BOSS_ROLE) ? BOSS_ROLE : ADMIN_ROLE);
+const resolveAdminPrimaryRole = (roles: string[]) => ADMIN_ROLE_BLOCKS.find((role) => hasRole(roles, role)) || ADMIN_ROLE;
 
 const buildAdminRolesForSelection = (role: string) => {
   const normalized = String(role || '').toUpperCase();
-  if (normalized === BOSS_ROLE) {
-    return normalizeAdminRoles([ADMIN_ROLE, BOSS_ROLE]);
-  }
-  return normalizeAdminRoles([ADMIN_ROLE]);
+  return ADMIN_ROLE_BLOCKS.includes(normalized as typeof ADMIN_ROLE_BLOCKS[number]) ? [normalized] : [ADMIN_ROLE];
 };
 
 const getRoleLabel = (role: string) => {
@@ -410,7 +407,9 @@ const normalizeAdminUsers = (data: unknown): { items: AdminUser[]; total: number
       .map((item) => {
         const record = item as {
           id?: string;
+          username?: string;
           displayName?: string;
+          phone?: string | null;
           roles?: unknown[];
           status?: string;
           userType?: string;
@@ -425,7 +424,9 @@ const normalizeAdminUsers = (data: unknown): { items: AdminUser[]; total: number
           : [];
         return {
           id: record.id,
+          username: safeText(record.username, ''),
           displayName: safeText(record.displayName, '未命名管理员'),
+          phone: safeText(record.phone, ''),
           roles: normalizeAdminRoles(roles),
           status: safeText(record.status, 'active').toLowerCase(),
           userType: safeText(record.userType, 'admin').toLowerCase(),
@@ -456,11 +457,13 @@ const buildMockStaffSeed = (): StaffUser[] => {
 const buildMockAdminSeed = (): AdminUser[] => {
   const now = new Date().toISOString();
   return listMockAccounts()
-    .filter((account) => account.userType === 'admin')
+    .filter((account) => [ADMIN_ROLE, MANAGER_ROLE, CS_ROLE].includes(String(account.role).toUpperCase()))
     .map((account) => ({
       id: account.userId,
+      username: account.username,
       displayName: account.displayName || account.username,
-      roles: normalizeAdminRoles(account.role ? [String(account.role).toUpperCase()] : [ADMIN_ROLE]),
+      phone: account.phone || '',
+      roles: account.role ? [String(account.role).toUpperCase()] : [ADMIN_ROLE],
       status: 'active',
       userType: 'admin',
       createdAt: now,
@@ -613,9 +616,11 @@ type AdminRowProps = {
   canManageRoles: boolean;
   onUpdateRole: (admin: AdminUser, role: string) => void;
   onToggleStatus: (admin: AdminUser) => void;
+  onEdit: (admin: AdminUser) => void;
+  onResetPassword: (admin: AdminUser) => void;
 };
 
-const AdminRow = memo(({ admin, isPending, canManageRoles, onUpdateRole, onToggleStatus }: AdminRowProps) => {
+const AdminRow = memo(({ admin, isPending, canManageRoles, onUpdateRole, onToggleStatus, onEdit, onResetPassword }: AdminRowProps) => {
   const effectiveRoles = normalizeAdminRoles(admin.roles);
   const isActive = admin.status === 'active';
   const isBossAccount = hasRole(effectiveRoles, BOSS_ROLE);
@@ -627,7 +632,7 @@ const AdminRow = memo(({ admin, isPending, canManageRoles, onUpdateRole, onToggl
     <tr className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/30">
       <td className="px-4 py-3">
         <p className="font-medium text-text-primary-light dark:text-text-primary-dark">{admin.displayName}</p>
-        <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">{admin.id}</p>
+        <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">@{admin.username} {admin.phone ? `· ${admin.phone}` : ''}</p>
       </td>
       <td className="px-4 py-3">
         <div className="flex flex-wrap gap-1">
@@ -657,9 +662,12 @@ const AdminRow = memo(({ admin, isPending, canManageRoles, onUpdateRole, onToggl
               value={currentRole}
             >
               <option value={ADMIN_ROLE}>{getRoleLabel(ADMIN_ROLE)}</option>
-              <option value={BOSS_ROLE}>{getRoleLabel(BOSS_ROLE)}</option>
+              <option value={MANAGER_ROLE}>{getRoleLabel(MANAGER_ROLE)}</option>
+              <option value={CS_ROLE}>{getRoleLabel(CS_ROLE)}</option>
             </select>
           </label>
+          <button className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold" disabled={isPending || !canManageRoles} onClick={() => onEdit(admin)} type="button">编辑</button>
+          <button className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold" disabled={isPending || !canManageRoles} onClick={() => onResetPassword(admin)} type="button">重置密码</button>
           <button
             className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
             disabled={isPending || !canToggleStatus}
@@ -699,7 +707,9 @@ const TableSkeletonBody = ({ cols, rows = 5 }: TableSkeletonBodyProps) => {
 };
 
 export const UserOperationsPage = () => {
-  const [activeTab, setActiveTab] = useState<UserOperationsTab>('customers');
+  const [activeTab, setActiveTab] = useState<UserOperationsTab>(() => (
+    String(getCurrentSession()?.currentRole || '').trim().toUpperCase() === BOSS_ROLE ? 'admins' : 'customers'
+  ));
 
   const [customerQueryInput, setCustomerQueryInput] = useState('');
   const [appliedCustomerQuery, setAppliedCustomerQuery] = useState('');
@@ -738,6 +748,9 @@ export const UserOperationsPage = () => {
   const [customersLoading, setCustomersLoading] = useState(false);
   const [staffLoading, setStaffLoading] = useState(false);
   const [adminLoading, setAdminLoading] = useState(false);
+  const [showCreateAccount, setShowCreateAccount] = useState(false);
+  const [editingAdmin, setEditingAdmin] = useState<AdminUser | null>(null);
+  const [resettingAdmin, setResettingAdmin] = useState<AdminUser | null>(null);
 
   const [tabMessages, setTabMessages] = useState<Record<UserOperationsTab, TabMessage>>({
     customers: { error: '', success: '' },
@@ -756,8 +769,10 @@ export const UserOperationsPage = () => {
 
   const activeTags = useMemo(() => tags.filter((tag) => tag.active), [tags]);
   const currentSession = getCurrentSession();
+  const isBossSession = String(currentSession?.currentRole || '').trim().toUpperCase() === BOSS_ROLE;
   const permissionMap = normalizePermissionMap(currentSession?.permissions);
   const canManageRoles = hasPermission(permissionMap, 'rbac:manage', 'ALL');
+  const canManagePasswordAccounts = isBossSession;
   const canManageStaffStatus = hasPermission(permissionMap, 'staff:status_manage', 'ALL') || canManageRoles;
   const selectedCustomerTags = useMemo(
     () => tags.filter((tag) => customerTagFilters.includes(tag.id)),
@@ -1136,10 +1151,10 @@ export const UserOperationsPage = () => {
   }, [activeTab]);
 
   useEffect(() => {
-    if (activeTab === 'admins' && !canManageRoles) {
+    if (activeTab === 'admins' && !canManagePasswordAccounts) {
       setActiveTab('staff');
     }
-  }, [activeTab, canManageRoles]);
+  }, [activeTab, canManagePasswordAccounts]);
 
   useEffect(() => {
     if (!customerTagFilterOpen) {
@@ -1604,6 +1619,134 @@ export const UserOperationsPage = () => {
     }
   }, [clearTabMessage, setAdminPending, setTabError, setTabSuccess]);
 
+  const handleCreateAdminUser = useCallback(async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const payload = {
+      username: String(data.get('username') || '').trim(),
+      displayName: String(data.get('displayName') || '').trim(),
+      phone: String(data.get('phone') || '').trim() || null,
+      role: String(data.get('role') || ADMIN_ROLE).toUpperCase(),
+      password: String(data.get('password') || '')
+    };
+    if (!/^[A-Za-z0-9._-]{3,64}$/.test(payload.username) || !payload.displayName || payload.password.length < 8) {
+      setTabError('admins', '用户名需为 3-64 位字母、数字或 ._-，密码至少 8 位。');
+      return;
+    }
+    clearTabMessage('admins');
+    setAdminLoading(true);
+    try {
+      if (isMockMode) {
+        const now = new Date().toISOString();
+        setMockAdminUsers((current) => [{
+          id: `mock-managed-${Date.now()}`,
+          username: payload.username,
+          displayName: payload.displayName,
+          phone: payload.phone || '',
+          roles: [payload.role],
+          status: 'active',
+          userType: payload.role === ADMIN_ROLE ? 'admin' : 'staff',
+          createdAt: now,
+          updatedAt: now
+        }, ...current]);
+      } else {
+        const response = await createAdminUser(payload);
+        if (response.status !== 201) {
+          setTabError('admins', response.status === 409 ? '用户名已存在。' : '创建账号失败，请检查输入。');
+          return;
+        }
+        await refreshAdminUsers();
+      }
+      form.reset();
+      setShowCreateAccount(false);
+      setTabSuccess('admins', `已创建「${payload.displayName}」账号。`);
+    } catch {
+      setTabError('admins', '创建账号失败，请稍后重试。');
+    } finally {
+      setAdminLoading(false);
+    }
+  }, [clearTabMessage, refreshAdminUsers, setTabError, setTabSuccess]);
+
+  const handleEditAdminUser = useCallback((admin: AdminUser) => {
+    clearTabMessage('admins');
+    setEditingAdmin(admin);
+  }, [clearTabMessage]);
+
+  const handleSubmitAdminEdit = useCallback(async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingAdmin) return;
+    const data = new FormData(event.currentTarget);
+    const next = {
+      username: String(data.get('username') || '').trim(),
+      displayName: String(data.get('displayName') || '').trim(),
+      phone: String(data.get('phone') || '').trim() || null,
+      roles: [String(data.get('role') || ADMIN_ROLE).toUpperCase()]
+    };
+    if (!/^[A-Za-z0-9._-]{3,64}$/.test(next.username) || !next.displayName) {
+      setTabError('admins', '用户名或显示姓名格式不正确。');
+      return;
+    }
+    clearTabMessage('admins');
+    setAdminPending(editingAdmin.id, true);
+    try {
+      if (isMockMode) {
+        setMockAdminUsers((current) => current.map((item) => item.id === editingAdmin.id ? { ...item, ...next, phone: next.phone || '', updatedAt: new Date().toISOString() } : item));
+      } else {
+        const response = await patchAdminUser(editingAdmin.id, next);
+        if (response.status !== 200) {
+          setTabError('admins', response.status === 409 ? '用户名已存在。' : '修改账号失败。');
+          return;
+        }
+        await refreshAdminUsers();
+      }
+      setEditingAdmin(null);
+      setTabSuccess('admins', `已更新「${next.displayName}」账号。`);
+    } catch {
+      setTabError('admins', '修改账号失败，请稍后重试。');
+    } finally {
+      setAdminPending(editingAdmin.id, false);
+    }
+  }, [clearTabMessage, editingAdmin, refreshAdminUsers, setAdminPending, setTabError, setTabSuccess]);
+
+  const handleResetAdminPassword = useCallback((admin: AdminUser) => {
+    clearTabMessage('admins');
+    setResettingAdmin(admin);
+  }, [clearTabMessage]);
+
+  const handleSubmitAdminPasswordReset = useCallback(async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!resettingAdmin) return;
+    const data = new FormData(event.currentTarget);
+    const password = String(data.get('password') || '');
+    const confirmation = String(data.get('passwordConfirmation') || '');
+    if (password.length < 8) {
+      setTabError('admins', '密码至少需要 8 位。');
+      return;
+    }
+    if (password !== confirmation) {
+      setTabError('admins', '两次输入的密码不一致。');
+      return;
+    }
+    clearTabMessage('admins');
+    setAdminPending(resettingAdmin.id, true);
+    try {
+      if (!isMockMode) {
+        const response = await resetAdminUserPassword(resettingAdmin.id, password);
+        if (response.status !== 204) {
+          setTabError('admins', '重置密码失败。');
+          return;
+        }
+      }
+      setResettingAdmin(null);
+      setTabSuccess('admins', `已重置「${resettingAdmin.displayName}」的密码。`);
+    } catch {
+      setTabError('admins', '重置密码失败，请稍后重试。');
+    } finally {
+      setAdminPending(resettingAdmin.id, false);
+    }
+  }, [clearTabMessage, resettingAdmin, setAdminPending, setTabError, setTabSuccess]);
+
   const handleToggleAdminStatus = useCallback(async (admin: AdminUser) => {
     clearTabMessage('admins');
     setAdminPending(admin.id, true);
@@ -1942,14 +2085,71 @@ export const UserOperationsPage = () => {
   const renderAdminPanel = () => {
     return (
       <section className="space-y-3">
+        {canManagePasswordAccounts ? (
+          <div className="flex justify-end">
+            <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700" onClick={() => setShowCreateAccount(true)} type="button">
+              <span className="material-symbols-outlined text-lg">person_add</span>
+              新增后台账号
+            </button>
+          </div>
+        ) : null}
+        {showCreateAccount && canManagePasswordAccounts ? (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4" role="dialog" aria-modal="true">
+            <form className="w-full max-w-xl overflow-hidden rounded-2xl border border-border-light bg-surface-light shadow-2xl dark:border-border-dark dark:bg-surface-dark" onSubmit={handleCreateAdminUser}>
+              <div className="flex items-center justify-between border-b border-border-light px-6 py-4 dark:border-border-dark">
+                <div>
+                  <h2 className="text-lg font-bold text-text-primary-light dark:text-text-primary-dark">新增后台账号</h2>
+                  <p className="mt-1 text-xs text-text-secondary-light dark:text-text-secondary-dark">创建 ADMIN、MANAGER 或 CS 登录账号</p>
+                </div>
+                <button aria-label="关闭新增账号弹窗" className="rounded-lg p-2 text-text-secondary-light hover:bg-gray-100 dark:text-text-secondary-dark dark:hover:bg-gray-800" onClick={() => setShowCreateAccount(false)} type="button">
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+              <div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2">
+                <label className="space-y-1.5"><span className="text-sm font-medium">登录用户名</span><input className="h-11 w-full rounded-lg border-border-light bg-background-light text-sm focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark" name="username" placeholder="3-64 位字母、数字或 ._-" required /></label>
+                <label className="space-y-1.5"><span className="text-sm font-medium">显示姓名</span><input className="h-11 w-full rounded-lg border-border-light bg-background-light text-sm focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark" name="displayName" placeholder="员工姓名" required /></label>
+                <label className="space-y-1.5"><span className="text-sm font-medium">手机号 <span className="font-normal text-text-secondary-light">（可选）</span></span><input className="h-11 w-full rounded-lg border-border-light bg-background-light text-sm focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark" name="phone" placeholder="用于人员识别" /></label>
+                <label className="space-y-1.5"><span className="text-sm font-medium">账号角色</span><select className="h-11 w-full rounded-lg border-border-light bg-background-light text-sm focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark" defaultValue={CS_ROLE} name="role"><option value={ADMIN_ROLE}>管理员 ADMIN</option><option value={MANAGER_ROLE}>经理 MANAGER</option><option value={CS_ROLE}>客服 CS</option></select></label>
+                <label className="space-y-1.5 sm:col-span-2"><span className="text-sm font-medium">初始密码</span><input className="h-11 w-full rounded-lg border-border-light bg-background-light text-sm focus:border-primary focus:ring-primary dark:border-border-dark dark:bg-background-dark" minLength={8} name="password" placeholder="至少 8 位，创建后可由 Boss 重置" required type="password" /></label>
+              </div>
+              <div className="flex justify-end gap-3 border-t border-border-light px-6 py-4 dark:border-border-dark">
+                <button className="rounded-lg border border-border-light px-4 py-2 text-sm font-semibold hover:bg-gray-50 dark:border-border-dark dark:hover:bg-gray-800" onClick={() => setShowCreateAccount(false)} type="button">取消</button>
+                <button className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60" disabled={adminLoading} type="submit">{adminLoading ? '创建中...' : '确认创建'}</button>
+              </div>
+            </form>
+          </div>
+        ) : null}
+        {editingAdmin ? (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4" role="dialog" aria-modal="true">
+            <form className="w-full max-w-xl overflow-hidden rounded-2xl border border-border-light bg-surface-light shadow-2xl dark:border-border-dark dark:bg-surface-dark" onSubmit={handleSubmitAdminEdit}>
+              <div className="flex items-center justify-between border-b border-border-light px-6 py-4 dark:border-border-dark"><div><h2 className="text-lg font-bold">编辑后台账号</h2><p className="mt-1 text-xs text-text-secondary-light">修改登录信息与角色</p></div><button aria-label="关闭编辑账号弹窗" className="rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setEditingAdmin(null)} type="button"><span className="material-symbols-outlined">close</span></button></div>
+              <div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2">
+                <label className="space-y-1.5"><span className="text-sm font-medium">登录用户名</span><input className="h-11 w-full rounded-lg border-border-light bg-background-light text-sm dark:border-border-dark dark:bg-background-dark" defaultValue={editingAdmin.username} name="username" required /></label>
+                <label className="space-y-1.5"><span className="text-sm font-medium">显示姓名</span><input className="h-11 w-full rounded-lg border-border-light bg-background-light text-sm dark:border-border-dark dark:bg-background-dark" defaultValue={editingAdmin.displayName} name="displayName" required /></label>
+                <label className="space-y-1.5"><span className="text-sm font-medium">手机号</span><input className="h-11 w-full rounded-lg border-border-light bg-background-light text-sm dark:border-border-dark dark:bg-background-dark" defaultValue={editingAdmin.phone} name="phone" /></label>
+                <label className="space-y-1.5"><span className="text-sm font-medium">账号角色</span><select className="h-11 w-full rounded-lg border-border-light bg-background-light text-sm dark:border-border-dark dark:bg-background-dark" defaultValue={resolveAdminPrimaryRole(editingAdmin.roles)} name="role"><option value={ADMIN_ROLE}>管理员 ADMIN</option><option value={MANAGER_ROLE}>经理 MANAGER</option><option value={CS_ROLE}>客服 CS</option></select></label>
+              </div>
+              <div className="flex justify-end gap-3 border-t border-border-light px-6 py-4 dark:border-border-dark"><button className="rounded-lg border border-border-light px-4 py-2 text-sm font-semibold dark:border-border-dark" onClick={() => setEditingAdmin(null)} type="button">取消</button><button className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white" type="submit">保存修改</button></div>
+            </form>
+          </div>
+        ) : null}
+        {resettingAdmin ? (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4" role="dialog" aria-modal="true">
+            <form className="w-full max-w-md overflow-hidden rounded-2xl border border-border-light bg-surface-light shadow-2xl dark:border-border-dark dark:bg-surface-dark" onSubmit={handleSubmitAdminPasswordReset}>
+              <div className="border-b border-border-light px-6 py-4 dark:border-border-dark"><h2 className="text-lg font-bold">重置账号密码</h2><p className="mt-1 text-sm text-text-secondary-light">为「{resettingAdmin.displayName}」设置新密码</p></div>
+              <div className="space-y-4 p-6"><div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">重置后，该账号当前登录会话将立即失效。</div><label className="block space-y-1.5"><span className="text-sm font-medium">新密码</span><input className="h-11 w-full rounded-lg border-border-light bg-background-light text-sm dark:border-border-dark dark:bg-background-dark" minLength={8} name="password" required type="password" /></label><label className="block space-y-1.5"><span className="text-sm font-medium">确认新密码</span><input className="h-11 w-full rounded-lg border-border-light bg-background-light text-sm dark:border-border-dark dark:bg-background-dark" minLength={8} name="passwordConfirmation" required type="password" /></label></div>
+              <div className="flex justify-end gap-3 border-t border-border-light px-6 py-4 dark:border-border-dark"><button className="rounded-lg border border-border-light px-4 py-2 text-sm font-semibold dark:border-border-dark" onClick={() => setResettingAdmin(null)} type="button">取消</button><button className="rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white" type="submit">确认重置</button></div>
+            </form>
+          </div>
+        ) : null}
         {adminsMessage.error ? <p className="text-sm text-red-600" data-testid="admin-operations-error">{adminsMessage.error}</p> : null}
         {adminsMessage.success ? <p className="text-sm text-emerald-600" data-testid="admin-operations-success">{adminsMessage.success}</p> : null}
 
         <section className="overflow-hidden rounded-xl border border-border-light bg-surface-light shadow-sm dark:border-border-dark dark:bg-surface-dark">
           <div className="flex items-center justify-between border-b border-border-light px-4 py-3 dark:border-border-dark">
             <div>
-              <p className="text-sm font-semibold text-text-primary-light dark:text-text-primary-dark">管理员用户</p>
-              <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">共 {adminTotal} 位管理员</p>
+              <p className="text-sm font-semibold text-text-primary-light dark:text-text-primary-dark">后台账号管理</p>
+              <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">共 {adminTotal} 个 ADMIN / MANAGER / CS 账号</p>
             </div>
             <div className="flex items-center gap-2">
               {adminRefreshing ? <span className="text-xs text-text-secondary-light dark:text-text-secondary-dark">刷新中...</span> : null}
@@ -1974,9 +2174,11 @@ export const UserOperationsPage = () => {
               {adminInitialLoading ? <TableSkeletonBody cols={5} /> : adminUsers.map((admin) => (
                 <AdminRow
                   admin={admin}
-                  canManageRoles={canManageRoles}
+                  canManageRoles={canManagePasswordAccounts}
                   isPending={Boolean(pendingAdminActions[admin.id])}
                   key={admin.id}
+                  onEdit={handleEditAdminUser}
+                  onResetPassword={handleResetAdminPassword}
                   onUpdateRole={handleUpdateAdminRole}
                   onToggleStatus={handleToggleAdminStatus}
                 />
@@ -2033,7 +2235,7 @@ export const UserOperationsPage = () => {
 
       <div className="flex-1 overflow-y-auto p-6">
         <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900/40 dark:bg-blue-900/20 dark:text-blue-200">
-          客户、员工、管理员都可在列表中通过“设置角色”直接切换；员工支持 SALES、CS、MANAGER 三档，管理员支持 ADMIN 与 BOSS。带有 BOSS 的账号不可禁用。
+          客户与员工维持原有角色管理；仅当前 BOSS 会话可新增、编辑、重置密码及停启 ADMIN、MANAGER、CS 后台账号。
         </div>
 
         <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -2046,7 +2248,7 @@ export const UserOperationsPage = () => {
             <p className="mt-1 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark">{staffTotal}</p>
           </div>
           <div className="rounded-lg border border-border-light bg-surface-light p-3 text-sm dark:border-border-dark dark:bg-surface-dark">
-            <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">管理员总量</p>
+            <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark">后台账号总量</p>
             <p className="mt-1 text-lg font-semibold text-text-primary-light dark:text-text-primary-dark">{adminTotal || adminCountInMock || 0}</p>
           </div>
         </div>
@@ -2068,14 +2270,14 @@ export const UserOperationsPage = () => {
           >
             员工角色
           </button>
-          {canManageRoles ? (
+          {canManagePasswordAccounts ? (
             <button
               className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${activeTab === 'admins' ? 'bg-primary text-white' : 'text-text-secondary-light hover:bg-gray-100 dark:text-text-secondary-dark dark:hover:bg-gray-800'}`}
               data-testid="tab-admins"
               onClick={() => setActiveTab('admins')}
               type="button"
             >
-              管理员
+              后台账号
             </button>
           ) : null}
         </div>

@@ -136,5 +136,10 @@ func (h *Handler) requireClaims(c *gin.Context) (auth.Claims, bool) {
 		h.writeError(c, http.StatusUnauthorized, "unauthorized", "invalid token")
 		return auth.Claims{}, false
 	}
+	user, err := h.Store.GetUserByID(c.Request.Context(), claims.UserID)
+	if err != nil || user.Status != "active" || user.CredentialVersion != claims.CredentialVersion {
+		h.writeError(c, http.StatusUnauthorized, "unauthorized", "invalid token")
+		return auth.Claims{}, false
+	}
 	return claims, true
 }

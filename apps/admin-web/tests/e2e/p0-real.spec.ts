@@ -47,10 +47,8 @@ test('P0/P1 real mode flows work in admin-web', async ({ page }) => {
   await expect(managerStaffRow.getByRole('button', { name: '禁用账号' })).toBeEnabled();
 
   await page.getByTestId('tab-admins').click();
-  const bossAdminRow = page.locator('tr').filter({ hasText: 'Boss' });
-  await expect(bossAdminRow).toContainText('老板');
-  await expect(bossAdminRow.getByTestId('admin-role-select-eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee')).toHaveValue('BOSS');
-  await expect(bossAdminRow.getByRole('button', { name: '禁用账号' }).first()).toBeDisabled();
+  await expect(page.getByRole('button', { name: '新增后台账号' })).toBeVisible();
+  await expect(page.locator('tr').filter({ hasText: 'Boss' })).toHaveCount(0);
   const adminRow = page.locator('tr').filter({ hasText: 'Admin' });
   await expect(adminRow).toContainText('管理员');
   await expect(adminRow.getByTestId('admin-role-select-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')).toHaveValue('ADMIN');

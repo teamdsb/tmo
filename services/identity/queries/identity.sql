@@ -10,14 +10,37 @@ SET display_name = COALESCE(sqlc.narg('display_name'), display_name),
 WHERE id = $1
 RETURNING *;
 
+-- name: UpdateManagedUserProfile :one
+UPDATE users
+SET display_name = $2,
+    phone = $3,
+    updated_at = now()
+WHERE id = $1
+RETURNING *;
+
+-- name: UpdateManagedUserType :one
+UPDATE users
+SET user_type = $2,
+    updated_at = now()
+WHERE id = $1
+RETURNING *;
+
 -- name: UpdateUserStatus :one
 UPDATE users
 SET status = $2,
     disabled_at = $3,
     disabled_reason = $4,
+    credential_version = CASE WHEN status IS DISTINCT FROM $2 THEN credential_version + 1 ELSE credential_version END,
     updated_at = now()
 WHERE id = $1
 RETURNING *;
+
+-- name: IncrementCredentialVersion :one
+UPDATE users
+SET credential_version = credential_version + 1,
+    updated_at = now()
+WHERE id = $1
+RETURNING credential_version;
 
 -- name: GetUserByID :one
 SELECT * FROM users WHERE id = $1;
@@ -150,6 +173,9 @@ RETURNING *;
 -- name: GetUserPasswordByUsername :one
 SELECT user_id, password_hash FROM user_passwords WHERE username = $1;
 
+-- name: GetUserPasswordByUserID :one
+SELECT user_id, username, password_hash FROM user_passwords WHERE user_id = $1;
+
 -- name: UpsertUserPassword :exec
 INSERT INTO user_passwords (user_id, username, password_hash)
 VALUES ($1, $2, $3)
@@ -157,6 +183,13 @@ ON CONFLICT (user_id) DO UPDATE
 SET username = EXCLUDED.username,
     password_hash = EXCLUDED.password_hash,
     updated_at = now();
+
+-- name: UpdateUserPassword :exec
+UPDATE user_passwords
+SET username = $2,
+    password_hash = $3,
+    updated_at = now()
+WHERE user_id = $1;
 
 -- name: CreateSalesQrCode :exec
 INSERT INTO sales_qr_codes (scene, sales_user_id, platform, qr_code_url, expires_at)
@@ -354,6 +387,11 @@ SELECT DISTINCT u.*
 FROM users u
 JOIN user_roles ur ON ur.user_id = u.id
 WHERE u.user_type IN ('admin', 'staff')
+  AND EXISTS (SELECT 1 FROM user_passwords up WHERE up.user_id = u.id)
+  AND NOT EXISTS (
+    SELECT 1 FROM user_roles boss_role
+    WHERE boss_role.user_id = u.id AND boss_role.role = 'BOSS'
+  )
   AND (
     sqlc.narg('q')::text IS NULL
     OR COALESCE(u.display_name, '') ILIKE '%' || sqlc.narg('q') || '%'
@@ -361,6 +399,7 @@ WHERE u.user_type IN ('admin', 'staff')
     OR u.id::text ILIKE '%' || sqlc.narg('q') || '%'
   )
   AND (sqlc.narg('status')::text IS NULL OR u.status = sqlc.narg('status'))
+  AND ur.role IN ('ADMIN', 'MANAGER', 'CS')
   AND (sqlc.narg('role')::text IS NULL OR ur.role = sqlc.narg('role'))
 ORDER BY u.created_at DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
@@ -372,6 +411,11 @@ FROM (
   FROM users u
   JOIN user_roles ur ON ur.user_id = u.id
   WHERE u.user_type IN ('admin', 'staff')
+    AND EXISTS (SELECT 1 FROM user_passwords up WHERE up.user_id = u.id)
+    AND NOT EXISTS (
+      SELECT 1 FROM user_roles boss_role
+      WHERE boss_role.user_id = u.id AND boss_role.role = 'BOSS'
+    )
     AND (
       sqlc.narg('q')::text IS NULL
       OR COALESCE(u.display_name, '') ILIKE '%' || sqlc.narg('q') || '%'
@@ -379,6 +423,7 @@ FROM (
       OR u.id::text ILIKE '%' || sqlc.narg('q') || '%'
     )
     AND (sqlc.narg('status')::text IS NULL OR u.status = sqlc.narg('status'))
+    AND ur.role IN ('ADMIN', 'MANAGER', 'CS')
     AND (sqlc.narg('role')::text IS NULL OR ur.role = sqlc.narg('role'))
   GROUP BY u.id
 ) AS filtered_admin_users;

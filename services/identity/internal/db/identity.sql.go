@@ -67,7 +67,7 @@ const bindOwnerSalesUser = `-- name: BindOwnerSalesUser :one
 UPDATE users
 SET owner_sales_user_id = $2, updated_at = now()
 WHERE id = $1 AND owner_sales_user_id IS NULL
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url, credential_version
 `
 
 type BindOwnerSalesUserParams struct {
@@ -94,6 +94,7 @@ func (q *Queries) BindOwnerSalesUser(ctx context.Context, arg BindOwnerSalesUser
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
 		&i.AvatarUrl,
+		&i.CredentialVersion,
 	)
 	return i, err
 }
@@ -104,7 +105,7 @@ SET phone = $2,
     updated_at = now()
 WHERE id = $1
   AND (phone IS NULL OR phone = $2)
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url, credential_version
 `
 
 type BindUserPhoneParams struct {
@@ -131,6 +132,7 @@ func (q *Queries) BindUserPhone(ctx context.Context, arg BindUserPhoneParams) (U
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
 		&i.AvatarUrl,
+		&i.CredentialVersion,
 	)
 	return i, err
 }
@@ -213,6 +215,11 @@ FROM (
   FROM users u
   JOIN user_roles ur ON ur.user_id = u.id
   WHERE u.user_type IN ('admin', 'staff')
+    AND EXISTS (SELECT 1 FROM user_passwords up WHERE up.user_id = u.id)
+    AND NOT EXISTS (
+      SELECT 1 FROM user_roles boss_role
+      WHERE boss_role.user_id = u.id AND boss_role.role = 'BOSS'
+    )
     AND (
       $1::text IS NULL
       OR COALESCE(u.display_name, '') ILIKE '%' || $1 || '%'
@@ -220,6 +227,7 @@ FROM (
       OR u.id::text ILIKE '%' || $1 || '%'
     )
     AND ($2::text IS NULL OR u.status = $2)
+    AND ur.role IN ('ADMIN', 'MANAGER', 'CS')
     AND ($3::text IS NULL OR ur.role = $3)
   GROUP BY u.id
 ) AS filtered_admin_users
@@ -487,7 +495,7 @@ func (q *Queries) CreateStaffBindingToken(ctx context.Context, arg CreateStaffBi
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (id, display_name, phone, user_type, owner_sales_user_id)
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url, credential_version
 `
 
 type CreateUserParams struct {
@@ -523,6 +531,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
 		&i.AvatarUrl,
+		&i.CredentialVersion,
 	)
 	return i, err
 }
@@ -588,7 +597,7 @@ SET user_type = 'customer',
     disabled_reason = NULL,
     updated_at = now()
 WHERE id = $1 AND user_type = 'staff'
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url, credential_version
 `
 
 func (q *Queries) DemoteStaffToCustomer(ctx context.Context, id uuid.UUID) (User, error) {
@@ -610,12 +619,13 @@ func (q *Queries) DemoteStaffToCustomer(ctx context.Context, id uuid.UUID) (User
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
 		&i.AvatarUrl,
+		&i.CredentialVersion,
 	)
 	return i, err
 }
 
 const getActiveSalesUserByID = `-- name: GetActiveSalesUserByID :one
-SELECT DISTINCT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone, u.payment_term_remark, u.payment_term_type, u.payment_term_days, u.payment_term_custom_label, u.avatar_url
+SELECT DISTINCT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone, u.payment_term_remark, u.payment_term_type, u.payment_term_days, u.payment_term_custom_label, u.avatar_url, u.credential_version
 FROM users u
 JOIN user_roles ur ON ur.user_id = u.id
 WHERE u.id = $1
@@ -644,12 +654,13 @@ func (q *Queries) GetActiveSalesUserByID(ctx context.Context, id uuid.UUID) (Use
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
 		&i.AvatarUrl,
+		&i.CredentialVersion,
 	)
 	return i, err
 }
 
 const getCustomerByID = `-- name: GetCustomerByID :one
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url FROM users
+SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url, credential_version FROM users
 WHERE id = $1 AND user_type = 'customer'
 `
 
@@ -672,6 +683,7 @@ func (q *Queries) GetCustomerByID(ctx context.Context, id uuid.UUID) (User, erro
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
 		&i.AvatarUrl,
+		&i.CredentialVersion,
 	)
 	return i, err
 }
@@ -841,7 +853,7 @@ func (q *Queries) GetStaffBindingToken(ctx context.Context, token string) (Staff
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url FROM users WHERE id = $1
+SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url, credential_version FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -863,12 +875,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
 		&i.AvatarUrl,
+		&i.CredentialVersion,
 	)
 	return i, err
 }
 
 const getUserByIdentity = `-- name: GetUserByIdentity :one
-SELECT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone, u.payment_term_remark, u.payment_term_type, u.payment_term_days, u.payment_term_custom_label, u.avatar_url FROM users u
+SELECT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone, u.payment_term_remark, u.payment_term_type, u.payment_term_days, u.payment_term_custom_label, u.avatar_url, u.credential_version FROM users u
 JOIN user_identities i ON i.user_id = u.id
 WHERE i.provider = $1 AND i.provider_user_id = $2
 LIMIT 1
@@ -898,12 +911,13 @@ func (q *Queries) GetUserByIdentity(ctx context.Context, arg GetUserByIdentityPa
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
 		&i.AvatarUrl,
+		&i.CredentialVersion,
 	)
 	return i, err
 }
 
 const getUserByPhone = `-- name: GetUserByPhone :one
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url FROM users
+SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url, credential_version FROM users
 WHERE phone = $1
 LIMIT 1
 `
@@ -927,6 +941,7 @@ func (q *Queries) GetUserByPhone(ctx context.Context, phone *string) (User, erro
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
 		&i.AvatarUrl,
+		&i.CredentialVersion,
 	)
 	return i, err
 }
@@ -957,6 +972,23 @@ func (q *Queries) GetUserIdentity(ctx context.Context, arg GetUserIdentityParams
 	return i, err
 }
 
+const getUserPasswordByUserID = `-- name: GetUserPasswordByUserID :one
+SELECT user_id, username, password_hash FROM user_passwords WHERE user_id = $1
+`
+
+type GetUserPasswordByUserIDRow struct {
+	UserID       uuid.UUID `db:"user_id" json:"user_id"`
+	Username     string    `db:"username" json:"username"`
+	PasswordHash string    `db:"password_hash" json:"password_hash"`
+}
+
+func (q *Queries) GetUserPasswordByUserID(ctx context.Context, userID uuid.UUID) (GetUserPasswordByUserIDRow, error) {
+	row := q.db.QueryRow(ctx, getUserPasswordByUserID, userID)
+	var i GetUserPasswordByUserIDRow
+	err := row.Scan(&i.UserID, &i.Username, &i.PasswordHash)
+	return i, err
+}
+
 const getUserPasswordByUsername = `-- name: GetUserPasswordByUsername :one
 SELECT user_id, password_hash FROM user_passwords WHERE username = $1
 `
@@ -973,8 +1005,23 @@ func (q *Queries) GetUserPasswordByUsername(ctx context.Context, username string
 	return i, err
 }
 
+const incrementCredentialVersion = `-- name: IncrementCredentialVersion :one
+UPDATE users
+SET credential_version = credential_version + 1,
+    updated_at = now()
+WHERE id = $1
+RETURNING credential_version
+`
+
+func (q *Queries) IncrementCredentialVersion(ctx context.Context, id uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, incrementCredentialVersion, id)
+	var credential_version int64
+	err := row.Scan(&credential_version)
+	return credential_version, err
+}
+
 const listActiveSalesUsers = `-- name: ListActiveSalesUsers :many
-SELECT DISTINCT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone, u.payment_term_remark, u.payment_term_type, u.payment_term_days, u.payment_term_custom_label, u.avatar_url
+SELECT DISTINCT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone, u.payment_term_remark, u.payment_term_type, u.payment_term_days, u.payment_term_custom_label, u.avatar_url, u.credential_version
 FROM users u
 JOIN user_roles ur ON ur.user_id = u.id
 WHERE u.user_type = 'staff'
@@ -1020,6 +1067,7 @@ func (q *Queries) ListActiveSalesUsers(ctx context.Context, arg ListActiveSalesU
 			&i.PaymentTermDays,
 			&i.PaymentTermCustomLabel,
 			&i.AvatarUrl,
+			&i.CredentialVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -1032,7 +1080,7 @@ func (q *Queries) ListActiveSalesUsers(ctx context.Context, arg ListActiveSalesU
 }
 
 const listAdminCustomers = `-- name: ListAdminCustomers :many
-SELECT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone, u.payment_term_remark, u.payment_term_type, u.payment_term_days, u.payment_term_custom_label, u.avatar_url
+SELECT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone, u.payment_term_remark, u.payment_term_type, u.payment_term_days, u.payment_term_custom_label, u.avatar_url, u.credential_version
 FROM users u
 JOIN user_roles ur ON ur.user_id = u.id
 WHERE ur.role = 'CUSTOMER'
@@ -1097,6 +1145,7 @@ func (q *Queries) ListAdminCustomers(ctx context.Context, arg ListAdminCustomers
 			&i.PaymentTermDays,
 			&i.PaymentTermCustomLabel,
 			&i.AvatarUrl,
+			&i.CredentialVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -1109,10 +1158,15 @@ func (q *Queries) ListAdminCustomers(ctx context.Context, arg ListAdminCustomers
 }
 
 const listAdminUsers = `-- name: ListAdminUsers :many
-SELECT DISTINCT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone, u.payment_term_remark, u.payment_term_type, u.payment_term_days, u.payment_term_custom_label, u.avatar_url
+SELECT DISTINCT u.id, u.display_name, u.user_type, u.owner_sales_user_id, u.created_at, u.updated_at, u.status, u.disabled_at, u.disabled_reason, u.phone, u.payment_term_remark, u.payment_term_type, u.payment_term_days, u.payment_term_custom_label, u.avatar_url, u.credential_version
 FROM users u
 JOIN user_roles ur ON ur.user_id = u.id
 WHERE u.user_type IN ('admin', 'staff')
+  AND EXISTS (SELECT 1 FROM user_passwords up WHERE up.user_id = u.id)
+  AND NOT EXISTS (
+    SELECT 1 FROM user_roles boss_role
+    WHERE boss_role.user_id = u.id AND boss_role.role = 'BOSS'
+  )
   AND (
     $1::text IS NULL
     OR COALESCE(u.display_name, '') ILIKE '%' || $1 || '%'
@@ -1120,6 +1174,7 @@ WHERE u.user_type IN ('admin', 'staff')
     OR u.id::text ILIKE '%' || $1 || '%'
   )
   AND ($2::text IS NULL OR u.status = $2)
+  AND ur.role IN ('ADMIN', 'MANAGER', 'CS')
   AND ($3::text IS NULL OR ur.role = $3)
 ORDER BY u.created_at DESC
 LIMIT $5 OFFSET $4
@@ -1164,6 +1219,7 @@ func (q *Queries) ListAdminUsers(ctx context.Context, arg ListAdminUsersParams) 
 			&i.PaymentTermDays,
 			&i.PaymentTermCustomLabel,
 			&i.AvatarUrl,
+			&i.CredentialVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -1349,7 +1405,7 @@ func (q *Queries) ListCustomerTagsByIDs(ctx context.Context, tagIds []uuid.UUID)
 }
 
 const listCustomers = `-- name: ListCustomers :many
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url FROM users
+SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url, credential_version FROM users
 WHERE user_type = 'customer'
   AND (
     $1::text IS NULL
@@ -1401,6 +1457,7 @@ func (q *Queries) ListCustomers(ctx context.Context, arg ListCustomersParams) ([
 			&i.PaymentTermDays,
 			&i.PaymentTermCustomLabel,
 			&i.AvatarUrl,
+			&i.CredentialVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -1542,7 +1599,7 @@ func (q *Queries) ListRoles(ctx context.Context) ([]Role, error) {
 }
 
 const listStaffUsers = `-- name: ListStaffUsers :many
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url FROM users
+SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url, credential_version FROM users
 WHERE user_type = 'staff'
   AND (
     $1::text IS NULL
@@ -1591,6 +1648,7 @@ func (q *Queries) ListStaffUsers(ctx context.Context, arg ListStaffUsersParams) 
 			&i.PaymentTermDays,
 			&i.PaymentTermCustomLabel,
 			&i.AvatarUrl,
+			&i.CredentialVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -1627,7 +1685,7 @@ func (q *Queries) ListUserRoles(ctx context.Context, userID uuid.UUID) ([]string
 }
 
 const listUsersByIDs = `-- name: ListUsersByIDs :many
-SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url
+SELECT id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url, credential_version
 FROM users
 WHERE id = ANY($1::uuid[])
 `
@@ -1657,6 +1715,7 @@ func (q *Queries) ListUsersByIDs(ctx context.Context, ids []uuid.UUID) ([]User, 
 			&i.PaymentTermDays,
 			&i.PaymentTermCustomLabel,
 			&i.AvatarUrl,
+			&i.CredentialVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -1688,7 +1747,7 @@ SET user_type = 'staff',
     disabled_reason = NULL,
     updated_at = now()
 WHERE id = $1 AND user_type = 'customer'
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url, credential_version
 `
 
 func (q *Queries) PromoteCustomerToStaff(ctx context.Context, id uuid.UUID) (User, error) {
@@ -1710,6 +1769,7 @@ func (q *Queries) PromoteCustomerToStaff(ctx context.Context, id uuid.UUID) (Use
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
 		&i.AvatarUrl,
+		&i.CredentialVersion,
 	)
 	return i, err
 }
@@ -1735,7 +1795,7 @@ UPDATE users
 SET owner_sales_user_id = $2,
     updated_at = now()
 WHERE id = $1 AND user_type = 'customer'
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url, credential_version
 `
 
 type TransferCustomerOwnershipParams struct {
@@ -1762,6 +1822,7 @@ func (q *Queries) TransferCustomerOwnership(ctx context.Context, arg TransferCus
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
 		&i.AvatarUrl,
+		&i.CredentialVersion,
 	)
 	return i, err
 }
@@ -1772,7 +1833,7 @@ SET owner_sales_user_id = $1::uuid,
     updated_at = now()
 WHERE user_type = 'customer'
   AND id = ANY($2::uuid[])
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url, credential_version
 `
 
 type TransferCustomersOwnershipParams struct {
@@ -1805,6 +1866,7 @@ func (q *Queries) TransferCustomersOwnership(ctx context.Context, arg TransferCu
 			&i.PaymentTermDays,
 			&i.PaymentTermCustomLabel,
 			&i.AvatarUrl,
+			&i.CredentialVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -1933,6 +1995,82 @@ func (q *Queries) UpdateFeatureFlags(ctx context.Context, arg UpdateFeatureFlags
 	return i, err
 }
 
+const updateManagedUserProfile = `-- name: UpdateManagedUserProfile :one
+UPDATE users
+SET display_name = $2,
+    phone = $3,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url, credential_version
+`
+
+type UpdateManagedUserProfileParams struct {
+	ID          uuid.UUID `db:"id" json:"id"`
+	DisplayName *string   `db:"display_name" json:"display_name"`
+	Phone       *string   `db:"phone" json:"phone"`
+}
+
+func (q *Queries) UpdateManagedUserProfile(ctx context.Context, arg UpdateManagedUserProfileParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateManagedUserProfile, arg.ID, arg.DisplayName, arg.Phone)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.DisplayName,
+		&i.UserType,
+		&i.OwnerSalesUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Status,
+		&i.DisabledAt,
+		&i.DisabledReason,
+		&i.Phone,
+		&i.PaymentTermRemark,
+		&i.PaymentTermType,
+		&i.PaymentTermDays,
+		&i.PaymentTermCustomLabel,
+		&i.AvatarUrl,
+		&i.CredentialVersion,
+	)
+	return i, err
+}
+
+const updateManagedUserType = `-- name: UpdateManagedUserType :one
+UPDATE users
+SET user_type = $2,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url, credential_version
+`
+
+type UpdateManagedUserTypeParams struct {
+	ID       uuid.UUID `db:"id" json:"id"`
+	UserType string    `db:"user_type" json:"user_type"`
+}
+
+func (q *Queries) UpdateManagedUserType(ctx context.Context, arg UpdateManagedUserTypeParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateManagedUserType, arg.ID, arg.UserType)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.DisplayName,
+		&i.UserType,
+		&i.OwnerSalesUserID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Status,
+		&i.DisabledAt,
+		&i.DisabledReason,
+		&i.Phone,
+		&i.PaymentTermRemark,
+		&i.PaymentTermType,
+		&i.PaymentTermDays,
+		&i.PaymentTermCustomLabel,
+		&i.AvatarUrl,
+		&i.CredentialVersion,
+	)
+	return i, err
+}
+
 const updateSalesQrCode = `-- name: UpdateSalesQrCode :exec
 UPDATE sales_qr_codes
 SET qr_code_url = $2,
@@ -1952,12 +2090,31 @@ func (q *Queries) UpdateSalesQrCode(ctx context.Context, arg UpdateSalesQrCodePa
 	return err
 }
 
+const updateUserPassword = `-- name: UpdateUserPassword :exec
+UPDATE user_passwords
+SET username = $2,
+    password_hash = $3,
+    updated_at = now()
+WHERE user_id = $1
+`
+
+type UpdateUserPasswordParams struct {
+	UserID       uuid.UUID `db:"user_id" json:"user_id"`
+	Username     string    `db:"username" json:"username"`
+	PasswordHash string    `db:"password_hash" json:"password_hash"`
+}
+
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
+	_, err := q.db.Exec(ctx, updateUserPassword, arg.UserID, arg.Username, arg.PasswordHash)
+	return err
+}
+
 const updateUserProfile = `-- name: UpdateUserProfile :one
 UPDATE users
 SET display_name = COALESCE($2, display_name),
     updated_at = now()
 WHERE id = $1
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url, credential_version
 `
 
 type UpdateUserProfileParams struct {
@@ -1984,6 +2141,7 @@ func (q *Queries) UpdateUserProfile(ctx context.Context, arg UpdateUserProfilePa
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
 		&i.AvatarUrl,
+		&i.CredentialVersion,
 	)
 	return i, err
 }
@@ -1993,9 +2151,10 @@ UPDATE users
 SET status = $2,
     disabled_at = $3,
     disabled_reason = $4,
+    credential_version = CASE WHEN status IS DISTINCT FROM $2 THEN credential_version + 1 ELSE credential_version END,
     updated_at = now()
 WHERE id = $1
-RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url
+RETURNING id, display_name, user_type, owner_sales_user_id, created_at, updated_at, status, disabled_at, disabled_reason, phone, payment_term_remark, payment_term_type, payment_term_days, payment_term_custom_label, avatar_url, credential_version
 `
 
 type UpdateUserStatusParams struct {
@@ -2029,6 +2188,7 @@ func (q *Queries) UpdateUserStatus(ctx context.Context, arg UpdateUserStatusPara
 		&i.PaymentTermDays,
 		&i.PaymentTermCustomLabel,
 		&i.AvatarUrl,
+		&i.CredentialVersion,
 	)
 	return i, err
 }

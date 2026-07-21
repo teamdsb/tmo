@@ -36,8 +36,11 @@
 
 ## Admin-Web User Operations Rules
 - `user-operations` 中的 `SALES` 指“小程序业务员”，不是泛指所有业务岗位
-- 员工账号统一管理 `SALES`、`CS`、`MANAGER`
-- 管理员账号统一管理 `ADMIN`、`BOSS`
+- 仅当前会话角色为 `BOSS` 时，可创建、修改、重置密码和停启后台密码账号
+- BOSS 可管理的后台密码账号为单角色 `ADMIN`、`MANAGER`、`CS`；不得通过该入口创建或修改 `BOSS`
+- 后台密码账号只支持停用，不做物理删除；停用或重置密码会立即使旧 token 失效
+- 用户名全局唯一；密码只保存 bcrypt 哈希，接口与审计日志均不得返回密码或哈希
+- `SALES` 仍通过员工账号与小程序绑定流程管理，不属于后台密码账号
 - `BOSS` 视为建立在 `ADMIN` 之上的增强能力；授予 `BOSS` 时应同时具备 `ADMIN`
 - 移除 `BOSS` 后账号应降级为 `ADMIN`
 - 只要账号具备 `BOSS`，整账号都不可禁用
