@@ -4,7 +4,7 @@ import Taro, { useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Button from '@taroify/core/button'
 import type { Order, OrderItem, OrderStatus } from '@tmo/api-client'
-import { ROUTES, orderSuccessRoute, orderTrackingRoute } from '../../../routes'
+import { ROUTES, orderTrackingRoute } from '../../../routes'
 import SafeImage from '../../../components/safe-image'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
@@ -18,14 +18,8 @@ import {
   type DevFakePaymentOverride
 } from '../../../services/payment-dev-overrides'
 import { isPaymentCancelled, paymentServices } from '../../../services/payment'
-import {
-  buildOrderPaymentIdempotencyKey,
-  resolvePaymentAvailability,
-  type PaymentAvailability
-} from '../../../services/payment-availability'
+import { buildOrderPaymentIdempotencyKey, resolvePaymentAvailability, type PaymentAvailability } from '../../../services/payment-availability'
 import './index.scss'
-
-const orderPaymentResultToastDuration = 3000
 
 export default function OrderDetail() {
   const router = useRouter()
@@ -42,9 +36,8 @@ export default function OrderDetail() {
   const firstItem = orderItems[0] ?? null
   const heroContent = getHeroContent(order)
   const detailRows = buildDetailRows(order)
-  const paymentAvailable = paymentAvailability?.available !== false
-  const showContinuePay = paymentAvailable && canContinuePay(order)
-  const showRefreshPayment = paymentAvailable && canRefreshPayment(order)
+  const showContinuePay = paymentAvailability?.available !== false && canContinuePay(order)
+  const showRefreshPayment = paymentAvailability?.available !== false && canRefreshPayment(order)
   const showLogistics = canViewLogistics(order)
 
   const handleBack = () => {
@@ -71,15 +64,10 @@ export default function OrderDetail() {
 
   useEffect(() => {
     let cancelled = false
-    void (async () => {
-      const availability = await resolvePaymentAvailability()
-      if (!cancelled) {
-        setPaymentAvailability(availability)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
+    void resolvePaymentAvailability().then((availability) => {
+      if (!cancelled) setPaymentAvailability(availability)
+    })
+    return () => { cancelled = true }
   }, [])
 
   const handlePay = async () => {
@@ -87,7 +75,7 @@ export default function OrderDetail() {
       return
     }
     if (paymentAvailability?.available === false) {
-      await Taro.showToast({ title: '支付暂未开通，请等待销售确认', icon: 'none' })
+      await Taro.showToast({ title: paymentAvailability.unavailableMessage, icon: 'none' })
       return
     }
 
@@ -107,8 +95,7 @@ export default function OrderDetail() {
       const nextPaymentStatus = String(payment.status || '').toUpperCase()
       await Taro.showToast({
         title: nextPaymentStatus === 'PAID' ? '支付成功' : '支付结果确认中',
-        icon: nextPaymentStatus === 'PAID' ? 'success' : 'none',
-        duration: orderPaymentResultToastDuration
+        icon: nextPaymentStatus === 'PAID' ? 'success' : 'none'
       })
       paymentConfirmed = nextPaymentStatus === 'PAID'
     } catch (error) {
@@ -125,7 +112,7 @@ export default function OrderDetail() {
     }
 
     if (paymentConfirmed) {
-      await navigateTo(orderSuccessRoute(orderId, 'paid'))
+      await switchTabLike(ROUTES.cart)
     }
   }
 
@@ -142,8 +129,7 @@ export default function OrderDetail() {
       const nextPaymentStatus = String(payment.status || '').toUpperCase()
       await Taro.showToast({
         title: nextPaymentStatus === 'PAID' ? '支付成功' : '支付状态已刷新',
-        icon: nextPaymentStatus === 'PAID' ? 'success' : 'none',
-        duration: orderPaymentResultToastDuration
+        icon: nextPaymentStatus === 'PAID' ? 'success' : 'none'
       })
       paymentConfirmed = nextPaymentStatus === 'PAID'
     } catch (error) {
@@ -156,8 +142,8 @@ export default function OrderDetail() {
       setPaymentLoading(false)
     }
 
-    if (paymentConfirmed && orderId && typeof orderId === 'string') {
-      await navigateTo(orderSuccessRoute(orderId, 'paid'))
+    if (paymentConfirmed) {
+      await switchTabLike(ROUTES.cart)
     }
   }
 
@@ -188,9 +174,6 @@ export default function OrderDetail() {
             >
               刷新支付状态
             </Button>
-          ) : null}
-          {order && !paymentAvailable && readPaymentStatus(order).toUpperCase() !== 'PAID' ? (
-            <Text className='order-detail-hero-payment-note'>{paymentAvailability?.unavailableMessage}</Text>
           ) : null}
         </View>
 

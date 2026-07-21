@@ -19,6 +19,7 @@ import (
 	httpserver "github.com/teamdsb/tmo/services/payment/internal/http"
 	"github.com/teamdsb/tmo/services/payment/internal/http/handler"
 	"github.com/teamdsb/tmo/services/payment/internal/http/middleware"
+	"github.com/teamdsb/tmo/services/payment/internal/provider"
 )
 
 func main() {
@@ -82,23 +83,32 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	flagsProvider := handler.NewIdentityFlagsProvider(cfg.IdentityBaseURL, cfg.FeatureFlagsTimeout, handler.FeatureFlags{
 		PaymentEnabled:   cfg.PaymentEnabled,
 		WechatPayEnabled: cfg.WechatPayEnabled,
-		WechatB2bEnabled: cfg.WechatB2bEnabled,
 		AlipayPayEnabled: cfg.AlipayPayEnabled,
 	}, logger)
 
-	apiHandler := &handler.Handler{
-		Logger:              logger,
-		Auth:                auth,
-		Flags:               flagsProvider,
-		Store:               db.New(pool),
-		Commerce:            handler.NewCommerceClient(cfg.CommerceBaseURL, cfg.CommerceSyncToken),
-		ProviderMode:        cfg.ProviderMode,
-		WechatB2bConfigured: cfg.WechatB2bEnabled,
+	var wechatProvider provider.Wechat
+	if strings.EqualFold(strings.TrimSpace(cfg.ProviderMode), "wechat") || strings.EqualFold(strings.TrimSpace(cfg.ProviderMode), "real") {
+		if !cfg.AuthEnabled {
+			return fmt.Errorf("PAYMENT_AUTH_ENABLED must be true for the wechat provider")
+		}
+		wechatProvider, err = provider.NewWechat(ctx, provider.WechatConfig{
+			AppID: cfg.WechatAppID, MchID: cfg.WechatMchID, APIv3Key: cfg.WechatAPIv3Key,
+			MerchantPrivateKeyPath: cfg.WechatMerchantPrivateKeyPath,
+			MerchantSerialNumber:   cfg.WechatMerchantSerialNumber, NotifyURL: cfg.WechatNotifyURL,
+		})
+		if err != nil {
+			return fmt.Errorf("initialize wechat provider: %w", err)
+		}
 	}
-	if provider, providerErr := handler.NewWechatB2BDirectProvider(handler.WechatB2BConfig{AppID: cfg.WechatB2BAppID, AppSecret: cfg.WechatB2BAppSecret, MchID: cfg.WechatB2BMchID, AppKey: cfg.WechatB2BAppKey, Environment: cfg.WechatB2BEnvironment, SessionURL: cfg.WechatSessionURL}); providerErr == nil {
-		apiHandler.WechatB2BProvider = provider
-	} else {
-		logger.Warn("wechat b2b provider disabled", "reason", providerErr)
+
+	apiHandler := &handler.Handler{
+		Logger:       logger,
+		Auth:         auth,
+		Flags:        flagsProvider,
+		Store:        db.New(pool),
+		Commerce:     handler.NewCommerceClient(cfg.CommerceBaseURL, cfg.CommerceSyncToken),
+		ProviderMode: cfg.ProviderMode,
+		Wechat:       wechatProvider,
 	}
 
 	router := httpserver.NewRouter(apiHandler, logger, func(checkCtx context.Context) error {

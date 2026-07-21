@@ -6,9 +6,9 @@ import OrderConfirmPage from './index'
 import { commerceServices } from '../../../services/commerce'
 import { listUserAddresses } from '../../../services/addresses'
 import { paymentServices, isPaymentCancelled } from '../../../services/payment'
+import { resolvePaymentAvailability } from '../../../services/payment-availability'
 import { ensureLoggedIn } from '../../../utils/auth'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
-import { saveBootstrap, clearBootstrap } from '../../../services/bootstrap'
 
 jest.mock('../../../services/addresses', () => ({
   listUserAddresses: jest.fn(),
@@ -23,6 +23,11 @@ jest.mock('../../../services/payment', () => ({
     }
   },
   isPaymentCancelled: jest.fn()
+}))
+
+jest.mock('../../../services/payment-availability', () => ({
+  resolvePaymentAvailability: jest.fn(),
+  buildOrderPaymentIdempotencyKey: (orderId: string) => `order-payment-${orderId}`
 }))
 
 jest.mock('../../../utils/auth', () => ({
@@ -66,15 +71,11 @@ const defaultAddress = {
 }
 
 describe('OrderConfirmPage', () => {
-  beforeEach(async () => {
+  beforeEach(() => {
     jest.clearAllMocks()
-    await clearBootstrap()
-	await saveBootstrap({
-	  permissions: { items: [] },
-	  featureFlags: { paymentEnabled: true, wechatPayEnabled: true, wechatB2bEnabled: true, alipayPayEnabled: true }
-	})
     ;(useDidShow as jest.Mock).mockImplementation(() => {})
     ;(ensureLoggedIn as jest.Mock).mockResolvedValue(true)
+    ;(resolvePaymentAvailability as jest.Mock).mockResolvedValue({ available: true, channel: 'wechat', unavailableMessage: '' })
     ;(listUserAddresses as jest.Mock).mockResolvedValue([defaultAddress])
     ;(commerceServices.cart.getCart as jest.Mock).mockResolvedValue(defaultCart)
     ;(commerceServices.catalog.getProductDetail as jest.Mock).mockResolvedValue({
@@ -232,13 +233,13 @@ describe('OrderConfirmPage', () => {
       ]
     }))
     expect(paymentServices.sessions.payForOrder).toHaveBeenCalledWith('order-1001', {
-      channel: 'wechat_b2b',
+      channel: 'wechat',
       idempotencyKey: 'order-payment-order-1001'
     })
     expect(commerceServices.orders.resetIdempotency).toHaveBeenCalled()
-    expect(Taro.showToast).toHaveBeenCalledWith({ title: '支付成功', icon: 'success', duration: 3000 })
-    expect(navigateTo).toHaveBeenCalledWith('/pages/order/success/index?id=order-1001&payment=paid')
-    expect(switchTabLike).not.toHaveBeenCalled()
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '支付成功', icon: 'success' })
+    expect(switchTabLike).toHaveBeenCalledWith('/pages/cart/index')
+    expect(navigateTo).not.toHaveBeenCalled()
   })
 
   it('keeps payment-confirming orders on the order detail page', async () => {
@@ -259,8 +260,8 @@ describe('OrderConfirmPage', () => {
       await flushPromises()
     })
 
-    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已提交，支付确认中', icon: 'none', duration: 3000 })
-    expect(navigateTo).toHaveBeenCalledWith('/pages/order/success/index?id=order-1001&payment=pending')
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已提交，支付确认中', icon: 'none' })
+    expect(navigateTo).toHaveBeenCalledWith('/pages/order/detail/index?id=order-1001')
     expect(switchTabLike).not.toHaveBeenCalled()
   })
 
@@ -284,8 +285,8 @@ describe('OrderConfirmPage', () => {
 
     expect(commerceServices.orders.resetIdempotency).toHaveBeenCalled()
     expect(paymentServices.sessions.payForOrder).not.toHaveBeenCalled()
-    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已生成', icon: 'none', duration: 3000 })
-    expect(navigateTo).toHaveBeenCalledWith('/pages/order/success/index?id=order-existing-1&payment=created')
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已生成', icon: 'none' })
+    expect(navigateTo).toHaveBeenCalledWith('/pages/order/detail/index?id=order-existing-1')
   })
 
   it('keeps submit failure toast when idempotency conflict has no order id', async () => {
@@ -312,40 +313,6 @@ describe('OrderConfirmPage', () => {
     expect(navigateTo).not.toHaveBeenCalled()
   })
 
-  it('submits order without invoking payment when payment feature is disabled', async () => {
-    await saveBootstrap({
-      me: {
-        id: 'user-1',
-        displayName: '张三',
-        userType: 'customer',
-        roles: ['CUSTOMER'],
-        currentRole: 'CUSTOMER',
-        createdAt: '2026-03-06T00:00:00Z'
-      },
-      permissions: { items: [] },
-      featureFlags: {
-        paymentEnabled: false,
-        wechatPayEnabled: false,
-        alipayPayEnabled: false
-      }
-    })
-
-    render(<OrderConfirmPage />)
-    await act(async () => {
-      await flushPromises()
-    })
-
-    fireEvent.click(screen.getByText('提交订单'))
-    await act(async () => {
-      await flushPromises()
-    })
-
-    expect(commerceServices.orders.submit).toHaveBeenCalled()
-    expect(paymentServices.sessions.payForOrder).not.toHaveBeenCalled()
-    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已提交，待销售确认', icon: 'success', duration: 3000 })
-    expect(navigateTo).toHaveBeenCalledWith('/pages/order/success/index?id=order-1001&payment=unavailable')
-  })
-
   it('shows cancelled toast but still navigates to order detail', async () => {
     ;(paymentServices.sessions.payForOrder as jest.Mock).mockRejectedValue({ cancelled: true })
     mockedIsPaymentCancelled.mockImplementation((error: { cancelled?: boolean }) => error?.cancelled === true)
@@ -360,8 +327,8 @@ describe('OrderConfirmPage', () => {
       await flushPromises()
     })
 
-    expect(Taro.showToast).toHaveBeenCalledWith({ title: '支付已取消，可稍后继续支付', icon: 'none', duration: 3000 })
-    expect(navigateTo).toHaveBeenCalledWith('/pages/order/success/index?id=order-1001&payment=cancelled')
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已提交，支付已取消', icon: 'none' })
+    expect(navigateTo).toHaveBeenCalledWith('/pages/order/detail/index?id=order-1001')
   })
 
   it('shows pending toast when payment invocation fails', async () => {
@@ -378,7 +345,7 @@ describe('OrderConfirmPage', () => {
       await flushPromises()
     })
 
-    expect(Taro.showToast).toHaveBeenCalledWith({ title: '支付未完成，请重试或刷新状态', icon: 'none', duration: 3000 })
-    expect(navigateTo).toHaveBeenCalledWith('/pages/order/success/index?id=order-1001&payment=failed')
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已提交，待确认支付', icon: 'none' })
+    expect(navigateTo).toHaveBeenCalledWith('/pages/order/detail/index?id=order-1001')
   })
 })

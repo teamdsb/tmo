@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -17,8 +18,55 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/teamdsb/tmo/services/payment/internal/db"
+	"github.com/teamdsb/tmo/services/payment/internal/http/middleware"
 	"github.com/teamdsb/tmo/services/payment/internal/http/oapi"
+	"github.com/teamdsb/tmo/services/payment/internal/provider"
 )
+
+type wechatProviderStub struct {
+	created    provider.WechatCreateRequest
+	query      provider.WechatResolution
+	notify     provider.WechatResolution
+	notifyBody string
+}
+
+func (s *wechatProviderStub) Create(_ context.Context, request provider.WechatCreateRequest) (provider.WechatCreateResult, error) {
+	s.created = request
+	return provider.WechatCreateResult{PrepayID: "wx-prepay", Package: "prepay_id=wx-prepay", NonceStr: "nonce", TimeStamp: "1", SignType: "RSA", PaySign: "sign"}, nil
+}
+func (s *wechatProviderStub) Query(_ context.Context, _ string) (provider.WechatResolution, error) {
+	return s.query, nil
+}
+func (s *wechatProviderStub) ParseNotify(_ context.Context, request *http.Request) (provider.WechatResolution, error) {
+	body, _ := io.ReadAll(request.Body)
+	s.notifyBody = string(body)
+	return s.notify, nil
+}
+
+func TestCreateWechatPaymentUsesAuthenticatedOpenID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	orderID := uuid.MustParse("abababab-abab-abab-abab-abababababab")
+	commerce := newCommerceServerStub(CommerceOrder{ID: orderID.String(), Status: "SUBMITTED", PaymentStatus: "UNPAID", Items: []CommerceOrderItem{{Qty: 1, UnitPriceFen: 888}}})
+	defer commerce.Close()
+	wechat := &wechatProviderStub{}
+	h := &Handler{
+		Flags: StaticFlagsProvider{Flags: FeatureFlags{PaymentEnabled: true, WechatPayEnabled: true}},
+		Store: newPaymentStoreStub(), Commerce: NewCommerceClient(commerce.URL(), "sync-token"), ProviderMode: "wechat", Wechat: wechat,
+	}
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/payments/wechat/create", nil)
+	c.Request.Header.Set("Authorization", "Bearer user-token")
+	response, err := h.createPaymentSession(c, middleware.Claims{
+		UserID: uuid.MustParse("cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd"), Role: "CUSTOMER",
+		IdentityProvider: "weapp", ProviderUserID: "openid-1",
+	}, orderID, paymentChannelWechat, strPtr("idem-real"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response == nil || wechat.created.OpenID != "openid-1" || wechat.created.AmountFen != 888 || wechat.created.OutTradeNo != orderID.String() {
+		t.Fatalf("unexpected provider request/response: %#v %#v", wechat.created, response)
+	}
+}
 
 func TestPostPaymentsWechatCreateCreatesPaymentAndSyncsOrder(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -407,6 +455,41 @@ func TestPostPaymentsWechatNotifyStoresWebhookAndMarksPaid(t *testing.T) {
 	}
 }
 
+func TestPostPaymentsWechatNotifyRealProviderPreservesRawBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	orderID := uuid.MustParse("40404040-4040-4040-4040-404040404040")
+	paymentID := uuid.MustParse("50505050-5050-5050-5050-505050505050")
+	store := newPaymentStoreStub()
+	store.payments[paymentID] = db.Payment{
+		ID: paymentID, OrderID: orderID, Channel: paymentChannelWechat, Status: paymentStatusPending,
+		AmountFen: 1200, Currency: "CNY", ProviderPayload: json.RawMessage(`{}`),
+		CreatedAt: pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
+	}
+	wechat := &wechatProviderStub{notify: provider.WechatResolution{
+		OutTradeNo: orderID.String(), Status: paymentStatusPaid, ProviderTradeNo: "wx-real-trade", AmountFen: 1200,
+	}}
+	router := newTestRouter(&Handler{Store: store, ProviderMode: "wechat", Wechat: wechat})
+	body := `{"id":"wechat-notification","resource":{"ciphertext":"encrypted"}}`
+	req := httptest.NewRequest(http.MethodPost, "/payments/wechat/notify", strings.NewReader(body))
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if wechat.notifyBody != body {
+		t.Fatalf("provider received unexpected body: %q", wechat.notifyBody)
+	}
+	if len(store.webhooks) != 1 || string(store.webhooks[0].RawBody) != body {
+		t.Fatalf("webhook raw body was not preserved: %#v", store.webhooks)
+	}
+	if store.payments[paymentID].Status != paymentStatusPaid {
+		t.Fatalf("expected payment status PAID, got %s", store.payments[paymentID].Status)
+	}
+}
+
 type paymentStoreStub struct {
 	mu          sync.Mutex
 	createCalls int
@@ -467,6 +550,27 @@ func (s *paymentStoreStub) GetPayment(_ context.Context, id uuid.UUID) (db.Payme
 		return db.Payment{}, pgx.ErrNoRows
 	}
 	return payment, nil
+}
+
+func (s *paymentStoreStub) GetLatestPaymentByOrderChannel(_ context.Context, arg db.GetLatestPaymentByOrderChannelParams) (db.Payment, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var latest db.Payment
+	found := false
+	for _, payment := range s.payments {
+		if payment.OrderID != arg.OrderID || payment.Channel != arg.Channel {
+			continue
+		}
+		if !found || payment.CreatedAt.Time.After(latest.CreatedAt.Time) {
+			latest = payment
+			found = true
+		}
+	}
+	if !found {
+		return db.Payment{}, pgx.ErrNoRows
+	}
+	return latest, nil
 }
 
 func (s *paymentStoreStub) GetPaymentByIdempotencyKey(_ context.Context, arg db.GetPaymentByIdempotencyKeyParams) (db.Payment, error) {

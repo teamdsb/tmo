@@ -1,17 +1,15 @@
-import { commonPay as platformCommonPay, getPlatform, login as platformLogin, pay as platformPay } from '@tmo/platform-adapter'
+import { getPlatform, pay as platformPay } from '@tmo/platform-adapter'
 import { Platform } from '@tmo/shared/enums'
 import {
   getPaymentsPaymentId,
   postPaymentsAlipayCreate,
   postPaymentsPaymentIdRecheck,
-  postPaymentsWechatB2bCreate,
   postPaymentsWechatCreate,
   setPaymentApiClientConfig,
   type AlipayPayCreateResponse,
   type ApiClientConfig,
   type ApiClientRequester,
   type PaymentDetail,
-  type WechatB2BPayCreateResponse,
   type WechatPayCreateResponse
 } from '@tmo/payment-api-client'
 
@@ -26,7 +24,8 @@ import { ApiError, isApiError, isPaymentCancelled, PaymentCancelledError } from 
 import { createRequester } from './requester'
 import { createTokenStore, type TokenStore } from './token'
 
-export type PaymentChannel = 'wechat_b2b' | 'wechat' | 'alipay'
+export type PaymentChannel = 'wechat' | 'alipay'
+export type PaymentClientResult = 'SUCCESS' | 'FAILED' | 'CANCELLED'
 
 export interface PaymentSession {
   id: string
@@ -47,7 +46,6 @@ export interface PaymentSession {
   paySign?: string
   tradeNo?: string
   payParams?: Record<string, unknown>
-  commonPayParams?: Record<string, unknown>
   providerTradeNo?: string | null
   providerPrepayId?: string | null
   failureCode?: string | null
@@ -58,7 +56,7 @@ export interface PaymentServices {
   sessions: {
     createForOrder: (orderId: string, options?: { channel?: PaymentChannel; idempotencyKey?: string }) => Promise<PaymentSession>
     get: (paymentId: string) => Promise<PaymentSession>
-    recheck: (paymentId: string) => Promise<PaymentSession>
+    recheck: (paymentId: string, options?: { clientResult?: PaymentClientResult; reason?: string }) => Promise<PaymentSession>
     payForOrder: (orderId: string, options?: { channel?: PaymentChannel; idempotencyKey?: string }) => Promise<PaymentSession>
   }
   tokens: TokenStore
@@ -84,7 +82,7 @@ const generateIdempotencyKey = (): string => {
 const detectPaymentChannel = (): PaymentChannel => {
   switch (getPlatform()) {
     case Platform.Weapp:
-      return 'wechat_b2b'
+      return 'wechat'
     case Platform.Alipay:
       return 'alipay'
     default:
@@ -92,16 +90,16 @@ const detectPaymentChannel = (): PaymentChannel => {
   }
 }
 
+const toApiChannel = (channel: PaymentChannel): 'WECHAT' | 'ALIPAY' => {
+  return channel === 'wechat' ? 'WECHAT' : 'ALIPAY'
+}
+
 const normalizeChannel = (channel: string): PaymentChannel => {
-  switch (String(channel).toUpperCase()) {
-    case 'ALIPAY': return 'alipay'
-    case 'WECHAT_B2B': return 'wechat_b2b'
-    default: return 'wechat'
-  }
+  return String(channel).toUpperCase() === 'ALIPAY' ? 'alipay' : 'wechat'
 }
 
 const normalizePaymentSession = (
-  session: PaymentDetail | WechatPayCreateResponse | WechatB2BPayCreateResponse | AlipayPayCreateResponse
+  session: PaymentDetail | WechatPayCreateResponse | AlipayPayCreateResponse
 ): PaymentSession => {
   if ('paymentId' in session) {
     return {
@@ -117,8 +115,7 @@ const normalizePaymentSession = (
       signType: 'signType' in session ? session.signType : undefined,
       paySign: 'paySign' in session ? session.paySign : undefined,
       tradeNo: 'tradeNo' in session ? session.tradeNo : undefined,
-      payParams: 'payParams' in session ? session.payParams : undefined,
-      commonPayParams: 'commonPayParams' in session ? session.commonPayParams : undefined
+      payParams: 'payParams' in session ? session.payParams : undefined
     }
   }
 
@@ -232,13 +229,11 @@ export const createPaymentServices = (config: PaymentServicesConfig = {}): Payme
       }
     }
 
-    const response = channel === 'wechat_b2b'
-      ? await platformLogin().then(({ code }) => postPaymentsWechatB2bCreate({ orderId, wechatLoginCode: code }, requestOptions))
-      : channel === 'wechat'
-        ? await postPaymentsWechatCreate({ orderId }, requestOptions)
-        : await postPaymentsAlipayCreate({ orderId }, requestOptions)
+    const response = toApiChannel(channel) === 'WECHAT'
+      ? await postPaymentsWechatCreate({ orderId }, requestOptions)
+      : await postPaymentsAlipayCreate({ orderId }, requestOptions)
 
-    return normalizePaymentSession(unwrapPaymentResponse<WechatPayCreateResponse | WechatB2BPayCreateResponse | AlipayPayCreateResponse>(response))
+    return normalizePaymentSession(unwrapPaymentResponse<WechatPayCreateResponse | AlipayPayCreateResponse>(response))
   }
 
   return {
@@ -248,26 +243,33 @@ export const createPaymentServices = (config: PaymentServicesConfig = {}): Payme
         const response = await getPaymentsPaymentId(paymentId)
         return normalizePaymentSession(unwrapPaymentResponse<PaymentDetail>(response))
       },
-      recheck: async (paymentId: string): Promise<PaymentSession> => {
-        const response = await postPaymentsPaymentIdRecheck(paymentId)
+      recheck: async (paymentId: string, options?: { clientResult?: PaymentClientResult; reason?: string }): Promise<PaymentSession> => {
+        const response = await postPaymentsPaymentIdRecheck(paymentId, options)
         return normalizePaymentSession(unwrapPaymentResponse<PaymentDetail>(response))
       },
       payForOrder: async (orderId: string, options?: { channel?: PaymentChannel; idempotencyKey?: string }): Promise<PaymentSession> => {
         const session = await createSession(orderId, options)
         try {
-          if (session.channel === 'wechat_b2b') {
-            await platformCommonPay({ payload: session.commonPayParams ?? {} })
-          } else {
-            await platformPay({ payload: toPlatformPayload(session) })
-          }
+          await platformPay({
+            payload: toPlatformPayload(session)
+          })
         } catch (error) {
-          if (isCancelError(error)) {
+          const cancelled = isCancelError(error)
+          try {
+            await postPaymentsPaymentIdRecheck(session.id, {
+              clientResult: cancelled ? 'CANCELLED' : 'FAILED',
+              reason: error instanceof Error ? error.message : undefined
+            })
+          } catch {
+            // Preserve the platform result; users can retry authoritative recheck from order detail.
+          }
+          if (cancelled) {
             throw new PaymentCancelledError('payment cancelled', error)
           }
           throw error
         }
 
-        return postPaymentsPaymentIdRecheck(session.id).then((response) =>
+        return postPaymentsPaymentIdRecheck(session.id, { clientResult: 'SUCCESS' }).then((response) =>
           normalizePaymentSession(unwrapPaymentResponse<PaymentDetail>(response))
         )
       }

@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -20,6 +22,7 @@ import (
 	"github.com/teamdsb/tmo/services/payment/internal/db"
 	"github.com/teamdsb/tmo/services/payment/internal/http/middleware"
 	"github.com/teamdsb/tmo/services/payment/internal/http/oapi"
+	"github.com/teamdsb/tmo/services/payment/internal/provider"
 )
 
 const (
@@ -28,9 +31,8 @@ const (
 	paymentStatusFailed    = "PAY_FAILED"
 	paymentStatusCancelled = "CANCELLED"
 
-	paymentChannelWechat    = "WECHAT"
-	paymentChannelWechatB2B = "WECHAT_B2B"
-	paymentChannelAlipay    = "ALIPAY"
+	paymentChannelWechat = "WECHAT"
+	paymentChannelAlipay = "ALIPAY"
 )
 
 type normalizedNotifyPayload struct {
@@ -39,8 +41,6 @@ type normalizedNotifyPayload struct {
 	ProviderTradeNo *string
 	EventType       string
 }
-
-type wechatB2BLoginCodeContextKey struct{}
 
 func (h *Handler) PostPaymentsWechatCreate(c *gin.Context, params oapi.PostPaymentsWechatCreateParams) {
 	claims, ok := h.requireUser(c)
@@ -63,27 +63,6 @@ func (h *Handler) PostPaymentsWechatCreate(c *gin.Context, params oapi.PostPayme
 		return
 	}
 
-	c.JSON(http.StatusOK, response)
-}
-
-func (h *Handler) PostPaymentsWechatB2bCreate(c *gin.Context, params oapi.PostPaymentsWechatB2bCreateParams) {
-	claims, ok := h.requireUser(c)
-	if !ok {
-		return
-	}
-
-	var request oapi.PostPaymentsWechatB2bCreateJSONBody
-	if err := c.ShouldBindJSON(&request); err != nil {
-		apierrors.Write(c, http.StatusBadRequest, apierrors.APIError{Code: "invalid_request", Message: "invalid request body"})
-		return
-	}
-
-	c.Set("wechatB2BLoginCode", request.WechatLoginCode)
-	response, err := h.createPaymentSession(c, claims, uuid.UUID(request.OrderId), paymentChannelWechatB2B, params.IdempotencyKey)
-	if err != nil {
-		h.writePaymentError(c, err)
-		return
-	}
 	c.JSON(http.StatusOK, response)
 }
 
@@ -173,7 +152,61 @@ func (h *Handler) PostPaymentsPaymentIdRecheck(c *gin.Context, paymentId types.U
 }
 
 func (h *Handler) PostPaymentsWechatNotify(c *gin.Context) {
+	if h.Wechat != nil && !strings.EqualFold(strings.TrimSpace(h.ProviderMode), "mock") {
+		h.handleWechatNotify(c)
+		return
+	}
 	h.handleNotify(c, paymentChannelWechat)
+}
+
+func (h *Handler) handleWechatNotify(c *gin.Context) {
+	rawBody, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		apierrors.Write(c, http.StatusBadRequest, apierrors.APIError{Code: "invalid_notification", Message: "invalid wechat notification body"})
+		return
+	}
+	c.Request.Body = io.NopCloser(bytes.NewReader(rawBody))
+	resolution, err := h.Wechat.ParseNotify(c.Request.Context(), c.Request)
+	if err != nil {
+		h.logError("verify wechat notification failed", err)
+		apierrors.Write(c, http.StatusBadRequest, apierrors.APIError{Code: "invalid_notification", Message: "invalid wechat notification"})
+		return
+	}
+	orderID, err := uuid.Parse(resolution.OutTradeNo)
+	if err != nil {
+		apierrors.Write(c, http.StatusBadRequest, apierrors.APIError{Code: "invalid_notification", Message: "invalid merchant order number"})
+		return
+	}
+	lookup, ok := h.Store.(interface {
+		GetLatestPaymentByOrderChannel(context.Context, db.GetLatestPaymentByOrderChannelParams) (db.Payment, error)
+	})
+	if !ok {
+		h.writePaymentError(c, errInternal("payment lookup is not configured"))
+		return
+	}
+	payment, err := lookup.GetLatestPaymentByOrderChannel(c.Request.Context(), db.GetLatestPaymentByOrderChannelParams{OrderID: orderID, Channel: paymentChannelWechat})
+	if err != nil {
+		h.writePaymentError(c, errNotFound("payment not found"))
+		return
+	}
+	if resolution.AmountFen != payment.AmountFen {
+		apierrors.Write(c, http.StatusBadRequest, apierrors.APIError{Code: "amount_mismatch", Message: "payment amount mismatch"})
+		return
+	}
+	tradeNo := normalizeOptionalString(&resolution.ProviderTradeNo)
+	if _, err := h.Store.CreatePaymentWebhook(c.Request.Context(), db.CreatePaymentWebhookParams{
+		PaymentID: toNullableUUID(payment.ID), Provider: "wechat", EventType: "payment." + strings.ToLower(resolution.Status),
+		DeliveryStatus: resolution.Status, RawBody: rawBody, ProcessedAt: pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
+	}); err != nil {
+		h.logError("create payment webhook failed", err)
+	}
+	if resolution.Status != paymentStatusPending {
+		if _, err := h.applyPaymentResolution(c, payment, resolution.Status, tradeNo, normalizeOptionalString(&resolution.Reason)); err != nil {
+			h.writePaymentError(c, err)
+			return
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"code": "SUCCESS", "message": "成功"})
 }
 
 func (h *Handler) PostPaymentsAlipayNotify(c *gin.Context) {
@@ -257,9 +290,6 @@ func (h *Handler) createPaymentSession(c *gin.Context, claims middleware.Claims,
 	if channel == paymentChannelWechat && !flags.WechatPayEnabled {
 		return nil, errForbidden("wechat pay is disabled")
 	}
-	if channel == paymentChannelWechatB2B && !flags.WechatPayEnabled {
-		return nil, errForbidden("wechat b2b pay is disabled")
-	}
 	if channel == paymentChannelAlipay && !flags.AlipayPayEnabled {
 		return nil, errForbidden("alipay is disabled")
 	}
@@ -294,15 +324,33 @@ func (h *Handler) createPaymentSession(c *gin.Context, claims middleware.Claims,
 	now := time.Now().UTC()
 	expiresAt := now.Add(15 * time.Minute)
 	amount := calculateOrderAmount(order)
-	providerContext := c.Request.Context()
-	if channel == paymentChannelWechatB2B {
-		providerContext = context.WithValue(providerContext, wechatB2BLoginCodeContextKey{}, c.GetString("wechatB2BLoginCode"))
-	}
-	responsePayload, providerTradeNo, providerPrepayID, rawPayload, err := h.buildProviderPayload(providerContext, channel, orderID, amount, now, expiresAt)
-	if err != nil {
-		if channel == paymentChannelWechatB2B {
-			return nil, errConflict(err.Error())
+	var responsePayload interface{}
+	var providerTradeNo, providerPrepayID *string
+	var rawPayload json.RawMessage
+	if channel == paymentChannelWechat && h.Wechat != nil && !strings.EqualFold(strings.TrimSpace(h.ProviderMode), "mock") {
+		if !strings.EqualFold(claims.IdentityProvider, "weapp") || strings.TrimSpace(claims.ProviderUserID) == "" {
+			return nil, errBadRequest("wechat openid is missing; please log in again")
 		}
+		created, createErr := h.Wechat.Create(c.Request.Context(), provider.WechatCreateRequest{
+			OutTradeNo: orderID.String(), Description: "TMO订单 " + orderID.String()[:8],
+			OpenID: claims.ProviderUserID, AmountFen: amount, ExpiresAt: expiresAt,
+		})
+		if createErr != nil {
+			return nil, errInternal(fmt.Sprintf("create wechat payment failed: %v", createErr))
+		}
+		response := oapi.WechatPayCreateResponse{
+			OrderId: orderID, Channel: oapi.PaymentChannel(paymentChannelWechat), Status: oapi.PaymentStatus(paymentStatusPending),
+			ExpiresAt: expiresAt, PrepayId: created.PrepayID, Package: created.Package, NonceStr: created.NonceStr,
+			TimeStamp: created.TimeStamp, SignType: created.SignType, PaySign: created.PaySign,
+		}
+		responsePayload = response
+		prepayID := created.PrepayID
+		providerPrepayID = &prepayID
+		rawPayload, err = json.Marshal(response)
+	} else {
+		responsePayload, providerTradeNo, providerPrepayID, rawPayload, err = buildProviderPayload(channel, orderID, now, expiresAt)
+	}
+	if err != nil {
 		return nil, errInternal("build payment payload failed")
 	}
 
@@ -364,6 +412,21 @@ func (h *Handler) resolvePaymentFromClientResult(c *gin.Context, payment db.Paym
 		default:
 			return payment, nil
 		}
+	case "WECHAT", "REAL":
+		if payment.Channel != paymentChannelWechat || h.Wechat == nil {
+			return payment, nil
+		}
+		resolution, err := h.Wechat.Query(c.Request.Context(), payment.OrderID.String())
+		if err != nil {
+			return payment, errInternal(fmt.Sprintf("query wechat payment failed: %v", err))
+		}
+		if resolution.AmountFen != 0 && resolution.AmountFen != payment.AmountFen {
+			return payment, errBadRequest("wechat payment amount mismatch")
+		}
+		if resolution.Status == paymentStatusPending {
+			return payment, nil
+		}
+		return h.applyPaymentResolution(c, payment, resolution.Status, normalizeOptionalString(&resolution.ProviderTradeNo), normalizeOptionalString(&resolution.Reason))
 	default:
 		return payment, nil
 	}
@@ -372,6 +435,9 @@ func (h *Handler) resolvePaymentFromClientResult(c *gin.Context, payment db.Paym
 func (h *Handler) applyPaymentResolution(c *gin.Context, payment db.Payment, status string, providerTradeNo *string, reason *string) (db.Payment, error) {
 	normalizedStatus := strings.ToUpper(strings.TrimSpace(status))
 	if payment.Status == normalizedStatus {
+		return payment, nil
+	}
+	if payment.Status == paymentStatusPaid {
 		return payment, nil
 	}
 
@@ -429,11 +495,6 @@ func (h *Handler) applyPaymentResolution(c *gin.Context, payment db.Payment, sta
 	}
 
 	actor := "system"
-	if c != nil {
-		if claims, ok := h.requireUser(c); ok && claims.UserID != uuid.Nil {
-			actor = claims.UserID.String()
-		}
-	}
 	if err := h.recordAudit(c.Request.Context(), updated.ID, "status_updated", actor, "payment status -> "+updated.Status); err != nil {
 		h.logError("create payment audit log failed", err)
 	}
@@ -497,12 +558,6 @@ func createResponseFromPayment(payment db.Payment) (interface{}, error) {
 			return nil, errInternal("decode wechat payment payload failed")
 		}
 		return response, nil
-	case paymentChannelWechatB2B:
-		var response oapi.WechatB2BPayCreateResponse
-		if err := json.Unmarshal(payment.ProviderPayload, &response); err != nil {
-			return nil, errInternal("decode wechat b2b payment payload failed")
-		}
-		return response, nil
 	case paymentChannelAlipay:
 		var response oapi.AlipayPayCreateResponse
 		if err := json.Unmarshal(payment.ProviderPayload, &response); err != nil {
@@ -519,9 +574,6 @@ func hydrateCreateResponseIDs(paymentID uuid.UUID, payload interface{}) interfac
 	case oapi.WechatPayCreateResponse:
 		response.PaymentId = paymentID
 		return response
-	case oapi.WechatB2BPayCreateResponse:
-		response.PaymentId = paymentID
-		return response
 	case oapi.AlipayPayCreateResponse:
 		response.PaymentId = paymentID
 		return response
@@ -530,7 +582,7 @@ func hydrateCreateResponseIDs(paymentID uuid.UUID, payload interface{}) interfac
 	}
 }
 
-func (h *Handler) buildProviderPayload(ctx context.Context, channel string, orderID uuid.UUID, amountFen int64, now time.Time, expiresAt time.Time) (interface{}, *string, *string, json.RawMessage, error) {
+func buildProviderPayload(channel string, orderID uuid.UUID, now time.Time, expiresAt time.Time) (interface{}, *string, *string, json.RawMessage, error) {
 	switch channel {
 	case paymentChannelWechat:
 		prepayID := "prepay_" + uuid.NewString()
@@ -550,21 +602,6 @@ func (h *Handler) buildProviderPayload(ctx context.Context, channel string, orde
 		raw, err := json.Marshal(response)
 		prepayValue := prepayID
 		return response, nil, &prepayValue, raw, err
-	case paymentChannelWechatB2B:
-		if h.WechatB2BProvider == nil {
-			return nil, nil, nil, nil, fmt.Errorf("wechat b2b provider is not configured")
-		}
-		loginCode, _ := ctx.Value(wechatB2BLoginCodeContextKey{}).(string)
-		params, err := h.WechatB2BProvider.CreateCommonPayParams(ctx, WechatB2BPaymentRequest{OrderID: orderID, AmountFen: amountFen, ExpiresAt: expiresAt, LoginCode: loginCode})
-		if err != nil {
-			return nil, nil, nil, nil, fmt.Errorf("create wechat b2b parameters: %w", err)
-		}
-		if len(params) == 0 {
-			return nil, nil, nil, nil, fmt.Errorf("wechat b2b provider returned empty payment parameters")
-		}
-		response := oapi.WechatB2BPayCreateResponse{OrderId: orderID, Channel: oapi.WECHATB2B, Status: oapi.PaymentStatus(paymentStatusPending), ExpiresAt: expiresAt, CommonPayParams: params}
-		raw, err := json.Marshal(response)
-		return response, nil, nil, raw, err
 	case paymentChannelAlipay:
 		tradeNo := "trade_" + uuid.NewString()
 		response := oapi.AlipayPayCreateResponse{

@@ -8,7 +8,7 @@
 - `commerce` 仅接收 `payment` 的内部支付状态回写，并在订单列表/详情里展示支付摘要。
 - admin-web 直接调用 `payment` 服务查询交易、审计日志和 webhook，并执行 webhook replay。
 
-当前仓库已经完成了支付调用闭环、状态回写和后台查看能力，但正式微信/支付宝 provider 仍需按本文档配置商户资料、证书、密钥与公网回调地址后接入。`PAYMENT_PROVIDER_MODE=mock` 只用于本地开发，不代表已经连通真实资金链路。
+当前仓库已经完成支付调用闭环、状态回写和后台查看能力，并提供基于微信支付官方 Go SDK 的微信 JSAPI provider。启用真实微信链路仍需配置商户资料、证书、密钥与公网回调地址。支付宝正式 provider 尚未实现；`PAYMENT_PROVIDER_MODE=mock` 只用于本地开发，不代表已经连通真实资金链路。
 
 ## 总体接入要求
 
@@ -238,9 +238,9 @@
 | `VITE_ADMIN_WEB_PAYMENT_API_BASE_URL` | admin-web 调用 payment 服务的基础地址 |
 | `ADMIN_WEB_PAYMENT_PROXY_TARGET` | Vite dev proxy 的 payment 目标地址 |
 
-### 建议新增的真实商户配置
+### 真实商户配置
 
-这些变量用于正式 provider 接入，当前仓库尚未全部在代码中消费，但建议提前统一命名并纳入部署系统：
+微信变量已由 payment 服务消费；支付宝变量仍是后续 provider 的预留命名：
 
 | 变量 | 说明 |
 | --- | --- |
@@ -249,7 +249,6 @@
 | `PAYMENT_WECHAT_API_V3_KEY` | 微信 APIv3 Key |
 | `PAYMENT_WECHAT_MERCHANT_PRIVATE_KEY_PATH` | 微信商户私钥路径 |
 | `PAYMENT_WECHAT_MERCHANT_SERIAL_NUMBER` | 微信商户证书序列号 |
-| `PAYMENT_WECHAT_PLATFORM_CERTS_DIR` | 微信支付平台证书缓存目录 |
 | `PAYMENT_WECHAT_NOTIFY_URL` | 微信支付异步通知地址 |
 | `PAYMENT_ALIPAY_APP_ID` | 支付宝应用 `appId` |
 | `PAYMENT_ALIPAY_PRIVATE_KEY_PATH` | 支付宝应用私钥路径 |
@@ -294,9 +293,10 @@
 
 1. 在微信/支付宝平台完成商户、应用、小程序与支付能力开通。
 2. 配置正式商户密钥、证书、回调地址和网关地址。
-3. 实现或启用正式 provider，替换 `mock` provider。
-4. 在测试环境完成一次微信小程序真实支付联调。
-5. 在测试环境完成一次支付宝小程序真实支付联调。
+3. 设置 `PAYMENT_PROVIDER_MODE=wechat` 并配置全部 `PAYMENT_WECHAT_*` 变量。
+4. 设置 `PAYMENT_AUTH_ENABLED=true`，并确保 payment 与 identity 的 JWT secret/issuer 一致。
+5. 让用户重新登录，使 JWT 携带其微信 `openid`，再完成一次微信小程序真实支付联调。
+6. 支付宝需先实现正式 provider，再开展支付宝真实联调。
 6. 断开回调链路，验证 `recheck` 是否能把订单状态收敛。
 7. 在 admin-web 验证交易详情、审计日志、webhook 与 replay。
 
