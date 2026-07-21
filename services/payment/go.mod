@@ -9,6 +9,7 @@ require (
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/oapi-codegen/runtime v1.4.2
 	github.com/teamdsb/tmo/packages/go-shared v0.0.0
+	github.com/wechatpay-apiv3/wechatpay-go v0.2.21
 )
 
 require (

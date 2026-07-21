@@ -25,6 +25,7 @@ import { createRequester } from './requester'
 import { createTokenStore, type TokenStore } from './token'
 
 export type PaymentChannel = 'wechat' | 'alipay'
+export type PaymentClientResult = 'SUCCESS' | 'FAILED' | 'CANCELLED'
 
 export interface PaymentSession {
   id: string
@@ -55,7 +56,7 @@ export interface PaymentServices {
   sessions: {
     createForOrder: (orderId: string, options?: { channel?: PaymentChannel; idempotencyKey?: string }) => Promise<PaymentSession>
     get: (paymentId: string) => Promise<PaymentSession>
-    recheck: (paymentId: string) => Promise<PaymentSession>
+    recheck: (paymentId: string, options?: { clientResult?: PaymentClientResult; reason?: string }) => Promise<PaymentSession>
     payForOrder: (orderId: string, options?: { channel?: PaymentChannel; idempotencyKey?: string }) => Promise<PaymentSession>
   }
   tokens: TokenStore
@@ -242,8 +243,8 @@ export const createPaymentServices = (config: PaymentServicesConfig = {}): Payme
         const response = await getPaymentsPaymentId(paymentId)
         return normalizePaymentSession(unwrapPaymentResponse<PaymentDetail>(response))
       },
-      recheck: async (paymentId: string): Promise<PaymentSession> => {
-        const response = await postPaymentsPaymentIdRecheck(paymentId)
+      recheck: async (paymentId: string, options?: { clientResult?: PaymentClientResult; reason?: string }): Promise<PaymentSession> => {
+        const response = await postPaymentsPaymentIdRecheck(paymentId, options)
         return normalizePaymentSession(unwrapPaymentResponse<PaymentDetail>(response))
       },
       payForOrder: async (orderId: string, options?: { channel?: PaymentChannel; idempotencyKey?: string }): Promise<PaymentSession> => {
@@ -253,13 +254,22 @@ export const createPaymentServices = (config: PaymentServicesConfig = {}): Payme
             payload: toPlatformPayload(session)
           })
         } catch (error) {
-          if (isCancelError(error)) {
+          const cancelled = isCancelError(error)
+          try {
+            await postPaymentsPaymentIdRecheck(session.id, {
+              clientResult: cancelled ? 'CANCELLED' : 'FAILED',
+              reason: error instanceof Error ? error.message : undefined
+            })
+          } catch {
+            // Preserve the platform result; users can retry authoritative recheck from order detail.
+          }
+          if (cancelled) {
             throw new PaymentCancelledError('payment cancelled', error)
           }
           throw error
         }
 
-        return postPaymentsPaymentIdRecheck(session.id).then((response) =>
+        return postPaymentsPaymentIdRecheck(session.id, { clientResult: 'SUCCESS' }).then((response) =>
           normalizePaymentSession(unwrapPaymentResponse<PaymentDetail>(response))
         )
       }

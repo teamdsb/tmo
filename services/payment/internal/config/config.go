@@ -25,39 +25,51 @@ const (
 )
 
 type Config struct {
-	HTTPAddr            string
-	LogLevel            string
-	AuthEnabled         bool
-	DBDSN               string
-	JWTSecret           string
-	JWTIssuer           string
-	IdentityBaseURL     string
-	CommerceBaseURL     string
-	CommerceSyncToken   string
-	ProviderMode        string
-	MigrationsDir       string
-	FeatureFlagsTimeout time.Duration
-	PaymentEnabled      bool
-	WechatPayEnabled    bool
-	AlipayPayEnabled    bool
+	HTTPAddr                     string
+	LogLevel                     string
+	AuthEnabled                  bool
+	DBDSN                        string
+	JWTSecret                    string
+	JWTIssuer                    string
+	IdentityBaseURL              string
+	CommerceBaseURL              string
+	CommerceSyncToken            string
+	ProviderMode                 string
+	MigrationsDir                string
+	FeatureFlagsTimeout          time.Duration
+	PaymentEnabled               bool
+	WechatPayEnabled             bool
+	AlipayPayEnabled             bool
+	WechatAppID                  string
+	WechatMchID                  string
+	WechatAPIv3Key               string
+	WechatMerchantPrivateKeyPath string
+	WechatMerchantSerialNumber   string
+	WechatNotifyURL              string
 }
 
 func Load() Config {
 	return Config{
-		HTTPAddr:            sharedconfig.String("PAYMENT_HTTP_ADDR", defaultHTTPAddr),
-		LogLevel:            sharedconfig.String("PAYMENT_LOG_LEVEL", defaultLogLevel),
-		AuthEnabled:         sharedconfig.Bool("PAYMENT_AUTH_ENABLED", defaultAuthEnabled),
-		DBDSN:               sharedconfig.String("PAYMENT_DB_DSN", defaultDBDSN),
-		JWTSecret:           sharedconfig.String("PAYMENT_JWT_SECRET", defaultJWTSecret),
-		JWTIssuer:           sharedconfig.String("PAYMENT_JWT_ISSUER", defaultJWTIssuer),
-		IdentityBaseURL:     sharedconfig.String("PAYMENT_IDENTITY_BASE_URL", defaultIdentityBaseURL),
-		CommerceBaseURL:     sharedconfig.String("PAYMENT_COMMERCE_BASE_URL", defaultCommerceBaseURL),
-		CommerceSyncToken:   sharedconfig.String("PAYMENT_COMMERCE_SYNC_TOKEN", defaultCommerceSyncToken),
-		ProviderMode:        sharedconfig.String("PAYMENT_PROVIDER_MODE", defaultProviderMode),
-		MigrationsDir:       sharedconfig.String("PAYMENT_MIGRATIONS_DIR", filepath.Join("migrations")),
-		FeatureFlagsTimeout: sharedconfig.Duration("PAYMENT_FEATURE_FLAGS_TIMEOUT", defaultFeatureFlagsTimeout),
-		PaymentEnabled:      sharedconfig.Bool("PAYMENT_ENABLED", defaultPaymentEnabled),
-		WechatPayEnabled:    sharedconfig.Bool("PAYMENT_WECHAT_PAY_ENABLED", defaultWechatPayEnabled),
-		AlipayPayEnabled:    sharedconfig.Bool("PAYMENT_ALIPAY_PAY_ENABLED", defaultAlipayPayEnabled),
+		HTTPAddr:                     sharedconfig.String("PAYMENT_HTTP_ADDR", defaultHTTPAddr),
+		LogLevel:                     sharedconfig.String("PAYMENT_LOG_LEVEL", defaultLogLevel),
+		AuthEnabled:                  sharedconfig.Bool("PAYMENT_AUTH_ENABLED", defaultAuthEnabled),
+		DBDSN:                        sharedconfig.String("PAYMENT_DB_DSN", defaultDBDSN),
+		JWTSecret:                    sharedconfig.String("PAYMENT_JWT_SECRET", defaultJWTSecret),
+		JWTIssuer:                    sharedconfig.String("PAYMENT_JWT_ISSUER", defaultJWTIssuer),
+		IdentityBaseURL:              sharedconfig.String("PAYMENT_IDENTITY_BASE_URL", defaultIdentityBaseURL),
+		CommerceBaseURL:              sharedconfig.String("PAYMENT_COMMERCE_BASE_URL", defaultCommerceBaseURL),
+		CommerceSyncToken:            sharedconfig.String("PAYMENT_COMMERCE_SYNC_TOKEN", defaultCommerceSyncToken),
+		ProviderMode:                 sharedconfig.String("PAYMENT_PROVIDER_MODE", defaultProviderMode),
+		MigrationsDir:                sharedconfig.String("PAYMENT_MIGRATIONS_DIR", filepath.Join("migrations")),
+		FeatureFlagsTimeout:          sharedconfig.Duration("PAYMENT_FEATURE_FLAGS_TIMEOUT", defaultFeatureFlagsTimeout),
+		PaymentEnabled:               sharedconfig.Bool("PAYMENT_ENABLED", defaultPaymentEnabled),
+		WechatPayEnabled:             sharedconfig.Bool("PAYMENT_WECHAT_PAY_ENABLED", defaultWechatPayEnabled),
+		AlipayPayEnabled:             sharedconfig.Bool("PAYMENT_ALIPAY_PAY_ENABLED", defaultAlipayPayEnabled),
+		WechatAppID:                  sharedconfig.String("PAYMENT_WECHAT_APP_ID", ""),
+		WechatMchID:                  sharedconfig.String("PAYMENT_WECHAT_MCH_ID", ""),
+		WechatAPIv3Key:               sharedconfig.String("PAYMENT_WECHAT_API_V3_KEY", ""),
+		WechatMerchantPrivateKeyPath: sharedconfig.String("PAYMENT_WECHAT_MERCHANT_PRIVATE_KEY_PATH", ""),
+		WechatMerchantSerialNumber:   sharedconfig.String("PAYMENT_WECHAT_MERCHANT_SERIAL_NUMBER", ""),
+		WechatNotifyURL:              sharedconfig.String("PAYMENT_WECHAT_NOTIFY_URL", ""),
 	}
 }

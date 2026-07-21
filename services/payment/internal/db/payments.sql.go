@@ -273,6 +273,44 @@ func (q *Queries) CreatePaymentWebhook(ctx context.Context, arg CreatePaymentWeb
 	return i, err
 }
 
+const getLatestPaymentByOrderChannel = `-- name: GetLatestPaymentByOrderChannel :one
+SELECT id, order_id, payer_user_id, channel, status, amount_fen, currency, idempotency_key, provider_trade_no, provider_prepay_id, provider_payload, failure_code, failure_message, paid_at, closed_at, created_at, updated_at
+FROM payments
+WHERE order_id = $1 AND channel = $2
+ORDER BY created_at DESC
+LIMIT 1
+`
+
+type GetLatestPaymentByOrderChannelParams struct {
+	OrderID uuid.UUID `db:"order_id" json:"order_id"`
+	Channel string    `db:"channel" json:"channel"`
+}
+
+func (q *Queries) GetLatestPaymentByOrderChannel(ctx context.Context, arg GetLatestPaymentByOrderChannelParams) (Payment, error) {
+	row := q.db.QueryRow(ctx, getLatestPaymentByOrderChannel, arg.OrderID, arg.Channel)
+	var i Payment
+	err := row.Scan(
+		&i.ID,
+		&i.OrderID,
+		&i.PayerUserID,
+		&i.Channel,
+		&i.Status,
+		&i.AmountFen,
+		&i.Currency,
+		&i.IdempotencyKey,
+		&i.ProviderTradeNo,
+		&i.ProviderPrepayID,
+		&i.ProviderPayload,
+		&i.FailureCode,
+		&i.FailureMessage,
+		&i.PaidAt,
+		&i.ClosedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getPayment = `-- name: GetPayment :one
 SELECT id, order_id, payer_user_id, channel, status, amount_fen, currency, idempotency_key, provider_trade_no, provider_prepay_id, provider_payload, failure_code, failure_message, paid_at, closed_at, created_at, updated_at
 FROM payments

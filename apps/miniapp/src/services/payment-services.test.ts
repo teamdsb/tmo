@@ -18,7 +18,7 @@ jest.mock('@tmo/payment-api-client', () => ({
   postPaymentsWechatCreate: (payload: unknown, options?: unknown) => mockPostPaymentsWechatCreate(payload, options),
   postPaymentsAlipayCreate: (payload: unknown, options?: unknown) => mockPostPaymentsAlipayCreate(payload, options),
   getPaymentsPaymentId: (paymentId: string) => mockGetPaymentsPaymentId(paymentId),
-  postPaymentsPaymentIdRecheck: (paymentId: string) => mockPostPaymentsPaymentIdRecheck(paymentId)
+  postPaymentsPaymentIdRecheck: (paymentId: string, body?: unknown) => mockPostPaymentsPaymentIdRecheck(paymentId, body)
 }))
 
 jest.mock('@tmo/platform-adapter', () => ({
@@ -152,6 +152,13 @@ describe('payment-services', () => {
       }
     })
     mockPay.mockRejectedValue({ resultCode: '6001', message: 'cancel' })
+    mockPostPaymentsPaymentIdRecheck.mockResolvedValue({
+      status: 200,
+      data: {
+        id: 'pay-4', orderId: 'order-4', channel: 'WECHAT', status: 'CANCELLED',
+        amountFen: 100, currency: 'CNY', createdAt: '2026-03-06T10:00:00Z', updatedAt: '2026-03-06T10:01:00Z'
+      }
+    })
 
     const services = createPaymentServices({
       baseUrl: 'https://payment.example.com',
@@ -159,6 +166,53 @@ describe('payment-services', () => {
     })
 
     await expect(services.sessions.payForOrder('order-4')).rejects.toBeInstanceOf(PaymentCancelledError)
+    expect(mockPostPaymentsPaymentIdRecheck).toHaveBeenCalledWith('pay-4', expect.objectContaining({
+      clientResult: 'CANCELLED'
+    }))
+  })
+
+  it('reports client success before returning the authoritative recheck result', async () => {
+    mockPostPaymentsWechatCreate.mockResolvedValue({
+      status: 200,
+      data: {
+        paymentId: 'pay-success', orderId: 'order-success', channel: 'WECHAT', status: 'PAY_PENDING',
+        expiresAt: '2026-03-06T10:15:00Z', prepayId: 'prepay-success', package: 'prepay_id=prepay-success',
+        nonceStr: 'nonce-success', timeStamp: '1234567890', signType: 'RSA', paySign: 'sign-success'
+      }
+    })
+    mockPostPaymentsPaymentIdRecheck.mockResolvedValue({
+      status: 200,
+      data: {
+        id: 'pay-success', orderId: 'order-success', channel: 'WECHAT', status: 'PAID',
+        amountFen: 100, currency: 'CNY', createdAt: '2026-03-06T10:00:00Z', updatedAt: '2026-03-06T10:01:00Z'
+      }
+    })
+
+    const services = createPaymentServices({ baseUrl: 'https://payment.example.com', requester: jest.fn() })
+    await expect(services.sessions.payForOrder('order-success')).resolves.toEqual(expect.objectContaining({ status: 'PAID' }))
+    expect(mockPostPaymentsPaymentIdRecheck).toHaveBeenCalledWith('pay-success', expect.objectContaining({
+      clientResult: 'SUCCESS'
+    }))
+  })
+
+  it('reports client failure before rethrowing the platform error', async () => {
+    mockPostPaymentsWechatCreate.mockResolvedValue({
+      status: 200,
+      data: {
+        paymentId: 'pay-failed', orderId: 'order-failed', channel: 'WECHAT', status: 'PAY_PENDING',
+        expiresAt: '2026-03-06T10:15:00Z', prepayId: 'prepay-failed', package: 'prepay_id=prepay-failed',
+        nonceStr: 'nonce-failed', timeStamp: '1234567890', signType: 'RSA', paySign: 'sign-failed'
+      }
+    })
+    mockPay.mockRejectedValue(new Error('requestPayment:fail system error'))
+    mockPostPaymentsPaymentIdRecheck.mockResolvedValue({ status: 200, data: {} })
+
+    const services = createPaymentServices({ baseUrl: 'https://payment.example.com', requester: jest.fn() })
+    await expect(services.sessions.payForOrder('order-failed')).rejects.toThrow('system error')
+    expect(mockPostPaymentsPaymentIdRecheck).toHaveBeenCalledWith('pay-failed', expect.objectContaining({
+      clientResult: 'FAILED',
+      reason: 'requestPayment:fail system error'
+    }))
   })
 
   it('normalizes payment detail on get and recheck', async () => {

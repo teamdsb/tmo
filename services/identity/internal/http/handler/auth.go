@@ -16,6 +16,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	shareddb "github.com/teamdsb/tmo/packages/go-shared/db"
+	"github.com/teamdsb/tmo/services/identity/internal/auth"
 	"github.com/teamdsb/tmo/services/identity/internal/db"
 	"github.com/teamdsb/tmo/services/identity/internal/http/oapi"
 	"github.com/teamdsb/tmo/services/identity/internal/platform"
@@ -160,7 +161,10 @@ func (h *Handler) PostAuthMiniLogin(c *gin.Context) {
 		ownerSalesUserID = &owner
 	}
 
-	token, expiresAt, err := h.Auth.Issue(user.ID, selectedRole, roles, string(userType), ownerSalesUserID, user.DisplayName, user.Phone)
+	token, expiresAt, err := h.Auth.Issue(
+		user.ID, selectedRole, roles, string(userType), ownerSalesUserID, user.DisplayName, user.Phone,
+		auth.WithPlatformIdentity(platformName, identity.ProviderUserID),
+	)
 	if err != nil {
 		h.logError("issue token failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "login failed")

@@ -44,6 +44,13 @@ WHERE order_id = $1
   AND channel = $2
   AND idempotency_key = $3;
 
+-- name: GetLatestPaymentByOrderChannel :one
+SELECT *
+FROM payments
+WHERE order_id = $1 AND channel = $2
+ORDER BY created_at DESC
+LIMIT 1;
+
 -- name: UpdatePaymentState :one
 UPDATE payments
 SET status = $2,

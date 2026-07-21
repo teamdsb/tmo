@@ -19,6 +19,7 @@ import (
 	httpserver "github.com/teamdsb/tmo/services/payment/internal/http"
 	"github.com/teamdsb/tmo/services/payment/internal/http/handler"
 	"github.com/teamdsb/tmo/services/payment/internal/http/middleware"
+	"github.com/teamdsb/tmo/services/payment/internal/provider"
 )
 
 func main() {
@@ -85,6 +86,21 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		AlipayPayEnabled: cfg.AlipayPayEnabled,
 	}, logger)
 
+	var wechatProvider provider.Wechat
+	if strings.EqualFold(strings.TrimSpace(cfg.ProviderMode), "wechat") || strings.EqualFold(strings.TrimSpace(cfg.ProviderMode), "real") {
+		if !cfg.AuthEnabled {
+			return fmt.Errorf("PAYMENT_AUTH_ENABLED must be true for the wechat provider")
+		}
+		wechatProvider, err = provider.NewWechat(ctx, provider.WechatConfig{
+			AppID: cfg.WechatAppID, MchID: cfg.WechatMchID, APIv3Key: cfg.WechatAPIv3Key,
+			MerchantPrivateKeyPath: cfg.WechatMerchantPrivateKeyPath,
+			MerchantSerialNumber:   cfg.WechatMerchantSerialNumber, NotifyURL: cfg.WechatNotifyURL,
+		})
+		if err != nil {
+			return fmt.Errorf("initialize wechat provider: %w", err)
+		}
+	}
+
 	apiHandler := &handler.Handler{
 		Logger:       logger,
 		Auth:         auth,
@@ -92,6 +108,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		Store:        db.New(pool),
 		Commerce:     handler.NewCommerceClient(cfg.CommerceBaseURL, cfg.CommerceSyncToken),
 		ProviderMode: cfg.ProviderMode,
+		Wechat:       wechatProvider,
 	}
 
 	router := httpserver.NewRouter(apiHandler, logger, func(checkCtx context.Context) error {

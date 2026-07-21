@@ -25,6 +25,21 @@ type Claims struct {
 	DisplayName      *string
 	Phone            *string
 	ExpiresAt        time.Time
+	IdentityProvider string
+	ProviderUserID   string
+}
+
+type IssueOption func(jwt.MapClaims)
+
+func WithPlatformIdentity(provider, providerUserID string) IssueOption {
+	return func(claims jwt.MapClaims) {
+		if provider = strings.TrimSpace(provider); provider != "" {
+			claims["identityProvider"] = provider
+		}
+		if providerUserID = strings.TrimSpace(providerUserID); providerUserID != "" {
+			claims["providerUserId"] = providerUserID
+		}
+	}
 }
 
 type TokenManager struct {
@@ -41,7 +56,7 @@ func NewTokenManager(secret, issuer string, ttl time.Duration) *TokenManager {
 	}
 }
 
-func (m *TokenManager) Issue(userID uuid.UUID, role string, roles []string, userType string, ownerSalesUserID *uuid.UUID, displayName *string, phone *string) (string, time.Time, error) {
+func (m *TokenManager) Issue(userID uuid.UUID, role string, roles []string, userType string, ownerSalesUserID *uuid.UUID, displayName *string, phone *string, options ...IssueOption) (string, time.Time, error) {
 	now := time.Now()
 	expiresAt := now.Add(m.ttl)
 
@@ -68,6 +83,9 @@ func (m *TokenManager) Issue(userID uuid.UUID, role string, roles []string, user
 	}
 	if phone != nil && strings.TrimSpace(*phone) != "" {
 		claims["phone"] = strings.TrimSpace(*phone)
+	}
+	for _, option := range options {
+		option(claims)
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -166,6 +184,8 @@ func (m *TokenManager) Parse(raw string) (Claims, error) {
 			claims.Phone = &phone
 		}
 	}
+	claims.IdentityProvider, _ = mapClaims["identityProvider"].(string)
+	claims.ProviderUserID, _ = mapClaims["providerUserId"].(string)
 
 	if expRaw, ok := mapClaims["exp"].(float64); ok {
 		claims.ExpiresAt = time.Unix(int64(expRaw), 0)

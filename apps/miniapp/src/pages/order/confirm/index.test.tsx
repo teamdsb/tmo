@@ -6,6 +6,7 @@ import OrderConfirmPage from './index'
 import { commerceServices } from '../../../services/commerce'
 import { listUserAddresses } from '../../../services/addresses'
 import { paymentServices, isPaymentCancelled } from '../../../services/payment'
+import { resolvePaymentAvailability } from '../../../services/payment-availability'
 import { ensureLoggedIn } from '../../../utils/auth'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
 
@@ -22,6 +23,11 @@ jest.mock('../../../services/payment', () => ({
     }
   },
   isPaymentCancelled: jest.fn()
+}))
+
+jest.mock('../../../services/payment-availability', () => ({
+  resolvePaymentAvailability: jest.fn(),
+  buildOrderPaymentIdempotencyKey: (orderId: string) => `order-payment-${orderId}`
 }))
 
 jest.mock('../../../utils/auth', () => ({
@@ -69,6 +75,7 @@ describe('OrderConfirmPage', () => {
     jest.clearAllMocks()
     ;(useDidShow as jest.Mock).mockImplementation(() => {})
     ;(ensureLoggedIn as jest.Mock).mockResolvedValue(true)
+    ;(resolvePaymentAvailability as jest.Mock).mockResolvedValue({ available: true, channel: 'wechat', unavailableMessage: '' })
     ;(listUserAddresses as jest.Mock).mockResolvedValue([defaultAddress])
     ;(commerceServices.cart.getCart as jest.Mock).mockResolvedValue(defaultCart)
     ;(commerceServices.catalog.getProductDetail as jest.Mock).mockResolvedValue({
@@ -225,7 +232,10 @@ describe('OrderConfirmPage', () => {
         })
       ]
     }))
-    expect(paymentServices.sessions.payForOrder).toHaveBeenCalledWith('order-1001')
+    expect(paymentServices.sessions.payForOrder).toHaveBeenCalledWith('order-1001', {
+      channel: 'wechat',
+      idempotencyKey: 'order-payment-order-1001'
+    })
     expect(commerceServices.orders.resetIdempotency).toHaveBeenCalled()
     expect(Taro.showToast).toHaveBeenCalledWith({ title: '支付成功', icon: 'success' })
     expect(switchTabLike).toHaveBeenCalledWith('/pages/cart/index')

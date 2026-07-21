@@ -9,6 +9,7 @@ import (
 
 	"github.com/teamdsb/tmo/services/payment/internal/db"
 	"github.com/teamdsb/tmo/services/payment/internal/http/middleware"
+	"github.com/teamdsb/tmo/services/payment/internal/provider"
 )
 
 type Handler struct {
@@ -18,6 +19,7 @@ type Handler struct {
 	Store        PaymentStore
 	Commerce     *CommerceClient
 	ProviderMode string
+	Wechat       provider.Wechat
 }
 
 type PaymentStore interface {

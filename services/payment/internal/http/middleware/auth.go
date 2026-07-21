@@ -13,8 +13,10 @@ import (
 )
 
 type Claims struct {
-	UserID uuid.UUID
-	Role   string
+	UserID           uuid.UUID
+	Role             string
+	IdentityProvider string
+	ProviderUserID   string
 }
 
 type Authenticator struct {
@@ -87,7 +89,9 @@ func (a *Authenticator) parseClaims(c *gin.Context) (Claims, bool) {
 		return Claims{}, false
 	}
 	role, _ := mapClaims["role"].(string)
-	return Claims{UserID: userID, Role: role}, true
+	identityProvider, _ := mapClaims["identityProvider"].(string)
+	providerUserID, _ := mapClaims["providerUserId"].(string)
+	return Claims{UserID: userID, Role: role, IdentityProvider: identityProvider, ProviderUserID: providerUserID}, true
 }
 
 func writeError(c *gin.Context, status int, code, message string) {

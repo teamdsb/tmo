@@ -75,8 +75,8 @@ function buildModeEnv(mode, extraEnv = {}) {
   const fileEnv = parseEnvFile(path.join(miniappDir, config.envFile))
 
   return {
-    ...process.env,
     ...fileEnv,
+    ...process.env,
     ...extraEnv,
     NODE_ENV: config.nodeEnv,
     TMO_WEAPP_BUILD_MODE: config.verifyMode,

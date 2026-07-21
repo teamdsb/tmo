@@ -1,3 +1,4 @@
+/* eslint-disable import/no-commonjs */
 const miniappMode = require('../../scripts/miniapp-mode')
 
 describe('miniapp mode env loading', () => {
@@ -27,5 +28,13 @@ describe('miniapp mode env loading', () => {
 
     expect(env.TARO_APP_ID).toBe('wx8e8831fc456f019b')
     expect(process.env.TARO_APP_ID).toBe('wx8e8831fc456f019b')
+  })
+
+  it('lets explicit process env override the mode env file for e2e runs', () => {
+    process.env.TARO_APP_WEAPP_PHONE_PROOF_SIMULATION = 'true'
+
+    const env = miniappMode.buildModeEnv('dev')
+
+    expect(env.TARO_APP_WEAPP_PHONE_PROOF_SIMULATION).toBe('true')
   })
 })

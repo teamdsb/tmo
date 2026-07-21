@@ -5,6 +5,7 @@ import { removeStorage } from '@tmo/platform-adapter'
 import OrderDetailPage from './index'
 import { commerceServices } from '../../../services/commerce'
 import { paymentServices } from '../../../services/payment'
+import { resolvePaymentAvailability } from '../../../services/payment-availability'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
 
 jest.mock('../../../services/payment', () => ({
@@ -15,6 +16,11 @@ jest.mock('../../../services/payment', () => ({
     }
   },
   isPaymentCancelled: jest.fn(() => false)
+}))
+
+jest.mock('../../../services/payment-availability', () => ({
+  resolvePaymentAvailability: jest.fn(),
+  buildOrderPaymentIdempotencyKey: (orderId: string) => `order-payment-${orderId}`
 }))
 
 jest.mock('../../../utils/navigation', () => ({
@@ -58,6 +64,7 @@ const buildOrder = (overrides: Record<string, unknown> = {}) => ({
 describe('OrderDetailPage', () => {
   beforeEach(async () => {
     jest.clearAllMocks()
+    ;(resolvePaymentAvailability as jest.Mock).mockResolvedValue({ available: true, channel: 'wechat', unavailableMessage: '' })
     setRouterParams({ id: 'order-2001' })
     await removeStorage('tmo:payment:dev-overrides')
   })

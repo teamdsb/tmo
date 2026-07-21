@@ -15,6 +15,7 @@ import { ensureLoggedIn } from '../../../utils/auth'
 import { commerceServices } from '../../../services/commerce'
 import { clearSelectedUserAddressId, getSelectedUserAddressId, listUserAddresses } from '../../../services/addresses'
 import { isPaymentCancelled, paymentServices } from '../../../services/payment'
+import { buildOrderPaymentIdempotencyKey, resolvePaymentAvailability } from '../../../services/payment-availability'
 import './index.scss'
 
 export default function OrderConfirmPage() {
@@ -191,9 +192,16 @@ export default function OrderConfirmPage() {
       let toastTitle = '订单已提交'
       let toastIcon: 'success' | 'none' = 'success'
       let paymentConfirmed = false
+      const paymentAvailability = await resolvePaymentAvailability()
 
-      try {
-        const payment = await paymentServices.sessions.payForOrder(order.id)
+      if (!paymentAvailability.available) {
+        toastTitle = '订单已提交，待销售确认'
+        toastIcon = 'none'
+      } else try {
+        const payment = await paymentServices.sessions.payForOrder(order.id, {
+          channel: paymentAvailability.channel,
+          idempotencyKey: buildOrderPaymentIdempotencyKey(order.id)
+        })
         const paymentStatus = String(payment.status || '').toUpperCase()
         if (paymentStatus === 'PAID') {
           toastTitle = '支付成功'
