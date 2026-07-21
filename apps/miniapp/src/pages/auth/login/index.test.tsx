@@ -89,7 +89,7 @@ const renderLoginPage = async (LoginPage: typeof import('./index').default) => {
 }
 
 const agreeToTerms = async () => {
-  const agreement = screen.getByText('隐私政策').closest('.login-agreement')
+  const agreement = document.querySelector('#login-agreement-toggle')
   if (!agreement) {
     throw new Error('agreement toggle not found')
   }
@@ -147,6 +147,47 @@ describe('LoginPage', () => {
       url: '/pages/policy/index?type=terms'
     })
     expect(document.querySelector('.login-checkbox')).not.toHaveClass('login-checkbox--checked')
+  })
+
+  it('shows a retry message when a policy page cannot be opened', async () => {
+    const { LoginPage, Taro: runtimeTaro } = loadLoginModule()
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+    asMock(runtimeTaro.navigateTo).mockRejectedValueOnce(new Error('navigation failed'))
+    await renderLoginPage(LoginPage)
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('隐私政策'))
+      await flushPromises()
+    })
+
+    expect(warn).toHaveBeenCalledWith('open login policy failed', expect.objectContaining({ type: 'privacy' }))
+    expect(runtimeTaro.showToast).toHaveBeenCalledWith({
+      title: '协议页面打开失败，请重试。',
+      icon: 'none'
+    })
+    warn.mockRestore()
+  })
+
+  it('renders independent policy touch targets and agreement toggle', async () => {
+    const { LoginPage } = loadLoginModule()
+    await renderLoginPage(LoginPage)
+
+    const toggle = document.querySelector('#login-agreement-toggle')
+    const privacyLink = document.querySelector('#login-policy-privacy')
+    const termsLink = document.querySelector('#login-policy-terms')
+
+    expect(toggle).toBeInTheDocument()
+    expect(privacyLink).toHaveTextContent('隐私政策')
+    expect(termsLink).toHaveTextContent('用户服务协议')
+    expect(privacyLink?.parentElement).not.toBe(toggle)
+    expect(termsLink?.parentElement).not.toBe(toggle)
+
+    await act(async () => {
+      fireEvent.click(toggle as Element)
+      await flushPromises()
+    })
+
+    expect(document.querySelector('.login-checkbox')).toHaveClass('login-checkbox--checked')
   })
 
   it('renders isolated mock role login actions', async () => {

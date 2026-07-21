@@ -388,6 +388,18 @@ export default function LoginPage() {
     }
   }
 
+  const handleOpenPolicy = async (type: 'privacy' | 'terms') => {
+    try {
+      await navigateTo(withQuery(ROUTES.policy, { type }))
+    } catch (error) {
+      console.warn('open login policy failed', { type, error })
+      await Taro.showToast({
+        title: '协议页面打开失败，请重试。',
+        icon: 'none'
+      })
+    }
+  }
+
   const handleMockRoleLogin = async (role: 'CUSTOMER' | 'SALES') => {
     await handleLoginFlow(async () => undefined, { role })
   }
@@ -527,29 +539,32 @@ export default function LoginPage() {
               </Button>
             </View>
 
-            <View
-              className='login-agreement'
-              onClick={() => setAgreed((prev) => !prev)}
-            >
-              <View className={`login-checkbox ${agreed ? 'login-checkbox--checked' : ''}`} />
-              <Text className='login-agreement-text'>
-                我已阅读并同意
-                <Text
+            <View className='login-agreement'>
+              <View
+                id='login-agreement-toggle'
+                className='login-agreement-toggle'
+                onClick={() => setAgreed((prev) => !prev)}
+              >
+                <View className={`login-checkbox ${agreed ? 'login-checkbox--checked' : ''}`} />
+                <Text className='login-agreement-prefix'>我已阅读并同意</Text>
+              </View>
+              <View className='login-agreement-policy-group'>
+                <View
+                  id='login-policy-privacy'
                   className='login-agreement-link'
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    void navigateTo(withQuery(ROUTES.policy, { type: 'privacy' }))
-                  }}
-                >隐私政策</Text>
-                与
-                <Text
+                  onClick={() => void handleOpenPolicy('privacy')}
+                >
+                  <Text>隐私政策</Text>
+                </View>
+                <Text className='login-agreement-separator'>与</Text>
+                <View
+                  id='login-policy-terms'
                   className='login-agreement-link'
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    void navigateTo(withQuery(ROUTES.policy, { type: 'terms' }))
-                  }}
-                >用户服务协议</Text>
-              </Text>
+                  onClick={() => void handleOpenPolicy('terms')}
+                >
+                  <Text>用户服务协议</Text>
+                </View>
+              </View>
             </View>
           </View>
 

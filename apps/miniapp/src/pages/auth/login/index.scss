@@ -362,18 +362,29 @@
 
 .login-agreement {
   margin-top: 28rpx;
-  padding: 8rpx 8rpx 0;
+  padding: 0 8rpx;
   display: flex;
-  align-items: flex-start;
-  gap: 14rpx;
+  align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
+}
+
+.login-agreement-toggle,
+.login-agreement-policy-group,
+.login-agreement-link {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+}
+
+.login-agreement-toggle {
+  gap: 14rpx;
 }
 
 .login-checkbox {
   flex: 0 0 32rpx;
   width: 32rpx;
   height: 32rpx;
-  margin-top: 4rpx;
   border-radius: 10rpx;
   border: 1px solid #cbd5e1;
   background: #fff;
@@ -397,14 +408,16 @@
   transform: rotate(45deg);
 }
 
-.login-agreement-text {
-  flex: 1;
+.login-agreement-prefix,
+.login-agreement-separator,
+.login-agreement-link {
   font-size: 20rpx;
   line-height: 1.7;
   color: #94a3b8;
 }
 
 .login-agreement-link {
+  padding: 0 8rpx;
   color: var(--login-blue);
   font-weight: 600;
 }
