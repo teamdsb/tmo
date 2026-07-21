@@ -1,102 +1,71 @@
-# Admin 线下收款与订单派发
+# 修复微信 B2B 支付拉起
 
-This ExecPlan is a living document. The sections `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective` must be kept current. It follows `docs/execplans/plans.md`.
+本 ExecPlan 是持续维护的文档，遵循 `docs/execplans/plans.md`。
 
 ## Purpose / Big Picture
 
-后台管理员目前只能查看待支付订单，现实中的线下到账无法进入系统，因此订单也不能归属给业务员继续履约。完成后，BOSS、MANAGER、ADMIN 可以选择一名仍在职且具有 SALES 角色的员工，填写不可为空的业务备注，并在一次原子操作中确认线下收款和派单。已在线支付的订单也能直接派单；发货前可以改派。每次成功操作有持久审计记录，重复点击不会重复写事件。CS、SALES、CUSTOMER 无权操作。
+微信小程序的 B2B 门店助手支付不再把普通微信支付的伪造 `prepay_id` 参数传给 `wx.requestPayment`。启用并完成门店认证的用户会走 `wx.requestCommonPayment`，而支付服务只接受由真实 B2B 商户提供方生成的不透明签名参数；未配置提供方时将返回可诊断的错误，不会创建看似可支付但无法拉起的订单。
 
 ## Progress
 
-- [x] (2026-07-06 22:45+08:00) 从最新 `origin/main` 创建隔离 worktree 与 `feat/admin-offline-payment-dispatch`。
-- [x] (2026-07-06 22:48+08:00) 阅读仓库规则、服务说明和 ExecPlan 规范，确认原工作区未跟踪文档不进入新分支。
-- [x] (2026-07-06 22:50+08:00) Commerce、Identity、Gateway 基线测试与 Admin production build 通过。
-- [x] (2026-07-06 23:00+08:00) 先观察状态转换测试编译失败，再实现契约、数据层、权限、状态机、跨服务 SALES 校验、幂等与审计。
-- [x] (2026-07-06 23:07+08:00) 添加 Admin 真实付款状态、派单表单、只读详情和审计时间线；Mock 4/4、Hybrid 2/2 通过。
-- [x] (2026-07-06 23:08+08:00) 更新生成代码、生产 Compose 与文档；全量后端、Go vet、Admin build、mock 同步和生成确定性通过，并完成本地审查。
-- [ ] 临时 PostgreSQL 集成执行受本机 Docker daemon 无响应阻塞；测试代码已添加，`COMMERCE_DB_DSN` 缺失时按仓库约定跳过。
-- [ ] 拆分 Conventional Commits 并仅推送新分支，不合并、不部署。
+- [x] (2026-07-13 10:00+08:00) 读取旧 Codex 对话与当前代码，确认普通微信支付假参数是拉起失败根因。
+- [x] (2026-07-13 10:20+08:00) 增加 B2B API 契约、支付渠道和真实参数提供方接口的失败测试。
+- [x] (2026-07-13 10:25+08:00) 实现前端 B2B 调用、门店助手插件配置和后端 fail-closed 参数提供方边界。
+- [x] (2026-07-13 10:28+08:00) 生成代码并运行支付服务、小程序和类型检查验证。
+- [x] (2026-07-14 09:20+08:00) 修正订单页面未传递可用性渠道的遗漏，微信订单创建与续付现均明确请求 B2B 接口。
 
 ## Surprises & Discoveries
 
-- Observation: 新 worktree 的 `origin/main` 已包含购物车修复和 Commerce 产品需求权限热修复。
-  Evidence: HEAD 为 `b153f66`，前一提交为 `2bf5ca1`。
-
-- Observation: 根 lint 与 Admin 全量 TypeScript 检查存在本分支未触碰的基线错误。
-  Evidence: miniapp lint 在 `apps/miniapp/config/index.ts` 和 `miniapp-mode.test.ts` 报 4 个 `import/no-commonjs`；Admin `tsc --noEmit` 在 `SupportWorkspacePage.tsx` 报 4 个缺失 `normalizeSupportMessage`。这些文件均无 diff，Admin production build 成功。
-
-- Observation: 本地 Docker Desktop 应用存在但 daemon 无响应，localhost:5432 不可达。
-  Evidence: `nc -z localhost 5432` 返回 unavailable，启动 Docker Desktop 后 `docker info` 仍需中断。
+- Observation: 当前 `buildProviderPayload` 在生产路径同样以 UUID 生成 `prepay_id` 与签名。
+  Evidence: `services/payment/internal/http/handler/payments.go` 未按 `ProviderMode` 分支调用微信商户接口。
 
 ## Decision Log
 
-- Decision: Commerce 通过带当前 Bearer token 的 Identity `GET /staff/{id}` 校验目标员工，不信任前端提交的角色或状态。
-  Rationale: Identity 是员工状态和角色的唯一事实来源，服务端复核可阻止绕过 UI 派给停用或非 SALES 账号。
-  Date/Author: 2026-07-06 / Codex
+- Decision: 不伪造 B2B 的 `signData`、`paySig` 或 `signature`。
+  Rationale: 这些参数必须由已开通 B2B 商户号的协议和密钥生成；伪造只会把失败延后到小程序收银台。
+  Date/Author: 2026-07-13 / Codex
 
-- Decision: 线下付款确认、订单确认、负责人变更和审计事件在同一 Commerce 数据库事务中完成；外部员工校验在事务前完成。
-  Rationale: 业务字段与审计必须全成或全败，同时避免数据库事务等待网络调用。
-  Date/Author: 2026-07-06 / Codex
-
-- Decision: `Idempotency-Key` 在同一订单内唯一，命中已有事件时返回当前资源，不再产生第二条审计事件。
-  Rationale: 防止按钮重复点击和网络重试产生重复业务动作与审计噪音。
-  Date/Author: 2026-07-06 / Codex
+- Decision: 订单页面将 `resolvePaymentAvailability()` 返回的渠道显式传给支付服务。
+  Rationale: 虽然底层的默认检测已选择 B2B，但页面此前只传幂等键，导致可用性层选择的渠道没有进入实际请求；显式传递保证下单和续付均走 `/payments/wechat/b2b/create`。
+  Date/Author: 2026-07-14 / Codex
 
 ## Outcomes & Retrospective
 
-功能代码与非数据库验证已完成。BOSS、MANAGER、ADMIN 的受控派单链路、Identity active SALES 复核、订单与审计事务、并发幂等、真实付款展示、只读详情和事件时间线均已落地。审查修正了“幂等查询在加锁之前”的竞态，并让 Admin 成功后重新拉取订单列表。唯一环境性缺口是本机 Docker daemon 无响应，导致带 `COMMERCE_DB_DSN` 的 PostgreSQL 集成用例未实际执行；仓库全量 Go 测试、vet、Admin production build、Mock 4/4、Hybrid 2/2、mock 同步、生成确定性和 `git diff --check` 均有成功证据。根 lint 与 Admin tsc 的既有错误已如实记录，未扩大本功能范围处理。
+小程序现在使用 B2B 专用创建接口和 `wx.requestCommonPayment`；支付服务不再生成 B2B 假签名。仍需由商户按微信提供的 B2B 协议实现并注入 `WechatB2BProvider`，同时在公众平台完成插件和商户号开通；这是外部资质与密钥条件，不能用仓库代码替代。
+
+2026-07-14 补充：订单页面原来遗漏了将已判定渠道传入 `payForOrder`，因此仍可能走普通微信支付。现已修正为 `wechat_b2b`。
 
 ## Context and Orientation
 
-Commerce 服务位于 `services/commerce`，订单 HTTP 处理器是 `services/commerce/internal/http/handler/orders.go`，SQL 源位于 `services/commerce/queries`，迁移位于 `services/commerce/migrations`。`contracts/openapi/commerce.yaml` 是 Commerce API 的源契约，生成 Go server 类型到 `services/commerce/internal/http/oapi/api.gen.go`；聚合契约与 TypeScript client 也必须通过仓库脚本重新生成。订单已有 `owner_sales_user_id`、主状态、支付状态、渠道、付款时间和最近支付 ID。
-
-Identity 服务位于 `services/identity`，`GET /staff/{id}` 返回员工状态和角色。权限由 Identity 数据库迁移及开发 mock 共同提供。Gateway 已按路径代理 `/admin` 到 Commerce、`/staff` 到 Identity；这次 Commerce 使用配置的 Identity base URL 做服务间校验。
-
-Admin 页面是 `apps/admin-web/src/react/pages/admin/OrdersPage.tsx`。它当前能加载真实订单，但编辑抽屉只改浏览器内存，造成“已保存但后端未变”的假象。本功能把订单详情改成只读，并增加真实派单操作和审计时间线。
-
-“原子”表示一次数据库事务中的修改要么全部提交，要么全部回滚。“幂等”表示带相同 key 重试不会重复改变订单或写第二条事件。
+`apps/miniapp` 是 Taro 小程序。`packages/platform-adapter` 封装微信 API，`packages/payment-services` 调用生成的 Payment API。`services/payment` 建立支付会话并保存状态。微信 B2B 门店助手使用微信的 `requestCommonPayment`，其参数由服务端生成；普通微信支付使用 `requestPayment`，两者不能混用。
 
 ## Plan of Work
 
-先在契约和测试中刻画失败行为：缺字段、角色拒绝、员工无效、终态拒绝、重复 key、并发更新与迟到回调。接着新增 Commerce 迁移 `00022` 和 sqlc 查询，建立 `order_admin_events`，实现 Identity client 与 handler 状态机。线下收款仅允许未付款订单，将支付状态置为 PAID、渠道置为 OFFLINE、付款时间置为当前时间、清空线上 payment ID，并将主状态置为 CONFIRMED。非线下确认操作要求支付已是 PAID。PAID 或 CONFIRMED 且未发货的订单可以派单或改派；SHIPPED、DELIVERED、CANCELLED、CLOSED 拒绝。
-
-然后在 Identity 增加 `order:manage / ALL` 并授予 BOSS、MANAGER、ADMIN；Commerce 还直接检查 JWT 角色，确保 CS、SALES、CUSTOMER 即使错误获得权限也不能操作。Admin 加载 active SALES 员工、真实 `paymentStatus`、必填备注、提交禁用、错误保留、成功刷新和事件查询。Mock 与 Hybrid 测试覆盖显示、权限、校验、成功与失败。
-
-最后运行代码生成、Go 测试、PostgreSQL 集成测试、`go vet`、Admin production build 和相关 Playwright。逐文件审查权限绕过、跨服务失败映射、状态转换、事务、幂等、审计和生成文件差异，修正后重跑验证。按 API/数据层、后端、Admin、测试文档拆分提交并推送 `origin/feat/admin-offline-payment-dispatch`。
+先以测试固定微信端选择 B2B 创建接口并原样调用 `requestCommonPayment` 的行为。接着扩展 Payment OpenAPI 与生成代码，增加 `WECHAT_B2B` 渠道和仅接收不透明支付参数的响应。支付服务引入提供方接口：测试/开发可显式注入确定的参数，生产未配置真实提供方时拒绝请求。最后配置门店助手插件，并在小程序调用前检查插件授权状态，未授权时提示用户完成认证。
 
 ## Concrete Steps
 
-所有命令在本 worktree 根目录执行：
+在仓库根目录运行：
 
-    pnpm install --frozen-lockfile
-    go test ./services/commerce/... ./services/identity/... ./services/gateway-bff/...
-    pnpm -C apps/admin-web build
-    bash tools/scripts/commerce-generate.sh
-    bash tools/scripts/identity-generate.sh
-    pnpm run test:backend
-    go vet ./services/commerce/... ./services/identity/... ./services/gateway-bff/...
-    pnpm -C apps/admin-web test:e2e
-
-若本机有 PostgreSQL，则以临时数据库设置 `COMMERCE_DB_DSN` 运行 Commerce 集成测试，完成后删除临时数据库。最终执行 `git diff --check`、检查生成文件无漂移、提交并 `git push -u origin feat/admin-offline-payment-dispatch`。
+    bash tools/scripts/payment-generate.sh
+    go test ./services/payment/internal/http/handler
+    pnpm -C apps/miniapp test -- payment-services
+    pnpm -C apps/miniapp typecheck
 
 ## Validation and Acceptance
 
-API 测试必须证明：三个管理角色成功；其余角色 403；缺备注或负责人 400；不存在、停用、非 SALES 员工 409；线下收款、在线已付款派单、改派分别正确改变字段且各写一条事件；相同幂等 key 重试不新增事件；并发只允许一致结果；迟到线上回调不能把已确认订单回退；终态不变；派单后只有目标 SALES 的 OWNED 查询能看到订单。
-
-UI 测试必须证明：页面使用服务端 `paymentStatus`，有权限时出现与订单状态匹配的操作，无权限时隐藏；业务员和备注必填；提交时防重复；成功刷新订单与时间线；失败保留输入并显示服务端原因；原伪编辑器不再承诺保存。Production build 必须成功。
+微信端支付服务测试应证明它调用 B2B 创建接口和 `commonPay`，不调用普通 `pay`。Payment handler 测试应证明 B2B 响应没有普通支付字段，未设置提供方时返回明确错误。小程序配置应包含门店助手插件。完整链路仍需在微信侧完成插件、门店认证、B2B 商户号及官方服务端协议配置后做真机验收。
 
 ## Idempotence and Recovery
 
-迁移为纯新增，可重复在新数据库执行。生成脚本可重复运行且第二次不应产生 diff。测试失败时先保留失败证据再最小修正。新分支不修改或清理原工作区；不部署、不合并。若推送被 GitHub 分支规则拒绝，保留本地提交并准确报告远端响应，不改推送目标规避规则。
+生成脚本可重复执行。修改均为新增契约和 fail-closed 行为；若真实 B2B 提供方未部署，保持功能开关关闭即可回到不可支付但不产生伪支付会话的状态。
 
 ## Artifacts and Notes
 
-工作目录：`/Users/asimov3059/.config/superpowers/worktrees/tmo/feat-admin-offline-payment-dispatch`。
-
-原工作区的 `docs/superpowers/plans/2026-06-29-weapp-privacy-compliance.md` 是用户未跟踪文件，留在原工作区且不得复制、提交或删除。
-
-变更记录：2026-07-06，替换主分支遗留的旧 ExecPlan，因为当前活跃任务已变更为 Admin 线下收款与派单，仓库要求 `.agent/PLANS.md` 始终描述当前执行中的复杂功能。
+旧对话在 Codex task `019f56b6-4a2f-7553-8690-71490d1cad54`，其中包含前次未提交的 B2B 骨架。该骨架的模拟参数不会直接迁入生产路径。
 
 ## Interfaces and Dependencies
 
-最终存在 `PATCH /admin/orders/{orderId}/fulfillment`，请求体含 UUID `ownerSalesUserId`、非空 `note`、布尔 `confirmOfflinePayment`，请求头必须带 `Idempotency-Key`。最终存在订单管理事件查询接口，按创建时间倒序返回操作者、动作、备注、原新主状态、原新支付状态、原新负责人和时间。Commerce 配置新增 Identity base URL，并提供可在 handler 测试中替换的 SALES 校验接口。Admin API 层提供 fulfillment patch 与 event list 调用，使用生成的契约类型而非复制 DTO。
+新增 `POST /payments/wechat/b2b/create`，响应包含 `paymentId`、`orderId`、`channel: WECHAT_B2B`、`status`、`expiresAt` 与 `commonPayParams`。`commonPayParams` 原样传入 `wx.requestCommonPayment`。
+
+变更记录：2026-07-13，替换已完成的旧订单派单计划，记录本次微信支付修复的根因和执行路径。

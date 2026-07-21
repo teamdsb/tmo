@@ -14,7 +14,7 @@ import {
   Revoke
 } from '@taroify/icons'
 import type { CreateProductRequest, ProductRequest } from '@tmo/api-client'
-import { orderTrackingRoute } from '../../routes'
+import { orderDetailRoute, orderTrackingRoute } from '../../routes'
 import { navigateTo } from '../../utils/navigation'
 import type {
   IconComponent,
@@ -400,9 +400,10 @@ type OrderManagementViewProps = {
   loading?: boolean
   onBack: () => void
   onConfirmReceipt: (orderId: string) => void
+  onPayOrder?: (orderId: string) => void
 }
 
-export function OrderManagementView({ orders, initialTab, loading = false, onBack, onConfirmReceipt }: OrderManagementViewProps) {
+export function OrderManagementView({ orders, initialTab, loading = false, onBack, onConfirmReceipt, onPayOrder }: OrderManagementViewProps) {
   const [activeTab, setActiveTab] = useState(initialTab)
   const orderTabs = ['全部', '待处理', '已发货', '已送达', '退换货']
   const filteredOrders = useMemo(() => {
@@ -433,12 +434,14 @@ export function OrderManagementView({ orders, initialTab, loading = false, onBac
 
         {filteredOrders.length > 0 ? filteredOrders.map((order) => {
           const canConfirmReceipt = order.sourceStatus === 'SHIPPED' || order.sourceStatus === 'DISPATCHED' || order.status === '已发货'
+          const canPayOrder = isMineOrderAwaitingPayment(order)
+          const primaryRoute = canPayOrder ? orderDetailRoute(order.id) : orderTrackingRoute(order.id)
           return (
           <View
             key={order.id}
             className='mine-order-card mb-3 rounded-3xl p-4'
             data-testid={`mine-order-card-${order.id}`}
-            onClick={() => navigateTo(orderTrackingRoute(order.id))}
+            onClick={() => navigateTo(primaryRoute)}
           >
             <View className='mb-3 flex items-start justify-between gap-3'>
               <View className='min-w-0 flex-1'>
@@ -470,9 +473,24 @@ export function OrderManagementView({ orders, initialTab, loading = false, onBac
               <View className='text-right'>
                 <Text className='mine-order-total-label block text-xs'>订单金额</Text>
                 <Text className='mine-order-total mt-1 block text-base font-bold'>￥{order.totalPrice.toFixed(2)}</Text>
+                {canPayOrder ? (
+                  <NativeButton
+                    className='mine-order-pay-button mt-2 rounded-full px-4 py-1 text-xs font-semibold'
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      if (onPayOrder) {
+                        onPayOrder(order.id)
+                        return
+                      }
+                      navigateTo(orderDetailRoute(order.id))
+                    }}
+                  >
+                    去支付
+                  </NativeButton>
+                ) : null}
                 {canConfirmReceipt ? (
                   <NativeButton
-                    className='mt-2 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700'
+                    className='mine-order-confirm-button mt-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700'
                     onClick={(event) => {
                       event.stopPropagation()
                       onConfirmReceipt(order.id)
@@ -481,7 +499,7 @@ export function OrderManagementView({ orders, initialTab, loading = false, onBac
                     确认收货
                   </NativeButton>
                 ) : null}
-                <Text className='block mt-2 text-xs mine-modern-primary'>点击查看物流</Text>
+                <Text className='block mt-2 text-xs mine-modern-primary'>{canPayOrder ? '完成支付后查看物流' : '点击查看物流'}</Text>
               </View>
             </View>
           </View>
@@ -497,6 +515,19 @@ export function OrderManagementView({ orders, initialTab, loading = false, onBac
       </View>
     </View>
   )
+}
+
+const isMineOrderAwaitingPayment = (order: MineOrder): boolean => {
+  const paymentStatus = String(order.paymentStatus || '').toUpperCase()
+  if (paymentStatus === 'PAID') {
+    return false
+  }
+  return order.sourceStatus === 'SUBMITTED'
+    || order.sourceStatus === 'PAY_PENDING'
+    || order.sourceStatus === 'PAY_FAILED'
+    || paymentStatus === 'PAY_PENDING'
+    || paymentStatus === 'UNPAID'
+    || paymentStatus === 'PAY_FAILED'
 }
 
 type MineProfileViewProps = {

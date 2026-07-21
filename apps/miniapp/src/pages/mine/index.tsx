@@ -10,7 +10,7 @@ import {
 } from '@taroify/icons'
 import type { CreateProductRequest, Order, ProductRequest } from '@tmo/api-client'
 import type { BootstrapResponse } from '@tmo/gateway-api-client'
-import { ROUTES } from '../../routes'
+import { ROUTES, orderDetailRoute } from '../../routes'
 import { clearAuthSession, hasAuthToken, isUnauthorized } from '../../utils/auth'
 import { getCurrentRole, isSalesUser } from '../../utils/authz'
 import { getNavbarStyle } from '../../utils/navbar'
@@ -315,6 +315,7 @@ export default function PersonalCenter() {
           loading={ordersLoading}
           onBack={() => setCurrentPage('profile')}
           onConfirmReceipt={(orderId) => void handleConfirmReceipt(orderId)}
+          onPayOrder={(orderId) => navigateTo(orderDetailRoute(orderId))}
         />
       ) : null}
 
@@ -390,6 +391,7 @@ const toMineOrder = (order: Order): MineOrder => {
     id: order.id,
     status: toMineOrderStatus(order.status),
     sourceStatus: order.status,
+    paymentStatus: readMineOrderPaymentStatus(order),
     date: formatMineOrderDate(order.createdAt),
     totalPrice,
     items,
@@ -398,6 +400,11 @@ const toMineOrder = (order: Order): MineOrder => {
       time: ''
     }
   }
+}
+
+const readMineOrderPaymentStatus = (order: Order): string => {
+  const value = (order as Order & { paymentStatus?: unknown }).paymentStatus
+  return typeof value === 'string' ? value : ''
 }
 
 const toMineOrderStatus = (status: Order['status'] | string): string => {

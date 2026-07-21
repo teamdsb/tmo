@@ -6,8 +6,8 @@
   "setting": {
     "bundle": false,
     "urlCheck": false,
-    "es6": false,
-    "enhance": false,
+    "es6": true,
+    "enhance": true,
     "compileHotReLoad": true,
     "postcss": false,
     "minified": true,

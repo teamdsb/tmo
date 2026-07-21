@@ -55,6 +55,12 @@ type AuthResponse struct {
 	User        User   `json:"user"`
 }
 
+// DebugRoleSwitchRequest defines model for DebugRoleSwitchRequest.
+type DebugRoleSwitchRequest struct {
+	// Role Target role already assigned to the current user.
+	Role string `json:"role"`
+}
+
 // ErrorResponse defines model for ErrorResponse.
 type ErrorResponse struct {
 	Code string `json:"code"`
@@ -139,8 +145,11 @@ type SalesQrCodePlatform string
 
 // User defines model for User.
 type User struct {
-	AvatarUrl             *string             `json:"avatarUrl"`
-	CreatedAt             time.Time           `json:"createdAt"`
+	AvatarUrl *string   `json:"avatarUrl"`
+	CreatedAt time.Time `json:"createdAt"`
+
+	// CurrentRole Current active role of this authenticated session.
+	CurrentRole           string              `json:"currentRole"`
 	DisabledAt            *time.Time          `json:"disabledAt"`
 	DisabledReason        *string             `json:"disabledReason"`
 	DisplayName           *string             `json:"displayName,omitempty"`

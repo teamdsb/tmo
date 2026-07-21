@@ -237,7 +237,7 @@ export default function LoginPage() {
   const panelDescription = isMockMode
     ? '当前处于演示模式。所有业务逻辑已预设，可直接体验不同角色的操作流程。'
     : platform === 'weapp'
-      ? '使用微信授权手机号完成身份识别。'
+      ? '使用手机号快速登陆'
       : platform === 'alipay'
         ? '使用支付宝授权手机号完成身份识别。'
         : '当前环境将按调试登录逻辑执行。'

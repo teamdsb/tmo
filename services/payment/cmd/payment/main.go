@@ -110,6 +110,11 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		ProviderMode: cfg.ProviderMode,
 		Wechat:       wechatProvider,
 	}
+	if provider, providerErr := handler.NewWechatB2BDirectProvider(handler.WechatB2BConfig{AppID: cfg.WechatB2BAppID, AppSecret: cfg.WechatB2BAppSecret, MchID: cfg.WechatB2BMchID, AppKey: cfg.WechatB2BAppKey, Environment: cfg.WechatB2BEnvironment, SessionURL: cfg.WechatSessionURL}); providerErr == nil {
+		apiHandler.WechatB2BProvider = provider
+	} else {
+		logger.Warn("wechat b2b provider disabled", "reason", providerErr)
+	}
 
 	router := httpserver.NewRouter(apiHandler, logger, func(checkCtx context.Context) error {
 		return db.Ready(checkCtx, pool)

@@ -1182,6 +1182,12 @@
   box-sizing: border-box;
 }
 
+.order-history-tabs .taroify-cell-group--inset {
+  margin: 0;
+  overflow: visible;
+  background: transparent;
+}
+
 .order-history-tabs .taroify-tabs__wrap {
   min-height: 84rpx;
   margin-bottom: 18rpx;
@@ -1189,44 +1195,72 @@
 
 .order-history-tabs .taroify-tabs__nav {
   background: transparent;
+  gap: 4rpx;
 }
 
 .order-history-tabs .taroify-tabs__tab {
   padding: 0 18rpx;
+  border-radius: 999px;
+}
+
+.order-history-card.taroify-cell {
+  margin-bottom: 20rpx;
+  padding: 28rpx;
+  overflow: hidden;
+  border-radius: 28rpx;
+  background: linear-gradient(180deg, #fff 0%, #fbfdff 100%);
+  box-shadow: 0 12rpx 30rpx rgb(15 23 42 / 7%);
+}
+
+.order-history-card.taroify-cell::after {
+  border: 0;
+}
+
+.order-history-card .taroify-cell__value {
+  color: inherit;
+}
+
+.order-history-card .taroify-tag {
+  border-radius: 999px;
+  padding: 8rpx 14rpx;
+  font-weight: 700;
 }
 
 .order-date {
-  font-size: var(--type-xs);
+  font-size: 30rpx;
   font-weight: 700;
   color: #111418;
   display: block;
+  line-height: 1.35;
 }
 
 .order-title {
-  margin-top: 8px;
-  font-size: var(--type-xs);
+  margin-top: 14rpx;
+  font-size: 30rpx;
   font-weight: 600;
   color: #111418;
+  line-height: 1.4;
 }
 
 .order-meta {
-  font-size: 22rpx;
+  margin-top: 10rpx;
+  font-size: 24rpx;
   color: #617589;
 }
 
 .order-price {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 8rpx;
 }
 
 .order-label {
-  font-size: 20rpx;
+  font-size: 22rpx;
   color: #617589;
 }
 
 .order-value {
-  font-size: var(--type-xs);
+  font-size: 32rpx;
   font-weight: 700;
   color: #111418;
 }
@@ -1248,7 +1282,33 @@
 }
 
 .order-actions {
-  margin-top: 12px;
+  margin-top: 22rpx;
+  flex-wrap: wrap;
+}
+
+.order-actions .taroify-button,
+.order-action-button.taroify-button {
+  min-width: 116rpx;
+  height: 58rpx;
+  padding: 0 26rpx;
+  border-radius: 999px;
+  font-size: 26rpx;
+  font-weight: 700;
+}
+
+.order-action-button--pay.taroify-button {
+  min-width: 140rpx;
+  box-shadow: 0 8rpx 18rpx rgb(19 127 236 / 22%);
+}
+
+.order-action-button--ghost.taroify-button {
+  background: #fff;
+  border-color: #dbe4ef;
+  color: #334155;
+}
+
+.order-action-button--success.taroify-button {
+  box-shadow: 0 8rpx 18rpx rgb(16 185 129 / 18%);
 }
 
 .confirm-card {
@@ -3489,7 +3549,7 @@
 .mine-order-card {
   background: #fff;
   border: 1px solid #e8eef5;
-  box-shadow: 0 8px 18px rgb(15 23 42 / 5%);
+  box-shadow: 0 10px 24px rgb(15 23 42 / 6%);
 }
 
 .mine-order-date {
@@ -3546,6 +3606,25 @@
 .mine-order-total {
   color: #137fec;
   font-size: 32rpx;
+}
+
+.mine-order-pay-button,
+.mine-order-confirm-button {
+  min-width: 132rpx;
+  min-height: 56rpx;
+  line-height: 56rpx;
+}
+
+.mine-order-pay-button {
+  border: 0;
+  background: linear-gradient(135deg, #137fec 0%, #4f9fff 100%);
+  box-shadow: 0 8rpx 18rpx rgb(19 127 236 / 24%);
+  color: #fff;
+}
+
+.mine-order-pay-button::after,
+.mine-order-confirm-button::after {
+  border-radius: 999px;
 }
 
 .mine-order-empty {
