@@ -62,6 +62,10 @@ describe('OrderDetailPage', () => {
     jest.clearAllMocks()
     setRouterParams({ id: 'order-2001' })
     await clearBootstrap()
+	await saveBootstrap({
+	  permissions: { items: [] },
+	  featureFlags: { paymentEnabled: true, wechatPayEnabled: true, wechatB2bEnabled: true, alipayPayEnabled: true }
+	})
     await removeStorage('tmo:payment:dev-overrides')
   })
 

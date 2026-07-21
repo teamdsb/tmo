@@ -6,6 +6,7 @@ import type {
   ChooseFileResult,
   ChooseImageOptions,
   ChooseImageResult,
+  CommonPayOptions,
   LoginResult,
   PhoneProofResult,
   CommonPayOptions,

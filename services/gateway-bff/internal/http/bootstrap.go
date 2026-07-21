@@ -26,7 +26,7 @@ type bootstrapPayload struct {
 }
 
 var (
-	defaultFeatureFlags = json.RawMessage(`{"paymentEnabled":false,"wechatPayEnabled":false,"alipayPayEnabled":false}`)
+	defaultFeatureFlags = json.RawMessage(`{"paymentEnabled":false,"wechatPayEnabled":false,"wechatB2bEnabled":false,"alipayPayEnabled":false}`)
 	defaultPermissions  = json.RawMessage(`{"items":[]}`)
 )
 

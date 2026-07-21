@@ -53,6 +53,7 @@ func (h *AdminSummaryHandler) Handle(c *gin.Context) {
 		FeatureFlags: map[string]bool{
 			"paymentEnabled":   false,
 			"wechatPayEnabled": false,
+			"wechatB2bEnabled": false,
 			"alipayPayEnabled": false,
 		},
 	}
@@ -150,6 +151,7 @@ func readFeatureFlags(payload map[string]interface{}) map[string]bool {
 	flags := map[string]bool{
 		"paymentEnabled":   false,
 		"wechatPayEnabled": false,
+		"wechatB2bEnabled": false,
 		"alipayPayEnabled": false,
 	}
 

@@ -358,6 +358,7 @@ export const buildIsolatedMockBootstrap = async (token: string | null): Promise<
     featureFlags: {
       paymentEnabled: true,
       wechatPayEnabled: true,
+	  wechatB2bEnabled: true,
       alipayPayEnabled: true
     }
   }

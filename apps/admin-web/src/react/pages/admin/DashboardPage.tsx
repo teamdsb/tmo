@@ -23,6 +23,7 @@ type SummaryPayload = {
   featureFlags?: {
     paymentEnabled?: boolean;
     wechatPayEnabled?: boolean;
+	wechatB2bEnabled?: boolean;
     alipayPayEnabled?: boolean;
   };
   generatedAt?: string;
@@ -190,7 +191,7 @@ const buildSummaryCards = (summary: SummaryPayload | null, tier: string): Summar
     filtered.push({
       key: 'featureFlags',
       label: 'Feature Flags',
-      value: `pay:${flags.paymentEnabled ? 'on' : 'off'} wx:${flags.wechatPayEnabled ? 'on' : 'off'} ali:${flags.alipayPayEnabled ? 'on' : 'off'}`
+      value: `pay:${flags.paymentEnabled ? 'on' : 'off'} wx:${flags.wechatPayEnabled ? 'on' : 'off'} wx-b2b:${flags.wechatB2bEnabled ? 'on' : 'off'} ali:${flags.alipayPayEnabled ? 'on' : 'off'}`
     });
   }
   return filtered;

@@ -82,16 +82,18 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	flagsProvider := handler.NewIdentityFlagsProvider(cfg.IdentityBaseURL, cfg.FeatureFlagsTimeout, handler.FeatureFlags{
 		PaymentEnabled:   cfg.PaymentEnabled,
 		WechatPayEnabled: cfg.WechatPayEnabled,
+		WechatB2bEnabled: cfg.WechatB2bEnabled,
 		AlipayPayEnabled: cfg.AlipayPayEnabled,
 	}, logger)
 
 	apiHandler := &handler.Handler{
-		Logger:       logger,
-		Auth:         auth,
-		Flags:        flagsProvider,
-		Store:        db.New(pool),
-		Commerce:     handler.NewCommerceClient(cfg.CommerceBaseURL, cfg.CommerceSyncToken),
-		ProviderMode: cfg.ProviderMode,
+		Logger:              logger,
+		Auth:                auth,
+		Flags:               flagsProvider,
+		Store:               db.New(pool),
+		Commerce:            handler.NewCommerceClient(cfg.CommerceBaseURL, cfg.CommerceSyncToken),
+		ProviderMode:        cfg.ProviderMode,
+		WechatB2bConfigured: cfg.WechatB2bEnabled,
 	}
 	if provider, providerErr := handler.NewWechatB2BDirectProvider(handler.WechatB2BConfig{AppID: cfg.WechatB2BAppID, AppSecret: cfg.WechatB2BAppSecret, MchID: cfg.WechatB2BMchID, AppKey: cfg.WechatB2BAppKey, Environment: cfg.WechatB2BEnvironment, SessionURL: cfg.WechatSessionURL}); providerErr == nil {
 		apiHandler.WechatB2BProvider = provider

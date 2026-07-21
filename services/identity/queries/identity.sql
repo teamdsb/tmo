@@ -299,7 +299,7 @@ WHERE (sqlc.narg('actor_user_id')::uuid IS NULL OR actor_user_id = sqlc.narg('ac
   AND (sqlc.narg('target_type')::text IS NULL OR target_type = sqlc.narg('target_type'));
 
 -- name: GetFeatureFlags :one
-SELECT payment_enabled, wechat_pay_enabled, alipay_pay_enabled
+SELECT payment_enabled, wechat_pay_enabled, wechat_b2b_enabled, alipay_pay_enabled
 FROM feature_flags
 WHERE id = 1;
 
@@ -307,10 +307,11 @@ WHERE id = 1;
 UPDATE feature_flags
 SET payment_enabled = $1,
     wechat_pay_enabled = $2,
-    alipay_pay_enabled = $3,
+    wechat_b2b_enabled = $3,
+    alipay_pay_enabled = $4,
     updated_at = now()
 WHERE id = 1
-RETURNING payment_enabled, wechat_pay_enabled, alipay_pay_enabled;
+RETURNING payment_enabled, wechat_pay_enabled, wechat_b2b_enabled, alipay_pay_enabled;
 
 -- name: TransferCustomerOwnership :one
 UPDATE users

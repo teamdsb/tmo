@@ -69,6 +69,10 @@ describe('OrderConfirmPage', () => {
   beforeEach(async () => {
     jest.clearAllMocks()
     await clearBootstrap()
+	await saveBootstrap({
+	  permissions: { items: [] },
+	  featureFlags: { paymentEnabled: true, wechatPayEnabled: true, wechatB2bEnabled: true, alipayPayEnabled: true }
+	})
     ;(useDidShow as jest.Mock).mockImplementation(() => {})
     ;(ensureLoggedIn as jest.Mock).mockResolvedValue(true)
     ;(listUserAddresses as jest.Mock).mockResolvedValue([defaultAddress])

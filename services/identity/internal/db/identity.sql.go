@@ -740,7 +740,7 @@ func (q *Queries) GetCustomerTagByID(ctx context.Context, id uuid.UUID) (Custome
 }
 
 const getFeatureFlags = `-- name: GetFeatureFlags :one
-SELECT payment_enabled, wechat_pay_enabled, alipay_pay_enabled
+SELECT payment_enabled, wechat_pay_enabled, wechat_b2b_enabled, alipay_pay_enabled
 FROM feature_flags
 WHERE id = 1
 `
@@ -748,13 +748,19 @@ WHERE id = 1
 type GetFeatureFlagsRow struct {
 	PaymentEnabled   bool `db:"payment_enabled" json:"payment_enabled"`
 	WechatPayEnabled bool `db:"wechat_pay_enabled" json:"wechat_pay_enabled"`
+	WechatB2bEnabled bool `db:"wechat_b2b_enabled" json:"wechat_b2b_enabled"`
 	AlipayPayEnabled bool `db:"alipay_pay_enabled" json:"alipay_pay_enabled"`
 }
 
 func (q *Queries) GetFeatureFlags(ctx context.Context) (GetFeatureFlagsRow, error) {
 	row := q.db.QueryRow(ctx, getFeatureFlags)
 	var i GetFeatureFlagsRow
-	err := row.Scan(&i.PaymentEnabled, &i.WechatPayEnabled, &i.AlipayPayEnabled)
+	err := row.Scan(
+		&i.PaymentEnabled,
+		&i.WechatPayEnabled,
+		&i.WechatB2bEnabled,
+		&i.AlipayPayEnabled,
+	)
 	return i, err
 }
 
@@ -1970,28 +1976,41 @@ const updateFeatureFlags = `-- name: UpdateFeatureFlags :one
 UPDATE feature_flags
 SET payment_enabled = $1,
     wechat_pay_enabled = $2,
-    alipay_pay_enabled = $3,
+    wechat_b2b_enabled = $3,
+    alipay_pay_enabled = $4,
     updated_at = now()
 WHERE id = 1
-RETURNING payment_enabled, wechat_pay_enabled, alipay_pay_enabled
+RETURNING payment_enabled, wechat_pay_enabled, wechat_b2b_enabled, alipay_pay_enabled
 `
 
 type UpdateFeatureFlagsParams struct {
 	PaymentEnabled   bool `db:"payment_enabled" json:"payment_enabled"`
 	WechatPayEnabled bool `db:"wechat_pay_enabled" json:"wechat_pay_enabled"`
+	WechatB2bEnabled bool `db:"wechat_b2b_enabled" json:"wechat_b2b_enabled"`
 	AlipayPayEnabled bool `db:"alipay_pay_enabled" json:"alipay_pay_enabled"`
 }
 
 type UpdateFeatureFlagsRow struct {
 	PaymentEnabled   bool `db:"payment_enabled" json:"payment_enabled"`
 	WechatPayEnabled bool `db:"wechat_pay_enabled" json:"wechat_pay_enabled"`
+	WechatB2bEnabled bool `db:"wechat_b2b_enabled" json:"wechat_b2b_enabled"`
 	AlipayPayEnabled bool `db:"alipay_pay_enabled" json:"alipay_pay_enabled"`
 }
 
 func (q *Queries) UpdateFeatureFlags(ctx context.Context, arg UpdateFeatureFlagsParams) (UpdateFeatureFlagsRow, error) {
-	row := q.db.QueryRow(ctx, updateFeatureFlags, arg.PaymentEnabled, arg.WechatPayEnabled, arg.AlipayPayEnabled)
+	row := q.db.QueryRow(ctx, updateFeatureFlags,
+		arg.PaymentEnabled,
+		arg.WechatPayEnabled,
+		arg.WechatB2bEnabled,
+		arg.AlipayPayEnabled,
+	)
 	var i UpdateFeatureFlagsRow
-	err := row.Scan(&i.PaymentEnabled, &i.WechatPayEnabled, &i.AlipayPayEnabled)
+	err := row.Scan(
+		&i.PaymentEnabled,
+		&i.WechatPayEnabled,
+		&i.WechatB2bEnabled,
+		&i.AlipayPayEnabled,
+	)
 	return i, err
 }
 

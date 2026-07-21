@@ -79,6 +79,7 @@ export const fallbackIdentityBootstrap = async (): Promise<void> => {
       featureFlags: {
         paymentEnabled: false,
         wechatPayEnabled: false,
+	    wechatB2bEnabled: false,
         alipayPayEnabled: false
       }
     })

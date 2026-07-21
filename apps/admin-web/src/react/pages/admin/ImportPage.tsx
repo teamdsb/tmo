@@ -42,12 +42,14 @@ type ImportJobView = {
 type FeatureFlagsState = {
   paymentEnabled: boolean;
   wechatPayEnabled: boolean;
+	wechatB2bEnabled: boolean;
   alipayPayEnabled: boolean;
 };
 
 const defaultFlags: FeatureFlagsState = {
   paymentEnabled: false,
   wechatPayEnabled: false,
+	wechatB2bEnabled: false,
   alipayPayEnabled: false
 };
 
@@ -125,6 +127,7 @@ export const ImportPage = () => {
         setFlags({
           paymentEnabled: Boolean((response.data as FeatureFlagsState).paymentEnabled),
           wechatPayEnabled: Boolean((response.data as FeatureFlagsState).wechatPayEnabled),
+		  wechatB2bEnabled: Boolean((response.data as FeatureFlagsState).wechatB2bEnabled),
           alipayPayEnabled: Boolean((response.data as FeatureFlagsState).alipayPayEnabled)
         });
       }
@@ -603,7 +606,7 @@ export const ImportPage = () => {
                 </span>
               </div>
 
-              <div className="mt-5 grid gap-3 md:grid-cols-3">
+              <div className="mt-5 grid gap-3 md:grid-cols-4">
                 <label className="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-4 text-sm text-slate-700">
                   <input
                     checked={flags.paymentEnabled}
@@ -622,6 +625,15 @@ export const ImportPage = () => {
                   />
                   微信支付
                 </label>
+				<label className="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-4 text-sm text-slate-700">
+				  <input
+				    checked={flags.wechatB2bEnabled}
+				    disabled={!canManageFlags || context.mode !== 'dev' || !flagsLoaded}
+				    onChange={(event) => setFlags((current) => ({ ...current, wechatB2bEnabled: event.target.checked }))}
+				    type="checkbox"
+				  />
+				  微信 B2B 支付
+				</label>
                 <label className="flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-4 text-sm text-slate-700">
                   <input
                     checked={flags.alipayPayEnabled}
