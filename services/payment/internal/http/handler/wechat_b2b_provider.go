@@ -44,7 +44,7 @@ func (p *WechatB2BDirectProvider) CreateCommonPayParams(ctx context.Context, req
 		return nil, err
 	}
 	signDataBytes, err := json.Marshal(map[string]interface{}{
-		"mchid": p.config.MchID, "out_trade_no": request.OrderID.String(), "description": "云互惠直采订单",
+		"mchid": p.config.MchID, "out_trade_no": strings.ReplaceAll(request.OrderID.String(), "-", ""), "description": "云互惠直采订单",
 		"amount": map[string]interface{}{"order_amount": request.AmountFen, "currency": "CNY"}, "attach": request.OrderID.String(), "env": p.config.Environment,
 	})
 	if err != nil {

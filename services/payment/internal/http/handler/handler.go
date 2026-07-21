@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -13,13 +14,27 @@ import (
 )
 
 type Handler struct {
-	Logger       *slog.Logger
-	Auth         *middleware.Authenticator
-	Flags        FeatureFlagsProvider
-	Store        PaymentStore
-	Commerce     *CommerceClient
-	ProviderMode string
-	Wechat       provider.Wechat
+	Logger            *slog.Logger
+	Auth              *middleware.Authenticator
+	Flags             FeatureFlagsProvider
+	Store             PaymentStore
+	Commerce          *CommerceClient
+	ProviderMode      string
+	Wechat            provider.Wechat
+	WechatB2BProvider WechatB2BProvider
+}
+
+// WechatB2BProvider is retained only for existing B2B clients. New miniapp
+// payments use the ordinary WeChat JSAPI provider above.
+type WechatB2BProvider interface {
+	CreateCommonPayParams(context.Context, WechatB2BPaymentRequest) (map[string]interface{}, error)
+}
+
+type WechatB2BPaymentRequest struct {
+	OrderID   uuid.UUID
+	AmountFen int64
+	ExpiresAt time.Time
+	LoginCode string
 }
 
 type PaymentStore interface {

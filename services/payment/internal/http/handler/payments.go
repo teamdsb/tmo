@@ -31,8 +31,9 @@ const (
 	paymentStatusFailed    = "PAY_FAILED"
 	paymentStatusCancelled = "CANCELLED"
 
-	paymentChannelWechat = "WECHAT"
-	paymentChannelAlipay = "ALIPAY"
+	paymentChannelWechat    = "WECHAT"
+	paymentChannelWechatB2B = "WECHAT_B2B"
+	paymentChannelAlipay    = "ALIPAY"
 )
 
 type normalizedNotifyPayload struct {
@@ -40,6 +41,76 @@ type normalizedNotifyPayload struct {
 	Status          string
 	ProviderTradeNo *string
 	EventType       string
+}
+
+func (h *Handler) PostPaymentsWechatB2bCreate(c *gin.Context, params oapi.PostPaymentsWechatB2bCreateParams) {
+	claims, ok := h.requireUser(c)
+	if !ok {
+		return
+	}
+	var request oapi.PostPaymentsWechatB2bCreateJSONBody
+	if err := c.ShouldBindJSON(&request); err != nil {
+		apierrors.Write(c, http.StatusBadRequest, apierrors.APIError{Code: "invalid_request", Message: "invalid request body"})
+		return
+	}
+	if h.WechatB2BProvider == nil {
+		h.writePaymentError(c, errConflict("wechat b2b provider is not configured"))
+		return
+	}
+	response, err := h.createWechatB2BPaymentSession(c, claims, uuid.UUID(request.OrderId), request.WechatLoginCode, params.IdempotencyKey)
+	if err != nil {
+		h.writePaymentError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, response)
+}
+
+func (h *Handler) createWechatB2BPaymentSession(c *gin.Context, claims middleware.Claims, orderID uuid.UUID, loginCode string, idempotencyKey *string) (interface{}, error) {
+	flags := h.getFeatureFlags(c)
+	if !flags.PaymentEnabled || !flags.WechatPayEnabled {
+		return nil, errForbidden("wechat b2b pay is disabled")
+	}
+	order, err := h.Commerce.GetOrder(c.Request.Context(), c.GetHeader("Authorization"), orderID.String())
+	if err != nil {
+		return nil, errInternal(fmt.Sprintf("fetch order failed: %v", err))
+	}
+	if !isOrderPayable(order.Status, order.PaymentStatus) {
+		return nil, errConflict("order is not payable")
+	}
+	if idempotencyKey != nil && strings.TrimSpace(*idempotencyKey) != "" {
+		key := strings.TrimSpace(*idempotencyKey)
+		existing, lookupErr := h.Store.GetPaymentByIdempotencyKey(c.Request.Context(), db.GetPaymentByIdempotencyKeyParams{OrderID: orderID, Channel: paymentChannelWechatB2B, IdempotencyKey: &key})
+		if lookupErr == nil {
+			var response oapi.WechatB2BPayCreateResponse
+			if json.Unmarshal(existing.ProviderPayload, &response) == nil {
+				response.PaymentId = existing.ID
+				return response, nil
+			}
+		}
+		if !errors.Is(lookupErr, pgx.ErrNoRows) {
+			return nil, errInternal("check payment idempotency failed")
+		}
+	}
+	expiresAt := time.Now().UTC().Add(15 * time.Minute)
+	amount := calculateOrderAmount(order)
+	params, err := h.WechatB2BProvider.CreateCommonPayParams(c.Request.Context(), WechatB2BPaymentRequest{OrderID: orderID, AmountFen: amount, ExpiresAt: expiresAt, LoginCode: loginCode})
+	if err != nil {
+		return nil, errConflict(fmt.Sprintf("create wechat b2b parameters: %v", err))
+	}
+	if len(params) == 0 {
+		return nil, errConflict("wechat b2b provider returned empty payment parameters")
+	}
+	response := oapi.WechatB2BPayCreateResponse{OrderId: orderID, Channel: oapi.WECHATB2B, Status: oapi.PaymentStatus(paymentStatusPending), ExpiresAt: expiresAt, CommonPayParams: params}
+	raw, err := json.Marshal(response)
+	if err != nil {
+		return nil, errInternal("encode payment payload failed")
+	}
+	payment, err := h.Store.CreatePayment(c.Request.Context(), db.CreatePaymentParams{OrderID: orderID, PayerUserID: toNullableUUID(claims.UserID), Channel: paymentChannelWechatB2B, Status: paymentStatusPending, AmountFen: amount, Currency: "CNY", IdempotencyKey: normalizeOptionalString(idempotencyKey), ProviderPayload: raw})
+	if err != nil {
+		return nil, errInternal("create payment failed")
+	}
+	response.PaymentId = payment.ID
+	return response, nil
 }
 
 func (h *Handler) PostPaymentsWechatCreate(c *gin.Context, params oapi.PostPaymentsWechatCreateParams) {
