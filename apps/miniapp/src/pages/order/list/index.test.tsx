@@ -3,7 +3,26 @@ import path from 'node:path';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import Taro from '@tarojs/taro';
 import { commerceServices } from '../../../services/commerce';
+import { paymentServices } from '../../../services/payment';
 import OrderHistoryApp from './index';
+
+jest.mock('../../../services/payment', () => ({
+  paymentServices: {
+    sessions: {
+      payForOrder: jest.fn()
+    }
+  },
+  isPaymentCancelled: jest.fn(() => false)
+}));
+
+jest.mock('../../../services/payment-availability', () => ({
+  buildOrderPaymentIdempotencyKey: jest.fn((orderId: string) => `order-payment-${orderId}`),
+  resolvePaymentAvailability: jest.fn(async () => ({
+    available: true,
+    channel: 'wechat_b2b',
+    unavailableMessage: ''
+  }))
+}));
 
 const flushPromises = () => new Promise((resolve) => process.nextTick(resolve));
 
@@ -62,6 +81,51 @@ describe('OrderHistoryApp', () => {
     expect(commerceServices.orders.confirmReceipt).toHaveBeenCalledWith('ORD-88291');
     expect(Taro.showToast).toHaveBeenCalledWith({ title: '已确认收货', icon: 'success' });
     expect(commerceServices.orders.list).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows a direct pay entry for unpaid orders and starts payment', async () => {
+    (commerceServices.orders.list as jest.Mock).mockResolvedValue({
+      items: [{
+        id: 'ORD-PAY-1',
+        createdAt: '2026-07-15T07:55:27Z',
+        status: 'PAY_PENDING',
+        paymentStatus: 'PAY_PENDING',
+        items: [{
+          qty: 1,
+          unitPriceFen: 1,
+          sku: { name: '反光安全背心' }
+        }]
+      }]
+    });
+    (paymentServices.sessions.payForOrder as jest.Mock).mockResolvedValue({
+      id: 'pay-1',
+      orderId: 'ORD-PAY-1',
+      channel: 'wechat_b2b',
+      status: 'PAID'
+    });
+
+    await renderOrderHistory();
+
+    expect(screen.getByText('待支付')).toBeInTheDocument();
+    expect(screen.getByText('去支付')).toBeInTheDocument();
+    expect(screen.queryByText('物流')).not.toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('去支付'));
+      await flushPromises();
+    });
+
+    expect(paymentServices.sessions.payForOrder).toHaveBeenCalledWith('ORD-PAY-1', {
+      channel: 'wechat_b2b',
+      idempotencyKey: 'order-payment-ORD-PAY-1'
+    });
+    expect(Taro.showToast).toHaveBeenCalledWith(expect.objectContaining({
+      title: '支付成功',
+      icon: 'success'
+    }));
+    expect(Taro.navigateTo).toHaveBeenCalledWith({
+      url: '/pages/order/success/index?id=ORD-PAY-1&payment=paid'
+    });
   });
 
   it('uses shared secondary navbar sizing and compact order list spacing', () => {

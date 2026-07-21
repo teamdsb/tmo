@@ -33,6 +33,7 @@ export type MineOrder = {
   id: string
   status: string
   sourceStatus: string
+  paymentStatus?: string
   date: string
   totalPrice: number
   items: MineOrderItem[]

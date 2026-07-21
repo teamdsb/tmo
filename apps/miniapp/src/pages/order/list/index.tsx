@@ -8,23 +8,28 @@ import Tag from '@taroify/core/tag'
 import Button from '@taroify/core/button'
 import type { Order, OrderStatus } from '@tmo/api-client'
 import Flex from '../../../components/flex'
-import { ROUTES, orderDetailRoute, orderTrackingRoute } from '../../../routes'
+import { ROUTES, orderDetailRoute, orderSuccessRoute, orderTrackingRoute } from '../../../routes'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
+import { isPaymentCancelled, paymentServices } from '../../../services/payment'
+import { buildOrderPaymentIdempotencyKey, resolvePaymentAvailability } from '../../../services/payment-availability'
 
-const TABS: { label: string; status?: OrderStatus }[] = [
+const orderPaymentResultToastDuration = 3000
+
+const TABS: { label: string; statuses?: string[] }[] = [
   { label: '全部' },
-  { label: '待处理', status: 'SUBMITTED' },
-  { label: '已确认', status: 'CONFIRMED' },
-  { label: '已发货', status: 'SHIPPED' },
-  { label: '已完成', status: 'DELIVERED' }
+  { label: '待处理', statuses: ['SUBMITTED', 'PAY_PENDING', 'PAY_FAILED'] },
+  { label: '已确认', statuses: ['CONFIRMED', 'PAID'] },
+  { label: '已发货', statuses: ['SHIPPED', 'DISPATCHED'] },
+  { label: '已完成', statuses: ['DELIVERED'] }
 ]
 
 export default function OrderHistoryApp() {
   const [activeTab, setActiveTab] = useState(TABS[0].label)
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(false)
+  const [payingOrderId, setPayingOrderId] = useState<string | null>(null)
   const [confirmingOrderId, setConfirmingOrderId] = useState<string | null>(null)
   const navbarStyle = getNavbarStyle()
 
@@ -72,11 +77,58 @@ export default function OrderHistoryApp() {
     }
   }
 
+  const handlePayOrder = async (order: Order) => {
+    if (!canContinuePay(order)) {
+      await navigateTo(orderDetailRoute(order.id))
+      return
+    }
+
+    setPayingOrderId(order.id)
+    let paymentConfirmed = false
+    try {
+      const availability = await resolvePaymentAvailability()
+      if (!availability.available) {
+        await Taro.showToast({
+          title: availability.unavailableMessage || '支付暂未开通',
+          icon: 'none'
+        })
+        return
+      }
+
+      const payment = await paymentServices.sessions.payForOrder(order.id, {
+        channel: availability.channel,
+        idempotencyKey: buildOrderPaymentIdempotencyKey(order.id)
+      })
+      const nextPaymentStatus = String(payment.status || '').toUpperCase()
+      paymentConfirmed = nextPaymentStatus === 'PAID'
+      await Taro.showToast({
+        title: paymentConfirmed ? '支付成功' : '支付结果确认中',
+        icon: paymentConfirmed ? 'success' : 'none',
+        duration: orderPaymentResultToastDuration
+      })
+    } catch (error) {
+      console.warn('pay order from list failed', error)
+      await Taro.showToast({
+        title: isPaymentCancelled(error) ? '支付已取消' : '支付未完成，请重试',
+        icon: 'none'
+      })
+    } finally {
+      setPayingOrderId(null)
+      if (!paymentConfirmed) {
+        await loadOrders()
+      }
+    }
+
+    if (paymentConfirmed) {
+      await navigateTo(orderSuccessRoute(order.id, 'paid'))
+    }
+  }
+
   const filteredOrders = useMemo(() => {
     const tab = TABS.find((item) => item.label === activeTab)
-    const status = tab?.status
+    const statuses = tab?.statuses
     return orders.filter((order) => {
-      if (status && order.status !== status) {
+      if (statuses && !statuses.includes(String(order.status))) {
         return false
       }
       return true
@@ -95,14 +147,17 @@ export default function OrderHistoryApp() {
           {TABS.map((tab) => (
             <Tabs.TabPane key={tab.label} value={tab.label} title={tab.label}>
               <Cell.Group inset>
-                {filteredOrders.map((order) => (
-                  <Cell key={order.id} bordered={false}>
+                {filteredOrders.map((order) => {
+                  const showContinuePay = canContinuePay(order)
+                  const showLogistics = canViewLogistics(order)
+                  return (
+                  <Cell key={order.id} bordered={false} className='order-history-card'>
                     <Flex justify='between' align='center'>
                       <View>
                         <Text className='order-date'>{formatDate(order.createdAt)}</Text>
                       </View>
-                      <Tag size='small' color={statusTone(order.status)}>
-                        {statusLabel(order.status)}
+                      <Tag size='small' color={statusTone(order)}>
+                        {orderStatusLabel(order)}
                       </Tag>
                     </Flex>
 
@@ -119,24 +174,40 @@ export default function OrderHistoryApp() {
                     </Flex>
 
                     <Flex align='center' gutter={8} className='order-actions'>
+                      {showContinuePay ? (
+                        <Button
+                          size='small'
+                          color='primary'
+                          className='order-action-button order-action-button--pay'
+                          loading={payingOrderId === order.id}
+                          onClick={() => void handlePayOrder(order)}
+                        >
+                          去支付
+                        </Button>
+                      ) : null}
                       <Button
                         size='small'
                         variant='outlined'
+                        className='order-action-button order-action-button--ghost'
                         onClick={() => navigateTo(orderDetailRoute(order.id))}
                       >
                         详情
                       </Button>
-                      <Button
-                        size='small'
-                        color='primary'
-                        onClick={() => navigateTo(orderTrackingRoute(order.id))}
-                      >
-                        物流
-                      </Button>
+                      {showLogistics ? (
+                        <Button
+                          size='small'
+                          color='primary'
+                          className='order-action-button'
+                          onClick={() => navigateTo(orderTrackingRoute(order.id))}
+                        >
+                          物流
+                        </Button>
+                      ) : null}
                       {isShippedStatus(order.status) ? (
                         <Button
                           size='small'
                           color='success'
+                          className='order-action-button order-action-button--success'
                           loading={confirmingOrderId === order.id}
                           onClick={() => void handleConfirmReceipt(order)}
                         >
@@ -145,7 +216,7 @@ export default function OrderHistoryApp() {
                       ) : null}
                     </Flex>
                   </Cell>
-                ))}
+                )})}
                 {filteredOrders.length === 0 ? (
                   <Cell title={loading ? '正在加载订单...' : '暂无订单'} />
                 ) : null}
@@ -178,6 +249,50 @@ const formatOrderTotal = (order: Order) => {
 
 const isShippedStatus = (status: OrderStatus | string) => status === 'SHIPPED' || status === 'DISPATCHED'
 
+const readPaymentStatus = (order: Order | null): string => {
+  if (!order || typeof order !== 'object') {
+    return ''
+  }
+  const value = (order as Order & { paymentStatus?: unknown }).paymentStatus
+  return typeof value === 'string' ? value : ''
+}
+
+const canContinuePay = (order: Order | null): boolean => {
+  if (!order) {
+    return false
+  }
+  const paymentStatus = readPaymentStatus(order).toUpperCase()
+  if (paymentStatus === 'PAID') {
+    return false
+  }
+  return order.status === 'SUBMITTED' || order.status === 'PAY_PENDING' || order.status === 'PAY_FAILED'
+}
+
+const canViewLogistics = (order: Order | null): boolean => {
+  if (!order) {
+    return false
+  }
+  if (readPaymentStatus(order).toUpperCase() === 'PAID') {
+    return true
+  }
+  const orderStatus = String(order.status)
+  return orderStatus === 'PAID' || orderStatus === 'SHIPPED' || orderStatus === 'DISPATCHED' || orderStatus === 'DELIVERED'
+}
+
+const orderStatusLabel = (order: Order): string => {
+  const paymentStatus = readPaymentStatus(order).toUpperCase()
+  if (paymentStatus === 'PAY_PENDING' || paymentStatus === 'UNPAID' || paymentStatus === 'PENDING' || paymentStatus === 'CREATED') {
+    return '待支付'
+  }
+  if (paymentStatus === 'PAY_FAILED' || paymentStatus === 'FAILED') {
+    return '支付失败'
+  }
+  if (paymentStatus === 'PAID' && (order.status === 'SUBMITTED' || order.status === 'PAY_PENDING' || order.status === 'PAY_FAILED')) {
+    return '已支付'
+  }
+  return statusLabel(order.status)
+}
+
 const statusLabel = (status: OrderStatus | string) => {
   switch (status) {
     case 'SUBMITTED':
@@ -200,8 +315,11 @@ const statusLabel = (status: OrderStatus | string) => {
   }
 }
 
-const statusTone = (status: OrderStatus | string): 'info' | 'warning' | 'success' => {
-  switch (status) {
+const statusTone = (order: Order): 'info' | 'warning' | 'success' => {
+  if (canContinuePay(order)) {
+    return 'warning'
+  }
+  switch (String(order.status)) {
     case 'SUBMITTED':
     case 'PAY_PENDING':
       return 'warning'
