@@ -20,15 +20,11 @@
 
 ## 微信支付
 
-### B2B 门店助手支付
+### 普通直连商户小程序支付
 
-本项目的微信小程序支付入口使用 B2B 门店助手，而不是普通的 `wx.requestPayment`。小程序已配置门店助手插件 `wx69b7451feb427f0e`，支付会调用 `wx.requestCommonPayment`，并只接受支付服务返回的 `commonPayParams`。
+本项目的小程序支付入口固定为普通直连商户模式。支付服务调用 `POST /v3/pay/transactions/jsapi` 创建真实预支付单，小程序只调用 `wx.requestPayment`。仓库不再发布 B2B 门店助手插件、`requestCommonPayment` 或 `/payments/wechat/b2b/create` 接口。
 
-启用前必须在微信公众平台添加并审核门店助手插件，且付款用户已经在插件中完成门店认证和授权。B2B 商户号也必须已开通并关联该小程序。
-
-支付服务的 `WechatB2BProvider` 是商户专属的服务端适配点：它必须使用微信提供的 B2B 下单/签名协议和仅存放在部署 Secret 中的凭证，为每笔订单生成 `signData`、`mode: retail_pay_goods`、`paySig` 与 `signature`。这些参数不可写进前端、配置文件或代码常量。当前仓库不会伪造它们；没有部署此提供方时，`POST /payments/wechat/b2b/create` 会明确拒绝请求，而非创建一个不可拉起的支付会话。
-
-普通 `POST /payments/wechat/create` 与 `wx.requestPayment` 仅适用于另行完成的普通微信支付接入，不能作为 B2B 门店助手支付的替代。
+部署真实支付前，企业必须在微信支付侧完成普通直连商户入驻；此前特约商户/服务商模式下的证书、APIv3 密钥和商户号不能直接复用。部署环境只从 Secret 注入普通商户的 APIv3 密钥和商户私钥，绝不将这些值写入小程序、仓库或日志。
 
 ### 官方依据
 
@@ -38,7 +34,7 @@
 
 ### 开通与前置条件
 
-- 已开通微信支付商户号 `mchid`。
+- 已开通普通直连微信支付商户号 `mchid` 和 JSAPI/小程序支付产品。
 - 小程序 `appid` 已和目标商户号完成绑定。
 - 已在微信支付商户平台配置 APIv3 Key。
 - 已生成商户 API 证书与商户私钥，并记录商户证书序列号。
@@ -71,7 +67,7 @@
 - `payer.openid` 必须属于当前小程序用户。
 - `notify_url` 必须是公网 HTTPS 地址。
 - 下单成功后会返回 `prepay_id`。
-- 订单号 `out_trade_no` 必须可与本仓库 `payments.id` 或业务订单号稳定映射。
+- 订单号 `out_trade_no` 使用去掉连字符的 UUID：32 个字符、全局唯一，且支付回调可映射回业务订单。
 
 ### 小程序拉起支付
 

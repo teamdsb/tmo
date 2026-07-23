@@ -35,10 +35,6 @@ export interface PayOptions {
   payload: Record<string, unknown>
 }
 
-export interface CommonPayOptions {
-  payload: Record<string, unknown>
-}
-
 export interface PayResult {
   raw?: unknown
 }

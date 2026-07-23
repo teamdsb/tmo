@@ -22,7 +22,6 @@ const (
 	defaultAlipayPayEnabled    = false
 	defaultCommerceSyncToken   = "dev-payment-sync-token"
 	defaultProviderMode        = "mock"
-	defaultWechatSessionURL    = "https://api.weixin.qq.com/sns/jscode2session"
 )
 
 type Config struct {
@@ -47,12 +46,6 @@ type Config struct {
 	WechatMerchantPrivateKeyPath string
 	WechatMerchantSerialNumber   string
 	WechatNotifyURL              string
-	WechatB2BAppID               string
-	WechatB2BAppSecret           string
-	WechatB2BMchID               string
-	WechatB2BAppKey              string
-	WechatB2BEnvironment         int
-	WechatSessionURL             string
 }
 
 func Load() Config {
@@ -78,11 +71,5 @@ func Load() Config {
 		WechatMerchantPrivateKeyPath: sharedconfig.String("PAYMENT_WECHAT_MERCHANT_PRIVATE_KEY_PATH", ""),
 		WechatMerchantSerialNumber:   sharedconfig.String("PAYMENT_WECHAT_MERCHANT_SERIAL_NUMBER", ""),
 		WechatNotifyURL:              sharedconfig.String("PAYMENT_WECHAT_NOTIFY_URL", ""),
-		WechatB2BAppID:               sharedconfig.String("PAYMENT_WECHAT_B2B_APP_ID", ""),
-		WechatB2BAppSecret:           sharedconfig.String("PAYMENT_WECHAT_B2B_APP_SECRET", ""),
-		WechatB2BMchID:               sharedconfig.String("PAYMENT_WECHAT_B2B_MCH_ID", ""),
-		WechatB2BAppKey:              sharedconfig.String("PAYMENT_WECHAT_B2B_APP_KEY", ""),
-		WechatB2BEnvironment:         sharedconfig.Int("PAYMENT_WECHAT_B2B_ENV", 0),
-		WechatSessionURL:             sharedconfig.String("PAYMENT_WECHAT_B2B_SESSION_URL", defaultWechatSessionURL),
 	}
 }

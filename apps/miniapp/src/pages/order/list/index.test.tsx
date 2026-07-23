@@ -19,7 +19,7 @@ jest.mock('../../../services/payment-availability', () => ({
   buildOrderPaymentIdempotencyKey: jest.fn((orderId: string) => `order-payment-${orderId}`),
   resolvePaymentAvailability: jest.fn(async () => ({
     available: true,
-    channel: 'wechat_b2b',
+    channel: 'wechat',
     unavailableMessage: ''
   }))
 }));
@@ -100,7 +100,7 @@ describe('OrderHistoryApp', () => {
     (paymentServices.sessions.payForOrder as jest.Mock).mockResolvedValue({
       id: 'pay-1',
       orderId: 'ORD-PAY-1',
-      channel: 'wechat_b2b',
+      channel: 'wechat',
       status: 'PAID'
     });
 
@@ -116,7 +116,7 @@ describe('OrderHistoryApp', () => {
     });
 
     expect(paymentServices.sessions.payForOrder).toHaveBeenCalledWith('ORD-PAY-1', {
-      channel: 'wechat_b2b',
+      channel: 'wechat',
       idempotencyKey: 'order-payment-ORD-PAY-1'
     });
     expect(Taro.showToast).toHaveBeenCalledWith(expect.objectContaining({

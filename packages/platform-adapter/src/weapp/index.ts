@@ -4,11 +4,9 @@ import type {
   ChooseFileResult,
   ChooseImageOptions,
   ChooseImageResult,
-  CommonPayOptions,
   LoginResult,
   PhoneProofResult,
   PayOptions,
-  CommonPayOptions,
   PayResult,
   RequestOptions,
   RequestResult,
@@ -105,16 +103,6 @@ export const request = async <T>(options: RequestOptions): Promise<RequestResult
 export const pay = (options: PayOptions): Promise<PayResult> => {
   return new Promise((resolve, reject) => {
     wx.requestPayment({
-      ...options.payload,
-      success: (res: unknown) => resolve({ raw: res }),
-      fail: reject
-    })
-  })
-}
-
-export const commonPay = (options: CommonPayOptions): Promise<PayResult> => {
-  return new Promise((resolve, reject) => {
-    wx.requestCommonPayment({
       ...options.payload,
       success: (res: unknown) => resolve({ raw: res }),
       fail: reject
