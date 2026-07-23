@@ -9,6 +9,7 @@ dist/
 build/
 coverage/
 .superpowers/
+.worktrees/
 
 # Go
 bin/
