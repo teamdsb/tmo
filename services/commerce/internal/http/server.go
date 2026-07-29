@@ -51,5 +51,5 @@ func NewRouter(handler *handler.Handler, logger *slog.Logger, readyCheck func(co
 }
 
 func NewServer(addr string, router http.Handler) *http.Server {
-	return httpx.NewServer(addr, router)
+	return httpx.NewUploadServer(addr, router)
 }

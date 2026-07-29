@@ -13,6 +13,8 @@ import (
 
 const imageProxyWriteTimeoutBuffer = 5 * time.Second
 
+const uploadRequestTimeout = httpx.UploadRequestTimeout
+
 type ProxyHandlers struct {
 	Identity             gin.HandlerFunc
 	Commerce             gin.HandlerFunc
@@ -101,7 +103,7 @@ func NewRouter(handlers ProxyHandlers, logger *slog.Logger, readyCheck func(cont
 }
 
 func NewServer(addr string, router http.Handler, imageProxyTimeout time.Duration) *http.Server {
-	server := httpx.NewServer(addr, router)
+	server := httpx.NewUploadServer(addr, router)
 	server.WriteTimeout = gatewayWriteTimeout(imageProxyTimeout)
 	return server
 }
@@ -110,7 +112,7 @@ func gatewayWriteTimeout(imageProxyTimeout time.Duration) time.Duration {
 	if imageProxyTimeout <= 0 {
 		imageProxyTimeout = 10 * time.Second
 	}
-	base := httpx.NewServer("", http.NewServeMux()).WriteTimeout
+	base := httpx.NewUploadServer("", http.NewServeMux()).WriteTimeout
 	candidate := imageProxyTimeout + imageProxyWriteTimeoutBuffer
 	if candidate < base {
 		return base

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -56,6 +57,9 @@ func TestNewServer(test *testing.T) {
 	}
 	if server.Handler == nil {
 		test.Fatal("expected server handler to be set")
+	}
+	if server.ReadTimeout != 2*time.Minute || server.WriteTimeout != 2*time.Minute {
+		test.Fatalf("expected two-minute upload timeouts, got read=%s write=%s", server.ReadTimeout, server.WriteTimeout)
 	}
 }
 
