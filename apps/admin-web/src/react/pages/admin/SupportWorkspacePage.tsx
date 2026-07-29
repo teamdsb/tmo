@@ -151,7 +151,7 @@ const MessageBubble = ({ message }) => {
   const isSystem = message.senderType === 'SYSTEM';
   const productId = String(message.cardPayload?.productId || '').trim();
   const productDetailHref = buildAdminProductDetailHref(productId);
-  const cardClassName = `mt-3 block w-full rounded-xl border p-3 text-left transition ${isCustomer ? 'border-slate-200 bg-slate-50' : 'border-blue-300 bg-blue-500/70'} ${productId ? (isCustomer ? 'hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/40' : 'hover:border-white/70 hover:bg-blue-400/80 focus:outline-none focus:ring-2 focus:ring-white/60') : ''}`;
+  const cardClassName = `mt-2 block w-full rounded-lg border p-2 text-left transition ${isCustomer ? 'border-slate-200 bg-slate-50' : 'border-blue-300 bg-blue-500/70'} ${productId ? (isCustomer ? 'hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/40' : 'hover:border-white/70 hover:bg-blue-400/80 focus:outline-none focus:ring-2 focus:ring-white/60') : ''}`;
 
   if (isSystem) {
     return (
@@ -165,11 +165,11 @@ const MessageBubble = ({ message }) => {
 
   return (
     <div className={`flex ${isCustomer ? 'justify-start' : 'justify-end'}`}>
-      <div className={`max-w-[75%] rounded-2xl border px-4 py-3 shadow-sm ${isCustomer ? 'border-slate-200 bg-white text-slate-900 rounded-tl-none' : 'border-blue-500 bg-blue-600 text-white rounded-tr-none'}`}>
+      <div className={`max-w-[72%] rounded-xl border px-3 py-2 shadow-sm ${isCustomer ? 'border-slate-200 bg-white text-slate-900 rounded-tl-none' : 'border-blue-500 bg-blue-600 text-white rounded-tr-none'}`}>
         {message.asset?.url ? (
-          <img className="mb-3 max-h-52 w-full rounded-xl object-cover" src={message.asset.url} alt={message.asset.fileName || '聊天图片'} />
+          <img className="mb-2 max-h-40 w-full rounded-lg object-cover" src={message.asset.url} alt={message.asset.fileName || '聊天图片'} />
         ) : null}
-        {message.textContent ? <p className="text-sm leading-6">{message.textContent}</p> : null}
+        {message.textContent ? <p className="text-sm leading-5">{message.textContent}</p> : null}
         {message.cardPayload ? (
           productId ? (
             <a
@@ -191,7 +191,7 @@ const MessageBubble = ({ message }) => {
             </div>
           )
         ) : null}
-        <div className={`mt-2 flex items-center gap-1 text-[11px] ${isCustomer ? 'text-slate-400' : 'text-blue-100'}`}>
+        <div className={`mt-1.5 flex items-center gap-1 text-[10px] ${isCustomer ? 'text-slate-400' : 'text-blue-100'}`}>
           <span>{formatSupportTime(message.createdAt, true)}</span>
           {!isCustomer ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
         </div>
@@ -772,7 +772,7 @@ export const SupportWorkspacePage = () => {
         </section>
 
         <section className="col-span-6 flex min-h-0 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <div>
               <p className="text-base font-semibold text-slate-900" data-testid="support-active-customer-name">{activeConversation ? customerDisplayLabel(activeConversation) : '请选择会话'}</p>
               <p className="mt-1 text-xs text-slate-500">
@@ -803,7 +803,7 @@ export const SupportWorkspacePage = () => {
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-slate-50 px-6 py-5">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50 px-4 py-3">
             {conversationDetail?.messages?.length ? conversationDetail.messages.map((message) => (
               <div
                 key={message.id}
@@ -820,13 +820,13 @@ export const SupportWorkspacePage = () => {
             )}
           </div>
 
-          <div className="shrink-0 border-t border-slate-100 bg-white px-6 py-4">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="shrink-0 border-t border-slate-100 bg-white px-4 py-3">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 disabled={!activeConversationId || sending}
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 disabled:opacity-50"
               >
                 <ImageIcon className="h-4 w-4" />
                 发送图片
@@ -837,7 +837,7 @@ export const SupportWorkspacePage = () => {
                   type="button"
                   disabled={!activeConversationId || sending}
                   onClick={() => void handleSendOrderCard(order)}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 disabled:opacity-50"
                 >
                   <Package className="h-4 w-4" />
                   发订单卡片
@@ -849,7 +849,7 @@ export const SupportWorkspacePage = () => {
                   type="button"
                   disabled={!activeConversationId || sending}
                   onClick={() => void handleSendProductCard(product)}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 disabled:opacity-50"
                 >
                   <ShoppingBag className="h-4 w-4" />
                   发商品卡片
@@ -860,16 +860,16 @@ export const SupportWorkspacePage = () => {
               <textarea
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
-                rows={3}
+                rows={2}
                 placeholder="输入回复内容..."
-                className="min-h-[88px] flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white"
+                className="min-h-[68px] flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white"
                 data-testid="support-reply-input"
               />
               <button
                 type="button"
                 disabled={!activeConversationId || !draft.trim() || sending}
                 onClick={() => void handleSendText()}
-                className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                 data-testid="support-send-button"
               >
                 <Send className="h-4 w-4" />
@@ -881,10 +881,10 @@ export const SupportWorkspacePage = () => {
           </div>
         </section>
 
-        <aside className="col-span-3 flex min-h-0 flex-col gap-4 overflow-y-auto">
-          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm" data-testid="support-customer-card">
+        <aside className="col-span-3 flex min-h-0 flex-col gap-3 overflow-y-auto">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" data-testid="support-customer-card">
             <p className="text-sm font-semibold text-slate-900">客户资料</p>
-            <dl className="mt-4 space-y-3 text-sm text-slate-600">
+            <dl className="mt-3 space-y-2 text-sm text-slate-600">
               <div>
                 <dt className="text-xs uppercase tracking-wide text-slate-400">姓名</dt>
                 <dd className="mt-1 font-medium text-slate-900">{activeConversation ? customerDisplayLabel(activeConversation) : '--'}</dd>
@@ -916,7 +916,7 @@ export const SupportWorkspacePage = () => {
             </dl>
           </section>
 
-          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center gap-2">
               <UserPlus className="h-4 w-4 text-slate-500" />
               <p className="text-sm font-semibold text-slate-900">会话分配</p>
@@ -947,9 +947,9 @@ export const SupportWorkspacePage = () => {
             </button>
           </section>
 
-          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-sm font-semibold text-slate-900">客户上下文</p>
-            <dl className="mt-4 space-y-3 text-sm text-slate-600">
+            <dl className="mt-3 space-y-2 text-sm text-slate-600">
               <div>
                 <dt className="text-xs uppercase tracking-wide text-slate-400">客户</dt>
                 <dd className="mt-1 font-medium text-slate-900">{conversationDetail?.context?.customerUserId || '--'}</dd>
@@ -961,9 +961,9 @@ export const SupportWorkspacePage = () => {
             </dl>
           </section>
 
-          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-sm font-semibold text-slate-900">最近订单</p>
-            <div className="mt-3 space-y-3">
+            <div className="mt-2 space-y-2">
               {conversationDetail?.context?.recentOrders?.length ? conversationDetail.context.recentOrders.map((order) => (
                 <div key={order.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                   <p className="text-sm font-semibold text-slate-900">{order.id}</p>
@@ -973,9 +973,9 @@ export const SupportWorkspacePage = () => {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-sm font-semibold text-slate-900">询价 / 售后</p>
-            <div className="mt-3 space-y-3">
+            <div className="mt-2 space-y-2">
               {conversationDetail?.context?.recentInquiries?.slice(0, 2).map((inquiry) => (
                 <div key={inquiry.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
                   <p className="text-sm font-semibold text-slate-900">{inquiry.id}</p>

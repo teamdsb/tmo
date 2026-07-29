@@ -29,6 +29,22 @@ type ChatMessageItem = Awaited<ReturnType<typeof commerceServices.support.sendMe
   retryAssetPath?: string
 }
 
+export const mergeIncomingSupportMessage = (
+  currentItems: ChatMessageItem[],
+  nextMessage: ChatMessageItem
+): ChatMessageItem[] => {
+  if (currentItems.some((item) => item.id === nextMessage.id)) {
+    return currentItems
+  }
+
+  const nextItems = currentItems.filter((item) => !(
+    item.pending &&
+    item.messageType === nextMessage.messageType &&
+    item.textContent === nextMessage.textContent
+  ))
+  return [...nextItems, nextMessage]
+}
+
 type RecentOrder = Awaited<ReturnType<typeof commerceServices.orders.list>>['items'][number]
 type RecentProduct = Awaited<ReturnType<typeof commerceServices.catalog.listProducts>>['items'][number]
 
@@ -286,14 +302,7 @@ export default function SupportChatPage() {
           }
           if (envelope.type === 'message.created' && envelope.data?.message?.conversationId === conversation.id) {
             const nextMessage = envelope.data.message
-            setMessages((currentItems) => {
-              const nextItems = currentItems.filter((item) => !(
-                item.pending &&
-                item.messageType === nextMessage.messageType &&
-                item.textContent === nextMessage.textContent
-              ))
-              return [...nextItems, nextMessage]
-            })
+            setMessages((currentItems) => mergeIncomingSupportMessage(currentItems, nextMessage))
           }
         }, (nextState) => {
           if (cancelled) return

@@ -63,5 +63,6 @@ test('support reply composer stays pinned when conversation history is long', as
   const inputBottom = inputBox!.y + inputBox!.height;
   expect(inputBottom).toBeLessThanOrEqual(viewport!.height - 16);
   expect(inputBox!.y).toBeGreaterThan(viewport!.height - 180);
+  expect(inputBox!.height).toBeLessThanOrEqual(80);
   await expect(page.getByTestId('support-send-button')).toBeVisible();
 });

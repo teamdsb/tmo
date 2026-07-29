@@ -3,7 +3,7 @@ import Taro from '@tarojs/taro'
 import fs from 'node:fs'
 import path from 'node:path'
 import { commerceServices } from '../../../services/commerce'
-import SupportChatPage, { connectSupportSocket } from './index'
+import SupportChatPage, { connectSupportSocket, mergeIncomingSupportMessage } from './index'
 
 jest.mock('../../../services/bootstrap', () => ({
   loadBootstrap: jest.fn(async () => ({
@@ -84,6 +84,22 @@ describe('SupportChatPage', () => {
     expect(screen.getByText('待接入客服')).toBeInTheDocument()
     expect(screen.getByText(/连接中/)).toBeInTheDocument()
     expect(screen.getByText('客服通道已就绪，发送第一条消息开始沟通。')).toBeInTheDocument()
+  })
+
+  it('does not append a websocket message already confirmed by the send response', () => {
+    const confirmedMessage = {
+      id: 'msg-confirmed',
+      conversationId: 'conv-1',
+      senderType: 'CUSTOMER',
+      messageType: 'TEXT',
+      textContent: 'hello',
+      createdAt: '2026-03-10T10:00:00Z'
+    }
+
+    expect(mergeIncomingSupportMessage([confirmedMessage], confirmedMessage)).toEqual([confirmedMessage])
+
+    const distinctMessage = { ...confirmedMessage, id: 'msg-distinct' }
+    expect(mergeIncomingSupportMessage([confirmedMessage], distinctMessage)).toEqual([confirmedMessage, distinctMessage])
   })
 
   it('allows chatting while optional support data is still loading', async () => {
