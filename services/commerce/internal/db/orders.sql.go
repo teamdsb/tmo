@@ -446,12 +446,12 @@ func (q *Queries) ListOrderItems(ctx context.Context, orderID uuid.UUID) ([]Orde
 }
 
 const listOrderStatusStats = `-- name: ListOrderStatusStats :many
-SELECT status, count(*)::bigint AS order_count
+SELECT status, payment_status, count(*)::bigint AS order_count
 FROM orders
 WHERE ($1::uuid IS NULL OR customer_id = $1)
   AND ($2::uuid IS NULL OR owner_sales_user_id = $2)
-GROUP BY status
-ORDER BY status
+GROUP BY status, payment_status
+ORDER BY status, payment_status
 `
 
 type ListOrderStatusStatsParams struct {
@@ -460,8 +460,9 @@ type ListOrderStatusStatsParams struct {
 }
 
 type ListOrderStatusStatsRow struct {
-	Status     string `db:"status" json:"status"`
-	OrderCount int64  `db:"order_count" json:"order_count"`
+	Status        string `db:"status" json:"status"`
+	PaymentStatus string `db:"payment_status" json:"payment_status"`
+	OrderCount    int64  `db:"order_count" json:"order_count"`
 }
 
 func (q *Queries) ListOrderStatusStats(ctx context.Context, arg ListOrderStatusStatsParams) ([]ListOrderStatusStatsRow, error) {
@@ -473,7 +474,7 @@ func (q *Queries) ListOrderStatusStats(ctx context.Context, arg ListOrderStatusS
 	var items []ListOrderStatusStatsRow
 	for rows.Next() {
 		var i ListOrderStatusStatsRow
-		if err := rows.Scan(&i.Status, &i.OrderCount); err != nil {
+		if err := rows.Scan(&i.Status, &i.PaymentStatus, &i.OrderCount); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

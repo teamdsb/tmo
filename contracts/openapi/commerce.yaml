@@ -2327,6 +2327,8 @@ components:
       properties:
         status:
           "$ref": "#/components/schemas/OrderStatus"
+        paymentStatus:
+          "$ref": "#/components/schemas/OrderPaymentStatus"
         count:
           type: integer
           minimum: 0

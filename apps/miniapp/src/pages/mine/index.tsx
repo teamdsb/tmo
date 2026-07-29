@@ -24,12 +24,12 @@ import placeholderProductImage from '../../assets/images/placeholder-product.svg
 import { runtimeEnv } from '../../config/runtime-env'
 import {
   INITIAL_ADDRESSES_DATA,
-  PENDING_ORDER_STATUSES,
   createMineMenuItems,
   toOrderBadge
 } from './data'
 import { AddressView, DemandView, MineProfileView, OrderManagementView } from './components'
 import type { MenuItem, MineOrder, MineSubview, OrderBadges, OrderItem } from './types'
+import { classifyOrderProgress, orderProgressLabel, progressFromStat } from './order-progress'
 
 export default function PersonalCenter() {
   const navbarStyle = getNavbarStyle()
@@ -52,20 +52,17 @@ export default function PersonalCenter() {
   const refreshOrderBadges = useCallback(async () => {
     try {
       const stats = await commerceServices.orders.stats()
-      const countByStatus = new Map<string, number>()
+      const countByProgress = new Map<string, number>()
       for (const item of stats.items ?? []) {
         const count = typeof item.count === 'number' ? item.count : 0
-        countByStatus.set(item.status, (countByStatus.get(item.status) ?? 0) + count)
+        const progress = progressFromStat(item.status, item.paymentStatus)
+        countByProgress.set(progress, (countByProgress.get(progress) ?? 0) + count)
       }
 
-      const pending = PENDING_ORDER_STATUSES.reduce((sum, status) => {
-        return sum + (countByStatus.get(status) ?? 0)
-      }, 0)
-
       setOrderBadges({
-        pending: toOrderBadge(pending),
-        shipped: toOrderBadge(countByStatus.get('SHIPPED') ?? 0),
-        delivered: toOrderBadge(countByStatus.get('DELIVERED') ?? 0)
+        pending: toOrderBadge(countByProgress.get('pending') ?? 0),
+        shipped: toOrderBadge(countByProgress.get('shipped') ?? 0),
+        delivered: toOrderBadge(countByProgress.get('delivered') ?? 0)
       })
     } catch (error) {
       console.warn('order stats refresh failed', error)
@@ -111,6 +108,7 @@ export default function PersonalCenter() {
   useDidShow(() => {
     void (async () => {
       await refreshBootstrap()
+      await refreshOrderBadges()
     })()
   })
 
@@ -152,8 +150,15 @@ export default function PersonalCenter() {
 
     setOrdersLoading(true)
     try {
-      const response = await commerceServices.orders.list({ page: 1, pageSize: 20 })
-      setOrders((response.items ?? []).map(toMineOrder))
+      const pageSize = 100
+      const firstPage = await commerceServices.orders.list({ page: 1, pageSize })
+      const allOrders = [...(firstPage.items ?? [])]
+      const totalPages = Math.ceil((firstPage.total ?? allOrders.length) / pageSize)
+      for (let page = 2; page <= totalPages; page += 1) {
+        const response = await commerceServices.orders.list({ page, pageSize })
+        allOrders.push(...(response.items ?? []))
+      }
+      setOrders(allOrders.map(toMineOrder))
     } catch (error) {
       console.warn('order list refresh failed', error)
       await Taro.showToast({ title: '加载订单失败', icon: 'none' })
@@ -389,7 +394,8 @@ const toMineOrder = (order: Order): MineOrder => {
 
   return {
     id: order.id,
-    status: toMineOrderStatus(order.status),
+    status: orderProgressLabel(order),
+    progress: classifyOrderProgress(order),
     sourceStatus: order.status,
     paymentStatus: readMineOrderPaymentStatus(order),
     date: formatMineOrderDate(order.createdAt),
@@ -405,22 +411,6 @@ const toMineOrder = (order: Order): MineOrder => {
 const readMineOrderPaymentStatus = (order: Order): string => {
   const value = (order as Order & { paymentStatus?: unknown }).paymentStatus
   return typeof value === 'string' ? value : ''
-}
-
-const toMineOrderStatus = (status: Order['status'] | string): string => {
-  switch (status) {
-    case 'SHIPPED':
-    case 'DISPATCHED':
-      return '已发货'
-    case 'DELIVERED':
-      return '已送达'
-    case 'PAID':
-      return '待收货'
-    case 'PAY_FAILED':
-      return '退换货'
-    default:
-      return '待处理'
-  }
 }
 
 const toMineOrderTracking = (status: Order['status'] | string): string => {

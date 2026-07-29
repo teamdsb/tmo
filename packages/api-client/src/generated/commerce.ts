@@ -410,6 +410,7 @@ export interface PagedOrderList {
 
 export interface OrderStatusStat {
   status: OrderStatus;
+  paymentStatus?: OrderPaymentStatus;
   /** @minimum 0 */
   count: number;
 }

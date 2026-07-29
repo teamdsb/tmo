@@ -51,12 +51,12 @@ WHERE (sqlc.narg('customer_id')::uuid IS NULL OR customer_id = sqlc.narg('custom
   AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status'));
 
 -- name: ListOrderStatusStats :many
-SELECT status, count(*)::bigint AS order_count
+SELECT status, payment_status, count(*)::bigint AS order_count
 FROM orders
 WHERE (sqlc.narg('customer_id')::uuid IS NULL OR customer_id = sqlc.narg('customer_id'))
   AND (sqlc.narg('owner_sales_user_id')::uuid IS NULL OR owner_sales_user_id = sqlc.narg('owner_sales_user_id'))
-GROUP BY status
-ORDER BY status;
+GROUP BY status, payment_status
+ORDER BY status, payment_status;
 
 -- name: GetOrder :one
 SELECT *

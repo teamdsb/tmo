@@ -457,8 +457,9 @@ type OrderStatus string
 
 // OrderStatusStat defines model for OrderStatusStat.
 type OrderStatusStat struct {
-	Count  int         `json:"count"`
-	Status OrderStatus `json:"status"`
+	Count         int                 `json:"count"`
+	PaymentStatus *OrderPaymentStatus `json:"paymentStatus,omitempty"`
+	Status        OrderStatus         `json:"status"`
 }
 
 // PagedAfterSalesMessageList defines model for PagedAfterSalesMessageList.

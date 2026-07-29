@@ -411,9 +411,14 @@ export function OrderManagementView({ orders, initialTab, loading = false, onBac
       return orders
     }
     if (activeTab === '待处理') {
-      return orders.filter((order) => order.status === '待处理' || order.status === '待收货')
+      return orders.filter((order) => order.progress === 'pending')
     }
-    return orders.filter((order) => order.status === activeTab)
+    const progressByTab: Record<string, MineOrder['progress']> = {
+      '已发货': 'shipped',
+      '已送达': 'delivered',
+      '退换货': 'returns'
+    }
+    return orders.filter((order) => order.progress === progressByTab[activeTab])
   }, [activeTab, orders])
 
   return (

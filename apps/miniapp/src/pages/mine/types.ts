@@ -32,6 +32,7 @@ export type MineOrderItem = {
 export type MineOrder = {
   id: string
   status: string
+  progress: 'pending' | 'shipped' | 'delivered' | 'returns' | 'hidden'
   sourceStatus: string
   paymentStatus?: string
   date: string

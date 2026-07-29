@@ -437,9 +437,11 @@ func (h *Handler) GetOrdersStats(c *gin.Context) {
 
 	items := make([]oapi.OrderStatusStat, 0, len(stats))
 	for _, row := range stats {
+		paymentStatus := oapi.OrderPaymentStatus(row.PaymentStatus)
 		items = append(items, oapi.OrderStatusStat{
-			Status: oapi.OrderStatus(row.Status),
-			Count:  int(row.OrderCount),
+			Status:        oapi.OrderStatus(row.Status),
+			PaymentStatus: &paymentStatus,
+			Count:         int(row.OrderCount),
 		})
 	}
 
