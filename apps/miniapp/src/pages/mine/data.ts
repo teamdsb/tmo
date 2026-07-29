@@ -1,5 +1,4 @@
 import {
-  AppsOutlined,
   BarChartOutlined,
   Description,
   LocationOutlined,
@@ -87,7 +86,6 @@ export const createMineMenuItems = (
   }
 
   items.push(
-    { key: 'import', label: 'Excel 批量导入', description: '批量上传商品与需求', icon: AppsOutlined, route: ROUTES.import },
     { key: 'settings', label: '系统设置', description: '账号与通知偏好', icon: SettingOutlined, route: ROUTES.settings }
   )
 

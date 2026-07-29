@@ -215,6 +215,7 @@ describe('PersonalCenter', () => {
     expect(screen.getByText('帮助中心')).toBeInTheDocument()
     expect(screen.getByText('物流跟踪')).toBeInTheDocument()
     expect(screen.getByText('系统设置')).toBeInTheDocument()
+    expect(screen.queryByText('Excel 批量导入')).not.toBeInTheDocument()
   })
 
   it('navigates to settings page when opening account management', async () => {
