@@ -5,7 +5,7 @@ const platform = process.argv[2] || process.env.TARO_ENV || 'weapp'
 const distDir = path.resolve(__dirname, '..', 'dist', platform)
 const targetFiles = ['common.js', 'app.js', 'vendors.js']
 const placeholderHost = 'api.example.com'
-const expectedDevHost = 'localhost:8080'
+const forbiddenLocalHost = 'localhost:8080'
 const mode = process.env.TMO_WEAPP_BUILD_MODE || (process.env.NODE_ENV === 'development' ? 'development' : 'production')
 
 const normalize = (value) => String(value || '').trim().replace(/\/+$/, '')
@@ -41,7 +41,7 @@ const main = () => {
   }
 
   const hasPlaceholder = bundledSource.includes(placeholderHost)
-  const hasLocalhost = bundledSource.includes(expectedDevHost)
+  const hasLocalhost = bundledSource.includes(forbiddenLocalHost)
 
   if (mode === 'development' || mode === 'dev') {
     if (hasPlaceholder) {
@@ -50,12 +50,22 @@ const main = () => {
         'check .env.development and TARO_APP_* env overrides'
       )
     }
-    if (!hasLocalhost) {
+    if (hasLocalhost) {
       fail(
-        `${platform} development build does not contain "${expectedDevHost}". ` +
-        'check .env.development TARO_APP_API_BASE_URL/TARO_APP_COMMERCE_BASE_URL'
+        `${platform} development build contains forbidden local api host "${forbiddenLocalHost}". ` +
+        'configure .env.development TARO_APP_API_BASE_URL/TARO_APP_COMMERCE_BASE_URL to the ECS gateway'
       )
     }
+    const expectedUrls = configuredBaseUrls()
+    const missingUrls = expectedUrls.filter((url) => !bundledSource.includes(url))
+    if (missingUrls.length > 0) {
+      fail(
+        `${platform} development build does not contain configured api base ${missingUrls.join(', ')}. ` +
+        'check .env.development and Taro defineConstants'
+      )
+    }
+    console.log(`[verify-miniapp-api-base] ok (${platform}/${mode}): api base references ${expectedUrls.join(', ')}`)
+    return
   }
 
   if (mode === 'mock') {
@@ -91,7 +101,7 @@ const main = () => {
     }
   }
 
-  const summary = hasPlaceholder ? placeholderHost : hasLocalhost ? expectedDevHost : 'custom host'
+  const summary = hasPlaceholder ? placeholderHost : hasLocalhost ? forbiddenLocalHost : 'custom host'
   console.log(`[verify-miniapp-api-base] ok (${platform}/${mode}): api base references "${summary}"`)
 }
 

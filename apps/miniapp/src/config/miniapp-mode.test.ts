@@ -30,6 +30,14 @@ describe('miniapp mode env loading', () => {
     expect(process.env.TARO_APP_ID).toBe('wx8e8831fc456f019b')
   })
 
+  it('loads the ECS gateway for development builds', () => {
+    Reflect.deleteProperty(process.env, 'TARO_APP_API_BASE_URL')
+
+    const env = miniappMode.buildModeEnv('dev')
+
+    expect(env.TARO_APP_API_BASE_URL).toBe('https://yunhuhui.com.cn')
+  })
+
   it('lets explicit process env override the mode env file for e2e runs', () => {
     process.env.TARO_APP_WEAPP_PHONE_PROOF_SIMULATION = 'true'
 

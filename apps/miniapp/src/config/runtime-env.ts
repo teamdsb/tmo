@@ -105,7 +105,7 @@ const devFakePaymentEnabled = isIsolatedMock
     ? readBoolean(devFakePaymentRaw)
     : nodeEnv !== 'production'
 const nonProductionFallbackBaseUrl =
-  nodeEnv === 'production' || isIsolatedMock ? '' : 'http://localhost:8080'
+  nodeEnv === 'production' || isIsolatedMock ? '' : 'https://yunhuhui.com.cn'
 const runtimeEnvRaw = {
   mockMode,
   isIsolatedMock,

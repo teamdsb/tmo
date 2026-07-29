@@ -2,6 +2,7 @@
 .env
 .env.*
 !apps/miniapp/.env.production
+!apps/miniapp/.env.development
 *.log
 
 node_modules/
