@@ -102,6 +102,30 @@ describe('SupportChatPage', () => {
     expect(mergeIncomingSupportMessage([confirmedMessage], distinctMessage)).toEqual([confirmedMessage, distinctMessage])
   })
 
+  it('uses ID merging for every card send response, including websocket-first delivery', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, './index.tsx'), 'utf8')
+    const confirmedMessage = {
+      id: 'msg-order-card',
+      conversationId: 'conv-1',
+      senderType: 'CUSTOMER',
+      messageType: 'ORDER_CARD',
+      cardPayload: { title: '订单 order-1' },
+      createdAt: '2026-03-10T10:00:00Z'
+    }
+
+    const websocketFirst = mergeIncomingSupportMessage([], confirmedMessage)
+    expect(mergeIncomingSupportMessage(websocketFirst, confirmedMessage)).toEqual([confirmedMessage])
+    expect(source).toContain('setMessages((current) => mergeIncomingSupportMessage(current, created))')
+    expect(source).not.toContain('setMessages((current) => [...current, created])')
+  })
+
+  it('offers only message sending actions in the more menu', () => {
+    const source = fs.readFileSync(path.resolve(__dirname, './index.tsx'), 'utf8')
+
+    expect(source).toContain("itemList: ['发送图片', '发送订单卡片', '发送商品卡片']")
+    expect(source).not.toContain('去支持中心')
+  })
+
   it('allows chatting while optional support data is still loading', async () => {
     ;(commerceServices.orders.list as jest.Mock).mockReturnValue(new Promise(() => {}))
     ;(commerceServices.catalog.listProducts as jest.Mock).mockReturnValue(new Promise(() => {}))

@@ -44,6 +44,7 @@ import {
   normalizeStaffOptions,
   normalizeSupportConversation,
   normalizeSupportConversationDetail,
+  normalizeSupportMessage,
   type StaffOption,
   type SupportConversationDetail,
   type SupportConversationSummary,

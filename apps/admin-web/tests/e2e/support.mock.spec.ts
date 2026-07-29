@@ -66,3 +66,34 @@ test('support reply composer stays pinned when conversation history is long', as
   expect(inputBox!.height).toBeLessThanOrEqual(80);
   await expect(page.getByTestId('support-send-button')).toBeVisible();
 });
+
+test('support reply clears the composer after a successful send', async ({ page }) => {
+  await page.route('**/support/conversations/*/messages', async (route) => {
+    if (route.request().method() !== 'POST') {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'mock-support-reply-1',
+        conversationId: '5dcb2d0d-a284-4538-a395-02a7a9025a10',
+        senderType: 'STAFF',
+        senderRole: 'CS',
+        messageType: 'TEXT',
+        textContent: '请稍等，我马上为您确认。',
+        createdAt: '2026-03-10T18:31:00Z'
+      })
+    });
+  });
+  await loginMockBoss(page);
+  await page.goto('/support.html');
+
+  const input = page.getByTestId('support-reply-input');
+  await input.fill('请稍等，我马上为您确认。');
+  await page.getByTestId('support-send-button').click();
+
+  await expect(input).toHaveValue('');
+  await expect(page.getByText('发送失败')).not.toBeVisible();
+});

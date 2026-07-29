@@ -472,7 +472,10 @@ export default function SupportChatPage() {
         text: intent.message
       })
 
-      setMessages((currentItems) => [...currentItems, cardMessage, textMessage])
+      setMessages((currentItems) => mergeIncomingSupportMessage(
+        mergeIncomingSupportMessage(currentItems, cardMessage),
+        textMessage
+      ))
       setConversation(await commerceServices.support.getCurrentConversation())
       await clearSupportComposeIntent()
       setComposeIntent(null)
@@ -704,7 +707,7 @@ export default function SupportChatPage() {
         orderId: selected.id
       }
     })
-    setMessages((current) => [...current, created])
+    setMessages((current) => mergeIncomingSupportMessage(current, created))
   }
 
   const handleSendProductCard = async () => {
@@ -730,12 +733,12 @@ export default function SupportChatPage() {
         imageUrl: selected.coverImageUrl
       }
     })
-    setMessages((current) => [...current, created])
+    setMessages((current) => mergeIncomingSupportMessage(current, created))
   }
 
   const handleMoreAction = async () => {
     const result = await Taro.showActionSheet({
-      itemList: ['发送图片', '发送订单卡片', '发送商品卡片', '去支持中心']
+      itemList: ['发送图片', '发送订单卡片', '发送商品卡片']
     }).catch(() => null)
 
     if (!result || typeof result.tapIndex !== 'number') {
@@ -754,7 +757,6 @@ export default function SupportChatPage() {
       await handleSendProductCard()
       return
     }
-    await navigateTo(ROUTES.support)
   }
 
   const handleCardClick = async (payload?: Record<string, unknown>) => {
