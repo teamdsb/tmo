@@ -85,9 +85,9 @@
   width: 100%;
   flex: 1;
   min-height: 0;
-  padding: 6px 28px 30px;
-  padding-bottom: calc(42px + env(safe-area-inset-bottom));
-  padding-bottom: calc(42px + constant(safe-area-inset-bottom));
+  padding: 12px 28px 44px;
+  padding-bottom: calc(68px + env(safe-area-inset-bottom));
+  padding-bottom: calc(68px + constant(safe-area-inset-bottom));
   box-sizing: border-box;
   overflow-x: hidden;
 }
@@ -97,7 +97,7 @@
   width: 100%;
   padding: 0 12px;
   box-sizing: border-box;
-  margin-bottom: 22px;
+  margin-bottom: 28px;
 }
 
 .support-chat__row--customer {
@@ -228,10 +228,10 @@
 .support-chat__composer {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 14px 24px 52px;
-  padding-bottom: calc(52px + env(safe-area-inset-bottom));
-  padding-bottom: calc(52px + constant(safe-area-inset-bottom));
+  gap: 20px;
+  padding: 18px 28px 76px;
+  padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  padding-bottom: calc(76px + constant(safe-area-inset-bottom));
   background: rgb(255 255 255 / 96%);
   border-top: 1px solid rgb(148 163 184 / 20%);
   box-sizing: border-box;
