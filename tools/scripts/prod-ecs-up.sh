@@ -28,12 +28,18 @@ media_host_dir="${MEDIA_HOST_DIR:-../../data/media}"
 if [[ "$media_host_dir" != /* ]]; then
   media_host_dir="$(cd "$(dirname "$compose_file")" && pwd)/$media_host_dir"
 fi
-media_support_dir="$media_host_dir/support"
+media_writable_dirs=(
+  "$media_host_dir/catalog/products"
+  "$media_host_dir/product-requests"
+  "$media_host_dir/support"
+)
 
 echo "[prod-ecs-up] ensuring data directories exist..."
-mkdir -p "$root_dir/data/postgres" "$media_support_dir"
-chown 65534:65534 "$media_support_dir"
-chmod u+rwx,go+rx "$media_support_dir"
+mkdir -p "$root_dir/data/postgres" "${media_writable_dirs[@]}"
+for media_writable_dir in "${media_writable_dirs[@]}"; do
+  chown 65534:65534 "$media_writable_dir"
+  chmod u+rwx,go+rx "$media_writable_dir"
+done
 
 echo "[prod-ecs-up] applying schema migrations..."
 "$root_dir/tools/scripts/prod-ecs-migrate.sh"
