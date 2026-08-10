@@ -32,6 +32,9 @@ type SupportHub struct {
 	upgrader websocket.Upgrader
 	mu       sync.RWMutex
 	clients  map[*supportHubClient]struct{}
+	// beforeSend is an internal synchronization hook used by race regression tests.
+	// Production hubs leave it nil.
+	beforeSend func(*supportHubClient)
 }
 
 func NewSupportHub() *SupportHub {
@@ -142,21 +145,24 @@ func (h *SupportHub) PublishConversation(eventType string, conversation db.Suppo
 	}
 
 	h.mu.RLock()
-	clients := make([]*supportHubClient, 0, len(h.clients))
+	slowClients := make([]*supportHubClient, 0)
 	for client := range h.clients {
-		clients = append(clients, client)
-	}
-	h.mu.RUnlock()
-
-	for _, client := range clients {
 		if !supportHubClientCanAccessConversation(client, conversation) {
 			continue
+		}
+		if h.beforeSend != nil {
+			h.beforeSend(client)
 		}
 		select {
 		case client.send <- payload:
 		default:
-			h.unregister(client)
+			slowClients = append(slowClients, client)
 		}
+	}
+	h.mu.RUnlock()
+
+	for _, client := range slowClients {
+		h.unregister(client)
 	}
 }
 

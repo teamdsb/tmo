@@ -63,6 +63,18 @@ type groupExecution struct {
 	RowStart int
 }
 
+type groupExecutionError struct {
+	message string
+}
+
+func (e *groupExecutionError) Error() string {
+	return e.message
+}
+
+func newGroupExecutionError(format string, args ...interface{}) error {
+	return &groupExecutionError{message: fmt.Sprintf(format, args...)}
+}
+
 type importSummary struct {
 	JobID       string    `json:"jobId"`
 	Status      string    `json:"status"`
@@ -412,10 +424,24 @@ func (s *Service) processGroup(ctx context.Context, group *groupExecution, resol
 	if err != nil {
 		return s.markGroupFailed(ctx, group.Rows, err.Error())
 	}
+	if err := s.processGroupTransaction(ctx, group, coverURL, imageURLs); err != nil {
+		// processGroupTransaction owns the transaction and returns only after its
+		// deferred rollback has released every row lock. The pool can now safely
+		// persist FAILED for the whole group without waiting on this job's own tx.
+		return s.markGroupFailed(ctx, group.Rows, err.Error())
+	}
+	return nil
+}
 
+func (s *Service) processGroupTransaction(
+	ctx context.Context,
+	group *groupExecution,
+	coverURL *string,
+	imageURLs []string,
+) error {
 	tx, err := s.DB.Begin(ctx)
 	if err != nil {
-		return s.markGroupFailed(ctx, group.Rows, fmt.Sprintf("begin tx: %v", err))
+		return newGroupExecutionError("begin tx: %v", err)
 	}
 	defer func() {
 		_ = tx.Rollback(ctx)
@@ -431,10 +457,10 @@ func (s *Service) processGroup(ctx context.Context, group *groupExecution, resol
 		skuCode := row.Parsed.SkuCode
 		matches, err := queries.ListSkusBySkuCode(ctx, &skuCode)
 		if err != nil {
-			return s.markGroupFailed(ctx, group.Rows, fmt.Sprintf("lookup skuCode %q: %v", skuCode, err))
+			return newGroupExecutionError("lookup skuCode %q: %v", skuCode, err)
 		}
 		if len(matches) > 1 {
-			return s.markGroupFailed(ctx, group.Rows, fmt.Sprintf("skuCode %q matched multiple records", skuCode))
+			return newGroupExecutionError("skuCode %q matched multiple records", skuCode)
 		}
 		if len(matches) == 1 {
 			existingSkus[skuCode] = matches[0]
@@ -443,7 +469,7 @@ func (s *Service) processGroup(ctx context.Context, group *groupExecution, resol
 	}
 
 	if len(matchedProductIDs) > 1 {
-		return s.markGroupFailed(ctx, group.Rows, "matched skuCodes belong to different products")
+		return newGroupExecutionError("matched skuCodes belong to different products")
 	}
 
 	groupHead := group.Rows[0].Parsed
@@ -455,7 +481,7 @@ func (s *Service) processGroup(ctx context.Context, group *groupExecution, resol
 		for productID := range matchedProductIDs {
 			existingProduct, getErr := queries.GetProduct(ctx, productID)
 			if getErr != nil {
-				return s.markGroupFailed(ctx, group.Rows, fmt.Sprintf("get product: %v", getErr))
+				return newGroupExecutionError("get product: %v", getErr)
 			}
 			product, err = queries.UpdateProduct(ctx, db.UpdateProductParams{
 				ID:               productID,
@@ -470,7 +496,7 @@ func (s *Service) processGroup(ctx context.Context, group *groupExecution, resol
 			})
 		}
 		if err != nil {
-			return s.markGroupFailed(ctx, group.Rows, fmt.Sprintf("update product: %v", err))
+			return newGroupExecutionError("update product: %v", err)
 		}
 	} else {
 		product, err = queries.CreateProduct(ctx, db.CreateProductParams{
@@ -484,14 +510,14 @@ func (s *Service) processGroup(ctx context.Context, group *groupExecution, resol
 			Status:           "DRAFT",
 		})
 		if err != nil {
-			return s.markGroupFailed(ctx, group.Rows, fmt.Sprintf("create product: %v", err))
+			return newGroupExecutionError("create product: %v", err)
 		}
 	}
 
 	for _, state := range group.Rows {
 		attributesJSON, err := json.Marshal(state.Parsed.Attributes)
 		if err != nil {
-			return s.markGroupFailed(ctx, group.Rows, fmt.Sprintf("marshal attributes: %v", err))
+			return newGroupExecutionError("marshal attributes: %v", err)
 		}
 
 		skuCode := normalizeNullableString(state.Parsed.SkuCode)
@@ -519,11 +545,11 @@ func (s *Service) processGroup(ctx context.Context, group *groupExecution, resol
 			})
 		}
 		if err != nil {
-			return s.markGroupFailed(ctx, group.Rows, fmt.Sprintf("upsert sku: %v", err))
+			return newGroupExecutionError("upsert sku: %v", err)
 		}
 
 		if _, err := queries.DeletePriceTiersBySku(ctx, sku.ID); err != nil {
-			return s.markGroupFailed(ctx, group.Rows, fmt.Sprintf("delete old price tiers: %v", err))
+			return newGroupExecutionError("delete old price tiers: %v", err)
 		}
 		for _, tier := range state.Parsed.PriceTiers {
 			var maxQty *int32
@@ -537,7 +563,7 @@ func (s *Service) processGroup(ctx context.Context, group *groupExecution, resol
 				MaxQty:       maxQty,
 				UnitPriceFen: tier.UnitPriceFen,
 			}); err != nil {
-				return s.markGroupFailed(ctx, group.Rows, fmt.Sprintf("create price tier: %v", err))
+				return newGroupExecutionError("create price tier: %v", err)
 			}
 		}
 
@@ -549,14 +575,14 @@ func (s *Service) processGroup(ctx context.Context, group *groupExecution, resol
 			SkuID:        pgtype.UUID{Bytes: sku.ID, Valid: true},
 		})
 		if err != nil {
-			return s.markGroupFailed(ctx, group.Rows, fmt.Sprintf("update row result: %v", err))
+			return newGroupExecutionError("update row result: %v", err)
 		}
 		state.PersistedState = rowStatusSucceeded
 		state.Error = ""
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return s.markGroupFailed(ctx, group.Rows, fmt.Sprintf("commit tx: %v", err))
+		return newGroupExecutionError("commit tx: %v", err)
 	}
 	return nil
 }

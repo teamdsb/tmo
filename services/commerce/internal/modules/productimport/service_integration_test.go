@@ -479,6 +479,111 @@ func TestServiceRunNextSupportsPartialSuccessAndWritesErrorReport(t *testing.T) 
 	}
 }
 
+func TestServiceRunNextRollsBackBeforeMarkingFailedGroupRows(t *testing.T) {
+	pool := openProductImportTestPool(t)
+	resetProductImportTables(t, pool)
+	queries := db.New(pool)
+
+	ctx := context.Background()
+	category, err := queries.CreateCategory(ctx, db.CreateCategoryParams{
+		Name:     "Fasteners",
+		ParentID: pgtype.UUID{},
+		Sort:     1,
+	})
+	if err != nil {
+		t.Fatalf("create category: %v", err)
+	}
+
+	workbook := buildProductWorkbook(t, [][]string{
+		productWorkbookRow(t, map[string]string{
+			"groupkey":    "rollback-group",
+			"skucode":     "ROLLBACK-1",
+			"productname": "Rollback Product",
+			"skuname":     "Rollback SKU 1",
+			"categoryid":  category.ID.String(),
+			"pricetiers":  "1-:1000",
+		}),
+		productWorkbookRow(t, map[string]string{
+			"groupkey":    "rollback-group",
+			"skucode":     "ROLLBACK-2",
+			"productname": "Rollback Product",
+			"skuname":     "Rollback SKU 2",
+			"categoryid":  category.ID.String(),
+			"pricetiers":  "1-:1200",
+		}),
+	})
+
+	service := NewService(pool, t.TempDir(), testMediaBaseURL, nil)
+	job, err := service.Enqueue(ctx, EnqueueInput{
+		CreatedByUserID: pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		ExcelFile:       bytes.NewReader(workbook),
+		ExcelFileName:   "rollback.xlsx",
+	})
+	if err != nil {
+		t.Fatalf("enqueue rollback import: %v", err)
+	}
+
+	_, err = pool.Exec(ctx, `
+DROP TRIGGER IF EXISTS fail_second_product_import_row_for_test ON product_import_rows;
+DROP FUNCTION IF EXISTS fail_second_product_import_row_for_test();
+CREATE OR REPLACE FUNCTION fail_second_product_import_row_for_test()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    IF NEW.status = 'SUCCEEDED' AND NEW.line_no = 3 THEN
+        RAISE EXCEPTION 'injected failure after first row update';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+CREATE TRIGGER fail_second_product_import_row_for_test
+BEFORE UPDATE ON product_import_rows
+FOR EACH ROW EXECUTE FUNCTION fail_second_product_import_row_for_test();`)
+	if err != nil {
+		t.Fatalf("install failure trigger: %v", err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_, _ = pool.Exec(cleanupCtx, `
+DROP TRIGGER IF EXISTS fail_second_product_import_row_for_test ON product_import_rows;
+DROP FUNCTION IF EXISTS fail_second_product_import_row_for_test();`)
+	})
+
+	runCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	processed, err := service.RunNext(runCtx)
+	if err != nil {
+		t.Fatalf("run next returned instead of completing failed group: %v", err)
+	}
+	if !processed {
+		t.Fatal("expected rollback import job to be processed")
+	}
+	if err := runCtx.Err(); err != nil {
+		t.Fatalf("run next exceeded bounded context: %v", err)
+	}
+
+	rows, err := queries.ListProductImportRowsByJob(context.Background(), job.ID)
+	if err != nil {
+		t.Fatalf("list import rows: %v", err)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("expected two import rows, got %d", len(rows))
+	}
+	for _, row := range rows {
+		if row.Status != rowStatusFailed {
+			t.Fatalf("expected line %d to be FAILED after rollback, got %s", row.LineNo, row.Status)
+		}
+	}
+
+	importJob, err := queries.GetImportJob(context.Background(), job.ID)
+	if err != nil {
+		t.Fatalf("get import job: %v", err)
+	}
+	if importJob.Status != string(oapi.SUCCEEDED) {
+		t.Fatalf("expected existing partial-success job status SUCCEEDED, got %s", importJob.Status)
+	}
+}
+
 func openProductImportTestPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 
