@@ -11,6 +11,7 @@ type Store interface {
 	UpsertCartItem(ctx context.Context, arg db.UpsertCartItemParams) (db.CartItem, error)
 	ListCartItems(ctx context.Context, ownerID uuid.UUID) ([]db.CartItem, error)
 	UpdateCartItemQty(ctx context.Context, arg db.UpdateCartItemQtyParams) (db.CartItem, error)
+	ReplaceCartItemSku(ctx context.Context, arg db.ReplaceCartItemSkuParams) (db.ReplaceCartItemSkuRow, error)
 	DeleteCartItem(ctx context.Context, arg db.DeleteCartItemParams) error
 	DeleteCartItemsBySkuIDs(ctx context.Context, arg db.DeleteCartItemsBySkuIDsParams) error
 	CreateCartImportJob(ctx context.Context, arg db.CreateCartImportJobParams) (db.CartImportJob, error)

@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const deleteCartItem = `-- name: DeleteCartItem :exec
@@ -114,6 +115,66 @@ func (q *Queries) ListCartItemsByIDsForUpdate(ctx context.Context, arg ListCartI
 		return nil, err
 	}
 	return items, nil
+}
+
+const replaceCartItemSku = `-- name: ReplaceCartItemSku :one
+WITH deleted_source AS (
+    DELETE FROM cart_items AS source
+    WHERE source.id = $1
+      AND source.owner_user_id = $2
+    RETURNING source.owner_user_id
+), upserted_target AS (
+    INSERT INTO cart_items (
+        owner_user_id,
+        sku_id,
+        qty
+    )
+    SELECT
+        deleted_source.owner_user_id,
+        $3,
+        $4
+    FROM deleted_source
+    ON CONFLICT (owner_user_id, sku_id)
+    DO UPDATE SET qty = cart_items.qty + EXCLUDED.qty, updated_at = now()
+    RETURNING id, owner_user_id, sku_id, qty, created_at, updated_at
+)
+SELECT id, owner_user_id, sku_id, qty, created_at, updated_at
+FROM upserted_target
+`
+
+type ReplaceCartItemSkuParams struct {
+	ID          uuid.UUID `db:"id" json:"id"`
+	OwnerUserID uuid.UUID `db:"owner_user_id" json:"owner_user_id"`
+	SkuID       uuid.UUID `db:"sku_id" json:"sku_id"`
+	Qty         int32     `db:"qty" json:"qty"`
+}
+
+type ReplaceCartItemSkuRow struct {
+	ID          uuid.UUID          `db:"id" json:"id"`
+	OwnerUserID uuid.UUID          `db:"owner_user_id" json:"owner_user_id"`
+	SkuID       uuid.UUID          `db:"sku_id" json:"sku_id"`
+	Qty         int32              `db:"qty" json:"qty"`
+	CreatedAt   pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+func (q *Queries) ReplaceCartItemSku(ctx context.Context, arg ReplaceCartItemSkuParams) (ReplaceCartItemSkuRow, error) {
+	row := q.db.QueryRow(ctx, replaceCartItemSku,
+		arg.ID,
+		arg.OwnerUserID,
+		arg.SkuID,
+		arg.Qty,
+	)
+	var i ReplaceCartItemSkuRow
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerUserID,
+		&i.SkuID,
+		&i.Qty,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const updateCartItemQty = `-- name: UpdateCartItemQty :one

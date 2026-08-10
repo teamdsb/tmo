@@ -403,7 +403,7 @@ paths:
     patch:
       tags:
       - Cart
-      summary: Update cart item qty
+      summary: Update cart item quantity or replace its SKU
       parameters:
       - in: path
         name: itemId
@@ -418,9 +418,14 @@ paths:
             schema:
               type: object
               properties:
+                skuId:
+                  type: string
+                  format: uuid
+                  description: Optional replacement SKU. If that SKU already exists in the cart, the replacement quantity is added to its existing quantity.
                 qty:
                   type: integer
                   minimum: 1
+                  description: New quantity for a quantity-only update, or the quantity moved into skuId for a SKU replacement.
               required:
               - qty
       responses:
@@ -430,6 +435,8 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Cart"
+        '404':
+          "$ref": "#/components/responses/NotFound"
     delete:
       tags:
       - Cart

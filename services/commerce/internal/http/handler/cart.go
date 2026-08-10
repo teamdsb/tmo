@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/oapi-codegen/runtime/types"
 
@@ -92,9 +93,7 @@ func (h *Handler) PatchCartItemsItemId(c *gin.Context, itemId types.UUID) {
 		return
 	}
 
-	var payload struct {
-		Qty int `json:"qty"`
-	}
+	var payload oapi.PatchCartItemsItemIdJSONBody
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
 		return
@@ -104,12 +103,26 @@ func (h *Handler) PatchCartItemsItemId(c *gin.Context, itemId types.UUID) {
 		return
 	}
 
-	_, err := h.CartStore.UpdateCartItemQty(c.Request.Context(), db.UpdateCartItemQtyParams{
-		ID:          uuid.UUID(itemId),
-		Qty:         clampInt32(payload.Qty),
-		OwnerUserID: claims.UserID,
-	})
+	var err error
+	if payload.SkuId != nil {
+		_, err = h.CartStore.ReplaceCartItemSku(c.Request.Context(), db.ReplaceCartItemSkuParams{
+			ID:          uuid.UUID(itemId),
+			OwnerUserID: claims.UserID,
+			SkuID:       uuid.UUID(*payload.SkuId),
+			Qty:         clampInt32(payload.Qty),
+		})
+	} else {
+		_, err = h.CartStore.UpdateCartItemQty(c.Request.Context(), db.UpdateCartItemQtyParams{
+			ID:          uuid.UUID(itemId),
+			Qty:         clampInt32(payload.Qty),
+			OwnerUserID: claims.UserID,
+		})
+	}
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			h.writeError(c, http.StatusNotFound, "not_found", "cart item not found")
+			return
+		}
 		h.logError("update cart item failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update cart item")
 		return

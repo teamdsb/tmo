@@ -31,6 +31,30 @@ SET qty = $2, updated_at = now()
 WHERE id = $1 AND owner_user_id = $3
 RETURNING id, owner_user_id, sku_id, qty, created_at, updated_at;
 
+-- name: ReplaceCartItemSku :one
+WITH deleted_source AS (
+    DELETE FROM cart_items AS source
+    WHERE source.id = sqlc.arg('id')
+      AND source.owner_user_id = sqlc.arg('owner_user_id')
+    RETURNING source.owner_user_id
+), upserted_target AS (
+    INSERT INTO cart_items (
+        owner_user_id,
+        sku_id,
+        qty
+    )
+    SELECT
+        deleted_source.owner_user_id,
+        sqlc.arg('sku_id'),
+        sqlc.arg('qty')
+    FROM deleted_source
+    ON CONFLICT (owner_user_id, sku_id)
+    DO UPDATE SET qty = cart_items.qty + EXCLUDED.qty, updated_at = now()
+    RETURNING id, owner_user_id, sku_id, qty, created_at, updated_at
+)
+SELECT id, owner_user_id, sku_id, qty, created_at, updated_at
+FROM upserted_target;
+
 -- name: DeleteCartItem :exec
 DELETE FROM cart_items
 WHERE id = $1 AND owner_user_id = $2;

@@ -16,6 +16,7 @@ export interface CartService {
   getCart: () => Promise<Cart>
   addItem: (skuId: string, qty: number) => Promise<Cart>
   updateItemQty: (itemId: string, qty: number) => Promise<Cart>
+  replaceItemSku: (itemId: string, skuId: string, qty: number) => Promise<Cart>
   removeItem: (itemId: string) => Promise<void>
   uploadImportExcel: (filePath: string) => Promise<CartImportJob>
   getImportJob: (jobId: string) => Promise<CartImportJob>
@@ -26,7 +27,8 @@ export const createCartService = (uploadClient: UploadClient): CartService => {
   return {
     getCart: async () => (await getCart()).data,
     addItem: async (skuId, qty) => (await postCartItems({ skuId, qty })).data,
-    updateItemQty: async (itemId, qty) => (await patchCartItemsItemId(itemId, { qty })).data,
+    updateItemQty: async (itemId, qty) => (await patchCartItemsItemId(itemId, { qty })).data as Cart,
+    replaceItemSku: async (itemId, skuId, qty) => (await patchCartItemsItemId(itemId, { skuId, qty })).data as Cart,
     removeItem: async (itemId) => {
       await deleteCartItemsItemId(itemId)
     },

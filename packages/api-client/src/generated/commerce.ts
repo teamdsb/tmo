@@ -988,7 +988,12 @@ export type PostWishlistBody = {
 };
 
 export type PatchCartItemsItemIdBody = {
-  /** @minimum 1 */
+  /** Optional replacement SKU. If that SKU already exists in the cart, the replacement quantity is added to its existing quantity. */
+  skuId?: string;
+  /**
+   * New quantity for a quantity-only update, or the quantity moved into skuId for a SKU replacement.
+   * @minimum 1
+   */
   qty: number;
 };
 
@@ -1194,7 +1199,7 @@ export interface MiniLoginRequest {
 export interface PhoneProof {
   /** Platform-issued one-time code used by backend to resolve phone number. */
   code?: string;
-  /** Optional direct phone fallback for environments where code exchange is unavailable. */
+  /** Local mock-only phone value. Rejected when IDENTITY_LOGIN_MODE=real; real mode requires a platform-verifiable code or encrypted response. */
   phone?: string;
   /** Alipay encrypted response payload returned by my.getPhoneNumber. */
   response?: string;
@@ -2005,19 +2010,26 @@ export const postCartItems = async (addCartItemRequest: AddCartItemRequest, opti
 
 
 /**
- * @summary Update cart item qty
+ * @summary Update cart item quantity or replace its SKU
  */
 export type patchCartItemsItemIdResponse200 = {
   data: Cart
   status: 200
 }
+
+export type patchCartItemsItemIdResponse404 = {
+  data: NotFoundResponse
+  status: 404
+}
     
 export type patchCartItemsItemIdResponseSuccess = (patchCartItemsItemIdResponse200) & {
   headers: Headers;
 };
-;
+export type patchCartItemsItemIdResponseError = (patchCartItemsItemIdResponse404) & {
+  headers: Headers;
+};
 
-export type patchCartItemsItemIdResponse = (patchCartItemsItemIdResponseSuccess)
+export type patchCartItemsItemIdResponse = (patchCartItemsItemIdResponseSuccess | patchCartItemsItemIdResponseError)
 
 export const getPatchCartItemsItemIdUrl = (itemId: string,) => {
 

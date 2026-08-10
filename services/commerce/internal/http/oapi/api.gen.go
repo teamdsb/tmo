@@ -771,7 +771,11 @@ type PostCartImportJobsMultipartBody struct {
 
 // PatchCartItemsItemIdJSONBody defines parameters for PatchCartItemsItemId.
 type PatchCartItemsItemIdJSONBody struct {
+	// Qty New quantity for a quantity-only update, or the quantity moved into skuId for a SKU replacement.
 	Qty int `json:"qty"`
+
+	// SkuId Optional replacement SKU. If that SKU already exists in the cart, the replacement quantity is added to its existing quantity.
+	SkuId *openapi_types.UUID `json:"skuId,omitempty"`
 }
 
 // GetCatalogProductsParams defines parameters for GetCatalogProducts.
@@ -984,7 +988,7 @@ type ServerInterface interface {
 	// Remove cart item
 	// (DELETE /cart/items/{itemId})
 	DeleteCartItemsItemId(c *gin.Context, itemId openapi_types.UUID)
-	// Update cart item qty
+	// Update cart item quantity or replace its SKU
 	// (PATCH /cart/items/{itemId})
 	PatchCartItemsItemId(c *gin.Context, itemId openapi_types.UUID)
 	// List categories
