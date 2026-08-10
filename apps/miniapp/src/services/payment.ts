@@ -10,6 +10,7 @@ import {
 } from '@tmo/payment-services'
 
 import { requirePaymentBaseUrl, runtimeEnv } from '../config/runtime-env'
+import { recoverUnauthorizedSession } from './auth-recovery'
 import { buildDevFakePaymentId, isDevFakePaymentId } from './payment-dev-overrides'
 import {
   applyPaymentSessionToOrder,
@@ -124,7 +125,8 @@ const createMockPaymentServices = (): PaymentServices => {
 const createDevFakePaymentServices = (): PaymentServices => {
   const realServices = createPaymentServices({
     baseUrl: requirePaymentBaseUrl(),
-    devToken: runtimeEnv.paymentDevToken
+    devToken: runtimeEnv.paymentDevToken,
+    onUnauthorized: recoverUnauthorizedSession
   })
 
   return {
@@ -161,7 +163,8 @@ const createPaymentServicesRuntime = (): PaymentServices => {
 
   return createPaymentServices({
     baseUrl: requirePaymentBaseUrl(),
-    devToken: runtimeEnv.paymentDevToken
+    devToken: runtimeEnv.paymentDevToken,
+    onUnauthorized: recoverUnauthorizedSession
   })
 }
 

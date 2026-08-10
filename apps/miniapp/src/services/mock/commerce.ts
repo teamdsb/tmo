@@ -383,6 +383,46 @@ export const createMockCommerceServices = (): CommerceServices => {
       })
       return toMockCart(nextState)
     },
+    replaceItemSku: async (itemId, skuId, qty) => {
+      const nextState = await updateIsolatedMockState((state) => {
+        const sourceSkuId = toSkuIdFromCartItemId(itemId)
+        const sourceExists = state.cartEntries.some((entry) => entry.skuId === sourceSkuId)
+        if (!sourceExists) {
+          throw new Error(`cart item not found: ${itemId}`)
+        }
+
+        const safeQty = normalizeQty(qty)
+        if (sourceSkuId === skuId) {
+          return {
+            ...state,
+            cartEntries: state.cartEntries.map((entry) => (
+              entry.skuId === sourceSkuId ? { ...entry, qty: safeQty } : entry
+            ))
+          }
+        }
+
+        const targetExists = state.cartEntries.some((entry) => entry.skuId === skuId)
+        const cartEntries = state.cartEntries
+          .filter((entry) => entry.skuId !== sourceSkuId)
+          .map((entry) => {
+            if (entry.skuId !== skuId) {
+              return entry
+            }
+            return {
+              ...entry,
+              qty: normalizeQty(entry.qty + safeQty)
+            }
+          })
+        if (!targetExists) {
+          cartEntries.push({ skuId, qty: safeQty })
+        }
+        return {
+          ...state,
+          cartEntries
+        }
+      })
+      return toMockCart(nextState)
+    },
     removeItem: async (itemId) => {
       await updateIsolatedMockState((state) => {
         const skuId = toSkuIdFromCartItemId(itemId)

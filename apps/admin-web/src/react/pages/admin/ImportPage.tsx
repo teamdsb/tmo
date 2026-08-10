@@ -42,14 +42,14 @@ type ImportJobView = {
 type FeatureFlagsState = {
   paymentEnabled: boolean;
   wechatPayEnabled: boolean;
-	wechatB2bEnabled: boolean;
+  wechatB2bEnabled: boolean;
   alipayPayEnabled: boolean;
 };
 
 const defaultFlags: FeatureFlagsState = {
   paymentEnabled: false,
   wechatPayEnabled: false,
-	wechatB2bEnabled: false,
+  wechatB2bEnabled: false,
   alipayPayEnabled: false
 };
 
@@ -127,7 +127,7 @@ export const ImportPage = () => {
         setFlags({
           paymentEnabled: Boolean((response.data as FeatureFlagsState).paymentEnabled),
           wechatPayEnabled: Boolean((response.data as FeatureFlagsState).wechatPayEnabled),
-		  wechatB2bEnabled: Boolean((response.data as FeatureFlagsState).wechatB2bEnabled),
+          wechatB2bEnabled: Boolean((response.data as FeatureFlagsState).wechatB2bEnabled),
           alipayPayEnabled: Boolean((response.data as FeatureFlagsState).alipayPayEnabled)
         });
       }
@@ -149,6 +149,7 @@ export const ImportPage = () => {
     }
 
     let cancelled = false;
+    let requestInFlight = false;
     const timer = window.setInterval(() => {
       if (context.mode === 'mock') {
         const nextJob = advanceMockProductImportJob(latestJob.id);
@@ -163,6 +164,10 @@ export const ImportPage = () => {
         return;
       }
 
+      if (requestInFlight) {
+        return;
+      }
+      requestInFlight = true;
       void getAdminImportJob(latestJob.id).then((response) => {
         if (cancelled) {
           return;
@@ -179,6 +184,8 @@ export const ImportPage = () => {
         if (!cancelled) {
           window.clearInterval(timer);
         }
+      }).finally(() => {
+        requestInFlight = false;
       });
     }, 1500);
 

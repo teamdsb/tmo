@@ -30,6 +30,12 @@ type ApplyOptions = {
   emitToast?: boolean;
 };
 
+type RefreshRequest = {
+  controller: AbortController;
+  generation: number;
+  promise: Promise<void>;
+};
+
 const MOCK_UPDATE_EVENT = 'tmo:admin-support:mock-update';
 const POLL_INTERVAL_MS = 5000;
 const SUPPORT_QUEUE_OVERDUE_MS = 30_000;
@@ -90,7 +96,10 @@ const canUseSupportNotifications = () => {
   return SUPPORT_NOTIFICATION_ROLES.has(currentRole);
 };
 
-const getToastCandidate = (previousItems: SupportConversationSummary[], nextItems: SupportConversationSummary[]) => {
+const getToastCandidate = (
+  previousItems: SupportConversationSummary[],
+  nextItems: SupportConversationSummary[]
+): AdminSupportToast | null => {
   const previousById = new Map(previousItems.map((item) => [item.id, item]));
   const candidates = nextItems.filter((item) => {
     const previous = previousById.get(item.id);
@@ -148,6 +157,8 @@ const createStore = () => {
   let pollTimer: number | null = null;
   let started = false;
   let mockCleanup: (() => void) | null = null;
+  let refreshGeneration = 0;
+  let refreshInFlight: RefreshRequest | null = null;
   const notifiedOverdueQueues = new Set<string>();
 
   const emit = () => {
@@ -175,9 +186,17 @@ const createStore = () => {
   };
 
   const clearTransport = () => {
+    refreshGeneration += 1;
+    refreshInFlight?.controller.abort();
+    refreshInFlight = null;
     if (socket) {
-      socket.close();
+      const activeSocket = socket;
       socket = null;
+      activeSocket.onopen = null;
+      activeSocket.onmessage = null;
+      activeSocket.onerror = null;
+      activeSocket.onclose = null;
+      activeSocket.close();
     }
     if (pollTimer) {
       window.clearInterval(pollTimer);
@@ -192,11 +211,11 @@ const createStore = () => {
   };
 
   const startPolling = () => {
-    if (pollTimer) {
+    if (pollTimer || !started || subscribers.size === 0) {
       return;
     }
     pollTimer = window.setInterval(() => {
-      void store.refresh({ emitToast: true });
+      void store.refresh({ emitToast: true }).catch(() => {});
     }, POLL_INTERVAL_MS);
   };
 
@@ -223,10 +242,10 @@ const createStore = () => {
     updateDebugBridge();
   };
 
-  const loadNotificationItems = async () => {
+  const loadNotificationItems = async (signal?: AbortSignal) => {
     const [unreadResponse, unassignedResponse] = await Promise.all([
-      fetchAdminSupportConversations({ page: 1, pageSize: 50, scope: 'unread' }),
-      fetchAdminSupportConversations({ page: 1, pageSize: 50, scope: 'unassigned' })
+      fetchAdminSupportConversations({ page: 1, pageSize: 50, scope: 'unread' }, { signal }),
+      fetchAdminSupportConversations({ page: 1, pageSize: 50, scope: 'unassigned' }, { signal })
     ]);
     if (unreadResponse.status !== 200 || unassignedResponse.status !== 200) {
       throw new Error(unreadResponse?.data?.message || unassignedResponse?.data?.message || '加载客服通知失败');
@@ -261,7 +280,7 @@ const createStore = () => {
     socket = new WebSocket(buildWsUrl(token));
     socket.onopen = () => {};
     socket.onmessage = () => {
-      void store.refresh({ emitToast: true });
+      void store.refresh({ emitToast: true }).catch(() => {});
     };
     socket.onerror = () => {
       startPolling();
@@ -293,16 +312,16 @@ const createStore = () => {
         return;
       }
       if (!canUseSupportNotifications()) {
-      setState({
-        ...EMPTY_STATE,
-        enabled: false,
-        initialized: true,
-        revision: state.revision + 1
-      });
-      updateDebugBridge();
-      started = true;
-      return;
-    }
+        setState({
+          ...EMPTY_STATE,
+          enabled: false,
+          initialized: true,
+          revision: state.revision + 1
+        });
+        updateDebugBridge();
+        started = true;
+        return;
+      }
       started = true;
       setState({
         ...state,
@@ -312,25 +331,42 @@ const createStore = () => {
         startMockMode();
         return;
       }
-      void store.refresh({ emitToast: false });
+      void store.refresh({ emitToast: false }).catch(() => {});
       startPolling();
       startRealtime();
     },
-    async refresh(options: ApplyOptions = {}) {
-      if (!canUseSupportNotifications()) {
-        if (state.enabled || !state.initialized) {
-      setState({
-        ...EMPTY_STATE,
-        enabled: false,
-        initialized: true,
-        revision: state.revision + 1
+    refresh(options: ApplyOptions = {}) {
+      if (refreshInFlight) {
+        return refreshInFlight.promise;
+      }
+      const generation = refreshGeneration;
+      const controller = new AbortController();
+      const request = (async () => {
+        if (!canUseSupportNotifications()) {
+          if (state.enabled || !state.initialized) {
+            setState({
+              ...EMPTY_STATE,
+              enabled: false,
+              initialized: true,
+              revision: state.revision + 1
+            });
+            updateDebugBridge();
+          }
+          return;
+        }
+        const items = isMockMode ? state.items : await loadNotificationItems(controller.signal);
+        if (controller.signal.aborted || generation !== refreshGeneration || subscribers.size === 0) {
+          return;
+        }
+        applyItems(items, options);
       });
-      updateDebugBridge();
-    }
-    return;
-  }
-      const items = isMockMode ? state.items : await loadNotificationItems();
-      applyItems(items, options);
+      const promise = request().finally(() => {
+        if (refreshInFlight?.promise === promise) {
+          refreshInFlight = null;
+        }
+      });
+      refreshInFlight = { controller, generation, promise };
+      return promise;
     },
     dismissToast() {
       if (!state.latestToast) {

@@ -1,6 +1,7 @@
 import { isAlipay, isWeapp } from '@tmo/platform-adapter'
 import type { PaymentChannel } from '@tmo/payment-services'
 
+import { runtimeEnv } from '../config/runtime-env'
 import { loadBootstrap } from './bootstrap'
 
 export interface PaymentAvailability {
@@ -22,9 +23,9 @@ export const resolvePaymentAvailability = async (): Promise<PaymentAvailability>
       : unavailable('微信支付暂未开通，请等待销售确认。')
   }
   if (isAlipay()) {
-    return flags.alipayPayEnabled === true
+    return runtimeEnv.isIsolatedMock && flags.alipayPayEnabled === true
       ? available('alipay')
-      : unavailable('支付宝支付暂未开通，请等待销售确认。')
+      : unavailable('支付宝支付尚未接入，请等待销售确认。')
   }
   return unavailable('当前平台暂不支持在线支付，请等待销售确认。')
 }

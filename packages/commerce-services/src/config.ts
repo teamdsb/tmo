@@ -9,6 +9,7 @@ export interface CommerceServicesConfig {
   requester?: ApiClientRequester
   timeoutMs?: number
   uploadTimeoutMs?: number
+  onUnauthorized?: () => void | Promise<void>
 }
 
 const firstNonEmpty = (...values: Array<string | undefined>): string => {

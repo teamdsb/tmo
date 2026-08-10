@@ -1,14 +1,10 @@
 import { defineConfig, type UserConfigExport } from '@tarojs/cli'
+import path from 'node:path'
 
 import devConfig from './dev'
 import prodConfig from './prod'
-
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const path = require('node:path')
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { resolveOutputRootForTaroEnv } = require('../scripts/weapp-paths')
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { loadModeEnv } = require('../scripts/miniapp-mode')
+import { resolveOutputRootForTaroEnv } from '../scripts/weapp-paths'
+import { loadModeEnv } from '../scripts/miniapp-mode'
 
 loadModeEnv()
 

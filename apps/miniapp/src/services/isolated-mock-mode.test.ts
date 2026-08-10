@@ -113,6 +113,26 @@ describe('isolated mock mode', () => {
     expect(bootstrap.me).toBeUndefined()
   })
 
+  it('atomically replaces a cart sku and merges the requested quantity into an existing target', async () => {
+    const { commerceServices } = require('./commerce') as typeof import('./commerce')
+
+    await commerceServices.cart.addItem('sku-bolt-a2-m8', 2)
+    await commerceServices.cart.addItem('sku-bolt-a2-m10', 1)
+
+    const cart = await commerceServices.cart.replaceItemSku(
+      'mock-cart-sku-bolt-a2-m8',
+      'sku-bolt-a2-m10',
+      2
+    )
+
+    expect(cart.items).toHaveLength(1)
+    expect(cart.items[0]).toEqual(expect.objectContaining({
+      id: 'mock-cart-sku-bolt-a2-m10',
+      qty: 3,
+      sku: expect.objectContaining({ id: 'sku-bolt-a2-m10' })
+    }))
+  })
+
   it('keeps the same role-selection contract as dev login', async () => {
     const platformAdapter = require('@tmo/platform-adapter') as typeof import('@tmo/platform-adapter')
     const identityServicesModule = require('@tmo/identity-services') as typeof import('@tmo/identity-services')

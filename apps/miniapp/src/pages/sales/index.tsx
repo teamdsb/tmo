@@ -1,6 +1,5 @@
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Text, View } from '@tarojs/components'
-import { useDidShow } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import { navItems } from './data'
 import type { SalesTab } from './types'
@@ -12,6 +11,7 @@ import { loadBootstrap, saveBootstrap } from '../../services/bootstrap'
 import { gatewayServices } from '../../services/gateway'
 import { identityServices } from '../../services/identity'
 import { getCurrentRole, hasRole } from '../../utils/authz'
+import { useRefreshOnReturn } from '../../hooks/use-refresh-on-return'
 
 type SalesQrCode = Awaited<ReturnType<typeof identityServices.me.getSalesQrCode>>
 type SalesCustomer = Awaited<ReturnType<typeof identityServices.customers.list>>['items'][number]
@@ -113,7 +113,7 @@ export default function SalesPage() {
     }
   }, [activeTab, refreshSalesCustomers])
 
-  useDidShow(() => {
+  useRefreshOnReturn(() => {
     void refreshSalesDashboard()
     if (activeTab === 'customers') {
       void refreshSalesCustomers()

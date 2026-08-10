@@ -117,7 +117,7 @@ type PhoneProof struct {
 	// EncryptType Encryption algorithm for Alipay phone response (typically AES).
 	EncryptType *string `json:"encryptType,omitempty"`
 
-	// Phone Optional direct phone fallback for environments where code exchange is unavailable.
+	// Phone Local mock-only phone value. Rejected when IDENTITY_LOGIN_MODE=real; real mode requires a platform-verifiable code or encrypted response.
 	Phone *string `json:"phone,omitempty"`
 
 	// Response Alipay encrypted response payload returned by my.getPhoneNumber.

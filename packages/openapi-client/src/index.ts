@@ -1,4 +1,12 @@
 export type QueryValue = string | number | boolean | null | undefined
+
+export {
+  DEFAULT_REQUEST_TIMEOUT_MS,
+  createRequestAbortScope,
+  resolveRequestTimeoutMs,
+  waitForRequestTask,
+  type RequestAbortScope
+} from './request-timeout'
 export type QueryParams = Record<string, QueryValue | QueryValue[]>
 
 export type RequestMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'HEAD' | 'OPTIONS'

@@ -65,7 +65,7 @@ export interface MiniLoginRequest {
 export interface PhoneProof {
   /** Platform-issued one-time code used by backend to resolve phone number. */
   code?: string;
-  /** Optional direct phone fallback for environments where code exchange is unavailable. */
+  /** Local mock-only phone value. Rejected when IDENTITY_LOGIN_MODE=real; real mode requires a platform-verifiable code or encrypted response. */
   phone?: string;
   /** Alipay encrypted response payload returned by my.getPhoneNumber. */
   response?: string;
@@ -689,18 +689,6 @@ export interface WechatPayCreateResponse {
   paySign: string;
 }
 
-export type AlipayPayCreateResponsePayParams = { [key: string]: unknown };
-
-export interface AlipayPayCreateResponse {
-  paymentId: string;
-  orderId: string;
-  channel: PaymentChannel;
-  status: PaymentStatus;
-  expiresAt: string;
-  tradeNo: string;
-  payParams: AlipayPayCreateResponsePayParams;
-}
-
 export type PaymentChannel = typeof PaymentChannel[keyof typeof PaymentChannel];
 
 
@@ -784,6 +772,16 @@ export type ConflictResponse = ErrorResponse;
  */
 export type NotFoundResponse = ErrorResponse;
 
+/**
+ * Provider is not implemented
+ */
+export type NotImplementedResponse = ErrorResponse;
+
+/**
+ * Payment provider is disabled or unavailable
+ */
+export type ServiceUnavailableResponse = ErrorResponse;
+
 export type PostPaymentsWechatCreateBody = {
   orderId: string;
 };
@@ -813,11 +811,16 @@ export type postPaymentsWechatCreateResponse409 = {
   data: ConflictResponse
   status: 409
 }
+
+export type postPaymentsWechatCreateResponse503 = {
+  data: ServiceUnavailableResponse
+  status: 503
+}
     
 export type postPaymentsWechatCreateResponseSuccess = (postPaymentsWechatCreateResponse200) & {
   headers: Headers;
 };
-export type postPaymentsWechatCreateResponseError = (postPaymentsWechatCreateResponse403 | postPaymentsWechatCreateResponse409) & {
+export type postPaymentsWechatCreateResponseError = (postPaymentsWechatCreateResponse403 | postPaymentsWechatCreateResponse409 | postPaymentsWechatCreateResponse503) & {
   headers: Headers;
 };
 
@@ -846,31 +849,19 @@ export const postPaymentsWechatCreate = async (postPaymentsWechatCreateBody: Pos
 
 
 /**
- * @summary Create Alipay payment for an order (reserved, behind feature flag)
+ * @summary Alipay payment creation is not implemented
  */
-export type postPaymentsAlipayCreateResponse200 = {
-  data: AlipayPayCreateResponse
-  status: 200
-}
-
-export type postPaymentsAlipayCreateResponse403 = {
-  data: ForbiddenResponse
-  status: 403
-}
-
-export type postPaymentsAlipayCreateResponse409 = {
-  data: ConflictResponse
-  status: 409
+export type postPaymentsAlipayCreateResponse501 = {
+  data: NotImplementedResponse
+  status: 501
 }
     
-export type postPaymentsAlipayCreateResponseSuccess = (postPaymentsAlipayCreateResponse200) & {
-  headers: Headers;
-};
-export type postPaymentsAlipayCreateResponseError = (postPaymentsAlipayCreateResponse403 | postPaymentsAlipayCreateResponse409) & {
+;
+export type postPaymentsAlipayCreateResponseError = (postPaymentsAlipayCreateResponse501) & {
   headers: Headers;
 };
 
-export type postPaymentsAlipayCreateResponse = (postPaymentsAlipayCreateResponseSuccess | postPaymentsAlipayCreateResponseError)
+export type postPaymentsAlipayCreateResponse = (postPaymentsAlipayCreateResponseError)
 
 export const getPostPaymentsAlipayCreateUrl = () => {
 
@@ -989,13 +980,25 @@ export type postPaymentsWechatNotifyResponse200 = {
   data: void
   status: 200
 }
+
+export type postPaymentsWechatNotifyResponse400 = {
+  data: BadRequestResponse
+  status: 400
+}
+
+export type postPaymentsWechatNotifyResponse503 = {
+  data: ServiceUnavailableResponse
+  status: 503
+}
     
 export type postPaymentsWechatNotifyResponseSuccess = (postPaymentsWechatNotifyResponse200) & {
   headers: Headers;
 };
-;
+export type postPaymentsWechatNotifyResponseError = (postPaymentsWechatNotifyResponse400 | postPaymentsWechatNotifyResponse503) & {
+  headers: Headers;
+};
 
-export type postPaymentsWechatNotifyResponse = (postPaymentsWechatNotifyResponseSuccess)
+export type postPaymentsWechatNotifyResponse = (postPaymentsWechatNotifyResponseSuccess | postPaymentsWechatNotifyResponseError)
 
 export const getPostPaymentsWechatNotifyUrl = () => {
 
@@ -1020,19 +1023,19 @@ export const postPaymentsWechatNotify = async (postPaymentsWechatNotifyBody: Pos
 
 
 /**
- * @summary Alipay callback (no auth, signature verified)
+ * @summary Alipay callback is not implemented
  */
-export type postPaymentsAlipayNotifyResponse200 = {
-  data: void
-  status: 200
+export type postPaymentsAlipayNotifyResponse501 = {
+  data: NotImplementedResponse
+  status: 501
 }
     
-export type postPaymentsAlipayNotifyResponseSuccess = (postPaymentsAlipayNotifyResponse200) & {
+;
+export type postPaymentsAlipayNotifyResponseError = (postPaymentsAlipayNotifyResponse501) & {
   headers: Headers;
 };
-;
 
-export type postPaymentsAlipayNotifyResponse = (postPaymentsAlipayNotifyResponseSuccess)
+export type postPaymentsAlipayNotifyResponse = (postPaymentsAlipayNotifyResponseError)
 
 export const getPostPaymentsAlipayNotifyUrl = () => {
 

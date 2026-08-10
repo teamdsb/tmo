@@ -8,6 +8,7 @@ export interface PaymentServicesConfig {
   tokenStorageKey?: string
   requester?: ApiClientRequester
   timeoutMs?: number
+  onUnauthorized?: () => void | Promise<void>
 }
 
 const firstNonEmpty = (...values: Array<string | undefined>): string => {

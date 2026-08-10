@@ -55,6 +55,12 @@ type AuthResponse struct {
 	User        User   `json:"user"`
 }
 
+// DebugRoleSwitchRequest defines model for DebugRoleSwitchRequest.
+type DebugRoleSwitchRequest struct {
+	// Role Target role already assigned to the current user.
+	Role string `json:"role"`
+}
+
 // ErrorResponse defines model for ErrorResponse.
 type ErrorResponse struct {
 	Code string `json:"code"`
@@ -111,7 +117,7 @@ type PhoneProof struct {
 	// EncryptType Encryption algorithm for Alipay phone response (typically AES).
 	EncryptType *string `json:"encryptType,omitempty"`
 
-	// Phone Optional direct phone fallback for environments where code exchange is unavailable.
+	// Phone Local mock-only phone value. Rejected when IDENTITY_LOGIN_MODE=real; real mode requires a platform-verifiable code or encrypted response.
 	Phone *string `json:"phone,omitempty"`
 
 	// Response Alipay encrypted response payload returned by my.getPhoneNumber.
@@ -139,8 +145,11 @@ type SalesQrCodePlatform string
 
 // User defines model for User.
 type User struct {
-	AvatarUrl             *string             `json:"avatarUrl"`
-	CreatedAt             time.Time           `json:"createdAt"`
+	AvatarUrl *string   `json:"avatarUrl"`
+	CreatedAt time.Time `json:"createdAt"`
+
+	// CurrentRole Current active role of this authenticated session.
+	CurrentRole           string              `json:"currentRole"`
 	DisabledAt            *time.Time          `json:"disabledAt"`
 	DisabledReason        *string             `json:"disabledReason"`
 	DisplayName           *string             `json:"displayName,omitempty"`

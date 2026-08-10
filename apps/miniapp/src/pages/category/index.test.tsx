@@ -298,6 +298,22 @@ describe('CategoryPage', () => {
     render(<CategoryPage />);
 
     expect(await screen.findByText('旧分类商品')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(commerceServices.catalog.listDisplayCategories).toHaveBeenCalledTimes(1);
+      expect(commerceServices.catalog.listCategories).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      didShowCallback?.();
+      await Promise.resolve();
+    });
+
+    const requestsAfterInitialShow = (commerceServices.catalog.listProducts as jest.Mock).mock.calls.filter(
+      ([params]) => params?.pageSize === 40
+    );
+    expect(requestsAfterInitialShow).toHaveLength(1);
+    expect(commerceServices.catalog.listDisplayCategories).toHaveBeenCalledTimes(1);
+    expect(commerceServices.catalog.listCategories).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       didShowCallback?.();
@@ -309,5 +325,7 @@ describe('CategoryPage', () => {
       ([params]) => params?.pageSize === 40
     );
     expect(categoryProductRequests).toHaveLength(2);
+    expect(commerceServices.catalog.listDisplayCategories).toHaveBeenCalledTimes(2);
+    expect(commerceServices.catalog.listCategories).toHaveBeenCalledTimes(2);
   });
 });

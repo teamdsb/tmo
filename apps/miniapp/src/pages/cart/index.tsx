@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View } from '@tarojs/components'
-import Taro, { useDidShow, useRouter } from '@tarojs/taro'
+import Taro, { useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import type { Cart, CartImportJob, CartImportPendingItem, ProductSummary, Sku } from '@tmo/api-client'
 import { useProductStartingPrices } from '../../hooks/use-product-starting-prices'
+import { useRefreshOnReturn } from '../../hooks/use-refresh-on-return'
 import { commerceServices } from '../../services/commerce'
 import { ROUTES, goodsDetailRoute } from '../../routes'
 import { ensureLoggedIn } from '../../utils/auth'
@@ -75,7 +76,7 @@ export default function ExcelImportConfirmation() {
     void loadCartOrImport()
   }, [loadCartOrImport])
 
-  useDidShow(() => {
+  useRefreshOnReturn(() => {
     void loadCartOrImport()
   })
 
@@ -250,20 +251,14 @@ export default function ExcelImportConfirmation() {
       }
 
       setBusyItemId(item.id)
-      await commerceServices.cart.removeItem(item.id)
-      await commerceServices.cart.addItem(nextSku.id, item.qty)
-      await refreshCart()
+      const updatedCart = await commerceServices.cart.replaceItemSku(item.id, nextSku.id, item.qty)
+      setCart(updatedCart)
       await Taro.showToast({ title: '规格已更新', icon: 'success' })
     } catch (error) {
       if ((error as { errMsg?: string })?.errMsg?.includes('cancel')) {
         return
       }
       console.warn('change cart sku failed', error)
-      try {
-        await refreshCart()
-      } catch (refreshError) {
-        console.warn('refresh cart after sku change failed', refreshError)
-      }
       await Taro.showToast({ title: '规格更新失败，请重试', icon: 'none' })
     } finally {
       setBusyItemId((current) => (current === item.id ? null : current))

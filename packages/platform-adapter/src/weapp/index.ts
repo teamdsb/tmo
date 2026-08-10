@@ -17,6 +17,7 @@ import type {
   UploadFileOptions,
   UploadFileResult
 } from '../types'
+import { runAbortableTask } from '../abortable'
 
 declare const wx: any
 
@@ -85,8 +86,8 @@ export const getPhoneNumber = (): Promise<PhoneProofResult> => {
 }
 
 export const request = async <T>(options: RequestOptions): Promise<RequestResult<T>> => {
-  return new Promise((resolve, reject) => {
-    wx.request({
+  return runAbortableTask(options.signal, (resolve, reject) => {
+    return wx.request({
       url: options.url,
       method: options.method,
       data: options.data,

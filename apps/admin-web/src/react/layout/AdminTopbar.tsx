@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } f
 import { getCurrentSession, getDisplayProfile, logout, switchDevRole } from '../../lib/auth';
 import { filterAllowedAdminWebRoles } from '../../lib/admin-role-policy';
 import { buildAppHref, isDevMode, normalizeAppPath } from '../../lib/env';
+import { getBootstrapWarning } from '../../lib/guard';
 import {
   dismissAdminSupportToast,
   useAdminSupportNotifications
@@ -62,6 +63,7 @@ export const AdminTopbar = ({
   const currentRole = String(session?.currentRole || '').trim().toUpperCase();
   const canSwitchRole = isDevMode && roleChoices.length > 1;
   const supportNotifications = useAdminSupportNotifications();
+  const bootstrapWarning = getBootstrapWarning();
 
   useEffect(() => {
     if (!isMenuOpen && !isNotificationOpen) {
@@ -178,7 +180,7 @@ export const AdminTopbar = ({
         headerClassName
       )}
     >
-        <div className={joinClasses('flex items-center justify-between gap-4', innerClassName)}>
+      <div className={joinClasses('flex items-center justify-between gap-4', innerClassName)}>
         <div className="flex min-w-0 flex-1 items-center gap-8">{resolvedLeftSlot}</div>
         <div className="flex items-center gap-4">
           {actions ? <div className="hidden lg:block">{actions}</div> : null}
@@ -351,6 +353,15 @@ export const AdminTopbar = ({
           </div>
         </div>
       </div>
+      {bootstrapWarning ? (
+        <div
+          className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800"
+          data-testid="bootstrap-cache-warning"
+          title={bootstrapWarning}
+        >
+          会话刷新暂时失败，当前继续使用本地缓存的账号与权限；后台数据仍会独立加载。
+        </div>
+      ) : null}
       {supportNotifications.latestToast ? (
         <div
           className="pointer-events-none fixed right-6 top-24 z-50"

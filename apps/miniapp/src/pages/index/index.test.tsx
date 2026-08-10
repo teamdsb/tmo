@@ -311,8 +311,13 @@ describe('ProductCatalogApp', () => {
       });
 
     await renderCatalog();
+    await act(async () => {
+      didShowCallback?.();
+      await Promise.resolve();
+    });
     await runSearchDebounce();
     expect(await screen.findByText('旧首页商品')).toBeInTheDocument();
+    expect(commerceServices.catalog.listProducts).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       didShowCallback?.();

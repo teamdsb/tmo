@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View, Text, Textarea } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Button from '@taroify/core/button'
 import FixedView from '@taroify/core/fixed-view'
@@ -16,6 +16,7 @@ import { commerceServices } from '../../../services/commerce'
 import { clearSelectedUserAddressId, getSelectedUserAddressId, listUserAddresses } from '../../../services/addresses'
 import { isPaymentCancelled, paymentServices } from '../../../services/payment'
 import { buildOrderPaymentIdempotencyKey, resolvePaymentAvailability } from '../../../services/payment-availability'
+import { useRefreshOnReturn } from '../../../hooks/use-refresh-on-return'
 import './index.scss'
 
 export default function OrderConfirmPage() {
@@ -51,7 +52,7 @@ export default function OrderConfirmPage() {
     void loadData()
   }, [loadData])
 
-  useDidShow(() => {
+  useRefreshOnReturn(() => {
     void loadData()
   })
 

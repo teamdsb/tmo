@@ -22,6 +22,7 @@ export interface RequestOptions {
   data?: unknown
   headers?: Record<string, string>
   timeoutMs?: number
+  signal?: AbortSignal
 }
 
 export interface RequestResult<T> {

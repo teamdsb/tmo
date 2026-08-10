@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { View, Text, Swiper, SwiperItem } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import type { Category, DisplayCategory, ProductSummary } from '@tmo/api-client'
 import HomeSearchInput from '../../components/home-search-input'
 import ProductSummaryCard from '../../components/product-summary-card'
 import { useProductStartingPrices } from '../../hooks/use-product-starting-prices'
+import { useRefreshOnReturn } from '../../hooks/use-refresh-on-return'
 import { ROUTES, withQuery } from '../../routes'
 import { type CategoryIconKey, renderCategoryIcon, resolveCategoryIconKey } from '../../utils/category-icons'
 import { navigateTo, switchTabLike } from '../../utils/navigation'
@@ -219,7 +220,7 @@ export default function ProductCatalogApp() {
     }
   }, [loadProducts, searchQuery])
 
-  useDidShow(() => {
+  useRefreshOnReturn(() => {
     void loadProducts(searchQuery, false)
   })
 

@@ -1,5 +1,6 @@
 import { createGatewayServices } from '@tmo/gateway-services'
 import { requireGatewayBaseUrl, runtimeEnv } from '../config/runtime-env'
+import { recoverUnauthorizedSession } from './auth-recovery'
 import { createMockGatewayServices } from './mock/gateway'
 
 const createGatewayServicesRuntime = () => {
@@ -8,7 +9,8 @@ const createGatewayServicesRuntime = () => {
   }
   return createGatewayServices({
     baseUrl: requireGatewayBaseUrl(),
-    devToken: runtimeEnv.gatewayDevToken
+    devToken: runtimeEnv.gatewayDevToken,
+    onUnauthorized: recoverUnauthorizedSession
   })
 }
 

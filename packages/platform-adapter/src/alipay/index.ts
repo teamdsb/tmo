@@ -17,6 +17,7 @@ import type {
   UploadFileOptions,
   UploadFileResult
 } from '../types'
+import { runAbortableTask } from '../abortable'
 
 declare const my: any
 
@@ -140,8 +141,8 @@ export const getPhoneNumber = async (): Promise<PhoneProofResult> => {
 }
 
 export const request = async <T>(options: RequestOptions): Promise<RequestResult<T>> => {
-  return new Promise((resolve, reject) => {
-    my.request({
+  return runAbortableTask(options.signal, (resolve, reject) => {
+    return my.request({
       url: options.url,
       method: options.method,
       data: options.data,

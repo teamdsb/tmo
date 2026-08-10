@@ -79,20 +79,13 @@ describe('payment-services', () => {
     }))
   })
 
-  it('uses alipay create API on Alipay platform and normalizes tradeNo', async () => {
+  it('surfaces the explicit not-implemented response on Alipay', async () => {
     mockGetPlatform.mockReturnValue(Platform.Alipay)
     mockPostPaymentsAlipayCreate.mockResolvedValue({
-      status: 200,
+      status: 501,
       data: {
-        paymentId: 'pay-2',
-        orderId: 'order-2',
-        channel: 'ALIPAY',
-        status: 'PAY_PENDING',
-        expiresAt: '2026-03-06T10:15:00Z',
-        tradeNo: 'trade-2',
-        payParams: {
-          tradeNO: 'trade-2'
-        }
+        code: 'not_implemented',
+        message: 'alipay payment is not implemented'
       }
     })
 
@@ -101,15 +94,13 @@ describe('payment-services', () => {
       requester: jest.fn()
     })
 
-    const session = await services.sessions.createForOrder('order-2')
-
-    expect(mockPostPaymentsAlipayCreate).toHaveBeenCalled()
-    expect(session).toEqual(expect.objectContaining({
-      id: 'pay-2',
-      orderId: 'order-2',
-      channel: 'alipay',
-      tradeNo: 'trade-2'
+    await expect(services.sessions.createForOrder('order-2')).rejects.toEqual(expect.objectContaining({
+      name: 'ApiError',
+      statusCode: 501,
+      code: 'not_implemented'
     }))
+    expect(mockPostPaymentsAlipayCreate).toHaveBeenCalled()
+    expect(mockPay).not.toHaveBeenCalled()
   })
 
   it('wraps non-2xx create response as ApiError', async () => {

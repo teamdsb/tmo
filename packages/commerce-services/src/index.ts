@@ -51,7 +51,8 @@ export const createCommerceServices = (config: CommerceServicesConfig = {}): Com
   const tokens = createTokenStore(tokenKey, devToken, legacyTokenStorageKey)
   const requester = config.requester ?? createRequester({
     getToken: tokens.getToken,
-    timeoutMs: config.timeoutMs
+    timeoutMs: config.timeoutMs,
+    onUnauthorized: config.onUnauthorized
   })
 
   const apiClientConfig: ApiClientConfig = {
@@ -70,7 +71,8 @@ export const createCommerceServices = (config: CommerceServicesConfig = {}): Com
       }
       return headers
     },
-    timeoutMs: config.uploadTimeoutMs
+    timeoutMs: config.uploadTimeoutMs,
+    onUnauthorized: config.onUnauthorized
   })
 
   const idempotency = createOrderIdempotency()

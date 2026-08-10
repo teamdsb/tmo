@@ -1,13 +1,15 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { gatewayServices } from '../../services/gateway'
 import { identityServices } from '../../services/identity'
 import SalesPage from './index'
 
 describe('SalesPage', () => {
   beforeEach(() => {
+    jest.clearAllMocks()
+    ;(useDidShow as jest.Mock).mockImplementation(() => {})
     ;(gatewayServices.bootstrap.get as jest.Mock).mockResolvedValue({
       me: {
         displayName: '张三',
@@ -62,6 +64,33 @@ describe('SalesPage', () => {
     })
     expect(identityServices.me.getSalesQrCode).toHaveBeenCalled()
     expect(await screen.findByText('SALES')).toBeInTheDocument()
+  })
+
+  it('loads the sales dashboard once on initial show and refreshes only after returning to the page', async () => {
+    let didShowCallback: (() => void) | undefined
+    ;(useDidShow as jest.Mock).mockImplementation((callback) => {
+      didShowCallback = callback
+    })
+
+    render(<SalesPage />)
+    expect(await screen.findByText('渠道码：mock-sales-bind')).toBeInTheDocument()
+    expect(gatewayServices.bootstrap.get).toHaveBeenCalledTimes(1)
+    expect(identityServices.me.getSalesQrCode).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      didShowCallback?.()
+      await Promise.resolve()
+    })
+    expect(gatewayServices.bootstrap.get).toHaveBeenCalledTimes(1)
+    expect(identityServices.me.getSalesQrCode).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      didShowCallback?.()
+    })
+    await waitFor(() => {
+      expect(gatewayServices.bootstrap.get).toHaveBeenCalledTimes(2)
+      expect(identityServices.me.getSalesQrCode).toHaveBeenCalledTimes(2)
+    })
   })
 
   it('applies shared long-text protection to sales order titles', () => {

@@ -41,10 +41,14 @@ security:
 paths:
   /auth/mini/login:
     $ref: "./identity.yaml#/paths/~1auth~1mini~1login"
+  /auth/mini/capabilities:
+    $ref: "./identity.yaml#/paths/~1auth~1mini~1capabilities"
   /auth/password/login:
     $ref: "./identity.yaml#/paths/~1auth~1password~1login"
   /auth/switch-role:
     $ref: "./identity.yaml#/paths/~1auth~1switch-role"
+  /auth/debug/switch-role:
+    $ref: "./identity.yaml#/paths/~1auth~1debug~1switch-role"
   /me:
     $ref: "./identity.yaml#/paths/~1me"
   /me/sales-qr-code:
@@ -87,6 +91,10 @@ paths:
     $ref: "./commerce.yaml#/paths/~1catalog~1products"
   /catalog/products/{spuId}:
     $ref: "./commerce.yaml#/paths/~1catalog~1products~1{spuId}"
+  /catalog/products/{spuId}/skus:
+    $ref: "./commerce.yaml#/paths/~1catalog~1products~1{spuId}~1skus"
+  /catalog/products/{spuId}/skus/{skuId}:
+    $ref: "./commerce.yaml#/paths/~1catalog~1products~1{spuId}~1skus~1{skuId}"
   /wishlist:
     $ref: "./commerce.yaml#/paths/~1wishlist"
   /wishlist/{skuId}:
@@ -107,10 +115,16 @@ paths:
     $ref: "./commerce.yaml#/paths/~1orders"
   /orders/{orderId}:
     $ref: "./commerce.yaml#/paths/~1orders~1{orderId}"
+  /orders/{orderId}/confirm-receipt:
+    $ref: "./commerce.yaml#/paths/~1orders~1{orderId}~1confirm-receipt"
   /admin/orders/{orderId}/fulfillment:
     $ref: "./commerce.yaml#/paths/~1admin~1orders~1{orderId}~1fulfillment"
   /admin/orders/{orderId}/events:
     $ref: "./commerce.yaml#/paths/~1admin~1orders~1{orderId}~1events"
+  /admin/orders/{orderId}/ship:
+    $ref: "./commerce.yaml#/paths/~1admin~1orders~1{orderId}~1ship"
+  /admin/orders/{orderId}/confirm-delivery:
+    $ref: "./commerce.yaml#/paths/~1admin~1orders~1{orderId}~1confirm-delivery"
   /orders/stats:
     $ref: "./commerce.yaml#/paths/~1orders~1stats"
   /addresses:
@@ -147,8 +161,6 @@ paths:
     $ref: "./commerce.yaml#/paths/~1support~1conversations~1{conversationId}~1read"
   /payments/wechat/create:
     $ref: "./payment.yaml#/paths/~1payments~1wechat~1create"
-  /payments/wechat/b2b/create:
-    $ref: "./payment.yaml#/paths/~1payments~1wechat~1b2b~1create"
   /payments/alipay/create:
     $ref: "./payment.yaml#/paths/~1payments~1alipay~1create"
   /payments/{paymentId}:
@@ -165,6 +177,10 @@ paths:
     $ref: "./admin.yaml#/paths/~1admin~1sales-users"
   /admin/users:
     $ref: "./admin.yaml#/paths/~1admin~1users"
+  /admin/users/{userId}:
+    $ref: "./identity.yaml#/paths/~1admin~1users~1{userId}"
+  /admin/users/{userId}/reset-password:
+    $ref: "./identity.yaml#/paths/~1admin~1users~1{userId}~1reset-password"
   /admin/customers:
     $ref: "./admin.yaml#/paths/~1admin~1customers"
   /admin/customers/{customerId}/role:
@@ -185,6 +201,8 @@ paths:
     $ref: "./admin.yaml#/paths/~1admin~1customers~1{customerId}~1finance-profile"
   /admin/products/import-jobs:
     $ref: "./admin.yaml#/paths/~1admin~1products~1import-jobs"
+  /admin/catalog/products/assets:
+    $ref: "./commerce.yaml#/paths/~1admin~1catalog~1products~1assets"
   /admin/shipments/import-jobs:
     $ref: "./admin.yaml#/paths/~1admin~1shipments~1import-jobs"
   /admin/product-requests/export-jobs:

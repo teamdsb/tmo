@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import {
   Exchange,
@@ -20,6 +20,7 @@ import { commerceServices } from '../../services/commerce'
 import { clearBootstrap, loadBootstrap, saveBootstrap } from '../../services/bootstrap'
 import { identityServices } from '../../services/identity'
 import { loadEditableProfile } from '../../services/profile'
+import { useRefreshOnReturn } from '../../hooks/use-refresh-on-return'
 import placeholderProductImage from '../../assets/images/placeholder-product.svg'
 import { runtimeEnv } from '../../config/runtime-env'
 import {
@@ -105,7 +106,7 @@ export default function PersonalCenter() {
     void refreshBootstrap()
   }, [refreshBootstrap])
 
-  useDidShow(() => {
+  useRefreshOnReturn(() => {
     void (async () => {
       await refreshBootstrap()
       await refreshOrderBadges()

@@ -1,0 +1,186 @@
+---
+name: repository-quality-ci
+
+'on':
+  pull_request:
+    paths:
+      - "apps/admin-web/**"
+      - "apps/miniapp/**"
+      - "services/**"
+      - "contracts/openapi/**"
+      - "packages/**"
+      - "tools/scripts/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "go.work"
+      - "go.work.sum"
+      - ".github/workflows/**"
+  push:
+    branches: [main]
+    paths:
+      - "apps/admin-web/**"
+      - "apps/miniapp/**"
+      - "services/**"
+      - "contracts/openapi/**"
+      - "packages/**"
+      - "tools/scripts/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "go.work"
+      - "go.work.sum"
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16.10
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: tmo
+          POSTGRES_PASSWORD: tmo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U tmo -d postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      GOFLAGS: "-p=1 -v -count=1"
+      PGPASSWORD: tmo
+      IDENTITY_DB_DSN: "postgres://tmo:tmo@127.0.0.1:5432/identity?sslmode=disable"
+      COMMERCE_DB_DSN: "postgres://tmo:tmo@127.0.0.1:5432/commerce?sslmode=disable"
+      PAYMENT_DB_DSN: "postgres://tmo:tmo@127.0.0.1:5432/payment?sslmode=disable"
+      PAYMENT_INTEGRATION_REQUIRED: "true"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25.x"
+          check-latest: false
+          cache-dependency-path: |
+            packages/go-shared/go.sum
+            services/ai/go.sum
+            services/commerce/go.sum
+            services/gateway-bff/go.sum
+            services/identity/go.sum
+            services/payment/go.sum
+
+      - name: Create isolated service databases
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -h 127.0.0.1 -U tmo -d postgres -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE identity'
+          psql -h 127.0.0.1 -U tmo -d postgres -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE commerce'
+          psql -h 127.0.0.1 -U tmo -d postgres -v ON_ERROR_STOP=1 \
+            -c 'CREATE DATABASE payment'
+
+      - name: Test every Go module and require PostgreSQL integrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend_log="${RUNNER_TEMP}/backend-tests.log"
+          bash tools/scripts/test-backend.sh 2>&1 | tee "$backend_log"
+
+          forbidden_skips=(
+            "IDENTITY_DB_DSN is not set; skipping integration test"
+            "COMMERCE_DB_DSN is not set; skipping integration test"
+            "PAYMENT_DB_DSN is not set; skipping Payment PostgreSQL integration test"
+          )
+          for skip_message in "${forbidden_skips[@]}"; do
+            if grep -Fq "$skip_message" "$backend_log"; then
+              echo "database integration test was skipped: $skip_message" >&2
+              exit 1
+            fi
+          done
+
+          required_tests=(
+            "=== RUN   TestMiniLoginCreatesCustomer"
+            "=== RUN   TestCatalogQueries"
+            "=== RUN   TestAdminOrderFulfillmentRejectsUnauthorizedRoles"
+            "=== RUN   TestServiceRunNextCreatesMultiSkuProductWithZipImages"
+            "=== RUN   TestServiceRunNextWritesWorkbook"
+            "=== RUN   TestApplyPaymentResolutionPostgresKeepsPaidStateMonotonic"
+          )
+          for test_marker in "${required_tests[@]}"; do
+            if ! grep -Fq "$test_marker" "$backend_log"; then
+              echo "required database integration test did not run: $test_marker" >&2
+              exit 1
+            fi
+          done
+
+  frontend-contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Go for deterministic generators
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25.x"
+          check-latest: false
+          cache-dependency-path: |
+            services/ai/go.sum
+            services/commerce/go.sum
+            services/identity/go.sum
+            services/payment/go.sum
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.30.3
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20.19.5"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check OpenAPI structure and service path sync
+        run: |
+          pnpm run test:openapi
+          pnpm run check:openapi
+
+      - name: Regenerate deterministic artifacts
+        run: |
+          bash tools/scripts/identity-generate.sh
+          bash tools/scripts/commerce-generate.sh
+          bash tools/scripts/payment-generate.sh
+          bash tools/scripts/ai-generate.sh
+          pnpm -C packages/api-client generate
+          pnpm -C packages/gateway-api-client generate
+          pnpm -C packages/identity-api-client generate
+          pnpm -C packages/payment-api-client generate
+
+      - name: Typecheck TypeScript packages
+        run: pnpm run typecheck:packages
+
+      - name: Lint and test miniapp
+        run: |
+          pnpm -C apps/miniapp lint
+          pnpm -C apps/miniapp test
+          pnpm -C apps/miniapp test:wxss
+
+      - name: Install admin-web browser
+        run: pnpm -C apps/admin-web exec playwright install --with-deps chromium
+
+      - name: Typecheck, build, and CI-E2E admin-web
+        run: pnpm run test:admin-web
+
+      - name: Fail on stale generated artifacts
+        run: git diff --exit-code

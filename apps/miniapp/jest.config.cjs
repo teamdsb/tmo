@@ -7,6 +7,8 @@ module.exports = {
   },
   setupFilesAfterEnv: ['<rootDir>/src/test-utils/setup.js'],
   moduleNameMapper: {
+    '^@tmo/api-client$': '<rootDir>/../../packages/api-client/src/index.ts',
+    '^@tmo/openapi-client$': '<rootDir>/../../packages/openapi-client/src/index.ts',
     '^@tmo/payment-api-client$': '<rootDir>/../../packages/payment-api-client/src/index.ts',
     '^@tmo/payment-services$': '<rootDir>/../../packages/payment-services/src/index.ts',
     '^@tmo/platform-adapter$': '<rootDir>/../../packages/platform-adapter/src/index.ts',

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import type { Category, DisplayCategory, ProductSummary } from '@tmo/api-client'
 import HomeSearchInput from '../../components/home-search-input'
 import SafeImage from '../../components/safe-image'
 import { useProductStartingPrices } from '../../hooks/use-product-starting-prices'
+import { useRefreshOnReturn } from '../../hooks/use-refresh-on-return'
 import { goodsDetailRoute } from '../../routes'
 import { getNavbarStyle } from '../../utils/navbar'
 import { type CategoryIconKey, renderCategoryIcon, resolveCategoryIconKey } from '../../utils/category-icons'
@@ -425,7 +426,7 @@ export default function CategoryPage() {
     void loadCategoryProducts(activeCategory, query)
   }, [activeCategory, loadCategoryProducts, query])
 
-  useDidShow(() => {
+  useRefreshOnReturn(() => {
     void loadCategories(false)
     void loadCategoryProducts(activeCategory, query, false)
   })

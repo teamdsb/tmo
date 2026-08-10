@@ -28,12 +28,20 @@ const loadSettingsPage = (
         SettingsPage: typeof import('./index').default
         applyMockLogin: jest.Mock
         navigateTo: jest.Mock
+        loadBootstrap: jest.Mock
+        getDidShowCallback: () => (() => void) | undefined
       }
     | undefined
 
   jest.isolateModules(() => {
     const applyMockLogin = jest.fn(async () => {})
     const navigateTo = jest.fn(async () => {})
+    const loadBootstrap = jest.fn(async () => bootstrap)
+    let didShowCallback: (() => void) | undefined
+    const taroModule = require('@tarojs/taro') as { useDidShow: jest.Mock }
+    taroModule.useDidShow.mockImplementation((callback) => {
+      didShowCallback = callback
+    })
     jest.doMock('react', () => actualReact)
     jest.doMock('react/jsx-runtime', () => actualJsxRuntime)
     jest.doMock('../../config/runtime-env', () => ({
@@ -48,7 +56,7 @@ const loadSettingsPage = (
     }))
     jest.doMock('../../services/bootstrap', () => ({
       clearBootstrap: jest.fn(async () => {}),
-      loadBootstrap: jest.fn(async () => bootstrap)
+      loadBootstrap
     }))
     jest.doMock('../../services/profile', () => ({
       loadEditableProfile: jest.fn(() => ({ displayName: '张三', phone: '13800138000' })),
@@ -65,7 +73,9 @@ const loadSettingsPage = (
     moduleValue = {
       SettingsPage: require('./index').default,
       applyMockLogin,
-      navigateTo
+      navigateTo,
+      loadBootstrap,
+      getDidShowCallback: () => didShowCallback
     }
   })
 
@@ -100,6 +110,30 @@ describe('SettingsPage', () => {
     expect(screen.getByText('自动登录')).toBeInTheDocument()
     expect(screen.getByText('隐私与协议')).toBeInTheDocument()
     expect(screen.getByText('版本与环境信息')).toBeInTheDocument()
+  })
+
+  it('loads account info once on initial show and refreshes only after returning to the page', async () => {
+    const { SettingsPage, loadBootstrap, getDidShowCallback } = loadSettingsPage(
+      {},
+      { me: { displayName: '张三', currentRole: 'CUSTOMER', roles: ['CUSTOMER'] } }
+    )
+    render(<SettingsPage />)
+    await act(async () => {
+      await flushPromises()
+    })
+    expect(loadBootstrap).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      getDidShowCallback()?.()
+      await flushPromises()
+    })
+    expect(loadBootstrap).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      getDidShowCallback()?.()
+      await flushPromises()
+    })
+    expect(loadBootstrap).toHaveBeenCalledTimes(2)
   })
 
   it('shows mock debug actions only in isolated mock mode', async () => {

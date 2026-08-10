@@ -116,8 +116,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: "stable"
-          check-latest: true
+          go-version: "1.25.x"
+          check-latest: false
           cache-dependency-path: |
             packages/go-shared/go.sum
             services/commerce/go.sum
@@ -141,14 +141,14 @@ jobs:
         if: steps.changes.outputs.fullstack_required == 'true'
         uses: pnpm/action-setup@v6
         with:
-          version: 10
+          version: 10.30.3
           run_install: false
 
       - name: Setup Node.js
         if: steps.changes.outputs.fullstack_required == 'true'
         uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "20.19.5"
           cache: "pnpm"
 
       - name: Install dependencies
@@ -299,8 +299,8 @@ jobs:
         if: steps.changes.outputs.fullstack_required == 'true'
         uses: actions/setup-go@v6
         with:
-          go-version: "stable"
-          check-latest: true
+          go-version: "1.25.x"
+          check-latest: false
           cache-dependency-path: |
             packages/go-shared/go.sum
             services/commerce/go.sum
@@ -312,14 +312,14 @@ jobs:
         if: steps.changes.outputs.fullstack_required == 'true'
         uses: pnpm/action-setup@v6
         with:
-          version: 10
+          version: 10.30.3
           run_install: false
 
       - name: Setup Node.js
         if: steps.changes.outputs.fullstack_required == 'true'
         uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "20.19.5"
           cache: "pnpm"
 
       - name: Install dependencies

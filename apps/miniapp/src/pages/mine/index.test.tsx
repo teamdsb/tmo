@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { removeStorage } from '@tmo/platform-adapter'
 import { gatewayServices } from '../../services/gateway'
 import { commerceServices } from '../../services/commerce'
@@ -10,6 +10,18 @@ import PersonalCenter from './index'
 jest.mock('../../services/profile', () => ({
   loadEditableProfile: jest.fn(() => null)
 }))
+
+jest.mock('../../config/runtime-env', () => {
+  const actual = jest.requireActual('../../config/runtime-env') as typeof import('../../config/runtime-env')
+  return {
+    ...actual,
+    runtimeEnv: {
+      ...actual.runtimeEnv,
+      isIsolatedMock: false,
+      enableDebugRoleSwitch: true
+    }
+  }
+})
 
 const flushPromises = () => new Promise((resolve) => process.nextTick(resolve))
 
@@ -25,22 +37,26 @@ const asMock = <T extends (...args: any[]) => any>(fn: T) => fn as unknown as je
 describe('PersonalCenter', () => {
   beforeEach(() => {
     ;(loadEditableProfile as jest.Mock).mockReturnValue(null)
-    asMock(identityServices.tokens.getToken).mockResolvedValue('token-123')
-    asMock(gatewayServices.bootstrap.get).mockImplementation(async () => ({
-      me: {
-        displayName: '张三',
-        ownerSalesDisplayName: '李经理',
-        currentRole: 'CUSTOMER',
-        roles: ['CUSTOMER']
-      }
-    }))
-    asMock(commerceServices.productRequests.list).mockResolvedValue({
+    asMock(identityServices.tokens.getToken)
+      .mockReset()
+      .mockResolvedValue('token-123')
+    asMock(gatewayServices.bootstrap.get)
+      .mockReset()
+      .mockResolvedValue({
+        me: {
+          displayName: '张三',
+          ownerSalesDisplayName: '李经理',
+          currentRole: 'CUSTOMER',
+          roles: ['CUSTOMER']
+        }
+      })
+    asMock(commerceServices.productRequests.list).mockReset().mockResolvedValue({
       items: [],
       page: 1,
       pageSize: 20,
       total: 0
     })
-    asMock(commerceServices.productRequests.create).mockResolvedValue({
+    asMock(commerceServices.productRequests.create).mockReset().mockResolvedValue({
       id: 'pr-created',
       createdByUserId: 'u-1',
       createdAt: '2026-03-15T08:00:00Z',
@@ -48,7 +64,7 @@ describe('PersonalCenter', () => {
       qty: '200 件',
       note: '耐高温'
     })
-    asMock(identityServices.auth.switchRole).mockResolvedValue({
+    asMock(identityServices.auth.switchRole).mockReset().mockResolvedValue({
       accessToken: 'switched-token',
       expiresIn: 3600,
       user: {
@@ -59,7 +75,6 @@ describe('PersonalCenter', () => {
         userType: 'staff'
       }
     })
-    asMock(gatewayServices.bootstrap.get).mockClear()
     asMock(gatewayServices.tokens.setToken).mockClear()
     asMock(commerceServices.tokens.setToken).mockClear()
     asMock(identityServices.tokens.setToken).mockClear()
@@ -67,6 +82,7 @@ describe('PersonalCenter', () => {
     asMock(Taro.navigateTo).mockClear()
     asMock(Taro.showToast).mockClear()
     asMock(removeStorage).mockClear()
+    asMock(useDidShow).mockImplementation(() => {})
   })
 
   it('renders user info and key sections', async () => {
@@ -157,6 +173,53 @@ describe('PersonalCenter', () => {
     await renderPersonalCenter()
 
     expect(await screen.findByText('业务员工作台')).toBeInTheDocument()
+  })
+
+  it('loads account data once on initial show and refreshes only after returning to the page', async () => {
+    let didShowCallback: (() => void) | undefined
+    asMock(useDidShow).mockImplementation((callback) => {
+      didShowCallback = callback
+    })
+    asMock(commerceServices.orders.stats).mockReset().mockResolvedValue({ items: [] })
+    asMock(gatewayServices.bootstrap.get)
+      .mockResolvedValueOnce({
+        me: {
+          id: 'user-1',
+          displayName: '首屏用户',
+          currentRole: 'CUSTOMER',
+          roles: ['CUSTOMER']
+        }
+      })
+      .mockResolvedValueOnce({
+        me: {
+          id: 'user-1',
+          displayName: '返回后用户',
+          currentRole: 'CUSTOMER',
+          roles: ['CUSTOMER']
+        }
+      })
+
+    await renderPersonalCenter()
+    expect(await screen.findByText('欢迎回来，首屏用户用户')).toBeInTheDocument()
+    expect(gatewayServices.bootstrap.get).toHaveBeenCalledTimes(1)
+    await waitFor(() => {
+      expect(commerceServices.orders.stats).toHaveBeenCalledTimes(1)
+    })
+
+    await act(async () => {
+      didShowCallback?.()
+      await flushPromises()
+    })
+    expect(gatewayServices.bootstrap.get).toHaveBeenCalledTimes(1)
+    expect(commerceServices.orders.stats).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      didShowCallback?.()
+      await flushPromises()
+    })
+    expect(gatewayServices.bootstrap.get).toHaveBeenCalledTimes(2)
+    expect(commerceServices.orders.stats).toHaveBeenCalledTimes(2)
+    expect(await screen.findByText('欢迎回来，返回后用户用户')).toBeInTheDocument()
   })
 
   it('hides manager card when not logged in', async () => {

@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import ExcelImportConfirmation from './index'
 import { commerceServices } from '../../services/commerce'
 
@@ -20,6 +20,11 @@ afterEach(() => {
 })
 
 describe('ExcelImportConfirmation', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+    ;(useDidShow as jest.Mock).mockImplementation(() => {})
+  })
+
   it('renders cart summary and items', async () => {
     await renderCart()
 
@@ -37,6 +42,39 @@ describe('ExcelImportConfirmation', () => {
     expect(screen.getByText('小计')).toBeInTheDocument()
     expect(screen.getByText('继续购物')).toBeInTheDocument()
     expect(screen.getByText('去结算')).toBeInTheDocument()
+  })
+
+  it('loads the cart once on initial show and refreshes only after returning to the page', async () => {
+    let didShowCallback: (() => void) | undefined
+    ;(useDidShow as jest.Mock).mockImplementation((callback) => {
+      didShowCallback = callback
+    })
+    const getCartMock = commerceServices.cart.getCart as jest.Mock
+    getCartMock
+      .mockResolvedValueOnce({
+        items: [{ id: 'cart-1', qty: 2, sku: { id: 'sku-1', name: '首屏商品' } }]
+      } as any)
+      .mockResolvedValueOnce({
+        items: [{ id: 'cart-2', qty: 1, sku: { id: 'sku-2', name: '返回后商品' } }]
+      } as any)
+
+    await renderCart()
+    expect((await screen.findAllByText('首屏商品')).length).toBeGreaterThan(0)
+    expect(getCartMock).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      didShowCallback?.()
+      await flushPromises()
+    })
+    expect(getCartMock).toHaveBeenCalledTimes(1)
+    expect(screen.getAllByText('首屏商品').length).toBeGreaterThan(0)
+
+    await act(async () => {
+      didShowCallback?.()
+      await flushPromises()
+    })
+    expect(getCartMock).toHaveBeenCalledTimes(2)
+    expect((await screen.findAllByText('返回后商品')).length).toBeGreaterThan(0)
   })
 
   it('shows a single empty-state title and count summary when cart is empty', async () => {
@@ -471,37 +509,21 @@ describe('ExcelImportConfirmation', () => {
   })
 
   it('changes sku in cart and keeps quantity', async () => {
-    jest.spyOn(commerceServices.cart, 'getCart')
-      .mockResolvedValueOnce({
-        items: [
-          {
-            id: 'cart-1',
-            qty: 2,
-            sku: {
-              id: 'sku-bolt-a2-m8',
-              spuId: 'spu-bolt-a2',
-              name: 'M8 x 30',
-              spec: 'M8 x 30',
-              skuCode: 'BOLT-M8-30'
-            }
+    jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 2,
+          sku: {
+            id: 'sku-bolt-a2-m8',
+            spuId: 'spu-bolt-a2',
+            name: 'M8 x 30',
+            spec: 'M8 x 30',
+            skuCode: 'BOLT-M8-30'
           }
-        ]
-      } as any)
-      .mockResolvedValueOnce({
-        items: [
-          {
-            id: 'cart-2',
-            qty: 2,
-            sku: {
-              id: 'sku-bolt-a2-m10',
-              spuId: 'spu-bolt-a2',
-              name: 'M10 x 40',
-              spec: 'M10 x 40',
-              skuCode: 'BOLT-M10-40'
-            }
-          }
-        ]
-      } as any)
+        }
+      ]
+    } as any)
     jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValue({
       product: {
         id: 'spu-bolt-a2',
@@ -513,63 +535,63 @@ describe('ExcelImportConfirmation', () => {
         { id: 'sku-bolt-a2-m10', spuId: 'spu-bolt-a2', name: 'M10 x 40', spec: 'M10 x 40', isActive: true }
       ]
     } as any)
-    const removeItemSpy = jest.spyOn(commerceServices.cart, 'removeItem').mockResolvedValueOnce()
-    const addItemSpy = jest.spyOn(commerceServices.cart, 'addItem').mockResolvedValueOnce({ items: [] } as any)
+    const replaceItemSkuSpy = jest.spyOn(commerceServices.cart, 'replaceItemSku').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-2',
+          qty: 2,
+          sku: {
+            id: 'sku-bolt-a2-m10',
+            spuId: 'spu-bolt-a2',
+            name: 'M10 x 40',
+            spec: 'M10 x 40',
+            skuCode: 'BOLT-M10-40'
+          }
+        }
+      ]
+    } as any)
+    const removeItemSpy = jest.spyOn(commerceServices.cart, 'removeItem')
+    const addItemSpy = jest.spyOn(commerceServices.cart, 'addItem')
     jest.spyOn(Taro, 'showActionSheet').mockResolvedValueOnce({ tapIndex: 1 } as any)
 
     await renderCart()
     fireEvent.click(screen.getByText('规格'))
 
     await waitFor(() => {
-      expect(removeItemSpy).toHaveBeenCalledWith('cart-1')
-      expect(addItemSpy).toHaveBeenCalledWith('sku-bolt-a2-m10', 2)
+      expect(replaceItemSkuSpy).toHaveBeenCalledWith('cart-1', 'sku-bolt-a2-m10', 2)
     })
+    expect(removeItemSpy).not.toHaveBeenCalled()
+    expect(addItemSpy).not.toHaveBeenCalled()
     expect(await screen.findByText('M10 x 40')).toBeInTheDocument()
   })
 
   it('merges quantity when changing to existing sku', async () => {
-    jest.spyOn(commerceServices.cart, 'getCart')
-      .mockResolvedValueOnce({
-        items: [
-          {
-            id: 'cart-1',
-            qty: 2,
-            sku: {
-              id: 'sku-bolt-a2-m8',
-              spuId: 'spu-bolt-a2',
-              name: 'M8 x 30',
-              spec: 'M8 x 30',
-              skuCode: 'BOLT-M8-30'
-            }
-          },
-          {
-            id: 'cart-2',
-            qty: 1,
-            sku: {
-              id: 'sku-bolt-a2-m10',
-              spuId: 'spu-bolt-a2',
-              name: 'M10 x 40',
-              spec: 'M10 x 40',
-              skuCode: 'BOLT-M10-40'
-            }
+    jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 2,
+          sku: {
+            id: 'sku-bolt-a2-m8',
+            spuId: 'spu-bolt-a2',
+            name: 'M8 x 30',
+            spec: 'M8 x 30',
+            skuCode: 'BOLT-M8-30'
           }
-        ]
-      } as any)
-      .mockResolvedValueOnce({
-        items: [
-          {
-            id: 'cart-2',
-            qty: 3,
-            sku: {
-              id: 'sku-bolt-a2-m10',
-              spuId: 'spu-bolt-a2',
-              name: 'M10 x 40',
-              spec: 'M10 x 40',
-              skuCode: 'BOLT-M10-40'
-            }
+        },
+        {
+          id: 'cart-2',
+          qty: 1,
+          sku: {
+            id: 'sku-bolt-a2-m10',
+            spuId: 'spu-bolt-a2',
+            name: 'M10 x 40',
+            spec: 'M10 x 40',
+            skuCode: 'BOLT-M10-40'
           }
-        ]
-      } as any)
+        }
+      ]
+    } as any)
     jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValue({
       product: {
         id: 'spu-bolt-a2',
@@ -581,15 +603,79 @@ describe('ExcelImportConfirmation', () => {
         { id: 'sku-bolt-a2-m10', spuId: 'spu-bolt-a2', name: 'M10 x 40', spec: 'M10 x 40', isActive: true }
       ]
     } as any)
-    jest.spyOn(commerceServices.cart, 'removeItem').mockResolvedValueOnce()
-    jest.spyOn(commerceServices.cart, 'addItem').mockResolvedValueOnce({ items: [] } as any)
+    const replaceItemSkuSpy = jest.spyOn(commerceServices.cart, 'replaceItemSku').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-2',
+          qty: 3,
+          sku: {
+            id: 'sku-bolt-a2-m10',
+            spuId: 'spu-bolt-a2',
+            name: 'M10 x 40',
+            spec: 'M10 x 40',
+            skuCode: 'BOLT-M10-40'
+          }
+        }
+      ]
+    } as any)
     jest.spyOn(Taro, 'showActionSheet').mockResolvedValueOnce({ tapIndex: 1 } as any)
 
     await renderCart()
     fireEvent.click(screen.getAllByText('规格')[0])
 
+    await waitFor(() => {
+      expect(replaceItemSkuSpy).toHaveBeenCalledWith('cart-1', 'sku-bolt-a2-m10', 2)
+    })
     expect(await screen.findByText('购物车共有 1 件商品')).toBeInTheDocument()
     expect(screen.getByDisplayValue('3')).toBeInTheDocument()
+  })
+
+  it('keeps the original item when atomic sku replacement fails', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {})
+    jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({
+      items: [
+        {
+          id: 'cart-1',
+          qty: 2,
+          sku: {
+            id: 'sku-bolt-a2-m8',
+            spuId: 'spu-bolt-a2',
+            name: 'M8 x 30',
+            spec: 'M8 x 30',
+            skuCode: 'BOLT-M8-30'
+          }
+        }
+      ]
+    } as any)
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValue({
+      product: {
+        id: 'spu-bolt-a2',
+        name: '不锈钢六角螺栓 A2',
+        categoryId: 'cat-fasteners'
+      },
+      skus: [
+        { id: 'sku-bolt-a2-m8', spuId: 'spu-bolt-a2', name: 'M8 x 30', spec: 'M8 x 30', isActive: true },
+        { id: 'sku-bolt-a2-m10', spuId: 'spu-bolt-a2', name: 'M10 x 40', spec: 'M10 x 40', isActive: true }
+      ]
+    } as any)
+    const replaceItemSkuSpy = jest.spyOn(commerceServices.cart, 'replaceItemSku')
+      .mockRejectedValueOnce(new Error('network unavailable'))
+    const removeItemSpy = jest.spyOn(commerceServices.cart, 'removeItem')
+    const addItemSpy = jest.spyOn(commerceServices.cart, 'addItem')
+    const showToastSpy = jest.spyOn(Taro, 'showToast')
+    jest.spyOn(Taro, 'showActionSheet').mockResolvedValueOnce({ tapIndex: 1 } as any)
+
+    await renderCart()
+    fireEvent.click(screen.getByText('规格'))
+
+    await waitFor(() => {
+      expect(replaceItemSkuSpy).toHaveBeenCalledWith('cart-1', 'sku-bolt-a2-m10', 2)
+      expect(showToastSpy).toHaveBeenCalledWith({ title: '规格更新失败，请重试', icon: 'none' })
+    })
+    expect(removeItemSpy).not.toHaveBeenCalled()
+    expect(addItemSpy).not.toHaveBeenCalled()
+    expect(screen.getByText('M8 x 30')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('2')).toBeInTheDocument()
   })
 
   it('removes cart item from card action', async () => {

@@ -117,6 +117,38 @@ describe('OrderConfirmPage', () => {
     expect(document.querySelector('.order-confirm-bottom-value')?.textContent).toBe('64.00')
   })
 
+  it('loads confirm data once on initial show and refreshes only after returning to the page', async () => {
+    let didShowCallback: (() => void) | undefined
+    ;(useDidShow as jest.Mock).mockImplementation((callback) => {
+      didShowCallback = callback
+    })
+
+    render(<OrderConfirmPage />)
+    await act(async () => {
+      await flushPromises()
+    })
+
+    expect(ensureLoggedIn).toHaveBeenCalledTimes(1)
+    expect(commerceServices.cart.getCart).toHaveBeenCalledTimes(1)
+    expect(listUserAddresses).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      didShowCallback?.()
+      await flushPromises()
+    })
+    expect(ensureLoggedIn).toHaveBeenCalledTimes(1)
+    expect(commerceServices.cart.getCart).toHaveBeenCalledTimes(1)
+    expect(listUserAddresses).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      didShowCallback?.()
+      await flushPromises()
+    })
+    expect(ensureLoggedIn).toHaveBeenCalledTimes(2)
+    expect(commerceServices.cart.getCart).toHaveBeenCalledTimes(2)
+    expect(listUserAddresses).toHaveBeenCalledTimes(2)
+  })
+
   it('renders empty address call-to-action when no address exists', async () => {
     ;(listUserAddresses as jest.Mock).mockResolvedValueOnce([])
 

@@ -6,7 +6,6 @@ import {
   postPaymentsPaymentIdRecheck,
   postPaymentsWechatCreate,
   setPaymentApiClientConfig,
-  type AlipayPayCreateResponse,
   type ApiClientConfig,
   type ApiClientRequester,
   type PaymentDetail,
@@ -99,7 +98,7 @@ const normalizeChannel = (channel: string): PaymentChannel => {
 }
 
 const normalizePaymentSession = (
-  session: PaymentDetail | WechatPayCreateResponse | AlipayPayCreateResponse
+  session: PaymentDetail | WechatPayCreateResponse
 ): PaymentSession => {
   if ('paymentId' in session) {
     return {
@@ -113,9 +112,7 @@ const normalizePaymentSession = (
       nonceStr: 'nonceStr' in session ? session.nonceStr : undefined,
       timeStamp: 'timeStamp' in session ? session.timeStamp : undefined,
       signType: 'signType' in session ? session.signType : undefined,
-      paySign: 'paySign' in session ? session.paySign : undefined,
-      tradeNo: 'tradeNo' in session ? session.tradeNo : undefined,
-      payParams: 'payParams' in session ? session.payParams : undefined
+      paySign: 'paySign' in session ? session.paySign : undefined
     }
   }
 
@@ -208,7 +205,8 @@ export const createPaymentServices = (config: PaymentServicesConfig = {}): Payme
   const tokens = createTokenStore(tokenKey, devToken, legacyTokenStorageKey)
   const requester: ApiClientRequester = config.requester ?? createRequester({
     getToken: tokens.getToken,
-    timeoutMs: config.timeoutMs
+    timeoutMs: config.timeoutMs,
+    onUnauthorized: config.onUnauthorized
   })
 
   const apiClientConfig: ApiClientConfig = {
@@ -233,7 +231,7 @@ export const createPaymentServices = (config: PaymentServicesConfig = {}): Payme
       ? await postPaymentsWechatCreate({ orderId }, requestOptions)
       : await postPaymentsAlipayCreate({ orderId }, requestOptions)
 
-    return normalizePaymentSession(unwrapPaymentResponse<WechatPayCreateResponse | AlipayPayCreateResponse>(response))
+    return normalizePaymentSession(unwrapPaymentResponse<WechatPayCreateResponse>(response))
   }
 
   return {

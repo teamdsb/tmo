@@ -99,7 +99,8 @@ export const createIdentityServices = (config: IdentityServicesConfig = {}): Ide
   const tokens = createTokenStore(tokenKey, devToken, legacyTokenStorageKey)
   const requester: ApiClientRequester = config.requester ?? createRequester({
     getToken: tokens.getToken,
-    timeoutMs: config.timeoutMs
+    timeoutMs: config.timeoutMs,
+    onUnauthorized: config.onUnauthorized
   })
 
   const apiClientConfig: ApiClientConfig = {

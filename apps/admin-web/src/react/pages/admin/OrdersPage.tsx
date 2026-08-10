@@ -737,7 +737,7 @@ export const OrdersPage = () => {
       }
       const refreshedOrders = buildDevOrders(refreshedResponse.data as { items?: unknown[]; total?: number });
       const updated = refreshedOrders.find((order) => order.id === selectedOrder.id) || buildDevOrders({ items: [response.data] })[0];
-      const patchedOrders = refreshedOrders.map((order) => order.id === selectedOrder.id ? {
+      const patchedOrders: AdminOrderRecord[] = refreshedOrders.map((order) => order.id === selectedOrder.id ? {
         ...order,
         trackingNumber: order.trackingNumber === '--' ? waybillNo : order.trackingNumber,
         timeline: order.timeline.length > 0 ? order.timeline : [
@@ -789,7 +789,7 @@ export const OrdersPage = () => {
       }
       const refreshedOrders = buildDevOrders(refreshedResponse.data as { items?: unknown[]; total?: number });
       const updated = refreshedOrders.find((order) => order.id === selectedOrder.id) || buildDevOrders({ items: [response.data] })[0];
-      const patchedOrders = refreshedOrders.map((order) => order.id === selectedOrder.id ? {
+      const patchedOrders: AdminOrderRecord[] = refreshedOrders.map((order) => order.id === selectedOrder.id ? {
         ...order,
         statusKey: 'DELIVERED',
         statusLabel: '已送达',

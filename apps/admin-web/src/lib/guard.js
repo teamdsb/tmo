@@ -12,6 +12,27 @@ import { canAccessPath, normalizePermissionMap } from './permissions';
 let isLogoutDelegated = false;
 const legacyMockPermissionNoticeKey = 'tmo:admin:web:mock:legacy-permissions-notice';
 const unsupportedRoleNoticeKey = 'tmo:admin:web:unsupported-role-notice';
+const bootstrapWarningKey = 'tmo:admin:web:bootstrap-warning';
+
+const setBootstrapWarning = (message) => {
+  try {
+    if (message) {
+      sessionStorage.setItem(bootstrapWarningKey, message);
+    } else {
+      sessionStorage.removeItem(bootstrapWarningKey);
+    }
+  } catch {
+    // Ignore storage failures; the guard behavior does not depend on the warning UI.
+  }
+};
+
+export const getBootstrapWarning = () => {
+  try {
+    return sessionStorage.getItem(bootstrapWarningKey) || '';
+  } catch {
+    return '';
+  }
+};
 
 // 绑定全局退出事件（只绑定一次，避免重复监听）。
 const bindLogoutActions = () => {
@@ -93,12 +114,19 @@ export const ensureProtectedPage = async () => {
   }
 
   let bootstrapPayload = null;
+  let bootstrapWarning = null;
   if (isDevMode) {
     try {
       bootstrapPayload = await refreshBootstrap();
-    } catch {
-      logout();
-      return null;
+      setBootstrapWarning('');
+    } catch (error) {
+      if (!getCurrentSession()) {
+        logout();
+        return null;
+      }
+      bootstrapWarning = error instanceof Error ? error.message : String(error);
+      setBootstrapWarning(bootstrapWarning);
+      console.warn('Bootstrap refresh failed; continuing with the cached admin session.', error);
     }
   }
 
@@ -136,6 +164,7 @@ export const ensureProtectedPage = async () => {
   return {
     mode: isDevMode ? 'dev' : 'mock',
     session: latestSession,
-    bootstrap: bootstrapPayload
+    bootstrap: bootstrapPayload,
+    bootstrapWarning
   };
 };

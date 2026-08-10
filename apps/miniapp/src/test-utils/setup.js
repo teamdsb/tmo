@@ -348,6 +348,7 @@ jest.mock('@tmo/commerce-services', () => {
         confirmImport: jest.fn(async () => mockCart),
         addItem: jest.fn(async () => mockCart),
         updateItemQty: jest.fn(async () => mockCart),
+        replaceItemSku: jest.fn(async () => mockCart),
         removeItem: jest.fn(async () => ({}))
       },
       wishlist: {

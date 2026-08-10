@@ -5,6 +5,7 @@ export interface ApiClientRequestOptions {
   method: string
   headers?: Record<string, string>
   body?: BodyInit | null
+  signal?: AbortSignal
 }
 
 export interface ApiClientResponse<T> {
@@ -80,7 +81,8 @@ export const apiMutator = async <T>(url: string, options: RequestInit): Promise<
     url: targetUrl,
     method: options.method ?? 'GET',
     headers: toHeaderRecord(options.headers),
-    body: options.body ?? undefined
+    body: options.body ?? undefined,
+    signal: options.signal ?? undefined
   })
 
   return {

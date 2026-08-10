@@ -10,6 +10,11 @@
   - Includes DB fault-injection job: force-stop postgres and assert preflight must fail with diagnosis output.
   - Works on GitHub-hosted Ubuntu runners.
 
+- `repository-quality-ci.yml`
+  - Covers every Go module plus admin-web, miniapp, OpenAPI contracts, and TypeScript packages.
+  - Creates isolated Identity, Commerce, and Payment PostgreSQL databases; required integration-test markers and skip-message checks make missing DB coverage fail closed.
+  - Re-runs deterministic Go/TypeScript generators and fails when generated artifacts are stale.
+
 - `weapp-automator-smoke.yml`
   - WeChat DevTools automator smoke for route matrix capture.
   - Requires a self-hosted macOS runner with WeChat DevTools installed and automator-capable environment.

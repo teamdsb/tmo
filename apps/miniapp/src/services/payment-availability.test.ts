@@ -5,6 +5,7 @@ import { buildOrderPaymentIdempotencyKey, resolvePaymentAvailability } from './p
 
 jest.mock('@tmo/platform-adapter', () => ({ isWeapp: jest.fn(), isAlipay: jest.fn() }))
 jest.mock('./bootstrap', () => ({ loadBootstrap: jest.fn() }))
+jest.mock('../config/runtime-env', () => ({ runtimeEnv: { isIsolatedMock: false } }))
 
 describe('payment availability', () => {
   beforeEach(() => {
@@ -29,6 +30,19 @@ describe('payment availability', () => {
     await expect(resolvePaymentAvailability()).resolves.toEqual(expect.objectContaining({
       available: false,
       unavailableMessage: expect.stringContaining('微信支付暂未开通')
+    }))
+  })
+
+  it('does not advertise an unimplemented Alipay flow even when its flag is stale', async () => {
+    ;(isWeapp as jest.Mock).mockReturnValue(false)
+    ;(isAlipay as jest.Mock).mockReturnValue(true)
+    ;(loadBootstrap as jest.Mock).mockResolvedValue({
+      featureFlags: { paymentEnabled: true, alipayPayEnabled: true }
+    })
+
+    await expect(resolvePaymentAvailability()).resolves.toEqual(expect.objectContaining({
+      available: false,
+      unavailableMessage: expect.stringContaining('尚未接入')
     }))
   })
 

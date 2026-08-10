@@ -23,7 +23,7 @@ type SummaryPayload = {
   featureFlags?: {
     paymentEnabled?: boolean;
     wechatPayEnabled?: boolean;
-	wechatB2bEnabled?: boolean;
+    wechatB2bEnabled?: boolean;
     alipayPayEnabled?: boolean;
   };
   generatedAt?: string;

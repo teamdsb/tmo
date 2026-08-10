@@ -7,6 +7,7 @@ export interface UploadClientConfig {
   baseUrl: string
   getAuthHeaders: () => Promise<Record<string, string>>
   timeoutMs?: number
+  onUnauthorized?: () => void | Promise<void>
 }
 
 export interface UploadClient {
@@ -44,6 +45,13 @@ export const createUploadClient = (config: UploadClientConfig): UploadClient => 
         formData,
         timeoutMs: config.timeoutMs
       })
+      if (result.statusCode === 401 && config.onUnauthorized) {
+        try {
+          await config.onUnauthorized()
+        } catch {
+          // Preserve the upload response when local session cleanup fails.
+        }
+      }
       return parseUploadData<T>(result)
     }
   }

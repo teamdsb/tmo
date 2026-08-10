@@ -33,6 +33,7 @@ import {
   putRbacRolesRolePermissions,
   setIdentityApiClientConfig
 } from '@tmo/identity-api-client';
+import { createRequestAbortScope } from '@tmo/openapi-client';
 
 import { apiBaseUrl, isDevMode, paymentApiBaseUrl } from './env';
 import { getAccessToken } from './state';
@@ -70,22 +71,28 @@ const requester = async (options) => {
     headers.Authorization = `Bearer ${token}`;
   }
 
+  const abortScope = createRequestAbortScope(options.signal, options.timeoutMs);
   const init = {
     method: options.method,
-    headers
+    headers,
+    signal: abortScope.signal
   };
 
   if (options.body !== undefined && options.body !== null) {
     init.body = options.body;
   }
 
-  const response = await fetch(options.url, init);
-  const data = await parseBody(response);
-  return {
-    status: response.status,
-    data,
-    headers: toHeaderRecord(response.headers)
-  };
+  try {
+    const response = await fetch(options.url, init);
+    const data = await parseBody(response);
+    return {
+      status: response.status,
+      data,
+      headers: toHeaderRecord(response.headers)
+    };
+  } finally {
+    abortScope.dispose();
+  }
 };
 
 const baseUrl = isDevMode ? apiBaseUrl || '/api' : '';
@@ -118,9 +125,11 @@ const requestWithBase = async (path, options = {}, baseOverride = undefined) => 
     headers.Authorization = `Bearer ${token}`;
   }
 
+  const abortScope = createRequestAbortScope(options.signal, options.timeoutMs);
   const init = {
     method: options.method || 'GET',
-    headers
+    headers,
+    signal: abortScope.signal
   };
 
   if (options.body !== undefined) {
@@ -139,12 +148,16 @@ const requestWithBase = async (path, options = {}, baseOverride = undefined) => 
     }
   }
 
-  const response = await fetch(joinPath(path, baseOverride), init);
-  return {
-    status: response.status,
-    data: await parseBody(response),
-    headers: toHeaderRecord(response.headers)
-  };
+  try {
+    const response = await fetch(joinPath(path, baseOverride), init);
+    return {
+      status: response.status,
+      data: await parseBody(response),
+      headers: toHeaderRecord(response.headers)
+    };
+  } finally {
+    abortScope.dispose();
+  }
 };
 
 export const requestRaw = async (path, options = {}) => {
@@ -535,8 +548,8 @@ export const replayAdminPaymentWebhook = async (webhookId) => {
   });
 };
 
-export const fetchAdminSupportConversations = async (params = {}) => {
-  return requestRaw(`/admin/support/conversations${buildQueryString(params)}`);
+export const fetchAdminSupportConversations = async (params = {}, options = {}) => {
+  return requestRaw(`/admin/support/conversations${buildQueryString(params)}`, options);
 };
 
 export const fetchAdminSupportConversation = async (conversationId) => {

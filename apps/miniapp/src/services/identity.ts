@@ -1,5 +1,6 @@
 import { createIdentityServices } from '@tmo/identity-services'
 import { requireIdentityBaseUrl, runtimeEnv } from '../config/runtime-env'
+import { recoverUnauthorizedSession } from './auth-recovery'
 import { createMockIdentityServices } from './mock/identity'
 
 const createIdentityServicesRuntime = () => {
@@ -8,7 +9,8 @@ const createIdentityServicesRuntime = () => {
   }
   return createIdentityServices({
     baseUrl: requireIdentityBaseUrl(),
-    devToken: runtimeEnv.identityDevToken
+    devToken: runtimeEnv.identityDevToken,
+    onUnauthorized: recoverUnauthorizedSession
   })
 }
 

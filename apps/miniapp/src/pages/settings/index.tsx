@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View, Text, Button as NativeButton } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Switch from '@taroify/core/switch'
 import Arrow from '@taroify/icons/Arrow'
@@ -16,6 +16,7 @@ import { loadEditableProfile } from '../../services/profile'
 import { runtimeEnv } from '../../config/runtime-env'
 import { getCurrentRole, isSalesUser } from '../../utils/authz'
 import { POLICY_CONTENT, type PolicyKey } from '../../content/policies'
+import { useRefreshOnReturn } from '../../hooks/use-refresh-on-return'
 
 type SettingsState = {
   notifications: boolean
@@ -99,7 +100,7 @@ export default function SettingsPage() {
     void refreshAccountInfo()
   }, [refreshAccountInfo])
 
-  useDidShow(() => {
+  useRefreshOnReturn(() => {
     void refreshAccountInfo()
   })
 

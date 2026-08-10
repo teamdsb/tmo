@@ -1,6 +1,7 @@
 {
   "name": "tmo-monorepo",
   "private": true,
+  "packageManager": "pnpm@10.30.3",
   "scripts": {
     "lint": "pnpm -C apps/miniapp lint",
     "lint:miniapp": "pnpm -C apps/miniapp lint",
@@ -9,15 +10,23 @@
     "dev:admin-web:real": "pnpm -C apps/admin-web dev:real",
     "dev:admin-web:stack": "bash tools/scripts/admin-web-dev-stack.sh",
     "build:admin-web": "pnpm -C apps/admin-web build",
+    "check:openapi": "node tools/scripts/check-openapi-sync.mjs",
     "check:mock-sync": "node tools/scripts/check-mock-sync.mjs",
     "e2e:local": "bash tools/scripts/e2e-local-stack.sh",
     "test:backend": "bash tools/scripts/test-backend.sh",
     "test:backend:coverage": "bash tools/scripts/test-backend-coverage.sh",
+    "test:openapi": "node --test tools/scripts/check-openapi-sync.test.mjs",
+    "test:admin-web": "pnpm -C apps/admin-web typecheck && pnpm -C apps/admin-web build && pnpm -C apps/admin-web test:e2e:ci",
+    "typecheck:packages": "pnpm --recursive --filter './packages/*' exec tsc --noEmit",
     "smoke:admin-web": "bash tools/scripts/admin-web-smoke.sh",
     "test:support:real": "bash tools/scripts/support-real-e2e.sh",
     "verify:miniapp:customer:evidence": "bash tools/scripts/miniapp-customer-evidence.sh",
     "test:fullstack:real": "bash tools/scripts/fullstack-real-check.sh",
     "test": "pnpm run test:backend && pnpm -C apps/miniapp test && pnpm -C apps/miniapp test:wxss",
     "format": "echo \"format: not configured\""
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "yaml": "2.8.2"
   }
 }
