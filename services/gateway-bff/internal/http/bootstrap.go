@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 
@@ -52,14 +53,13 @@ func (h *BootstrapHandler) Handle(c *gin.Context) {
 	authHeader := strings.TrimSpace(c.GetHeader("Authorization"))
 	requestID := httpx.RequestIDFromContext(c)
 
-	featureFlags := defaultFeatureFlags
-	if status, body, err := h.fetchJSON(c.Request.Context(), identityBase+"/admin/config/feature-flags", requestID, authHeader); err == nil {
-		if status >= 200 && status < 300 && len(body) > 0 {
-			featureFlags = body
-		}
-	}
-
 	if authHeader == "" {
+		featureFlags := defaultFeatureFlags
+		if status, body, err := h.fetchJSON(c.Request.Context(), identityBase+"/admin/config/feature-flags", requestID, authHeader); err == nil {
+			if status >= 200 && status < 300 && len(body) > 0 {
+				featureFlags = body
+			}
+		}
 		c.JSON(http.StatusOK, bootstrapPayload{
 			Me:           json.RawMessage("null"),
 			Permissions:  defaultPermissions,
@@ -68,18 +68,47 @@ func (h *BootstrapHandler) Handle(c *gin.Context) {
 		return
 	}
 
-	meStatus, meBody, err := h.fetchJSON(c.Request.Context(), identityBase+"/me", requestID, authHeader)
-	if err != nil || meStatus < 200 || meStatus >= 300 {
-		h.forwardUpstreamError(c, meStatus, meBody, err, "bootstrap me")
+	type upstreamResult struct {
+		status int
+		body   json.RawMessage
+		err    error
+	}
+	urls := []string{
+		identityBase + "/admin/config/feature-flags",
+		identityBase + "/me",
+		identityBase + "/me/permissions",
+	}
+	results := make([]upstreamResult, len(urls))
+	var waitGroup sync.WaitGroup
+	waitGroup.Add(len(urls))
+	for index, url := range urls {
+		index, url := index, url
+		go func() {
+			defer waitGroup.Done()
+			results[index].status, results[index].body, results[index].err = h.fetchJSON(c.Request.Context(), url, requestID, authHeader)
+		}()
+	}
+	waitGroup.Wait()
+
+	featureFlags := defaultFeatureFlags
+	if result := results[0]; result.err == nil && result.status >= 200 && result.status < 300 && len(result.body) > 0 {
+		featureFlags = result.body
+	}
+
+	meResult := results[1]
+	if meResult.err != nil || meResult.status < 200 || meResult.status >= 300 {
+		h.forwardUpstreamError(c, meResult.status, meResult.body, meResult.err, "bootstrap me")
 		return
 	}
 
-	permStatus, permBody, err := h.fetchJSON(c.Request.Context(), identityBase+"/me/permissions", requestID, authHeader)
-	if err != nil || permStatus < 200 || permStatus >= 300 {
-		h.forwardUpstreamError(c, permStatus, permBody, err, "bootstrap permissions")
+	permissionsResult := results[2]
+	if permissionsResult.err != nil || permissionsResult.status < 200 || permissionsResult.status >= 300 {
+		h.forwardUpstreamError(c, permissionsResult.status, permissionsResult.body, permissionsResult.err, "bootstrap permissions")
 		return
 	}
 
+	meBody := meResult.body
+	permBody := permissionsResult.body
 	if len(permBody) == 0 {
 		permBody = defaultPermissions
 	}

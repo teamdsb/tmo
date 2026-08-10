@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -60,22 +61,45 @@ func (h *AdminSummaryHandler) Handle(c *gin.Context) {
 
 	authHeader := strings.TrimSpace(c.GetHeader("Authorization"))
 	requestID := httpx.RequestIDFromContext(c)
+	type upstreamResult struct {
+		payload map[string]interface{}
+		err     error
+	}
 
-	if payload, err := h.fetchJSONMap(c.Request.Context(), h.identityBaseURL+"/admin/config/feature-flags", requestID, authHeader); err == nil {
+	urls := []string{
+		h.identityBaseURL + "/admin/config/feature-flags",
+		h.commerceBaseURL + "/catalog/products?page=1&pageSize=1",
+		h.commerceBaseURL + "/orders?page=1&pageSize=50",
+		h.commerceBaseURL + "/inquiries/price?page=1&pageSize=50",
+		h.commerceBaseURL + "/product-requests?page=1&pageSize=1",
+	}
+	results := make([]upstreamResult, len(urls))
+	var waitGroup sync.WaitGroup
+	waitGroup.Add(len(urls))
+	for index, url := range urls {
+		index, url := index, url
+		go func() {
+			defer waitGroup.Done()
+			results[index].payload, results[index].err = h.fetchJSONMap(c.Request.Context(), url, requestID, authHeader)
+		}()
+	}
+	waitGroup.Wait()
+
+	if payload, err := results[0].payload, results[0].err; err == nil {
 		response.FeatureFlags = readFeatureFlags(payload)
 	} else {
 		response.WarningLabels = append(response.WarningLabels, "feature_flags_unavailable")
 		h.logWarn("admin summary: feature flags unavailable", err)
 	}
 
-	if payload, err := h.fetchJSONMap(c.Request.Context(), h.commerceBaseURL+"/catalog/products?page=1&pageSize=1", requestID, authHeader); err == nil {
+	if payload, err := results[1].payload, results[1].err; err == nil {
 		response.Metrics.ProductsTotal = extractTotal(payload)
 	} else {
 		response.WarningLabels = append(response.WarningLabels, "products_unavailable")
 		h.logWarn("admin summary: products unavailable", err)
 	}
 
-	if payload, err := h.fetchJSONMap(c.Request.Context(), h.commerceBaseURL+"/orders?page=1&pageSize=50", requestID, authHeader); err == nil {
+	if payload, err := results[2].payload, results[2].err; err == nil {
 		response.Metrics.OrdersTotal = extractTotal(payload)
 		response.Metrics.OrdersPending = countPendingOrders(payload)
 	} else {
@@ -83,7 +107,7 @@ func (h *AdminSummaryHandler) Handle(c *gin.Context) {
 		h.logWarn("admin summary: orders unavailable", err)
 	}
 
-	if payload, err := h.fetchJSONMap(c.Request.Context(), h.commerceBaseURL+"/inquiries/price?page=1&pageSize=50", requestID, authHeader); err == nil {
+	if payload, err := results[3].payload, results[3].err; err == nil {
 		response.Metrics.InquiriesTotal = extractTotal(payload)
 		response.Metrics.InquiriesOpen = countOpenInquiries(payload)
 	} else {
@@ -91,7 +115,7 @@ func (h *AdminSummaryHandler) Handle(c *gin.Context) {
 		h.logWarn("admin summary: inquiries unavailable", err)
 	}
 
-	if payload, err := h.fetchJSONMap(c.Request.Context(), h.commerceBaseURL+"/product-requests?page=1&pageSize=1", requestID, authHeader); err == nil {
+	if payload, err := results[4].payload, results[4].err; err == nil {
 		response.Metrics.ProductRequestsTotal = extractTotal(payload)
 	} else {
 		response.WarningLabels = append(response.WarningLabels, "product_requests_unavailable")
