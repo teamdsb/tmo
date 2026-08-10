@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -45,6 +46,26 @@ func TestCredentialVersionRoundTripsThroughToken(t *testing.T) {
 	}
 }
 
+func TestLargeCredentialVersionRoundTripsExactly(t *testing.T) {
+	manager := NewTokenManager("secret", "issuer", time.Hour)
+	const version int64 = 9007199254740995
+	token, _, err := manager.Issue(
+		uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), "CUSTOMER", []string{"CUSTOMER"},
+		"customer", nil, nil, nil, WithCredentialVersion(version),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	claims, err := manager.Parse(token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if claims.CredentialVersion != version {
+		t.Fatalf("expected credential version %d, got %d", version, claims.CredentialVersion)
+	}
+}
+
 func TestLegacyTokenWithoutCredentialVersionParsesAsZero(t *testing.T) {
 	manager := NewTokenManager("secret", "issuer", time.Hour)
 	token, _, err := manager.Issue(
@@ -67,8 +88,9 @@ func TestLegacyTokenWithoutCredentialVersionParsesAsZero(t *testing.T) {
 func TestParseRejectsInvalidCredentialVersion(t *testing.T) {
 	manager := NewTokenManager("secret", "issuer", time.Hour)
 	for name, credentialVersion := range map[string]any{
-		"negative":   float64(-1),
-		"fractional": 1.5,
+		"negative":    float64(-1),
+		"fractional":  1.5,
+		"above int64": json.Number("9223372036854775808"),
 	} {
 		t.Run(name, func(t *testing.T) {
 			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{

@@ -1,9 +1,10 @@
 package auth
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -122,7 +123,7 @@ func (m *TokenManager) Parse(raw string) (Claims, error) {
 			return nil, ErrInvalidToken
 		}
 		return m.secret, nil
-	})
+	}, jwt.WithJSONNumber())
 	if err != nil || !token.Valid {
 		return Claims{}, ErrInvalidToken
 	}
@@ -202,17 +203,21 @@ func (m *TokenManager) Parse(raw string) (Claims, error) {
 		claims.CredentialVersion = version
 	}
 
-	if expRaw, ok := mapClaims["exp"].(float64); ok {
-		claims.ExpiresAt = time.Unix(int64(expRaw), 0)
+	if expiration, err := mapClaims.GetExpirationTime(); err == nil && expiration != nil {
+		claims.ExpiresAt = expiration.Time
 	}
 
 	return claims, nil
 }
 
 func parseCredentialVersion(raw any) (int64, bool) {
-	value, ok := raw.(float64)
-	if !ok || math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || math.Trunc(value) != value || value >= math.Exp2(63) {
+	value, ok := raw.(json.Number)
+	if !ok {
 		return 0, false
 	}
-	return int64(value), true
+	parsed, err := strconv.ParseInt(value.String(), 10, 64)
+	if err != nil || parsed < 0 {
+		return 0, false
+	}
+	return parsed, true
 }
