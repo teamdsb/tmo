@@ -1,5 +1,7 @@
 # Audit Remediation Implementation Plan
 
+> **Execution status (2026-08-10):** Implementation and integration are complete. All remediation milestones below were executed on the isolated branch and applied to `codex/fix-hide-excel-import-entry`; the five pre-existing miniapp order/CSS files remain intentionally uncommitted. Final verification and environment-only limitations are recorded in `.agent/PLANS.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Remove the audited authentication and payment vulnerabilities, restore all builds and tests, eliminate the confirmed request/concurrency stalls, and add CI gates that prevent the same regressions.
