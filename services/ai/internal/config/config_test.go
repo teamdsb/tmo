@@ -11,6 +11,7 @@ func TestLoadReturnsDefaults(t *testing.T) {
 	t.Setenv("AI_AUTH_ENABLED", "")
 	t.Setenv("AI_JWT_SECRET", "")
 	t.Setenv("AI_JWT_ISSUER", "")
+	t.Setenv("AI_IDENTITY_BASE_URL", "")
 	t.Setenv("AI_COMMERCE_BASE_URL", "")
 	t.Setenv("AI_REQUEST_TIMEOUT", "")
 	t.Setenv("AI_PROVIDER", "")
@@ -20,7 +21,7 @@ func TestLoadReturnsDefaults(t *testing.T) {
 	t.Setenv("AI_KNOWLEDGE_REFRESH_INTERVAL", "")
 
 	cfg := Load()
-	if cfg.HTTPAddr != defaultHTTPAddr || cfg.Provider != defaultProvider || cfg.CommerceBaseURL != defaultCommerceBaseURL {
+	if cfg.HTTPAddr != defaultHTTPAddr || cfg.Provider != defaultProvider || cfg.IdentityBaseURL != defaultIdentityBaseURL || cfg.CommerceBaseURL != defaultCommerceBaseURL {
 		t.Fatalf("unexpected defaults %#v", cfg)
 	}
 	if cfg.RequestTimeout != defaultRequestTimeout || cfg.KnowledgeRefreshInterval != defaultKnowledgeRefreshInterval {
@@ -34,6 +35,7 @@ func TestLoadRespectsEnvAndFallsBackOnInvalidDurations(t *testing.T) {
 	t.Setenv("AI_AUTH_ENABLED", "true")
 	t.Setenv("AI_JWT_SECRET", "secret-1")
 	t.Setenv("AI_JWT_ISSUER", "issuer-1")
+	t.Setenv("AI_IDENTITY_BASE_URL", "http://identity.internal")
 	t.Setenv("AI_COMMERCE_BASE_URL", "http://commerce.internal")
 	t.Setenv("AI_REQUEST_TIMEOUT", "-1s")
 	t.Setenv("AI_PROVIDER", "mock")
@@ -43,7 +45,7 @@ func TestLoadRespectsEnvAndFallsBackOnInvalidDurations(t *testing.T) {
 	t.Setenv("AI_KNOWLEDGE_REFRESH_INTERVAL", "0s")
 
 	cfg := Load()
-	if cfg.HTTPAddr != ":18084" || !cfg.AuthEnabled || cfg.JWTSecret != "secret-1" || cfg.JWTIssuer != "issuer-1" {
+	if cfg.HTTPAddr != ":18084" || !cfg.AuthEnabled || cfg.JWTSecret != "secret-1" || cfg.JWTIssuer != "issuer-1" || cfg.IdentityBaseURL != "http://identity.internal" {
 		t.Fatalf("unexpected env config %#v", cfg)
 	}
 	if cfg.ProviderBaseURL != "http://provider.internal" || cfg.ProviderAPIKey != "key-1" || cfg.ProviderModel != "model-1" {

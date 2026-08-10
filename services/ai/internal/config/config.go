@@ -12,6 +12,7 @@ const (
 	defaultAuthEnabled              = false
 	defaultJWTSecret                = "dev-secret"
 	defaultJWTIssuer                = ""
+	defaultIdentityBaseURL          = "http://localhost:8081"
 	defaultCommerceBaseURL          = "http://localhost:8082"
 	defaultRequestTimeout           = 10 * time.Second
 	defaultProvider                 = "mock"
@@ -27,6 +28,7 @@ type Config struct {
 	AuthEnabled              bool
 	JWTSecret                string
 	JWTIssuer                string
+	IdentityBaseURL          string
 	CommerceBaseURL          string
 	RequestTimeout           time.Duration
 	Provider                 string
@@ -53,6 +55,7 @@ func Load() Config {
 		AuthEnabled:              sharedconfig.Bool("AI_AUTH_ENABLED", defaultAuthEnabled),
 		JWTSecret:                sharedconfig.String("AI_JWT_SECRET", defaultJWTSecret),
 		JWTIssuer:                sharedconfig.String("AI_JWT_ISSUER", defaultJWTIssuer),
+		IdentityBaseURL:          sharedconfig.String("AI_IDENTITY_BASE_URL", defaultIdentityBaseURL),
 		CommerceBaseURL:          sharedconfig.String("AI_COMMERCE_BASE_URL", defaultCommerceBaseURL),
 		RequestTimeout:           requestTimeout,
 		Provider:                 sharedconfig.String("AI_PROVIDER", defaultProvider),

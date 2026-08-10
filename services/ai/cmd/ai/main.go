@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/teamdsb/tmo/packages/go-shared/authn"
 	"github.com/teamdsb/tmo/packages/go-shared/observability"
 	"github.com/teamdsb/tmo/services/ai/internal/commerce"
 	"github.com/teamdsb/tmo/services/ai/internal/config"
@@ -65,7 +66,12 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		}
 	}()
 
-	auth := middleware.NewAuthenticator(cfg.AuthEnabled, cfg.JWTSecret, cfg.JWTIssuer)
+	auth := middleware.NewAuthenticator(
+		cfg.AuthEnabled,
+		cfg.JWTSecret,
+		cfg.JWTIssuer,
+		authn.NewIdentityCredentialValidator(cfg.IdentityBaseURL, nil),
+	)
 	commerceClient := commerce.NewClient(cfg.CommerceBaseURL, cfg.RequestTimeout)
 	knowledgeBase, err := knowledge.NewBase(commerceClient, logger, cfg.KnowledgeRefreshInterval)
 	if err != nil {

@@ -10,7 +10,7 @@ AI suggestion service for after-sales collaboration.
 
 2) Run the AI service:
 
-   `cd services/ai && AI_HTTP_ADDR=":8084" AI_COMMERCE_BASE_URL="http://localhost:8082" AI_AUTH_ENABLED=true AI_JWT_SECRET="dev-secret" AI_JWT_ISSUER="tmo-identity" go run ./cmd/ai`
+   `cd services/ai && AI_HTTP_ADDR=":8084" AI_IDENTITY_BASE_URL="http://localhost:8081" AI_COMMERCE_BASE_URL="http://localhost:8082" AI_AUTH_ENABLED=true AI_JWT_SECRET="dev-secret" AI_JWT_ISSUER="tmo-identity" go run ./cmd/ai`
 
 ## Behavior
 
@@ -26,6 +26,7 @@ AI suggestion service for after-sales collaboration.
 - `AI_LOG_LEVEL` (default `info`)
 - `AI_AUTH_ENABLED` (default `false`)
 - `AI_JWT_SECRET` / `AI_JWT_ISSUER`
+- `AI_IDENTITY_BASE_URL` (default `http://localhost:8081`; validates that signed tokens have not been revoked)
 - `AI_COMMERCE_BASE_URL` (default `http://localhost:8082`)
 - `AI_REQUEST_TIMEOUT` (default `10s`)
 - `AI_PROVIDER` (default `mock`)

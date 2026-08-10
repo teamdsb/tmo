@@ -1,13 +1,23 @@
 package middleware
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/teamdsb/tmo/packages/go-shared/authn"
 )
+
+type credentialValidatorFunc func(context.Context, string) error
+
+func (f credentialValidatorFunc) Validate(ctx context.Context, authorization string) error {
+	return f(ctx, authorization)
+}
 
 func TestRequireRoleReturnsAdminWhenAuthDisabled(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -106,6 +116,46 @@ func TestRequireRoleRejectsInvalidOwnerSalesUserID(t *testing.T) {
 	}
 	if recorder.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", recorder.Code)
+	}
+}
+
+func TestRequireRoleChecksCredentialRevocation(t *testing.T) {
+	tests := []struct {
+		name       string
+		validator  error
+		wantOK     bool
+		wantStatus int
+	}{
+		{name: "active", wantOK: true, wantStatus: http.StatusOK},
+		{name: "revoked", validator: authn.ErrInvalidCredential, wantStatus: http.StatusUnauthorized},
+		{name: "identity unavailable", validator: errors.New("network failure"), wantStatus: http.StatusServiceUnavailable},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			var gotAuthorization string
+			auth := NewAuthenticator(true, "secret-1", "issuer-1", credentialValidatorFunc(func(_ context.Context, authorization string) error {
+				gotAuthorization = authorization
+				return test.validator
+			}))
+			recorder := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(recorder)
+			ctx.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+			token := signAuthToken(t, "secret-1", "issuer-1", "CS", "")
+			ctx.Request.Header.Set("Authorization", "Bearer "+token)
+
+			_, ok := auth.RequireRole(ctx, "CS")
+			if ok != test.wantOK {
+				t.Fatalf("RequireRole() ok = %v, want %v", ok, test.wantOK)
+			}
+			if recorder.Code != test.wantStatus {
+				t.Fatalf("status = %d, want %d", recorder.Code, test.wantStatus)
+			}
+			if gotAuthorization != "Bearer "+token {
+				t.Fatalf("validator authorization = %q", gotAuthorization)
+			}
+		})
 	}
 }
 

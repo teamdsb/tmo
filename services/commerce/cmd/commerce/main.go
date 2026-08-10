@@ -21,6 +21,7 @@ import (
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/productimport"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/productrequestexport"
 
+	"github.com/teamdsb/tmo/packages/go-shared/authn"
 	"github.com/teamdsb/tmo/packages/go-shared/observability"
 )
 
@@ -74,7 +75,12 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	defer pool.Close()
 
 	store := db.New(pool)
-	auth := middleware.NewAuthenticator(cfg.AuthEnabled, cfg.JWTSecret, cfg.JWTIssuer)
+	auth := middleware.NewAuthenticator(
+		cfg.AuthEnabled,
+		cfg.JWTSecret,
+		cfg.JWTIssuer,
+		authn.NewIdentityCredentialValidator(cfg.IdentityBaseURL, nil),
+	)
 	productImportService := productimport.NewService(pool, cfg.MediaLocalOutputDir, cfg.MediaPublicBaseURL, logger)
 	productRequestExportService := productrequestexport.NewService(pool, cfg.MediaLocalOutputDir, cfg.MediaPublicBaseURL)
 	supportHub := handler.NewSupportHub()
