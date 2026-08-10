@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/teamdsb/tmo/services/payment/internal/db"
@@ -24,17 +25,19 @@ import (
 )
 
 type wechatProviderStub struct {
-	created    provider.WechatCreateRequest
-	query      provider.WechatResolution
-	notify     provider.WechatResolution
-	notifyBody string
+	created         provider.WechatCreateRequest
+	query           provider.WechatResolution
+	queryOutTradeNo string
+	notify          provider.WechatResolution
+	notifyBody      string
 }
 
 func (s *wechatProviderStub) Create(_ context.Context, request provider.WechatCreateRequest) (provider.WechatCreateResult, error) {
 	s.created = request
 	return provider.WechatCreateResult{PrepayID: "wx-prepay", Package: "prepay_id=wx-prepay", NonceStr: "nonce", TimeStamp: "1", SignType: "RSA", PaySign: "sign"}, nil
 }
-func (s *wechatProviderStub) Query(_ context.Context, _ string) (provider.WechatResolution, error) {
+func (s *wechatProviderStub) Query(_ context.Context, outTradeNo string) (provider.WechatResolution, error) {
+	s.queryOutTradeNo = outTradeNo
 	return s.query, nil
 }
 func (s *wechatProviderStub) ParseNotify(_ context.Context, request *http.Request) (provider.WechatResolution, error) {
@@ -148,8 +151,8 @@ func TestPostPaymentsWechatCreateReturnsExistingPaymentForIdempotencyKey(t *test
 	store := newPaymentStoreStub()
 	commerce := newCommerceServerStub(CommerceOrder{
 		ID:            orderID.String(),
-		Status:        "SUBMITTED",
-		PaymentStatus: "UNPAID",
+		Status:        "COMPLETED",
+		PaymentStatus: "PAID",
 		Items:         []CommerceOrderItem{{Qty: 1, UnitPriceFen: 1999}},
 	})
 	defer commerce.Close()
@@ -174,7 +177,7 @@ func TestPostPaymentsWechatCreateReturnsExistingPaymentForIdempotencyKey(t *test
 		ID:              paymentID,
 		OrderID:         orderID,
 		Channel:         paymentChannelWechat,
-		Status:          paymentStatusPending,
+		Status:          paymentStatusPaid,
 		AmountFen:       1999,
 		Currency:        "CNY",
 		IdempotencyKey:  strPtr("idem-existing"),
@@ -214,28 +217,71 @@ func TestPostPaymentsWechatCreateReturnsExistingPaymentForIdempotencyKey(t *test
 	if store.createCalls != 0 {
 		t.Fatalf("expected no new payment creation, got %d", store.createCalls)
 	}
-	if len(commerce.syncRequests) != 0 {
-		t.Fatalf("expected no extra sync request for idempotent replay, got %d", len(commerce.syncRequests))
+	if len(commerce.syncRequests) != 1 || commerce.syncRequests[0].PaymentID != paymentID.String() || commerce.syncRequests[0].Status != paymentStatusPaid {
+		t.Fatalf("expected idempotent replay to repair commerce sync, got %#v", commerce.syncRequests)
 	}
 }
 
-func TestPostPaymentsAlipayCreateReturnsTradeNo(t *testing.T) {
+func TestPostPaymentsWechatCreateDoesNotReplayIdempotencyBeforeOrderAuthorization(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	orderID := uuid.MustParse("bcbcbcbc-bcbc-bcbc-bcbc-bcbcbcbcbcbc")
+	paymentID := uuid.MustParse("cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd")
+	store := newPaymentStoreStub()
+	existing := paymentFixture(paymentID, paymentChannelWechat, paymentStatusPending)
+	existing.OrderID = orderID
+	existing.IdempotencyKey = strPtr("idem-private")
+	existing.ProviderPayload = json.RawMessage(`{
+		"orderId":"` + orderID.String() + `",
+		"channel":"WECHAT",
+		"status":"PAY_PENDING",
+		"expiresAt":"2030-01-01T00:00:00Z",
+		"prepayId":"private-prepay",
+		"package":"prepay_id=private-prepay",
+		"nonceStr":"private-nonce",
+		"timeStamp":"1",
+		"signType":"RSA",
+		"paySign":"private-sign"
+	}`)
+	store.payments[paymentID] = existing
+	store.idempotency[keyForIdempotency(orderID, paymentChannelWechat, "idem-private")] = paymentID
+
+	commerce := newCommerceServerStub(CommerceOrder{})
+	commerce.getOrderStatus = http.StatusForbidden
+	defer commerce.Close()
+	router := newTestRouter(&Handler{
+		Flags:        StaticFlagsProvider{Flags: FeatureFlags{PaymentEnabled: true, WechatPayEnabled: true}},
+		Store:        store,
+		Commerce:     NewCommerceClient(commerce.URL(), "sync-token"),
+		ProviderMode: "mock",
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/payments/wechat/create", strings.NewReader(`{"orderId":"`+orderID.String()+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "idem-private")
+	req.Header.Set("Authorization", "Bearer unauthorized-user")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected denied Commerce lookup to fail before replay, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), paymentID.String()) || strings.Contains(rec.Body.String(), "private-prepay") {
+		t.Fatalf("denied request leaked payment payload: %s", rec.Body.String())
+	}
+	if len(commerce.syncRequests) != 0 {
+		t.Fatalf("denied request synchronized payment state: %#v", commerce.syncRequests)
+	}
+}
+
+func TestPostPaymentsAlipayCreateReturnsNotImplemented(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	orderID := uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
 	store := newPaymentStoreStub()
-	commerce := newCommerceServerStub(CommerceOrder{
-		ID:            orderID.String(),
-		Status:        "SUBMITTED",
-		PaymentStatus: "UNPAID",
-		Items:         []CommerceOrderItem{{Qty: 3, UnitPriceFen: 888}},
-	})
-	defer commerce.Close()
-
 	router := newTestRouter(&Handler{
 		Flags:        StaticFlagsProvider{Flags: FeatureFlags{PaymentEnabled: true, WechatPayEnabled: true, AlipayPayEnabled: true}},
 		Store:        store,
-		Commerce:     NewCommerceClient(commerce.URL(), "sync-token"),
 		ProviderMode: "mock",
 	})
 
@@ -244,23 +290,88 @@ func TestPostPaymentsAlipayCreateReturnsTradeNo(t *testing.T) {
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusNotImplemented {
+		t.Fatalf("expected 501, got %d: %s", rec.Code, rec.Body.String())
 	}
 
 	var response struct {
-		PaymentID string                 `json:"paymentId"`
-		TradeNo   string                 `json:"tradeNo"`
-		PayParams map[string]interface{} `json:"payParams"`
+		Code string `json:"code"`
 	}
 	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if response.PaymentID == "" || response.TradeNo == "" {
-		t.Fatalf("unexpected response: %#v", response)
+	if response.Code != "not_implemented" {
+		t.Fatalf("expected not_implemented error, got %#v", response)
 	}
-	if got := response.PayParams["tradeNO"]; got != response.TradeNo {
-		t.Fatalf("expected tradeNO pay param, got %#v", response.PayParams)
+	if store.createCalls != 0 || len(store.payments) != 0 {
+		t.Fatalf("alipay create must not create a payment, calls=%d payments=%d", store.createCalls, len(store.payments))
+	}
+}
+
+func TestPostPaymentsAlipayNotifyReturnsNotImplementedWithoutMutation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	paymentID := uuid.MustParse("dededede-dede-dede-dede-dededededede")
+	store := newPaymentStoreStub()
+	store.payments[paymentID] = paymentFixture(paymentID, paymentChannelWechat, paymentStatusPending)
+	router := newTestRouter(&Handler{
+		Flags:        StaticFlagsProvider{Flags: FeatureFlags{PaymentEnabled: true, AlipayPayEnabled: true}},
+		Store:        store,
+		ProviderMode: "mock",
+	})
+
+	body := `{"paymentId":"` + paymentID.String() + `","status":"SUCCESS"}`
+	req := httptest.NewRequest(http.MethodPost, "/payments/alipay/notify", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotImplemented {
+		t.Fatalf("expected 501, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if store.payments[paymentID].Status != paymentStatusPending || len(store.webhooks) != 0 {
+		t.Fatalf("alipay notify mutated payment state: payment=%#v webhooks=%#v", store.payments[paymentID], store.webhooks)
+	}
+}
+
+func TestBuildProviderPayloadDoesNotCreateFakeAlipayTrade(t *testing.T) {
+	now := time.Now().UTC()
+	payload, tradeNo, prepayID, raw, err := buildProviderPayload(paymentChannelAlipay, uuid.New(), now, now.Add(15*time.Minute))
+	if err == nil {
+		t.Fatalf("expected Alipay payload generation to be unsupported, got payload=%#v tradeNo=%#v prepayID=%#v raw=%s", payload, tradeNo, prepayID, raw)
+	}
+	if payload != nil || tradeNo != nil || prepayID != nil || raw != nil {
+		t.Fatalf("unsupported Alipay provider produced fake payment data: payload=%#v tradeNo=%#v prepayID=%#v raw=%s", payload, tradeNo, prepayID, raw)
+	}
+}
+
+func TestPostPaymentsWechatCreateRejectsDisabledProvider(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	orderID := uuid.MustParse("dfdfdfdf-dfdf-dfdf-dfdf-dfdfdfdfdfdf")
+	store := newPaymentStoreStub()
+	commerce := newCommerceServerStub(CommerceOrder{
+		ID: orderID.String(), Status: "SUBMITTED", PaymentStatus: "UNPAID",
+		Items: []CommerceOrderItem{{Qty: 1, UnitPriceFen: 500}},
+	})
+	defer commerce.Close()
+	router := newTestRouter(&Handler{
+		Flags:        StaticFlagsProvider{Flags: FeatureFlags{PaymentEnabled: true, WechatPayEnabled: true}},
+		Store:        store,
+		Commerce:     NewCommerceClient(commerce.URL(), "sync-token"),
+		ProviderMode: "disabled",
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/payments/wechat/create", strings.NewReader(`{"orderId":"`+orderID.String()+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if store.createCalls != 0 || len(store.payments) != 0 {
+		t.Fatalf("disabled provider created a payment: calls=%d payments=%d", store.createCalls, len(store.payments))
 	}
 }
 
@@ -344,6 +455,49 @@ func TestPostPaymentsPaymentIdRecheckUpdatesStatusAndSyncsOrder(t *testing.T) {
 	}
 }
 
+func TestPostPaymentsPaymentIdRecheckDoesNotTrustClientSuccessWhenProviderDisabled(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	paymentID := uuid.MustParse("11112222-3333-4444-5555-666677778888")
+	store := newPaymentStoreStub()
+	store.payments[paymentID] = paymentFixture(paymentID, paymentChannelWechat, paymentStatusPending)
+	router := newTestRouter(&Handler{Store: store, ProviderMode: "disabled"})
+
+	req := httptest.NewRequest(http.MethodPost, "/payments/"+paymentID.String()+"/recheck", strings.NewReader(`{"clientResult":"SUCCESS"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 with unchanged state, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if store.payments[paymentID].Status != paymentStatusPending {
+		t.Fatalf("disabled provider trusted client success: %#v", store.payments[paymentID])
+	}
+}
+
+func TestWechatRecheckUsesSameOutTradeNoAsCreate(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	orderID := uuid.MustParse("12345678-1234-5678-90ab-1234567890ab")
+	wechat := &wechatProviderStub{query: provider.WechatResolution{Status: paymentStatusPending}}
+	handler := &Handler{ProviderMode: "wechat", Wechat: wechat}
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/payments/recheck", nil)
+
+	_, err := handler.resolvePaymentFromClientResult(c, db.Payment{
+		OrderID: orderID,
+		Channel: paymentChannelWechat,
+		Status:  paymentStatusPending,
+	}, oapi.PaymentRecheckRequest{})
+	if err != nil {
+		t.Fatalf("resolve payment: %v", err)
+	}
+	if want := wechatOutTradeNo(orderID); wechat.queryOutTradeNo != want {
+		t.Fatalf("wechat query outTradeNo = %q, want create value %q", wechat.queryOutTradeNo, want)
+	}
+}
+
 func TestPostPaymentsWechatNotifyStoresWebhookAndMarksPaid(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -399,6 +553,57 @@ func TestPostPaymentsWechatNotifyStoresWebhookAndMarksPaid(t *testing.T) {
 	}
 }
 
+func TestPostPaymentsWechatNotifyRejectsMissingStatus(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	paymentID := uuid.MustParse("21212121-2121-2121-2121-212121212121")
+	store := newPaymentStoreStub()
+	store.payments[paymentID] = paymentFixture(paymentID, paymentChannelWechat, paymentStatusPending)
+	router := newTestRouter(&Handler{
+		Flags:        StaticFlagsProvider{Flags: FeatureFlags{PaymentEnabled: true, WechatPayEnabled: true}},
+		Store:        store,
+		ProviderMode: "mock",
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/payments/wechat/notify", strings.NewReader(`{"paymentId":"`+paymentID.String()+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if store.payments[paymentID].Status != paymentStatusPending || len(store.webhooks) != 0 {
+		t.Fatalf("missing-status callback mutated state: payment=%#v webhooks=%#v", store.payments[paymentID], store.webhooks)
+	}
+}
+
+func TestPostPaymentsWechatNotifyRejectsDisabledProvider(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	paymentID := uuid.MustParse("23232323-2323-2323-2323-232323232323")
+	store := newPaymentStoreStub()
+	store.payments[paymentID] = paymentFixture(paymentID, paymentChannelWechat, paymentStatusPending)
+	router := newTestRouter(&Handler{
+		Flags:        StaticFlagsProvider{Flags: FeatureFlags{PaymentEnabled: true, WechatPayEnabled: true}},
+		Store:        store,
+		ProviderMode: "disabled",
+	})
+
+	body := `{"paymentId":"` + paymentID.String() + `","status":"SUCCESS"}`
+	req := httptest.NewRequest(http.MethodPost, "/payments/wechat/notify", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if store.payments[paymentID].Status != paymentStatusPending || len(store.webhooks) != 0 {
+		t.Fatalf("disabled provider callback mutated state: payment=%#v webhooks=%#v", store.payments[paymentID], store.webhooks)
+	}
+}
+
 func TestPostPaymentsWechatNotifyRealProviderPreservesRawBody(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -431,6 +636,114 @@ func TestPostPaymentsWechatNotifyRealProviderPreservesRawBody(t *testing.T) {
 	}
 	if store.payments[paymentID].Status != paymentStatusPaid {
 		t.Fatalf("expected payment status PAID, got %s", store.payments[paymentID].Status)
+	}
+}
+
+func TestApplyPaymentResolutionReloadsPaidStateAfterMonotonicUpdateConflict(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	paymentID := uuid.MustParse("51515151-5151-5151-5151-515151515151")
+	store := newPaymentStoreStub()
+	paid := paymentFixture(paymentID, paymentChannelWechat, paymentStatusPaid)
+	paid.PaidAt = pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true}
+	store.payments[paymentID] = paid
+	stale := paid
+	stale.Status = paymentStatusPending
+	stale.PaidAt = pgtype.Timestamptz{}
+	commerce := newCommerceServerStub(CommerceOrder{})
+	defer commerce.Close()
+	handler := &Handler{Store: store, Commerce: NewCommerceClient(commerce.URL(), "sync-token")}
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/payments/"+paymentID.String()+"/recheck", nil)
+
+	updated, err := handler.applyPaymentResolution(c, stale, paymentStatusFailed, nil, strPtr("late failure"))
+	if err != nil {
+		t.Fatalf("expected monotonic conflict to reload current payment, got %v", err)
+	}
+	if updated.Status != paymentStatusPaid || store.payments[paymentID].Status != paymentStatusPaid {
+		t.Fatalf("PAID payment was overwritten: updated=%#v stored=%#v", updated, store.payments[paymentID])
+	}
+	if len(commerce.syncRequests) != 1 || commerce.syncRequests[0].Status != paymentStatusPaid {
+		t.Fatalf("expected current PAID state to be synchronized, got %#v", commerce.syncRequests)
+	}
+}
+
+func TestApplyPaymentResolutionSameStateRetryRepairsCommerceSync(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	paymentID := uuid.MustParse("52525252-5252-5252-5252-525252525252")
+	store := newPaymentStoreStub()
+	payment := paymentFixture(paymentID, paymentChannelWechat, paymentStatusPending)
+	store.payments[paymentID] = payment
+	commerce := newCommerceServerStub(CommerceOrder{})
+	commerce.syncFailuresRemaining = 1
+	defer commerce.Close()
+	handler := &Handler{Store: store, Commerce: NewCommerceClient(commerce.URL(), "sync-token")}
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/payments/"+paymentID.String()+"/recheck", nil)
+
+	if _, err := handler.applyPaymentResolution(c, payment, paymentStatusPaid, nil, nil); err == nil {
+		t.Fatal("expected first commerce synchronization to fail")
+	}
+	current := store.payments[paymentID]
+	if current.Status != paymentStatusPaid {
+		t.Fatalf("expected local payment state to be PAID after first attempt, got %s", current.Status)
+	}
+	if _, err := handler.applyPaymentResolution(c, current, paymentStatusPaid, nil, nil); err != nil {
+		t.Fatalf("expected same-state retry to repair synchronization, got %v", err)
+	}
+	if len(commerce.syncRequests) != 2 || commerce.syncRequests[1].Status != paymentStatusPaid {
+		t.Fatalf("expected two commerce sync attempts, got %#v", commerce.syncRequests)
+	}
+}
+
+func TestPostPaymentsWechatCreateReloadsUniqueKeyRaceWinner(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	orderID := uuid.MustParse("53535353-5353-5353-5353-535353535353")
+	paymentID := uuid.MustParse("54545454-5454-5454-5454-545454545454")
+	existing := paymentFixture(paymentID, paymentChannelWechat, paymentStatusPending)
+	existing.OrderID = orderID
+	existing.IdempotencyKey = strPtr("idem-race")
+	response := map[string]interface{}{
+		"orderId": orderID.String(), "channel": paymentChannelWechat, "status": paymentStatusPending,
+		"expiresAt": time.Now().UTC().Add(15 * time.Minute).Format(time.RFC3339), "prepayId": "race-prepay",
+		"package": "prepay_id=race-prepay", "nonceStr": "nonce", "timeStamp": "1", "signType": "RSA", "paySign": "sign",
+	}
+	existing.ProviderPayload, _ = json.Marshal(response)
+	store := &uniqueRacePaymentStore{paymentStoreStub: newPaymentStoreStub(), existing: existing}
+	commerce := newCommerceServerStub(CommerceOrder{
+		ID: orderID.String(), Status: "SUBMITTED", PaymentStatus: "UNPAID",
+		Items: []CommerceOrderItem{{Qty: 1, UnitPriceFen: 500}},
+	})
+	defer commerce.Close()
+	router := newTestRouter(&Handler{
+		Flags:        StaticFlagsProvider{Flags: FeatureFlags{PaymentEnabled: true, WechatPayEnabled: true}},
+		Store:        store,
+		Commerce:     NewCommerceClient(commerce.URL(), "sync-token"),
+		ProviderMode: "mock",
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/payments/wechat/create", strings.NewReader(`{"orderId":"`+orderID.String()+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "idem-race")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected race loser to return existing payment, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var payload struct {
+		PaymentID string `json:"paymentId"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if payload.PaymentID != paymentID.String() || store.createCalls != 1 {
+		t.Fatalf("unexpected race result: payload=%#v createCalls=%d", payload, store.createCalls)
+	}
+	if len(commerce.syncRequests) != 1 || commerce.syncRequests[0].PaymentID != paymentID.String() {
+		t.Fatalf("expected race winner state to be synchronized, got %#v", commerce.syncRequests)
 	}
 }
 
@@ -539,6 +852,9 @@ func (s *paymentStoreStub) UpdatePaymentState(_ context.Context, arg db.UpdatePa
 	if !ok {
 		return db.Payment{}, pgx.ErrNoRows
 	}
+	if payment.Status == paymentStatusPaid && arg.Status != paymentStatusPaid {
+		return db.Payment{}, pgx.ErrNoRows
+	}
 	payment.Status = arg.Status
 	payment.ProviderTradeNo = arg.ProviderTradeNo
 	payment.ProviderPrepayID = arg.ProviderPrepayID
@@ -621,11 +937,13 @@ func (s *paymentStoreStub) CountPaymentAuditLogs(context.Context, db.CountPaymen
 }
 
 type commerceServerStub struct {
-	server            *httptest.Server
-	order             CommerceOrder
-	lastAuthorization string
-	syncToken         string
-	syncRequests      []CommercePaymentSyncRequest
+	server                *httptest.Server
+	order                 CommerceOrder
+	getOrderStatus        int
+	lastAuthorization     string
+	syncToken             string
+	syncRequests          []CommercePaymentSyncRequest
+	syncFailuresRemaining int
 }
 
 func newCommerceServerStub(order CommerceOrder) *commerceServerStub {
@@ -634,6 +952,10 @@ func newCommerceServerStub(order CommerceOrder) *commerceServerStub {
 		switch {
 		case r.Method == http.MethodGet && strings.HasPrefix(r.URL.Path, "/orders/"):
 			stub.lastAuthorization = r.Header.Get("Authorization")
+			if stub.getOrderStatus != 0 {
+				http.Error(w, "order access denied", stub.getOrderStatus)
+				return
+			}
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(stub.order)
 		case r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/internal/orders/") && strings.HasSuffix(r.URL.Path, "/payment-status"):
@@ -641,12 +963,46 @@ func newCommerceServerStub(order CommerceOrder) *commerceServerStub {
 			var payload CommercePaymentSyncRequest
 			_ = json.NewDecoder(r.Body).Decode(&payload)
 			stub.syncRequests = append(stub.syncRequests, payload)
+			if stub.syncFailuresRemaining > 0 {
+				stub.syncFailuresRemaining--
+				http.Error(w, "temporary sync failure", http.StatusInternalServerError)
+				return
+			}
 			w.WriteHeader(http.StatusOK)
 		default:
 			http.NotFound(w, r)
 		}
 	}))
 	return stub
+}
+
+type uniqueRacePaymentStore struct {
+	*paymentStoreStub
+	existing    db.Payment
+	lookupCalls int
+}
+
+func (s *uniqueRacePaymentStore) GetPaymentByIdempotencyKey(context.Context, db.GetPaymentByIdempotencyKeyParams) (db.Payment, error) {
+	s.lookupCalls++
+	if s.lookupCalls == 1 {
+		return db.Payment{}, pgx.ErrNoRows
+	}
+	return s.existing, nil
+}
+
+func (s *uniqueRacePaymentStore) CreatePayment(context.Context, db.CreatePaymentParams) (db.Payment, error) {
+	s.createCalls++
+	return db.Payment{}, &pgconn.PgError{Code: "23505", ConstraintName: "payments_order_channel_idempotency_idx"}
+}
+
+func paymentFixture(id uuid.UUID, channel, status string) db.Payment {
+	now := time.Now().UTC()
+	return db.Payment{
+		ID: id, OrderID: uuid.New(), Channel: channel, Status: status, AmountFen: 500, Currency: "CNY",
+		ProviderPayload: json.RawMessage(`{}`),
+		CreatedAt:       pgtype.Timestamptz{Time: now, Valid: true},
+		UpdatedAt:       pgtype.Timestamptz{Time: now, Valid: true},
+	}
 }
 
 func (s *commerceServerStub) Close() {

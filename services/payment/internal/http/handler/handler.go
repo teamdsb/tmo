@@ -3,10 +3,13 @@ package handler
 import (
 	"context"
 	"log/slog"
+	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	apierrors "github.com/teamdsb/tmo/packages/go-shared/errors"
 	"github.com/teamdsb/tmo/services/payment/internal/db"
 	"github.com/teamdsb/tmo/services/payment/internal/http/middleware"
 	"github.com/teamdsb/tmo/services/payment/internal/provider"
@@ -44,6 +47,24 @@ func (h *Handler) requireUser(c *gin.Context) (middleware.Claims, bool) {
 		return middleware.Claims{Role: "ADMIN"}, true
 	}
 	return h.Auth.RequireUser(c)
+}
+
+func (h *Handler) requireAdminUser(c *gin.Context) (middleware.Claims, bool) {
+	claims, ok := h.requireUser(c)
+	if !ok {
+		return middleware.Claims{}, false
+	}
+
+	switch strings.ToUpper(strings.TrimSpace(claims.Role)) {
+	case "ADMIN", "BOSS", "MANAGER", "CS":
+		return claims, true
+	default:
+		apierrors.Write(c, http.StatusForbidden, apierrors.APIError{
+			Code:    "forbidden",
+			Message: "admin payment access is forbidden",
+		})
+		return middleware.Claims{}, false
+	}
 }
 
 func (h *Handler) logError(message string, err error) {

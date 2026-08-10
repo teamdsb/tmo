@@ -63,6 +63,7 @@ SET status = $2,
     closed_at = $9,
     updated_at = now()
 WHERE id = $1
+  AND (status <> 'PAID' OR $2 = 'PAID')
 RETURNING *;
 
 -- name: ListPayments :many

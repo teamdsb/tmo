@@ -76,7 +76,7 @@ type replayWebhookResponse struct {
 }
 
 func (h *Handler) GetAdminPaymentsTransactions(c *gin.Context) {
-	if _, ok := h.requireUser(c); !ok {
+	if _, ok := h.requireAdminUser(c); !ok {
 		return
 	}
 	if h.Store == nil {
@@ -137,7 +137,7 @@ func (h *Handler) GetAdminPaymentsTransactions(c *gin.Context) {
 }
 
 func (h *Handler) GetAdminPaymentsTransactionsId(c *gin.Context) {
-	if _, ok := h.requireUser(c); !ok {
+	if _, ok := h.requireAdminUser(c); !ok {
 		return
 	}
 	if h.Store == nil {
@@ -170,7 +170,7 @@ func (h *Handler) GetAdminPaymentsTransactionsId(c *gin.Context) {
 }
 
 func (h *Handler) GetAdminPaymentsAuditLogs(c *gin.Context) {
-	if _, ok := h.requireUser(c); !ok {
+	if _, ok := h.requireAdminUser(c); !ok {
 		return
 	}
 	if h.Store == nil {
@@ -228,7 +228,7 @@ func (h *Handler) GetAdminPaymentsAuditLogs(c *gin.Context) {
 }
 
 func (h *Handler) GetAdminPaymentsWebhooks(c *gin.Context) {
-	if _, ok := h.requireUser(c); !ok {
+	if _, ok := h.requireAdminUser(c); !ok {
 		return
 	}
 	if h.Store == nil {
@@ -286,7 +286,7 @@ func (h *Handler) GetAdminPaymentsWebhooks(c *gin.Context) {
 }
 
 func (h *Handler) PostAdminPaymentsWebhooksIdReplay(c *gin.Context) {
-	if _, ok := h.requireUser(c); !ok {
+	if _, ok := h.requireAdminUser(c); !ok {
 		return
 	}
 	if h.Store == nil {

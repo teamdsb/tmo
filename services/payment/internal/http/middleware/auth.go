@@ -9,6 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
+	"github.com/teamdsb/tmo/packages/go-shared/authn"
 	apierrors "github.com/teamdsb/tmo/packages/go-shared/errors"
 )
 
@@ -20,17 +21,22 @@ type Claims struct {
 }
 
 type Authenticator struct {
-	enabled bool
-	secret  []byte
-	issuer  string
+	enabled   bool
+	secret    []byte
+	issuer    string
+	validator authn.CredentialValidator
 }
 
-func NewAuthenticator(enabled bool, secret, issuer string) *Authenticator {
-	return &Authenticator{
+func NewAuthenticator(enabled bool, secret, issuer string, validators ...authn.CredentialValidator) *Authenticator {
+	authenticator := &Authenticator{
 		enabled: enabled,
 		secret:  []byte(secret),
 		issuer:  issuer,
 	}
+	if len(validators) > 0 {
+		authenticator.validator = validators[0]
+	}
+	return authenticator
 }
 
 func (a *Authenticator) RequireUser(c *gin.Context) (Claims, bool) {
@@ -91,6 +97,16 @@ func (a *Authenticator) parseClaims(c *gin.Context) (Claims, bool) {
 	role, _ := mapClaims["role"].(string)
 	identityProvider, _ := mapClaims["identityProvider"].(string)
 	providerUserID, _ := mapClaims["providerUserId"].(string)
+	if a.validator != nil {
+		if err := a.validator.Validate(c.Request.Context(), raw); err != nil {
+			if errors.Is(err, authn.ErrInvalidCredential) {
+				writeError(c, http.StatusUnauthorized, "unauthorized", "invalid token")
+			} else {
+				writeError(c, http.StatusServiceUnavailable, "authentication_unavailable", "identity validation unavailable")
+			}
+			return Claims{}, false
+		}
+	}
 	return Claims{UserID: userID, Role: role, IdentityProvider: identityProvider, ProviderUserID: providerUserID}, true
 }
 

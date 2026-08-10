@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/teamdsb/tmo/packages/go-shared/authn"
 	"github.com/teamdsb/tmo/packages/go-shared/observability"
 	"github.com/teamdsb/tmo/services/payment/internal/config"
 	"github.com/teamdsb/tmo/services/payment/internal/db"
@@ -48,6 +49,10 @@ func parseLogLevel(raw string) slog.Level {
 }
 
 func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("invalid payment configuration: %w", err)
+	}
+
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -79,7 +84,12 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		return fmt.Errorf("apply migrations failed: %w", err)
 	}
 
-	auth := middleware.NewAuthenticator(cfg.AuthEnabled, cfg.JWTSecret, cfg.JWTIssuer)
+	auth := middleware.NewAuthenticator(
+		cfg.AuthEnabled,
+		cfg.JWTSecret,
+		cfg.JWTIssuer,
+		authn.NewIdentityCredentialValidator(cfg.IdentityBaseURL, nil),
+	)
 	flagsProvider := handler.NewIdentityFlagsProvider(cfg.IdentityBaseURL, cfg.FeatureFlagsTimeout, handler.FeatureFlags{
 		PaymentEnabled:   cfg.PaymentEnabled,
 		WechatPayEnabled: cfg.WechatPayEnabled,

@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/oapi-codegen/runtime/types"
 
+	shareddb "github.com/teamdsb/tmo/packages/go-shared/db"
 	apierrors "github.com/teamdsb/tmo/packages/go-shared/errors"
 	"github.com/teamdsb/tmo/services/payment/internal/db"
 	"github.com/teamdsb/tmo/services/payment/internal/http/middleware"
@@ -66,28 +67,13 @@ func (h *Handler) PostPaymentsWechatCreate(c *gin.Context, params oapi.PostPayme
 	c.JSON(http.StatusOK, response)
 }
 
-func (h *Handler) PostPaymentsAlipayCreate(c *gin.Context, params oapi.PostPaymentsAlipayCreateParams) {
-	claims, ok := h.requireUser(c)
+func (h *Handler) PostPaymentsAlipayCreate(c *gin.Context, _ oapi.PostPaymentsAlipayCreateParams) {
+	_, ok := h.requireUser(c)
 	if !ok {
 		return
 	}
 
-	var request oapi.PostPaymentsAlipayCreateJSONBody
-	if err := c.ShouldBindJSON(&request); err != nil {
-		apierrors.Write(c, http.StatusBadRequest, apierrors.APIError{
-			Code:    "invalid_request",
-			Message: "invalid request body",
-		})
-		return
-	}
-
-	response, err := h.createPaymentSession(c, claims, uuid.UUID(request.OrderId), paymentChannelAlipay, params.IdempotencyKey)
-	if err != nil {
-		h.writePaymentError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, response)
+	h.writePaymentError(c, errNotImplemented("alipay provider is not implemented"))
 }
 
 func (h *Handler) GetPaymentsPaymentId(c *gin.Context, paymentId types.UUID) {
@@ -152,11 +138,18 @@ func (h *Handler) PostPaymentsPaymentIdRecheck(c *gin.Context, paymentId types.U
 }
 
 func (h *Handler) PostPaymentsWechatNotify(c *gin.Context) {
-	if h.Wechat != nil && !strings.EqualFold(strings.TrimSpace(h.ProviderMode), "mock") {
+	switch strings.ToUpper(strings.TrimSpace(h.ProviderMode)) {
+	case "MOCK":
+		h.handleNotify(c, paymentChannelWechat)
+	case "WECHAT", "REAL":
+		if h.Wechat == nil {
+			h.writePaymentError(c, errServiceUnavailable("wechat provider is not configured"))
+			return
+		}
 		h.handleWechatNotify(c)
-		return
+	default:
+		h.writePaymentError(c, errServiceUnavailable("payment provider is disabled"))
 	}
-	h.handleNotify(c, paymentChannelWechat)
 }
 
 func (h *Handler) handleWechatNotify(c *gin.Context) {
@@ -210,7 +203,7 @@ func (h *Handler) handleWechatNotify(c *gin.Context) {
 }
 
 func (h *Handler) PostPaymentsAlipayNotify(c *gin.Context) {
-	h.handleNotify(c, paymentChannelAlipay)
+	h.writePaymentError(c, errNotImplemented("alipay provider is not implemented"))
 }
 
 func (h *Handler) handleNotify(c *gin.Context, channel string) {
@@ -250,6 +243,10 @@ func (h *Handler) handleNotify(c *gin.Context, channel string) {
 	payment, err := h.loadPayment(c, paymentID)
 	if err != nil {
 		h.writePaymentError(c, err)
+		return
+	}
+	if payment.Channel != channel {
+		h.writePaymentError(c, errBadRequest("payment channel does not match callback provider"))
 		return
 	}
 
@@ -293,32 +290,44 @@ func (h *Handler) createPaymentSession(c *gin.Context, claims middleware.Claims,
 	if channel == paymentChannelAlipay && !flags.AlipayPayEnabled {
 		return nil, errForbidden("alipay is disabled")
 	}
+	providerMode := strings.ToUpper(strings.TrimSpace(h.ProviderMode))
+	if channel == paymentChannelAlipay {
+		return nil, errNotImplemented("alipay provider is not implemented")
+	}
+	if channel == paymentChannelWechat {
+		switch providerMode {
+		case "MOCK":
+		case "WECHAT", "REAL":
+			if h.Wechat == nil {
+				return nil, errServiceUnavailable("wechat provider is not configured")
+			}
+		default:
+			return nil, errServiceUnavailable("payment provider is disabled")
+		}
+	}
 
 	order, err := h.Commerce.GetOrder(c.Request.Context(), c.GetHeader("Authorization"), orderID.String())
 	if err != nil {
 		return nil, errInternal(fmt.Sprintf("fetch order failed: %v", err))
 	}
-	if !isOrderPayable(order.Status, order.PaymentStatus) {
-		return nil, errConflict("order is not payable")
-	}
 
-	if idempotencyKey != nil && strings.TrimSpace(*idempotencyKey) != "" {
-		trimmedKey := strings.TrimSpace(*idempotencyKey)
+	normalizedIdempotencyKey := normalizeOptionalString(idempotencyKey)
+	if normalizedIdempotencyKey != nil {
 		existing, err := h.Store.GetPaymentByIdempotencyKey(c.Request.Context(), db.GetPaymentByIdempotencyKeyParams{
 			OrderID:        orderID,
 			Channel:        channel,
-			IdempotencyKey: &trimmedKey,
+			IdempotencyKey: normalizedIdempotencyKey,
 		})
 		if err == nil {
-			payload, err := createResponseFromPayment(existing)
-			if err != nil {
-				return nil, err
-			}
-			return hydrateCreateResponseIDs(existing.ID, payload), nil
+			return h.replayExistingPayment(c.Request.Context(), existing)
 		}
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return nil, errInternal("check payment idempotency failed")
 		}
+	}
+
+	if !isOrderPayable(order.Status, order.PaymentStatus) {
+		return nil, errConflict("order is not payable")
 	}
 
 	now := time.Now().UTC()
@@ -327,7 +336,7 @@ func (h *Handler) createPaymentSession(c *gin.Context, claims middleware.Claims,
 	var responsePayload interface{}
 	var providerTradeNo, providerPrepayID *string
 	var rawPayload json.RawMessage
-	if channel == paymentChannelWechat && h.Wechat != nil && !strings.EqualFold(strings.TrimSpace(h.ProviderMode), "mock") {
+	if providerMode != "MOCK" {
 		if !strings.EqualFold(claims.IdentityProvider, "weapp") || strings.TrimSpace(claims.ProviderUserID) == "" {
 			return nil, errBadRequest("wechat openid is missing; please log in again")
 		}
@@ -361,7 +370,7 @@ func (h *Handler) createPaymentSession(c *gin.Context, claims middleware.Claims,
 		Status:           paymentStatusPending,
 		AmountFen:        amount,
 		Currency:         "CNY",
-		IdempotencyKey:   normalizeOptionalString(idempotencyKey),
+		IdempotencyKey:   normalizedIdempotencyKey,
 		ProviderTradeNo:  providerTradeNo,
 		ProviderPrepayID: providerPrepayID,
 		ProviderPayload:  rawPayload,
@@ -373,6 +382,17 @@ func (h *Handler) createPaymentSession(c *gin.Context, claims middleware.Claims,
 
 	payment, err := h.Store.CreatePayment(c.Request.Context(), params)
 	if err != nil {
+		if normalizedIdempotencyKey != nil && shareddb.IsUniqueViolation(err) {
+			existing, lookupErr := h.Store.GetPaymentByIdempotencyKey(c.Request.Context(), db.GetPaymentByIdempotencyKeyParams{
+				OrderID:        orderID,
+				Channel:        channel,
+				IdempotencyKey: normalizedIdempotencyKey,
+			})
+			if lookupErr != nil {
+				return nil, errInternal("reload payment after idempotency race failed")
+			}
+			return h.replayExistingPayment(c.Request.Context(), existing)
+		}
 		return nil, errInternal("create payment failed")
 	}
 
@@ -380,17 +400,22 @@ func (h *Handler) createPaymentSession(c *gin.Context, claims middleware.Claims,
 		h.logError("create payment audit log failed", err)
 	}
 
-	if h.Commerce != nil {
-		if err := h.Commerce.SyncOrderPayment(c.Request.Context(), orderID.String(), CommercePaymentSyncRequest{
-			PaymentID: payment.ID.String(),
-			Channel:   channel,
-			Status:    paymentStatusPending,
-		}); err != nil {
-			return nil, errInternal(fmt.Sprintf("sync order payment failed: %v", err))
-		}
+	if err := h.syncPaymentToCommerce(c.Request.Context(), payment); err != nil {
+		return nil, errInternal(fmt.Sprintf("sync order payment failed: %v", err))
 	}
 
 	return hydrateCreateResponseIDs(payment.ID, responsePayload), nil
+}
+
+func (h *Handler) replayExistingPayment(ctx context.Context, payment db.Payment) (interface{}, error) {
+	if err := h.syncPaymentToCommerce(ctx, payment); err != nil {
+		return nil, errInternal(fmt.Sprintf("sync existing payment failed: %v", err))
+	}
+	payload, err := createResponseFromPayment(payment)
+	if err != nil {
+		return nil, err
+	}
+	return hydrateCreateResponseIDs(payment.ID, payload), nil
 }
 
 func wechatOutTradeNo(orderID uuid.UUID) string {
@@ -405,7 +430,7 @@ func (h *Handler) resolvePaymentFromClientResult(c *gin.Context, payment db.Paym
 	reason := normalizeOptionalString(request.Reason)
 
 	switch strings.ToUpper(strings.TrimSpace(h.ProviderMode)) {
-	case "", "MOCK":
+	case "MOCK":
 		switch strings.ToUpper(strings.TrimSpace(clientResult)) {
 		case "SUCCESS":
 			return h.applyPaymentResolution(c, payment, paymentStatusPaid, payment.ProviderTradeNo, nil)
@@ -420,7 +445,7 @@ func (h *Handler) resolvePaymentFromClientResult(c *gin.Context, payment db.Paym
 		if payment.Channel != paymentChannelWechat || h.Wechat == nil {
 			return payment, nil
 		}
-		resolution, err := h.Wechat.Query(c.Request.Context(), payment.OrderID.String())
+		resolution, err := h.Wechat.Query(c.Request.Context(), wechatOutTradeNo(payment.OrderID))
 		if err != nil {
 			return payment, errInternal(fmt.Sprintf("query wechat payment failed: %v", err))
 		}
@@ -438,10 +463,21 @@ func (h *Handler) resolvePaymentFromClientResult(c *gin.Context, payment db.Paym
 
 func (h *Handler) applyPaymentResolution(c *gin.Context, payment db.Payment, status string, providerTradeNo *string, reason *string) (db.Payment, error) {
 	normalizedStatus := strings.ToUpper(strings.TrimSpace(status))
+	switch normalizedStatus {
+	case paymentStatusPaid, paymentStatusFailed, paymentStatusCancelled:
+	default:
+		return payment, errBadRequest("invalid payment status")
+	}
 	if payment.Status == normalizedStatus {
+		if err := h.syncPaymentToCommerce(c.Request.Context(), payment); err != nil {
+			return db.Payment{}, errInternal(fmt.Sprintf("sync order payment failed: %v", err))
+		}
 		return payment, nil
 	}
 	if payment.Status == paymentStatusPaid {
+		if err := h.syncPaymentToCommerce(c.Request.Context(), payment); err != nil {
+			return db.Payment{}, errInternal(fmt.Sprintf("sync order payment failed: %v", err))
+		}
 		return payment, nil
 	}
 
@@ -462,8 +498,6 @@ func (h *Handler) applyPaymentResolution(c *gin.Context, payment db.Payment, sta
 			value := "CLIENT_FAILED"
 			failureCode = &value
 		}
-	default:
-		return payment, errBadRequest("invalid payment status")
 	}
 
 	updated, err := h.Store.UpdatePaymentState(c.Request.Context(), db.UpdatePaymentStateParams{
@@ -478,24 +512,17 @@ func (h *Handler) applyPaymentResolution(c *gin.Context, payment db.Payment, sta
 		ClosedAt:         closedAt,
 	})
 	if err != nil {
-		return db.Payment{}, errInternal("update payment failed")
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return db.Payment{}, errInternal("update payment failed")
+		}
+		updated, err = h.Store.GetPayment(c.Request.Context(), payment.ID)
+		if err != nil {
+			return db.Payment{}, errInternal("reload payment after concurrent update failed")
+		}
 	}
 
-	if h.Commerce != nil {
-		var paidAtTime *time.Time
-		if updated.PaidAt.Valid {
-			value := updated.PaidAt.Time
-			paidAtTime = &value
-		}
-		if err := h.Commerce.SyncOrderPayment(c.Request.Context(), updated.OrderID.String(), CommercePaymentSyncRequest{
-			PaymentID:       updated.ID.String(),
-			Channel:         updated.Channel,
-			Status:          updated.Status,
-			ProviderTradeNo: providerTradeNo,
-			PaidAt:          paidAtTime,
-		}); err != nil {
-			return db.Payment{}, errInternal(fmt.Sprintf("sync order payment failed: %v", err))
-		}
+	if err := h.syncPaymentToCommerce(c.Request.Context(), updated); err != nil {
+		return db.Payment{}, errInternal(fmt.Sprintf("sync order payment failed: %v", err))
 	}
 
 	actor := "system"
@@ -504,6 +531,24 @@ func (h *Handler) applyPaymentResolution(c *gin.Context, payment db.Payment, sta
 	}
 
 	return updated, nil
+}
+
+func (h *Handler) syncPaymentToCommerce(ctx context.Context, payment db.Payment) error {
+	if h.Commerce == nil {
+		return nil
+	}
+	var paidAt *time.Time
+	if payment.PaidAt.Valid {
+		value := payment.PaidAt.Time
+		paidAt = &value
+	}
+	return h.Commerce.SyncOrderPayment(ctx, payment.OrderID.String(), CommercePaymentSyncRequest{
+		PaymentID:       payment.ID.String(),
+		Channel:         payment.Channel,
+		Status:          payment.Status,
+		ProviderTradeNo: payment.ProviderTradeNo,
+		PaidAt:          paidAt,
+	})
 }
 
 func (h *Handler) loadPayment(c *gin.Context, paymentID uuid.UUID) (db.Payment, error) {
@@ -562,12 +607,6 @@ func createResponseFromPayment(payment db.Payment) (interface{}, error) {
 			return nil, errInternal("decode wechat payment payload failed")
 		}
 		return response, nil
-	case paymentChannelAlipay:
-		var response oapi.AlipayPayCreateResponse
-		if err := json.Unmarshal(payment.ProviderPayload, &response); err != nil {
-			return nil, errInternal("decode alipay payment payload failed")
-		}
-		return response, nil
 	default:
 		return nil, errInternal("unsupported payment channel")
 	}
@@ -576,9 +615,6 @@ func createResponseFromPayment(payment db.Payment) (interface{}, error) {
 func hydrateCreateResponseIDs(paymentID uuid.UUID, payload interface{}) interface{} {
 	switch response := payload.(type) {
 	case oapi.WechatPayCreateResponse:
-		response.PaymentId = paymentID
-		return response
-	case oapi.AlipayPayCreateResponse:
 		response.PaymentId = paymentID
 		return response
 	default:
@@ -606,21 +642,6 @@ func buildProviderPayload(channel string, orderID uuid.UUID, now time.Time, expi
 		raw, err := json.Marshal(response)
 		prepayValue := prepayID
 		return response, nil, &prepayValue, raw, err
-	case paymentChannelAlipay:
-		tradeNo := "trade_" + uuid.NewString()
-		response := oapi.AlipayPayCreateResponse{
-			OrderId:   orderID,
-			Channel:   oapi.PaymentChannel(paymentChannelAlipay),
-			Status:    oapi.PaymentStatus(paymentStatusPending),
-			ExpiresAt: expiresAt,
-			TradeNo:   tradeNo,
-			PayParams: map[string]interface{}{
-				"tradeNO": tradeNo,
-			},
-		}
-		raw, err := json.Marshal(response)
-		tradeValue := tradeNo
-		return response, &tradeValue, nil, raw, err
 	default:
 		return nil, nil, nil, nil, fmt.Errorf("unsupported channel")
 	}
@@ -679,7 +700,7 @@ func normalizeOptionalString(value *string) *string {
 func normalizeNotifyPayload(payload map[string]interface{}) (normalizedNotifyPayload, error) {
 	status := strings.ToUpper(strings.TrimSpace(readString(payload, "status", "trade_status", "paymentStatus")))
 	if status == "" {
-		status = paymentStatusPaid
+		return normalizedNotifyPayload{}, fmt.Errorf("status is required")
 	}
 	switch status {
 	case "SUCCESS":
@@ -688,6 +709,11 @@ func normalizeNotifyPayload(payload map[string]interface{}) (normalizedNotifyPay
 		status = paymentStatusFailed
 	case "CANCELLED":
 		status = paymentStatusCancelled
+	}
+	switch status {
+	case paymentStatusPaid, paymentStatusFailed, paymentStatusCancelled:
+	default:
+		return normalizedNotifyPayload{}, fmt.Errorf("invalid payment status")
 	}
 
 	paymentID := strings.TrimSpace(readString(payload, "paymentId", "payment_id"))
@@ -770,6 +796,14 @@ func errBadRequest(message string) error {
 
 func errInternal(message string) error {
 	return paymentHTTPError{status: http.StatusInternalServerError, code: "internal_error", message: message}
+}
+
+func errNotImplemented(message string) error {
+	return paymentHTTPError{status: http.StatusNotImplemented, code: "not_implemented", message: message}
+}
+
+func errServiceUnavailable(message string) error {
+	return paymentHTTPError{status: http.StatusServiceUnavailable, code: "provider_unavailable", message: message}
 }
 
 func (h *Handler) writePaymentError(c *gin.Context, err error) {

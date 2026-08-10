@@ -1,7 +1,9 @@
 package config
 
 import (
+	"errors"
 	"path/filepath"
+	"strings"
 	"time"
 
 	sharedconfig "github.com/teamdsb/tmo/packages/go-shared/config"
@@ -10,9 +12,9 @@ import (
 const (
 	defaultHTTPAddr            = ":8083"
 	defaultLogLevel            = "info"
-	defaultAuthEnabled         = false
+	defaultAuthEnabled         = true
 	defaultDBDSN               = "postgres://commerce:commerce@localhost:5432/payment?sslmode=disable"
-	defaultJWTSecret           = "dev-secret"
+	defaultJWTSecret           = ""
 	defaultJWTIssuer           = ""
 	defaultIdentityBaseURL     = "http://localhost:8081"
 	defaultCommerceBaseURL     = "http://localhost:8080"
@@ -21,7 +23,7 @@ const (
 	defaultWechatPayEnabled    = false
 	defaultAlipayPayEnabled    = false
 	defaultCommerceSyncToken   = "dev-payment-sync-token"
-	defaultProviderMode        = "mock"
+	defaultProviderMode        = "disabled"
 )
 
 type Config struct {
@@ -72,4 +74,11 @@ func Load() Config {
 		WechatMerchantSerialNumber:   sharedconfig.String("PAYMENT_WECHAT_MERCHANT_SERIAL_NUMBER", ""),
 		WechatNotifyURL:              sharedconfig.String("PAYMENT_WECHAT_NOTIFY_URL", ""),
 	}
+}
+
+func (c Config) Validate() error {
+	if c.AuthEnabled && strings.TrimSpace(c.JWTSecret) == "" {
+		return errors.New("PAYMENT_JWT_SECRET is required when PAYMENT_AUTH_ENABLED is true")
+	}
+	return nil
 }

@@ -628,6 +628,7 @@ SET status = $2,
     closed_at = $9,
     updated_at = now()
 WHERE id = $1
+  AND (status <> 'PAID' OR $2 = 'PAID')
 RETURNING id, order_id, payer_user_id, channel, status, amount_fen, currency, idempotency_key, provider_trade_no, provider_prepay_id, provider_payload, failure_code, failure_message, paid_at, closed_at, created_at, updated_at
 `
 

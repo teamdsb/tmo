@@ -51,11 +51,13 @@ paths:
           "$ref": "#/components/responses/Forbidden"
         '409':
           "$ref": "#/components/responses/Conflict"
+        '503':
+          "$ref": "#/components/responses/ServiceUnavailable"
   "/payments/alipay/create":
     post:
       tags:
       - Payments
-      summary: Create Alipay payment for an order (reserved, behind feature flag)
+      summary: Alipay payment creation is not implemented
       parameters:
       - in: header
         name: Idempotency-Key
@@ -75,16 +77,8 @@ paths:
               required:
               - orderId
       responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                "$ref": "#/components/schemas/AlipayPayCreateResponse"
-        '403':
-          "$ref": "#/components/responses/Forbidden"
-        '409':
-          "$ref": "#/components/responses/Conflict"
+        '501':
+          "$ref": "#/components/responses/NotImplemented"
   "/payments/{paymentId}":
     get:
       tags:
@@ -149,11 +143,15 @@ paths:
       responses:
         '200':
           description: OK
+        '400':
+          "$ref": "#/components/responses/BadRequest"
+        '503':
+          "$ref": "#/components/responses/ServiceUnavailable"
   "/payments/alipay/notify":
     post:
       tags:
       - Payments
-      summary: Alipay callback (no auth, signature verified)
+      summary: Alipay callback is not implemented
       security: []
       requestBody:
         required: true
@@ -163,8 +161,8 @@ paths:
               type: object
               additionalProperties: true
       responses:
-        '200':
-          description: OK
+        '501':
+          "$ref": "#/components/responses/NotImplemented"
 components:
   securitySchemes:
     bearerAuth:
@@ -198,6 +196,18 @@ components:
             "$ref": "#/components/schemas/ErrorResponse"
     NotFound:
       description: Not Found
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/ErrorResponse"
+    NotImplemented:
+      description: Provider is not implemented
+      content:
+        application/json:
+          schema:
+            "$ref": "#/components/schemas/ErrorResponse"
+    ServiceUnavailable:
+      description: Payment provider is disabled or unavailable
       content:
         application/json:
           schema:
@@ -1183,35 +1193,6 @@ components:
       - timeStamp
       - signType
       - paySign
-    AlipayPayCreateResponse:
-      type: object
-      properties:
-        paymentId:
-          type: string
-          format: uuid
-        orderId:
-          type: string
-          format: uuid
-        channel:
-          "$ref": "#/components/schemas/PaymentChannel"
-        status:
-          "$ref": "#/components/schemas/PaymentStatus"
-        expiresAt:
-          type: string
-          format: date-time
-        tradeNo:
-          type: string
-        payParams:
-          type: object
-          additionalProperties: true
-      required:
-      - paymentId
-      - orderId
-      - channel
-      - status
-      - expiresAt
-      - tradeNo
-      - payParams
     PaymentChannel:
       type: string
       enum:

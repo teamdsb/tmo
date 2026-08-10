@@ -10,11 +10,84 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/teamdsb/tmo/services/payment/internal/db"
+	"github.com/teamdsb/tmo/services/payment/internal/http/middleware"
 )
+
+const (
+	adminTestJWTSecret = "payment-admin-test-secret"
+	adminTestJWTIssuer = "payment-admin-test-issuer"
+)
+
+func TestAdminPaymentHandlersEnforceRoleAuthorization(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	type endpoint struct {
+		name   string
+		method string
+		path   func(*adminPaymentStoreStub) string
+	}
+	endpoints := []endpoint{
+		{name: "transactions", method: http.MethodGet, path: func(_ *adminPaymentStoreStub) string { return "/admin/payments/transactions" }},
+		{name: "transaction detail", method: http.MethodGet, path: func(store *adminPaymentStoreStub) string {
+			return "/admin/payments/transactions/" + store.payment.ID.String()
+		}},
+		{name: "audit logs", method: http.MethodGet, path: func(_ *adminPaymentStoreStub) string { return "/admin/payments/audit-logs" }},
+		{name: "webhooks", method: http.MethodGet, path: func(_ *adminPaymentStoreStub) string { return "/admin/payments/webhooks" }},
+		{name: "webhook replay", method: http.MethodPost, path: func(store *adminPaymentStoreStub) string {
+			return "/admin/payments/webhooks/" + store.webhook.ID.String() + "/replay"
+		}},
+	}
+
+	for _, role := range []string{"CUSTOMER", "SALES", "CS", "MANAGER", "BOSS", "ADMIN"} {
+		role := role
+		for _, endpoint := range endpoints {
+			endpoint := endpoint
+			t.Run(role+"/"+endpoint.name, func(t *testing.T) {
+				store := newAdminPaymentStoreStub()
+				handler := &Handler{
+					Auth:  middleware.NewAuthenticator(true, adminTestJWTSecret, adminTestJWTIssuer),
+					Store: store,
+				}
+				router := newTestRouter(handler)
+
+				req := httptest.NewRequest(endpoint.method, endpoint.path(store), nil)
+				req.Header.Set("Authorization", "Bearer "+signedAdminTestToken(t, role))
+				rec := httptest.NewRecorder()
+				router.ServeHTTP(rec, req)
+
+				if role == "CUSTOMER" || role == "SALES" {
+					if rec.Code != http.StatusForbidden {
+						t.Fatalf("expected role %s to receive 403, got %d: %s", role, rec.Code, rec.Body.String())
+					}
+					return
+				}
+				if rec.Code != http.StatusOK {
+					t.Fatalf("expected role %s to be accepted, got %d: %s", role, rec.Code, rec.Body.String())
+				}
+			})
+		}
+	}
+}
+
+func signedAdminTestToken(t *testing.T, role string) string {
+	t.Helper()
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub":  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+		"role": role,
+		"iss":  adminTestJWTIssuer,
+		"exp":  time.Now().Add(time.Hour).Unix(),
+	})
+	signed, err := token.SignedString([]byte(adminTestJWTSecret))
+	if err != nil {
+		t.Fatalf("sign token: %v", err)
+	}
+	return signed
+}
 
 func TestAdminPaymentsTransactionsList(t *testing.T) {
 	gin.SetMode(gin.TestMode)

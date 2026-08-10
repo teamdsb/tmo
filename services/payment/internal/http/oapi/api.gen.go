@@ -39,17 +39,6 @@ const (
 	PaymentStatusPAYPENDING PaymentStatus = "PAY_PENDING"
 )
 
-// AlipayPayCreateResponse defines model for AlipayPayCreateResponse.
-type AlipayPayCreateResponse struct {
-	Channel   PaymentChannel         `json:"channel"`
-	ExpiresAt time.Time              `json:"expiresAt"`
-	OrderId   openapi_types.UUID     `json:"orderId"`
-	PayParams map[string]interface{} `json:"payParams"`
-	PaymentId openapi_types.UUID     `json:"paymentId"`
-	Status    PaymentStatus          `json:"status"`
-	TradeNo   string                 `json:"tradeNo"`
-}
-
 // ErrorResponse defines model for ErrorResponse.
 type ErrorResponse = externalRef0.ErrorResponse
 
@@ -101,6 +90,9 @@ type WechatPayCreateResponse struct {
 	TimeStamp string             `json:"timeStamp"`
 }
 
+// BadRequest defines model for BadRequest.
+type BadRequest = ErrorResponse
+
 // Conflict defines model for Conflict.
 type Conflict = ErrorResponse
 
@@ -109,6 +101,12 @@ type Forbidden = ErrorResponse
 
 // NotFound defines model for NotFound.
 type NotFound = ErrorResponse
+
+// NotImplemented defines model for NotImplemented.
+type NotImplemented = ErrorResponse
+
+// ServiceUnavailable defines model for ServiceUnavailable.
+type ServiceUnavailable = ErrorResponse
 
 // PostPaymentsAlipayCreateJSONBody defines parameters for PostPaymentsAlipayCreate.
 type PostPaymentsAlipayCreateJSONBody struct {
@@ -153,10 +151,10 @@ type PostPaymentsPaymentIdRecheckJSONRequestBody = PaymentRecheckRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// Create Alipay payment for an order (reserved, behind feature flag)
+	// Alipay payment creation is not implemented
 	// (POST /payments/alipay/create)
 	PostPaymentsAlipayCreate(c *gin.Context, params PostPaymentsAlipayCreateParams)
-	// Alipay callback (no auth, signature verified)
+	// Alipay callback is not implemented
 	// (POST /payments/alipay/notify)
 	PostPaymentsAlipayNotify(c *gin.Context)
 	// Create WeChat payment for an order (behind feature flag)

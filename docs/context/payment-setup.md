@@ -8,7 +8,7 @@
 - `commerce` 仅接收 `payment` 的内部支付状态回写，并在订单列表/详情里展示支付摘要。
 - admin-web 直接调用 `payment` 服务查询交易、审计日志和 webhook，并执行 webhook replay。
 
-当前仓库已经完成支付调用闭环、状态回写和后台查看能力，并提供基于微信支付官方 Go SDK 的微信 JSAPI provider。启用真实微信链路仍需配置商户资料、证书、密钥与公网回调地址。支付宝正式 provider 尚未实现；`PAYMENT_PROVIDER_MODE=mock` 只用于本地开发，不代表已经连通真实资金链路。
+当前仓库已经完成支付调用闭环、状态回写和后台查看能力，并提供基于微信支付官方 Go SDK 的微信 JSAPI provider。启用真实微信链路仍需配置商户资料、证书、密钥与公网回调地址。支付宝正式 provider 尚未实现，其 create/notify 均固定返回 `501 not_implemented` 且不写支付状态；`PAYMENT_PROVIDER_MODE=mock` 只能在本地开发环境显式配置，服务代码与生产默认均为 `disabled`，不会回退到伪造的资金结果。
 
 ## 总体接入要求
 
@@ -195,14 +195,14 @@
 | --- | --- |
 | `PAYMENT_HTTP_ADDR` | payment 服务监听地址 |
 | `PAYMENT_LOG_LEVEL` | 日志级别 |
-| `PAYMENT_AUTH_ENABLED` | 是否开启鉴权 |
+| `PAYMENT_AUTH_ENABLED` | 是否开启鉴权；代码与生产默认均为 `true` |
 | `PAYMENT_DB_DSN` | payment 数据库连接串 |
-| `PAYMENT_JWT_SECRET` | 本地 JWT 验签密钥 |
-| `PAYMENT_JWT_ISSUER` | JWT issuer |
-| `PAYMENT_IDENTITY_BASE_URL` | identity 服务地址 |
+| `PAYMENT_JWT_SECRET` | JWT 验签密钥；鉴权开启时不能为空，生产 Compose 将其设为必填，本地 Compose 显式回退到 identity 的开发密钥 |
+| `PAYMENT_JWT_ISSUER` | JWT issuer；生产默认 `tmo-identity` |
+| `PAYMENT_IDENTITY_BASE_URL` | identity 服务地址；用于 feature flags 及已签名 JWT 的撤销/账号状态复核，复核不可用时鉴权请求返回 503 |
 | `PAYMENT_COMMERCE_BASE_URL` | commerce 服务地址 |
 | `PAYMENT_COMMERCE_SYNC_TOKEN` | payment 回写 commerce 内部接口时使用的 token |
-| `PAYMENT_PROVIDER_MODE` | provider 模式；当前默认 `mock` |
+| `PAYMENT_PROVIDER_MODE` | provider 模式；代码与生产默认 `disabled`，本地联调才显式设为 `mock` |
 | `PAYMENT_MIGRATIONS_DIR` | payment migrations 路径 |
 | `PAYMENT_FEATURE_FLAGS_TIMEOUT` | feature flag 超时 |
 | `PAYMENT_ENABLED` | 支付总开关 |
@@ -283,7 +283,7 @@
 1. 启动数据库与 commerce、payment 服务。
 2. miniapp 配置 `TARO_APP_PAYMENT_BASE_URL`。
 3. admin-web 配置 `VITE_ADMIN_WEB_PAYMENT_API_BASE_URL`。
-4. 保持 `PAYMENT_PROVIDER_MODE=mock`，验证下单、支付拉起、回写、后台查看和 replay 是否正常。
+4. 在本地环境显式设置 `PAYMENT_PROVIDER_MODE=mock`，验证下单、支付拉起、回写、后台查看和 replay 是否正常。不得将该值作为生产默认值。
 
 ### 真实商户联调
 
@@ -325,7 +325,7 @@
 ## 上线前检查清单
 
 - 微信/支付宝商户与应用已完成开通。
-- `services/payment` 已切换到正式 provider，不再是 `PAYMENT_PROVIDER_MODE=mock`。
+- `services/payment` 已切换到正式 provider，不再是 `PAYMENT_PROVIDER_MODE=mock`；未完成真实 provider 配置时必须保持 `disabled`。
 - 支付总开关、微信开关、支付宝开关已按环境开启。
 - 微信 `appid`、`mchid`、APIv3 Key、商户私钥、平台证书轮换机制已配置完成。
 - 支付宝 `appId`、应用私钥、支付宝公钥、网关地址、签名算法已配置完成。
