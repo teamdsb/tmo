@@ -154,7 +154,7 @@ export type getBffBootstrapResponse200 = {
   data: BootstrapResponse
   status: 200
 }
-
+    
 export type getBffBootstrapResponseSuccess = (getBffBootstrapResponse200) & {
   headers: Headers;
 };
@@ -165,19 +165,19 @@ export type getBffBootstrapResponse = (getBffBootstrapResponseSuccess)
 export const getGetBffBootstrapUrl = () => {
 
 
-
+  
 
   return `/bff/bootstrap`
 }
 
 export const getBffBootstrap = async ( options?: RequestInit): Promise<getBffBootstrapResponse> => {
-
+  
   return apiMutator<getBffBootstrapResponse>(getGetBffBootstrapUrl(),
-  {
+  {      
     ...options,
     method: 'GET'
-
-
+    
+    
   }
 );}
 
@@ -190,7 +190,7 @@ export type getBffAdminSummaryResponse200 = {
   data: AdminSummaryResponse
   status: 200
 }
-
+    
 export type getBffAdminSummaryResponseSuccess = (getBffAdminSummaryResponse200) & {
   headers: Headers;
 };
@@ -201,19 +201,19 @@ export type getBffAdminSummaryResponse = (getBffAdminSummaryResponseSuccess)
 export const getGetBffAdminSummaryUrl = () => {
 
 
-
+  
 
   return `/bff/admin/summary`
 }
 
 export const getBffAdminSummary = async ( options?: RequestInit): Promise<getBffAdminSummaryResponse> => {
-
+  
   return apiMutator<getBffAdminSummaryResponse>(getGetBffAdminSummaryUrl(),
-  {
+  {      
     ...options,
     method: 'GET'
-
-
+    
+    
   }
 );}
 
@@ -241,7 +241,7 @@ export type getAssetsImgResponse502 = {
   data: ErrorResponse
   status: 502
 }
-
+    
 export type getAssetsImgResponseSuccess = (getAssetsImgResponse200) & {
   headers: Headers;
 };
@@ -255,7 +255,7 @@ export const getGetAssetsImgUrl = (params: GetAssetsImgParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-
+    
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -267,12 +267,12 @@ export const getGetAssetsImgUrl = (params: GetAssetsImgParams,) => {
 }
 
 export const getAssetsImg = async (params: GetAssetsImgParams, options?: RequestInit): Promise<getAssetsImgResponse> => {
-
+  
   return apiMutator<getAssetsImgResponse>(getGetAssetsImgUrl(params),
-  {
+  {      
     ...options,
     method: 'GET'
-
-
+    
+    
   }
 );}
