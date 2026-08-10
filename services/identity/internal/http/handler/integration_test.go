@@ -114,6 +114,32 @@ func TestMiniLoginTokenIncludesCustomerProfileClaims(t *testing.T) {
 	if claims.Phone == nil || *claims.Phone != "+15550000003" {
 		t.Fatalf("expected phone claim +15550000003, got %#v", claims.Phone)
 	}
+	if claims.CredentialVersion != 1 {
+		t.Fatalf("expected credentialVersion 1, got %d", claims.CredentialVersion)
+	}
+}
+
+func TestMeRejectsLegacyTokenWithoutCredentialVersion(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedAdmin(ctx, pool); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+
+	manager := auth.NewTokenManager("test-secret", "test-issuer", 2*time.Hour)
+	legacyToken, _, err := manager.Issue(adminID, "ADMIN", []string{"ADMIN"}, "staff", nil, nil, nil)
+	if err != nil {
+		t.Fatalf("issue legacy token: %v", err)
+	}
+
+	resp := doJSON(t, router, http.MethodGet, "/me", nil, legacyToken)
+	if resp.Code != http.StatusUnauthorized {
+		t.Fatalf("expected legacy token rejection with 401, got %d: %s", resp.Code, resp.Body.String())
+	}
 }
 
 func TestMiniLoginRequiresPhoneProofInRealMode(t *testing.T) {
@@ -141,57 +167,7 @@ func TestMiniLoginRequiresPhoneProofInRealMode(t *testing.T) {
 	}
 }
 
-func TestMiniLoginUsesWeappSimulationInRealModeWithoutWeappConfig(t *testing.T) {
-	router, pool := setupTestRouterWithPlatformConfig(t, platform.Config{
-		Mode:                       platform.LoginModeReal,
-		EnablePhoneProofSimulation: true,
-		PhoneProofSimulationPhone:  "+15550000003",
-		WeappSalesPage:             "pages/index/index",
-		WeappQRWidth:               256,
-		AlipaySalesPage:            "pages/index/index",
-	})
-	ctx := context.Background()
-
-	if err := resetIdentityTables(ctx, pool); err != nil {
-		t.Fatalf("reset tables: %v", err)
-	}
-
-	firstLogin := doJSON(t, router, http.MethodPost, "/auth/mini/login", map[string]interface{}{
-		"platform": "weapp",
-		"code":     "wx-first-code",
-		"phoneProof": map[string]interface{}{
-			"code": "simulated_weapp_phone_proof",
-		},
-	}, "")
-	if firstLogin.Code != http.StatusOK {
-		t.Fatalf("expected first login 200, got %d: %s", firstLogin.Code, firstLogin.Body.String())
-	}
-
-	secondLogin := doJSON(t, router, http.MethodPost, "/auth/mini/login", map[string]interface{}{
-		"platform": "weapp",
-		"code":     "wx-second-code",
-		"phoneProof": map[string]interface{}{
-			"code": "simulated_weapp_phone_proof",
-		},
-	}, "")
-	if secondLogin.Code != http.StatusOK {
-		t.Fatalf("expected second login 200, got %d: %s", secondLogin.Code, secondLogin.Body.String())
-	}
-
-	store := db.New(pool)
-	user, err := store.GetUserByIdentity(ctx, db.GetUserByIdentityParams{
-		Provider:       "weapp",
-		ProviderUserID: "sim_weapp:+15550000003",
-	})
-	if err != nil {
-		t.Fatalf("lookup simulated identity: %v", err)
-	}
-	if user.Phone == nil || *user.Phone != "+15550000003" {
-		t.Fatalf("expected simulated phone to be bound, got %#v", user.Phone)
-	}
-}
-
-func TestMiniLoginReusesExistingWeappIdentityForSimulatedPhone(t *testing.T) {
+func TestMiniLoginRejectsMockIdentityAndDirectPhoneInRealModeWithoutCreatingIdentity(t *testing.T) {
 	router, pool := setupTestRouterWithPlatformConfig(t, platform.Config{
 		Mode:                       platform.LoginModeReal,
 		EnablePhoneProofSimulation: true,
@@ -207,45 +183,34 @@ func TestMiniLoginReusesExistingWeappIdentityForSimulatedPhone(t *testing.T) {
 	}
 
 	customerID := uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
-	if err := seedCustomer(ctx, pool, customerID, "Customer Dev", nil); err != nil {
+	if err := seedCustomer(ctx, pool, customerID, "Victim Customer", nil); err != nil {
 		t.Fatalf("seed customer: %v", err)
 	}
 	if err := seedCustomerPhone(ctx, pool, customerID, "+15550000003"); err != nil {
 		t.Fatalf("seed customer phone: %v", err)
 	}
-	if err := seedIdentity(ctx, pool, customerID, "mock_customer_001"); err != nil {
-		t.Fatalf("seed customer identity: %v", err)
-	}
 
 	resp := doJSON(t, router, http.MethodPost, "/auth/mini/login", map[string]interface{}{
 		"platform": "weapp",
-		"code":     "wx-simulated-code",
+		"code":     "mock_attacker_001",
 		"phoneProof": map[string]interface{}{
-			"code": "simulated_weapp_phone_proof",
+			"phone": "+15550000003",
 		},
 	}, "")
-	if resp.Code != http.StatusOK {
-		t.Fatalf("expected login 200, got %d: %s", resp.Code, resp.Body.String())
-	}
-
-	var authResponse oapi.AuthResponse
-	if err := json.NewDecoder(resp.Body).Decode(&authResponse); err != nil {
-		t.Fatalf("decode auth response: %v", err)
-	}
-	if authResponse.User.UserType != oapi.UserUserTypeCustomer {
-		t.Fatalf("expected userType customer, got %s", authResponse.User.UserType)
+	if resp.Code < 400 || resp.Code >= 500 {
+		t.Fatalf("expected 4xx rejection, got %d: %s", resp.Code, resp.Body.String())
 	}
 
 	var identityCount int
 	if err := pool.QueryRow(ctx, `
 SELECT count(*)
 FROM user_identities
-WHERE user_id = $1 AND provider = 'weapp'
-`, customerID).Scan(&identityCount); err != nil {
-		t.Fatalf("count customer identities: %v", err)
+WHERE provider = 'weapp' AND provider_user_id = 'mock_attacker_001'
+`).Scan(&identityCount); err != nil {
+		t.Fatalf("count attacker identities: %v", err)
 	}
-	if identityCount != 1 {
-		t.Fatalf("expected existing weapp identity to be reused, got %d identities", identityCount)
+	if identityCount != 0 {
+		t.Fatalf("expected rejected request not to create identity, got %d rows", identityCount)
 	}
 }
 
@@ -356,6 +321,14 @@ func TestPasswordLoginAdmin(t *testing.T) {
 	}
 	if authResponse.User.CurrentRole != "ADMIN" {
 		t.Fatalf("expected currentRole ADMIN, got %q", authResponse.User.CurrentRole)
+	}
+	manager := auth.NewTokenManager("test-secret", "test-issuer", 2*time.Hour)
+	claims, err := manager.Parse(authResponse.AccessToken)
+	if err != nil {
+		t.Fatalf("parse password login token: %v", err)
+	}
+	if claims.CredentialVersion != 1 {
+		t.Fatalf("expected password login credentialVersion 1, got %d", claims.CredentialVersion)
 	}
 }
 
@@ -503,6 +476,14 @@ func TestSwitchRoleReissuesTokenForAssignedRole(t *testing.T) {
 	}
 	if switched.User.CurrentRole != "SALES" {
 		t.Fatalf("expected switched currentRole SALES, got %q", switched.User.CurrentRole)
+	}
+	manager := auth.NewTokenManager("test-secret", "test-issuer", 2*time.Hour)
+	claims, err := manager.Parse(switched.AccessToken)
+	if err != nil {
+		t.Fatalf("parse switched token: %v", err)
+	}
+	if claims.CredentialVersion != 1 {
+		t.Fatalf("expected switched token credentialVersion 1, got %d", claims.CredentialVersion)
 	}
 }
 

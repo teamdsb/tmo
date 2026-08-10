@@ -13,7 +13,7 @@ Identity service for authentication, JWT issuing, and sales binding.
 
 2) Run the service:
 
-   `cd services/identity && IDENTITY_HTTP_ADDR=":8081" IDENTITY_DB_DSN="postgres://commerce:commerce@localhost:5432/identity?sslmode=disable" IDENTITY_LOGIN_MODE="real" go run ./cmd/identity`
+   `cd services/identity && IDENTITY_HTTP_ADDR=":8081" IDENTITY_DB_DSN="postgres://commerce:commerce@localhost:5432/identity?sslmode=disable" IDENTITY_LOGIN_MODE="mock" go run ./cmd/identity`
 
 ## Dev login fixtures
 
@@ -31,7 +31,7 @@ Identity service for authentication, JWT issuing, and sales binding.
 
 说明：
 
-- 本地未配置真实微信/支付宝凭证时，`mock_*` code 会作为本地联调回退入口；这样可以在 `IDENTITY_LOGIN_MODE=real` 下继续跑真实数据库 + 真实后端联调。
+- `mock_*` code 仅在显式设置 `IDENTITY_LOGIN_MODE=mock` 且对应平台客户端未配置时解析为本地 identity；`phoneProof.phone` 也仅在 mock 模式可用。`real` 模式不会回退到本地 identity，即使缺少平台凭证或开启手机号模拟也会拒绝请求。
 
 - `admin` 与 `boss` 在 admin-web 场景均视为最高层级。
 - admin-web password login role whitelist: `BOSS`, `MANAGER`, `ADMIN`, `CS`；当前前端实现与此保持一致。
@@ -71,24 +71,24 @@ Identity service for authentication, JWT issuing, and sales binding.
 - `IDENTITY_ALIPAY_AES_KEY` (用于解密 `my.getPhoneNumber` 的密文 `response`)
 - `IDENTITY_ALIPAY_GATEWAY_URL` / `IDENTITY_ALIPAY_SIGN_TYPE` / `IDENTITY_ALIPAY_SALES_QR_PAGE`
 - `IDENTITY_ALIPAY_PHONE_FALLBACK_AUTH_USER` (default `true`，开启后可在 `my.getPhoneNumber` 失败时回退 `auth_user`)
-- `IDENTITY_ENABLE_PHONE_PROOF_SIMULATION` (default `false`，审核前联调可开启模拟手机号)
+- `IDENTITY_ENABLE_PHONE_PROOF_SIMULATION` (default `false`，仅 `IDENTITY_LOGIN_MODE=mock` 时可用于本地模拟手机号)
 - `IDENTITY_PHONE_PROOF_SIMULATION_PHONE` (default `+15550009999`)
 - `IDENTITY_ENABLE_DEBUG_ROLE_SWITCH` (default `false`，仅建议本地 dev 打开；允许已登录用户在已分配角色之间重新签发 token)
 
 ## Real-mode mini login
 
 - 当 `IDENTITY_LOGIN_MODE=real` 时，首次登录（该 identity 尚无已绑定手机号）需要手机号证明。
-- `phoneProof.code` 用于服务端向平台换取手机号；`phoneProof.phone` 仅作为极端兼容兜底。
+- `phoneProof.code` 用于服务端向平台换取手机号；`phoneProof.phone` 在 real 模式下一律拒绝，仅供显式 mock 模式本地联调。
 - 支付宝建议上送 `phoneProof.response/sign/signType/encryptType/charset`（`my.getPhoneNumber` 原始结果），后端会验签并解密取号。
 - 已绑定手机号的 identity 可在后续仅做角色选择时不重复提交手机号证明（避免二次授权/一次性 code 失效）。
 - 新手机号默认自动注册为 `CUSTOMER`；员工角色不会自动创建（需现有员工绑定流程）。
 - miniapp 仅允许角色选择 `CUSTOMER` / `SALES`。
 
-## 审核期模拟策略
+## 本地模拟策略
 
-- 小程序审核未通过期间，可开启 `IDENTITY_ENABLE_PHONE_PROOF_SIMULATION=true`，后端在手机号证明校验失败时回退到模拟手机号。
-- 过审后建议关闭模拟开关，并确保支付宝公钥与 AES Key 配置正确，即可直接切换生产。
-- 本地 dev seed 默认已存在 `mock_customer_001 -> +15550000003 -> weapp`。当未配置真实 WeChat 凭证且开启 weapp 手机号模拟时，mini login 需要复用该 customer 已有的 weapp provider 绑定，不能再为同一个 user 新建第二条 weapp identity。
+- 本地联调必须显式设置 `IDENTITY_LOGIN_MODE=mock`；此时可开启 `IDENTITY_ENABLE_PHONE_PROOF_SIMULATION=true` 使用模拟手机号。
+- real 模式不允许 mock code、直接手机号或手机号模拟回退。部署 real 模式前必须配置并验证对应平台凭证、公钥与 AES Key。
+- 本地 dev seed 默认已存在 `mock_customer_001 -> +15550000003 -> weapp`。
 
 ## Scripts
 

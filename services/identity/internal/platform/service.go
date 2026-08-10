@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 )
 
 var ErrUnsupportedPlatform = errors.New("unsupported platform")
@@ -75,7 +76,7 @@ func NewMiniLoginResolver(cfg Config) *MiniLoginResolver {
 
 	client := cfg.HTTPClient
 	if client == nil {
-		client = http.DefaultClient
+		client = &http.Client{Timeout: 15 * time.Second}
 	}
 
 	return &MiniLoginResolver{
@@ -100,28 +101,24 @@ func (r *MiniLoginResolver) simulatedWeappIdentity() (LoginIdentity, error) {
 }
 
 func (r *MiniLoginResolver) Resolve(ctx context.Context, platform, code string) (LoginIdentity, error) {
-	if strings.TrimSpace(code) == "" {
+	code = strings.TrimSpace(code)
+	if code == "" {
 		return LoginIdentity{}, errors.New("code is required")
 	}
-
-	allowLocalMockFallback := isLocalMockCode(code)
+	if r.mode == LoginModeReal && isLocalMockCode(code) {
+		return LoginIdentity{}, errors.New("mock login code is disabled in real mode")
+	}
 
 	switch strings.ToLower(platform) {
 	case "weapp":
-		if allowLocalMockFallback {
-			return LoginIdentity{ProviderUserID: code}, nil
-		}
 		if r.mode == LoginModeMock && r.weapp == nil {
 			return LoginIdentity{ProviderUserID: code}, nil
 		}
 		if r.weapp == nil {
-			return r.simulatedWeappIdentity()
+			return LoginIdentity{}, errors.New("weapp is not configured")
 		}
 		return r.weapp.Resolve(ctx, code)
 	case "alipay":
-		if allowLocalMockFallback {
-			return LoginIdentity{ProviderUserID: code}, nil
-		}
 		if r.mode == LoginModeMock && r.alipay == nil {
 			return LoginIdentity{ProviderUserID: code}, nil
 		}
@@ -140,6 +137,9 @@ func isLocalMockCode(code string) bool {
 
 func (r *MiniLoginResolver) ResolvePhone(ctx context.Context, platform string, proof PhoneProof) (string, error) {
 	if strings.TrimSpace(proof.Phone) != "" {
+		if r.mode != LoginModeMock {
+			return "", errors.New("direct phone proof is disabled in real mode")
+		}
 		return strings.TrimSpace(proof.Phone), nil
 	}
 
@@ -189,7 +189,9 @@ func (r *MiniLoginResolver) RequiresPhoneProof() bool {
 }
 
 func (r *MiniLoginResolver) SupportsPhoneProofSimulation() bool {
-	return r.enablePhoneProofSimulation && strings.TrimSpace(r.phoneProofSimulationPhone) != ""
+	return r.mode == LoginModeMock &&
+		r.enablePhoneProofSimulation &&
+		strings.TrimSpace(r.phoneProofSimulationPhone) != ""
 }
 
 func (r *MiniLoginResolver) UsesSimulatedWeappIdentity(identity LoginIdentity) bool {

@@ -56,7 +56,7 @@ components:
           description: Platform-issued one-time code used by backend to resolve phone number.
         phone:
           type: string
-          description: Optional direct phone fallback for environments where code exchange is unavailable.
+          description: Local mock-only phone value. Rejected when IDENTITY_LOGIN_MODE=real; real mode requires a platform-verifiable code or encrypted response.
         response:
           type: string
           description: Alipay encrypted response payload returned by my.getPhoneNumber.

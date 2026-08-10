@@ -3,6 +3,7 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -17,16 +18,17 @@ var (
 )
 
 type Claims struct {
-	UserID           uuid.UUID
-	Role             string
-	Roles            []string
-	UserType         string
-	OwnerSalesUserID *uuid.UUID
-	DisplayName      *string
-	Phone            *string
-	ExpiresAt        time.Time
-	IdentityProvider string
-	ProviderUserID   string
+	UserID            uuid.UUID
+	Role              string
+	Roles             []string
+	UserType          string
+	OwnerSalesUserID  *uuid.UUID
+	DisplayName       *string
+	Phone             *string
+	ExpiresAt         time.Time
+	IdentityProvider  string
+	ProviderUserID    string
+	CredentialVersion int64
 }
 
 type IssueOption func(jwt.MapClaims)
@@ -39,6 +41,12 @@ func WithPlatformIdentity(provider, providerUserID string) IssueOption {
 		if providerUserID = strings.TrimSpace(providerUserID); providerUserID != "" {
 			claims["providerUserId"] = providerUserID
 		}
+	}
+}
+
+func WithCredentialVersion(version int64) IssueOption {
+	return func(claims jwt.MapClaims) {
+		claims["credentialVersion"] = version
 	}
 }
 
@@ -186,10 +194,25 @@ func (m *TokenManager) Parse(raw string) (Claims, error) {
 	}
 	claims.IdentityProvider, _ = mapClaims["identityProvider"].(string)
 	claims.ProviderUserID, _ = mapClaims["providerUserId"].(string)
+	if rawVersion, ok := mapClaims["credentialVersion"]; ok {
+		version, valid := parseCredentialVersion(rawVersion)
+		if !valid {
+			return Claims{}, ErrInvalidToken
+		}
+		claims.CredentialVersion = version
+	}
 
 	if expRaw, ok := mapClaims["exp"].(float64); ok {
 		claims.ExpiresAt = time.Unix(int64(expRaw), 0)
 	}
 
 	return claims, nil
+}
+
+func parseCredentialVersion(raw any) (int64, bool) {
+	value, ok := raw.(float64)
+	if !ok || math.IsNaN(value) || math.IsInf(value, 0) || value < 0 || math.Trunc(value) != value || value >= math.Exp2(63) {
+		return 0, false
+	}
+	return int64(value), true
 }
