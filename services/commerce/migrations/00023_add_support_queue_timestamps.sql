@@ -1,7 +1,7 @@
 -- +goose Up
 ALTER TABLE support_conversations
-ADD COLUMN queued_at timestamptz NOT NULL DEFAULT now(),
-ADD COLUMN assigned_at timestamptz;
+ADD COLUMN IF NOT EXISTS queued_at timestamptz NOT NULL DEFAULT now(),
+ADD COLUMN IF NOT EXISTS assigned_at timestamptz;
 
 UPDATE support_conversations
 SET queued_at = created_at,

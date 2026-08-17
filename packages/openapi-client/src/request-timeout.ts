@@ -21,6 +21,67 @@ const createAbortError = (): Error => {
   return error
 }
 
+type AbortListener = EventListenerOrEventListenerObject
+
+class CompatibleAbortSignal {
+  aborted = false
+  onabort: ((this: AbortSignal, ev: Event) => unknown) | null = null
+  reason: unknown = undefined
+  private readonly listeners = new Set<AbortListener>()
+
+  addEventListener(type: string, listener: AbortListener | null): void {
+    if (type === 'abort' && listener) {
+      this.listeners.add(listener)
+    }
+  }
+
+  removeEventListener(type: string, listener: AbortListener | null): void {
+    if (type === 'abort' && listener) {
+      this.listeners.delete(listener)
+    }
+  }
+
+  dispatchEvent(event: Event): boolean {
+    for (const listener of [...this.listeners]) {
+      if (typeof listener === 'function') {
+        listener.call(this, event)
+      } else {
+        listener.handleEvent(event)
+      }
+    }
+    return true
+  }
+
+  throwIfAborted(): void {
+    if (this.aborted) {
+      throw this.reason
+    }
+  }
+
+  abort(): void {
+    if (this.aborted) {
+      return
+    }
+    this.aborted = true
+    this.reason = createAbortError()
+    const event = { type: 'abort', target: this } as unknown as Event
+    this.onabort?.call(this as unknown as AbortSignal, event)
+    this.dispatchEvent(event)
+    this.listeners.clear()
+  }
+}
+
+const createCompatibleAbortController = (): Pick<AbortController, 'abort' | 'signal'> => {
+  if (typeof globalThis.AbortController === 'function') {
+    return new globalThis.AbortController()
+  }
+  const signal = new CompatibleAbortSignal()
+  return {
+    abort: () => signal.abort(),
+    signal: signal as unknown as AbortSignal
+  }
+}
+
 export const waitForRequestTask = <T>(task: PromiseLike<T>, signal: AbortSignal): Promise<T> => {
   if (signal.aborted) {
     return Promise.reject(createAbortError())
@@ -48,7 +109,7 @@ export const createRequestAbortScope = (
   callerSignal?: AbortSignal | null,
   timeoutMs?: number
 ): RequestAbortScope => {
-  const controller = new AbortController()
+  const controller = createCompatibleAbortController()
   const forwardCallerAbort = () => controller.abort()
 
   if (callerSignal?.aborted) {

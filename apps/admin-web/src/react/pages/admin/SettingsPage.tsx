@@ -1,3 +1,5 @@
+import { isMockMode } from '../../../lib/env';
+
 const settingNavItems = [
   { href: '#general', label: 'General', active: true },
   { href: '#security', label: 'Security', active: false },
@@ -57,6 +59,26 @@ const passwordPolicies = [
 
 // 设置页（当前为前端展示壳）。
 export const SettingsPage = () => {
+  if (!isMockMode) {
+    return (
+      <main className="flex h-screen flex-1 flex-col overflow-hidden bg-background-light dark:bg-background-dark" data-testid="settings-unavailable">
+        <header className="shrink-0 border-b border-border-light bg-surface-light px-8 py-5 dark:border-border-dark dark:bg-surface-dark">
+          <h1 className="text-2xl font-bold tracking-tight text-text-main dark:text-white">系统设置</h1>
+        </header>
+        <div className="flex flex-1 items-center justify-center p-8">
+          <section className="w-full max-w-2xl rounded-2xl border border-border-light bg-surface-light p-8 text-center shadow-sm dark:border-border-dark dark:bg-surface-dark">
+            <span className="material-symbols-outlined text-5xl text-slate-400">construction</span>
+            <h2 className="mt-4 text-xl font-bold text-text-main dark:text-white">真实系统设置暂未接入</h2>
+            <p className="mt-3 text-sm leading-6 text-text-muted">
+              密码策略、二次验证、IP 白名单和维护模式尚无后端持久化接口，因此生产环境不提供可编辑表单。
+            </p>
+            <p className="mt-2 text-xs text-text-muted">当前可用的支付功能开关请在“导入与导出”页管理。</p>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="flex h-screen flex-1 flex-col overflow-hidden bg-background-light dark:bg-background-dark">
       <header className="z-10 shrink-0 border-b border-border-light bg-surface-light px-8 py-5 dark:border-border-dark dark:bg-surface-dark">

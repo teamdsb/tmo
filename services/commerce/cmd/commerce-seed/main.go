@@ -249,9 +249,10 @@ INSERT INTO catalog_products (
   cover_image_url,
   images,
   tags,
-  filter_dimensions
+  filter_dimensions,
+  status
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'ACTIVE')
 ON CONFLICT (id) DO UPDATE
 SET name = EXCLUDED.name,
     description = EXCLUDED.description,
@@ -260,6 +261,7 @@ SET name = EXCLUDED.name,
     images = EXCLUDED.images,
     tags = EXCLUDED.tags,
     filter_dimensions = EXCLUDED.filter_dimensions,
+    status = EXCLUDED.status,
     updated_at = now()
 `,
 		seed.ID,

@@ -16,6 +16,7 @@ const gatewayBaseUrl = String(process.env.WEAPP_SUPPORT_REAL_E2E_API_BASE_URL ||
 const customerMessage = String(process.env.SUPPORT_REAL_E2E_CUSTOMER_MESSAGE || '').trim()
 const replyText = String(process.env.SUPPORT_REAL_E2E_REPLY_TEXT || '').trim()
 const evidenceFile = String(process.env.SUPPORT_REAL_E2E_ARTIFACT || '').trim()
+const useSimulatedPhoneProof = String(process.env.TARO_APP_WEAPP_PHONE_PROOF_SIMULATION || '').trim().toLowerCase() === 'true'
 
 const cliCandidates = [
   process.env.WEAPP_DEVTOOLS_CLI_PATH,
@@ -183,29 +184,38 @@ const createCustomerSession = async (miniProgram, checks) => {
   await miniProgram.callWxMethod('removeStorageSync', 'tmo:bootstrap')
   await miniProgram.callWxMethod('removeStorageSync', 'tmo:auth:pending-role-selection')
 
+  const loginBody = {
+    platform: 'weapp',
+    code: 'mock_customer_001'
+  }
+  if (useSimulatedPhoneProof) {
+    loginBody.phoneProof = {
+      code: 'simulated_weapp_phone_proof'
+    }
+  }
+
   const loginResponse = await fetch(`${gatewayBaseUrl}/auth/mini/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      platform: 'weapp',
-      code: 'mock_customer_001',
-      phoneProof: {
-        code: 'simulated_weapp_phone_proof'
-      }
-    })
+    body: JSON.stringify(loginBody)
   })
   const loginPayload = await loginResponse.json()
-  assertPass(checks, 'login.http.status', loginResponse.status === 200, `status=${loginResponse.status} body=${JSON.stringify(loginPayload)}`)
+  const loginSummary = {
+    hasToken: Boolean(String(loginPayload?.accessToken || '').trim()),
+    currentRole: loginPayload?.user?.currentRole || '',
+    roles: Array.isArray(loginPayload?.user?.roles) ? loginPayload.user.roles : []
+  }
+  assertPass(checks, 'login.http.status', loginResponse.status === 200, `status=${loginResponse.status} body=${JSON.stringify(loginSummary)}`)
 
   const token = String(loginPayload?.accessToken || '').trim()
-  assertPass(checks, 'login.token.exists', Boolean(token), `token=${token}`)
+  assertPass(checks, 'login.token.exists', Boolean(token), token ? 'token=present' : 'token=missing')
 
   const bootstrapResponse = await requestJson('/bff/bootstrap', token)
   assertPass(checks, 'login.bootstrap.status', bootstrapResponse.status === 200, `status=${bootstrapResponse.status}`)
   const bootstrap = parseBootstrap(bootstrapResponse.data)
-  assertPass(checks, 'login.token.exists', Boolean(token), `token=${token}`)
+  assertPass(checks, 'login.token.exists', Boolean(token), token ? 'token=present' : 'token=missing')
   assertPass(checks, 'login.bootstrap.me.exists', Boolean(bootstrap?.me), `bootstrap=${JSON.stringify(bootstrap)}`)
 
   await miniProgram.callWxMethod('setStorageSync', 'tmo:auth:token', token)

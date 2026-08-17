@@ -3,6 +3,7 @@ import path from 'node:path'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { gatewayServices } from '../../services/gateway'
+import { commerceServices } from '../../services/commerce'
 import { identityServices } from '../../services/identity'
 import SalesPage from './index'
 
@@ -37,6 +38,28 @@ describe('SalesPage', () => {
       page: 1,
       pageSize: 20,
       total: 2
+    })
+    ;(commerceServices.orders.list as jest.Mock).mockResolvedValue({
+      items: [
+        {
+          id: 'owned-order-001',
+          createdAt: '2026-08-17T10:00:00+08:00',
+          status: 'PAID',
+          paymentStatus: 'PAID',
+          ownerSalesUserId: 'sales-3059',
+          address: { receiverName: '宁波远航', receiverPhone: '13800000000', detail: '测试地址', isDefault: true },
+          items: [
+            {
+              qty: 2,
+              unitPriceFen: 1250,
+              sku: { id: 'sku-1', spuId: 'spu-1', name: '工业螺栓', spec: 'M8', isActive: true }
+            }
+          ]
+        }
+      ],
+      page: 1,
+      pageSize: 20,
+      total: 1
     })
   })
 
@@ -93,14 +116,19 @@ describe('SalesPage', () => {
     })
   })
 
-  it('applies shared long-text protection to sales order titles', () => {
+  it('loads owned orders instead of rendering demo order fixtures', async () => {
     render(<SalesPage />)
 
     fireEvent.click(screen.getByText('订单'))
 
-    const company = screen.getAllByText(/Acme 集团|星辰实业|创新动力/)[0]
-    const productName = screen.getAllByText(/重型轴承|钢制支架|电路板 v2|工业级润滑油/)[0]
+    expect(await screen.findByText('工业螺栓')).toBeInTheDocument()
+    expect(screen.getByText('宁波远航')).toBeInTheDocument()
+    expect(screen.getAllByText('¥25.00')).toHaveLength(2)
+    expect(screen.queryByText('Acme 集团')).not.toBeInTheDocument()
+    expect(commerceServices.orders.list).toHaveBeenCalledWith({ page: 1, pageSize: 50 })
 
+    const company = screen.getByText('宁波远航')
+    const productName = screen.getByText('工业螺栓')
     expect(company).toHaveClass('u-safe-title-2')
     expect(productName).toHaveClass('u-safe-title-2')
 
@@ -108,6 +136,30 @@ describe('SalesPage', () => {
     expect(stylesheet).toContain('.sales-order-company')
     expect(stylesheet).toContain('.sales-order-item-name')
     expect(stylesheet).toContain('.u-safe-title-2')
+  })
+
+  it('shows a real order load failure instead of falling back to demo orders', async () => {
+    ;(commerceServices.orders.list as jest.Mock).mockRejectedValueOnce(new Error('network down'))
+
+    render(<SalesPage />)
+    fireEvent.click(screen.getByText('订单'))
+
+    expect(await screen.findByText('订单加载失败，请稍后重试。')).toBeInTheDocument()
+    expect(screen.queryByText('Acme 集团')).not.toBeInTheDocument()
+  })
+
+  it('marks accounting as unavailable until a real settlement API exists', () => {
+    render(<SalesPage />)
+
+    fireEvent.click(screen.getByText('财务'))
+
+    expect(screen.getByText('财务结算暂未接入')).toBeInTheDocument()
+    expect(screen.queryByText('$45,230')).not.toBeInTheDocument()
+    expect(screen.queryByText('ORD-2023-089')).not.toBeInTheDocument()
+
+    const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../app.scss'), 'utf8')
+    expect(stylesheet).toMatch(/\.sales-empty-copy\s*\{[\s\S]*?max-width:\s*100%/)
+    expect(stylesheet).toMatch(/\.sales-empty-copy\s*\{[\s\S]*?text-align:\s*center/)
   })
 
   it('renders dashboard by default and switches between tabs', async () => {
@@ -134,10 +186,11 @@ describe('SalesPage', () => {
 
       fireEvent.click(screen.getByText('订单'))
       expect(screen.getByText('订单列表')).toBeInTheDocument()
+      expect(await screen.findByText('工业螺栓')).toBeInTheDocument()
 
       fireEvent.click(screen.getByText('财务'))
       expect(screen.getByText('财务结算')).toBeInTheDocument()
-      expect(screen.getByText('总销售额')).toBeInTheDocument()
+      expect(screen.getByText('财务结算暂未接入')).toBeInTheDocument()
     } finally {
       consoleErrorSpy.mockRestore()
     }

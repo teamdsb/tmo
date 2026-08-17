@@ -19,6 +19,7 @@ const excludedNames = String(process.env.WEAPP_SALES_E2E_EXCLUDED_NAMES || '用�
   .map((value) => value.trim())
   .filter(Boolean)
 const timeoutMs = Number(process.env.WEAPP_SALES_E2E_TIMEOUT_MS || 120000)
+const keepOpen = String(process.env.WEAPP_SALES_E2E_KEEP_OPEN || '').trim().toLowerCase() === 'true'
 const port = Number(process.env.WEAPP_AUTOMATOR_PORT || 9527)
 const artifactDir = path.resolve(rootDir, process.env.WEAPP_SALES_E2E_ARTIFACT_DIR || 'tmp/e2e/sales-customers')
 
@@ -116,6 +117,7 @@ const run = async () => {
   fs.mkdirSync(artifactDir, { recursive: true })
   let miniProgram
   const exceptions = []
+  const consoleLogs = []
   try {
     miniProgram = await automator.launch({
       cliPath,
@@ -125,9 +127,16 @@ const run = async () => {
       trustProject: true,
       cwd: rootDir
     })
+    miniProgram.on('console', (payload) => {
+      const text = String(payload?.text || payload?.message || payload?.description || '')
+      if (text) consoleLogs.push(text)
+    })
     miniProgram.on('exception', (error) => exceptions.push(String(error?.message || error)))
     const { token, bootstrap } = await createSession(miniProgram)
     const apiCustomers = await requestJson('/customers?page=1&pageSize=20', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    const apiOrders = await requestJson('/orders?page=1&pageSize=50', {
       headers: { Authorization: `Bearer ${token}` }
     })
     const apiNames = Array.isArray(apiCustomers?.items)
@@ -154,7 +163,9 @@ const run = async () => {
       const values = await collectTexts(page, '.sales-customer-name')
       return expectedNames.every((name) => values.includes(name)) ? values : null
     })
-    if (!names) throw new Error('customer cards did not render all expected assigned customers')
+    if (!names) {
+      throw new Error(`customer cards did not render all expected assigned customers; console=${JSON.stringify(consoleLogs.slice(-10))}`)
+    }
 
     const phones = await collectTexts(page, '.sales-customer-contact')
     const rawChinaPhones = apiCustomers.items
@@ -167,11 +178,51 @@ const run = async () => {
     if (exceptions.length > 0) throw new Error(`runtime exceptions: ${exceptions.join(' | ')}`)
 
     await miniProgram.screenshot({ path: path.join(artifactDir, 'sales-customers.png') })
+
+    const ordersTab = await page.$('#sales-tab-orders')
+    if (!ordersTab) throw new Error('orders tab was not found')
+    await ordersTab.tap()
+
+    const apiOrderIds = Array.isArray(apiOrders?.items)
+      ? apiOrders.items.map((item) => String(item?.id || '').trim()).filter(Boolean)
+      : []
+    const orderCodes = await waitFor(async () => {
+      const values = await collectTexts(page, '.sales-order-code')
+      return apiOrderIds.every((id) => values.some((value) => value.includes(id))) ? values : null
+    })
+    if (!orderCodes) throw new Error('sales order cards did not render all API-owned orders')
+    const orderProductNames = await collectTexts(page, '.sales-order-item-name')
+    const apiProductNames = Array.isArray(apiOrders?.items)
+      ? apiOrders.items.flatMap((order) => (Array.isArray(order?.items) ? order.items : []))
+        .map((item) => String(item?.sku?.name || '').trim())
+        .filter(Boolean)
+      : []
+    for (const name of apiProductNames) {
+      if (!orderProductNames.includes(name)) throw new Error(`sales order product not visible: ${name}`)
+    }
+    if (orderProductNames.some((name) => name.includes('Acme'))) {
+      throw new Error('demo sales order data is still visible')
+    }
+    await miniProgram.screenshot({ path: path.join(artifactDir, 'sales-orders.png') })
+
+    const accountingTab = await page.$('#sales-tab-accounting')
+    if (!accountingTab) throw new Error('accounting tab was not found')
+    await accountingTab.tap()
+    const accountingCopies = await waitFor(async () => {
+      const values = await collectTexts(page, '.sales-empty-copy')
+      return values.includes('财务结算暂未接入') ? values : null
+    })
+    if (!accountingCopies) throw new Error('accounting unavailable state was not rendered')
+    await miniProgram.screenshot({ path: path.join(artifactDir, 'sales-accounting.png') })
+
     fs.writeFileSync(path.join(artifactDir, 'result.json'), `${JSON.stringify({
       status: 'pass',
       salesUser: bootstrap?.me?.displayName || '',
       names,
-      phones
+      phones,
+      orderIds: apiOrderIds,
+      orderProductNames,
+      accountingCopies
     }, null, 2)}\n`)
     console.log('WEAPP_SALES_CUSTOMERS_E2E:PASS')
   } catch (error) {
@@ -180,7 +231,7 @@ const run = async () => {
     }
     throw error
   } finally {
-    if (miniProgram) await miniProgram.close()
+    if (miniProgram && !keepOpen) await miniProgram.close()
   }
 }
 

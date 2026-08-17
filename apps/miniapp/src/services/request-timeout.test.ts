@@ -214,4 +214,31 @@ describe('browser service request deadlines', () => {
     expect(platformRequest).toHaveBeenCalledWith(expect.objectContaining({ signal: caller.signal }))
     expect(recoverUnauthorized).toHaveBeenCalledTimes(1)
   })
+
+  it('uses a compatible timeout signal when the miniapp runtime has no AbortController', async () => {
+    const originalAbortController = globalThis.AbortController
+    Object.defineProperty(globalThis, 'AbortController', {
+      configurable: true,
+      value: undefined,
+      writable: true
+    })
+    asMock(getPlatform).mockReturnValue(Platform.Weapp)
+    asMock(platformRequest).mockResolvedValue({ statusCode: 200, data: { ok: true }, headers: {} })
+
+    try {
+      const requester = createRequester({ getToken: async () => 'sales-token', timeoutMs: 25 })
+
+      await expect(requester({ url: 'http://127.0.0.1:8080/customers', method: 'GET' }))
+        .resolves.toMatchObject({ status: 200, data: { ok: true } })
+      expect(platformRequest).toHaveBeenCalledWith(expect.objectContaining({
+        signal: expect.objectContaining({ aborted: false })
+      }))
+    } finally {
+      Object.defineProperty(globalThis, 'AbortController', {
+        configurable: true,
+        value: originalAbortController,
+        writable: true
+      })
+    }
+  })
 })

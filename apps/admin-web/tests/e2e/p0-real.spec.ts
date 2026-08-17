@@ -113,6 +113,11 @@ test('P0/P1 real mode flows work in admin-web', async ({ page }) => {
   } else {
     await expect(page.getByTestId('suppliers-empty-state')).toBeVisible();
   }
+
+  await page.goto('/settings.html');
+  await expect(page.getByTestId('settings-unavailable')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save Configuration' })).toHaveCount(0);
+  await expect(page.getByText('192.168.1.45')).toHaveCount(0);
 });
 
 test('manager can login in real mode and access manager pages', async ({ page }) => {

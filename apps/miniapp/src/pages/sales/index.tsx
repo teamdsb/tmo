@@ -9,12 +9,14 @@ import { switchTabLike } from '../../utils/navigation'
 import { getNavbarStyle, getNavbarTotalHeight } from '../../utils/navbar'
 import { loadBootstrap, saveBootstrap } from '../../services/bootstrap'
 import { gatewayServices } from '../../services/gateway'
+import { commerceServices } from '../../services/commerce'
 import { identityServices } from '../../services/identity'
 import { getCurrentRole, hasRole } from '../../utils/authz'
 import { useRefreshOnReturn } from '../../hooks/use-refresh-on-return'
 
 type SalesQrCode = Awaited<ReturnType<typeof identityServices.me.getSalesQrCode>>
 type SalesCustomer = Awaited<ReturnType<typeof identityServices.customers.list>>['items'][number]
+type SalesOrder = Awaited<ReturnType<typeof commerceServices.orders.list>>['items'][number]
 
 export default function SalesPage() {
   const [activeTab, setActiveTab] = useState<SalesTab>('dashboard')
@@ -27,6 +29,9 @@ export default function SalesPage() {
   const [customers, setCustomers] = useState<SalesCustomer[]>([])
   const [customersLoading, setCustomersLoading] = useState(false)
   const [customersError, setCustomersError] = useState('')
+  const [orders, setOrders] = useState<SalesOrder[]>([])
+  const [ordersLoading, setOrdersLoading] = useState(false)
+  const [ordersError, setOrdersError] = useState('')
   const isH5 = process.env.TARO_ENV === 'h5'
   const navbarStyle = getNavbarStyle()
   const pageStyle = navbarStyle as CSSProperties
@@ -103,6 +108,21 @@ export default function SalesPage() {
     }
   }, [])
 
+  const refreshSalesOrders = useCallback(async () => {
+    setOrdersLoading(true)
+    setOrdersError('')
+    try {
+      const result = await commerceServices.orders.list({ page: 1, pageSize: 50 })
+      setOrders(result.items ?? [])
+    } catch (error) {
+      console.warn('load sales orders failed', error)
+      setOrders([])
+      setOrdersError('订单加载失败，请稍后重试。')
+    } finally {
+      setOrdersLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     void refreshSalesDashboard()
   }, [refreshSalesDashboard])
@@ -111,12 +131,18 @@ export default function SalesPage() {
     if (activeTab === 'customers') {
       void refreshSalesCustomers()
     }
-  }, [activeTab, refreshSalesCustomers])
+    if (activeTab === 'orders') {
+      void refreshSalesOrders()
+    }
+  }, [activeTab, refreshSalesCustomers, refreshSalesOrders])
 
   useRefreshOnReturn(() => {
     void refreshSalesDashboard()
     if (activeTab === 'customers') {
       void refreshSalesCustomers()
+    }
+    if (activeTab === 'orders') {
+      void refreshSalesOrders()
     }
   })
 
@@ -158,7 +184,13 @@ export default function SalesPage() {
               onSearch={(query) => void refreshSalesCustomers(query)}
             />
           ) : null}
-          {activeTab === 'orders' ? <OrdersView /> : null}
+          {activeTab === 'orders' ? (
+            <OrdersView
+              error={ordersError}
+              loading={ordersLoading}
+              orders={orders}
+            />
+          ) : null}
           {activeTab === 'accounting' ? <AccountingView /> : null}
         </View>
 

@@ -45,6 +45,7 @@ test('support real mode allows CS to claim and reply to a customer message', asy
   await expect(customerMessageBubble).toBeVisible({ timeout: 30000 });
 
   const releaseButton = page.getByTestId('support-release-button');
+  const claimButton = page.getByTestId('support-claim-button');
   if (await releaseButton.isEnabled()) {
     const releaseResponsePromise = page.waitForResponse((response) => {
       const url = new URL(response.url());
@@ -54,9 +55,9 @@ test('support real mode allows CS to claim and reply to a customer message', asy
     await releaseButton.click();
     const releaseResponse = await releaseResponsePromise;
     expect(releaseResponse.status()).toBe(200);
+    await expect(claimButton).toBeEnabled();
   }
 
-  const claimButton = page.getByTestId('support-claim-button');
   if (await claimButton.isEnabled()) {
     const claimResponsePromise = page.waitForResponse((response) => {
       const url = new URL(response.url());
@@ -72,6 +73,7 @@ test('support real mode allows CS to claim and reply to a customer message', asy
   await expect(customerMessageBubble).toBeVisible();
 
   const replyInput = page.getByTestId('support-reply-input');
+  await expect(replyInput).toBeEnabled();
   await replyInput.fill(replyText);
 
   const sendResponsePromise = page.waitForResponse((response) => {
