@@ -83,7 +83,14 @@ func TestMiniLoginCreatesCustomer(t *testing.T) {
 }
 
 func TestMiniLoginTokenIncludesCustomerProfileClaims(t *testing.T) {
-	router, pool := setupTestRouter(t)
+	router, pool := setupTestRouterWithPlatformConfig(t, platform.Config{
+		Mode:                       platform.LoginModeMock,
+		EnablePhoneProofSimulation: true,
+		PhoneProofSimulationPhone:  "+15550000003",
+		WeappSalesPage:             "pages/index/index",
+		WeappQRWidth:               256,
+		AlipaySalesPage:            "pages/index/index",
+	})
 	ctx := context.Background()
 
 	if err := resetIdentityTables(ctx, pool); err != nil {
@@ -93,6 +100,9 @@ func TestMiniLoginTokenIncludesCustomerProfileClaims(t *testing.T) {
 	resp := doJSON(t, router, http.MethodPost, "/auth/mini/login", map[string]interface{}{
 		"platform": "weapp",
 		"code":     "mock_customer_001",
+		"phoneProof": map[string]interface{}{
+			"code": "simulated_weapp_phone_proof",
+		},
 	}, "")
 	if resp.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", resp.Code, resp.Body.String())
@@ -139,6 +149,134 @@ func TestMeRejectsLegacyTokenWithoutCredentialVersion(t *testing.T) {
 	resp := doJSON(t, router, http.MethodGet, "/me", nil, legacyToken)
 	if resp.Code != http.StatusUnauthorized {
 		t.Fatalf("expected legacy token rejection with 401, got %d: %s", resp.Code, resp.Body.String())
+	}
+}
+
+func TestStaffRoleReplacementRevokesExistingToken(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedAdmin(ctx, pool); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+	if err := seedSales(ctx, pool); err != nil {
+		t.Fatalf("seed sales: %v", err)
+	}
+
+	adminLogin := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": adminUsername,
+		"password": adminPassword,
+	}, "")
+	if adminLogin.Code != http.StatusOK {
+		t.Fatalf("admin login: %d %s", adminLogin.Code, adminLogin.Body.String())
+	}
+	var adminAuth oapi.AuthResponse
+	if err := json.NewDecoder(adminLogin.Body).Decode(&adminAuth); err != nil {
+		t.Fatalf("decode admin auth: %v", err)
+	}
+
+	salesLogin := doJSON(t, router, http.MethodPost, "/auth/mini/login", map[string]interface{}{
+		"platform": "weapp",
+		"code":     "mock_sales_001",
+		"role":     "SALES",
+	}, "")
+	if salesLogin.Code != http.StatusOK {
+		t.Fatalf("sales login: %d %s", salesLogin.Code, salesLogin.Body.String())
+	}
+	var salesAuth oapi.AuthResponse
+	if err := json.NewDecoder(salesLogin.Body).Decode(&salesAuth); err != nil {
+		t.Fatalf("decode sales auth: %v", err)
+	}
+	var initialCredentialVersion int64
+	if err := pool.QueryRow(ctx, `SELECT credential_version FROM users WHERE id = $1`, salesID).Scan(&initialCredentialVersion); err != nil {
+		t.Fatalf("query initial staff credential version: %v", err)
+	}
+
+	update := doJSON(t, router, http.MethodPatch, "/staff/"+salesID.String(), map[string]interface{}{
+		"roles": []string{"CS"},
+	}, adminAuth.AccessToken)
+	if update.Code != http.StatusOK {
+		t.Fatalf("replace staff role: %d %s", update.Code, update.Body.String())
+	}
+
+	staleSession := doJSON(t, router, http.MethodGet, "/me", nil, salesAuth.AccessToken)
+	if staleSession.Code != http.StatusUnauthorized {
+		t.Fatalf("stale staff session should be revoked, got %d: %s", staleSession.Code, staleSession.Body.String())
+	}
+
+	var credentialVersion int64
+	if err := pool.QueryRow(ctx, `SELECT credential_version FROM users WHERE id = $1`, salesID).Scan(&credentialVersion); err != nil {
+		t.Fatalf("query staff credential version: %v", err)
+	}
+	if credentialVersion != initialCredentialVersion+1 {
+		t.Fatalf("expected staff credentialVersion %d, got %d", initialCredentialVersion+1, credentialVersion)
+	}
+}
+
+func TestAdminCustomerRoleRevocationRevokesExistingToken(t *testing.T) {
+	router, pool := setupTestRouter(t)
+	ctx := context.Background()
+
+	if err := resetIdentityTables(ctx, pool); err != nil {
+		t.Fatalf("reset tables: %v", err)
+	}
+	if err := seedAdmin(ctx, pool); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+	if err := seedMultiRole(ctx, pool); err != nil {
+		t.Fatalf("seed multi-role customer: %v", err)
+	}
+
+	adminLogin := doJSON(t, router, http.MethodPost, "/auth/password/login", map[string]interface{}{
+		"username": adminUsername,
+		"password": adminPassword,
+	}, "")
+	if adminLogin.Code != http.StatusOK {
+		t.Fatalf("admin login: %d %s", adminLogin.Code, adminLogin.Body.String())
+	}
+	var adminAuth oapi.AuthResponse
+	if err := json.NewDecoder(adminLogin.Body).Decode(&adminAuth); err != nil {
+		t.Fatalf("decode admin auth: %v", err)
+	}
+
+	salesLogin := doJSON(t, router, http.MethodPost, "/auth/mini/login", map[string]interface{}{
+		"platform": "weapp",
+		"code":     "mock_multi_001",
+		"role":     "SALES",
+	}, "")
+	if salesLogin.Code != http.StatusOK {
+		t.Fatalf("multi-role sales login: %d %s", salesLogin.Code, salesLogin.Body.String())
+	}
+	var salesAuth oapi.AuthResponse
+	if err := json.NewDecoder(salesLogin.Body).Decode(&salesAuth); err != nil {
+		t.Fatalf("decode multi-role auth: %v", err)
+	}
+	var initialCredentialVersion int64
+	if err := pool.QueryRow(ctx, `SELECT credential_version FROM users WHERE id = $1`, multiID).Scan(&initialCredentialVersion); err != nil {
+		t.Fatalf("query initial customer credential version: %v", err)
+	}
+
+	update := doJSON(t, router, http.MethodPatch, "/admin/customers/"+multiID.String()+"/role", map[string]interface{}{
+		"role": "CUSTOMER",
+	}, adminAuth.AccessToken)
+	if update.Code != http.StatusOK {
+		t.Fatalf("revoke customer sales role: %d %s", update.Code, update.Body.String())
+	}
+
+	staleSession := doJSON(t, router, http.MethodGet, "/me", nil, salesAuth.AccessToken)
+	if staleSession.Code != http.StatusUnauthorized {
+		t.Fatalf("stale customer sales session should be revoked, got %d: %s", staleSession.Code, staleSession.Body.String())
+	}
+
+	var credentialVersion int64
+	if err := pool.QueryRow(ctx, `SELECT credential_version FROM users WHERE id = $1`, multiID).Scan(&credentialVersion); err != nil {
+		t.Fatalf("query customer credential version: %v", err)
+	}
+	if credentialVersion != initialCredentialVersion+1 {
+		t.Fatalf("expected customer credentialVersion %d, got %d", initialCredentialVersion+1, credentialVersion)
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -52,6 +53,9 @@ func NewWechat(ctx context.Context, config WechatConfig) (*WechatProvider, error
 	if err := validateWechatConfig(config); err != nil {
 		return nil, err
 	}
+	if err := validatePrivateKeyFilePermissions(config.MerchantPrivateKeyPath); err != nil {
+		return nil, fmt.Errorf("validate wechat merchant private key: %w", err)
+	}
 	privateKey, err := utils.LoadPrivateKeyWithPath(config.MerchantPrivateKeyPath)
 	if err != nil {
 		return nil, fmt.Errorf("load wechat merchant private key: %w", err)
@@ -68,6 +72,28 @@ func NewWechat(ctx context.Context, config WechatConfig) (*WechatProvider, error
 		return nil, fmt.Errorf("initialize wechat notify handler: %w", err)
 	}
 	return &WechatProvider{config: config, service: jsapi.JsapiApiService{Client: client}, notify: notifyHandler}, nil
+}
+
+func validatePrivateKeyFilePermissions(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("stat private key: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("private key must be a regular file")
+	}
+	if permissions := info.Mode().Perm(); permissions != 0o400 {
+		return fmt.Errorf("private key permissions must be 0400, got %04o", permissions)
+	}
+
+	file, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("open private key: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("close private key: %w", err)
+	}
+	return nil
 }
 
 func (p *WechatProvider) Create(ctx context.Context, request WechatCreateRequest) (WechatCreateResult, error) {

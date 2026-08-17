@@ -663,11 +663,17 @@ SET assignee_user_id = NULL,
     updated_at = now()
 WHERE id = $1
   AND closed_at IS NULL
+  AND assignee_user_id = $2
 RETURNING id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone, queued_at, assigned_at
 `
 
-func (q *Queries) ReleaseSupportConversation(ctx context.Context, id uuid.UUID) (SupportConversation, error) {
-	row := q.db.QueryRow(ctx, releaseSupportConversation, id)
+type ReleaseSupportConversationParams struct {
+	ID                     uuid.UUID   `db:"id" json:"id"`
+	ExpectedAssigneeUserID pgtype.UUID `db:"expected_assignee_user_id" json:"expected_assignee_user_id"`
+}
+
+func (q *Queries) ReleaseSupportConversation(ctx context.Context, arg ReleaseSupportConversationParams) (SupportConversation, error) {
+	row := q.db.QueryRow(ctx, releaseSupportConversation, arg.ID, arg.ExpectedAssigneeUserID)
 	var i SupportConversation
 	err := row.Scan(
 		&i.ID,
@@ -694,24 +700,31 @@ func (q *Queries) ReleaseSupportConversation(ctx context.Context, id uuid.UUID) 
 
 const transferSupportConversation = `-- name: TransferSupportConversation :one
 UPDATE support_conversations
-SET assignee_user_id = $2,
-    assignee_role = $3,
+SET assignee_user_id = $1,
+    assignee_role = $2,
     status = 'OPEN_ASSIGNED',
     assigned_at = now(),
     updated_at = now()
-WHERE id = $1
+WHERE id = $3
   AND closed_at IS NULL
+  AND assignee_user_id IS NOT DISTINCT FROM $4::uuid
 RETURNING id, customer_user_id, owner_sales_user_id, assignee_user_id, assignee_role, status, last_message_type, last_message_preview, last_message_at, customer_unread_count, staff_unread_count, created_at, updated_at, closed_at, customer_display_name, customer_phone, queued_at, assigned_at
 `
 
 type TransferSupportConversationParams struct {
-	ID             uuid.UUID   `db:"id" json:"id"`
-	AssigneeUserID pgtype.UUID `db:"assignee_user_id" json:"assignee_user_id"`
-	AssigneeRole   *string     `db:"assignee_role" json:"assignee_role"`
+	AssigneeUserID         pgtype.UUID `db:"assignee_user_id" json:"assignee_user_id"`
+	AssigneeRole           *string     `db:"assignee_role" json:"assignee_role"`
+	ID                     uuid.UUID   `db:"id" json:"id"`
+	ExpectedAssigneeUserID pgtype.UUID `db:"expected_assignee_user_id" json:"expected_assignee_user_id"`
 }
 
 func (q *Queries) TransferSupportConversation(ctx context.Context, arg TransferSupportConversationParams) (SupportConversation, error) {
-	row := q.db.QueryRow(ctx, transferSupportConversation, arg.ID, arg.AssigneeUserID, arg.AssigneeRole)
+	row := q.db.QueryRow(ctx, transferSupportConversation,
+		arg.AssigneeUserID,
+		arg.AssigneeRole,
+		arg.ID,
+		arg.ExpectedAssigneeUserID,
+	)
 	var i SupportConversation
 	err := row.Scan(
 		&i.ID,

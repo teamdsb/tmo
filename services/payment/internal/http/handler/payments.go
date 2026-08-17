@@ -44,7 +44,7 @@ type normalizedNotifyPayload struct {
 }
 
 func (h *Handler) PostPaymentsWechatCreate(c *gin.Context, params oapi.PostPaymentsWechatCreateParams) {
-	claims, ok := h.requireUser(c)
+	claims, ok := h.requireCustomer(c)
 	if !ok {
 		return
 	}
@@ -68,7 +68,7 @@ func (h *Handler) PostPaymentsWechatCreate(c *gin.Context, params oapi.PostPayme
 }
 
 func (h *Handler) PostPaymentsAlipayCreate(c *gin.Context, _ oapi.PostPaymentsAlipayCreateParams) {
-	_, ok := h.requireUser(c)
+	_, ok := h.requireCustomer(c)
 	if !ok {
 		return
 	}
@@ -77,7 +77,7 @@ func (h *Handler) PostPaymentsAlipayCreate(c *gin.Context, _ oapi.PostPaymentsAl
 }
 
 func (h *Handler) GetPaymentsPaymentId(c *gin.Context, paymentId types.UUID) {
-	claims, ok := h.requireUser(c)
+	claims, ok := h.requireCustomer(c)
 	if !ok {
 		return
 	}
@@ -87,7 +87,7 @@ func (h *Handler) GetPaymentsPaymentId(c *gin.Context, paymentId types.UUID) {
 		h.writePaymentError(c, err)
 		return
 	}
-	if !canAccessPayment(claims, payment) {
+	if !h.canAccessPayment(claims, payment) {
 		apierrors.Write(c, http.StatusNotFound, apierrors.APIError{
 			Code:    "not_found",
 			Message: "payment not found",
@@ -99,7 +99,7 @@ func (h *Handler) GetPaymentsPaymentId(c *gin.Context, paymentId types.UUID) {
 }
 
 func (h *Handler) PostPaymentsPaymentIdRecheck(c *gin.Context, paymentId types.UUID) {
-	claims, ok := h.requireUser(c)
+	claims, ok := h.requireCustomer(c)
 	if !ok {
 		return
 	}
@@ -120,7 +120,7 @@ func (h *Handler) PostPaymentsPaymentIdRecheck(c *gin.Context, paymentId types.U
 		h.writePaymentError(c, err)
 		return
 	}
-	if !canAccessPayment(claims, payment) {
+	if !h.canAccessPayment(claims, payment) {
 		apierrors.Write(c, http.StatusNotFound, apierrors.APIError{
 			Code:    "not_found",
 			Message: "payment not found",
@@ -667,14 +667,12 @@ func isOrderPayable(orderStatus, paymentStatus string) bool {
 	}
 }
 
-func canAccessPayment(claims middleware.Claims, payment db.Payment) bool {
-	role := strings.ToUpper(strings.TrimSpace(claims.Role))
-	switch role {
-	case "ADMIN", "MANAGER", "BOSS", "CS", "PROCUREMENT":
-		return true
+func (h *Handler) canAccessPayment(claims middleware.Claims, payment db.Payment) bool {
+	if !strings.EqualFold(strings.TrimSpace(claims.Role), "CUSTOMER") {
+		return false
 	}
 	if !payment.PayerUserID.Valid {
-		return true
+		return h.Auth == nil || !h.Auth.Enabled()
 	}
 	return payment.PayerUserID.Bytes == claims.UserID
 }

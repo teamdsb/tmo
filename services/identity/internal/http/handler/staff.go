@@ -279,6 +279,9 @@ func (h *Handler) PatchStaffStaffId(c *gin.Context, staffId types.UUID) {
 					return err
 				}
 			}
+			if _, err := q.IncrementCredentialVersion(c.Request.Context(), user.ID); err != nil {
+				return err
+			}
 		}
 		return nil
 	})

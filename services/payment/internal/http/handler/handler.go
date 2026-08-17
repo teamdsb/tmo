@@ -49,6 +49,26 @@ func (h *Handler) requireUser(c *gin.Context) (middleware.Claims, bool) {
 	return h.Auth.RequireUser(c)
 }
 
+func (h *Handler) requireCustomer(c *gin.Context) (middleware.Claims, bool) {
+	if h.Auth == nil || !h.Auth.Enabled() {
+		return middleware.Claims{Role: "CUSTOMER"}, true
+	}
+
+	claims, ok := h.requireUser(c)
+	if !ok {
+		return middleware.Claims{}, false
+	}
+	if strings.EqualFold(strings.TrimSpace(claims.Role), "CUSTOMER") {
+		return claims, true
+	}
+
+	apierrors.Write(c, http.StatusForbidden, apierrors.APIError{
+		Code:    "forbidden",
+		Message: "customer payment access is forbidden",
+	})
+	return middleware.Claims{}, false
+}
+
 func (h *Handler) requireAdminUser(c *gin.Context) (middleware.Claims, bool) {
 	claims, ok := h.requireUser(c)
 	if !ok {
@@ -56,7 +76,7 @@ func (h *Handler) requireAdminUser(c *gin.Context) (middleware.Claims, bool) {
 	}
 
 	switch strings.ToUpper(strings.TrimSpace(claims.Role)) {
-	case "ADMIN", "BOSS", "MANAGER", "CS":
+	case "ADMIN", "BOSS":
 		return claims, true
 	default:
 		apierrors.Write(c, http.StatusForbidden, apierrors.APIError{

@@ -2,6 +2,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const automator = require('miniprogram-automator')
 const { describeWeappPaths } = require('./weapp-paths')
+const { createDiagnosticSanitizer, tokenState } = require('./e2e-output-safety')
 
 const miniappDir = path.resolve(__dirname, '..')
 const rootDir = path.resolve(miniappDir, '..', '..')
@@ -28,9 +29,16 @@ const cliCandidates = [
 ].filter(Boolean)
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+const diagnosticSanitizer = createDiagnosticSanitizer()
+const rememberAccessToken = diagnosticSanitizer.rememberToken
+const sanitizeDiagnosticValue = diagnosticSanitizer.sanitize
+const summarizeConsoleTail = (entries) => entries.map((entry) => ({
+  level: entry.level,
+  message: String(entry.text || '').trim() ? 'present' : 'missing'
+}))
 const lastRunDebugState = {
   routeAfterLogin: '',
-  tokenAfterLogin: null,
+  tokenAfterLogin: 'missing',
   bootstrapAfterLogin: null,
   agreementBeforeTap: null,
   agreementAfterTap: null,
@@ -205,6 +213,7 @@ const readLoginSuccessState = async (miniProgram) => {
     && token.trim().length > 0
     && hasBootstrapMe(bootstrap)
   ) {
+    rememberAccessToken(token)
     return {
       page: currentPage,
       routeAfterLogin: currentRoute,
@@ -230,10 +239,10 @@ const loginWithSimulatedPhoneProofViaGateway = async (miniProgram) => {
   })
   if (loginResponse.status !== 200) {
     const body = await loginResponse.text().catch(() => '')
-    throw new Error(`simulated gateway login failed: ${loginResponse.status} ${body}`)
+    throw new Error(`simulated gateway login failed: status=${loginResponse.status} body=${body.trim() ? 'present' : 'missing'}`)
   }
   const loginPayload = await loginResponse.json()
-  const token = String(loginPayload?.accessToken || '').trim()
+  const token = rememberAccessToken(loginPayload?.accessToken)
   if (!token) {
     throw new Error('simulated gateway login returned empty accessToken')
   }
@@ -243,7 +252,7 @@ const loginWithSimulatedPhoneProofViaGateway = async (miniProgram) => {
   })
   if (bootstrapResponse.status !== 200) {
     const body = await bootstrapResponse.text().catch(() => '')
-    throw new Error(`bootstrap after simulated gateway login failed: ${bootstrapResponse.status} ${body}`)
+    throw new Error(`bootstrap after simulated gateway login failed: status=${bootstrapResponse.status} body=${body.trim() ? 'present' : 'missing'}`)
   }
   const bootstrap = await bootstrapResponse.json()
   await miniProgram.callWxMethod('setStorageSync', 'tmo:auth:token', token)
@@ -305,9 +314,10 @@ END;
 }
 
 const assertPass = (checks, name, condition, detail) => {
-  checks.push({ name, pass: Boolean(condition), detail })
+  const safeDetail = sanitizeDiagnosticValue(detail)
+  checks.push({ name, pass: Boolean(condition), detail: safeDetail })
   if (!condition) {
-    throw new Error(`${name} failed: ${detail}`)
+    throw new Error(`${name} failed: ${safeDetail}`)
   }
 }
 
@@ -346,7 +356,7 @@ const run = async () => {
       const level = String(payload?.level || payload?.type || 'info').toLowerCase()
       const text = extractConsoleText(payload)
       consoleLogs.push({ level, text })
-      lastRunDebugState.consoleTail = consoleLogs.slice(-10)
+      lastRunDebugState.consoleTail = summarizeConsoleTail(consoleLogs.slice(-10))
     })
 
     miniProgram.on('exception', (payload) => {
@@ -432,14 +442,14 @@ const run = async () => {
 
     if (policyOnly) {
       assertPass(checks, 'runtime.no.exception', exceptions.length === 0, `exceptions=${exceptions.length}`)
-      console.log(JSON.stringify({
+      console.log(JSON.stringify(sanitizeDiagnosticValue({
         status: 'pass',
         mode: 'policy-only',
         checks,
         policyLinks: lastRunDebugState.policyLinks,
         consoleCount: consoleLogs.length,
         exceptionCount: exceptions.length
-      }, null, 2))
+      }), null, 2))
       console.log('WEAPP_AUTH_POLICY_E2E:PASS')
       return
     }
@@ -488,12 +498,13 @@ const run = async () => {
     page = loginState?.page ?? await miniProgram.currentPage()
     const routeAfterLogin = loginState?.routeAfterLogin ?? normalizePath(page?.path)
     const tokenAfterLogin = loginState?.tokenAfterLogin ?? await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
+    rememberAccessToken(tokenAfterLogin)
     const bootstrapAfterLogin = loginState?.bootstrapAfterLogin ?? await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
     const parsedBootstrap = parseBootstrap(bootstrapAfterLogin)
     const me = parsedBootstrap?.me || null
     const resolvedPhone = expectedPhone || String(me?.phone || '').trim()
     lastRunDebugState.routeAfterLogin = routeAfterLogin
-    lastRunDebugState.tokenAfterLogin = tokenAfterLogin
+    lastRunDebugState.tokenAfterLogin = tokenState(tokenAfterLogin)
     lastRunDebugState.bootstrapAfterLogin = bootstrapAfterLogin
 
     assertPass(
@@ -506,7 +517,7 @@ const run = async () => {
       checks,
       'login.token.exists',
       typeof tokenAfterLogin === 'string' && tokenAfterLogin.trim().length > 0,
-      `token=${String(tokenAfterLogin)}`
+      `token=${tokenState(tokenAfterLogin)}`
     )
     assertPass(
       checks,
@@ -563,6 +574,7 @@ const run = async () => {
     await logoutButton.tap()
     const logoutState = await waitFor(async () => {
       const token = await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
+      rememberAccessToken(token)
       const bootstrap = await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
       if (
         (token === '' || token === null || token === undefined)
@@ -574,13 +586,14 @@ const run = async () => {
     }, { timeoutMs: 10000, intervalMs: 400 })
 
     const tokenAfterLogout = logoutState?.tokenAfterLogout ?? await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token')
+    rememberAccessToken(tokenAfterLogout)
     const bootstrapAfterLogout = logoutState?.bootstrapAfterLogout ?? await miniProgram.callWxMethod('getStorageSync', 'tmo:bootstrap')
 
     assertPass(
       checks,
       'logout.token.cleared',
       tokenAfterLogout === '' || tokenAfterLogout === null || tokenAfterLogout === undefined,
-      `token=${String(tokenAfterLogout)}`
+      `token=${tokenState(tokenAfterLogout)}`
     )
     assertPass(
       checks,
@@ -597,19 +610,19 @@ const run = async () => {
       checks,
       'console.no.headers.runtime.error',
       !headersRuntimeError,
-      headersRuntimeError ? headersRuntimeError.text : 'ok'
+      headersRuntimeError ? 'matched Headers runtime error' : 'ok'
     )
     assertPass(
       checks,
       'console.no.identity.login.failed.warn',
       !loginFailedWarn,
-      loginFailedWarn ? loginFailedWarn.text : 'ok'
+      loginFailedWarn ? 'matched identity login failure warning' : 'ok'
     )
     assertPass(
       checks,
       'console.no.logout.failed.warn',
       !logoutFailedWarn,
-      logoutFailedWarn ? logoutFailedWarn.text : 'ok'
+      logoutFailedWarn ? 'matched logout failure warning' : 'ok'
     )
     assertPass(
       checks,
@@ -634,7 +647,7 @@ const run = async () => {
       consoleCount: consoleLogs.length,
       exceptionCount: exceptions.length
     }
-    console.log(JSON.stringify(summary, null, 2))
+    console.log(JSON.stringify(sanitizeDiagnosticValue(summary), null, 2))
     console.log('WEAPP_AUTH_E2E:PASS')
   } finally {
     if (miniProgram) {
@@ -654,7 +667,7 @@ run().catch((error) => {
     stack: error?.stack || '',
     debugState: lastRunDebugState
   }
-  console.error(JSON.stringify(summary, null, 2))
+  console.error(JSON.stringify(sanitizeDiagnosticValue(summary), null, 2))
   console.error('WEAPP_AUTH_E2E:FAIL')
   process.exitCode = 1
 })

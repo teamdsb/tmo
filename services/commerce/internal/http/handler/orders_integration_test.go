@@ -659,6 +659,46 @@ func TestGetOrdersSalesFiltersOwned(t *testing.T) {
 	}
 }
 
+func TestGetTrackingSalesCanOnlyReadOwnedOrders(t *testing.T) {
+	pool := openHandlerTestPool(t)
+	resetCommerceTables(t, pool)
+
+	queries := db.New(pool)
+	sku, _ := seedCatalog(t, queries)
+	salesA := uuid.New()
+	salesB := uuid.New()
+	owned := seedOrderWithItem(t, queries, uuid.New(), &salesA, sku.ID)
+	other := seedOrderWithItem(t, queries, uuid.New(), &salesB, sku.ID)
+	for _, orderID := range []uuid.UUID{owned.ID, other.ID} {
+		if _, err := queries.UpsertTrackingShipment(context.Background(), db.UpsertTrackingShipmentParams{
+			OrderID:   orderID,
+			WaybillNo: "WB-" + orderID.String()[:8],
+		}); err != nil {
+			t.Fatalf("seed tracking for %s: %v", orderID, err)
+		}
+	}
+
+	router := newAuthIntegrationRouter(pool, queries)
+	for _, tc := range []struct {
+		name   string
+		order  uuid.UUID
+		status int
+	}{
+		{name: "owned", order: owned.ID, status: http.StatusOK},
+		{name: "other sales", order: other.ID, status: http.StatusNotFound},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/orders/"+tc.order.String()+"/tracking", nil)
+			req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, salesA, "SALES", nil))
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, req)
+			if recorder.Code != tc.status {
+				t.Fatalf("expected status %d, got %d: %s", tc.status, recorder.Code, recorder.Body.String())
+			}
+		})
+	}
+}
+
 func TestGetOrdersCustomerFiltersSelf(t *testing.T) {
 	pool := openHandlerTestPool(t)
 	resetCommerceTables(t, pool)
@@ -899,7 +939,7 @@ func newAuthIntegrationRouter(pool *pgxpool.Pool, store *db.Queries) *gin.Engine
 	gin.SetMode(gin.TestMode)
 	router := httpx.NewRouter()
 	authenticator := middleware.NewAuthenticator(true, testJWTSecret, testJWTIssuer)
-	oapi.RegisterHandlers(router, &Handler{
+	apiHandler := &Handler{
 		CatalogStore:        store,
 		CartStore:           store,
 		OrderStore:          store,
@@ -911,8 +951,24 @@ func newAuthIntegrationRouter(pool *pgxpool.Pool, store *db.Queries) *gin.Engine
 		DB:                  pool,
 		Auth:                authenticator,
 		SalesValidator:      allowSalesValidator{},
-	})
+	}
+	oapi.RegisterHandlers(router, apiHandler)
+	registerSupportIntegrationRoutes(router, apiHandler)
 	return router
+}
+
+func registerSupportIntegrationRoutes(router gin.IRouter, apiHandler *Handler) {
+	router.GET("/ws/support", apiHandler.GetSupportWebSocket)
+	router.GET("/support/conversations/current", apiHandler.GetSupportConversationsCurrent)
+	router.GET("/support/conversations/:conversationId/messages", apiHandler.GetSupportConversationsConversationIdMessages)
+	router.POST("/support/conversations/:conversationId/messages", apiHandler.PostSupportConversationsConversationIdMessages)
+	router.POST("/support/conversations/:conversationId/messages/image", apiHandler.PostSupportConversationsConversationIdMessagesImage)
+	router.POST("/support/conversations/:conversationId/read", apiHandler.PostSupportConversationsConversationIdRead)
+	router.GET("/admin/support/conversations", apiHandler.GetAdminSupportConversations)
+	router.GET("/admin/support/conversations/:conversationId", apiHandler.GetAdminSupportConversationsConversationId)
+	router.POST("/admin/support/conversations/:conversationId/claim", apiHandler.PostAdminSupportConversationsConversationIdClaim)
+	router.POST("/admin/support/conversations/:conversationId/release", apiHandler.PostAdminSupportConversationsConversationIdRelease)
+	router.POST("/admin/support/conversations/:conversationId/transfer", apiHandler.PostAdminSupportConversationsConversationIdTransfer)
 }
 
 func seedOrderWithItem(t *testing.T, queries *db.Queries, customerID uuid.UUID, ownerSalesID *uuid.UUID, skuID uuid.UUID) db.Order {

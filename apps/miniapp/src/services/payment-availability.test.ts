@@ -13,6 +13,7 @@ describe('payment availability', () => {
     ;(isWeapp as jest.Mock).mockReturnValue(true)
     ;(isAlipay as jest.Mock).mockReturnValue(false)
     ;(loadBootstrap as jest.Mock).mockResolvedValue({
+      me: { currentRole: 'CUSTOMER', roles: ['CUSTOMER'], userType: 'customer' },
       featureFlags: { paymentEnabled: true, wechatPayEnabled: true, alipayPayEnabled: false }
     })
   })
@@ -25,6 +26,7 @@ describe('payment availability', () => {
 
   it('blocks payment when WeChat flag is disabled', async () => {
     ;(loadBootstrap as jest.Mock).mockResolvedValue({
+      me: { currentRole: 'CUSTOMER', roles: ['CUSTOMER'], userType: 'customer' },
       featureFlags: { paymentEnabled: true, wechatPayEnabled: false }
     })
     await expect(resolvePaymentAvailability()).resolves.toEqual(expect.objectContaining({
@@ -37,12 +39,25 @@ describe('payment availability', () => {
     ;(isWeapp as jest.Mock).mockReturnValue(false)
     ;(isAlipay as jest.Mock).mockReturnValue(true)
     ;(loadBootstrap as jest.Mock).mockResolvedValue({
+      me: { currentRole: 'CUSTOMER', roles: ['CUSTOMER'], userType: 'customer' },
       featureFlags: { paymentEnabled: true, alipayPayEnabled: true }
     })
 
     await expect(resolvePaymentAvailability()).resolves.toEqual(expect.objectContaining({
       available: false,
       unavailableMessage: expect.stringContaining('尚未接入')
+    }))
+  })
+
+  it('blocks a SALES session from paying an owned customer order', async () => {
+    ;(loadBootstrap as jest.Mock).mockResolvedValue({
+      me: { currentRole: 'SALES', roles: ['SALES'], userType: 'staff' },
+      featureFlags: { paymentEnabled: true, wechatPayEnabled: true }
+    })
+
+    await expect(resolvePaymentAvailability()).resolves.toEqual(expect.objectContaining({
+      available: false,
+      unavailableMessage: expect.stringContaining('客户身份')
     }))
   })
 

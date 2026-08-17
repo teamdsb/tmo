@@ -71,6 +71,155 @@ func TestCreateWechatPaymentUsesAuthenticatedOpenID(t *testing.T) {
 	}
 }
 
+func TestPublicPaymentHandlersRejectNonCustomerRoles(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	paymentID := uuid.MustParse("09090909-0909-0909-0909-090909090909")
+	userID := uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+
+	type endpoint struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}
+	endpoints := []endpoint{
+		{name: "wechat create", method: http.MethodPost, path: "/payments/wechat/create", body: `{"orderId":"aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb"}`},
+		{name: "alipay create", method: http.MethodPost, path: "/payments/alipay/create", body: `{"orderId":"aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb"}`},
+		{name: "payment detail", method: http.MethodGet, path: "/payments/" + paymentID.String()},
+		{name: "payment recheck", method: http.MethodPost, path: "/payments/" + paymentID.String() + "/recheck", body: `{}`},
+	}
+
+	for _, role := range []string{"SALES", "CS", "MANAGER", "ADMIN", "BOSS"} {
+		role := role
+		for _, endpoint := range endpoints {
+			endpoint := endpoint
+			t.Run(role+"/"+endpoint.name, func(t *testing.T) {
+				store := newPaymentStoreStub()
+				payment := paymentFixture(paymentID, paymentChannelWechat, paymentStatusPending)
+				payment.PayerUserID = pgtype.UUID{Bytes: userID, Valid: true}
+				store.payments[paymentID] = payment
+				handler := &Handler{
+					Auth:         middleware.NewAuthenticator(true, adminTestJWTSecret, adminTestJWTIssuer),
+					Flags:        StaticFlagsProvider{Flags: FeatureFlags{PaymentEnabled: true, WechatPayEnabled: true, AlipayPayEnabled: true}},
+					Store:        store,
+					ProviderMode: "mock",
+				}
+				router := newTestRouter(handler)
+
+				req := httptest.NewRequest(endpoint.method, endpoint.path, strings.NewReader(endpoint.body))
+				req.Header.Set("Authorization", "Bearer "+signedAdminTestToken(t, role))
+				if endpoint.body != "" {
+					req.Header.Set("Content-Type", "application/json")
+				}
+				rec := httptest.NewRecorder()
+				router.ServeHTTP(rec, req)
+
+				if rec.Code != http.StatusForbidden {
+					t.Fatalf("expected role %s to receive 403, got %d: %s", role, rec.Code, rec.Body.String())
+				}
+				var response struct {
+					Code string `json:"code"`
+				}
+				if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+					t.Fatalf("decode forbidden response: %v", err)
+				}
+				if response.Code != "forbidden" {
+					t.Fatalf("expected forbidden error code, got %#v", response)
+				}
+			})
+		}
+	}
+}
+
+func TestRequireCustomerAllowsCustomerRole(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/payments/test", nil)
+	c.Request.Header.Set("Authorization", "Bearer "+signedAdminTestToken(t, "CUSTOMER"))
+
+	claims, ok := (&Handler{
+		Auth: middleware.NewAuthenticator(true, adminTestJWTSecret, adminTestJWTIssuer),
+	}).requireCustomer(c)
+	if !ok {
+		t.Fatalf("expected CUSTOMER to be allowed, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if claims.Role != "CUSTOMER" {
+		t.Fatalf("expected CUSTOMER claims, got %#v", claims)
+	}
+}
+
+func TestPaymentRoleGuardsPreserveDisabledAuthenticationBypass(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	paymentID := uuid.MustParse("07070707-0707-0707-0707-070707070707")
+	store := newPaymentStoreStub()
+	store.payments[paymentID] = paymentFixture(paymentID, paymentChannelWechat, paymentStatusPending)
+	handler := &Handler{Auth: middleware.NewAuthenticator(false, "", ""), Store: store}
+
+	customerRecorder := httptest.NewRecorder()
+	customerContext, _ := gin.CreateTestContext(customerRecorder)
+	customerContext.Request = httptest.NewRequest(http.MethodGet, "/payments/test", nil)
+	customerClaims, customerOK := handler.requireCustomer(customerContext)
+	if !customerOK || customerClaims.Role != "CUSTOMER" {
+		t.Fatalf("disabled authentication should allow public payment access as CUSTOMER, ok=%v claims=%#v status=%d body=%s", customerOK, customerClaims, customerRecorder.Code, customerRecorder.Body.String())
+	}
+
+	adminRecorder := httptest.NewRecorder()
+	adminContext, _ := gin.CreateTestContext(adminRecorder)
+	adminContext.Request = httptest.NewRequest(http.MethodGet, "/admin/payments/test", nil)
+	adminClaims, adminOK := handler.requireAdminUser(adminContext)
+	if !adminOK || adminClaims.Role != "ADMIN" {
+		t.Fatalf("disabled authentication should allow admin payment access as ADMIN, ok=%v claims=%#v status=%d body=%s", adminOK, adminClaims, adminRecorder.Code, adminRecorder.Body.String())
+	}
+
+	router := newTestRouter(handler)
+	for _, request := range []*http.Request{
+		httptest.NewRequest(http.MethodGet, "/payments/"+paymentID.String(), nil),
+		httptest.NewRequest(http.MethodGet, "/admin/payments/transactions", nil),
+	} {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, request)
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("disabled authentication should preserve access to %s, got %d: %s", request.URL.Path, recorder.Code, recorder.Body.String())
+		}
+	}
+}
+
+func TestAuthenticatedCustomerCannotAccessPaymentWithoutPayer(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	paymentID := uuid.MustParse("06060606-0606-0606-0606-060606060606")
+	store := newPaymentStoreStub()
+	store.payments[paymentID] = paymentFixture(paymentID, paymentChannelWechat, paymentStatusPending)
+	handler := &Handler{
+		Auth:         middleware.NewAuthenticator(true, adminTestJWTSecret, adminTestJWTIssuer),
+		Store:        store,
+		ProviderMode: "mock",
+	}
+	router := newTestRouter(handler)
+
+	for _, endpoint := range []struct {
+		name   string
+		method string
+		path   string
+	}{
+		{name: "detail", method: http.MethodGet, path: "/payments/" + paymentID.String()},
+		{name: "recheck", method: http.MethodPost, path: "/payments/" + paymentID.String() + "/recheck"},
+	} {
+		t.Run(endpoint.name, func(t *testing.T) {
+			req := httptest.NewRequest(endpoint.method, endpoint.path, nil)
+			req.Header.Set("Authorization", "Bearer "+signedAdminTestToken(t, "CUSTOMER"))
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, req)
+
+			if recorder.Code != http.StatusNotFound {
+				t.Fatalf("payment without payer must fail closed, got %d: %s", recorder.Code, recorder.Body.String())
+			}
+		})
+	}
+}
+
 func TestPostPaymentsWechatCreateCreatesPaymentAndSyncsOrder(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

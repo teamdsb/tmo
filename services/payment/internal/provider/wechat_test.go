@@ -1,6 +1,9 @@
 package provider
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/wechatpay-apiv3/wechatpay-go/core"
@@ -35,5 +38,29 @@ func TestValidateWechatConfigRequiresCredentials(t *testing.T) {
 	}
 	if err := validateWechatConfig(config); err != nil {
 		t.Fatalf("expected valid configuration, got %v", err)
+	}
+}
+
+func TestValidatePrivateKeyFilePermissions(t *testing.T) {
+	keyPath := filepath.Join(t.TempDir(), "merchant-private-key.pem")
+	if err := os.WriteFile(keyPath, []byte("test-key"), 0o600); err != nil {
+		t.Fatalf("write private key fixture: %v", err)
+	}
+	if err := os.Chmod(keyPath, 0o400); err != nil {
+		t.Fatalf("secure private key fixture: %v", err)
+	}
+	if err := validatePrivateKeyFilePermissions(keyPath); err != nil {
+		t.Fatalf("expected 0400 regular file to pass validation, got %v", err)
+	}
+
+	if err := os.Chmod(keyPath, 0o440); err != nil {
+		t.Fatalf("make private key group-readable: %v", err)
+	}
+	if err := validatePrivateKeyFilePermissions(keyPath); err == nil || !strings.Contains(err.Error(), "0400") {
+		t.Fatalf("expected group-readable private key to be rejected, got %v", err)
+	}
+
+	if err := validatePrivateKeyFilePermissions(filepath.Dir(keyPath)); err == nil {
+		t.Fatal("expected private key directory to be rejected")
 	}
 }

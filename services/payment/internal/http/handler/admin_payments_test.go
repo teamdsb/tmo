@@ -60,7 +60,7 @@ func TestAdminPaymentHandlersEnforceRoleAuthorization(t *testing.T) {
 				rec := httptest.NewRecorder()
 				router.ServeHTTP(rec, req)
 
-				if role == "CUSTOMER" || role == "SALES" {
+				if role != "ADMIN" && role != "BOSS" {
 					if rec.Code != http.StatusForbidden {
 						t.Fatalf("expected role %s to receive 403, got %d: %s", role, rec.Code, rec.Body.String())
 					}

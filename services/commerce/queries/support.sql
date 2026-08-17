@@ -117,19 +117,21 @@ SET assignee_user_id = NULL,
     queued_at = now(),
     assigned_at = NULL,
     updated_at = now()
-WHERE id = $1
+WHERE id = sqlc.arg('id')
   AND closed_at IS NULL
+  AND assignee_user_id = sqlc.arg('expected_assignee_user_id')
 RETURNING *;
 
 -- name: TransferSupportConversation :one
 UPDATE support_conversations
-SET assignee_user_id = $2,
-    assignee_role = $3,
+SET assignee_user_id = sqlc.arg('assignee_user_id'),
+    assignee_role = sqlc.arg('assignee_role'),
     status = 'OPEN_ASSIGNED',
     assigned_at = now(),
     updated_at = now()
-WHERE id = $1
+WHERE id = sqlc.arg('id')
   AND closed_at IS NULL
+  AND assignee_user_id IS NOT DISTINCT FROM sqlc.narg('expected_assignee_user_id')::uuid
 RETURNING *;
 
 -- name: UpdateSupportConversationAfterMessage :one

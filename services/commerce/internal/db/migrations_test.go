@@ -29,3 +29,40 @@ func TestIncrementalAddColumnMigrationsAreReplaySafe(t *testing.T) {
 		}
 	}
 }
+
+func TestSupportQueueTimestampBackfillOnlyFillsMissingValues(t *testing.T) {
+	path := filepath.Join("..", "..", "migrations", "00023_add_support_queue_timestamps.sql")
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read support queue migration: %v", err)
+	}
+	upSQL := extractGooseUp(string(content))
+
+	for _, guard := range []string{"WHERE queued_at IS NULL", "AND assigned_at IS NULL"} {
+		if !strings.Contains(upSQL, guard) {
+			t.Errorf("support queue migration must preserve existing timestamps with %q", guard)
+		}
+	}
+}
+
+func TestReleaseSupportConversationUsesAssigneeCompareAndSwap(t *testing.T) {
+	path := filepath.Join("..", "..", "queries", "support.sql")
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read support queries: %v", err)
+	}
+	query := string(content)
+	start := strings.Index(query, "-- name: ReleaseSupportConversation :one")
+	if start < 0 {
+		t.Fatal("ReleaseSupportConversation query is missing")
+	}
+	end := strings.Index(query[start+1:], "-- name:")
+	if end >= 0 {
+		query = query[start : start+1+end]
+	} else {
+		query = query[start:]
+	}
+	if !strings.Contains(query, "expected_assignee_user_id") {
+		t.Fatal("ReleaseSupportConversation must compare the expected assignee before clearing ownership")
+	}
+}

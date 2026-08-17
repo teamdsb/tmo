@@ -68,6 +68,7 @@ func run() error {
 	priceTierCount := 0
 	inquiryCount := 0
 	inquiryMessageCount := 0
+	orderCount := 0
 
 	for _, category := range seed.Categories {
 		if err := ensureCategory(ctx, tx, category); err != nil {
@@ -119,12 +120,19 @@ func run() error {
 		}
 	}
 
+	for _, order := range seed.Orders {
+		if err := ensureOrder(ctx, tx, order); err != nil {
+			return err
+		}
+		orderCount++
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("commit seed: %w", err)
 	}
 
 	fmt.Printf(
-		"seed data applied: %d categories, %d display categories, %d products, %d skus, %d price tiers, %d inquiries, %d inquiry messages\n",
+		"seed data applied: %d categories, %d display categories, %d products, %d skus, %d price tiers, %d inquiries, %d inquiry messages, %d orders\n",
 		categoryCount,
 		displayCategoryCount,
 		productCount,
@@ -132,6 +140,7 @@ func run() error {
 		priceTierCount,
 		inquiryCount,
 		inquiryMessageCount,
+		orderCount,
 	)
 	return nil
 }
@@ -141,6 +150,7 @@ type catalogSeed struct {
 	DisplayCategories []displayCategorySeed
 	Products          []productSeed
 	Inquiries         []priceInquirySeed
+	Orders            []orderSeed
 }
 
 type categorySeed struct {
@@ -206,6 +216,17 @@ type inquiryMessageSeed struct {
 	SenderType   string
 	SenderUserID *uuid.UUID
 	Content      string
+}
+
+type orderSeed struct {
+	ID               uuid.UUID
+	ItemID           uuid.UUID
+	CustomerID       uuid.UUID
+	OwnerSalesUserID uuid.UUID
+	SkuID            uuid.UUID
+	Qty              int32
+	UnitPriceFen     int64
+	ReceiverName     string
 }
 
 func ensureCategory(ctx context.Context, tx pgx.Tx, seed categorySeed) error {
@@ -412,6 +433,44 @@ SET inquiry_id = EXCLUDED.inquiry_id,
 	return nil
 }
 
+func ensureOrder(ctx context.Context, tx pgx.Tx, seed orderSeed) error {
+	address, err := json.Marshal(map[string]interface{}{
+		"receiverName":  seed.ReceiverName,
+		"receiverPhone": "+15550000003",
+		"detail":        "E2E seed address",
+		"isDefault":     false,
+	})
+	if err != nil {
+		return fmt.Errorf("encode seed order address %s: %w", seed.ID, err)
+	}
+	if _, err := tx.Exec(ctx, `
+INSERT INTO orders (
+  id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, payment_status
+)
+VALUES ($1, 'SUBMITTED', $2, $3, $4, 'sales e2e seed', $5, 'UNPAID')
+ON CONFLICT (id) DO UPDATE
+SET customer_id = EXCLUDED.customer_id,
+    owner_sales_user_id = EXCLUDED.owner_sales_user_id,
+    address = EXCLUDED.address,
+    updated_at = now()
+`, seed.ID, seed.CustomerID, seed.OwnerSalesUserID, address, "sales-e2e-"+seed.ID.String()); err != nil {
+		return fmt.Errorf("seed order %s: %w", seed.ID, err)
+	}
+	if _, err := tx.Exec(ctx, `
+INSERT INTO order_items (id, order_id, sku_id, qty, unit_price_fen)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (id) DO UPDATE
+SET order_id = EXCLUDED.order_id,
+    sku_id = EXCLUDED.sku_id,
+    qty = EXCLUDED.qty,
+    unit_price_fen = EXCLUDED.unit_price_fen,
+    updated_at = now()
+`, seed.ItemID, seed.ID, seed.SkuID, seed.Qty, seed.UnitPriceFen); err != nil {
+		return fmt.Errorf("seed order item %s: %w", seed.ItemID, err)
+	}
+	return nil
+}
+
 func buildCatalogSeed() catalogSeed {
 	fastenersID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
 	electricalID := uuid.MustParse("55555555-5555-5555-5555-555555555555")
@@ -427,6 +486,10 @@ func buildCatalogSeed() catalogSeed {
 	inquiryMessageID := uuid.MustParse("88888888-8888-8888-8888-888888888888")
 	inquirySkuID := uuid.MustParse("33333333-3333-3333-3333-333333333305")
 	inquiryResponseNote := "已安排 Sales Dev 跟进，待客户确认 50 根批量价格。"
+	otherSalesID := uuid.MustParse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
+	otherCustomerID := uuid.MustParse("edededed-eded-eded-eded-edededededed")
+	ownedOrderID := uuid.MustParse("91919191-9191-9191-9191-919191919191")
+	otherOrderID := uuid.MustParse("92929292-9292-9292-9292-929292929292")
 
 	products := []productSeed{
 		{
@@ -641,6 +704,28 @@ func buildCatalogSeed() catalogSeed {
 						Content:      "项目在杭州临平，优先看 50 根和 100 根两档价格。",
 					},
 				},
+			},
+		},
+		Orders: []orderSeed{
+			{
+				ID:               ownedOrderID,
+				ItemID:           uuid.MustParse("91919191-9191-9191-9191-919191919192"),
+				CustomerID:       customerID,
+				OwnerSalesUserID: salesID,
+				SkuID:            inquirySkuID,
+				Qty:              2,
+				UnitPriceFen:     14200,
+				ReceiverName:     "Customer Dev",
+			},
+			{
+				ID:               otherOrderID,
+				ItemID:           uuid.MustParse("92929292-9292-9292-9292-929292929293"),
+				CustomerID:       otherCustomerID,
+				OwnerSalesUserID: otherSalesID,
+				SkuID:            inquirySkuID,
+				Qty:              1,
+				UnitPriceFen:     14200,
+				ReceiverName:     "Other Sales Customer",
 			},
 		},
 	}

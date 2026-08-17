@@ -21,9 +21,15 @@ func (h *Handler) GetOrdersOrderIdTracking(c *gin.Context, orderId types.UUID) {
 		return
 	}
 
-	if strings.EqualFold(claims.Role, "CUSTOMER") {
+	if strings.EqualFold(claims.Role, "CUSTOMER") || strings.EqualFold(claims.Role, "SALES") {
 		order, err := h.OrderStore.GetOrder(c.Request.Context(), uuid.UUID(orderId))
-		if err != nil || order.CustomerID != claims.UserID {
+		canRead := err == nil
+		if strings.EqualFold(claims.Role, "CUSTOMER") {
+			canRead = canRead && order.CustomerID == claims.UserID
+		} else {
+			canRead = canRead && order.OwnerSalesUserID.Valid && order.OwnerSalesUserID.Bytes == claims.UserID
+		}
+		if !canRead {
 			h.writeError(c, http.StatusNotFound, "not_found", "order not found")
 			return
 		}

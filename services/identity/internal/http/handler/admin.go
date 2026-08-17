@@ -920,6 +920,9 @@ func (h *Handler) updateCustomerRole(ctx context.Context, customerID uuid.UUID, 
 				return err
 			}
 		}
+		if _, err := q.IncrementCredentialVersion(ctx, customerID); err != nil {
+			return err
+		}
 		user = currentUser
 		return nil
 	}); err != nil {

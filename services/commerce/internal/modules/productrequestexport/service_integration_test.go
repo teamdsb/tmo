@@ -37,7 +37,7 @@ func TestServiceRunNextWritesWorkbook(t *testing.T) {
 
 	createdBy := uuid.New()
 	ownerSales := uuid.New()
-	if _, err := queries.CreateProductRequest(ctx, db.CreateProductRequestParams{
+	firstRequest, err := queries.CreateProductRequest(ctx, db.CreateProductRequestParams{
 		CreatedByUserID:    createdBy,
 		OwnerSalesUserID:   pgtype.UUID{Bytes: ownerSales, Valid: true},
 		Name:               "Need custom bracket",
@@ -49,7 +49,8 @@ func TestServiceRunNextWritesWorkbook(t *testing.T) {
 		Qty:                stringPtr("10 pcs"),
 		Note:               stringPtr("urgent"),
 		ReferenceImageUrls: []string{"https://example.com/a.png", "https://example.com/b.png"},
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("seed product request: %v", err)
 	}
 	secondRequest, err := queries.CreateProductRequest(ctx, db.CreateProductRequestParams{
@@ -62,8 +63,16 @@ func TestServiceRunNextWritesWorkbook(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed second product request: %v", err)
 	}
-	if _, err := pool.Exec(ctx, `UPDATE product_requests SET created_at = $2, updated_at = $2 WHERE id = $1`, secondRequest.ID, time.Date(2026, 3, 6, 9, 0, 0, 0, time.UTC)); err != nil {
-		t.Fatalf("update second request timestamps: %v", err)
+	for _, fixture := range []struct {
+		id        uuid.UUID
+		createdAt time.Time
+	}{
+		{id: firstRequest.ID, createdAt: time.Date(2026, 3, 6, 8, 0, 0, 0, time.UTC)},
+		{id: secondRequest.ID, createdAt: time.Date(2026, 3, 6, 9, 0, 0, 0, time.UTC)},
+	} {
+		if _, err := pool.Exec(ctx, `UPDATE product_requests SET created_at = $2, updated_at = $2 WHERE id = $1`, fixture.id, fixture.createdAt); err != nil {
+			t.Fatalf("update request timestamps: %v", err)
+		}
 	}
 
 	mediaDir := t.TempDir()

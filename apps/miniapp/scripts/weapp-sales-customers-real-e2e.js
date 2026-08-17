@@ -2,6 +2,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const automator = require('miniprogram-automator')
 const { describeWeappPaths } = require('./weapp-paths')
+const { createDiagnosticSanitizer } = require('./e2e-output-safety')
 
 const miniappDir = path.resolve(__dirname, '..')
 const rootDir = path.resolve(miniappDir, '..', '..')
@@ -18,6 +19,14 @@ const excludedNames = String(process.env.WEAPP_SALES_E2E_EXCLUDED_NAMES || 'ç”¨æ
   .split(',')
   .map((value) => value.trim())
   .filter(Boolean)
+const expectedOrderIds = String(process.env.WEAPP_SALES_E2E_EXPECTED_ORDER_IDS || '91919191-9191-9191-9191-919191919191')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean)
+const excludedOrderIds = String(process.env.WEAPP_SALES_E2E_EXCLUDED_ORDER_IDS || '92929292-9292-9292-9292-929292929292')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean)
 const timeoutMs = Number(process.env.WEAPP_SALES_E2E_TIMEOUT_MS || 120000)
 const keepOpen = String(process.env.WEAPP_SALES_E2E_KEEP_OPEN || '').trim().toLowerCase() === 'true'
 const port = Number(process.env.WEAPP_AUTOMATOR_PORT || 9527)
@@ -31,6 +40,14 @@ const cliCandidates = [
 ].filter(Boolean)
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+const diagnosticSanitizer = createDiagnosticSanitizer()
+const rememberAccessToken = diagnosticSanitizer.rememberToken
+const sanitizeDiagnosticValue = diagnosticSanitizer.sanitize
+const lastRunDiagnosticState = {
+  consoleCount: 0,
+  consoleTail: [],
+  exceptionCount: 0
+}
 
 const waitFor = async (predicate, waitMs = 20000) => {
   const startedAt = Date.now()
@@ -52,7 +69,7 @@ const requestJson = async (pathname, options = {}) => {
     data = text
   }
   if (!response.ok) {
-    throw new Error(`${options.method || 'GET'} ${pathname} failed: ${response.status} ${text}`)
+    throw new Error(`${options.method || 'GET'} ${pathname} failed: status=${response.status} body=${text.trim() ? 'present' : 'missing'}`)
   }
   return data
 }
@@ -68,7 +85,7 @@ const parseStoredObject = (value) => {
 }
 
 const createSession = async (miniProgram) => {
-  let token = suppliedToken
+  let token = rememberAccessToken(suppliedToken)
   if (!token) {
     if (username && password) {
       const login = await requestJson('/auth/password/login', {
@@ -76,9 +93,9 @@ const createSession = async (miniProgram) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password, role: 'SALES' })
       })
-      token = String(login?.accessToken || '').trim()
+      token = rememberAccessToken(login?.accessToken)
     } else {
-      token = String(await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token') || '').trim()
+      token = rememberAccessToken(await miniProgram.callWxMethod('getStorageSync', 'tmo:auth:token'))
     }
   }
   if (!token) {
@@ -94,7 +111,7 @@ const createSession = async (miniProgram) => {
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({ role: 'SALES' })
     })
-    token = String(switched?.accessToken || token).trim()
+    token = rememberAccessToken(switched?.accessToken || token)
     bootstrap = await requestJson('/bff/bootstrap', { headers: { Authorization: `Bearer ${token}` } })
   }
 
@@ -116,8 +133,6 @@ const run = async () => {
 
   fs.mkdirSync(artifactDir, { recursive: true })
   let miniProgram
-  const exceptions = []
-  const consoleLogs = []
   try {
     miniProgram = await automator.launch({
       cliPath,
@@ -128,10 +143,18 @@ const run = async () => {
       cwd: rootDir
     })
     miniProgram.on('console', (payload) => {
+      const level = String(payload?.level || payload?.type || 'info').toLowerCase()
       const text = String(payload?.text || payload?.message || payload?.description || '')
-      if (text) consoleLogs.push(text)
+      lastRunDiagnosticState.consoleCount += 1
+      lastRunDiagnosticState.consoleTail.push({
+        level,
+        message: text.trim() ? 'present' : 'missing'
+      })
+      lastRunDiagnosticState.consoleTail = lastRunDiagnosticState.consoleTail.slice(-10)
     })
-    miniProgram.on('exception', (error) => exceptions.push(String(error?.message || error)))
+    miniProgram.on('exception', () => {
+      lastRunDiagnosticState.exceptionCount += 1
+    })
     const { token, bootstrap } = await createSession(miniProgram)
     const apiCustomers = await requestJson('/customers?page=1&pageSize=20', {
       headers: { Authorization: `Bearer ${token}` }
@@ -139,6 +162,18 @@ const run = async () => {
     const apiOrders = await requestJson('/orders?page=1&pageSize=50', {
       headers: { Authorization: `Bearer ${token}` }
     })
+    const apiOrderIds = Array.isArray(apiOrders?.items)
+      ? apiOrders.items.map((item) => String(item?.id || '').trim()).filter(Boolean)
+      : []
+    if (apiOrderIds.length === 0) {
+      throw new Error('API returned no sales-owned orders; refusing an empty order assertion')
+    }
+    for (const orderId of expectedOrderIds) {
+      if (!apiOrderIds.includes(orderId)) throw new Error(`API missing expected sales-owned order: ${orderId}`)
+    }
+    for (const orderId of excludedOrderIds) {
+      if (apiOrderIds.includes(orderId)) throw new Error(`API returned excluded order: ${orderId}`)
+    }
     const apiNames = Array.isArray(apiCustomers?.items)
       ? apiCustomers.items.map((item) => String(item?.displayName || '').trim())
       : []
@@ -164,7 +199,7 @@ const run = async () => {
       return expectedNames.every((name) => values.includes(name)) ? values : null
     })
     if (!names) {
-      throw new Error(`customer cards did not render all expected assigned customers; console=${JSON.stringify(consoleLogs.slice(-10))}`)
+      throw new Error(`customer cards did not render all expected assigned customers; consoleSummary=${JSON.stringify(lastRunDiagnosticState.consoleTail)}`)
     }
 
     const phones = await collectTexts(page, '.sales-customer-contact')
@@ -175,7 +210,9 @@ const run = async () => {
       const expected = `+86 ${phone.slice(3).replace(/\s+/g, '')}`
       if (!phones.includes(expected)) throw new Error(`formatted phone not visible: ${expected}`)
     }
-    if (exceptions.length > 0) throw new Error(`runtime exceptions: ${exceptions.join(' | ')}`)
+    if (lastRunDiagnosticState.exceptionCount > 0) {
+      throw new Error(`runtime exceptions: count=${lastRunDiagnosticState.exceptionCount}`)
+    }
 
     await miniProgram.screenshot({ path: path.join(artifactDir, 'sales-customers.png') })
 
@@ -183,14 +220,21 @@ const run = async () => {
     if (!ordersTab) throw new Error('orders tab was not found')
     await ordersTab.tap()
 
-    const apiOrderIds = Array.isArray(apiOrders?.items)
-      ? apiOrders.items.map((item) => String(item?.id || '').trim()).filter(Boolean)
-      : []
     const orderCodes = await waitFor(async () => {
       const values = await collectTexts(page, '.sales-order-code')
+      for (const orderId of excludedOrderIds) {
+        if (values.some((value) => value.includes(orderId))) {
+          throw new Error(`UI rendered excluded order: ${orderId}`)
+        }
+      }
       return apiOrderIds.every((id) => values.some((value) => value.includes(id))) ? values : null
     })
     if (!orderCodes) throw new Error('sales order cards did not render all API-owned orders')
+    for (const orderId of expectedOrderIds) {
+      if (!orderCodes.some((value) => value.includes(orderId))) {
+        throw new Error(`UI missing expected sales-owned order: ${orderId}`)
+      }
+    }
     const orderProductNames = await collectTexts(page, '.sales-order-item-name')
     const apiProductNames = Array.isArray(apiOrders?.items)
       ? apiOrders.items.flatMap((order) => (Array.isArray(order?.items) ? order.items : []))
@@ -215,15 +259,22 @@ const run = async () => {
     if (!accountingCopies) throw new Error('accounting unavailable state was not rendered')
     await miniProgram.screenshot({ path: path.join(artifactDir, 'sales-accounting.png') })
 
-    fs.writeFileSync(path.join(artifactDir, 'result.json'), `${JSON.stringify({
+    const successSummary = {
       status: 'pass',
       salesUser: bootstrap?.me?.displayName || '',
       names,
       phones,
       orderIds: apiOrderIds,
+      expectedOrderIds,
+      excludedOrderIds,
       orderProductNames,
-      accountingCopies
-    }, null, 2)}\n`)
+      accountingCopies,
+      diagnostics: lastRunDiagnosticState
+    }
+    fs.writeFileSync(
+      path.join(artifactDir, 'result.json'),
+      `${JSON.stringify(sanitizeDiagnosticValue(successSummary), null, 2)}\n`
+    )
     console.log('WEAPP_SALES_CUSTOMERS_E2E:PASS')
   } catch (error) {
     if (miniProgram && typeof miniProgram.screenshot === 'function') {
@@ -236,6 +287,13 @@ const run = async () => {
 }
 
 run().catch((error) => {
-  console.error(`WEAPP_SALES_CUSTOMERS_E2E:FAIL ${error instanceof Error ? error.stack || error.message : String(error)}`)
+  const failureSummary = {
+    status: 'fail',
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack || '' : '',
+    diagnostics: lastRunDiagnosticState
+  }
+  console.error(JSON.stringify(sanitizeDiagnosticValue(failureSummary), null, 2))
+  console.error('WEAPP_SALES_CUSTOMERS_E2E:FAIL')
   process.exitCode = 1
 })

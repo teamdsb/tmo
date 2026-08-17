@@ -4,16 +4,211 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/middleware"
+	supportmodule "github.com/teamdsb/tmo/services/commerce/internal/modules/support"
 )
+
+type supportTransferRaceStore struct {
+	supportmodule.Store
+	beforeTransfer func(context.Context, uuid.UUID) error
+}
+
+func (s *supportTransferRaceStore) TransferSupportConversation(ctx context.Context, arg db.TransferSupportConversationParams) (db.SupportConversation, error) {
+	if s.beforeTransfer != nil {
+		beforeTransfer := s.beforeTransfer
+		s.beforeTransfer = nil
+		if err := beforeTransfer(ctx, arg.ID); err != nil {
+			return db.SupportConversation{}, err
+		}
+	}
+	return s.Store.TransferSupportConversation(ctx, arg)
+}
+
+func TestTransferSupportConversationUsesAssigneeCompareAndSwap(t *testing.T) {
+	pool := openHandlerTestPool(t)
+	resetCommerceTables(t, pool)
+	queries := db.New(pool)
+	ctx := context.Background()
+
+	conversation, _, err := (&Handler{SupportStore: queries, DB: pool}).ensureActiveSupportConversation(ctx, middleware.Claims{
+		UserID: uuid.New(),
+		Role:   "CUSTOMER",
+	})
+	if err != nil {
+		t.Fatalf("create support conversation: %v", err)
+	}
+	firstAssignee := uuid.New()
+	secondAssignee := uuid.New()
+	lateTransferTarget := uuid.New()
+
+	if _, err := queries.TransferSupportConversation(ctx, db.TransferSupportConversationParams{
+		ID:                     conversation.ID,
+		AssigneeUserID:         pgtype.UUID{Bytes: firstAssignee, Valid: true},
+		AssigneeRole:           stringPtr("CS"),
+		ExpectedAssigneeUserID: pgtype.UUID{},
+	}); err != nil {
+		t.Fatalf("assign unassigned conversation: %v", err)
+	}
+	if _, err := queries.TransferSupportConversation(ctx, db.TransferSupportConversationParams{
+		ID:                     conversation.ID,
+		AssigneeUserID:         pgtype.UUID{Bytes: secondAssignee, Valid: true},
+		AssigneeRole:           stringPtr("CS"),
+		ExpectedAssigneeUserID: pgtype.UUID{Bytes: firstAssignee, Valid: true},
+	}); err != nil {
+		t.Fatalf("manager transfer support conversation: %v", err)
+	}
+
+	_, err = queries.TransferSupportConversation(ctx, db.TransferSupportConversationParams{
+		ID:                     conversation.ID,
+		AssigneeUserID:         pgtype.UUID{Bytes: lateTransferTarget, Valid: true},
+		AssigneeRole:           stringPtr("CS"),
+		ExpectedAssigneeUserID: pgtype.UUID{Bytes: firstAssignee, Valid: true},
+	})
+	if !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("stale transfer error = %v, want pgx.ErrNoRows", err)
+	}
+	stored, err := queries.GetSupportConversation(ctx, conversation.ID)
+	if err != nil {
+		t.Fatalf("reload support conversation: %v", err)
+	}
+	if !stored.AssigneeUserID.Valid || stored.AssigneeUserID.Bytes != secondAssignee {
+		t.Fatalf("stale transfer replaced manager-selected assignee: %#v", stored.AssigneeUserID)
+	}
+}
+
+func TestTransferSupportConversationRejectsStaleAssignee(t *testing.T) {
+	pool := openHandlerTestPool(t)
+	resetCommerceTables(t, pool)
+	queries := db.New(pool)
+	ctx := context.Background()
+
+	conversation, _, err := (&Handler{SupportStore: queries, DB: pool}).ensureActiveSupportConversation(ctx, middleware.Claims{
+		UserID: uuid.New(),
+		Role:   "CUSTOMER",
+	})
+	if err != nil {
+		t.Fatalf("create support conversation: %v", err)
+	}
+	firstAssignee := uuid.New()
+	secondAssignee := uuid.New()
+	lateTransferTarget := uuid.New()
+	if _, err := queries.ClaimSupportConversation(ctx, db.ClaimSupportConversationParams{
+		ID:             conversation.ID,
+		AssigneeUserID: pgtype.UUID{Bytes: firstAssignee, Valid: true},
+		AssigneeRole:   stringPtr("CS"),
+	}); err != nil {
+		t.Fatalf("claim support conversation: %v", err)
+	}
+
+	raceStore := &supportTransferRaceStore{
+		Store: queries,
+		beforeTransfer: func(ctx context.Context, conversationID uuid.UUID) error {
+			result, err := pool.Exec(ctx, `
+				UPDATE support_conversations
+				SET assignee_user_id = $2,
+				    assignee_role = 'CS',
+				    status = 'OPEN_ASSIGNED',
+				    assigned_at = now(),
+				    updated_at = now()
+				WHERE id = $1
+				  AND assignee_user_id = $3
+			`, conversationID, secondAssignee, firstAssignee)
+			if err != nil {
+				return err
+			}
+			if result.RowsAffected() != 1 {
+				return errors.New("manager transfer did not update the expected conversation")
+			}
+			return nil
+		},
+	}
+
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	requestBody := []byte(`{"toUserId":"` + lateTransferTarget.String() + `","toRole":"CS"}`)
+	request := httptest.NewRequest(http.MethodPost, "/admin/support/conversations/"+conversation.ID.String()+"/transfer", bytes.NewReader(requestBody))
+	request.Header.Set("Authorization", "Bearer "+makeAuthToken(t, firstAssignee, "CS", nil))
+	request.Header.Set("Content-Type", "application/json")
+	ginContext, _ := gin.CreateTestContext(recorder)
+	ginContext.Request = request
+	ginContext.Params = gin.Params{{Key: "conversationId", Value: conversation.ID.String()}}
+
+	apiHandler := &Handler{
+		SupportStore: raceStore,
+		DB:           pool,
+		Auth:         middleware.NewAuthenticator(true, testJWTSecret, testJWTIssuer),
+	}
+	apiHandler.PostAdminSupportConversationsConversationIdTransfer(ginContext)
+
+	if recorder.Code != http.StatusConflict {
+		t.Fatalf("stale transfer status = %d, want %d: %s", recorder.Code, http.StatusConflict, recorder.Body.String())
+	}
+	stored, err := queries.GetSupportConversation(ctx, conversation.ID)
+	if err != nil {
+		t.Fatalf("reload support conversation: %v", err)
+	}
+	if !stored.AssigneeUserID.Valid || stored.AssigneeUserID.Bytes != secondAssignee {
+		t.Fatalf("stale transfer replaced manager-selected assignee: %#v", stored.AssigneeUserID)
+	}
+}
+
+func TestReleaseSupportConversationRejectsStaleAssignee(t *testing.T) {
+	pool := openHandlerTestPool(t)
+	resetCommerceTables(t, pool)
+	queries := db.New(pool)
+	ctx := context.Background()
+
+	conversation, _, err := (&Handler{SupportStore: queries, DB: pool}).ensureActiveSupportConversation(ctx, middleware.Claims{
+		UserID: uuid.New(),
+		Role:   "CUSTOMER",
+	})
+	if err != nil {
+		t.Fatalf("create support conversation: %v", err)
+	}
+	firstAssignee := uuid.New()
+	secondAssignee := uuid.New()
+	if _, err := queries.ClaimSupportConversation(ctx, db.ClaimSupportConversationParams{
+		ID:             conversation.ID,
+		AssigneeUserID: pgtype.UUID{Bytes: firstAssignee, Valid: true},
+		AssigneeRole:   stringPtr("CS"),
+	}); err != nil {
+		t.Fatalf("claim support conversation: %v", err)
+	}
+	if _, err := queries.TransferSupportConversation(ctx, db.TransferSupportConversationParams{
+		ID:                     conversation.ID,
+		AssigneeUserID:         pgtype.UUID{Bytes: secondAssignee, Valid: true},
+		AssigneeRole:           stringPtr("CS"),
+		ExpectedAssigneeUserID: pgtype.UUID{Bytes: firstAssignee, Valid: true},
+	}); err != nil {
+		t.Fatalf("transfer support conversation: %v", err)
+	}
+
+	_, err = queries.ReleaseSupportConversation(ctx, db.ReleaseSupportConversationParams{
+		ID:                     conversation.ID,
+		ExpectedAssigneeUserID: pgtype.UUID{Bytes: firstAssignee, Valid: true},
+	})
+	if !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("stale release error = %v, want pgx.ErrNoRows", err)
+	}
+	stored, err := queries.GetSupportConversation(ctx, conversation.ID)
+	if err != nil {
+		t.Fatalf("reload support conversation: %v", err)
+	}
+	if !stored.AssigneeUserID.Valid || stored.AssigneeUserID.Bytes != secondAssignee {
+		t.Fatalf("stale release replaced current assignee: %#v", stored.AssigneeUserID)
+	}
+}
 
 func TestSupportExplicitClaimOwnsReadAndSend(t *testing.T) {
 	pool := openHandlerTestPool(t)
@@ -120,22 +315,24 @@ func TestSupportProductCardUsesCatalogSnapshot(t *testing.T) {
 	}
 	coverURL := "https://example.com/catalog-bolt.png"
 	activeProduct, err := queries.CreateProduct(ctx, db.CreateProductParams{
-		Name:          "Catalog Bolt",
-		CategoryID:    category.ID,
-		CoverImageUrl: &coverURL,
-		Images:        []string{coverURL},
-		Tags:          []string{},
-		Status:        productStatusActive,
+		Name:             "Catalog Bolt",
+		CategoryID:       category.ID,
+		CoverImageUrl:    &coverURL,
+		Images:           []string{coverURL},
+		Tags:             []string{},
+		FilterDimensions: []string{},
+		Status:           productStatusActive,
 	})
 	if err != nil {
 		t.Fatalf("create active product: %v", err)
 	}
 	inactiveProduct, err := queries.CreateProduct(ctx, db.CreateProductParams{
-		Name:       "Inactive Bolt",
-		CategoryID: category.ID,
-		Images:     []string{},
-		Tags:       []string{},
-		Status:     productStatusInactive,
+		Name:             "Inactive Bolt",
+		CategoryID:       category.ID,
+		Images:           []string{},
+		Tags:             []string{},
+		FilterDimensions: []string{},
+		Status:           productStatusInactive,
 	})
 	if err != nil {
 		t.Fatalf("create inactive product: %v", err)

@@ -16,7 +16,7 @@ type Store interface {
 	ListSupportConversations(ctx context.Context, arg db.ListSupportConversationsParams) ([]db.SupportConversation, error)
 	CountSupportConversations(ctx context.Context, arg db.CountSupportConversationsParams) (int64, error)
 	ClaimSupportConversation(ctx context.Context, arg db.ClaimSupportConversationParams) (db.SupportConversation, error)
-	ReleaseSupportConversation(ctx context.Context, id uuid.UUID) (db.SupportConversation, error)
+	ReleaseSupportConversation(ctx context.Context, arg db.ReleaseSupportConversationParams) (db.SupportConversation, error)
 	TransferSupportConversation(ctx context.Context, arg db.TransferSupportConversationParams) (db.SupportConversation, error)
 	UpdateSupportConversationAfterMessage(ctx context.Context, arg db.UpdateSupportConversationAfterMessageParams) (db.SupportConversation, error)
 	MarkSupportConversationReadForCustomer(ctx context.Context, id uuid.UUID) (db.SupportConversation, error)

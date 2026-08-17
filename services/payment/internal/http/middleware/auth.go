@@ -39,6 +39,10 @@ func NewAuthenticator(enabled bool, secret, issuer string, validators ...authn.C
 	return authenticator
 }
 
+func (a *Authenticator) Enabled() bool {
+	return a != nil && a.enabled
+}
+
 func (a *Authenticator) RequireUser(c *gin.Context) (Claims, bool) {
 	claims, ok := a.parseClaims(c)
 	if !ok {

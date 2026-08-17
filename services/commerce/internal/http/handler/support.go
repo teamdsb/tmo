@@ -454,8 +454,15 @@ func (h *Handler) PostAdminSupportConversationsConversationIdRelease(c *gin.Cont
 		return
 	}
 
-	updated, err := h.SupportStore.ReleaseSupportConversation(c.Request.Context(), conversation.ID)
+	updated, err := h.SupportStore.ReleaseSupportConversation(c.Request.Context(), db.ReleaseSupportConversationParams{
+		ID:                     conversation.ID,
+		ExpectedAssigneeUserID: conversation.AssigneeUserID,
+	})
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			h.writeError(c, http.StatusConflict, "conflict", "conversation assignment changed; refresh and retry")
+			return
+		}
 		h.logError("release support conversation failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to release conversation")
 		return
@@ -491,11 +498,16 @@ func (h *Handler) PostAdminSupportConversationsConversationIdTransfer(c *gin.Con
 	}
 
 	updated, err := h.SupportStore.TransferSupportConversation(c.Request.Context(), db.TransferSupportConversationParams{
-		ID:             conversation.ID,
-		AssigneeUserID: pgtype.UUID{Bytes: request.ToUserID, Valid: true},
-		AssigneeRole:   nullableString(strings.ToUpper(request.ToRole)),
+		ID:                     conversation.ID,
+		AssigneeUserID:         pgtype.UUID{Bytes: request.ToUserID, Valid: true},
+		AssigneeRole:           nullableString(strings.ToUpper(request.ToRole)),
+		ExpectedAssigneeUserID: conversation.AssigneeUserID,
 	})
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			h.writeError(c, http.StatusConflict, "conflict", "conversation assignment changed; refresh and retry")
+			return
+		}
 		h.logError("transfer support conversation failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to transfer conversation")
 		return

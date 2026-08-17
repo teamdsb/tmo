@@ -567,7 +567,7 @@ func (s *Service) processGroupTransaction(
 			}
 		}
 
-		state.Record, err = db.New(tx).UpdateProductImportRowResult(ctx, db.UpdateProductImportRowResultParams{
+		record, err := db.New(tx).UpdateProductImportRowResult(ctx, db.UpdateProductImportRowResultParams{
 			ID:           state.Record.ID,
 			Status:       rowStatusSucceeded,
 			ErrorMessage: nil,
@@ -577,6 +577,7 @@ func (s *Service) processGroupTransaction(
 		if err != nil {
 			return newGroupExecutionError("update row result: %v", err)
 		}
+		state.Record = record
 		state.PersistedState = rowStatusSucceeded
 		state.Error = ""
 	}

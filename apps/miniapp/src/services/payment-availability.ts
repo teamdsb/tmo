@@ -2,6 +2,7 @@ import { isAlipay, isWeapp } from '@tmo/platform-adapter'
 import type { PaymentChannel } from '@tmo/payment-services'
 
 import { runtimeEnv } from '../config/runtime-env'
+import { getCurrentRole } from '../utils/authz'
 import { loadBootstrap } from './bootstrap'
 
 export interface PaymentAvailability {
@@ -13,7 +14,11 @@ export interface PaymentAvailability {
 export const buildOrderPaymentIdempotencyKey = (orderId: string): string => `order-payment-${orderId}`
 
 export const resolvePaymentAvailability = async (): Promise<PaymentAvailability> => {
-  const flags = (await loadBootstrap())?.featureFlags
+  const bootstrap = await loadBootstrap()
+  if (getCurrentRole(bootstrap) !== 'CUSTOMER') {
+    return unavailable('仅客户身份可支付本人订单。')
+  }
+  const flags = bootstrap?.featureFlags
   if (flags?.paymentEnabled !== true) {
     return unavailable('在线支付暂未开通，请等待销售确认。')
   }

@@ -169,12 +169,19 @@ services:
       PAYMENT_WECHAT_APP_ID: ${PAYMENT_WECHAT_APP_ID:-}
       PAYMENT_WECHAT_MCH_ID: ${PAYMENT_WECHAT_MCH_ID:-}
       PAYMENT_WECHAT_API_V3_KEY: ${PAYMENT_WECHAT_API_V3_KEY:-}
-      PAYMENT_WECHAT_MERCHANT_PRIVATE_KEY_PATH: ${PAYMENT_WECHAT_MERCHANT_PRIVATE_KEY_PATH:-}
+      PAYMENT_WECHAT_MERCHANT_PRIVATE_KEY_PATH: ${PAYMENT_WECHAT_MERCHANT_PRIVATE_KEY_PATH:-/run/secrets/wechat_merchant_private_key.pem}
       PAYMENT_WECHAT_MERCHANT_SERIAL_NUMBER: ${PAYMENT_WECHAT_MERCHANT_SERIAL_NUMBER:-}
       PAYMENT_WECHAT_NOTIFY_URL: ${PAYMENT_WECHAT_NOTIFY_URL:-}
       PAYMENT_MIGRATIONS_DIR: /app/migrations
     ports:
       - "127.0.0.1:${PAYMENT_PORT:-8083}:8083"
+    volumes:
+      - type: bind
+        source: ${PAYMENT_WECHAT_MERCHANT_PRIVATE_KEY_HOST_PATH:-/dev/null}
+        target: ${PAYMENT_WECHAT_MERCHANT_PRIVATE_KEY_PATH:-/run/secrets/wechat_merchant_private_key.pem}
+        read_only: true
+        bind:
+          create_host_path: false
     depends_on:
       postgres:
         condition: service_healthy
