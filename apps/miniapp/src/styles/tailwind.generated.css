@@ -1,5 +1,9 @@
 
 
+.visible {
+  visibility: visible
+}
+
 .fixed {
   position: fixed
 }
@@ -30,10 +34,6 @@
 
 .top-0 {
   top: 0px
-}
-
-.z-10 {
-  z-index: 10
 }
 
 .z-20 {
@@ -119,6 +119,10 @@
 
 .inline-flex {
   display: inline-flex
+}
+
+.hidden {
+  display: none
 }
 
 .h-1 {
