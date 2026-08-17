@@ -17,7 +17,6 @@ describe('unauthorized session recovery', () => {
     expect(removeStorage).toHaveBeenCalledWith('tmo:auth:token')
     expect(removeStorage).toHaveBeenCalledWith('tmo:commerce:token')
     expect(removeStorage).toHaveBeenCalledWith('tmo:bootstrap')
-    expect(removeStorage).toHaveBeenCalledWith('tmo:auth:role-selection')
     expect(localStorage.getItem('tmo:auth:token')).toBeNull()
     expect(localStorage.getItem('tmo:commerce:token')).toBeNull()
     expect(Taro.reLaunch).toHaveBeenCalledWith({ url: '/pages/auth/login/index' })

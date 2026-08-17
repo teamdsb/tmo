@@ -2,7 +2,7 @@ import { removeStorage } from '@tmo/platform-adapter'
 
 import { ROUTES } from '../routes'
 import { getCurrentPath, switchTabLike } from '../utils/navigation'
-import { clearBootstrap, savePendingRoleSelection } from './bootstrap'
+import { clearBootstrap } from './bootstrap'
 
 const AUTH_STORAGE_KEYS = ['tmo:auth:token', 'tmo:commerce:token'] as const
 
@@ -29,8 +29,7 @@ export const recoverUnauthorizedSession = (): Promise<void> => {
   const recovery = (async () => {
     await Promise.allSettled([
       ...AUTH_STORAGE_KEYS.map((key) => removeStorage(key)),
-      clearBootstrap(),
-      savePendingRoleSelection(null)
+      clearBootstrap()
     ])
     clearLocalAuthStorage()
     if (getCurrentPath() !== ROUTES.authLogin) {

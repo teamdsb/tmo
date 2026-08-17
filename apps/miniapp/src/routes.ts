@@ -25,7 +25,6 @@ export const ROUTES = {
   support: '/pages/support/index',
   supportChat: '/pages/support/chat/index',
   supportCreate: '/pages/support/create/index',
-  authRoleSelect: '/pages/auth/role-select/index',
   authLogin: '/pages/auth/login/index'
 } as const
 

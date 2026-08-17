@@ -4,6 +4,10 @@
 
 ## 2026-08-17
 
+- miniapp 移除登录后的独立角色选择页；多角色账号默认以 CUSTOMER 进入商城，纯 SALES 账号直接以 SALES 进入，业务员工作台仍从“我的”进入。
+  影响面：前端不再持久化 pending role selection，业务员工作台的顶部与底部统一使用设备安全区布局。
+  建议阅读：`docs/context/product-requirements.md`
+
 - 在线客服收紧为“显式认领后才能已读或发送”，不再由首次回复隐式认领；只有当前坐席可清除客服侧未读和回复。
   影响面：admin-web 操作状态与 Commerce 权限保持一致，自动化或旧调用方必须先调用 claim 接口。
   建议阅读：`docs/runbooks/online-support-v1.md`、`contracts/openapi/commerce.yaml`

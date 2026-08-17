@@ -1709,13 +1709,13 @@
 
 .sales-safe-top-spacer {
   width: 100%;
+  min-height: calc(var(--navbar-total-height, 0px) + 12px);
   flex-shrink: 0;
 }
 
 .sales-main-content {
   min-height: calc(100vh - var(--navbar-total-height, 0px));
-  padding-bottom: calc(16px + var(--tabbar-safe-offset));
-  padding-bottom: calc(16px + var(--tabbar-safe-offset-legacy));
+  padding-bottom: 16px;
   box-sizing: border-box;
 }
 
@@ -1741,17 +1741,17 @@
   box-shadow: 0 -4px 6px -1px rgb(0 0 0 / 5%);
 }
 
+.sales-bottom-fixed {
+  --fixed-view-z-index: 50;
+
+  background: #fff;
+}
+
 .sales-bottom-nav {
-  position: fixed;
-  left: 50%;
-  right: auto;
-  bottom: 0;
-  z-index: 50;
   width: min(100%, 28rem);
-  transform: translateX(-50%);
+  margin: 0 auto;
   min-height: var(--tabbar-height);
-  padding-bottom: calc(10px + env(safe-area-inset-bottom));
-  padding-bottom: calc(10px + constant(safe-area-inset-bottom));
+  padding-bottom: 10px;
   box-sizing: border-box;
 }
 

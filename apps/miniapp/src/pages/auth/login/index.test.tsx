@@ -12,6 +12,7 @@ type LoadedLoginModule = {
   commerceServices: typeof import('../../../services/commerce').commerceServices
   bootstrapServices: typeof import('../../../services/bootstrap')
   ApiError: typeof import('@tmo/identity-services').ApiError
+  RoleSelectionRequiredError: typeof import('@tmo/identity-services').RoleSelectionRequiredError
   Taro: typeof import('@tarojs/taro')
 }
 
@@ -70,6 +71,7 @@ const loadLoginModule = (options: LoadLoginModuleOptions = {}) => {
       commerceServices: commerceModule.commerceServices,
       bootstrapServices: bootstrapModule,
       ApiError: identityServicesModule.ApiError,
+      RoleSelectionRequiredError: identityServicesModule.RoleSelectionRequiredError,
       Taro: taroModule.default
     }
   })
@@ -362,7 +364,6 @@ describe('LoginPage', () => {
     const miniLoginSpy = jest.spyOn(identityServices.auth, 'miniLogin')
     const bootstrapGetSpy = jest.spyOn(gatewayServices.bootstrap, 'get')
     const saveBootstrapSpy = jest.spyOn(bootstrapServices, 'saveBootstrap')
-    const savePendingRoleSelectionSpy = jest.spyOn(bootstrapServices, 'savePendingRoleSelection')
     bootstrapGetSpy.mockResolvedValue({
       me: {
         id: 'customer-1',
@@ -392,7 +393,57 @@ describe('LoginPage', () => {
     })
     expect(bootstrapGetSpy).toHaveBeenCalled()
     expect(saveBootstrapSpy).toHaveBeenCalled()
-    expect(savePendingRoleSelectionSpy).toHaveBeenCalledWith(null)
+    expect(runtimeTaro.switchTab).toHaveBeenCalledWith({ url: '/pages/index/index' })
+  })
+
+  const automaticRoleCases: Array<{
+    roles: string[]
+    expectedRole: 'CUSTOMER' | 'SALES'
+    userType: 'customer' | 'staff'
+  }> = [
+    { roles: ['SALES', 'CUSTOMER'], expectedRole: 'CUSTOMER', userType: 'customer' },
+    { roles: ['SALES'], expectedRole: 'SALES', userType: 'staff' }
+  ]
+
+  it.each(automaticRoleCases)('automatically enters with $expectedRole when login reports $roles', async ({ roles, expectedRole, userType }) => {
+    const {
+      LoginPage,
+      identityServices,
+      gatewayServices,
+      RoleSelectionRequiredError,
+      Taro: runtimeTaro
+    } = loadLoginModule({
+      platform: 'weapp',
+      weappPhoneProofSimulation: true
+    })
+    const miniLoginSpy = jest.spyOn(identityServices.auth, 'miniLogin')
+      .mockRejectedValueOnce(new RoleSelectionRequiredError(roles))
+      .mockResolvedValueOnce({} as never)
+    jest.spyOn(gatewayServices.bootstrap, 'get').mockResolvedValue({
+      me: {
+        id: 'multi-role-user',
+        currentRole: expectedRole,
+        userType,
+        roles,
+        createdAt: '2026-01-01T00:00:00Z'
+      },
+      permissions: { items: [] },
+      featureFlags: {}
+    })
+
+    await renderLoginPage(LoginPage)
+    await agreeToTerms()
+    await act(async () => {
+      fireEvent.click(screen.getByText('快速登录'))
+      await flushPromises()
+    })
+
+    expect(miniLoginSpy).toHaveBeenCalledTimes(2)
+    expect(miniLoginSpy).toHaveBeenLastCalledWith(expect.objectContaining({
+      role: expectedRole,
+      phoneProof: undefined
+    }))
+    expect(runtimeTaro.navigateTo).not.toHaveBeenCalledWith({ url: '/pages/auth/role-select/index' })
     expect(runtimeTaro.switchTab).toHaveBeenCalledWith({ url: '/pages/index/index' })
   })
 
@@ -432,7 +483,6 @@ describe('LoginPage', () => {
     const miniLoginSpy = jest.spyOn(identityServices.auth, 'miniLogin')
     const bootstrapGetSpy = jest.spyOn(gatewayServices.bootstrap, 'get')
     const saveBootstrapSpy = jest.spyOn(bootstrapServices, 'saveBootstrap')
-    const savePendingRoleSelectionSpy = jest.spyOn(bootstrapServices, 'savePendingRoleSelection')
     bootstrapGetSpy.mockResolvedValue({
       me: {
         id: 'customer-1',
@@ -462,7 +512,6 @@ describe('LoginPage', () => {
     })
     expect(bootstrapGetSpy).toHaveBeenCalled()
     expect(saveBootstrapSpy).toHaveBeenCalled()
-    expect(savePendingRoleSelectionSpy).toHaveBeenCalledWith(null)
     expect(runtimeTaro.switchTab).toHaveBeenCalledWith({ url: '/pages/cart/index' })
   })
 

@@ -25,8 +25,8 @@ This document must be maintained in accordance with `docs/execplans/plans.md`.
 - Observation: H5 和 Weapp 不能共享同一套顶部安全区实现。H5 可以依赖 `@taroify/core/navbar` 的 `placeholder` 占位，而 Weapp 在 `navigationStyle: 'custom'` 时必须自己插入顶部占位。
   Evidence: `apps/miniapp/src/pages/sales/index.tsx` 里，H5 分支使用 `Navbar bordered fixed placeholder`，Weapp 分支使用 `sales-safe-top-spacer` 和 `getNavbarTotalHeight()`。
 
-- Observation: 页面内部自定义底部导航时，最容易出错的是把导航留在文档流里，导致“内容高度 + 底栏高度”一起把页面撑长。
-  Evidence: 业务员页修复后改成 `sales-bottom-nav { position: fixed; bottom: 0; }`，同时内容区只保留 `padding-bottom: calc(16px + var(--tabbar-safe-offset))`，页面滚动高度才恢复正常。
+- Observation: 页面内部自定义底部导航时，底栏需要同时得到真实高度占位和设备底部安全区，不能由页面内容手工猜测高度。
+  Evidence: `apps/miniapp/src/pages/sales/index.tsx` 使用 `FixedView position='bottom' safeArea='bottom' placeholder`，安全区与底栏高度由 `FixedView` 统一占位。
 
 ## Decision Log
 
@@ -60,7 +60,7 @@ This document must be maintained in accordance with `docs/execplans/plans.md`.
 
 第二种是“自定义顶部页面”，例如 `apps/miniapp/src/pages/goods/search/index.tsx`、`apps/miniapp/src/pages/order/list/index.tsx` 以及业务员页的顶部。这里的重点是：只要页面配置使用了 `navigationStyle: 'custom'`，页面代码就必须自己处理顶部安全区。H5 和 Weapp 的处理方式不一样。H5 可以直接依赖 `Navbar` 组件生成占位，Weapp 则通常需要一段显式的顶部 spacer，也就是只负责占高度、不承载业务内容的空白块。
 
-第三种是“页面内自定义底部导航页面”，当前最典型的是 `apps/miniapp/src/pages/sales/index.tsx`。这类页面并不使用系统 tabbar，而是自己在页面底部固定一个导航。这里必须同时做到两件事：底部导航本身使用 `position: fixed` 脱离文档流，避免把页面总高度撑长；主体内容区使用底部安全区 padding 留出空间，避免滚动内容被导航压住。
+第三种是“页面内自定义底部导航页面”，当前最典型的是 `apps/miniapp/src/pages/sales/index.tsx`。这类页面并不使用系统 tabbar，而是自己维护底部导航内容。底栏应放在 Taroify `FixedView` 中，同时启用 `safeArea='bottom'` 和 `placeholder`：前者避让系统手势区，后者按真实渲染高度为主体内容占位，不再另外维护一套底部高度公式。
 
 ## Plan of Work
 

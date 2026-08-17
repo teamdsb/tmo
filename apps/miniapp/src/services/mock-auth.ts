@@ -1,5 +1,5 @@
 import { runtimeEnv } from '../config/runtime-env'
-import { saveBootstrap, savePendingRoleSelection } from './bootstrap'
+import { saveBootstrap } from './bootstrap'
 import {
   buildMockAuthContext,
   buildIsolatedMockBootstrap,
@@ -20,5 +20,4 @@ export const applyMockLogin = async (): Promise<void> => {
   await setIsolatedMockToken(token)
   await saveIsolatedMockAuthContext(context)
   await saveBootstrap(await buildIsolatedMockBootstrap(token))
-  await savePendingRoleSelection(null)
 }
