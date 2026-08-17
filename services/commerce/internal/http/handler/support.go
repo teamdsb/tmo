@@ -149,6 +149,18 @@ type createSupportMessageRequest struct {
 	CardPayload json.RawMessage `json:"cardPayload"`
 }
 
+type supportProductReader interface {
+	GetProduct(context.Context, uuid.UUID) (db.CatalogProduct, error)
+}
+
+type supportProductCardPayload struct {
+	Title     string    `json:"title"`
+	Subtitle  string    `json:"subtitle"`
+	ProductID uuid.UUID `json:"productId"`
+	ImageURL  string    `json:"imageUrl"`
+	Route     string    `json:"route"`
+}
+
 type transferSupportConversationRequest struct {
 	ToUserID uuid.UUID `json:"toUserId"`
 	ToRole   string    `json:"toRole"`
@@ -254,6 +266,10 @@ func (h *Handler) PostSupportConversationsConversationIdMessagesImage(c *gin.Con
 		h.writeError(c, http.StatusNotFound, "not_found", "conversation not found")
 		return
 	}
+	if !isCustomerRole(claims.Role) && !canOperateSupportConversation(conversation, claims.UserID) {
+		h.writeError(c, http.StatusForbidden, "forbidden", "conversation must be claimed by current staff")
+		return
+	}
 
 	asset, err := h.uploadSupportMessageAsset(c, claims.UserID, conversation.ID)
 	if err != nil {
@@ -285,6 +301,10 @@ func (h *Handler) PostSupportConversationsConversationIdRead(c *gin.Context) {
 	if isCustomerRole(claims.Role) {
 		updated, err = h.SupportStore.MarkSupportConversationReadForCustomer(c.Request.Context(), conversation.ID)
 	} else {
+		if !canOperateSupportConversation(conversation, claims.UserID) {
+			h.writeError(c, http.StatusForbidden, "forbidden", "conversation must be claimed by current staff")
+			return
+		}
 		updated, err = h.SupportStore.MarkSupportConversationReadForStaff(c.Request.Context(), conversation.ID)
 	}
 	if err != nil {
@@ -451,7 +471,7 @@ func (h *Handler) PostAdminSupportConversationsConversationIdTransfer(c *gin.Con
 	if !ok {
 		return
 	}
-	if !canManageSupportTransfer(claims.Role) {
+	if !canManageSupportTransfer(claims.Role, conversation, claims.UserID) {
 		h.writeError(c, http.StatusForbidden, "forbidden", "permission denied")
 		return
 	}
@@ -606,18 +626,7 @@ func (h *Handler) createSupportMessage(ctx context.Context, claims middleware.Cl
 		}
 
 		if senderType == supportSenderTypeStaff {
-			if !current.AssigneeUserID.Valid {
-				claimed, claimErr := queries.ClaimSupportConversation(ctx, db.ClaimSupportConversationParams{
-					ID:             current.ID,
-					AssigneeUserID: pgtype.UUID{Bytes: claims.UserID, Valid: true},
-					AssigneeRole:   nullableString(senderRole),
-				})
-				if claimErr != nil {
-					return claimErr
-				}
-				current = claimed
-			}
-			if !current.AssigneeUserID.Valid || current.AssigneeUserID.Bytes != claims.UserID {
+			if !canOperateSupportConversation(current, claims.UserID) {
 				return errors.New("permission denied")
 			}
 		}
@@ -651,7 +660,7 @@ func (h *Handler) createSupportMessage(ctx context.Context, claims middleware.Cl
 			assetID = pgtype.UUID{Bytes: asset.ID, Valid: true}
 			text := "[图片]"
 			textValue = &text
-		case supportMessageTypeOrderCard, supportMessageTypeProductCard:
+		case supportMessageTypeOrderCard:
 			if len(bytesTrimSpace(cardPayload)) == 0 {
 				return errors.New("invalid request: cardPayload is required")
 			}
@@ -660,6 +669,17 @@ func (h *Handler) createSupportMessage(ctx context.Context, claims middleware.Cl
 			}
 			preview, err := supportCardPreview(cardPayload)
 			if err != nil {
+				return errors.New("invalid request: invalid cardPayload")
+			}
+			textValue = &preview
+		case supportMessageTypeProductCard:
+			canonicalPayload, buildErr := buildSupportProductCardPayload(ctx, queries, cardPayload)
+			if buildErr != nil {
+				return buildErr
+			}
+			cardPayload = canonicalPayload
+			preview, previewErr := supportCardPreview(cardPayload)
+			if previewErr != nil {
 				return errors.New("invalid request: invalid cardPayload")
 			}
 			textValue = &preview
@@ -1097,22 +1117,33 @@ func canAccessSupportConversation(role string, userID uuid.UUID, conversation db
 	}
 }
 
-func canManageSupportTransfer(role string) bool {
+func canManageSupportTransfer(role string, conversation db.SupportConversation, userID uuid.UUID) bool {
 	switch strings.ToUpper(strings.TrimSpace(role)) {
-	case "CS", "ADMIN", "BOSS":
+	case "MANAGER", "ADMIN", "BOSS":
 		return true
+	case "CS":
+		return canOperateSupportConversation(conversation, userID)
 	default:
 		return false
 	}
 }
 
 func canManageSupportAssignment(role string, conversation db.SupportConversation, userID uuid.UUID) bool {
+	if !conversation.AssigneeUserID.Valid {
+		return false
+	}
 	switch strings.ToUpper(strings.TrimSpace(role)) {
-	case "CS", "ADMIN", "BOSS", "MANAGER":
+	case "ADMIN", "BOSS", "MANAGER":
 		return true
+	case "CS":
+		return canOperateSupportConversation(conversation, userID)
 	default:
 		return false
 	}
+}
+
+func canOperateSupportConversation(conversation db.SupportConversation, userID uuid.UUID) bool {
+	return conversation.AssigneeUserID.Valid && conversation.AssigneeUserID.Bytes == userID
 }
 
 func isCustomerRole(role string) bool {
@@ -1141,6 +1172,48 @@ func supportCardPreview(raw json.RawMessage) (string, error) {
 		return strings.TrimSpace(subtitle), nil
 	}
 	return "[卡片消息]", nil
+}
+
+func buildSupportProductCardPayload(ctx context.Context, store supportProductReader, raw json.RawMessage) (json.RawMessage, error) {
+	if len(bytesTrimSpace(raw)) == 0 {
+		return nil, errors.New("invalid request: cardPayload is required")
+	}
+	var request struct {
+		ProductID string `json:"productId"`
+	}
+	if err := json.Unmarshal(raw, &request); err != nil {
+		return nil, errors.New("invalid request: cardPayload must be valid json")
+	}
+	productID, err := uuid.Parse(strings.TrimSpace(request.ProductID))
+	if err != nil {
+		return nil, errors.New("invalid request: productId must be a valid uuid")
+	}
+	product, err := store.GetProduct(ctx, productID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("invalid request: product not found")
+		}
+		return nil, fmt.Errorf("load support product: %w", err)
+	}
+	if !strings.EqualFold(strings.TrimSpace(product.Status), productStatusActive) {
+		return nil, errors.New("invalid request: product is not active")
+	}
+
+	imageURL := ""
+	if product.CoverImageUrl != nil {
+		imageURL = strings.TrimSpace(*product.CoverImageUrl)
+	}
+	payload, err := json.Marshal(supportProductCardPayload{
+		Title:     strings.TrimSpace(product.Name),
+		Subtitle:  "点击查看商品详情",
+		ProductID: product.ID,
+		ImageURL:  imageURL,
+		Route:     "/pages/goods/detail/index?id=" + product.ID.String(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("encode support product card: %w", err)
+	}
+	return payload, nil
 }
 
 func uuidPtrFromPgtype(value pgtype.UUID) *uuid.UUID {

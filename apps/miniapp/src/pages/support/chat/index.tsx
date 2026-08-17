@@ -19,6 +19,7 @@ import {
   saveSupportComposeIntent,
   type SupportComposeIntent
 } from './compose-intent'
+import { resolveSupportCardRoute } from './card-route'
 
 type ChatMessageItem = Awaited<ReturnType<typeof commerceServices.support.sendMessage>> & {
   localId?: string
@@ -760,7 +761,7 @@ export default function SupportChatPage() {
   }
 
   const handleCardClick = async (payload?: Record<string, unknown>) => {
-    const route = typeof payload?.route === 'string' ? payload.route : ''
+    const route = resolveSupportCardRoute(payload)
     if (!route) {
       return
     }

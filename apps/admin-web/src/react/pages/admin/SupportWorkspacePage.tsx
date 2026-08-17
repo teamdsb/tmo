@@ -19,7 +19,6 @@ import {
   claimAdminSupportConversation,
   fetchAdminSupportConversation,
   fetchAdminSupportConversations,
-  fetchProducts,
   fetchStaffUsers,
   markSupportConversationRead,
   releaseAdminSupportConversation,
@@ -50,6 +49,7 @@ import {
   type SupportConversationSummary,
   type SupportMessage
 } from './supportWorkspaceData';
+import { SupportProductPicker, type SupportProductOption } from './SupportProductPicker';
 
 const normalizeConversations = (payload) => {
   const items = Array.isArray(payload?.items) ? payload.items : [];
@@ -91,6 +91,10 @@ const getCurrentRole = () => {
   return String(getCurrentSession()?.currentRole || '').trim().toUpperCase();
 };
 
+const getCurrentUserId = () => {
+  return String(getCurrentSession()?.user?.id || '').trim();
+};
+
 const SUPPORT_SCOPE_OPTIONS = [
   { value: 'all', label: '全部' },
   { value: 'mine', label: '我的会话' },
@@ -104,6 +108,13 @@ const getDefaultSupportScope = () => {
     return 'unassigned';
   }
   return 'all';
+};
+
+const conversationMatchesScope = (conversation: SupportConversationSummary, scope: string) => {
+  if (scope === 'mine') return conversation.assigneeUserId === getCurrentUserId();
+  if (scope === 'unassigned') return !conversation.assigneeUserId && conversation.status === 'OPEN_UNASSIGNED';
+  if (scope === 'unread') return conversation.staffUnreadCount > 0;
+  return true;
 };
 
 const getQueueWaitMs = (conversation, now = Date.now()) => {
@@ -123,9 +134,9 @@ const formatQueueWait = (waitMs) => {
 
 const roleCanRelease = (conversation) => {
   const currentRole = getCurrentRole();
-  if (!conversation) return false;
-  if (currentRole === 'ADMIN' || currentRole === 'BOSS' || currentRole === 'CS' || currentRole === 'MANAGER') return true;
-  return conversation.assigneeUserId && conversation.assigneeUserId === String(getCurrentSession()?.user?.id || '');
+  if (!conversation?.assigneeUserId) return false;
+  if (currentRole === 'ADMIN' || currentRole === 'BOSS' || currentRole === 'MANAGER') return true;
+  return currentRole === 'CS' && conversation.assigneeUserId === getCurrentUserId();
 };
 
 const customerDisplayLabel = (conversation) => {
@@ -153,6 +164,14 @@ const MessageBubble = ({ message }) => {
   const productId = String(message.cardPayload?.productId || '').trim();
   const productDetailHref = buildAdminProductDetailHref(productId);
   const cardClassName = `mt-2 block w-full rounded-lg border p-2 text-left transition ${isCustomer ? 'border-slate-200 bg-slate-50' : 'border-blue-300 bg-blue-500/70'} ${productId ? (isCustomer ? 'hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/40' : 'hover:border-white/70 hover:bg-blue-400/80 focus:outline-none focus:ring-2 focus:ring-white/60') : ''}`;
+  const normalizedText = String(message.textContent || '').trim();
+  const showTextContent = Boolean(normalizedText) && !(
+    message.cardPayload
+    && [message.cardPayload.title, message.cardPayload.subtitle].some((value) => String(value || '').trim() === normalizedText)
+  );
+  const cardImage = message.cardPayload?.imageUrl ? (
+    <img className="mb-2 h-24 w-full rounded-lg object-cover" src={message.cardPayload.imageUrl} alt={message.cardPayload.title || '商品图片'} />
+  ) : null;
 
   if (isSystem) {
     return (
@@ -170,7 +189,7 @@ const MessageBubble = ({ message }) => {
         {message.asset?.url ? (
           <img className="mb-2 max-h-40 w-full rounded-lg object-cover" src={message.asset.url} alt={message.asset.fileName || '聊天图片'} />
         ) : null}
-        {message.textContent ? <p className="text-sm leading-5">{message.textContent}</p> : null}
+        {showTextContent ? <p className="text-sm leading-5">{message.textContent}</p> : null}
         {message.cardPayload ? (
           productId ? (
             <a
@@ -178,6 +197,7 @@ const MessageBubble = ({ message }) => {
               data-testid={`support-product-card-${productId}`}
               href={productDetailHref}
             >
+              {cardImage}
               <p className={`text-sm font-semibold ${isCustomer ? 'text-slate-900' : 'text-white'}`}>{message.cardPayload.title || '卡片消息'}</p>
               {message.cardPayload.subtitle ? (
                 <p className={`mt-1 text-xs ${isCustomer ? 'text-slate-500' : 'text-blue-100'}`}>{message.cardPayload.subtitle}</p>
@@ -185,6 +205,7 @@ const MessageBubble = ({ message }) => {
             </a>
           ) : (
             <div className={cardClassName}>
+            {cardImage}
             <p className={`text-sm font-semibold ${isCustomer ? 'text-slate-900' : 'text-white'}`}>{message.cardPayload.title || '卡片消息'}</p>
             {message.cardPayload.subtitle ? (
               <p className={`mt-1 text-xs ${isCustomer ? 'text-slate-500' : 'text-blue-100'}`}>{message.cardPayload.subtitle}</p>
@@ -210,7 +231,7 @@ export const SupportWorkspacePage = () => {
   const [activeConversationId, setActiveConversationId] = useState(initialConversationIdRef.current || mockSeed?.conversations[0]?.id || '');
   const [conversationDetail, setConversationDetail] = useState<SupportConversationDetail | null>(mockSeed?.details?.[mockSeed.conversations[0]?.id || ''] || null);
   const [staffOptions, setStaffOptions] = useState<StaffOption[]>(mockSeed?.staff || []);
-  const [productOptions, setProductOptions] = useState([]);
+  const [productPickerOpen, setProductPickerOpen] = useState(false);
   const [draft, setDraft] = useState('');
   const [transferTargetId, setTransferTargetId] = useState('');
   const [loading, setLoading] = useState(!isMockMode);
@@ -226,6 +247,21 @@ export const SupportWorkspacePage = () => {
   const activeConversation = useMemo(() => {
     return conversations.find((item) => item.id === activeConversationId) || null;
   }, [activeConversationId, conversations]);
+
+  const operationConversation = useMemo(() => {
+    if (conversationDetail?.conversation?.id === activeConversationId) {
+      return conversationDetail.conversation;
+    }
+    return activeConversation;
+  }, [activeConversation, activeConversationId, conversationDetail?.conversation]);
+
+  const isUnassigned = Boolean(operationConversation) && !operationConversation?.assigneeUserId;
+  const isAssignedToCurrentUser = Boolean(operationConversation?.assigneeUserId)
+    && operationConversation?.assigneeUserId === getCurrentUserId();
+  const isAssignedToOtherUser = Boolean(operationConversation?.assigneeUserId) && !isAssignedToCurrentUser;
+  const canOperateConversation = Boolean(activeConversationId) && isAssignedToCurrentUser;
+  const canTransferConversation = canTransferSupportConversation(getCurrentRole())
+    && (getCurrentRole() !== 'CS' || canOperateConversation);
 
   const displayedConversations = useMemo(() => {
     return [...conversations].sort((left, right) => {
@@ -311,23 +347,22 @@ export const SupportWorkspacePage = () => {
       setConversations((current) => {
         const existingIndex = current.findIndex((item) => item.id === detail.conversation.id);
         if (existingIndex === -1) {
+          if (!conversationMatchesScope(detail.conversation, scope)) {
+            return current;
+          }
           return [detail.conversation, ...current];
         }
         return current.map((item) => (item.id === detail.conversation.id ? { ...item, ...detail.conversation } : item));
       });
     }
-  }, [mockSeed]);
+  }, [mockSeed, scope]);
 
   const reloadReferenceData = useCallback(async () => {
     if (isMockMode) {
       return;
     }
-    const [staffResponse, productResponse] = await Promise.all([
-      fetchStaffUsers({ page: 1, pageSize: 100 }),
-      fetchProducts({ page: 1, pageSize: 12 })
-    ]);
+    const staffResponse = await fetchStaffUsers({ page: 1, pageSize: 100 });
     setStaffOptions(normalizeStaffOptions(staffResponse?.data));
-    setProductOptions(Array.isArray(productResponse?.data?.items) ? productResponse.data.items : []);
   }, []);
 
   const initialize = useCallback(async () => {
@@ -431,6 +466,9 @@ export const SupportWorkspacePage = () => {
   }, [supportNotifications.items]);
 
   const refreshWorkspaceState = useCallback(async (conversationId = activeConversationId) => {
+    if (isMockMode) {
+      return;
+    }
     await Promise.all([
       reloadConversations(),
       refreshAdminSupportNotifications({ emitToast: false }),
@@ -442,7 +480,12 @@ export const SupportWorkspacePage = () => {
     const targetConversation = conversations.find((item) => item.id === conversationId)
       || supportNotifications.items.find((item) => item.id === conversationId)
       || null;
-    if (!conversationId || !targetConversation || targetConversation.staffUnreadCount <= 0) {
+    if (
+      !conversationId
+      || !targetConversation
+      || targetConversation.staffUnreadCount <= 0
+      || targetConversation.assigneeUserId !== getCurrentUserId()
+    ) {
       return;
     }
     if (readingConversationIdRef.current === conversationId) {
@@ -516,15 +559,49 @@ export const SupportWorkspacePage = () => {
   }, [activeConversationId, conversations, markConversationRead]);
 
   const handleClaim = async () => {
-    if (!activeConversationId || isMockMode) {
+    if (!activeConversationId || !isUnassigned || sending) {
       return;
     }
-    const response = await claimAdminSupportConversation(activeConversationId);
-    if (response.status !== 200) {
-      setStatusMessage(response?.data?.message || '认领失败');
-      return;
+    setSending(true);
+    setSendingState('正在认领会话...');
+    setStatusMessage('');
+    try {
+      if (isMockMode) {
+        const claimedConversation = {
+          ...(operationConversation as SupportConversationSummary),
+          assigneeUserId: getCurrentUserId(),
+          assigneeRole: getCurrentRole(),
+          status: 'OPEN_ASSIGNED',
+          assignedAt: new Date().toISOString()
+        };
+        setConversations((current) => current.map((item) => (
+          item.id === activeConversationId ? claimedConversation : item
+        )));
+        setConversationDetail((current) => current && current.conversation.id === activeConversationId
+          ? { ...current, conversation: claimedConversation }
+          : current);
+        return;
+      }
+      const response = await claimAdminSupportConversation(activeConversationId);
+      if (response.status !== 200) {
+        throw new Error(response?.data?.message || '认领失败');
+      }
+      const claimedConversation = normalizeSupportConversation(response.data);
+      if (claimedConversation) {
+        setConversations((current) => current.map((item) => (
+          item.id === activeConversationId ? { ...item, ...claimedConversation } : item
+        )));
+      }
+      if (getCurrentRole() === 'CS') {
+        setScope('mine');
+      }
+      await refreshWorkspaceState(activeConversationId);
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : '认领失败');
+    } finally {
+      setSending(false);
+      setSendingState('');
     }
-    await refreshWorkspaceState(activeConversationId);
   };
 
   const handleRelease = async () => {
@@ -535,6 +612,9 @@ export const SupportWorkspacePage = () => {
     if (response.status !== 200) {
       setStatusMessage(response?.data?.message || '释放失败');
       return;
+    }
+    if (getCurrentRole() === 'CS') {
+      setScope('unassigned');
     }
     await refreshWorkspaceState(activeConversationId);
   };
@@ -558,6 +638,9 @@ export const SupportWorkspacePage = () => {
       return;
     }
     setTransferTargetId('');
+    if (getCurrentRole() === 'CS') {
+      setScope('all');
+    }
     await refreshWorkspaceState(activeConversationId);
   };
 
@@ -572,7 +655,7 @@ export const SupportWorkspacePage = () => {
   };
 
   const handleSendText = async () => {
-    if (!activeConversationId || !draft.trim() || sending) {
+    if (!canOperateConversation || !draft.trim() || sending) {
       return;
     }
     setSending(true);
@@ -602,7 +685,7 @@ export const SupportWorkspacePage = () => {
   const handleUploadImage = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = '';
-    if (!file || !activeConversationId) {
+    if (!file || !canOperateConversation) {
       return;
     }
     setSending(true);
@@ -633,47 +716,69 @@ export const SupportWorkspacePage = () => {
   };
 
   const handleSendOrderCard = async (order) => {
-    if (!activeConversationId) {
+    if (!canOperateConversation || sending) {
       return;
     }
-    const response = await sendSupportConversationMessage(activeConversationId, {
-      messageType: 'ORDER_CARD',
-      cardPayload: buildOrderCardPayload(order)
-    });
-    if (response.status !== 201) {
-      setStatusMessage(response?.data?.message || '订单卡片发送失败');
-      return;
+    setSending(true);
+    setSendingState('订单卡片发送中...');
+    setStatusMessage('');
+    try {
+      const response = await sendSupportConversationMessage(activeConversationId, {
+        messageType: 'ORDER_CARD',
+        cardPayload: buildOrderCardPayload(order)
+      });
+      if (response.status !== 201) {
+        throw new Error(response?.data?.message || '订单卡片发送失败');
+      }
+      const normalized = normalizeSupportMessage(response.data);
+      if (normalized) {
+        appendMessage(normalized);
+      }
+      await refreshWorkspaceState(activeConversationId);
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : '订单卡片发送失败');
+    } finally {
+      setSending(false);
+      setSendingState('');
     }
-    const normalized = normalizeSupportMessage(response.data);
-    if (normalized) {
-      appendMessage(normalized);
-    }
-    await refreshWorkspaceState(activeConversationId);
   };
 
-  const handleSendProductCard = async (product) => {
-    if (!activeConversationId) {
+  const handleSendProductCard = async (product: SupportProductOption) => {
+    if (!canOperateConversation || sending) {
       return;
     }
-    const response = await sendSupportConversationMessage(activeConversationId, {
-      messageType: 'PRODUCT_CARD',
-      cardPayload: buildProductCardPayload({
-        title: String(product?.name || '商品卡片'),
-        subtitle: '点击查看商品详情',
-        productId: String(product?.id || ''),
-        imageUrl: String(product?.coverImageUrl || ''),
-        linkUrl: `/goods/${String(product?.id || '')}`
-      })
-    });
-    if (response.status !== 201) {
-      setStatusMessage(response?.data?.message || '商品卡片发送失败');
-      return;
+    setSending(true);
+    setSendingState(`正在发送「${product.name}」...`);
+    setStatusMessage('');
+    try {
+      const productId = String(product.id || '').trim();
+      const response = await sendSupportConversationMessage(activeConversationId, {
+        messageType: 'PRODUCT_CARD',
+        cardPayload: buildProductCardPayload({
+          title: String(product.name || '商品卡片'),
+          subtitle: '点击查看商品详情',
+          productId,
+          imageUrl: String(product.coverImageUrl || ''),
+          route: `/pages/goods/detail/index?id=${encodeURIComponent(productId)}`
+        })
+      });
+      if (response.status !== 201) {
+        throw new Error(response?.data?.message || '商品卡片发送失败');
+      }
+      const normalized = normalizeSupportMessage(response.data);
+      if (normalized) {
+        appendMessage(normalized);
+      }
+      setProductPickerOpen(false);
+      await refreshWorkspaceState(activeConversationId);
+    } catch (error) {
+      const sendError = error instanceof Error ? error : new Error('商品卡片发送失败');
+      setStatusMessage(sendError.message);
+      throw sendError;
+    } finally {
+      setSending(false);
+      setSendingState('');
     }
-    const normalized = normalizeSupportMessage(response.data);
-    if (normalized) {
-      appendMessage(normalized);
-    }
-    await refreshWorkspaceState(activeConversationId);
   };
 
   return (
@@ -783,17 +888,17 @@ export const SupportWorkspacePage = () => {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                disabled={!activeConversationId || isMockMode}
+                disabled={!activeConversationId || !isUnassigned || sending}
                 onClick={() => void handleClaim()}
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 data-testid="support-claim-button"
               >
                 <UserCheck className="h-4 w-4" />
-                认领
+                {isAssignedToCurrentUser ? '已认领' : isAssignedToOtherUser ? '已由他人认领' : '认领'}
               </button>
               <button
                 type="button"
-                disabled={!activeConversationId || !roleCanRelease(activeConversation) || isMockMode}
+                disabled={!activeConversationId || !roleCanRelease(operationConversation) || isMockMode || sending}
                 onClick={() => void handleRelease()}
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 data-testid="support-release-button"
@@ -825,7 +930,7 @@ export const SupportWorkspacePage = () => {
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                disabled={!activeConversationId || sending}
+                disabled={!canOperateConversation || sending}
                 onClick={() => fileInputRef.current?.click()}
                 className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 disabled:opacity-50"
               >
@@ -836,7 +941,7 @@ export const SupportWorkspacePage = () => {
                 <button
                   key={order.id}
                   type="button"
-                  disabled={!activeConversationId || sending}
+                  disabled={!canOperateConversation || sending}
                   onClick={() => void handleSendOrderCard(order)}
                   className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 disabled:opacity-50"
                 >
@@ -844,23 +949,27 @@ export const SupportWorkspacePage = () => {
                   发订单卡片
                 </button>
               ))}
-              {productOptions.slice(0, 2).map((product) => (
-                <button
-                  key={String(product.id)}
-                  type="button"
-                  disabled={!activeConversationId || sending}
-                  onClick={() => void handleSendProductCard(product)}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 disabled:opacity-50"
-                >
-                  <ShoppingBag className="h-4 w-4" />
-                  发商品卡片
-                </button>
-              ))}
+              <button
+                type="button"
+                disabled={!canOperateConversation || sending}
+                onClick={() => setProductPickerOpen(true)}
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 disabled:opacity-50"
+                data-testid="support-product-picker-open"
+              >
+                <ShoppingBag className="h-4 w-4" />
+                选择商品
+              </button>
             </div>
+            {!canOperateConversation && activeConversationId ? (
+              <p className="mb-2 text-xs font-medium text-amber-600">
+                {isAssignedToOtherUser ? '该会话已由其他坐席认领，当前不可回复。' : '请先认领会话后再回复客户。'}
+              </p>
+            ) : null}
             <div className="flex items-end gap-3">
               <textarea
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
+                disabled={!canOperateConversation || sending}
                 rows={2}
                 placeholder="输入回复内容..."
                 className="min-h-[68px] flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white"
@@ -868,7 +977,7 @@ export const SupportWorkspacePage = () => {
               />
               <button
                 type="button"
-                disabled={!activeConversationId || !draft.trim() || sending}
+                disabled={!canOperateConversation || !draft.trim() || sending}
                 onClick={() => void handleSendText()}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                 data-testid="support-send-button"
@@ -876,7 +985,7 @@ export const SupportWorkspacePage = () => {
                 <Send className="h-4 w-4" />
               </button>
             </div>
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleUploadImage} />
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" disabled={!canOperateConversation || sending} onChange={handleUploadImage} />
             {sendingState ? <p className="mt-3 text-xs text-slate-500">{sendingState}</p> : null}
             {statusMessage ? <p className="mt-3 text-xs text-amber-600">{statusMessage}</p> : null}
           </div>
@@ -939,7 +1048,7 @@ export const SupportWorkspacePage = () => {
             </select>
             <button
               type="button"
-              disabled={!activeConversationId || !transferTargetId || !canTransferSupportConversation(getCurrentRole()) || isMockMode}
+              disabled={!activeConversationId || !transferTargetId || !canTransferConversation || isMockMode}
               onClick={() => void handleTransfer()}
               className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
@@ -996,6 +1105,12 @@ export const SupportWorkspacePage = () => {
           </section>
         </aside>
       </div>
+      <SupportProductPicker
+        open={productPickerOpen}
+        disabled={!canOperateConversation || sending}
+        onClose={() => setProductPickerOpen(false)}
+        onSelect={handleSendProductCard}
+      />
     </main>
   );
 };

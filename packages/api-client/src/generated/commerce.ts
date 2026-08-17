@@ -722,6 +722,27 @@ export interface SupportMessageAsset {
 }
 
 /**
+ * Card snapshot. PRODUCT_CARD messages require productId; the server rebuilds title, imageUrl, and route from the active catalog product.
+ */
+export interface SupportMessageCardPayload {
+  title?: string;
+  subtitle?: string;
+  imageUrl?: string;
+  /** Internal miniapp route used when the customer taps the card. */
+  route?: string;
+  /**
+   * Legacy product link retained only for reading historical messages.
+   * @deprecated
+   */
+  linkUrl?: string;
+  orderId?: string;
+  productId?: string;
+  status?: string;
+  remark?: string;
+  [key: string]: unknown;
+ }
+
+/**
  * @nullable
  */
 export type SupportMessageAssetProperty = SupportMessageAsset | null;
@@ -729,7 +750,7 @@ export type SupportMessageAssetProperty = SupportMessageAsset | null;
 /**
  * @nullable
  */
-export type SupportMessageCardPayload = { [key: string]: unknown } | null;
+export type SupportMessageCardPayloadProperty = SupportMessageCardPayload | null;
 
 export interface SupportMessage {
   id: string;
@@ -745,7 +766,7 @@ export interface SupportMessage {
   /** @nullable */
   asset?: SupportMessageAssetProperty;
   /** @nullable */
-  cardPayload?: SupportMessageCardPayload;
+  cardPayload?: SupportMessageCardPayloadProperty;
   createdAt: string;
 }
 
@@ -796,7 +817,7 @@ export interface PagedSupportMessageList {
 /**
  * @nullable
  */
-export type CreateSupportMessageRequestCardPayload = { [key: string]: unknown } | null;
+export type CreateSupportMessageRequestCardPayload = SupportMessageCardPayload | null;
 
 export interface CreateSupportMessageRequest {
   messageType: SupportMessageType;

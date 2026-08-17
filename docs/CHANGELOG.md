@@ -2,6 +2,16 @@
 
 这个文件只记录会影响后续 agent 判断的近期仓库变化，不承担发布说明、项目周报或任务流水账职责。
 
+## 2026-08-17
+
+- 在线客服收紧为“显式认领后才能已读或发送”，不再由首次回复隐式认领；只有当前坐席可清除客服侧未读和回复。
+  影响面：admin-web 操作状态与 Commerce 权限保持一致，自动化或旧调用方必须先调用 claim 接口。
+  建议阅读：`docs/runbooks/online-support-v1.md`、`contracts/openapi/commerce.yaml`
+
+- admin-web 商品卡片改为可搜索、分页的上架商品选择器；Commerce 用真实目录重建商品快照，miniapp 以内部 `route` 打开详情并兼容可安全转换的旧 `linkUrl`。
+  影响面：`PRODUCT_CARD` 必须带有效且已上架的 UUID `productId`，伪造、下架或不存在商品不再创建消息。
+  建议阅读：`docs/context/product-requirements.md`、`docs/runbooks/online-support-v1.md`
+
 ## 2026-07-09
 
 - 用户运营中心新增 BOSS 专属后台密码账号管理，可创建、编辑、重置密码和停启单角色 `ADMIN`、`MANAGER`、`CS` 账号。

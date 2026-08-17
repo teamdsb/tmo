@@ -2896,6 +2896,34 @@ components:
       - fileSize
       - url
       - createdAt
+    SupportMessageCardPayload:
+      type: object
+      description: Card snapshot. PRODUCT_CARD messages require productId; the server rebuilds title, imageUrl, and route from the active catalog product.
+      properties:
+        title:
+          type: string
+        subtitle:
+          type: string
+        imageUrl:
+          type: string
+        route:
+          type: string
+          description: Internal miniapp route used when the customer taps the card.
+        linkUrl:
+          type: string
+          deprecated: true
+          description: Legacy product link retained only for reading historical messages.
+        orderId:
+          type: string
+          format: uuid
+        productId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        remark:
+          type: string
+      additionalProperties: true
     SupportMessage:
       type: object
       properties:
@@ -2924,9 +2952,9 @@ components:
           - "$ref": "#/components/schemas/SupportMessageAsset"
           nullable: true
         cardPayload:
-          type: object
+          allOf:
+          - "$ref": "#/components/schemas/SupportMessageCardPayload"
           nullable: true
-          additionalProperties: true
         createdAt:
           type: string
           format: date-time
@@ -3053,9 +3081,9 @@ components:
           format: uuid
           nullable: true
         cardPayload:
-          type: object
+          allOf:
+          - "$ref": "#/components/schemas/SupportMessageCardPayload"
           nullable: true
-          additionalProperties: true
       required:
       - messageType
       additionalProperties: false

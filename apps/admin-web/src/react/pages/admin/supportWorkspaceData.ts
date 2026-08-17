@@ -33,6 +33,7 @@ export type SupportMessageCard = {
   subtitle: string;
   imageUrl: string;
   linkUrl: string;
+  route: string;
   orderId: string;
   productId: string;
   status: string;
@@ -121,6 +122,7 @@ const normalizeCardPayload = (value: unknown): SupportMessageCard | null => {
     subtitle: safeText(record.subtitle),
     imageUrl: safeText(record.imageUrl),
     linkUrl: safeText(record.linkUrl),
+    route: safeText(record.route),
     orderId: safeText(record.orderId),
     productId: safeText(record.productId),
     status: safeText(record.status),
@@ -361,13 +363,13 @@ export const buildOrderCardPayload = (order: SupportOrderContext): Record<string
   };
 };
 
-export const buildProductCardPayload = (draft: { title: string; subtitle: string; productId: string; imageUrl: string; linkUrl: string }) => {
+export const buildProductCardPayload = (draft: { title: string; subtitle: string; productId: string; imageUrl: string; route: string }) => {
   return {
     title: safeText(draft.title, safeText(draft.productId, '商品卡片')),
     subtitle: safeText(draft.subtitle),
     productId: safeText(draft.productId),
     imageUrl: safeText(draft.imageUrl),
-    linkUrl: safeText(draft.linkUrl)
+    route: safeText(draft.route)
   };
 };
 
@@ -425,6 +427,7 @@ export const createMockSupportData = (): { conversations: SupportConversationSum
               subtitle: '点击查看商品详情',
               imageUrl: '',
               linkUrl: '/goods/spu-bolt-a2',
+              route: '',
               orderId: '',
               productId: 'spu-bolt-a2',
               status: '',
