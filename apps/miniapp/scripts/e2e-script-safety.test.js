@@ -85,3 +85,13 @@ test('sales E2E sanitizes success and failure diagnostics', () => {
   assert.match(source, /JSON\.stringify\(sanitizeDiagnosticValue\(successSummary\)/)
   assert.match(source, /JSON\.stringify\(sanitizeDiagnosticValue\(failureSummary\)/)
 })
+
+test('sales E2E only pins the automator port when explicitly requested', () => {
+  const source = readScript('weapp-sales-customers-real-e2e.js')
+
+  assert.match(source, /WEAPP_AUTOMATOR_WS_ENDPOINT/)
+  assert.match(source, /automator\.launcher\.connectTool\(\{ wsEndpoint: automatorWsEndpoint \}\)/)
+  assert.match(source, /const requestedPort = process\.env\.WEAPP_AUTOMATOR_PORT/)
+  assert.match(source, /if \(port\) launchOptions\.port = port/)
+  assert.doesNotMatch(source, /WEAPP_AUTOMATOR_PORT \|\| 9527/)
+})

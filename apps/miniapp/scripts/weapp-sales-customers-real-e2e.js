@@ -29,7 +29,10 @@ const excludedOrderIds = String(process.env.WEAPP_SALES_E2E_EXCLUDED_ORDER_IDS |
   .filter(Boolean)
 const timeoutMs = Number(process.env.WEAPP_SALES_E2E_TIMEOUT_MS || 120000)
 const keepOpen = String(process.env.WEAPP_SALES_E2E_KEEP_OPEN || '').trim().toLowerCase() === 'true'
-const port = Number(process.env.WEAPP_AUTOMATOR_PORT || 9527)
+const traceEnabled = String(process.env.WEAPP_SALES_E2E_TRACE || '').trim().toLowerCase() === 'true'
+const automatorWsEndpoint = String(process.env.WEAPP_AUTOMATOR_WS_ENDPOINT || '').trim()
+const requestedPort = process.env.WEAPP_AUTOMATOR_PORT
+const port = requestedPort ? Number(requestedPort) : null
 const artifactDir = path.resolve(rootDir, process.env.WEAPP_SALES_E2E_ARTIFACT_DIR || 'tmp/e2e/sales-customers')
 
 const cliCandidates = [
@@ -44,9 +47,14 @@ const diagnosticSanitizer = createDiagnosticSanitizer()
 const rememberAccessToken = diagnosticSanitizer.rememberToken
 const sanitizeDiagnosticValue = diagnosticSanitizer.sanitize
 const lastRunDiagnosticState = {
+  stage: 'initialized',
   consoleCount: 0,
   consoleTail: [],
   exceptionCount: 0
+}
+const tracePhase = (stage) => {
+  lastRunDiagnosticState.stage = stage
+  if (traceEnabled) console.error(`[weapp-sales-e2e] stage=${stage}`)
 }
 
 const waitFor = async (predicate, waitMs = 20000) => {
@@ -134,14 +142,19 @@ const run = async () => {
   fs.mkdirSync(artifactDir, { recursive: true })
   let miniProgram
   try {
-    miniProgram = await automator.launch({
+    tracePhase('connecting')
+    const launchOptions = {
       cliPath,
       projectPath: weappPaths.projectDir,
-      port,
       timeout: timeoutMs,
       trustProject: true,
       cwd: rootDir
-    })
+    }
+    if (port) launchOptions.port = port
+    miniProgram = automatorWsEndpoint
+      ? await automator.launcher.connectTool({ wsEndpoint: automatorWsEndpoint })
+      : await automator.launch(launchOptions)
+    tracePhase('connected')
     miniProgram.on('console', (payload) => {
       const level = String(payload?.level || payload?.type || 'info').toLowerCase()
       const text = String(payload?.text || payload?.message || payload?.description || '')
@@ -156,12 +169,14 @@ const run = async () => {
       lastRunDiagnosticState.exceptionCount += 1
     })
     const { token, bootstrap } = await createSession(miniProgram)
+    tracePhase('session-ready')
     const apiCustomers = await requestJson('/customers?page=1&pageSize=20', {
       headers: { Authorization: `Bearer ${token}` }
     })
     const apiOrders = await requestJson('/orders?page=1&pageSize=50', {
       headers: { Authorization: `Bearer ${token}` }
     })
+    tracePhase('api-data-ready')
     const apiOrderIds = Array.isArray(apiOrders?.items)
       ? apiOrders.items.map((item) => String(item?.id || '').trim()).filter(Boolean)
       : []
@@ -186,13 +201,16 @@ const run = async () => {
 
     await miniProgram.callWxMethod('setStorageSync', 'tmo:auth:token', token)
     await miniProgram.callWxMethod('setStorageSync', 'tmo:bootstrap', bootstrap)
+    tracePhase('storage-written')
     await miniProgram.reLaunch('/pages/sales/index')
     await sleep(1500)
+    tracePhase('sales-route-ready')
 
     const page = await miniProgram.currentPage()
     const customerTab = await page.$('#sales-tab-customers')
     if (!customerTab) throw new Error('customer tab was not found')
     await customerTab.tap()
+    tracePhase('customer-tab-open')
 
     const names = await waitFor(async () => {
       const values = await collectTexts(page, '.sales-customer-name')
@@ -201,6 +219,7 @@ const run = async () => {
     if (!names) {
       throw new Error(`customer cards did not render all expected assigned customers; consoleSummary=${JSON.stringify(lastRunDiagnosticState.consoleTail)}`)
     }
+    tracePhase('customers-verified')
 
     const phones = await collectTexts(page, '.sales-customer-contact')
     const rawChinaPhones = apiCustomers.items
@@ -219,6 +238,7 @@ const run = async () => {
     const ordersTab = await page.$('#sales-tab-orders')
     if (!ordersTab) throw new Error('orders tab was not found')
     await ordersTab.tap()
+    tracePhase('orders-tab-open')
 
     const orderCodes = await waitFor(async () => {
       const values = await collectTexts(page, '.sales-order-code')
@@ -230,6 +250,7 @@ const run = async () => {
       return apiOrderIds.every((id) => values.some((value) => value.includes(id))) ? values : null
     })
     if (!orderCodes) throw new Error('sales order cards did not render all API-owned orders')
+    tracePhase('orders-verified')
     for (const orderId of expectedOrderIds) {
       if (!orderCodes.some((value) => value.includes(orderId))) {
         throw new Error(`UI missing expected sales-owned order: ${orderId}`)
@@ -252,11 +273,13 @@ const run = async () => {
     const accountingTab = await page.$('#sales-tab-accounting')
     if (!accountingTab) throw new Error('accounting tab was not found')
     await accountingTab.tap()
+    tracePhase('accounting-tab-open')
     const accountingCopies = await waitFor(async () => {
       const values = await collectTexts(page, '.sales-empty-copy')
       return values.includes('财务结算暂未接入') ? values : null
     })
     if (!accountingCopies) throw new Error('accounting unavailable state was not rendered')
+    tracePhase('accounting-verified')
     await miniProgram.screenshot({ path: path.join(artifactDir, 'sales-accounting.png') })
 
     const successSummary = {
