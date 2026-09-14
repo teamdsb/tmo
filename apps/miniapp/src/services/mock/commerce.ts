@@ -469,15 +469,16 @@ export const createMockCommerceServices = (): CommerceServices => {
     submit: async (request) => {
       const createdAt = nowIso()
       const orderId = `mock-order-${Date.now().toString(36)}`
-      const initialPayment = buildMockPaymentSession(orderId, {
+      const initialPayment = request.paymentMethod === 'ONLINE' ? buildMockPaymentSession(orderId, {
         status: 'PAY_PENDING',
         createdAt,
         updatedAt: createdAt
-      })
-      const order = applyPaymentSessionToOrder({
+      }) : null
+      const baseOrder = {
         id: orderId,
         status: OrderStatus.SUBMITTED,
         paymentStatus: 'UNPAID',
+        paymentMethod: request.paymentMethod,
         address: request.address,
         items: request.items.map((item) => {
           const sku = getMockSkuById(item.skuId)
@@ -490,7 +491,8 @@ export const createMockCommerceServices = (): CommerceServices => {
         remark: request.remark,
         createdAt,
         updatedAt: createdAt
-      } as Order, initialPayment)
+      } as Order
+      const order = initialPayment ? applyPaymentSessionToOrder(baseOrder, initialPayment) : baseOrder
 
       await updateIsolatedMockState((state) => {
         const orderedQtyBySkuId = new Map<string, number>()
@@ -507,10 +509,10 @@ export const createMockCommerceServices = (): CommerceServices => {
           ...state,
           cartEntries,
           orders: [order, ...state.orders],
-          paymentSessionsByOrderId: {
+          paymentSessionsByOrderId: initialPayment ? {
             ...state.paymentSessionsByOrderId,
             [order.id]: initialPayment
-          },
+          } : state.paymentSessionsByOrderId,
           trackingByOrderId: {
             ...state.trackingByOrderId,
             [order.id]: {

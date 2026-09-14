@@ -445,13 +445,14 @@ func ensureOrder(ctx context.Context, tx pgx.Tx, seed orderSeed) error {
 	}
 	if _, err := tx.Exec(ctx, `
 INSERT INTO orders (
-  id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, payment_status
+  id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, payment_status, payment_method
 )
-VALUES ($1, 'SUBMITTED', $2, $3, $4, 'sales e2e seed', $5, 'UNPAID')
+VALUES ($1, 'SUBMITTED', $2, $3, $4, 'sales e2e seed', $5, 'UNPAID', 'OFFLINE')
 ON CONFLICT (id) DO UPDATE
 SET customer_id = EXCLUDED.customer_id,
     owner_sales_user_id = EXCLUDED.owner_sales_user_id,
     address = EXCLUDED.address,
+    payment_method = EXCLUDED.payment_method,
     updated_at = now()
 `, seed.ID, seed.CustomerID, seed.OwnerSalesUserID, address, "sales-e2e-"+seed.ID.String()); err != nil {
 		return fmt.Errorf("seed order %s: %w", seed.ID, err)

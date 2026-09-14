@@ -310,6 +310,9 @@ func (h *Handler) createPaymentSession(c *gin.Context, claims middleware.Claims,
 	if err != nil {
 		return nil, errInternal(fmt.Sprintf("fetch order failed: %v", err))
 	}
+	if strings.EqualFold(order.PaymentMethod, "OFFLINE") {
+		return nil, errConflict("order payment method is not online")
+	}
 
 	normalizedIdempotencyKey := normalizeOptionalString(idempotencyKey)
 	if normalizedIdempotencyKey != nil {

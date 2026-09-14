@@ -397,6 +397,14 @@ pnpm run test:e2e:weapp:sales-customers-real:dev
 - `app-navbar--primary` 仅作为视觉变体类，不应覆盖导航栏高度。
 - 当微信开发者工具返回异常胶囊参数时，导航栏使用 `44px` 作为内容高度兜底，避免顶部重叠。
 
+## 底部安全区约定
+
+商城主标签页（首页、分类、购物车、我的）使用 `src/app.config.ts` 配置的平台原生 TabBar，不启用自定义 TabBar，也不在页面中猜测原生 TabBar 高度。原生 TabBar 页面以平台提供的可用窗口底边为准，不重复添加设备底部安全区。
+
+独立页面的固定操作栏统一使用 `src/components/app-safe-area` 导出的 `AppFixedBottom`。非 fixed 的输入区或全屏底部弹层使用 `AppSafeAreaBottom`。两个组件优先读取 `src/utils/device-info.ts` 归一化的运行时底部安全区，在运行时数据不可用时才回退 CSS `env(safe-area-inset-bottom)`。
+
+业务页面不得直接使用 `safe-area-inset-bottom`、`--tabbar-height` 或 `--tabbar-safe-offset`。FixedView 的 placeholder 负责为固定栏生成等高内容占位，页面不得再次硬编码同一固定栏的占位高度。购物车是原生 TabBar 页面，因此使用 `AppFixedBottom includeSafeArea={false}`，由原生 TabBar 独占系统底部安全区。
+
 ## 原子 CSS (Tailwind)
 
 miniapp 已启用 Tailwind CSS 作为原子 CSS 框架。配置位于 `apps/miniapp/tailwind.config.cjs`（已关闭 preflight），并通过 CLI 生成 `apps/miniapp/src/styles/tailwind.generated.css`，该文件由 `apps/miniapp/src/app.scss` 引入。

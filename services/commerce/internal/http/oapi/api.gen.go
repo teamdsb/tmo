@@ -66,6 +66,12 @@ const (
 	Staff    MessageSenderType = "staff"
 )
 
+// Defines values for OrderPaymentMethod.
+const (
+	OFFLINE OrderPaymentMethod = "OFFLINE"
+	ONLINE  OrderPaymentMethod = "ONLINE"
+)
+
 // Defines values for OrderPaymentStatus.
 const (
 	OrderPaymentStatusPAID       OrderPaymentStatus = "PAID"
@@ -290,7 +296,8 @@ type CreateOrderRequest struct {
 		Qty        int                `json:"qty"`
 		SkuId      openapi_types.UUID `json:"skuId"`
 	} `json:"items"`
-	Remark *string `json:"remark,omitempty"`
+	PaymentMethod OrderPaymentMethod `json:"paymentMethod"`
+	Remark        *string            `json:"remark,omitempty"`
 }
 
 // CreatePriceInquiry defines model for CreatePriceInquiry.
@@ -408,6 +415,7 @@ type Order struct {
 	OwnerSalesUserId *openapi_types.UUID `json:"ownerSalesUserId"`
 	PaidAt           *time.Time          `json:"paidAt"`
 	PaymentChannel   *string             `json:"paymentChannel"`
+	PaymentMethod    OrderPaymentMethod  `json:"paymentMethod"`
 	PaymentStatus    OrderPaymentStatus  `json:"paymentStatus"`
 	Remark           *string             `json:"remark,omitempty"`
 	Status           OrderStatus         `json:"status"`
@@ -443,6 +451,9 @@ type OrderItem struct {
 	// UnitPriceFen Final price per unit at order time, in fen (1/100 yuan), integer only
 	UnitPriceFen int64 `json:"unitPriceFen"`
 }
+
+// OrderPaymentMethod defines model for OrderPaymentMethod.
+type OrderPaymentMethod string
 
 // OrderPaymentStatus defines model for OrderPaymentStatus.
 type OrderPaymentStatus string

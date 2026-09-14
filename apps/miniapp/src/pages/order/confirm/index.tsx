@@ -3,11 +3,11 @@ import { View, Text, Textarea } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Button from '@taroify/core/button'
-import FixedView from '@taroify/core/fixed-view'
-import type { Cart, UserAddress } from '@tmo/api-client'
+import type { Cart, OrderPaymentMethod, UserAddress } from '@tmo/api-client'
 import { isApiError } from '@tmo/commerce-services'
 import { ROUTES, goodsDetailRoute, orderDetailRoute, withQuery } from '../../../routes'
 import SafeImage from '../../../components/safe-image'
+import AppFixedBottom from '../../../components/app-safe-area'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { matchPriceTier } from '../../../utils/price-tier'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
@@ -15,7 +15,7 @@ import { ensureLoggedIn } from '../../../utils/auth'
 import { commerceServices } from '../../../services/commerce'
 import { clearSelectedUserAddressId, getSelectedUserAddressId, listUserAddresses } from '../../../services/addresses'
 import { isPaymentCancelled, paymentServices } from '../../../services/payment'
-import { buildOrderPaymentIdempotencyKey, resolvePaymentAvailability } from '../../../services/payment-availability'
+import { buildOrderPaymentIdempotencyKey, resolvePaymentAvailability, type PaymentAvailability } from '../../../services/payment-availability'
 import { useRefreshOnReturn } from '../../../hooks/use-refresh-on-return'
 import './index.scss'
 
@@ -26,6 +26,8 @@ export default function OrderConfirmPage() {
   const [productImageBySpuId, setProductImageBySpuId] = useState<Record<string, string>>({})
   const [productNameBySpuId, setProductNameBySpuId] = useState<Record<string, string>>({})
   const [remark, setRemark] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<OrderPaymentMethod>('OFFLINE')
+  const [paymentAvailability, setPaymentAvailability] = useState<PaymentAvailability | null>(null)
   const [loadingData, setLoadingData] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -51,6 +53,22 @@ export default function OrderConfirmPage() {
   useEffect(() => {
     void loadData()
   }, [loadData])
+
+  useEffect(() => {
+    let cancelled = false
+    void resolvePaymentAvailability().then((availability) => {
+      if (cancelled) return
+      setPaymentAvailability(availability)
+      setPaymentMethod(availability.available ? 'ONLINE' : 'OFFLINE')
+    }).catch((error) => {
+      console.warn('resolve payment availability failed', error)
+      if (!cancelled) {
+        setPaymentAvailability({ available: false, unavailableMessage: '线上支付暂不可用。' })
+        setPaymentMethod('OFFLINE')
+      }
+    })
+    return () => { cancelled = true }
+  }, [])
 
   useRefreshOnReturn(() => {
     void loadData()
@@ -152,7 +170,7 @@ export default function OrderConfirmPage() {
   const totalFen = hasPendingPrice
     ? 0
     : orderItems.reduce((sum, item) => sum + (item.subtotalFen ?? 0), 0)
-  const submitDisabled = submitting || loadingData || !cartItems.length || !defaultAddress
+  const submitDisabled = submitting || loadingData || paymentAvailability === null || !cartItems.length || !defaultAddress
 
   const handleSubmit = async () => {
     if (submitting) {
@@ -181,6 +199,7 @@ export default function OrderConfirmPage() {
           receiverPhone: defaultAddress.receiverPhone,
           detail: defaultAddress.detail
         },
+        paymentMethod,
         remark: remark.trim() || undefined,
         items: cartItems.map((item) => ({
           cartItemId: item.id,
@@ -190,17 +209,23 @@ export default function OrderConfirmPage() {
       })
       commerceServices.orders.resetIdempotency()
 
+      if (paymentMethod === 'OFFLINE') {
+        await Taro.showToast({ title: '订单已提交，等待线下付款确认', icon: 'none' })
+        await navigateTo(orderDetailRoute(order.id))
+        return
+      }
+
       let toastTitle = '订单已提交'
       let toastIcon: 'success' | 'none' = 'success'
       let paymentConfirmed = false
-      const paymentAvailability = await resolvePaymentAvailability()
+      const resolvedPaymentAvailability = await resolvePaymentAvailability()
 
-      if (!paymentAvailability.available) {
-        toastTitle = '订单已提交，待销售确认'
+      if (!resolvedPaymentAvailability.available) {
+        toastTitle = '订单已提交，线上支付暂不可用'
         toastIcon = 'none'
       } else try {
         const payment = await paymentServices.sessions.payForOrder(order.id, {
-          channel: paymentAvailability.channel,
+          channel: resolvedPaymentAvailability.channel,
           idempotencyKey: buildOrderPaymentIdempotencyKey(order.id)
         })
         const paymentStatus = String(payment.status || '').toUpperCase()
@@ -347,6 +372,39 @@ export default function OrderConfirmPage() {
           />
         </View>
 
+        <View className='order-confirm-section-divider' />
+
+        <View className='order-confirm-section'>
+          <View className='order-confirm-section-head'>
+            <Text className='order-confirm-section-title'>付款方式</Text>
+            <Text className='order-confirm-section-hint'>提交后不可修改</Text>
+          </View>
+          <View className='order-confirm-payment-options'>
+            <View
+              className={`order-confirm-payment-option ${paymentMethod === 'ONLINE' ? 'order-confirm-payment-option--active' : ''} ${paymentAvailability?.available === false ? 'order-confirm-payment-option--disabled' : ''}`}
+              onClick={() => paymentAvailability?.available && setPaymentMethod('ONLINE')}
+            >
+              <View className='order-confirm-payment-option-main'>
+                <Text className='order-confirm-payment-option-title'>线上付款</Text>
+                <Text className='order-confirm-payment-option-copy'>
+                  {paymentAvailability?.available ? '提交后立即拉起当前平台支付' : (paymentAvailability?.unavailableMessage || '正在检查支付能力…')}
+                </Text>
+              </View>
+              <View className={`order-confirm-payment-radio ${paymentMethod === 'ONLINE' ? 'order-confirm-payment-radio--checked' : ''}`} />
+            </View>
+            <View
+              className={`order-confirm-payment-option ${paymentMethod === 'OFFLINE' ? 'order-confirm-payment-option--active' : ''}`}
+              onClick={() => setPaymentMethod('OFFLINE')}
+            >
+              <View className='order-confirm-payment-option-main'>
+                <Text className='order-confirm-payment-option-title'>线下付款</Text>
+                <Text className='order-confirm-payment-option-copy'>提交后按约定付款，到账后由后台确认</Text>
+              </View>
+              <View className={`order-confirm-payment-radio ${paymentMethod === 'OFFLINE' ? 'order-confirm-payment-radio--checked' : ''}`} />
+            </View>
+          </View>
+        </View>
+
         <View className='order-confirm-section'>
           <View className='order-confirm-price-row'>
             <Text className='order-confirm-price-label'>商品总额</Text>
@@ -363,8 +421,7 @@ export default function OrderConfirmPage() {
         </View>
       </View>
 
-      <FixedView position='bottom' placeholder>
-        <View className='order-confirm-bottom-bar'>
+      <AppFixedBottom className='order-confirm-bottom-fixed' contentClassName='order-confirm-bottom-bar'>
           <View className='order-confirm-bottom-summary'>
             <Text className='order-confirm-bottom-label'>{`合计：共 ${totalQty} 件`}</Text>
             <View className='order-confirm-bottom-price'>
@@ -381,8 +438,7 @@ export default function OrderConfirmPage() {
           >
             提交订单
           </Button>
-        </View>
-      </FixedView>
+      </AppFixedBottom>
     </View>
   )
 }

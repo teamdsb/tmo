@@ -43,6 +43,7 @@ func TestPostInternalOrdersOrderIdPaymentStatusDoesNotMutateCart(t *testing.T) {
 		OwnerSalesUserID: pgtype.UUID{},
 		Address:          address,
 		PaymentStatus:    "UNPAID",
+		PaymentMethod:    "ONLINE",
 	})
 	if err != nil {
 		t.Fatalf("create order: %v", err)
@@ -132,6 +133,7 @@ func TestPostInternalOrdersOrderIdPaymentStatusRepeatedPaidDoesNotMutateCart(t *
 		OwnerSalesUserID: pgtype.UUID{},
 		Address:          address,
 		PaymentStatus:    "UNPAID",
+		PaymentMethod:    "ONLINE",
 	})
 	if err != nil {
 		t.Fatalf("create order: %v", err)

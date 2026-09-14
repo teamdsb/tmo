@@ -34,6 +34,7 @@ export const createOrdersService = (idempotency: OrderIdempotency): OrdersServic
         ?? idempotency.getKey({
           items: request.items.map((item) => ({ skuId: item.skuId, qty: item.qty })),
           address: request.address,
+          paymentMethod: request.paymentMethod,
           remark: request.remark ?? null
         })
 

@@ -8,6 +8,7 @@ test('mock orders page displays monetary values with RMB symbols', async ({ page
 
   await expect(page.locator('[data-role="orders-body"]')).toBeVisible();
   await expect(page.locator('[data-role="orders-body"]')).toContainText('¥');
+  await expect(page.locator('[data-role="orders-body"]')).not.toContainText('TXN-');
   await expect(page.locator('[data-role="customer-ltv"]')).toContainText('¥');
   await expect(page.locator('body')).not.toContainText('$');
 });
@@ -16,6 +17,14 @@ test('boss confirms offline payment and sees an audit event', async ({ page }) =
   await loginMockBoss(page);
   await page.goto('/orders.html');
   await page.locator('[data-role="order-tab"][data-tab="submitted"]').click();
+  await expect(page.locator('[data-role="orders-body"]')).toContainText('线下付款·待确认');
+  await expect(page.locator('[data-role="orders-body"]')).toContainText('线上付款·确认中');
+  await expect(page.locator('[data-role="orders-body"]')).toContainText('10101010-1010-4010-8010-101010101010');
+  const onlineOrderRow = page.locator('[data-role="orders-body"] tr').filter({ hasText: '线上付款·确认中' });
+  await onlineOrderRow.click();
+  await expect(page.locator('[data-role="online-payment-waiting"]')).toBeVisible();
+  await expect(page.locator('[data-role="submit-fulfillment"]')).toHaveCount(0);
+  await page.locator('[data-role="orders-body"] tr').filter({ hasText: '线下付款·待确认' }).first().click();
   await expect(page.locator('[data-role="order-fulfillment-panel"]')).toBeVisible();
   await page.locator('[data-role="submit-fulfillment"]').click();
   await expect(page.locator('[data-role="fulfillment-error"]')).toContainText('请选择业务员并填写备注');
@@ -23,7 +32,7 @@ test('boss confirms offline payment and sees an audit event', async ({ page }) =
   await page.locator('[data-role="fulfillment-note"]').fill('门店现金收款，已核验');
   await page.locator('[data-role="submit-fulfillment"]').click();
   await expect(page.locator('[data-role="order-admin-events"]')).toContainText('门店现金收款，已核验');
-  await expect(page.locator('[data-role="order-fulfillment-panel"]')).toContainText('已支付');
+  await expect(page.locator('[data-role="order-fulfillment-panel"]')).toContainText('线下付款·已支付');
 });
 
 test('CS can read orders but cannot see fulfillment controls', async ({ page }) => {

@@ -13,8 +13,7 @@
 }
 
 .order-confirm-content {
-  padding: 0 0 calc(124px + env(safe-area-inset-bottom));
-  padding-bottom: calc(124px + constant(safe-area-inset-bottom));
+  padding: 0 0 24px;
   background: #fff;
 }
 
@@ -224,6 +223,67 @@
   box-sizing: border-box;
 }
 
+.order-confirm-payment-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.order-confirm-payment-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.order-confirm-payment-option--active {
+  border-color: #137fec;
+  background: #f2f7ff;
+}
+
+.order-confirm-payment-option--disabled {
+  opacity: 0.55;
+}
+
+.order-confirm-payment-option-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.order-confirm-payment-option-title,
+.order-confirm-payment-option-copy {
+  display: block;
+}
+
+.order-confirm-payment-option-title {
+  font-size: calc(22px * var(--font-size-scale, 1));
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.order-confirm-payment-option-copy {
+  margin-top: 4px;
+  font-size: calc(18px * var(--font-size-scale, 1));
+  line-height: 1.5;
+  color: #64748b;
+}
+
+.order-confirm-payment-radio {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #cbd5e1;
+  border-radius: 999px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.order-confirm-payment-radio--checked {
+  border: 6px solid #137fec;
+}
+
 .order-confirm-price-row {
   display: flex;
   align-items: center;
@@ -265,13 +325,16 @@
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
-  padding-bottom: calc(14px + constant(safe-area-inset-bottom));
+  padding: 14px 18px;
   border-top: 1px solid #f1f5f9;
   background: rgb(255 255 255 / 92%);
   backdrop-filter: blur(12px);
   box-shadow: 0 -8px 24px rgb(15 23 42 / 5%);
   box-sizing: border-box;
+}
+
+.order-confirm-bottom-fixed {
+  background: rgb(255 255 255 / 92%);
 }
 
 .order-confirm-bottom-summary {

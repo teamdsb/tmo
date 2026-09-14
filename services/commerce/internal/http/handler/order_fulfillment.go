@@ -18,7 +18,10 @@ import (
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 )
 
-var errInvalidFulfillmentTransition = errors.New("order cannot be assigned in its current state")
+var (
+	errInvalidFulfillmentTransition = errors.New("order cannot be assigned in its current state")
+	errOfflinePaymentMethodMismatch = errors.New("online payment method cannot be confirmed as offline")
+)
 
 type orderFulfillmentTransition struct {
 	status          string
@@ -50,6 +53,9 @@ func resolveOrderFulfillmentTransition(order db.Order, confirmOffline bool) (ord
 		return orderFulfillmentTransition{}, errInvalidFulfillmentTransition
 	}
 	if confirmOffline {
+		if !strings.EqualFold(order.PaymentMethod, "OFFLINE") {
+			return orderFulfillmentTransition{}, errOfflinePaymentMethodMismatch
+		}
 		if strings.EqualFold(order.PaymentStatus, "PAID") {
 			return orderFulfillmentTransition{}, errors.New("order is already paid")
 		}
@@ -165,7 +171,7 @@ func (h *Handler) PatchAdminOrdersOrderIdFulfillment(c *gin.Context, orderID typ
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
 			h.writeError(c, http.StatusNotFound, "not_found", "order not found")
-		case errors.Is(err, errInvalidFulfillmentTransition), strings.Contains(err.Error(), "paid"):
+		case errors.Is(err, errInvalidFulfillmentTransition), errors.Is(err, errOfflinePaymentMethodMismatch), strings.Contains(err.Error(), "paid"):
 			h.writeError(c, http.StatusConflict, "invalid_order_state", err.Error())
 		default:
 			h.logError("update order fulfillment failed", err)

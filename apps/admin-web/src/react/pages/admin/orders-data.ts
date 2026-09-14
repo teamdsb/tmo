@@ -41,7 +41,9 @@ export type AdminOrderRecord = {
   lineItems: OrderLineItem[];
   timeline: OrderTimelineItem[];
   paymentStatus?: string;
+  paymentMethod?: string;
   paymentChannel?: string;
+  latestPaymentId?: string;
   ownerSalesUserId?: string;
 };
 
@@ -108,6 +110,14 @@ const safeText = (value: unknown, fallback = '--') => {
   return normalized || fallback;
 };
 
+const normalizePaymentMethod = (value: unknown, channel: unknown): 'ONLINE' | 'OFFLINE' => {
+  const method = safeText(value, '').toUpperCase();
+  if (method === 'ONLINE' || method === 'OFFLINE') {
+    return method;
+  }
+  return safeText(channel, '').toUpperCase() === 'OFFLINE' ? 'OFFLINE' : 'ONLINE';
+};
+
 const formatRmbText = (value: unknown, fallback = '¥0') => {
   return safeText(value, fallback).replace(/^\$/, '¥');
 };
@@ -172,6 +182,7 @@ const buildTimelineFromTracking = (tracking: unknown): OrderTimelineItem[] => {
 
 const createOrder = (input: Omit<AdminOrderRecord, 'statusTone'>): AdminOrderRecord => ({
   ...input,
+  paymentMethod: normalizePaymentMethod(input.paymentMethod, input.paymentChannel),
   statusTone: statusTone(input.statusKey)
 });
 
@@ -342,6 +353,8 @@ export const buildMockOrders = (): AdminOrderRecord[] => {
       items?: unknown[];
       ownerSalesUserId?: string;
       paymentChannel?: string;
+      latestPaymentId?: string;
+      paymentMethod?: string;
       paymentStatus?: string;
       remark?: string;
       status?: string;
@@ -393,7 +406,9 @@ export const buildMockOrders = (): AdminOrderRecord[] => {
       lineItems,
       timeline,
       paymentStatus: safeText(order.paymentStatus, 'UNPAID').toUpperCase(),
+      paymentMethod: normalizePaymentMethod(order.paymentMethod, order.paymentChannel),
       paymentChannel: safeText(order.paymentChannel, '--'),
+      latestPaymentId: safeText(order.latestPaymentId, ''),
       ownerSalesUserId: safeText(order.ownerSalesUserId, '')
     });
   });
@@ -410,6 +425,8 @@ export const buildDevOrders = (payload: OrdersApiPayload): AdminOrderRecord[] =>
       items?: Array<{ qty?: number; unitPriceFen?: number; skuId?: string }>;
       ownerSalesUserId?: string;
       paymentChannel?: string;
+      latestPaymentId?: string;
+      paymentMethod?: string;
       paymentStatus?: string;
       status?: string;
       tracking?: { shipments?: Array<{ carrier?: string; shippedAt?: string; waybillNo?: string }> };
@@ -450,7 +467,9 @@ export const buildDevOrders = (payload: OrdersApiPayload): AdminOrderRecord[] =>
       lineItems: buildLineItemsFromFixtureItems(order.items || []),
       timeline: buildTimelineFromTracking(order.tracking),
       paymentStatus: safeText(order.paymentStatus, 'UNPAID').toUpperCase(),
+      paymentMethod: normalizePaymentMethod(order.paymentMethod, order.paymentChannel),
       paymentChannel: safeText(order.paymentChannel, '--'),
+      latestPaymentId: safeText(order.latestPaymentId, ''),
       ownerSalesUserId: safeText(order.ownerSalesUserId, '')
     });
   });

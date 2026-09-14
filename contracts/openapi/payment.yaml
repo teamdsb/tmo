@@ -585,6 +585,8 @@ components:
       properties:
         address:
           "$ref": "#/components/schemas/Address"
+        paymentMethod:
+          "$ref": "#/components/schemas/OrderPaymentMethod"
         remark:
           type: string
         items:
@@ -603,7 +605,13 @@ components:
             - qty
       required:
       - address
+      - paymentMethod
       - items
+    OrderPaymentMethod:
+      type: string
+      enum:
+      - ONLINE
+      - OFFLINE
     OrderStatus:
       type: string
       enum:
@@ -638,6 +646,8 @@ components:
           format: uuid
         status:
           "$ref": "#/components/schemas/OrderStatus"
+        paymentMethod:
+          "$ref": "#/components/schemas/OrderPaymentMethod"
         address:
           "$ref": "#/components/schemas/Address"
         items:
@@ -655,6 +665,7 @@ components:
       required:
       - id
       - status
+      - paymentMethod
       - items
       - createdAt
     PagedOrderList:

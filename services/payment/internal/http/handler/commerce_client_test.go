@@ -23,6 +23,7 @@ func TestCommerceClientGetOrderForwardsAuthorization(t *testing.T) {
 			ID:            "order-1",
 			Status:        "SUBMITTED",
 			PaymentStatus: "UNPAID",
+			PaymentMethod: "ONLINE",
 			Items:         []CommerceOrderItem{{Qty: 2, UnitPriceFen: 1000}},
 		})
 	}))
@@ -36,7 +37,7 @@ func TestCommerceClientGetOrderForwardsAuthorization(t *testing.T) {
 	if gotAuth != "Bearer abc" {
 		t.Fatalf("expected Authorization header to be forwarded, got %q", gotAuth)
 	}
-	if order.ID != "order-1" || order.Status != "SUBMITTED" {
+	if order.ID != "order-1" || order.Status != "SUBMITTED" || order.PaymentMethod != "ONLINE" {
 		t.Fatalf("unexpected order payload: %#v", order)
 	}
 }

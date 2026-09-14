@@ -5,11 +5,17 @@ type GenericRecord = Record<string, unknown>
 export type RuntimeDeviceInfo = {
   statusBarHeight: number
   safeAreaTop: number
+  bottomSafeArea: number
+  bottomSafeAreaAvailable: boolean
   theme?: string
 }
 
 const toFinitePositiveNumber = (value: unknown): number => {
   return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0
+}
+
+const toFiniteNonNegativeNumber = (value: unknown): number | null => {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null
 }
 
 const toTheme = (value: unknown): string | undefined => {
@@ -41,6 +47,27 @@ const getSafeAreaTop = (source: GenericRecord): number => {
   }
 
   return 0
+}
+
+const getBottomSafeArea = (source: GenericRecord): { value: number; available: boolean } => {
+  const safeAreaInsets = source.safeAreaInsets
+  if (safeAreaInsets && typeof safeAreaInsets === 'object') {
+    const bottom = toFiniteNonNegativeNumber((safeAreaInsets as GenericRecord).bottom)
+    if (bottom !== null) {
+      return { value: bottom, available: true }
+    }
+  }
+
+  const safeArea = source.safeArea
+  const screenHeight = toFinitePositiveNumber(source.screenHeight)
+  if (safeArea && typeof safeArea === 'object' && screenHeight > 0) {
+    const safeAreaBottom = toFinitePositiveNumber((safeArea as GenericRecord).bottom)
+    if (safeAreaBottom > 0 && safeAreaBottom <= screenHeight) {
+      return { value: screenHeight - safeAreaBottom, available: true }
+    }
+  }
+
+  return { value: 0, available: false }
 }
 
 const getWindowInfoFromTaro = (): GenericRecord => {
@@ -83,6 +110,10 @@ const readFromTaroFallback = (): RuntimeDeviceInfo => {
   const statusBarHeight = toFinitePositiveNumber(windowInfo.statusBarHeight)
     || toFinitePositiveNumber(legacySystemInfo.statusBarHeight)
   const safeAreaTop = getSafeAreaTop(windowInfo) || getSafeAreaTop(legacySystemInfo)
+  const windowBottomSafeArea = getBottomSafeArea(windowInfo)
+  const bottomSafeArea = windowBottomSafeArea.available
+    ? windowBottomSafeArea
+    : getBottomSafeArea(legacySystemInfo)
   const theme = getThemeFromAppBaseInfo()
     || toTheme(windowInfo.theme)
     || toTheme(legacySystemInfo.theme)
@@ -90,6 +121,8 @@ const readFromTaroFallback = (): RuntimeDeviceInfo => {
   return {
     statusBarHeight,
     safeAreaTop,
+    bottomSafeArea: bottomSafeArea.value,
+    bottomSafeAreaAvailable: bottomSafeArea.available,
     theme
   }
 }

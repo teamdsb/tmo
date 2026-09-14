@@ -115,7 +115,7 @@ describe('CategoryPage', () => {
     expect(stylesheet).toContain('padding: 16px 16px 14px;');
     expect(stylesheet).toContain('width: 36px;');
     expect(stylesheet).toContain('height: 6px;');
-    expect(stylesheet).toContain('padding: 8px 12px calc(24px + var(--tabbar-safe-offset));');
+    expect(stylesheet).toContain('padding: 8px 12px 24px;');
     expect(stylesheet).toContain('padding: 22px 12px 24px;');
     expect(searchStylesheet).toContain('.home-search-shell');
     expect(searchStylesheet).toContain('.home-search-input');

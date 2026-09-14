@@ -26,15 +26,16 @@ func TestResolveOrderFulfillmentTransition(t *testing.T) {
 	}{
 		{
 			name:           "offline payment confirms an unpaid order",
-			order:          db.Order{Status: "SUBMITTED", PaymentStatus: "UNPAID"},
+			order:          db.Order{Status: "SUBMITTED", PaymentStatus: "UNPAID", PaymentMethod: "OFFLINE"},
 			confirmOffline: true, wantStatus: "CONFIRMED", wantPayment: "PAID",
 			wantChannel: stringPointerForFulfillment("OFFLINE"), wantClearPayID: true,
 		},
 		{
 			name:       "online paid order can be assigned without rewriting payment",
-			order:      db.Order{Status: "PAID", PaymentStatus: "PAID", PaymentChannel: stringPointerForFulfillment("WECHAT"), LatestPaymentID: pgtype.UUID{Bytes: onlinePaymentID, Valid: true}, PaidAt: paidAt},
+			order:      db.Order{Status: "PAID", PaymentStatus: "PAID", PaymentMethod: "ONLINE", PaymentChannel: stringPointerForFulfillment("WECHAT"), LatestPaymentID: pgtype.UUID{Bytes: onlinePaymentID, Valid: true}, PaidAt: paidAt},
 			wantStatus: "CONFIRMED", wantPayment: "PAID", wantChannel: stringPointerForFulfillment("WECHAT"),
 		},
+		{name: "online unpaid order cannot be confirmed as offline", order: db.Order{Status: "SUBMITTED", PaymentStatus: "UNPAID", PaymentMethod: "ONLINE"}, confirmOffline: true, wantError: true},
 		{
 			name:       "confirmed paid order can be reassigned",
 			order:      db.Order{Status: "CONFIRMED", PaymentStatus: "PAID", OwnerSalesUserID: pgtype.UUID{Bytes: salesID, Valid: true}},

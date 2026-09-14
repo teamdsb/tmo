@@ -6,7 +6,8 @@ INSERT INTO orders (
     address,
     remark,
     idempotency_key,
-    payment_status
+    payment_status,
+    payment_method
 ) VALUES (
     $1,
     $2,
@@ -14,7 +15,8 @@ INSERT INTO orders (
     $4,
     $5,
     $6,
-    $7
+    $7,
+    $8
 )
 RETURNING *;
 

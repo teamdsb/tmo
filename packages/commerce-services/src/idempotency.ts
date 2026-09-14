@@ -6,6 +6,7 @@ export interface OrderFingerprintItem {
 export interface OrderFingerprintInput {
   items: OrderFingerprintItem[]
   address: unknown
+  paymentMethod: string
   remark?: string | null
 }
 
@@ -28,6 +29,7 @@ const fingerprintDraft = (draft: OrderFingerprintInput): string => {
   return JSON.stringify({
     items,
     address: draft.address,
+    paymentMethod: draft.paymentMethod,
     remark: draft.remark ?? null
   })
 }

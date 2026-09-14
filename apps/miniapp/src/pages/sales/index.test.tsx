@@ -264,8 +264,8 @@ describe('SalesPage', () => {
     const source = fs.readFileSync(path.resolve(__dirname, './index.tsx'), 'utf8')
     const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../app.scss'), 'utf8')
 
-    expect(source).toContain("import FixedView from '@taroify/core/fixed-view'")
-    expect(source).toMatch(/<FixedView[\s\S]*?position='bottom'[\s\S]*?safeArea='bottom'[\s\S]*?placeholder/)
+    expect(source).toContain("import AppFixedBottom from '../../components/app-safe-area'")
+    expect(source).toContain("className='sales-bottom-fixed'")
     expect(source).toContain('sales-safe-top-spacer')
     expect(stylesheet).toMatch(/\.sales-safe-top-spacer\s*\{[\s\S]*?min-height:\s*calc\(var\(--navbar-total-height, 0px\) \+ 12px\)/)
     expect(stylesheet).not.toMatch(/\.sales-bottom-nav\s*\{[^}]*position:\s*fixed/)

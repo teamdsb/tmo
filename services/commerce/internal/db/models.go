@@ -213,6 +213,7 @@ type Order struct {
 	LatestPaymentID  pgtype.UUID        `db:"latest_payment_id" json:"latest_payment_id"`
 	PaymentChannel   *string            `db:"payment_channel" json:"payment_channel"`
 	PaidAt           pgtype.Timestamptz `db:"paid_at" json:"paid_at"`
+	PaymentMethod    string             `db:"payment_method" json:"payment_method"`
 }
 
 type OrderAdminEvent struct {

@@ -86,8 +86,7 @@
   flex: 1;
   min-height: 0;
   padding: 12px 28px 44px;
-  padding-bottom: calc(68px + env(safe-area-inset-bottom));
-  padding-bottom: calc(68px + constant(safe-area-inset-bottom));
+  padding-bottom: 68px;
   box-sizing: border-box;
   overflow-x: hidden;
 }
@@ -230,11 +229,14 @@
   align-items: center;
   gap: 20px;
   padding: 18px 28px 76px;
-  padding-bottom: calc(76px + env(safe-area-inset-bottom));
-  padding-bottom: calc(76px + constant(safe-area-inset-bottom));
+  padding-bottom: 76px;
   background: rgb(255 255 255 / 96%);
   border-top: 1px solid rgb(148 163 184 / 20%);
   box-sizing: border-box;
+}
+
+.support-chat__safe-area {
+  background: rgb(255 255 255 / 96%);
 }
 
 .support-chat__tool {

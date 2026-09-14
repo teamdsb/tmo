@@ -121,6 +121,7 @@ export default function OrderHistoryApp() {
 
     if (paymentConfirmed) {
       await navigateTo(orderSuccessRoute(order.id, 'paid'))
+      void loadOrders().catch(() => {})
     }
   }
 
@@ -166,7 +167,7 @@ export default function OrderHistoryApp() {
                     </View>
 
                     <Flex justify='between' align='center'>
-                      <Text className='order-meta'>{orderItemCount(order)} 件</Text>
+                      <Text className='order-meta'>{`${orderItemCount(order)} 件 · ${paymentMethodLabel(order)}`}</Text>
                       <View className='order-price'>
                         <Text className='order-label'>合计</Text>
                         <Text className='order-value'>{formatOrderTotal(order)}</Text>
@@ -257,12 +258,25 @@ const readPaymentStatus = (order: Order | null): string => {
   return typeof value === 'string' ? value : ''
 }
 
+const readPaymentMethod = (order: Order | null): string => {
+  if (!order || typeof order !== 'object') {
+    return ''
+  }
+  const value = (order as Order & { paymentMethod?: unknown }).paymentMethod
+  return typeof value === 'string' ? value.toUpperCase() : ''
+}
+
+const paymentMethodLabel = (order: Order | null): string => readPaymentMethod(order) === 'OFFLINE' ? '线下付款' : '线上付款'
+
 const canContinuePay = (order: Order | null): boolean => {
   if (!order) {
     return false
   }
   const paymentStatus = readPaymentStatus(order).toUpperCase()
   if (paymentStatus === 'PAID') {
+    return false
+  }
+  if (readPaymentMethod(order) === 'OFFLINE') {
     return false
   }
   return order.status === 'SUBMITTED' || order.status === 'PAY_PENDING' || order.status === 'PAY_FAILED'
@@ -281,6 +295,9 @@ const canViewLogistics = (order: Order | null): boolean => {
 
 const orderStatusLabel = (order: Order): string => {
   const paymentStatus = readPaymentStatus(order).toUpperCase()
+  if (readPaymentMethod(order) === 'OFFLINE' && paymentStatus !== 'PAID') {
+    return '待线下确认'
+  }
   if (paymentStatus === 'PAY_PENDING' || paymentStatus === 'UNPAID' || paymentStatus === 'PENDING' || paymentStatus === 'CREATED') {
     return '待支付'
   }

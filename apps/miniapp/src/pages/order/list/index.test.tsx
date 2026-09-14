@@ -90,6 +90,7 @@ describe('OrderHistoryApp', () => {
         createdAt: '2026-07-15T07:55:27Z',
         status: 'PAY_PENDING',
         paymentStatus: 'PAY_PENDING',
+        paymentMethod: 'ONLINE',
         items: [{
           qty: 1,
           unitPriceFen: 1,
@@ -126,6 +127,7 @@ describe('OrderHistoryApp', () => {
     expect(Taro.navigateTo).toHaveBeenCalledWith({
       url: '/pages/order/success/index?id=ORD-PAY-1&payment=paid'
     });
+    expect(commerceServices.orders.list).toHaveBeenCalledTimes(2);
   });
 
   it('uses shared secondary navbar sizing and compact order list spacing', () => {
@@ -134,7 +136,7 @@ describe('OrderHistoryApp', () => {
     expect(stylesheet).toContain('.app-navbar--secondary .taroify-navbar__content {');
     expect(stylesheet).not.toContain('.order-history-page .app-navbar .taroify-navbar__content');
     expect(stylesheet).toContain('.order-history-body {');
-    expect(stylesheet).toContain('padding: 18rpx 24rpx calc(126rpx + var(--tabbar-safe-offset));');
+    expect(stylesheet).toContain('padding: 18rpx 24rpx 126rpx;');
     expect(stylesheet).toContain('.order-history-tabs .taroify-tabs__wrap {');
     expect(stylesheet).toContain('min-height: 84rpx;');
   });

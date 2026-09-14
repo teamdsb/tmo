@@ -305,9 +305,19 @@ export type CreateOrderRequestItemsItem = {
 
 export interface CreateOrderRequest {
   address: Address;
+  paymentMethod: OrderPaymentMethod;
   remark?: string;
   items: CreateOrderRequestItemsItem[];
 }
+
+export type OrderPaymentMethod = typeof OrderPaymentMethod[keyof typeof OrderPaymentMethod];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const OrderPaymentMethod = {
+  ONLINE: 'ONLINE',
+  OFFLINE: 'OFFLINE',
+} as const;
 
 export type OrderStatus = typeof OrderStatus[keyof typeof OrderStatus];
 
@@ -337,6 +347,7 @@ export interface Order {
   id: string;
   status: OrderStatus;
   paymentStatus: OrderPaymentStatus;
+  paymentMethod: OrderPaymentMethod;
   /** @nullable */
   ownerSalesUserId?: string | null;
   latestPaymentId?: string;

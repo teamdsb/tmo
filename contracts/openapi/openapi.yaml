@@ -505,6 +505,7 @@ components:
       type: object
       properties:
         address: { $ref: "#/components/schemas/Address" }
+        paymentMethod: { $ref: "#/components/schemas/OrderPaymentMethod" }
         remark: { type: string }
         items:
           type: array
@@ -514,7 +515,11 @@ components:
               skuId: { type: string, format: uuid }
               qty: { type: integer, minimum: 1 }
             required: [skuId, qty]
-      required: [address, items]
+      required: [address, paymentMethod, items]
+
+    OrderPaymentMethod:
+      type: string
+      enum: [ONLINE, OFFLINE]
 
     OrderStatus:
       type: string
@@ -533,6 +538,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         status: { $ref: "#/components/schemas/OrderStatus" }
+        paymentMethod: { $ref: "#/components/schemas/OrderPaymentMethod" }
         address: { $ref: "#/components/schemas/Address" }
         items:
           type: array
@@ -540,7 +546,7 @@ components:
         remark: { type: string }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
-      required: [id, status, items, createdAt]
+      required: [id, status, paymentMethod, items, createdAt]
 
     PagedOrderList:
       type: object

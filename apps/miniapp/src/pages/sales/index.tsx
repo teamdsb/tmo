@@ -1,7 +1,7 @@
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Text, View } from '@tarojs/components'
-import FixedView from '@taroify/core/fixed-view'
 import Navbar from '@taroify/core/navbar'
+import AppFixedBottom from '../../components/app-safe-area'
 import { navItems } from './data'
 import type { SalesTab } from './types'
 import { AccountingView, CustomersView, DashboardView, OrdersView } from './views'
@@ -195,8 +195,10 @@ export default function SalesPage() {
           {activeTab === 'accounting' ? <AccountingView /> : null}
         </View>
 
-        <FixedView position='bottom' safeArea='bottom' placeholder className='sales-bottom-fixed'>
-          <View className='sales-bottom-nav sales-bottom-nav-shadow flex gap-1 border-t border-slate-200 bg-white px-2 pt-2'>
+        <AppFixedBottom
+          className='sales-bottom-fixed'
+          contentClassName='sales-bottom-nav sales-bottom-nav-shadow flex gap-1 border-t border-slate-200 bg-white px-2 pt-2'
+        >
             {navItems.map(({ key, label, Icon }) => {
               const active = activeTab === key
               const iconStyle = { fontSize: active ? '42rpx' : '38rpx' }
@@ -215,8 +217,7 @@ export default function SalesPage() {
                 </View>
               )
             })}
-          </View>
-        </FixedView>
+        </AppFixedBottom>
       </View>
     </View>
   )
