@@ -2,7 +2,21 @@
 
 这个文件只记录会影响后续 agent 判断的近期仓库变化，不承担发布说明、项目周报或任务流水账职责。
 
+## 2026-09-14
+
+- 订单新增提交后锁定的 `ONLINE` / `OFFLINE` 付款方式；线下订单等待 admin 确认到账，线上未支付订单不得改记为线下收款。
+  影响面：commerce 订单契约与数据表、payment 会话校验、miniapp 订单确认/列表/详情、admin 支付列与派单面板。
+  建议阅读：`docs/context/product-requirements.md`、`docs/context/payment-setup.md`、`contracts/openapi/commerce.yaml`
+
+- miniapp 底部导航统一为平台原生 TabBar；业务页面不再维护固定 TabBar 高度或直接使用底部 safe-area 表达式。独立页面固定栏、输入区和底部弹层统一通过 `components/app-safe-area` 获取运行时设备 inset，并由 FixedView placeholder 负责固定栏占位。
+  影响面：首页、分类、购物车、我的、商品详情、订单确认/详情、业务员工作台、客服和地址弹层的底部布局。
+  建议阅读：`docs/context/product-requirements.md`、`docs/execplans/miniapp-native-tabbar-safe-area.md`、`apps/miniapp/README.md`
+
 ## 2026-08-17
+
+- miniapp 移除登录后的独立角色选择页；多角色账号默认以 CUSTOMER 进入商城，纯 SALES 账号直接以 SALES 进入，业务员工作台仍从“我的”进入。
+  影响面：前端不再持久化 pending role selection，业务员工作台的顶部与底部统一使用设备安全区布局。
+  建议阅读：`docs/context/product-requirements.md`
 
 - 在线客服收紧为“显式认领后才能已读或发送”，不再由首次回复隐式认领；只有当前坐席可清除客服侧未读和回复。
   影响面：admin-web 操作状态与 Commerce 权限保持一致，自动化或旧调用方必须先调用 claim 接口。

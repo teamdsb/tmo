@@ -261,7 +261,6 @@ describe('PersonalCenter', () => {
     expect(commerceServices.tokens.setToken).toHaveBeenCalledWith(null)
     expect(identityServices.tokens.setToken).toHaveBeenCalledWith(null)
     expect(removeStorage).toHaveBeenCalledWith('tmo:bootstrap')
-    expect(removeStorage).toHaveBeenCalledWith('tmo:auth:role-selection')
     expect(Taro.reLaunch).toHaveBeenCalledWith({ url: '/pages/auth/login/index' })
 
     await waitFor(() => {

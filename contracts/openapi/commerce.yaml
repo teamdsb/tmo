@@ -2123,6 +2123,8 @@ components:
       properties:
         address:
           "$ref": "#/components/schemas/Address"
+        paymentMethod:
+          "$ref": "#/components/schemas/OrderPaymentMethod"
         remark:
           type: string
         items:
@@ -2145,7 +2147,13 @@ components:
             - qty
       required:
       - address
+      - paymentMethod
       - items
+    OrderPaymentMethod:
+      type: string
+      enum:
+      - ONLINE
+      - OFFLINE
     OrderStatus:
       type: string
       enum:
@@ -2184,6 +2192,8 @@ components:
           "$ref": "#/components/schemas/OrderStatus"
         paymentStatus:
           "$ref": "#/components/schemas/OrderPaymentStatus"
+        paymentMethod:
+          "$ref": "#/components/schemas/OrderPaymentMethod"
         ownerSalesUserId:
           type: string
           format: uuid
@@ -2216,6 +2226,7 @@ components:
       - id
       - status
       - paymentStatus
+      - paymentMethod
       - items
       - createdAt
     UpdateOrderFulfillmentRequest:

@@ -37,7 +37,10 @@
 
 .address-overlay {
   background: rgb(15 23 42 / 40%);
-  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.address-fab-fixed {
+  background: transparent;
 }
 
 .address-page {

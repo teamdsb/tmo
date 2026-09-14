@@ -94,8 +94,10 @@ describe('ExcelImportConfirmation', () => {
 
   it('keeps empty cart and bottom bar proportions compact', () => {
     const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../app.scss'), 'utf8')
+    const componentSource = fs.readFileSync(path.resolve(__dirname, './components.tsx'), 'utf8')
 
-    expect(stylesheet).toContain('padding: 18rpx 24rpx calc(184rpx + env(safe-area-inset-bottom));')
+    expect(stylesheet).toContain('padding: 18rpx 24rpx 24rpx;')
+    expect(componentSource).toContain('includeSafeArea={false}')
     expect(stylesheet).toContain('padding: 28rpx 12rpx 22rpx;')
     expect(stylesheet).toContain('width: 220rpx;')
     expect(stylesheet).toContain('height: 220rpx;')

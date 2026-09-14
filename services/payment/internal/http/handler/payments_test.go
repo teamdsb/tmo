@@ -292,6 +292,35 @@ func TestPostPaymentsWechatCreateCreatesPaymentAndSyncsOrder(t *testing.T) {
 	}
 }
 
+func TestPostPaymentsWechatCreateRejectsOfflineOrder(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	orderID := uuid.MustParse("abababab-1111-2222-3333-abababababab")
+	store := newPaymentStoreStub()
+	commerce := newCommerceServerStub(CommerceOrder{
+		ID: orderID.String(), Status: "SUBMITTED", PaymentStatus: "UNPAID", PaymentMethod: "OFFLINE",
+		Items: []CommerceOrderItem{{Qty: 1, UnitPriceFen: 1200}},
+	})
+	defer commerce.Close()
+
+	router := newTestRouter(&Handler{
+		Flags: StaticFlagsProvider{Flags: FeatureFlags{PaymentEnabled: true, WechatPayEnabled: true}},
+		Store: store, Commerce: NewCommerceClient(commerce.URL(), "sync-token"), ProviderMode: "mock",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/payments/wechat/create", strings.NewReader(`{"orderId":"`+orderID.String()+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "offline-order")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if store.createCalls != 0 || len(store.payments) != 0 || len(commerce.syncRequests) != 0 {
+		t.Fatalf("offline order created payment state: calls=%d payments=%d sync=%d", store.createCalls, len(store.payments), len(commerce.syncRequests))
+	}
+}
+
 func TestPostPaymentsWechatCreateReturnsExistingPaymentForIdempotencyKey(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

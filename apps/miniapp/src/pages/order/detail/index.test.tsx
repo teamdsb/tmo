@@ -38,6 +38,7 @@ const buildOrder = (overrides: Record<string, unknown> = {}) => ({
   id: 'order-2001',
   status: 'PAY_PENDING',
   paymentStatus: 'PAY_PENDING',
+  paymentMethod: 'ONLINE',
   latestPaymentId: 'pay-2001',
   address: {
     receiverName: '李四',
@@ -112,7 +113,7 @@ describe('OrderDetailPage', () => {
 
     expect(paymentServices.sessions.recheck).toHaveBeenCalledWith('pay-2001')
     expect(switchTabLike).toHaveBeenCalledWith('/pages/cart/index')
-    expect(commerceServices.orders.get).toHaveBeenCalledTimes(1)
+    expect(commerceServices.orders.get).toHaveBeenCalledTimes(2)
   })
 
   it('keeps order paid locally after fake payment succeeds', async () => {
@@ -137,7 +138,7 @@ describe('OrderDetailPage', () => {
     })
 
     expect(switchTabLike).toHaveBeenCalledWith('/pages/cart/index')
-    expect(commerceServices.orders.get).toHaveBeenCalledTimes(1)
+    expect(commerceServices.orders.get).toHaveBeenCalledTimes(2)
     expect(Taro.showToast).toHaveBeenCalledWith(expect.objectContaining({
       title: '支付成功',
       icon: 'success'
@@ -161,6 +162,25 @@ describe('OrderDetailPage', () => {
     expect(screen.queryByText('刷新支付状态')).toBeNull()
     expect(screen.getByText('返回购物车')).toBeInTheDocument()
     expect(screen.getByText('查看物流')).toBeInTheDocument()
+  })
+
+  it('shows locked offline payment copy without online payment actions', async () => {
+    ;(commerceServices.orders.get as jest.Mock).mockResolvedValue(buildOrder({
+      status: 'SUBMITTED',
+      paymentStatus: 'UNPAID',
+      paymentMethod: 'OFFLINE',
+      latestPaymentId: undefined
+    }))
+
+    render(<OrderDetailPage />)
+    await act(async () => {
+      await flushPromises()
+    })
+
+    expect(screen.getByText('等待线下付款确认')).toBeInTheDocument()
+    expect(screen.getByText('线下付款')).toBeInTheDocument()
+    expect(screen.queryByText('继续支付')).toBeNull()
+    expect(screen.queryByText('刷新支付状态')).toBeNull()
   })
 
   it('expands all items from summary view', async () => {

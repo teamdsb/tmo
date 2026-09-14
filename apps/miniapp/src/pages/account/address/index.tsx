@@ -5,6 +5,7 @@ import Navbar from '@taroify/core/navbar'
 import Plus from '@taroify/icons/Plus'
 import LocationOutlined from '@taroify/icons/LocationOutlined'
 import type { UserAddress } from '@tmo/api-client'
+import AppFixedBottom, { AppSafeAreaBottom } from '../../../components/app-safe-area'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { commerceServices } from '../../../services/commerce'
 import { getSelectedUserAddressId, listUserAddresses, setSelectedUserAddressId } from '../../../services/addresses'
@@ -178,7 +179,7 @@ export default function AddressList() {
       </View>
 
       {!isFormOpen ? (
-        <View className='fixed bottom-8 left-0 right-0 px-4 pb-4 z-30'>
+        <AppFixedBottom className='address-fab-fixed' contentClassName='px-4 pb-4 z-30'>
           <View
             className='w-full h-14 bg-blue-600 text-white rounded-2xl font-semibold shadow-lg transition-all flex items-center justify-center gap-2 address-fab address-pressable'
             onClick={openAdd}
@@ -186,7 +187,7 @@ export default function AddressList() {
             <Plus className='text-lg address-fab-icon' />
             <Text className='address-fab-text'>新增地址</Text>
           </View>
-        </View>
+        </AppFixedBottom>
       ) : null}
 
       {isFormOpen ? (
@@ -209,6 +210,7 @@ export default function AddressList() {
               onSubmit={handleSaveAddress}
               onCancel={() => setIsFormOpen(false)}
             />
+            <AppSafeAreaBottom />
           </View>
         </View>
       ) : null}

@@ -4,7 +4,7 @@
 
 本文档适用于当前仓库的真实支付接入与联调，支付主入口在 `services/payment`：
 
-- miniapp 下单后直接调用 `payment` 服务创建支付会话，不走 `commerce` 聚合创建。
+- miniapp 在确认订单时选择 `ONLINE` 或 `OFFLINE`；只有 `ONLINE` 订单会在下单后直接调用 `payment` 服务创建支付会话。
 - `commerce` 仅接收 `payment` 的内部支付状态回写，并在订单列表/详情里展示支付摘要。
 - admin-web 直接调用 `payment` 服务查询交易、审计日志和 webhook，并执行 webhook replay。
 
@@ -16,6 +16,8 @@
 - `services/payment` 需要可访问 `services/commerce`，用于读取订单金额与回写支付结果。
 - miniapp 和 admin-web 都必须把支付请求直接指向 `payment` 服务，不复用 commerce API。
 - 创建支付必须携带 `Idempotency-Key`，避免前端重试导致重复下单。
+- `paymentMethod` 是提交后锁定的客户选择；`paymentStatus` 表示到账状态，`paymentChannel` 表示实际渠道，三者不互相代替。
+- `OFFLINE` 订单保持 `UNPAID`，由 admin 确认到账后更新为 `PAID` 和 `paymentChannel=OFFLINE`；payment 服务必须拒绝为其创建线上会话。
 - 客户端支付成功提示不能直接作为最终支付成功依据，必须以支付渠道异步通知或主动查单收敛为准。
 
 ## 微信支付

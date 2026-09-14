@@ -398,7 +398,7 @@ func TestPostOrdersRemovesOrderedCartItemsAfterOrderSucceeds(t *testing.T) {
 	}
 
 	router := newIntegrationRouter(pool, queries)
-	body := fmt.Sprintf(`{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"items":[{"cartItemId":"%s","skuId":"%s","qty":2}]}`, cartItemA.ID.String(), skuA.ID.String())
+	body := fmt.Sprintf(`{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"paymentMethod":"OFFLINE","items":[{"cartItemId":"%s","skuId":"%s","qty":2}]}`, cartItemA.ID.String(), skuA.ID.String())
 	req := httptest.NewRequest(http.MethodPost, "/orders", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
@@ -406,6 +406,17 @@ func TestPostOrdersRemovesOrderedCartItemsAfterOrderSucceeds(t *testing.T) {
 
 	if recorder.Code != http.StatusCreated {
 		t.Fatalf("expected status 201, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	var created oapi.Order
+	if err := json.Unmarshal(recorder.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode created order: %v", err)
+	}
+	if created.PaymentMethod != oapi.OFFLINE {
+		t.Fatalf("expected OFFLINE payment method, got %s", created.PaymentMethod)
+	}
+	persisted, err := queries.GetOrder(ctx, uuid.UUID(created.Id))
+	if err != nil || persisted.PaymentMethod != "OFFLINE" {
+		t.Fatalf("expected persisted OFFLINE payment method, order=%#v err=%v", persisted, err)
 	}
 
 	items, err := queries.ListCartItems(ctx, customerID)
@@ -436,7 +447,7 @@ func TestPostOrdersIdempotencyConflict(t *testing.T) {
 	}
 
 	router := newIntegrationRouter(pool, queries)
-	body := fmt.Sprintf(`{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"items":[{"cartItemId":"%s","skuId":"%s","qty":2}]}`, cartItem.ID.String(), skuA.ID.String())
+	body := fmt.Sprintf(`{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"paymentMethod":"ONLINE","items":[{"cartItemId":"%s","skuId":"%s","qty":2}]}`, cartItem.ID.String(), skuA.ID.String())
 	idempotencyKey := "order-dup-001"
 
 	req := httptest.NewRequest(http.MethodPost, "/orders", bytes.NewBufferString(body))
@@ -497,7 +508,7 @@ func TestPostOrdersStoresOwnerSalesUserID(t *testing.T) {
 	}
 
 	router := newAuthIntegrationRouter(pool, queries)
-	body := fmt.Sprintf(`{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"items":[{"cartItemId":"%s","skuId":"%s","qty":2}]}`, cartItem.ID.String(), skuA.ID.String())
+	body := fmt.Sprintf(`{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"paymentMethod":"ONLINE","items":[{"cartItemId":"%s","skuId":"%s","qty":2}]}`, cartItem.ID.String(), skuA.ID.String())
 	req := httptest.NewRequest(http.MethodPost, "/orders", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, customerID, "CUSTOMER", &ownerSalesID))
@@ -546,11 +557,11 @@ func TestPostOrdersRejectsInvalidCartItemSelection(t *testing.T) {
 	}{
 		{
 			name: "sku mismatch",
-			body: fmt.Sprintf(`{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"items":[{"cartItemId":"%s","skuId":"%s","qty":1}]}`, cartItem.ID.String(), skuB.ID.String()),
+			body: fmt.Sprintf(`{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"paymentMethod":"ONLINE","items":[{"cartItemId":"%s","skuId":"%s","qty":1}]}`, cartItem.ID.String(), skuB.ID.String()),
 		},
 		{
 			name: "qty exceeds cart quantity",
-			body: fmt.Sprintf(`{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"items":[{"cartItemId":"%s","skuId":"%s","qty":3}]}`, cartItem.ID.String(), skuA.ID.String()),
+			body: fmt.Sprintf(`{"address":{"receiverName":"A","receiverPhone":"1","detail":"X"},"paymentMethod":"ONLINE","items":[{"cartItemId":"%s","skuId":"%s","qty":3}]}`, cartItem.ID.String(), skuA.ID.String()),
 		},
 	}
 
@@ -588,6 +599,8 @@ func TestTrackingUpdateKeepsOrderStatus(t *testing.T) {
 		Address:          address,
 		Remark:           nil,
 		IdempotencyKey:   nil,
+		PaymentStatus:    "UNPAID",
+		PaymentMethod:    "ONLINE",
 	})
 	if err != nil {
 		t.Fatalf("create order: %v", err)
@@ -994,6 +1007,7 @@ func seedOrderWithItem(t *testing.T, queries *db.Queries, customerID uuid.UUID, 
 		Remark:           nil,
 		IdempotencyKey:   nil,
 		PaymentStatus:    string(oapi.OrderPaymentStatusUNPAID),
+		PaymentMethod:    "ONLINE",
 	})
 	if err != nil {
 		t.Fatalf("create order: %v", err)

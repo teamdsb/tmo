@@ -4,6 +4,7 @@ import Taro, { useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
 import Button from '@taroify/core/button'
 import type { Order, OrderItem, OrderStatus } from '@tmo/api-client'
+import AppFixedBottom from '../../../components/app-safe-area'
 import { ROUTES, orderTrackingRoute } from '../../../routes'
 import SafeImage from '../../../components/safe-image'
 import { getNavbarStyle } from '../../../utils/navbar'
@@ -113,6 +114,7 @@ export default function OrderDetail() {
 
     if (paymentConfirmed) {
       await switchTabLike(ROUTES.cart)
+      void loadOrder(orderId).catch(() => {})
     }
   }
 
@@ -144,6 +146,9 @@ export default function OrderDetail() {
 
     if (paymentConfirmed) {
       await switchTabLike(ROUTES.cart)
+      if (orderId && typeof orderId === 'string') {
+        void loadOrder(orderId).catch(() => {})
+      }
     }
   }
 
@@ -259,7 +264,7 @@ export default function OrderDetail() {
         </View>
       </View>
 
-      <View className='order-detail-footer'>
+      <AppFixedBottom className='order-detail-footer-fixed' contentClassName='order-detail-footer'>
         <View className={`order-detail-footer-main ${(!showContinuePay && !showLogistics) ? 'order-detail-footer-main--single' : ''}`}>
           <Button block variant='outlined' className='order-detail-footer-secondary' onClick={() => switchTabLike(ROUTES.cart)}>
             返回购物车
@@ -280,7 +285,7 @@ export default function OrderDetail() {
             </Button>
           ) : null}
         </View>
-      </View>
+      </AppFixedBottom>
     </View>
   )
 }
@@ -350,6 +355,14 @@ const readPaymentStatus = (order: Order | null): string => {
   return typeof value === 'string' ? value : ''
 }
 
+const readPaymentMethod = (order: Order | null): string => {
+  if (!order || typeof order !== 'object') {
+    return ''
+  }
+  const value = (order as Order & { paymentMethod?: unknown }).paymentMethod
+  return typeof value === 'string' ? value.toUpperCase() : ''
+}
+
 const readLatestPaymentId = (order: Order | null): string => {
   if (!order || typeof order !== 'object') {
     return ''
@@ -360,6 +373,9 @@ const readLatestPaymentId = (order: Order | null): string => {
 
 const paymentStatusLabel = (order: Order | null): string => {
   const paymentStatus = readPaymentStatus(order).toUpperCase()
+  if (readPaymentMethod(order) === 'OFFLINE' && paymentStatus !== 'PAID') {
+    return '待线下确认'
+  }
   if (!paymentStatus) {
     return order ? statusLabel(order.status) : '--'
   }
@@ -398,6 +414,15 @@ const getHeroContent = (order: Order | null) => {
       badge: 'PAY FAILED / 支付失败'
     }
   }
+  if (readPaymentMethod(order) === 'OFFLINE') {
+    return {
+      tone: 'pending',
+      icon: '·',
+      title: '等待线下付款确认',
+      copy: '请按约定完成付款，到账后由后台确认。',
+      badge: 'OFFLINE / 线下付款'
+    }
+  }
   return {
     tone: 'pending',
     icon: '·',
@@ -411,6 +436,7 @@ const buildDetailRows = (order: Order | null) => {
   return [
     { label: '创建时间', value: order ? formatDate(order.createdAt) : '--' },
     { label: '商品数量', value: `${orderItemCount(order)} 件` },
+    { label: '付款方式', value: readPaymentMethod(order) === 'OFFLINE' ? '线下付款' : '线上付款' },
     { label: '支付状态', value: paymentStatusLabel(order) },
     { label: '订单号', value: order?.id ?? '--' }
   ]
@@ -423,11 +449,17 @@ const canContinuePay = (order: Order | null): boolean => {
   if (readPaymentStatus(order).toUpperCase() === 'PAID') {
     return false
   }
+  if (readPaymentMethod(order) === 'OFFLINE') {
+    return false
+  }
   return order.status === 'SUBMITTED' || order.status === 'PAY_PENDING' || order.status === 'PAY_FAILED'
 }
 
 const canRefreshPayment = (order: Order | null): boolean => {
   if (!order) {
+    return false
+  }
+  if (readPaymentMethod(order) === 'OFFLINE') {
     return false
   }
   return Boolean(readLatestPaymentId(order)) && readPaymentStatus(order).toUpperCase() !== 'PAID'

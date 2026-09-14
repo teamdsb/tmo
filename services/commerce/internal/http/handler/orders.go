@@ -41,6 +41,11 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 		h.writeError(c, http.StatusBadRequest, "invalid_request", "items is required")
 		return
 	}
+	paymentMethod := strings.ToUpper(strings.TrimSpace(string(request.PaymentMethod)))
+	if paymentMethod != string(oapi.ONLINE) && paymentMethod != string(oapi.OFFLINE) {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "paymentMethod must be ONLINE or OFFLINE")
+		return
+	}
 
 	if params.IdempotencyKey != nil {
 		order, err := h.OrderStore.GetOrderByIdempotencyKey(c.Request.Context(), db.GetOrderByIdempotencyKeyParams{
@@ -208,6 +213,7 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 			Remark:           request.Remark,
 			IdempotencyKey:   params.IdempotencyKey,
 			PaymentStatus:    "UNPAID",
+			PaymentMethod:    paymentMethod,
 		})
 		if err != nil {
 			return err
@@ -544,6 +550,7 @@ func orderFromModel(order db.Order, items []oapi.OrderItem) (oapi.Order, error) 
 		Id:            order.ID,
 		Status:        oapi.OrderStatus(order.Status),
 		PaymentStatus: oapi.OrderPaymentStatus(order.PaymentStatus),
+		PaymentMethod: oapi.OrderPaymentMethod(order.PaymentMethod),
 		Items:         items,
 		CreatedAt:     order.CreatedAt.Time,
 		UpdatedAt:     timeFromTimestamptz(order.UpdatedAt),

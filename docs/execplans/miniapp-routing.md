@@ -23,7 +23,7 @@ Decision: The Demand tab does not point to the search page and uses a new placeh
 
 Decision: Keep the existing pages/cart/index and do not introduce a new cart list page. Rationale: The user asked to leave the cart direction undecided at this stage. Date/Author: 2026-01-23 / Codex.
 
-Decision: Keep the in-page Taroify Tabbar and do not enable the native tabBar in app.config. Rationale: The UI already embeds a Tabbar; enabling native tabBar would create a double bar and layout conflicts. A shared Tabbar component plus navigation helpers is sufficient for routing. Date/Author: 2026-01-23 / Codex.
+Decision (superseded 2026-09-14): Keep the in-page Taroify Tabbar and do not enable the native tabBar in app.config. This historical decision was replaced by `docs/execplans/miniapp-native-tabbar-safe-area.md`; the current application uses the platform native TabBar and a shared safe-area primitive for standalone bottom UI. Original rationale: The UI already embedded a Tabbar and enabling native tabBar at that time would have created a double bar. Date/Author: 2026-01-23 / Codex; superseded 2026-09-14 / Codex.
 
 ## Outcomes & Retrospective
 

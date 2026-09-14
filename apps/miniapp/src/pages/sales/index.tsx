@@ -1,6 +1,7 @@
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Text, View } from '@tarojs/components'
 import Navbar from '@taroify/core/navbar'
+import AppFixedBottom from '../../components/app-safe-area'
 import { navItems } from './data'
 import type { SalesTab } from './types'
 import { AccountingView, CustomersView, DashboardView, OrdersView } from './views'
@@ -194,26 +195,29 @@ export default function SalesPage() {
           {activeTab === 'accounting' ? <AccountingView /> : null}
         </View>
 
-        <View className='sales-bottom-nav sales-bottom-nav-shadow flex gap-1 border-t border-slate-200 bg-white px-2 pt-2'>
-          {navItems.map(({ key, label, Icon }) => {
-            const active = activeTab === key
-            const iconStyle = { fontSize: active ? '42rpx' : '38rpx' }
+        <AppFixedBottom
+          className='sales-bottom-fixed'
+          contentClassName='sales-bottom-nav sales-bottom-nav-shadow flex gap-1 border-t border-slate-200 bg-white px-2 pt-2'
+        >
+            {navItems.map(({ key, label, Icon }) => {
+              const active = activeTab === key
+              const iconStyle = { fontSize: active ? '42rpx' : '38rpx' }
 
-            return (
-              <View
-                key={key}
-                id={`sales-tab-${key}`}
-                onClick={() => setActiveTab(key)}
-                className={`flex flex-1 flex-col items-center justify-end gap-1 ${active ? 'sales-primary-text' : 'text-slate-500'}`}
-              >
-                <View className={`sales-nav-icon-wrap ${active ? 'sales-nav-icon-wrap--active' : ''}`}>
-                  <Icon className={active ? 'sales-primary-text' : 'text-slate-500'} style={iconStyle} />
+              return (
+                <View
+                  key={key}
+                  id={`sales-tab-${key}`}
+                  onClick={() => setActiveTab(key)}
+                  className={`flex flex-1 flex-col items-center justify-end gap-1 ${active ? 'sales-primary-text' : 'text-slate-500'}`}
+                >
+                  <View className={`sales-nav-icon-wrap ${active ? 'sales-nav-icon-wrap--active' : ''}`}>
+                    <Icon className={active ? 'sales-primary-text' : 'text-slate-500'} style={iconStyle} />
+                  </View>
+                  <Text className={`sales-nav-label ${active ? 'sales-nav-label--active' : ''}`}>{label}</Text>
                 </View>
-                <Text className={`sales-nav-label ${active ? 'sales-nav-label--active' : ''}`}>{label}</Text>
-              </View>
-            )
-          })}
-        </View>
+              )
+            })}
+        </AppFixedBottom>
       </View>
     </View>
   )

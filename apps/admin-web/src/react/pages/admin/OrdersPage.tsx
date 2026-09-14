@@ -115,19 +115,21 @@ const StatusBadge = ({ statusKey, statusLabel }: { statusKey: string; statusLabe
   return <ToneBadge statusLabel={statusLabel} tone={getStatusTone(statusKey)} />;
 };
 
-const getPaymentMeta = (order: AdminOrderRecord): { statusLabel: string; tone: OrderStatusTone; transactionId: string } => {
-  const transactionId = `TXN-${order.id.replace(/[^A-Za-z0-9]/g, '').toUpperCase()}`;
+const getPaymentMeta = (order: AdminOrderRecord): { statusLabel: string; tone: OrderStatusTone; transactionId?: string } => {
   const paymentStatus = String(order.paymentStatus || 'UNPAID').toUpperCase();
+  const paymentMethod = String(order.paymentMethod || 'ONLINE').toUpperCase();
+  const methodLabel = paymentMethod === 'OFFLINE' ? '线下付款' : '线上付款';
+  const transactionId = paymentMethod === 'ONLINE' && order.latestPaymentId ? order.latestPaymentId : undefined;
   if (paymentStatus === 'PAID') {
-    return { statusLabel: '已支付', tone: 'green', transactionId };
+    return { statusLabel: `${methodLabel}·已支付`, tone: 'green', transactionId };
   }
   if (paymentStatus === 'PAY_PENDING') {
-    return { statusLabel: '待支付', tone: 'amber', transactionId };
+    return { statusLabel: `${methodLabel}·${paymentMethod === 'OFFLINE' ? '待确认' : '确认中'}`, tone: 'amber', transactionId };
   }
   if (paymentStatus === 'PAY_FAILED') {
-    return { statusLabel: '支付失败', tone: 'red', transactionId };
+    return { statusLabel: `${methodLabel}·支付失败`, tone: 'red', transactionId };
   }
-  return { statusLabel: '未支付', tone: 'gray', transactionId };
+  return { statusLabel: `${methodLabel}·${paymentMethod === 'OFFLINE' ? '待确认' : '待支付'}`, tone: 'gray', transactionId };
 };
 
 type OrderDetailDrawerProps = {
@@ -646,7 +648,8 @@ export const OrdersPage = () => {
   const canManageOrders = ['BOSS', 'MANAGER', 'ADMIN'].includes(currentRole)
     && hasPermission(normalizePermissionMap(session.permissions), 'order:manage', 'ALL');
   const terminalOrder = selectedOrder ? ['SHIPPED', 'DELIVERED', 'CANCELLED', 'CLOSED', 'DISPATCHED', 'RETURNING', 'RETURNED'].includes(selectedOrder.statusKey.toUpperCase()) : true;
-  const confirmOfflinePayment = selectedOrder?.paymentStatus !== 'PAID';
+  const confirmOfflinePayment = selectedOrder?.paymentMethod === 'OFFLINE' && selectedOrder.paymentStatus !== 'PAID';
+  const waitingForOnlinePayment = selectedOrder?.paymentMethod === 'ONLINE' && selectedOrder.paymentStatus !== 'PAID';
   const canShipOrder = Boolean(selectedOrder && selectedOrder.statusKey.toUpperCase() === 'CONFIRMED' && selectedOrder.paymentStatus === 'PAID');
   const canConfirmDelivery = Boolean(selectedOrder && ['SHIPPED', 'DISPATCHED', 'IN_TRANSIT'].includes(selectedOrder.statusKey.toUpperCase()));
 
@@ -940,13 +943,15 @@ export const OrdersPage = () => {
                                   <td className="px-6 py-4">
                                     <div className="flex flex-col gap-1">
                                       <ToneBadge statusLabel={paymentMeta.statusLabel} tone={paymentMeta.tone} />
-                                      <a
-                                        className="text-xs font-medium text-primary hover:text-primary-dark"
-                                        href={`/payments.html?q=${encodeURIComponent(paymentMeta.transactionId)}`}
-                                        onClick={(event) => event.stopPropagation()}
-                                      >
-                                        {paymentMeta.transactionId}
-                                      </a>
+                                      {paymentMeta.transactionId ? (
+                                        <a
+                                          className="text-xs font-medium text-primary hover:text-primary-dark"
+                                          href={`/payments.html?q=${encodeURIComponent(paymentMeta.transactionId)}`}
+                                          onClick={(event) => event.stopPropagation()}
+                                        >
+                                          {paymentMeta.transactionId}
+                                        </a>
+                                      ) : null}
                                     </div>
                                   </td>
                                   <td className="px-6 py-4 text-right">
@@ -1010,7 +1015,9 @@ export const OrdersPage = () => {
                       <div className="rounded-xl border border-border-light bg-surface-light p-6 shadow-sm dark:border-border-dark dark:bg-surface-dark" data-role="order-fulfillment-panel">
                         <h3 className="text-lg font-bold text-text-main dark:text-text-main-dark">订单派发</h3>
                         <p className="mt-1 text-xs text-text-sub">付款状态：{getPaymentMeta(selectedOrder).statusLabel} · 渠道：{selectedOrder.paymentChannel || '--'}</p>
-                        {terminalOrder ? <p className="mt-4 text-sm text-amber-700">订单已进入终态或发货阶段，不能再派单。</p> : (
+                        {terminalOrder ? <p className="mt-4 text-sm text-amber-700">订单已进入终态或发货阶段，不能再派单。</p> : waitingForOnlinePayment ? (
+                          <p className="mt-4 text-sm text-amber-700" data-role="online-payment-waiting">客户选择了线上付款，请等待支付完成后再派单。</p>
+                        ) : (
                           <div className="mt-4 space-y-3">
                             <label className="block text-xs text-text-sub">业务员
                               <select className="mt-1 w-full rounded-lg border-slate-300 text-sm" data-role="fulfillment-sales" onChange={(event) => setOwnerSalesUserId(event.target.value)} value={ownerSalesUserId}>

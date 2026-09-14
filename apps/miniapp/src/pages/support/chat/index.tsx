@@ -7,6 +7,7 @@ import { AddOutlined, ChatOutlined, PhotoOutlined } from '@taroify/icons'
 
 import './index.scss'
 
+import { AppSafeAreaBottom } from '../../../components/app-safe-area'
 import { commerceServices } from '../../../services/commerce'
 import { isUnauthorized } from '../../../utils/auth'
 import { getNavbarStyle } from '../../../utils/navbar'
@@ -932,6 +933,7 @@ export default function SupportChatPage() {
           {uploadingImage ? <PhotoOutlined /> : <ChatOutlined />}
         </Button>
       </View>
+      <AppSafeAreaBottom className='support-chat__safe-area' />
     </View>
   )
 }

@@ -91,6 +91,7 @@ describe('OrderConfirmPage', () => {
       id: 'order-1001',
       status: 'SUBMITTED',
       paymentStatus: 'UNPAID',
+      paymentMethod: 'ONLINE',
       items: [],
       createdAt: '2026-03-06T00:00:00Z'
     })
@@ -255,6 +256,7 @@ describe('OrderConfirmPage', () => {
 
     expect(commerceServices.orders.submit).toHaveBeenCalled()
     expect(commerceServices.orders.submit).toHaveBeenCalledWith(expect.objectContaining({
+      paymentMethod: 'ONLINE',
       remark: '周五前发货',
       items: [
         expect.objectContaining({
@@ -272,6 +274,26 @@ describe('OrderConfirmPage', () => {
     expect(Taro.showToast).toHaveBeenCalledWith({ title: '支付成功', icon: 'success' })
     expect(switchTabLike).toHaveBeenCalledWith('/pages/cart/index')
     expect(navigateTo).not.toHaveBeenCalled()
+  })
+
+  it('submits an offline order without creating an online payment session', async () => {
+    render(<OrderConfirmPage />)
+    await act(async () => {
+      await flushPromises()
+    })
+
+    fireEvent.click(screen.getByText('线下付款'))
+    fireEvent.click(screen.getByText('提交订单'))
+    await act(async () => {
+      await flushPromises()
+    })
+
+    expect(commerceServices.orders.submit).toHaveBeenCalledWith(expect.objectContaining({
+      paymentMethod: 'OFFLINE'
+    }))
+    expect(paymentServices.sessions.payForOrder).not.toHaveBeenCalled()
+    expect(Taro.showToast).toHaveBeenCalledWith({ title: '订单已提交，等待线下付款确认', icon: 'none' })
+    expect(navigateTo).toHaveBeenCalledWith('/pages/order/detail/index?id=order-1001')
   })
 
   it('keeps payment-confirming orders on the order detail page', async () => {

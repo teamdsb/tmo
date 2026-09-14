@@ -29,7 +29,9 @@ const createFixture = ({
   tracking,
   admin,
   paymentStatus = ['CONFIRMED', 'PAID', 'SHIPPED', 'DELIVERED', 'CLOSED'].includes(String(status).toUpperCase()) ? 'PAID' : 'UNPAID',
+  paymentMethod = null,
   paymentChannel = null,
+  latestPaymentId = null,
   ownerSalesUserId = null
 }) => ({
   id,
@@ -43,7 +45,9 @@ const createFixture = ({
   tracking: tracking || { orderId: id, shipments: [] },
   admin,
   paymentStatus,
+  paymentMethod: paymentMethod || (paymentStatus === 'PAID' ? 'ONLINE' : 'OFFLINE'),
   paymentChannel,
+  latestPaymentId,
   ownerSalesUserId
 });
 
@@ -410,6 +414,10 @@ export const canonicalOrderFixtures = [
   createFixture({
     id: 'ORD-2026-010',
     status: 'SUBMITTED',
+    paymentStatus: 'PAY_PENDING',
+    paymentMethod: 'ONLINE',
+    paymentChannel: 'WECHAT',
+    latestPaymentId: '10101010-1010-4010-8010-101010101010',
     createdAt: '2026-02-19T11:10:00Z',
     address: {
       receiverName: '杰克·哈里森',

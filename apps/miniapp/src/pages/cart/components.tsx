@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Button, Image, Input, Text, View } from '@tarojs/components'
-import FixedView from '@taroify/core/fixed-view'
 import { ArrowLeft } from '@taroify/icons'
 import type { CartImportJob, CartImportPendingItem, ProductSummary } from '@tmo/api-client'
 import cartActiveIcon from '../../assets/tabbar/cart-active.png'
 import placeholderProductImage from '../../assets/images/placeholder-product.svg'
+import AppFixedBottom from '../../components/app-safe-area'
 import ProductSummaryCard from '../../components/product-summary-card'
 import { formatCartItemMeta, formatCartItemPrice, formatFen, formatPendingMeta, getCartItemTitle, MATCH_TYPE_BADGES } from './helpers'
 import type { CartItem, ImportTab, ProductImageMap, ProductNameMap, SelectionMap } from './types'
@@ -439,8 +439,10 @@ export function CartBottomBar({
   const checkoutDisabled = loading || (!importJob && cartTotalItems === 0)
 
   return (
-    <FixedView position='bottom' placeholder>
-      <View className={`cart-bottom-bar ${importJob ? 'cart-bottom-bar--import' : ''}`}>
+    <AppFixedBottom
+      includeSafeArea={false}
+      contentClassName={`cart-bottom-bar ${importJob ? 'cart-bottom-bar--import' : ''}`}
+    >
         {!importJob ? (
           <View className='cart-bottom-summary'>
             <View className='cart-bottom-summary-copy'>
@@ -475,7 +477,6 @@ export function CartBottomBar({
             {importJob ? '确认并加入购物车' : '去结算'}
           </Button>
         </View>
-      </View>
-    </FixedView>
+    </AppFixedBottom>
   )
 }

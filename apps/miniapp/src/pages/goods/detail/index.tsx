@@ -5,11 +5,11 @@ import Navbar from '@taroify/core/navbar'
 import Tag from '@taroify/core/tag'
 import Grid from '@taroify/core/grid'
 import TaroifyButton from '@taroify/core/button'
-import FixedView from '@taroify/core/fixed-view'
 import Star from '@taroify/icons/Star'
 import StarOutlined from '@taroify/icons/StarOutlined'
 import type { PriceTier, ProductDetail, Sku } from '@tmo/api-client'
 import Flex from '../../../components/flex'
+import AppFixedBottom from '../../../components/app-safe-area'
 import { ROUTES, goodsDetailRoute } from '../../../routes'
 import SafeImage from '../../../components/safe-image'
 import { getNavbarStyle } from '../../../utils/navbar'
@@ -369,8 +369,7 @@ export default function ProductDetail() {
 
       </View>
 
-      <FixedView position='bottom' placeholder>
-        <View className='action-bar detail-action-bar'>
+      <AppFixedBottom contentClassName='action-bar detail-action-bar'>
           <TaroButton
             className='detail-light-action'
             hoverClass='none'
@@ -395,8 +394,7 @@ export default function ProductDetail() {
               加入购物车
             </TaroButton>
           </View>
-        </View>
-      </FixedView>
+      </AppFixedBottom>
     </View>
   )
 }

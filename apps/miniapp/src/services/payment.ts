@@ -54,6 +54,9 @@ const createMockPaymentServices = (): PaymentServices => {
       if (!order) {
         throw new Error(`order not found: ${orderId}`)
       }
+      if (String(order.paymentMethod).toUpperCase() === 'OFFLINE') {
+        throw new Error('offline order cannot create an online payment session')
+      }
       const existing = state.paymentSessionsByOrderId[orderId] ?? null
       created = build(existing)
       const nextOrder = applyPaymentSessionToOrder(order, created)

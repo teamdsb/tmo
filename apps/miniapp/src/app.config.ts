@@ -4,7 +4,6 @@ export default defineAppConfig({
     'pages/index/index',
     'pages/category/index',
     'pages/auth/login/index',
-    'pages/auth/role-select/index',
     'pages/mine/index',
     'pages/favorites/index',
     'pages/goods/search/index',

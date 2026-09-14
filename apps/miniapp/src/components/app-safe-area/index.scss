@@ -1,0 +1,6 @@
+.app-safe-area-bottom {
+  width: 100%;
+  height: var(--app-safe-area-bottom, constant(safe-area-inset-bottom));
+  height: var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0));
+  flex: 0 0 auto;
+}

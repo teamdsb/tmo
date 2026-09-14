@@ -1,5 +1,5 @@
 import { ROUTES, withQuery } from '../routes'
-import { clearBootstrap, loadBootstrap, savePendingRoleSelection } from '../services/bootstrap'
+import { clearBootstrap, loadBootstrap } from '../services/bootstrap'
 import { commerceServices } from '../services/commerce'
 import { gatewayServices } from '../services/gateway'
 import { identityServices } from '../services/identity'
@@ -15,8 +15,7 @@ export const clearAuthSession = async (): Promise<void> => {
     gatewayServices.tokens.setToken(null),
     commerceServices.tokens.setToken(null),
     identityServices.tokens.setToken(null),
-    clearBootstrap(),
-    savePendingRoleSelection(null)
+    clearBootstrap()
   ])
 }
 

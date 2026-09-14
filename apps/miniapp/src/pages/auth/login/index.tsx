@@ -9,7 +9,7 @@ import { RoleSelectionRequiredError, isApiError } from '@tmo/identity-services'
 import { identityServices } from '../../../services/identity'
 import { fetchMiniLoginCapabilities, type MiniLoginCapabilities } from '../../../services/auth-capabilities'
 import { gatewayServices } from '../../../services/gateway'
-import { saveBootstrap, savePendingRoleSelection } from '../../../services/bootstrap'
+import { saveBootstrap } from '../../../services/bootstrap'
 import { ROUTES, withQuery } from '../../../routes'
 import { clearAuthSession } from '../../../utils/auth'
 import { navigateTo, switchTabLike } from '../../../utils/navigation'
@@ -256,16 +256,34 @@ export default function LoginPage() {
     resolvePhoneProof?: () => Promise<PhoneProofResult | undefined>
   ) => {
     const phoneProof = resolvePhoneProof ? await resolvePhoneProof() : undefined
-    await identityServices.auth.miniLogin({
-      role,
+    const login = (
+      selectedRole?: 'CUSTOMER' | 'SALES',
+      selectedPhoneProof?: PhoneProofResult
+    ) => identityServices.auth.miniLogin({
+      role: selectedRole,
       scene: launchContext.scene,
       bindingToken: launchContext.bindingToken,
-      phoneProof,
+      phoneProof: selectedPhoneProof,
       codeOverride: platform === 'weapp' && enableWeappPhoneProofSimulation ? 'mock_customer_001' : undefined
     })
+    try {
+      await login(role, phoneProof)
+    } catch (error) {
+      if (!(error instanceof RoleSelectionRequiredError) || role) {
+        throw error
+      }
+      const automaticRole = error.availableRoles.includes('CUSTOMER')
+        ? 'CUSTOMER'
+        : error.availableRoles.includes('SALES')
+          ? 'SALES'
+          : null
+      if (!automaticRole) {
+        throw error
+      }
+      await login(automaticRole)
+    }
     const bootstrap = await gatewayServices.bootstrap.get()
     await saveBootstrap(bootstrap)
-    await savePendingRoleSelection(null)
     await switchTabLike(redirect || ROUTES.home)
   }
 
@@ -300,15 +318,6 @@ export default function LoginPage() {
     try {
       await handleLoginSuccess(options.role, resolvePhoneProof)
     } catch (error) {
-      if (error instanceof RoleSelectionRequiredError) {
-        await savePendingRoleSelection({
-          roles: error.availableRoles,
-          scene: launchContext.scene,
-          bindingToken: launchContext.bindingToken
-        })
-        await navigateTo(ROUTES.authRoleSelect)
-        return
-      }
       if (isTouristModeUnsupportedError(error)) {
         await Taro.showToast({
           title: '请先配置 TARO_APP_ID',
