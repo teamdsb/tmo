@@ -16,9 +16,10 @@ export interface RequesterConfig {
 const recoverUnauthorized = async (
   error: unknown,
   config: RequesterConfig,
-  signal: AbortSignal
+  signal: AbortSignal,
+  requestWasAuthenticated: boolean
 ): Promise<void> => {
-  if (!(error instanceof ApiError) || error.statusCode !== 401 || !config.onUnauthorized) {
+  if (!requestWasAuthenticated || !(error instanceof ApiError) || error.statusCode !== 401 || !config.onUnauthorized) {
     return
   }
   try {
@@ -29,6 +30,12 @@ const recoverUnauthorized = async (
     }
     // Preserve the original API error when local session cleanup fails.
   }
+}
+
+const hasAuthorizationHeader = (headers: Record<string, string>): boolean => {
+  return Object.entries(headers).some(([name, value]) => (
+    name.toLowerCase() === 'authorization' && value.trim().length > 0
+  ))
 }
 
 const isFormData = (value: unknown): value is FormData => {
@@ -94,8 +101,10 @@ const handlePlatformResponse = <T>(result: RequestResult<T>): ApiClientResponse<
 const createPlatformRequester = (config: RequesterConfig): ApiClientRequester => {
   return async <T>(options: ApiClientRequestOptions): Promise<ApiClientResponse<T>> => {
     const abortScope = createRequestAbortScope(options.signal, config.timeoutMs)
+    let requestWasAuthenticated = false
     try {
       const headers = await normalizeHeaders(options, config, abortScope.signal)
+      requestWasAuthenticated = hasAuthorizationHeader(headers)
       const result = await platformRequest<T>({
         url: options.url,
         method: options.method as RequestMethod,
@@ -107,7 +116,7 @@ const createPlatformRequester = (config: RequesterConfig): ApiClientRequester =>
       return handlePlatformResponse(result)
     } catch (error) {
       if (error instanceof ApiError) {
-        await recoverUnauthorized(error, config, abortScope.signal)
+        await recoverUnauthorized(error, config, abortScope.signal, requestWasAuthenticated)
         throw error
       }
       throw error
@@ -128,8 +137,10 @@ const headersToRecord = (headers: Headers): Record<string, string> => {
 const createFetchRequester = (config: RequesterConfig): ApiClientRequester => {
   return async <T>(options: ApiClientRequestOptions): Promise<ApiClientResponse<T>> => {
     const abortScope = createRequestAbortScope(options.signal, config.timeoutMs)
+    let requestWasAuthenticated = false
     try {
       const headers = await normalizeHeaders(options, config, abortScope.signal)
+      requestWasAuthenticated = hasAuthorizationHeader(headers)
       const init: RequestInit = {
         method: options.method,
         headers,
@@ -153,7 +164,7 @@ const createFetchRequester = (config: RequesterConfig): ApiClientRequester => {
       }
       throw toApiError(response.status, parsed, headersToRecord(response.headers))
     } catch (error) {
-      await recoverUnauthorized(error, config, abortScope.signal)
+      await recoverUnauthorized(error, config, abortScope.signal, requestWasAuthenticated)
       throw error
     } finally {
       abortScope.dispose()

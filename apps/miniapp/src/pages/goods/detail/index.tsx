@@ -14,7 +14,7 @@ import { ROUTES, goodsDetailRoute } from '../../../routes'
 import SafeImage from '../../../components/safe-image'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { matchPriceTier } from '../../../utils/price-tier'
-import { ensureLoggedIn, isUnauthorized } from '../../../utils/auth'
+import { ensureLoggedIn, isLoggedIn, isUnauthorized } from '../../../utils/auth'
 import { switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
 import placeholderProductImage from '../../../assets/images/placeholder-product.svg'
@@ -64,6 +64,9 @@ export default function ProductDetail() {
   useEffect(() => {
     void (async () => {
       try {
+        if (!(await isLoggedIn())) {
+          return
+        }
         const list = await commerceServices.wishlist.list()
         setFavoriteSkuIds(list.map((item) => item.sku.id))
       } catch (error) {

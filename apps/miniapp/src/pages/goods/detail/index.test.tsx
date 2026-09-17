@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import Taro from '@tarojs/taro'
 import ProductDetail from './index'
 import { commerceServices } from '../../../services/commerce'
+import { identityServices } from '../../../services/identity'
 import { clearBootstrap, saveBootstrap } from '../../../services/bootstrap'
 import { ROUTES } from '../../../routes'
 
@@ -338,6 +339,21 @@ describe('ProductDetail', () => {
       }))
     })
     expect(Taro.navigateTo).not.toHaveBeenCalledWith({ url: ROUTES.support })
+  })
+
+  it('does not request the authenticated wishlist when viewing details as a guest', async () => {
+    await clearBootstrap()
+    jest.spyOn(identityServices.tokens, 'getToken').mockResolvedValue(null)
+    const wishlistSpy = jest.spyOn(commerceServices.wishlist, 'list')
+    wishlistSpy.mockClear()
+
+    render(<ProductDetail />)
+
+    await screen.findByText('¥185.00 起')
+    await waitFor(() => {
+      expect(identityServices.tokens.getToken).toHaveBeenCalled()
+    })
+    expect(wishlistSpy).not.toHaveBeenCalled()
   })
 
   it('still opens support chat when inquiry intent storage fails', async () => {
