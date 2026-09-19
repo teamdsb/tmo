@@ -19,9 +19,9 @@
 - [x] (2026-09-19 13:20+08:00) 更新支付 canonical 文档、ECS runbook 和变更记录。
 - [x] (2026-09-19 13:35+08:00) 后端全量、小程序 44 suites / 307 tests、TypeScript 类型、OpenAPI 同步和生产 WeChat 构建通过；产物含 B2B 插件、API 路径和 `requestCommonPayment`。
 - [x] (2026-09-19 13:48+08:00) 独立代码复核完成；修复 AppSecret 错误泄漏、普通幂等重签和并发唯一键重签后，复核结论为无剩余 Critical/Important、可提交。
-- [ ] 提交并推送 `codex/restore-b2b-payment`。
-- [ ] 备份 ECS 当前 env 和 payment 镜像，从提交构建不可变 release，原子切换 B2B 私密配置并重建 payment 容器。
-- [ ] 验证 ECS payment/gateway 健康、运行配置和日志；记录回滚镜像与 env 路径。
+- [x] (2026-09-19 13:52+08:00) 提交 `5f93747 feat(payment): restore wechat b2b payment` 并推送 `origin/codex/restore-b2b-payment`。
+- [x] (2026-09-19 14:50+08:00) 备份 ECS env 和 payment 镜像，从提交 `5f93747` 的干净 archive 构建 `localhost/tmo/payment:b2b-5f937472d1c5`，恢复受控 B2B 凭据并切换 provider mode。
+- [x] (2026-09-19 14:52+08:00) 验证 ECS payment/gateway 本地及公网 health/ready 为 200，新 B2B 路由未认证请求为 401，运行镜像匹配候选镜像，启动日志无 ERROR；回滚 env 位于 `/opt/tmo-backups/b2b-restore-20260919T044143Z/env.ecs.local`，回滚镜像为 `localhost/tmo/payment:rollback-20260919T044143Z`。
 
 ## Surprises & Discoveries
 
@@ -37,6 +37,10 @@
   Evidence: 独立复核发现泄漏路径；新增 sentinel AppSecret/login-code 回归测试，修复后错误字符串不含 URL 或凭据。
 - Observation: B2B 签名依赖当前 session key，固定订单幂等键不能直接重放旧 `commonPayParams`。
   Evidence: 新增普通重试和唯一约束竞态测试；两次不同 login code 保持同一 payment ID，但响应签名随当前请求刷新，且 login code 每次仅消费一次。
+- Observation: ECS 直接访问 `proxy.golang.org` 时 Go build 静默等待，切换 `GOPROXY=https://goproxy.cn,direct` 和 `GOSUMDB=sum.golang.google.cn` 后依赖下载及镜像构建完成。
+  Evidence: 首次构建超过四分钟 CPU 为 0；第二次构建显示正常下载并产出镜像 `da53800926a...`。
+- Observation: 服务器 Podman Compose 即使请求只重建 payment，也会按 depends_on 重启 Postgres、Identity、Commerce。
+  Evidence: 部署后三个依赖容器 uptime 重置；持久化数据、Identity feature flags、四个服务 health/ready 和 Gateway 均验证正常。
 
 ## Decision Log
 
@@ -55,7 +59,7 @@
 
 ## Outcomes & Retrospective
 
-实现里程碑已经完成：最新代码恢复了显式 B2B provider、客户鉴权创建接口、历史签名协议、每次 login code 重签、插件和 `wx.requestCommonPayment`；普通 JSAPI 代码仍保留但不会与 B2B 同时运行。后端全量测试退出 0，小程序 44 suites / 307 tests、miniapp 与全部 packages 类型检查、OpenAPI 同步、shell 检查和 `git diff --check` 全部退出 0；生产构建验证包含插件 provider ID、B2B API、`requestCommonPayment` 和正式域名。提交、推送和 ECS 部署仍待执行。
+实现与 ECS 后端部署已经完成：最新代码恢复了显式 B2B provider、客户鉴权创建接口、历史签名协议、每次 login code 重签、插件和 `wx.requestCommonPayment`；普通 JSAPI 代码仍保留但不会与 B2B 同时运行。后端全量测试退出 0，小程序 44 suites / 307 tests、miniapp 与全部 packages 类型检查、OpenAPI 同步、shell 检查和 `git diff --check` 全部退出 0；生产构建验证包含插件 provider ID、B2B API、`requestCommonPayment` 和正式域名。提交 `5f93747` 已推送，ECS payment 运行该提交构建镜像，公网健康与路由检查通过。当前尚未完成的是把本次 miniapp 生产构建上传到微信开发者工具并发布；用户本轮只要求 ECS 部署，因此未代为上传。
 
 ## Context and Orientation
 
