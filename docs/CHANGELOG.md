@@ -2,6 +2,12 @@
 
 这个文件只记录会影响后续 agent 判断的近期仓库变化，不承担发布说明、项目周报或任务流水账职责。
 
+## 2026-09-19
+
+- 恢复微信 B2B 门店助手支付作为当前生产通道：小程序通过 `wx.requestCommonPayment`，payment 服务使用服务器端 AppSecret/AppKey 生成签名参数，显式 provider mode 为 `b2b`。普通 APIv3/JSAPI provider 继续保留但不与 B2B 同时启用；客户端 success 不直接写入 `PAID`。
+  影响面：Payment OpenAPI、后端 provider/config、platform adapter、payment-services、小程序插件声明、ECS 预检与支付部署文档。
+  建议阅读：`docs/context/payment-setup.md`、`.agent/PLANS.md`
+
 ## 2026-09-14
 
 - 订单新增提交后锁定的 `ONLINE` / `OFFLINE` 付款方式；线下订单等待 admin 确认到账，线上未支付订单不得改记为线下收款。

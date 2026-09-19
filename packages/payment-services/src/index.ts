@@ -1,14 +1,16 @@
-import { getPlatform, pay as platformPay } from '@tmo/platform-adapter'
+import { commonPay as platformCommonPay, getPlatform, login as platformLogin, pay as platformPay } from '@tmo/platform-adapter'
 import { Platform } from '@tmo/shared/enums'
 import {
   getPaymentsPaymentId,
   postPaymentsAlipayCreate,
   postPaymentsPaymentIdRecheck,
   postPaymentsWechatCreate,
+  postPaymentsWechatB2bCreate,
   setPaymentApiClientConfig,
   type ApiClientConfig,
   type ApiClientRequester,
   type PaymentDetail,
+  type WechatB2BPayCreateResponse,
   type WechatPayCreateResponse
 } from '@tmo/payment-api-client'
 
@@ -23,7 +25,7 @@ import { ApiError, isApiError, isPaymentCancelled, PaymentCancelledError } from 
 import { createRequester } from './requester'
 import { createTokenStore, type TokenStore } from './token'
 
-export type PaymentChannel = 'wechat' | 'alipay'
+export type PaymentChannel = 'wechat_b2b' | 'wechat' | 'alipay'
 export type PaymentClientResult = 'SUCCESS' | 'FAILED' | 'CANCELLED'
 
 export interface PaymentSession {
@@ -45,6 +47,7 @@ export interface PaymentSession {
   paySign?: string
   tradeNo?: string
   payParams?: Record<string, unknown>
+  commonPayParams?: Record<string, unknown>
   providerTradeNo?: string | null
   providerPrepayId?: string | null
   failureCode?: string | null
@@ -90,15 +93,19 @@ const detectPaymentChannel = (): PaymentChannel => {
 }
 
 const toApiChannel = (channel: PaymentChannel): 'WECHAT' | 'ALIPAY' => {
-  return channel === 'wechat' ? 'WECHAT' : 'ALIPAY'
+  return channel === 'alipay' ? 'ALIPAY' : 'WECHAT'
 }
 
 const normalizeChannel = (channel: string): PaymentChannel => {
-  return String(channel).toUpperCase() === 'ALIPAY' ? 'alipay' : 'wechat'
+  switch (String(channel).toUpperCase()) {
+    case 'WECHAT_B2B': return 'wechat_b2b'
+    case 'ALIPAY': return 'alipay'
+    default: return 'wechat'
+  }
 }
 
 const normalizePaymentSession = (
-  session: PaymentDetail | WechatPayCreateResponse
+  session: PaymentDetail | WechatPayCreateResponse | WechatB2BPayCreateResponse
 ): PaymentSession => {
   if ('paymentId' in session) {
     return {
@@ -112,7 +119,8 @@ const normalizePaymentSession = (
       nonceStr: 'nonceStr' in session ? session.nonceStr : undefined,
       timeStamp: 'timeStamp' in session ? session.timeStamp : undefined,
       signType: 'signType' in session ? session.signType : undefined,
-      paySign: 'paySign' in session ? session.paySign : undefined
+      paySign: 'paySign' in session ? session.paySign : undefined,
+      commonPayParams: 'commonPayParams' in session ? session.commonPayParams : undefined
     }
   }
 
@@ -227,11 +235,13 @@ export const createPaymentServices = (config: PaymentServicesConfig = {}): Payme
       }
     }
 
-    const response = toApiChannel(channel) === 'WECHAT'
-      ? await postPaymentsWechatCreate({ orderId }, requestOptions)
-      : await postPaymentsAlipayCreate({ orderId }, requestOptions)
+    const response = channel === 'wechat_b2b'
+      ? await platformLogin().then(({ code }) => postPaymentsWechatB2bCreate({ orderId, wechatLoginCode: code }, requestOptions))
+      : toApiChannel(channel) === 'WECHAT'
+        ? await postPaymentsWechatCreate({ orderId }, requestOptions)
+        : await postPaymentsAlipayCreate({ orderId }, requestOptions)
 
-    return normalizePaymentSession(unwrapPaymentResponse<WechatPayCreateResponse>(response))
+    return normalizePaymentSession(unwrapPaymentResponse<WechatPayCreateResponse | WechatB2BPayCreateResponse>(response))
   }
 
   return {
@@ -247,10 +257,15 @@ export const createPaymentServices = (config: PaymentServicesConfig = {}): Payme
       },
       payForOrder: async (orderId: string, options?: { channel?: PaymentChannel; idempotencyKey?: string }): Promise<PaymentSession> => {
         const session = await createSession(orderId, options)
+        if (String(session.status).toUpperCase() === 'PAID') {
+          return session
+        }
         try {
-          await platformPay({
-            payload: toPlatformPayload(session)
-          })
+          if (session.channel === 'wechat_b2b') {
+            await platformCommonPay({ payload: session.commonPayParams ?? {} })
+          } else {
+            await platformPay({ payload: toPlatformPayload(session) })
+          }
         } catch (error) {
           const cancelled = isCancelError(error)
           try {

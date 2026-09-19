@@ -37,3 +37,48 @@ func TestValidateAllowsExplicitJWTSecret(t *testing.T) {
 		t.Fatalf("expected explicit JWT secret to pass validation, got %v", err)
 	}
 }
+
+func TestValidateWechatB2BModeRequiresAuthenticationAndCredentials(t *testing.T) {
+	valid := Config{
+		AuthEnabled: true, JWTSecret: "test-secret", ProviderMode: "b2b",
+		WechatB2BAppID: "app", WechatB2BAppSecret: "secret", WechatB2BMchID: "mch", WechatB2BAppKey: "key",
+		WechatB2BEnvironment: 0, WechatB2BSessionURL: "https://api.weixin.qq.com/sns/jscode2session",
+	}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("expected complete B2B config to pass, got %v", err)
+	}
+
+	withoutAuth := valid
+	withoutAuth.AuthEnabled = false
+	if err := withoutAuth.Validate(); err == nil {
+		t.Fatal("expected B2B mode without authentication to fail")
+	}
+
+	tests := []struct {
+		name   string
+		mutate func(*Config)
+	}{
+		{name: "appid", mutate: func(c *Config) { c.WechatB2BAppID = "" }},
+		{name: "appsecret", mutate: func(c *Config) { c.WechatB2BAppSecret = "" }},
+		{name: "mchid", mutate: func(c *Config) { c.WechatB2BMchID = "" }},
+		{name: "appkey", mutate: func(c *Config) { c.WechatB2BAppKey = "" }},
+		{name: "session url", mutate: func(c *Config) { c.WechatB2BSessionURL = "" }},
+		{name: "environment", mutate: func(c *Config) { c.WechatB2BEnvironment = 2 }},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cfg := valid
+			test.mutate(&cfg)
+			if err := cfg.Validate(); err == nil {
+				t.Fatalf("expected missing/invalid %s to fail", test.name)
+			}
+		})
+	}
+}
+
+func TestValidateDisabledModeDoesNotRequireWechatCredentials(t *testing.T) {
+	cfg := Config{AuthEnabled: true, JWTSecret: "test-secret", ProviderMode: "disabled"}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("disabled mode must not require provider credentials: %v", err)
+	}
+}

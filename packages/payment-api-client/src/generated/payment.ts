@@ -359,9 +359,19 @@ export type CreateOrderRequestItemsItem = {
 
 export interface CreateOrderRequest {
   address: Address;
+  paymentMethod: OrderPaymentMethod;
   remark?: string;
   items: CreateOrderRequestItemsItem[];
 }
+
+export type OrderPaymentMethod = typeof OrderPaymentMethod[keyof typeof OrderPaymentMethod];
+
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const OrderPaymentMethod = {
+  ONLINE: 'ONLINE',
+  OFFLINE: 'OFFLINE',
+} as const;
 
 export type OrderStatus = typeof OrderStatus[keyof typeof OrderStatus];
 
@@ -390,6 +400,7 @@ export interface OrderItem {
 export interface Order {
   id: string;
   status: OrderStatus;
+  paymentMethod: OrderPaymentMethod;
   address?: Address;
   items: OrderItem[];
   remark?: string;
@@ -689,11 +700,27 @@ export interface WechatPayCreateResponse {
   paySign: string;
 }
 
+/**
+ * Opaque parameters passed unchanged to wx.requestCommonPayment.
+ */
+export type WechatB2BPayCreateResponseCommonPayParams = { [key: string]: unknown };
+
+export interface WechatB2BPayCreateResponse {
+  paymentId: string;
+  orderId: string;
+  channel: PaymentChannel;
+  status: PaymentStatus;
+  expiresAt: string;
+  /** Opaque parameters passed unchanged to wx.requestCommonPayment. */
+  commonPayParams: WechatB2BPayCreateResponseCommonPayParams;
+}
+
 export type PaymentChannel = typeof PaymentChannel[keyof typeof PaymentChannel];
 
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const PaymentChannel = {
+  WECHAT_B2B: 'WECHAT_B2B',
   WECHAT: 'WECHAT',
   ALIPAY: 'ALIPAY',
 } as const;
@@ -786,6 +813,12 @@ export type PostPaymentsWechatCreateBody = {
   orderId: string;
 };
 
+export type PostPaymentsWechatB2bCreateBody = {
+  orderId: string;
+  /** @minLength 1 */
+  wechatLoginCode: string;
+};
+
 export type PostPaymentsAlipayCreateBody = {
   orderId: string;
 };
@@ -843,6 +876,60 @@ export const postPaymentsWechatCreate = async (postPaymentsWechatCreateBody: Pos
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
       postPaymentsWechatCreateBody,)
+  }
+);}
+
+
+
+/**
+ * @summary Create a WeChat B2B Store Assistant payment for an order
+ */
+export type postPaymentsWechatB2bCreateResponse200 = {
+  data: WechatB2BPayCreateResponse
+  status: 200
+}
+
+export type postPaymentsWechatB2bCreateResponse400 = {
+  data: BadRequestResponse
+  status: 400
+}
+
+export type postPaymentsWechatB2bCreateResponse403 = {
+  data: ForbiddenResponse
+  status: 403
+}
+
+export type postPaymentsWechatB2bCreateResponse409 = {
+  data: ConflictResponse
+  status: 409
+}
+
+export type postPaymentsWechatB2bCreateResponse503 = {
+  data: ServiceUnavailableResponse
+  status: 503
+}
+
+export type postPaymentsWechatB2bCreateResponseSuccess = (postPaymentsWechatB2bCreateResponse200) & {
+  headers: Headers;
+};
+export type postPaymentsWechatB2bCreateResponseError = (postPaymentsWechatB2bCreateResponse400 | postPaymentsWechatB2bCreateResponse403 | postPaymentsWechatB2bCreateResponse409 | postPaymentsWechatB2bCreateResponse503) & {
+  headers: Headers;
+};
+
+export type postPaymentsWechatB2bCreateResponse = (postPaymentsWechatB2bCreateResponseSuccess | postPaymentsWechatB2bCreateResponseError)
+
+export const getPostPaymentsWechatB2bCreateUrl = () => {
+  return `/payments/wechat/b2b/create`
+}
+
+export const postPaymentsWechatB2bCreate = async (postPaymentsWechatB2bCreateBody: PostPaymentsWechatB2bCreateBody, options?: RequestInit): Promise<postPaymentsWechatB2bCreateResponse> => {
+  return apiMutator<postPaymentsWechatB2bCreateResponse>(getPostPaymentsWechatB2bCreateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      postPaymentsWechatB2bCreateBody,)
   }
 );}
 

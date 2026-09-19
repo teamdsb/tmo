@@ -8,7 +8,7 @@
 - `commerce` 仅接收 `payment` 的内部支付状态回写，并在订单列表/详情里展示支付摘要。
 - admin-web 直接调用 `payment` 服务查询交易、审计日志和 webhook，并执行 webhook replay。
 
-当前仓库已经完成支付调用闭环、状态回写和后台查看能力，并提供基于微信支付官方 Go SDK 的微信 JSAPI provider。启用真实微信链路仍需配置商户资料、证书、密钥与公网回调地址。支付宝正式 provider 尚未实现，其 create/notify 均固定返回 `501 not_implemented` 且不写支付状态；`PAYMENT_PROVIDER_MODE=mock` 只能在本地开发环境显式配置，服务代码与生产默认均为 `disabled`，不会回退到伪造的资金结果。
+当前仓库提供两种互斥的微信 provider：`b2b` 恢复 B2B 门店助手 `wx.requestCommonPayment`，`wechat`/`real` 提供普通直连 JSAPI `wx.requestPayment`。生产必须显式选择一种，不能为同一订单同时生成两种支付会话。支付宝正式 provider 尚未实现，其 create/notify 均固定返回 `501 not_implemented` 且不写支付状态；`PAYMENT_PROVIDER_MODE=mock` 只能在本地开发环境显式配置，服务代码与生产默认均为 `disabled`。
 
 ## 总体接入要求
 
@@ -22,9 +22,19 @@
 
 ## 微信支付
 
-### 普通直连商户小程序支付
+### 当前生产：B2B 门店助手支付
 
-本项目的小程序支付入口固定为普通直连商户模式。支付服务调用 `POST /v3/pay/transactions/jsapi` 创建真实预支付单，小程序只调用 `wx.requestPayment`。仓库不再发布 B2B 门店助手插件、`requestCommonPayment` 或 `/payments/wechat/b2b/create` 接口。
+当前生产小程序使用 B2B 商户号 `1747937433`。后端 `POST /payments/wechat/b2b/create` 接收业务订单 ID 和一次性 `wx.login` code，使用服务器端的 AppSecret 调用 code2session，再用 B2B AppKey 和 session key 生成 `commonPayParams`。miniapp 将参数原样传给 `wx.requestCommonPayment`；AppSecret、AppKey 和 session key 不进入小程序包、仓库或日志。
+
+B2B 生产配置为 `PAYMENT_PROVIDER_MODE=b2b`，必需变量为 `PAYMENT_WECHAT_B2B_APP_ID`、`PAYMENT_WECHAT_B2B_APP_SECRET`、`PAYMENT_WECHAT_B2B_MCH_ID`、`PAYMENT_WECHAT_B2B_APP_KEY`、`PAYMENT_WECHAT_B2B_ENV` 和 code2session URL。小程序必须声明 provider 为 `wx69b7451feb427f0e` 的 `bb-plugin`。
+
+`wx.requestCommonPayment` 的客户端 success 只表示客户端流程完成，不能直接把本地 payment 或 commerce order 写成 `PAID`。B2B mode 的 recheck 保持 `PAY_PENDING`，直到接入可信的服务端状态来源或经运营对账确认。
+
+### 可选：普通直连商户小程序支付
+
+普通直连模式仍保留在代码中。支付服务调用 `POST /v3/pay/transactions/jsapi` 创建真实预支付单，小程序调用 `wx.requestPayment`。只有目标商户号已经开通普通 JSAPI/小程序支付并完成 AppID 绑定时，才能把生产模式切换为 `wechat`。
+
+当前 miniapp 的 WeChat 可用通道明确选择 `wechat_b2b`。若未来把后端切换为 `wechat`，必须同时把 `apps/miniapp/src/services/payment-availability.ts` 的 WeChat 通道改为 `wechat`，重新构建、上传并发布小程序；只改 ECS provider mode 会让客户端继续请求 B2B 接口。
 
 部署真实支付前，企业必须在微信支付侧完成普通直连商户入驻；此前特约商户/服务商模式下的证书、APIv3 密钥和商户号不能直接复用。部署环境只从 Secret 注入普通商户的 APIv3 密钥和商户私钥，绝不将这些值写入小程序、仓库或日志。
 
@@ -209,6 +219,12 @@
 | `PAYMENT_FEATURE_FLAGS_TIMEOUT` | feature flag 超时 |
 | `PAYMENT_ENABLED` | 支付总开关 |
 | `PAYMENT_WECHAT_PAY_ENABLED` | 微信支付开关 |
+| `PAYMENT_WECHAT_B2B_APP_ID` | B2B 关联的小程序 AppID |
+| `PAYMENT_WECHAT_B2B_APP_SECRET` | 小程序 AppSecret，仅服务端保存 |
+| `PAYMENT_WECHAT_B2B_MCH_ID` | B2B 商户号 |
+| `PAYMENT_WECHAT_B2B_APP_KEY` | B2B AppKey，仅服务端保存 |
+| `PAYMENT_WECHAT_B2B_ENV` | B2B 环境，正式环境为 `0` |
+| `PAYMENT_WECHAT_B2B_SESSION_URL` | 微信 code2session 地址 |
 | `PAYMENT_ALIPAY_PAY_ENABLED` | 支付宝支付开关 |
 
 ### `services/commerce` 相关变量
@@ -290,13 +306,13 @@
 ### 真实商户联调
 
 1. 在微信/支付宝平台完成商户、应用、小程序与支付能力开通。
-2. 配置正式商户密钥、证书、回调地址和网关地址。
-3. 设置 `PAYMENT_PROVIDER_MODE=wechat` 并配置全部 `PAYMENT_WECHAT_*` 变量。
+2. B2B 模式设置 `PAYMENT_PROVIDER_MODE=b2b` 并配置全部 `PAYMENT_WECHAT_B2B_*` 变量；普通模式才设置 `PAYMENT_PROVIDER_MODE=wechat` 并配置 APIv3、商户私钥和回调变量。
+3. 确认生产小程序包包含 `bb-plugin`、`requestCommonPayment`，且不包含开发假支付开关。
 4. 设置 `PAYMENT_AUTH_ENABLED=true`，并确保 payment 与 identity 的 JWT secret/issuer 一致。
 5. 让用户重新登录，使 JWT 携带其微信 `openid`，再完成一次微信小程序真实支付联调。
 6. 支付宝需先实现正式 provider，再开展支付宝真实联调。
-6. 断开回调链路，验证 `recheck` 是否能把订单状态收敛。
-7. 在 admin-web 验证交易详情、审计日志、webhook 与 replay。
+7. 普通 JSAPI 模式可断开回调链路，验证 `recheck` 是否能把订单状态收敛；B2B 模式在接入可信服务端状态来源前保持 `PAY_PENDING`。
+8. 在 admin-web 验证交易详情、审计日志、webhook 与 replay。
 
 ## 常见问题与排障
 
@@ -309,6 +325,8 @@
 
 ### 微信下单成功但前端拉不起支付
 
+- B2B 模式先检查当前构建是否调用 `wx.requestCommonPayment`，以及 `commonPayParams` 是否包含 `signData`、`mode`、`paySig`、`signature`。
+- B2B 模式检查 code2session 是否收到当前点击生成的新 `wx.login` code。
 - 检查返回给 `wx.requestPayment` 的 `package` 是否为 `prepay_id=...`。
 - 检查 `signType`、`timeStamp`、`nonceStr`、`paySign` 是否完整。
 - 检查 `appid`、`mchid` 与小程序用户 `openid` 是否匹配。
@@ -329,7 +347,7 @@
 - 微信/支付宝商户与应用已完成开通。
 - `services/payment` 已切换到正式 provider，不再是 `PAYMENT_PROVIDER_MODE=mock`；未完成真实 provider 配置时必须保持 `disabled`。
 - 支付总开关、微信开关、支付宝开关已按环境开启。
-- 微信 `appid`、`mchid`、APIv3 Key、商户私钥、平台证书轮换机制已配置完成。
+- B2B 模式的 AppID、AppSecret、商户号和 AppKey已配置，或普通模式的 APIv3 Key、商户私钥和平台验签材料已配置；不得混用两套商户资料。
 - 支付宝 `appId`、应用私钥、支付宝公钥、网关地址、签名算法已配置完成。
 - 微信/支付宝异步通知 URL 都是公网可达 HTTPS 地址。
 - `PAYMENT_COMMERCE_BASE_URL`、`PAYMENT_COMMERCE_SYNC_TOKEN`、`COMMERCE_INTERNAL_SYNC_TOKEN` 已正确配置。

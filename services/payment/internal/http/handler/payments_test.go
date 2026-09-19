@@ -32,6 +32,24 @@ type wechatProviderStub struct {
 	notifyBody      string
 }
 
+type wechatB2BProviderStub struct {
+	request WechatB2BPaymentRequest
+	calls   int
+	err     error
+}
+
+func (s *wechatB2BProviderStub) CreateCommonPayParams(_ context.Context, request WechatB2BPaymentRequest) (map[string]interface{}, error) {
+	s.calls++
+	s.request = request
+	if s.err != nil {
+		return nil, s.err
+	}
+	return map[string]interface{}{
+		"signData": `{"mchid":"1747937433"}`,
+		"mode":     "retail_pay_goods", "paySig": "pay-signature", "signature": request.LoginCode,
+	}, nil
+}
+
 func (s *wechatProviderStub) Create(_ context.Context, request provider.WechatCreateRequest) (provider.WechatCreateResult, error) {
 	s.created = request
 	return provider.WechatCreateResult{PrepayID: "wx-prepay", Package: "prepay_id=wx-prepay", NonceStr: "nonce", TimeStamp: "1", SignType: "RSA", PaySign: "sign"}, nil
@@ -85,6 +103,7 @@ func TestPublicPaymentHandlersRejectNonCustomerRoles(t *testing.T) {
 	}
 	endpoints := []endpoint{
 		{name: "wechat create", method: http.MethodPost, path: "/payments/wechat/create", body: `{"orderId":"aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb"}`},
+		{name: "wechat b2b create", method: http.MethodPost, path: "/payments/wechat/b2b/create", body: `{"orderId":"aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb","wechatLoginCode":"code"}`},
 		{name: "alipay create", method: http.MethodPost, path: "/payments/alipay/create", body: `{"orderId":"aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb"}`},
 		{name: "payment detail", method: http.MethodGet, path: "/payments/" + paymentID.String()},
 		{name: "payment recheck", method: http.MethodPost, path: "/payments/" + paymentID.String() + "/recheck", body: `{}`},
@@ -129,6 +148,113 @@ func TestPublicPaymentHandlersRejectNonCustomerRoles(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestPostPaymentsWechatB2bCreateCreatesPendingPaymentAndSyncsOrder(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	orderID := uuid.MustParse("19191919-1919-1919-1919-191919191919")
+	store := newPaymentStoreStub()
+	commerce := newCommerceServerStub(CommerceOrder{
+		ID: orderID.String(), Status: "SUBMITTED", PaymentStatus: "UNPAID", PaymentMethod: "ONLINE",
+		Items: []CommerceOrderItem{{Qty: 2, UnitPriceFen: 250}},
+	})
+	defer commerce.Close()
+	b2b := &wechatB2BProviderStub{}
+	router := newTestRouter(&Handler{
+		Flags: StaticFlagsProvider{Flags: FeatureFlags{PaymentEnabled: true, WechatPayEnabled: true}},
+		Store: store, Commerce: NewCommerceClient(commerce.URL(), "sync-token"), ProviderMode: "b2b", WechatB2B: b2b,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/payments/wechat/b2b/create", strings.NewReader(`{"orderId":"`+orderID.String()+`","wechatLoginCode":"fresh-login-code"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "b2b-order-1")
+	req.Header.Set("Authorization", "Bearer user-token")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var response oapi.WechatB2BPayCreateResponse
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+	if response.PaymentId == uuid.Nil || response.OrderId != orderID || string(response.Channel) != paymentChannelWechatB2B || string(response.Status) != paymentStatusPending {
+		t.Fatalf("unexpected B2B response: %#v", response)
+	}
+	if b2b.calls != 1 || b2b.request.LoginCode != "fresh-login-code" || b2b.request.AmountFen != 500 || b2b.request.OrderID != orderID {
+		t.Fatalf("unexpected B2B provider request: calls=%d request=%#v", b2b.calls, b2b.request)
+	}
+	if store.createCalls != 1 || len(store.payments) != 1 || len(commerce.syncRequests) != 1 {
+		t.Fatalf("unexpected persistence/sync: creates=%d payments=%d sync=%d", store.createCalls, len(store.payments), len(commerce.syncRequests))
+	}
+	for _, payment := range store.payments {
+		if payment.Channel != paymentChannelWechatB2B || payment.Status != paymentStatusPending || payment.AmountFen != 500 {
+			t.Fatalf("unexpected stored payment: %#v", payment)
+		}
+	}
+	if commerce.syncRequests[0].Channel != paymentChannelWechatB2B || commerce.syncRequests[0].Status != paymentStatusPending {
+		t.Fatalf("unexpected commerce sync: %#v", commerce.syncRequests[0])
+	}
+}
+
+func TestPostPaymentsWechatB2bCreateReplaysIdempotentPayment(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	orderID := uuid.MustParse("20202020-2020-2020-2020-202020202020")
+	store := newPaymentStoreStub()
+	commerce := newCommerceServerStub(CommerceOrder{
+		ID: orderID.String(), Status: "SUBMITTED", PaymentStatus: "UNPAID", PaymentMethod: "ONLINE",
+		Items: []CommerceOrderItem{{Qty: 1, UnitPriceFen: 100}},
+	})
+	defer commerce.Close()
+	b2b := &wechatB2BProviderStub{}
+	router := newTestRouter(&Handler{
+		Flags: StaticFlagsProvider{Flags: FeatureFlags{PaymentEnabled: true, WechatPayEnabled: true}},
+		Store: store, Commerce: NewCommerceClient(commerce.URL(), "sync-token"), ProviderMode: "b2b", WechatB2B: b2b,
+	})
+	var signatures []string
+	var paymentIDs []uuid.UUID
+	for _, code := range []string{"first-code", "second-code"} {
+		req := httptest.NewRequest(http.MethodPost, "/payments/wechat/b2b/create", strings.NewReader(`{"orderId":"`+orderID.String()+`","wechatLoginCode":"`+code+`"}`))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Idempotency-Key", "b2b-replay")
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+		var response oapi.WechatB2BPayCreateResponse
+		if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+			t.Fatal(err)
+		}
+		signatures = append(signatures, response.CommonPayParams["signature"].(string))
+		paymentIDs = append(paymentIDs, response.PaymentId)
+	}
+	if b2b.calls != 2 || store.createCalls != 1 {
+		t.Fatalf("expected refreshed provider signature and one payment row, got provider=%d store=%d", b2b.calls, store.createCalls)
+	}
+	if signatures[0] != "first-code" || signatures[1] != "second-code" {
+		t.Fatalf("expected signature refresh from current login code, got %#v", signatures)
+	}
+	if paymentIDs[0] == uuid.Nil || paymentIDs[0] != paymentIDs[1] {
+		t.Fatalf("expected stable payment id across refresh, got %#v", paymentIDs)
+	}
+}
+
+func TestWechatB2bRecheckDoesNotTrustClientSuccess(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	store := newPaymentStoreStub()
+	handler := &Handler{Store: store, ProviderMode: "b2b"}
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/payments/recheck", nil)
+	payment := paymentFixture(uuid.New(), paymentChannelWechatB2B, paymentStatusPending)
+	result := oapi.PaymentClientResultSUCCESS
+	updated, err := handler.resolvePaymentFromClientResult(c, payment, oapi.PaymentRecheckRequest{ClientResult: &result})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Status != paymentStatusPending {
+		t.Fatalf("client success must not mark B2B paid: %#v", updated)
 	}
 }
 
@@ -922,6 +1048,53 @@ func TestPostPaymentsWechatCreateReloadsUniqueKeyRaceWinner(t *testing.T) {
 	}
 	if len(commerce.syncRequests) != 1 || commerce.syncRequests[0].PaymentID != paymentID.String() {
 		t.Fatalf("expected race winner state to be synchronized, got %#v", commerce.syncRequests)
+	}
+}
+
+func TestPostPaymentsWechatB2bCreateRaceUsesLosingRequestsFreshSignature(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	orderID := uuid.MustParse("56565656-5656-5656-5656-565656565656")
+	paymentID := uuid.MustParse("57575757-5757-5757-5757-575757575757")
+	existing := paymentFixture(paymentID, paymentChannelWechatB2B, paymentStatusPending)
+	existing.OrderID = orderID
+	existing.IdempotencyKey = strPtr("b2b-race")
+	existingPayload := oapi.WechatB2BPayCreateResponse{
+		PaymentId: paymentID, OrderId: orderID, Channel: oapi.PaymentChannel(paymentChannelWechatB2B),
+		Status: oapi.PaymentStatus(paymentStatusPending), ExpiresAt: time.Now().UTC().Add(15 * time.Minute),
+		CommonPayParams: map[string]interface{}{"signature": "winner-signature"},
+	}
+	existing.ProviderPayload, _ = json.Marshal(existingPayload)
+	baseStore := newPaymentStoreStub()
+	baseStore.payments[paymentID] = existing
+	store := &uniqueRacePaymentStore{paymentStoreStub: baseStore, existing: existing}
+	commerce := newCommerceServerStub(CommerceOrder{
+		ID: orderID.String(), Status: "SUBMITTED", PaymentStatus: "UNPAID", PaymentMethod: "ONLINE",
+		Items: []CommerceOrderItem{{Qty: 1, UnitPriceFen: 500}},
+	})
+	defer commerce.Close()
+	b2b := &wechatB2BProviderStub{}
+	router := newTestRouter(&Handler{
+		Flags: StaticFlagsProvider{Flags: FeatureFlags{PaymentEnabled: true, WechatPayEnabled: true}},
+		Store: store, Commerce: NewCommerceClient(commerce.URL(), "sync-token"), ProviderMode: "b2b", WechatB2B: b2b,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/payments/wechat/b2b/create", strings.NewReader(`{"orderId":"`+orderID.String()+`","wechatLoginCode":"loser-fresh-signature"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "b2b-race")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected race loser to succeed, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var response oapi.WechatB2BPayCreateResponse
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+	if response.PaymentId != paymentID || response.CommonPayParams["signature"] != "loser-fresh-signature" {
+		t.Fatalf("race response reused winner signature: %#v", response)
+	}
+	if b2b.calls != 1 || store.createCalls != 1 {
+		t.Fatalf("login code must be consumed exactly once: provider=%d create=%d", b2b.calls, store.createCalls)
 	}
 }
 

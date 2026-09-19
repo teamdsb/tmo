@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -23,6 +24,18 @@ type Handler struct {
 	Commerce     *CommerceClient
 	ProviderMode string
 	Wechat       provider.Wechat
+	WechatB2B    WechatB2BProvider
+}
+
+type WechatB2BProvider interface {
+	CreateCommonPayParams(ctx context.Context, request WechatB2BPaymentRequest) (map[string]interface{}, error)
+}
+
+type WechatB2BPaymentRequest struct {
+	OrderID   uuid.UUID
+	AmountFen int64
+	ExpiresAt time.Time
+	LoginCode string
 }
 
 type PaymentStore interface {

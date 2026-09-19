@@ -20,7 +20,7 @@ describe('payment availability', () => {
 
   it('enables WeChat only when platform and feature flags allow it', async () => {
     await expect(resolvePaymentAvailability()).resolves.toEqual({
-      available: true, channel: 'wechat', unavailableMessage: ''
+      available: true, channel: 'wechat_b2b', unavailableMessage: ''
     })
   })
 
