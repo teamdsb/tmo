@@ -22,6 +22,7 @@
 - [x] (2026-09-19 13:52+08:00) 提交 `5f93747 feat(payment): restore wechat b2b payment` 并推送 `origin/codex/restore-b2b-payment`。
 - [x] (2026-09-19 14:50+08:00) 备份 ECS env 和 payment 镜像，从提交 `5f93747` 的干净 archive 构建 `localhost/tmo/payment:b2b-5f937472d1c5`，恢复受控 B2B 凭据并切换 provider mode。
 - [x] (2026-09-19 14:52+08:00) 验证 ECS payment/gateway 本地及公网 health/ready 为 200，新 B2B 路由未认证请求为 401，运行镜像匹配候选镜像，启动日志无 ERROR；回滚 env 位于 `/opt/tmo-backups/b2b-restore-20260919T044143Z/env.ecs.local`，回滚镜像为 `localhost/tmo/payment:rollback-20260919T044143Z`。
+- [x] (2026-09-20) B2B recheck 接入微信 `getorder` 服务端查单：已发现一笔本地待付款但微信返回 `ORDER_PAY_SUCC` 的真实交易；实现后仅接受完整金额、商户和订单关联校验均一致的成功状态。
 
 ## Surprises & Discoveries
 

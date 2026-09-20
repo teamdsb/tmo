@@ -2,6 +2,12 @@
 
 这个文件只记录会影响后续 agent 判断的近期仓库变化，不承担发布说明、项目周报或任务流水账职责。
 
+## 2026-09-20
+
+- B2B 支付重查改为调用微信 `getorder` 服务端查单；仅在微信返回 `ORDER_PAY_SUCC` 且商户、订单关联、金额、币种和环境逐项一致时，才会同步本地支付和 Commerce 订单为 `PAID`。小程序客户端回调仍不是可信资金凭据。
+  影响面：Payment B2B provider 与 `/payments/{paymentId}/recheck`。
+  建议阅读：`docs/context/payment-setup.md`、`.agent/PLANS.md`
+
 ## 2026-09-19
 
 - 恢复微信 B2B 门店助手支付作为当前生产通道：小程序通过 `wx.requestCommonPayment`，payment 服务使用服务器端 AppSecret/AppKey 生成签名参数，显式 provider mode 为 `b2b`。普通 APIv3/JSAPI provider 继续保留但不与 B2B 同时启用；客户端 success 不直接写入 `PAID`。

@@ -28,7 +28,7 @@
 
 B2B 生产配置为 `PAYMENT_PROVIDER_MODE=b2b`，必需变量为 `PAYMENT_WECHAT_B2B_APP_ID`、`PAYMENT_WECHAT_B2B_APP_SECRET`、`PAYMENT_WECHAT_B2B_MCH_ID`、`PAYMENT_WECHAT_B2B_APP_KEY`、`PAYMENT_WECHAT_B2B_ENV` 和 code2session URL。小程序必须声明 provider 为 `wx69b7451feb427f0e` 的 `bb-plugin`。
 
-`wx.requestCommonPayment` 的客户端 success 只表示客户端流程完成，不能直接把本地 payment 或 commerce order 写成 `PAID`。B2B mode 的 recheck 保持 `PAY_PENDING`，直到接入可信的服务端状态来源或经运营对账确认。
+`wx.requestCommonPayment` 的客户端 success 只表示客户端流程完成，不能直接把本地 payment 或 commerce order 写成 `PAID`。B2B mode 的 recheck 会以 AppSecret 调用微信稳定版 `POST /cgi-bin/stable_token`（`force_refresh=false`）获取 access token，避免影响同 AppID 的其他服务 token，再请求微信 B2B `POST /retail/B2b/getorder`；只有微信返回 `ORDER_PAY_SUCC`，且商户号、紧凑订单号、attach、环境、币种和金额全部与本地记录一致时，才会把 payment 和 commerce order 写为 `PAID`。其余状态保持 `PAY_PENDING`。
 
 ### 可选：普通直连商户小程序支付
 

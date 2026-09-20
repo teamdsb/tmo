@@ -33,9 +33,22 @@ type wechatProviderStub struct {
 }
 
 type wechatB2BProviderStub struct {
-	request WechatB2BPaymentRequest
-	calls   int
-	err     error
+	request      WechatB2BPaymentRequest
+	queryRequest WechatB2BQueryRequest
+	calls        int
+	queryCalls   int
+	err          error
+	query        WechatB2BPaymentResolution
+	queryErr     error
+}
+
+func (s *wechatB2BProviderStub) QueryPayment(_ context.Context, request WechatB2BQueryRequest) (WechatB2BPaymentResolution, error) {
+	s.queryCalls++
+	s.queryRequest = request
+	if s.queryErr != nil {
+		return WechatB2BPaymentResolution{}, s.queryErr
+	}
+	return s.query, nil
 }
 
 func (s *wechatB2BProviderStub) CreateCommonPayParams(_ context.Context, request WechatB2BPaymentRequest) (map[string]interface{}, error) {
@@ -241,10 +254,34 @@ func TestPostPaymentsWechatB2bCreateReplaysIdempotentPayment(t *testing.T) {
 	}
 }
 
-func TestWechatB2bRecheckDoesNotTrustClientSuccess(t *testing.T) {
+func TestWechatB2bRecheckUsesServerQueryInsteadOfClientSuccess(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	store := newPaymentStoreStub()
-	handler := &Handler{Store: store, ProviderMode: "b2b"}
+	b2b := &wechatB2BProviderStub{query: WechatB2BPaymentResolution{Status: paymentStatusPaid, ProviderTradeNo: "4200000000000000000"}}
+	commerce := newCommerceServerStub(CommerceOrder{})
+	handler := &Handler{Store: store, Commerce: NewCommerceClient(commerce.URL(), "sync-token"), ProviderMode: "b2b", WechatB2B: b2b}
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	c.Request = httptest.NewRequest(http.MethodPost, "/payments/recheck", nil)
+	payment := paymentFixture(uuid.New(), paymentChannelWechatB2B, paymentStatusPending)
+	store.payments[payment.ID] = payment
+	result := oapi.PaymentClientResultSUCCESS
+	updated, err := handler.resolvePaymentFromClientResult(c, payment, oapi.PaymentRecheckRequest{ClientResult: &result})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Status != paymentStatusPaid || updated.ProviderTradeNo == nil || *updated.ProviderTradeNo != "4200000000000000000" {
+		t.Fatalf("expected verified B2B success to mark payment paid: %#v", updated)
+	}
+	if b2b.queryCalls != 1 || b2b.queryRequest.OrderID != payment.OrderID || b2b.queryRequest.AmountFen != payment.AmountFen {
+		t.Fatalf("unexpected B2B query: %#v", b2b)
+	}
+}
+
+func TestWechatB2bRecheckLeavesPendingWhenWechatDoesNotConfirmSuccess(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	store := newPaymentStoreStub()
+	b2b := &wechatB2BProviderStub{query: WechatB2BPaymentResolution{Status: paymentStatusPending}}
+	handler := &Handler{Store: store, ProviderMode: "b2b", WechatB2B: b2b}
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Request = httptest.NewRequest(http.MethodPost, "/payments/recheck", nil)
 	payment := paymentFixture(uuid.New(), paymentChannelWechatB2B, paymentStatusPending)
@@ -254,7 +291,7 @@ func TestWechatB2bRecheckDoesNotTrustClientSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 	if updated.Status != paymentStatusPending {
-		t.Fatalf("client success must not mark B2B paid: %#v", updated)
+		t.Fatalf("unconfirmed B2B result must remain pending: %#v", updated)
 	}
 }
 

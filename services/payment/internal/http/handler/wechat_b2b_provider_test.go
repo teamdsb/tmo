@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -132,5 +133,120 @@ func TestWechatB2BDirectProviderSanitizesTransportErrors(t *testing.T) {
 	message := err.Error()
 	if strings.Contains(message, "sentinel-app-secret") || strings.Contains(message, "sentinel-login-code") || strings.Contains(message, "https://") {
 		t.Fatalf("transport error leaked credentials or request URL: %q", message)
+	}
+}
+
+func TestWechatB2BDirectProviderQueriesAndValidatesPaidOrder(t *testing.T) {
+	orderID := uuid.MustParse("6fc00330-8131-4bdb-b115-c197a29aa14f")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/token":
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if r.Method != http.MethodPost || string(body) != `{"grant_type":"client_credential","appid":"app-id","secret":"app-secret","force_refresh":false}` {
+				t.Fatalf("unexpected stable token request: %s %q", r.Method, string(body))
+			}
+			_, _ = w.Write([]byte(`{"access_token":"access-token"}`))
+		case "/order":
+			if r.Method != http.MethodPost || r.URL.Query().Get("access_token") != "access-token" {
+				t.Fatalf("unexpected order request: %s %s", r.Method, r.URL.RawQuery)
+			}
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantBody := `{"mchid":"1747937433","out_trade_no":"6fc0033081314bdbb115c197a29aa14f"}`
+			if string(body) != wantBody || r.URL.Query().Get("pay_sig") != hmacSHA256Hex("app-key", "/retail/B2b/getorder&"+wantBody) {
+				t.Fatalf("unexpected signed order request: %q %q", string(body), r.URL.Query().Get("pay_sig"))
+			}
+			_, _ = w.Write([]byte(`{"errcode":0,"mchid":"1747937433","out_trade_no":"6fc0033081314bdbb115c197a29aa14f","attach":"6fc00330-8131-4bdb-b115-c197a29aa14f","env":0,"pay_status":"ORDER_PAY_SUCC","wxpay_transaction_id":"4200000000000000000","amount":{"order_amount":1,"currency":"CNY"}}`))
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	provider, err := NewWechatB2BDirectProvider(WechatB2BConfig{
+		AppID: "app-id", AppSecret: "app-secret", MchID: "1747937433", AppKey: "app-key", SessionURL: server.URL + "/session",
+		TokenURL: server.URL + "/token", OrderURL: server.URL + "/order",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolution, err := provider.QueryPayment(context.Background(), WechatB2BQueryRequest{OrderID: orderID, AmountFen: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolution.Status != paymentStatusPaid || resolution.ProviderTradeNo != "4200000000000000000" {
+		t.Fatalf("unexpected resolution: %#v", resolution)
+	}
+}
+
+func TestWechatB2BDirectProviderRejectsMismatchedOrderResponse(t *testing.T) {
+	orderID := uuid.New()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/token" {
+			_, _ = w.Write([]byte(`{"access_token":"access-token"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"errcode":0,"mchid":"mch","out_trade_no":"wrong","attach":"wrong","env":0,"pay_status":"ORDER_PAY_SUCC","wxpay_transaction_id":"trade","amount":{"order_amount":1,"currency":"CNY"}}`))
+	}))
+	defer server.Close()
+	provider, err := NewWechatB2BDirectProvider(WechatB2BConfig{AppID: "app", AppSecret: "secret", MchID: "mch", AppKey: "key", SessionURL: server.URL, TokenURL: server.URL + "/token", OrderURL: server.URL + "/order"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = provider.QueryPayment(context.Background(), WechatB2BQueryRequest{OrderID: orderID, AmountFen: 1})
+	if err == nil || !strings.Contains(err.Error(), "validation") {
+		t.Fatalf("expected response validation error, got %v", err)
+	}
+}
+
+func TestWechatB2BDirectProviderKeepsIncompletePendingOrderPending(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/token" {
+			_, _ = w.Write([]byte(`{"access_token":"access-token"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"errcode":0,"pay_status":"ORDER_NOT_PAY"}`))
+	}))
+	defer server.Close()
+	provider, err := NewWechatB2BDirectProvider(WechatB2BConfig{AppID: "app", AppSecret: "secret", MchID: "mch", AppKey: "key", SessionURL: server.URL, TokenURL: server.URL + "/token", OrderURL: server.URL + "/order"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolution, err := provider.QueryPayment(context.Background(), WechatB2BQueryRequest{OrderID: uuid.New(), AmountFen: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolution.Status != paymentStatusPending {
+		t.Fatalf("expected incomplete non-success response to remain pending: %#v", resolution)
+	}
+}
+
+func TestWechatB2BDirectProviderCachesAccessToken(t *testing.T) {
+	tokenCalls := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/token" {
+			tokenCalls++
+			_, _ = w.Write([]byte(`{"access_token":"access-token","expires_in":7200}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"errcode":0,"pay_status":"ORDER_NOT_PAY"}`))
+	}))
+	defer server.Close()
+	provider, err := NewWechatB2BDirectProvider(WechatB2BConfig{AppID: "app", AppSecret: "secret", MchID: "mch", AppKey: "key", SessionURL: server.URL, TokenURL: server.URL + "/token", OrderURL: server.URL + "/order"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if _, err := provider.QueryPayment(context.Background(), WechatB2BQueryRequest{OrderID: uuid.New(), AmountFen: 1}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if tokenCalls != 1 {
+		t.Fatalf("expected a cached B2B access token, got %d token requests", tokenCalls)
 	}
 }

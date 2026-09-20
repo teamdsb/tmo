@@ -619,7 +619,17 @@ func (h *Handler) resolvePaymentFromClientResult(c *gin.Context, payment db.Paym
 		}
 		return h.applyPaymentResolution(c, payment, resolution.Status, normalizeOptionalString(&resolution.ProviderTradeNo), normalizeOptionalString(&resolution.Reason))
 	case "B2B":
-		return payment, nil
+		if payment.Channel != paymentChannelWechatB2B || h.WechatB2B == nil {
+			return payment, nil
+		}
+		resolution, err := h.WechatB2B.QueryPayment(c.Request.Context(), WechatB2BQueryRequest{OrderID: payment.OrderID, AmountFen: payment.AmountFen})
+		if err != nil {
+			return payment, errInternal(fmt.Sprintf("query wechat b2b payment failed: %v", err))
+		}
+		if resolution.Status == paymentStatusPending {
+			return payment, nil
+		}
+		return h.applyPaymentResolution(c, payment, resolution.Status, normalizeOptionalString(&resolution.ProviderTradeNo), nil)
 	default:
 		return payment, nil
 	}

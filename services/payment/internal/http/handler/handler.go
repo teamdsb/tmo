@@ -29,6 +29,7 @@ type Handler struct {
 
 type WechatB2BProvider interface {
 	CreateCommonPayParams(ctx context.Context, request WechatB2BPaymentRequest) (map[string]interface{}, error)
+	QueryPayment(ctx context.Context, request WechatB2BQueryRequest) (WechatB2BPaymentResolution, error)
 }
 
 type WechatB2BPaymentRequest struct {
@@ -36,6 +37,20 @@ type WechatB2BPaymentRequest struct {
 	AmountFen int64
 	ExpiresAt time.Time
 	LoginCode string
+}
+
+// WechatB2BQueryRequest identifies the merchant order whose authoritative
+// B2B payment state is to be retrieved from WeChat.
+type WechatB2BQueryRequest struct {
+	OrderID   uuid.UUID
+	AmountFen int64
+}
+
+// WechatB2BPaymentResolution is derived from WeChat's B2B getorder response,
+// never from the client-side requestCommonPayment callback.
+type WechatB2BPaymentResolution struct {
+	Status          string
+	ProviderTradeNo string
 }
 
 type PaymentStore interface {
