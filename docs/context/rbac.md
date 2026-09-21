@@ -75,7 +75,7 @@ Admin / Ops:
 - customer:transfer
 - customer:tag
 - customer:read
-- product:manage
+- product:manage（含商品规格原子维护、商品目录 Excel 导出；沿用 BOSS/ADMIN 的商品管理权限）
 - import:product
 - import:shipment
 - shipment:manage

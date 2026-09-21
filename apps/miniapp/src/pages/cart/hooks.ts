@@ -8,9 +8,13 @@ type UseCartProductDetailsResult = {
   productImageBySpuId: ProductImageMap
   productNameBySpuId: ProductNameMap
   loadSkuOptions: (spuId: string) => Promise<Sku[]>
+  loadProductDetail: (spuId: string) => Promise<ProductDetail | null>
+  productDimensionsBySpuId: Record<string, string[]>
 }
 
 export function useCartProductDetails(cartItems: CartItem[], enabled: boolean): UseCartProductDetailsResult {
+  const [productDimensionsBySpuId, setProductDimensionsBySpuId] = useState<Record<string, string[]>>({})
+  const detailByIdRef = useRef<Record<string, ProductDetail>>({})
   const [productNameBySpuId, setProductNameBySpuId] = useState<ProductNameMap>({})
   const [productImageBySpuId, setProductImageBySpuId] = useState<ProductImageMap>({})
   const [skuOptionsBySpuId, setSkuOptionsBySpuId] = useState<SkuOptionsMap>({})
@@ -27,6 +31,8 @@ export function useCartProductDetails(cartItems: CartItem[], enabled: boolean): 
   }, [skuOptionsBySpuId])
 
   const cacheSpuDetail = useCallback((spuId: string, detail: ProductDetail): void => {
+    detailByIdRef.current[spuId] = detail
+    setProductDimensionsBySpuId((prev) => ({ ...prev, [spuId]: detail.product.filterDimensions ?? [] }))
     const productName = detail.product?.name?.trim()
     if (productName) {
       setProductNameBySpuId((prev) => {
@@ -130,6 +136,8 @@ export function useCartProductDetails(cartItems: CartItem[], enabled: boolean): 
   return {
     productImageBySpuId,
     productNameBySpuId,
-    loadSkuOptions
+    loadSkuOptions,
+    productDimensionsBySpuId,
+    loadProductDetail: async (spuId) => detailByIdRef.current[spuId] ?? fetchSpuDetail(spuId)
   }
 }

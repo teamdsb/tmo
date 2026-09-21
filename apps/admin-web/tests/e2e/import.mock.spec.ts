@@ -16,6 +16,9 @@ test('mock import page persists imported products and queryable jobs', async ({ 
   await page.goto('/import.html');
 
   await expect(page.getByTestId('import-page')).toBeVisible();
+  await expect(page.getByTestId('product-import-template-guide')).toContainText('必填表头');
+  await expect(page.getByTestId('product-import-template-guide')).toContainText('Group Key');
+  await expect(page.getByTestId('product-import-template-guide')).toContainText('Price Tiers (Fen)');
   await page.getByTestId('product-import-excel').setInputFiles(fixture.excelPath);
   await page.getByTestId('product-import-zip').setInputFiles(fixture.zipPath!);
   await page.getByTestId('product-import-submit').click();
@@ -36,7 +39,7 @@ test('mock import page persists imported products and queryable jobs', async ({ 
   });
   expect(persisted.products.some((item: { name?: string }) => item?.name === productName)).toBeTruthy();
   expect(persisted.products.some((item: { models?: Array<{ code?: string }> }) => (
-    Array.isArray(item?.models) && item.models.some((model) => model?.code === `${skuPrefix.toUpperCase()}-A`)
+    Array.isArray(item?.models) && item.models.some((model) => model?.code === `${skuPrefix}-A`)
   ))).toBeTruthy();
   expect(persisted.jobs.some((item: { id?: string }) => item?.id === jobId)).toBeTruthy();
 });

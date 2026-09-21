@@ -554,10 +554,11 @@ describe('ExcelImportConfirmation', () => {
     } as any)
     const removeItemSpy = jest.spyOn(commerceServices.cart, 'removeItem')
     const addItemSpy = jest.spyOn(commerceServices.cart, 'addItem')
-    jest.spyOn(Taro, 'showActionSheet').mockResolvedValueOnce({ tapIndex: 1 } as any)
 
     await renderCart()
     fireEvent.click(screen.getByText('规格'))
+    fireEvent.click(await screen.findByRole('button', { name: 'M10 x 40' }))
+    fireEvent.click(screen.getByText('确认规格'))
 
     await waitFor(() => {
       expect(replaceItemSkuSpy).toHaveBeenCalledWith('cart-1', 'sku-bolt-a2-m10', 2)
@@ -620,10 +621,11 @@ describe('ExcelImportConfirmation', () => {
         }
       ]
     } as any)
-    jest.spyOn(Taro, 'showActionSheet').mockResolvedValueOnce({ tapIndex: 1 } as any)
 
     await renderCart()
     fireEvent.click(screen.getAllByText('规格')[0])
+    fireEvent.click(await screen.findByRole('button', { name: 'M10 x 40' }))
+    fireEvent.click(screen.getByText('确认规格'))
 
     await waitFor(() => {
       expect(replaceItemSkuSpy).toHaveBeenCalledWith('cart-1', 'sku-bolt-a2-m10', 2)
@@ -665,10 +667,11 @@ describe('ExcelImportConfirmation', () => {
     const removeItemSpy = jest.spyOn(commerceServices.cart, 'removeItem')
     const addItemSpy = jest.spyOn(commerceServices.cart, 'addItem')
     const showToastSpy = jest.spyOn(Taro, 'showToast')
-    jest.spyOn(Taro, 'showActionSheet').mockResolvedValueOnce({ tapIndex: 1 } as any)
 
     await renderCart()
     fireEvent.click(screen.getByText('规格'))
+    fireEvent.click(await screen.findByRole('button', { name: 'M10 x 40' }))
+    fireEvent.click(screen.getByText('确认规格'))
 
     await waitFor(() => {
       expect(replaceItemSkuSpy).toHaveBeenCalledWith('cart-1', 'sku-bolt-a2-m10', 2)
@@ -676,6 +679,7 @@ describe('ExcelImportConfirmation', () => {
     })
     expect(removeItemSpy).not.toHaveBeenCalled()
     expect(addItemSpy).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('取消'))
     expect(screen.getByText('M8 x 30')).toBeInTheDocument()
     expect(screen.getByDisplayValue('2')).toBeInTheDocument()
   })
@@ -718,4 +722,26 @@ describe('ExcelImportConfirmation', () => {
     })
     expect(await screen.findByText('您的购物车是空的')).toBeInTheDocument()
   })
+  it('replaces a cart SKU through cascading levels and excludes disabled combinations', async () => {
+    const steel = { id: 'steel', spuId: 'spu-levels', name: '钢型号', isActive: true, attributes: { 材质: '钢', 长度: '10mm', 直径: 'M8' } }
+    const copper = { id: 'copper', spuId: 'spu-levels', name: '铜型号', isActive: true, attributes: { 材质: '铜', 长度: '20mm', 直径: 'M10' } }
+    jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({ items: [{ id: 'cart-levels', qty: 7, sku: steel }] } as any)
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValue({
+      product: { id: 'spu-levels', name: '三级螺栓', filterDimensions: ['材质', '长度', '直径'] },
+      skus: [steel, copper, { id: 'disabled', isActive: false, attributes: { 材质: '铝', 长度: '30mm', 直径: 'M12' } }]
+    } as any)
+    const replace = jest.spyOn(commerceServices.cart, 'replaceItemSku').mockResolvedValueOnce({ items: [{ id: 'cart-levels', qty: 7, sku: copper }] } as any)
+    await renderCart()
+    expect(await screen.findByText('钢 / 10mm / M8')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('规格'))
+    fireEvent.click(await screen.findByRole('button', { name: '铜' }))
+    expect(screen.getByText('确认规格')).toBeDisabled()
+    expect(screen.queryByText('铝')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('20mm'))
+    fireEvent.click(screen.getByText('M10'))
+    fireEvent.click(screen.getByText('确认规格'))
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('cart-levels', 'copper', 7))
+    expect(await screen.findByText('铜 / 20mm / M10')).toBeInTheDocument()
+  })
+
 })

@@ -323,8 +323,8 @@ func TestServiceRunNextUpdatesExistingSkuBySkuCode(t *testing.T) {
 	if len(updatedSkus) != 1 {
 		t.Fatalf("expected 1 sku, got %d", len(updatedSkus))
 	}
-	if updatedSkus[0].Spec == nil || *updatedSkus[0].Spec != "M10" {
-		t.Fatalf("expected spec M10, got %#v", updatedSkus[0].Spec)
+	if updatedSkus[0].Spec == nil || *updatedSkus[0].Spec != "stainless / M10" {
+		t.Fatalf("expected spec stainless / M10, got %#v", updatedSkus[0].Spec)
 	}
 	if updatedSkus[0].IsActive {
 		t.Fatalf("expected sku to become inactive")

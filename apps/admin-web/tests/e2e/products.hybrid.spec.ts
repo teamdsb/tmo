@@ -214,8 +214,10 @@ const routeProductPageApis = async (page, options = {}) => {
         name: payload.name,
         description: payload.description,
         coverImageUrl: payload.coverImageUrl,
-        images: payload.images
-      }
+        images: payload.images,
+        filterDimensions: payload.filterDimensions ?? serverDetail.product.filterDimensions
+      },
+      skus: payload.skus ? payload.skus.map((sku) => ({ ...sku, spuId: productId })) : serverDetail.skus
     };
     await route.fulfill({
       status: 200,
@@ -559,7 +561,7 @@ test('product edit keeps drawer open when catalog PATCH fails', async ({ page })
   await expect(page.getByText('失败商品名')).toHaveCount(0);
 });
 
-test('product edit persists model fields through catalog SKU PATCH', async ({ page }) => {
+test('product edit persists model fields in a single atomic catalog PATCH', async ({ page }) => {
   await installDevSession(page);
   await routeProductPageApis(page);
 
@@ -580,15 +582,19 @@ test('product edit persists model fields through catalog SKU PATCH', async ({ pa
 
   const skuPatchRequestPromise = page.waitForRequest((request) => {
     const url = new URL(request.url());
-    return request.method() === 'PATCH' && url.pathname === `/api/catalog/products/${productId}/skus/${skuId}`;
+    return request.method() === 'PATCH' && url.pathname === `/api/catalog/products/${productId}`;
   });
   await page.locator('#product-edit-drawer button[type="submit"]').click();
   const skuPatchRequest = await skuPatchRequestPromise;
-  const payload = skuPatchRequest.postDataJSON();
+  const productPayload = skuPatchRequest.postDataJSON();
+  expect(productPayload.filterDimensions).toEqual(['规格']);
+  const payload = productPayload.skus[0];
+  expect(payload.id).toBe(skuId);
 
   expect(payload.name).toBe('新型号');
   expect(payload.skuCode).toBe('型号-长460*宽240+(A)');
-  expect(payload.spec).toBe('新型号');
+  expect(payload.spec).toBe('旧型号');
+  expect(payload.attributes).toEqual({ 规格: '旧型号' });
   expect(payload.priceTiers).toEqual([{ minQty: 1, maxQty: null, unitPriceFen: 9950 }]);
   await expect(page.locator('#product-edit-drawer')).toHaveCount(0);
 
@@ -597,7 +603,7 @@ test('product edit persists model fields through catalog SKU PATCH', async ({ pa
   await expect(page.locator('#product-edit-drawer [data-field="model-base-price"]').first()).toHaveValue('99.5');
 });
 
-test('product edit shows saved SKU price tiers and preserves them on SKU PATCH', async ({ page }) => {
+test('product edit shows saved SKU price tiers and preserves them on atomic catalog PATCH', async ({ page }) => {
   await installDevSession(page);
   await routeProductPageApis(page, {
     productDetail: {
@@ -628,11 +634,14 @@ test('product edit shows saved SKU price tiers and preserves them on SKU PATCH',
 
   const skuPatchRequestPromise = page.waitForRequest((request) => {
     const url = new URL(request.url());
-    return request.method() === 'PATCH' && url.pathname === `/api/catalog/products/${productId}/skus/${skuId}`;
+    return request.method() === 'PATCH' && url.pathname === `/api/catalog/products/${productId}`;
   });
   await page.locator('#product-edit-drawer button[type="submit"]').click();
   const skuPatchRequest = await skuPatchRequestPromise;
-  const payload = skuPatchRequest.postDataJSON();
+  const productPayload = skuPatchRequest.postDataJSON();
+  expect(productPayload.filterDimensions).toEqual(['规格']);
+  const payload = productPayload.skus[0];
+  expect(payload.id).toBe(skuId);
 
   expect(payload.priceTiers).toEqual([
     { minQty: 1, maxQty: 4, unitPriceFen: 10000 },
@@ -683,4 +692,59 @@ test('product row can delete a catalog product', async ({ page }) => {
   await deleteRequestPromise;
 
   await expect(page.getByText('旧商品名')).toHaveCount(0);
+});
+
+
+test('product editor clears SKU code explicitly in the atomic PATCH', async ({ page }) => {
+  await installDevSession(page);
+  await routeProductPageApis(page);
+  await page.goto('/products.html', { waitUntil: 'domcontentloaded' });
+  await page.locator('[data-role="open-product-drawer"]').first().click();
+  const drawer = page.locator('#product-edit-drawer');
+  await expect(drawer.locator('[data-field="model-code"]').first()).toHaveValue('1234567890');
+  await drawer.locator('[data-field="model-code"]').first().fill('');
+  const requestPromise = page.waitForRequest((request) => request.method() === 'PATCH' && new URL(request.url()).pathname === `/api/catalog/products/${productId}`);
+  await drawer.locator('button[type="submit"]').click();
+  const payload = (await requestPromise).postDataJSON();
+  expect(payload.skus[0]).toMatchObject({ id: skuId, skuCode: null });
+  await expect(drawer).toHaveCount(0);
+  await page.locator('[data-role="open-product-drawer"]').first().click();
+  await expect(drawer.locator('[data-field="model-code"]').first()).toHaveValue('');
+});
+
+
+test('renaming an inquiry-only SKU preserves absent price tiers as an empty list', async ({ page }) => {
+  await installDevSession(page);
+  await routeProductPageApis(page, { productDetail: { ...productDetail, skus: [{ ...productDetail.skus[0], priceTiers: undefined }] } });
+  await page.goto('/products.html', { waitUntil: 'domcontentloaded' });
+  await page.locator('[data-role="open-product-drawer"]').first().click();
+  const drawer = page.locator('#product-edit-drawer');
+  await expect(drawer.locator('[data-field="model-code"]').first()).toHaveValue('1234567890');
+  await drawer.locator('[data-field="dimension-name"]').fill('自定义规格');
+  const requestPromise = page.waitForRequest((request) => request.method() === 'PATCH' && new URL(request.url()).pathname === `/api/catalog/products/${productId}`);
+  await drawer.locator('button[type="submit"]').click();
+  const payload = (await requestPromise).postDataJSON();
+  expect(payload.skus[0].priceTiers).toEqual([]);
+  expect(payload.skus[0].attributes).toEqual({ 自定义规格: '旧型号' });
+  await expect(drawer).toHaveCount(0);
+});
+
+
+test('filtered product export sends all filters and exposes a failed job report', async ({ page }) => {
+  await installDevSession(page);
+  await routeProductPageApis(page);
+  await page.route('**/api/admin/products/export-jobs', async (route) => {
+    expect(route.request().postDataJSON()).toEqual({ q: '旧商品', categoryId: '__NO_CATEGORY__', status: 'INACTIVE' });
+    await route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ id: 'export-failed', type: 'PRODUCT_EXPORT', status: 'PENDING', progress: 0 }) });
+  });
+  await page.route('**/api/admin/import-jobs/export-failed', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'export-failed', type: 'PRODUCT_EXPORT', status: 'FAILED', progress: 100, errorReportUrl: '/api/errors/export.txt' }) });
+  });
+  await page.goto('/products.html', { waitUntil: 'domcontentloaded' });
+  await page.locator('#products-category-filter').selectOption('__NO_CATEGORY__');
+  await page.locator('#products-status-filter').selectOption('INACTIVE');
+  await page.getByPlaceholder('按 SPU 名称或 SKU 编号搜索...').fill('旧商品');
+  await page.getByRole('button', { name: '导出当前筛选结果' }).click();
+  await expect(page.getByTestId('product-export-status')).toContainText('失败');
+  await expect(page.getByRole('link', { name: '下载错误报告' })).toHaveAttribute('href', '/api/errors/export.txt');
 });

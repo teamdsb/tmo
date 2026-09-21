@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { View } from '@tarojs/components'
+import { View, Text, Button } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
-import type { Cart, CartImportJob, CartImportPendingItem, ProductSummary, Sku } from '@tmo/api-client'
+import type { Cart, CartImportJob, CartImportPendingItem, ProductSummary, ProductDetail } from '@tmo/api-client'
+import { findSkuBySpecSelection, getPurchasableSpecSkus, getSkuSpecValues } from '@tmo/shared'
+import SpecSelector from '../../components/spec-selector'
+import { AppSafeAreaBottom } from '../../components/app-safe-area'
 import { useProductStartingPrices } from '../../hooks/use-product-starting-prices'
 import { useRefreshOnReturn } from '../../hooks/use-refresh-on-return'
 import { commerceServices } from '../../services/commerce'
@@ -12,7 +15,7 @@ import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { getNavbarStyle } from '../../utils/navbar'
 import { getWindowSystemInfo } from '../../utils/system-info'
 import { CartBottomBar, CartListView, ImportResultView } from './components'
-import { getCartItemUnitPriceFen, getSkuLabel, normalizeSpuId } from './helpers'
+import { getCartItemUnitPriceFen, normalizeSpuId } from './helpers'
 import { useCartProductDetails } from './hooks'
 import type { CartItem, ImportTab, SelectionMap } from './types'
 
@@ -34,6 +37,8 @@ export default function ExcelImportConfirmation() {
   const [selectionMap, setSelectionMap] = useState<SelectionMap>({})
   const [loading, setLoading] = useState(false)
   const [busyItemId, setBusyItemId] = useState<string | null>(null)
+  const [skuPicker, setSkuPicker] = useState<{ item: CartItem; detail: ProductDetail } | null>(null)
+  const [specSelection, setSpecSelection] = useState<string[]>([])
   const navbarStyle = getNavbarStyle()
   const isH5 = process.env.TARO_ENV === 'h5'
 
@@ -42,7 +47,8 @@ export default function ExcelImportConfirmation() {
   const {
     productImageBySpuId,
     productNameBySpuId,
-    loadSkuOptions
+    loadProductDetail,
+    productDimensionsBySpuId
   } = useCartProductDetails(cartItems, !importJob)
   const recommendedPriceMap = useProductStartingPrices(recommendedProducts)
   const recommendedProductImageSize = useMemo(() => getCartRecommendProductImageSize(), [])
@@ -227,32 +233,39 @@ export default function ExcelImportConfirmation() {
       return
     }
 
-    let options: Sku[] = []
     try {
-      options = await loadSkuOptions(spuId)
+      const detail = await loadProductDetail(spuId)
+      const options = detail ? getPurchasableSpecSkus(detail.product.filterDimensions, detail.skus) : []
+      if (!detail || !options.length) {
+        await Taro.showToast({ title: '当前商品无可选规格', icon: 'none' })
+        return
+      }
+      const current = options.find((sku) => sku.id === item.sku.id) ?? (options.length === 1 ? options[0] : undefined)
+      setSpecSelection(current ? getSkuSpecValues(detail.product.filterDimensions, current) : [])
+      setSkuPicker({ item, detail })
     } catch (error) {
       console.warn('load cart sku options failed', error)
       await Taro.showToast({ title: '规格加载失败', icon: 'none' })
+    }
+  }
+
+  const selectedReplacementSku = skuPicker
+    ? findSkuBySpecSelection(skuPicker.detail.product.filterDimensions, skuPicker.detail.skus, specSelection)
+    : undefined
+
+  const handleConfirmSku = async () => {
+    if (!skuPicker || !selectedReplacementSku || busyItemId) return
+    const { item } = skuPicker
+    const nextSku = selectedReplacementSku
+    if (nextSku.id === item.sku.id) {
+      setSkuPicker(null)
       return
     }
-
-    if (options.length === 0) {
-      await Taro.showToast({ title: '当前商品无可选规格', icon: 'none' })
-      return
-    }
-
     try {
-      const result = await Taro.showActionSheet({
-        itemList: options.map((sku) => getSkuLabel(sku))
-      })
-      const nextSku = options[result.tapIndex]
-      if (!nextSku || nextSku.id === item.sku.id) {
-        return
-      }
-
       setBusyItemId(item.id)
       const updatedCart = await commerceServices.cart.replaceItemSku(item.id, nextSku.id, item.qty)
       setCart(updatedCart)
+      setSkuPicker(null)
       await Taro.showToast({ title: '规格已更新', icon: 'success' })
     } catch (error) {
       if ((error as { errMsg?: string })?.errMsg?.includes('cancel')) {
@@ -331,11 +344,31 @@ export default function ExcelImportConfirmation() {
           recommendedProductImageSize={recommendedProductImageSize}
           productImageBySpuId={productImageBySpuId}
           productNameBySpuId={productNameBySpuId}
+          productDimensionsBySpuId={productDimensionsBySpuId}
           onChangeCartItemQty={handleChangeCartItemQty}
           onChangeCartItemSku={handleChangeCartItemSku}
           onRemoveCartItem={handleRemoveCartItem}
         />
       )}
+
+      {skuPicker ? (
+        <View className='cart-spec-overlay'>
+          <View className='cart-spec-panel'>
+            <Text>更换规格 · {skuPicker.detail.product.name}</Text>
+            <SpecSelector
+              dimensions={skuPicker.detail.product.filterDimensions}
+              skus={skuPicker.detail.skus}
+              selection={specSelection}
+              onChange={setSpecSelection}
+            />
+            <View className='cart-spec-actions'>
+              <Button disabled={Boolean(busyItemId)} onClick={() => setSkuPicker(null)}>取消</Button>
+              <Button disabled={!selectedReplacementSku || Boolean(busyItemId)} onClick={() => void handleConfirmSku()}>确认规格</Button>
+            </View>
+            <AppSafeAreaBottom />
+          </View>
+        </View>
+      ) : null}
 
       <CartBottomBar
         cartHasPendingPrice={pricingSummary.hasPendingPrice}

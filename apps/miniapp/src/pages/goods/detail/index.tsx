@@ -8,13 +8,14 @@ import TaroifyButton from '@taroify/core/button'
 import Star from '@taroify/icons/Star'
 import StarOutlined from '@taroify/icons/StarOutlined'
 import type { PriceTier, ProductDetail, Sku } from '@tmo/api-client'
-import Flex from '../../../components/flex'
+import { findSkuBySpecSelection, formatSkuSpec, getPurchasableSpecSkus, getSkuSpecValues } from '@tmo/shared'
+import SpecSelector from '../../../components/spec-selector'
 import AppFixedBottom from '../../../components/app-safe-area'
 import { ROUTES, goodsDetailRoute } from '../../../routes'
 import SafeImage from '../../../components/safe-image'
 import { getNavbarStyle } from '../../../utils/navbar'
 import { matchPriceTier } from '../../../utils/price-tier'
-import { ensureLoggedIn, isUnauthorized } from '../../../utils/auth'
+import { ensureLoggedIn, isLoggedIn, isUnauthorized } from '../../../utils/auth'
 import { switchTabLike } from '../../../utils/navigation'
 import { commerceServices } from '../../../services/commerce'
 import placeholderProductImage from '../../../assets/images/placeholder-product.svg'
@@ -27,7 +28,7 @@ const MAX_PURCHASE_QTY = 999
 export default function ProductDetail() {
   const router = useRouter()
   const [detail, setDetail] = useState<ProductDetail | null>(null)
-  const [selectedSkuId, setSelectedSkuId] = useState<string | null>(null)
+  const [specSelection, setSpecSelection] = useState<string[]>([])
   const [purchaseQty, setPurchaseQty] = useState(MIN_PURCHASE_QTY)
   const [purchaseQtyInput, setPurchaseQtyInput] = useState(String(MIN_PURCHASE_QTY))
   const [favoriteSkuIds, setFavoriteSkuIds] = useState<string[]>([])
@@ -47,11 +48,8 @@ export default function ProductDetail() {
       try {
         const response = await commerceServices.catalog.getProductDetail(spuId)
         setDetail(response)
-        if (response.skus?.length === 1) {
-          setSelectedSkuId(response.skus[0].id)
-          return
-        }
-        setSelectedSkuId(null)
+        const availableSkus = getPurchasableSpecSkus(response.product.filterDimensions, response.skus ?? [])
+        setSpecSelection(availableSkus.length === 1 ? getSkuSpecValues(response.product.filterDimensions, availableSkus[0]) : [])
       } catch (error) {
         console.warn('load product detail failed', error)
         await Taro.showToast({ title: '加载商品失败', icon: 'none' })
@@ -64,6 +62,9 @@ export default function ProductDetail() {
   useEffect(() => {
     void (async () => {
       try {
+        if (!(await isLoggedIn())) {
+          return
+        }
         const list = await commerceServices.wishlist.list()
         setFavoriteSkuIds(list.map((item) => item.sku.id))
       } catch (error) {
@@ -96,8 +97,9 @@ export default function ProductDetail() {
     return uniqueImages
   }, [detail])
 
-  const skus = useMemo(() => detail?.skus ?? [], [detail?.skus])
-  const selectedSku = skus.find((sku) => sku.id === selectedSkuId) ?? null
+  const dimensions = detail?.product.filterDimensions
+  const skus = useMemo(() => getPurchasableSpecSkus(dimensions, detail?.skus ?? []), [dimensions, detail?.skus])
+  const selectedSku = findSkuBySpecSelection(dimensions, skus, specSelection) ?? null
   const favoriteIdSet = useMemo(() => new Set(favoriteSkuIds), [favoriteSkuIds])
   const isFavorite = selectedSku ? favoriteIdSet.has(selectedSku.id) : false
   const productDescription = detail?.product?.description?.trim() ?? ''
@@ -111,7 +113,7 @@ export default function ProductDetail() {
     }
     return '适合工程采购与批量交付场景'
   }, [loading, productDescription])
-  const selectedSkuLabel = selectedSku?.spec ?? selectedSku?.name ?? ''
+  const selectedSkuLabel = selectedSku ? formatSkuSpec(dimensions, selectedSku) : ''
 
   const normalizePurchaseQty = (value: number): number => {
     if (!Number.isFinite(value)) {
@@ -312,20 +314,7 @@ export default function ProductDetail() {
 
         <View className='product-section detail-surface-card'>
           <Text className='product-section-title'>SKU 选项</Text>
-          <Flex wrap='wrap' gutter={8} className='detail-sku-list'>
-            {skus.map((sku) => (
-              <TaroifyButton
-                key={sku.id}
-                className={`product-sku-button ${selectedSku?.id === sku.id ? 'product-sku-button--selected' : ''}`}
-                size='small'
-                color={selectedSku?.id === sku.id ? 'primary' : 'default'}
-                variant={selectedSku?.id === sku.id ? 'contained' : 'outlined'}
-                onClick={() => setSelectedSkuId(sku.id)}
-              >
-                {sku.spec ?? sku.name}
-              </TaroifyButton>
-            ))}
-          </Flex>
+          <SpecSelector dimensions={dimensions} skus={skus} selection={specSelection} onChange={setSpecSelection} />
           {!selectedSku && skus.length > 1 ? (
             <Text className='product-sku-hint'>请选择规格后再加入购物车</Text>
           ) : null}

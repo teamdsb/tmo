@@ -34,6 +34,7 @@ func NewRouter(handler *handler.Handler, logger *slog.Logger, readyCheck func(co
 	router.POST("/admin/support/conversations/:conversationId/release", handler.PostAdminSupportConversationsConversationIdRelease)
 	router.POST("/admin/support/conversations/:conversationId/transfer", handler.PostAdminSupportConversationsConversationIdTransfer)
 	router.POST("/admin/products/import-jobs", handler.PostAdminProductsImportJobs)
+	router.POST("/admin/products/export-jobs", handler.PostAdminProductsExportJobs)
 	router.POST("/admin/shipments/import-jobs", handler.PostShipmentsImportJobs)
 	router.POST("/admin/product-requests/export-jobs", handler.PostAdminProductRequestsExportJobs)
 	router.GET("/admin/import-jobs/:jobId", handler.GetAdminImportJobsJobId)

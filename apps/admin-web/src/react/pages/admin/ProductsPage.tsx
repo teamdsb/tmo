@@ -1,8 +1,10 @@
+import { formatSpecPath, validateProductSpecs } from '@tmo/shared';
 import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
-  createCatalogSku,
   createCatalogCategory,
+  createAdminProductExportJob,
+  getAdminImportJob,
   createCatalogProduct,
   deleteCatalogCategory,
   deleteCatalogProduct,
@@ -11,12 +13,12 @@ import {
   fetchProductDetail,
   fetchProducts,
   replaceMiniappDisplayCategories,
-  updateCatalogSku,
   updateCatalogCategory,
   updateCatalogProduct,
   uploadCatalogProductImage
 } from '../../../lib/api';
 import { ensureProtectedPage } from '../../../lib/guard';
+import { createMockProductExportJob } from '../../../lib/product-import';
 import { AdminTopbar } from '../../layout/AdminTopbar';
 import {
   buildDefaultCategories,
@@ -45,6 +47,7 @@ import {
   MODEL_CLASS_BADGE,
   moveCategoryToPosition,
   MOCK_PRODUCTS_STORAGE_KEY,
+  MOCK_IMPORTED_PRODUCTS_STORAGE_KEY,
   NO_CATEGORY_FILTER,
   normalizeCategoryItem,
   normalizeDisplayCategoryItem,
@@ -491,6 +494,7 @@ const toProductRecordFromDetail = (detail: any, fallback: ProductRecord, index =
       coverImageUrl: detail?.product?.coverImageUrl || fallback.coverImageUrl,
       images: Array.isArray(detail?.product?.images) ? detail.product.images : fallback.images,
       inventory: fallback.inventory,
+      filterDimensions: detail?.product?.filterDimensions || [],
       models: detail?.models,
       skus,
       tierPricing: tierPricing.length > 0 ? tierPricing : fallback.tierPricing
@@ -522,10 +526,13 @@ const toSkuPayload = (model: ProductModel, tierPricing: ProductTier[]) => {
   ];
   return {
     name: model.name,
-    skuCode: model.code || undefined,
-    spec: model.name,
-    priceTiers,
-    isActive: true
+    skuCode: model.code || null,
+    id: model.id,
+    spec: model.spec,
+    attributes: model.attributes,
+    unit: model.unit,
+    priceTiers: model.priceTiers ?? priceTiers,
+    isActive: model.isActive
   };
 };
 
@@ -868,14 +875,51 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
               return;
             }
             const name = draft.name.trim();
-            const cleanedModels = draft.models
-              .map((model, index) => ({
-                id: model.id,
-                name: model.name.trim(),
-                code: model.code.trim().toUpperCase() || `${DEFAULT_MODEL_CODE}-${index + 1}`,
+            const dimensions = draft.filterDimensions.map((value) => value.trim());
+            if (dimensions.length < 1 || dimensions.length > 3 || dimensions.some((value) => !value) || new Set(dimensions).size !== dimensions.length) {
+              setErrorMessage('请配置 1～3 个非空且不重复的规格层级名称。');
+              return;
+            }
+            for (const [rowIndex, model] of draft.models.entries()) {
+              for (const [level, dimension] of dimensions.entries()) {
+                if (!product?.filterDimensions.includes(dimension) && Object.prototype.hasOwnProperty.call(model.attributes, dimension) && model.attributes[dimension] !== (model.specValues[level] || '').trim()) {
+                  setErrorMessage(`第 ${rowIndex + 1} 行的层级名称“${dimension}”与已有扩展属性冲突，请使用其他名称。`);
+                  return;
+                }
+              }
+            }
+            const specIssues = validateProductSpecs(dimensions, draft.models.map((model) => ({
+              ...model,
+              attributes: Object.fromEntries(dimensions.map((dimension, level) => [dimension, (model.specValues[level] || '').trim()]))
+            })));
+            if (specIssues.length) {
+              const issue = specIssues[0];
+              setErrorMessage(issue.otherRowIndex !== undefined ? `第 ${issue.otherRowIndex + 1} 行与第 ${issue.rowIndex! + 1} 行的启用规格组合重复。` : issue.message);
+              return;
+            }
+            const tiersChanged = JSON.stringify(draft.tierPricing) !== JSON.stringify(product?.tierPricing);
+            const cleanedModels = draft.models.map((model, index) => {
+              if (!model.isActive && dimensions.some((_, level) => !(model.specValues[level] || '').trim())) {
+                return { ...model, priceTiers: tiersChanged || model.basePrice !== (model.id ? product?.models.find((item) => item.id === model.id) : product?.models[index])?.basePrice ? undefined : model.priceTiers };
+              }
+              const attributes: Record<string, string> = Object.assign(Object.create(null), model.attributes);
+              for (const dimension of product?.filterDimensions || []) delete attributes[dimension];
+              const specValues = dimensions.map((dimension, level) => {
+                const value = (model.specValues[level] || '').trim();
+                attributes[dimension] = value;
+                return value;
+              });
+              return {
+                ...model,
+                name: model.name.trim() || formatSpecPath(specValues),
+                code: model.code.trim(),
+                specValues,
+                spec: formatSpecPath(specValues),
+                attributes,
+                priceTiers: tiersChanged || model.basePrice !== (model.id ? product?.models.find((item) => item.id === model.id) : product?.models[index])?.basePrice ? undefined : model.priceTiers,
                 basePrice: Math.max(0, Number(model.basePrice) || 0)
-              }))
-              .filter((model) => model.name);
+              };
+            });
             const cleanedTiers = draft.tierPricing
               .map((tier) => ({
                 minQty: Math.max(MIN_TIER_QTY, Math.round(Number(tier.minQty) || 0)),
@@ -888,13 +932,9 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
               setErrorMessage('商品名称不能为空。');
               return;
             }
-            if (cleanedModels.length === 0) {
-              setErrorMessage('至少需要一个型号。');
-              return;
-            }
             const codeSet = new Set<string>();
             for (const model of cleanedModels) {
-              if (codeSet.has(model.code)) {
+              if (model.code && codeSet.has(model.code)) {
                 setErrorMessage(`型号编码重复：${model.code}`);
                 return;
               }
@@ -925,6 +965,7 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
               images: draft.images,
               description: draft.description.trim(),
               inventory: Math.max(0, Math.round(Number(draft.inventory) || 0)),
+              filterDimensions: dimensions,
               models: cleanedModels,
               tierPricing: cleanedTiers
             }).catch((error) => {
@@ -981,7 +1022,7 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-slate-800">型号设置</p>
-                <p className="text-xs text-slate-500">可维护多个型号编码与基础售价。</p>
+                <p className="text-xs text-slate-500">按实际组合逐行维护规格、编码、启用状态与基础售价。</p>
               </div>
               <button
                 className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
@@ -997,7 +1038,8 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
                       {
                         name: `${DEFAULT_MODEL_NAME} ${current.models.length + 1}`,
                         code: `${DEFAULT_MODEL_CODE}-${current.models.length + 1}`,
-                        basePrice: current.models[0]?.basePrice || 0
+                        basePrice: current.models[0]?.basePrice || 0,
+                        spec: '', specValues: current.filterDimensions.map(() => ''), attributes: {}, isActive: true
                       }
                     ]
                   } : current);
@@ -1008,6 +1050,24 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
               </button>
             </div>
 
+            <div className="space-y-2" data-role="spec-dimensions">
+              {draft.filterDimensions.map((dimension, level) => (
+                <label className="block text-xs text-slate-600" key={level}>
+                  第 {level + 1} 级名称
+                  <input aria-label={`第 ${level + 1} 级名称`} data-field="dimension-name" className="ml-2 rounded-lg border-slate-300 text-sm"
+                    value={dimension} onChange={(event) => setDraft((current) => current ? { ...current, filterDimensions: current.filterDimensions.map((value, index) => index === level ? event.target.value : value) } : current)} />
+                </label>
+              ))}
+              <div className="flex gap-3">
+                <button type="button" data-role="add-spec-level" disabled={draft.filterDimensions.length >= 3}
+                  className="text-sm text-primary disabled:opacity-40"
+                  onClick={() => setDraft((current) => current ? { ...current, filterDimensions: [...current.filterDimensions, ''], models: current.models.map((model) => ({ ...model, specValues: [...model.specValues, ''] })) } : current)}>新增层级</button>
+                <button type="button" data-role="remove-spec-level" disabled={draft.filterDimensions.length <= 1}
+                  className="text-sm text-slate-600 disabled:opacity-40"
+                  onClick={() => setDraft((current) => current ? { ...current, filterDimensions: current.filterDimensions.slice(0, -1), models: current.models.map((model) => ({ ...model, specValues: model.specValues.slice(0, -1) })) } : current)}>删除末级</button>
+              </div>
+            </div>
+
             <div className="space-y-2" data-role="model-list">
               {draft.models.map((model, index) => (
                 <div
@@ -1015,6 +1075,15 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
                   className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200 bg-white p-3 sm:grid-cols-[1.2fr_1fr_1fr_auto]"
                   data-role="model-row"
                 >
+                  <div className="col-span-full grid gap-2 sm:grid-cols-3">
+                    {draft.filterDimensions.map((dimension, level) => (
+                      <label key={level} className="text-xs text-slate-600">{dimension || `第 ${level + 1} 级`} *
+                        <input className="w-full rounded-lg border-slate-300 text-sm" data-field="spec-value" aria-label={`第 ${index + 1} 行第 ${level + 1} 级规格值`}
+                          value={model.specValues[level] || ''} onChange={(event) => updateModel(index, { specValues: draft.filterDimensions.map((_, valueIndex) => valueIndex === level ? event.target.value : model.specValues[valueIndex] || '') })} />
+                      </label>
+                    ))}
+                    <label className="text-xs text-slate-600"><input type="checkbox" data-field="model-active" checked={model.isActive} onChange={(event) => updateModel(index, { isActive: event.target.checked })} /> 启用 SKU</label>
+                  </div>
                   <label className="space-y-1 text-xs text-slate-600">
                     <span>型号名称</span>
                     <input
@@ -1060,12 +1129,11 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
                   <button
                     className="mt-5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                     data-role="remove-model-row"
-                    disabled={draft.models.length <= 1}
                     onClick={() => {
-                      setModelRowKeys((current) => current.length <= 1 ? current : current.filter((_, itemIndex) => itemIndex !== index));
+                      setModelRowKeys((current) => current.filter((_, itemIndex) => itemIndex !== index));
                       setDraft((current) => current ? {
                         ...current,
-                        models: current.models.length <= 1 ? current.models : current.models.filter((_, itemIndex) => itemIndex !== index)
+                        models: current.models.filter((_, itemIndex) => itemIndex !== index)
                       } : current);
                     }}
                     type="button"
@@ -1853,6 +1921,8 @@ export const ProductsPage = () => {
   const [loadState, setLoadState] = useState<LoadState>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [toast, setToast] = useState<ToastState>(null);
+  const [exportJob, setExportJob] = useState<{ id: string; status: string; progress: number; resultFileUrl?: string | null; errorReportUrl?: string | null } | null>(null);
+  const [exportPending, setExportPending] = useState(false);
   const [products, setProducts] = useState<ProductRecord[]>([]);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [displayCategories, setDisplayCategories] = useState<DisplayCategoryItem[]>([]);
@@ -2058,6 +2128,38 @@ export const ProductsPage = () => {
       return haystacks.some((value) => value.toLowerCase().includes(keyword));
     }));
   }, [categories, categoryFilter, deferredSearchTerm, products, statusFilter]);
+
+  useEffect(() => {
+    if (!exportJob || !['PENDING', 'RUNNING'].includes(exportJob.status) || context?.mode !== 'dev') return;
+    let cancelled = false;
+    let busy = false;
+    const timer = window.setInterval(async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        const response = await getAdminImportJob(exportJob.id);
+        if (!cancelled && response.status === 200 && response.data) setExportJob(response.data);
+      } catch {
+        if (!cancelled) setToast({ message: '导出进度查询失败，可在导入工作台按任务 ID 查询。', tone: 'error' });
+      } finally { busy = false; }
+    }, 1500);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [context?.mode, exportJob?.id, exportJob?.status]);
+
+  const exportProducts = async () => {
+    setExportPending(true);
+    try {
+      if (context?.mode === 'mock') {
+        setExportJob(createMockProductExportJob(filteredProducts));
+      } else {
+        const response = await createAdminProductExportJob({ q: searchTerm.trim() || undefined, categoryId: categoryFilter || undefined, status: statusFilter || 'ALL' });
+        if (response.status !== 202 || !response.data) throw new Error(extractResponseMessage(response) || '创建商品导出任务失败。');
+        setExportJob(response.data);
+      }
+    } catch (error) {
+      setToast({ message: error instanceof Error ? error.message : '商品导出失败。', tone: 'error' });
+    } finally { setExportPending(false); }
+  };
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PRODUCTS_PAGE_SIZE));
   const currentPageSafe = Math.min(currentPage, totalPages);
@@ -2338,6 +2440,9 @@ export const ProductsPage = () => {
               <span className="material-symbols-outlined text-xl">category</span>
               <span>类目管理</span>
             </button>
+            <button type="button" data-role="export-products" onClick={() => void exportProducts()}
+              disabled={exportPending || Boolean(exportJob && ['PENDING', 'RUNNING'].includes(exportJob.status))}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold disabled:opacity-50">导出当前筛选结果</button>
             <button
               className="flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 font-bold text-white shadow-md shadow-primary/20 transition-all hover:bg-primary-dark"
               id="create-product-btn"
@@ -2349,6 +2454,12 @@ export const ProductsPage = () => {
             </button>
           </div>
         </div>
+
+        {exportJob ? <div className="mb-4 rounded-lg border border-slate-200 p-3 text-sm" data-testid="product-export-status">
+          商品导出：{({ PENDING: '等待处理', RUNNING: '处理中', SUCCEEDED: '已完成', FAILED: '失败' } as Record<string, string>)[exportJob.status] || exportJob.status}（{exportJob.progress}%） · 任务 {exportJob.id}
+          {exportJob.resultFileUrl ? <a className="ml-3 text-primary underline" href={exportJob.resultFileUrl} download="商品导出.xlsx">下载商品 Excel</a> : null}
+          {exportJob.errorReportUrl ? <a className="ml-3 text-red-600 underline" href={exportJob.errorReportUrl} download="商品导出错误报告.txt">下载错误报告</a> : null}
+        </div> : null}
 
         <div className="mb-6 rounded-xl border border-slate-200 bg-surface-light p-4 shadow-sm dark:border-slate-800 dark:bg-surface-dark">
           <div className="flex flex-wrap items-center gap-4">
@@ -2726,20 +2837,10 @@ export const ProductsPage = () => {
         onClose={closeProductEditor}
         onSave={async (updatedProduct) => {
           if (context?.mode === 'dev') {
-            const response = await updateCatalogProduct(updatedProduct.id, toProductUpdatePayload(updatedProduct));
+            const response = await updateCatalogProduct(updatedProduct.id, { ...toProductUpdatePayload(updatedProduct), filterDimensions: updatedProduct.filterDimensions, skus: updatedProduct.models.map((model) => toSkuPayload(model, updatedProduct.tierPricing)) });
             if (response.status !== 200 || !response.data?.product) {
               const serverMessage = extractResponseMessage(response);
               throw new Error(serverMessage ? `保存失败：${serverMessage}` : '保存失败，请稍后重试。');
-            }
-            for (const model of updatedProduct.models) {
-              const payload = toSkuPayload(model, updatedProduct.tierPricing);
-              const skuResponse = model.id
-                ? await updateCatalogSku(updatedProduct.id, model.id, payload)
-                : await createCatalogSku(updatedProduct.id, payload);
-              if (!((model.id && skuResponse.status === 200) || (!model.id && skuResponse.status === 201))) {
-                const serverMessage = extractResponseMessage(skuResponse);
-                throw new Error(serverMessage ? `型号保存失败：${serverMessage}` : '型号保存失败，请稍后重试。');
-              }
             }
             await refreshBackendProducts();
             closeProductEditor();
@@ -2748,6 +2849,11 @@ export const ProductsPage = () => {
           }
 
           const nextProduct = cloneProduct(updatedProduct);
+          nextProduct.models = nextProduct.models.map((model, index) => ({ ...model, id: model.id || `mock-sku-${nextProduct.id}-${Date.now()}-${index}`, priceTiers: toSkuPayload(model, nextProduct.tierPricing).priceTiers }));
+          const removedModels = editingProduct?.models.filter((model) => model.id && !updatedProduct.models.some((candidate) => candidate.id === model.id)) || [];
+          nextProduct.models.push(...removedModels.map((model) => ({ ...model, isActive: false })));
+          const importedProducts = readStoredJson<ProductRecord[]>(MOCK_IMPORTED_PRODUCTS_STORAGE_KEY);
+          if (Array.isArray(importedProducts)) writeStoredJson(MOCK_IMPORTED_PRODUCTS_STORAGE_KEY, importedProducts.map((item) => item.id === nextProduct.id ? nextProduct : item));
           setProducts((current) => {
             const nextProducts = current.map((item) => (item.id === updatedProduct.id ? nextProduct : item));
             writeStoredJson(MOCK_PRODUCTS_STORAGE_KEY, nextProducts);

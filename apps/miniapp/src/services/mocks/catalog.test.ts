@@ -1,3 +1,4 @@
+import { formatSkuSpec, validateProductSpecs } from '@tmo/shared'
 import { buildMockProductDetail, mockProductDetails, mockProducts } from './catalog'
 
 describe('mock catalog fixtures', () => {
@@ -31,4 +32,11 @@ describe('mock catalog fixtures', () => {
     expect(mockProductDetails['spu-bolt-a2']).toBeDefined()
     expect(mockProductDetails['spu-bolt-a2'].skus.some((sku) => sku.id === 'sku-bolt-a2-m8')).toBe(true)
   })
+  it('provides a valid three-level fixture shared with admin', () => {
+    const detail = buildMockProductDetail('spu-bolt-a2')!
+    expect(detail.product.filterDimensions).toEqual(['材质', '长度', '直径'])
+    expect(validateProductSpecs(detail.product.filterDimensions, detail.skus)).toEqual([])
+    expect(formatSkuSpec(detail.product.filterDimensions, detail.skus[0])).toBe('A2-70 / 30mm / M8')
+  })
+
 })

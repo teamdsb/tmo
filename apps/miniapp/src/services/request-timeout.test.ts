@@ -165,6 +165,29 @@ describe('browser service request deadlines', () => {
     expect(recoverUnauthorized).toHaveBeenCalledTimes(1)
   })
 
+  it('does not run centralized recovery for an unauthenticated native 401 response', async () => {
+    asMock(getPlatform).mockReturnValue(Platform.Weapp)
+    asMock(platformRequest).mockResolvedValue({
+      statusCode: 401,
+      data: { code: 'unauthorized', message: 'login required' },
+      headers: {}
+    })
+    const recoverUnauthorized = jest.fn(async () => {})
+    const requester = createRequester({
+      getToken: async () => null,
+      onUnauthorized: recoverUnauthorized
+    })
+
+    await expect(requester({
+      url: 'https://example.test/wishlist',
+      method: 'GET'
+    })).rejects.toMatchObject({ statusCode: 401 })
+    expect(platformRequest).toHaveBeenCalledWith(expect.objectContaining({
+      headers: expect.not.objectContaining({ Authorization: expect.any(String) })
+    }))
+    expect(recoverUnauthorized).not.toHaveBeenCalled()
+  })
+
   it('does not wait forever for 401 recovery after the deadline', async () => {
     let recoveryStarted: (() => void) | undefined
     const recoveryBegan = new Promise<void>((resolve) => {

@@ -12,6 +12,7 @@ import (
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/catalog"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/inquiry"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/order"
+	"github.com/teamdsb/tmo/services/commerce/internal/modules/productexport"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/productimport"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/productrequest"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/productrequestexport"
@@ -32,6 +33,7 @@ type Handler struct {
 	InquiryStore         inquiry.Store
 	SupportStore         support.Store
 	ProductImport        *productimport.Service
+	ProductExport        *productexport.Service
 	ProductRequestExport *productrequestexport.Service
 	SupportHub           *SupportHub
 	MediaLocalOutputDir  string

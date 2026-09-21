@@ -21,6 +21,7 @@ const (
 // Defines values for CartImportJobType.
 const (
 	CartImportJobTypeCARTIMPORT           CartImportJobType = "CART_IMPORT"
+	CartImportJobTypePRODUCTEXPORT        CartImportJobType = "PRODUCT_EXPORT"
 	CartImportJobTypePRODUCTIMPORT        CartImportJobType = "PRODUCT_IMPORT"
 	CartImportJobTypePRODUCTREQUESTEXPORT CartImportJobType = "PRODUCT_REQUEST_EXPORT"
 	CartImportJobTypeSHIPMENTIMPORT       CartImportJobType = "SHIPMENT_IMPORT"
@@ -46,6 +47,7 @@ const (
 // Defines values for ImportJobType.
 const (
 	ImportJobTypeCARTIMPORT           ImportJobType = "CART_IMPORT"
+	ImportJobTypePRODUCTEXPORT        ImportJobType = "PRODUCT_EXPORT"
 	ImportJobTypePRODUCTIMPORT        ImportJobType = "PRODUCT_IMPORT"
 	ImportJobTypePRODUCTREQUESTEXPORT ImportJobType = "PRODUCT_REQUEST_EXPORT"
 	ImportJobTypeSHIPMENTIMPORT       ImportJobType = "SHIPMENT_IMPORT"
@@ -243,6 +245,22 @@ type CartItem struct {
 	Sku SKU                `json:"sku"`
 }
 
+// CatalogSkuWrite Existing SKU fields omitted from a write are preserved. An empty priceTiers array clears prices.
+type CatalogSkuWrite struct {
+	Attributes *map[string]string `json:"attributes,omitempty"`
+
+	// Id Existing SKU belonging to this product; omit to create a SKU.
+	Id         *openapi_types.UUID `json:"id,omitempty"`
+	IsActive   *bool               `json:"isActive,omitempty"`
+	Name       string              `json:"name"`
+	PriceTiers *[]PriceTier        `json:"priceTiers,omitempty"`
+	SkuCode    *string             `json:"skuCode"`
+
+	// Spec Legacy label; derived from attributes for named specifications.
+	Spec *string `json:"spec"`
+	Unit *string `json:"unit"`
+}
+
 // Category defines model for Category.
 type Category struct {
 	Id       openapi_types.UUID  `json:"id"`
@@ -266,14 +284,16 @@ type CreateAfterSalesTicket struct {
 
 // CreateCatalogProductRequest defines model for CreateCatalogProductRequest.
 type CreateCatalogProductRequest struct {
-	CategoryId       openapi_types.UUID `json:"categoryId"`
-	CoverImageUrl    *string            `json:"coverImageUrl,omitempty"`
-	Description      *string            `json:"description,omitempty"`
-	FilterDimensions *[]string          `json:"filterDimensions,omitempty"`
-	Images           *[]string          `json:"images,omitempty"`
-	Name             string             `json:"name"`
-	Status           *ProductStatus     `json:"status,omitempty"`
-	Tags             *[]string          `json:"tags,omitempty"`
+	CategoryId    openapi_types.UUID `json:"categoryId"`
+	CoverImageUrl *string            `json:"coverImageUrl,omitempty"`
+	Description   *string            `json:"description,omitempty"`
+
+	// FilterDimensions Ordered specification level names; empty for legacy flat specifications.
+	FilterDimensions *[]string      `json:"filterDimensions,omitempty"`
+	Images           *[]string      `json:"images,omitempty"`
+	Name             string         `json:"name"`
+	Status           *ProductStatus `json:"status,omitempty"`
+	Tags             *[]string      `json:"tags,omitempty"`
 }
 
 // CreateCategoryRequest defines model for CreateCategoryRequest.
@@ -330,7 +350,7 @@ type CreateSkuRequest struct {
 	PriceTiers *[]PriceTier       `json:"priceTiers,omitempty"`
 	SkuCode    *string            `json:"skuCode,omitempty"`
 
-	// Spec Primary spec label used for matching (e.g., size/grade); store here and avoid duplicating in attributes
+	// Spec Derived full specification path, ordered by product filterDimensions and joined with " / "; one-level value unchanged. Legacy products without dimensions use the flat label.
 	Spec *string `json:"spec,omitempty"`
 	Unit *string `json:"unit,omitempty"`
 }
@@ -561,15 +581,17 @@ type PriceTier struct {
 // ProductDetail defines model for ProductDetail.
 type ProductDetail struct {
 	Product struct {
-		CategoryId  openapi_types.UUID `json:"categoryId"`
-		Description *string            `json:"description,omitempty"`
+		CategoryId    openapi_types.UUID `json:"categoryId"`
+		CoverImageUrl *string            `json:"coverImageUrl,omitempty"`
+		Description   *string            `json:"description,omitempty"`
 
-		// FilterDimensions For multi-level filtering, e.g., material -> length -> size
+		// FilterDimensions Ordered specification level names for cascading SKU selection.
 		FilterDimensions *[]string          `json:"filterDimensions,omitempty"`
 		Id               openapi_types.UUID `json:"id"`
 		Images           *[]string          `json:"images,omitempty"`
 		Name             string             `json:"name"`
 		Status           ProductStatus      `json:"status"`
+		Tags             *[]string          `json:"tags,omitempty"`
 	} `json:"product"`
 	Skus []SKU `json:"skus"`
 }
@@ -622,7 +644,7 @@ type SKU struct {
 	PriceTiers *[]PriceTier       `json:"priceTiers,omitempty"`
 	SkuCode    *string            `json:"skuCode,omitempty"`
 
-	// Spec Canonical spec label for matching; do not duplicate in attributes
+	// Spec Derived full specification path for display and matching. Named values in attributes are the source of truth when filterDimensions is configured.
 	Spec  *string            `json:"spec,omitempty"`
 	SpuId openapi_types.UUID `json:"spuId"`
 	Unit  *string            `json:"unit,omitempty"`
@@ -656,14 +678,19 @@ type UpdateAfterSalesTicketRequest struct {
 
 // UpdateCatalogProductRequest defines model for UpdateCatalogProductRequest.
 type UpdateCatalogProductRequest struct {
-	CategoryId       *openapi_types.UUID `json:"categoryId,omitempty"`
-	CoverImageUrl    *string             `json:"coverImageUrl"`
-	Description      *string             `json:"description"`
-	FilterDimensions *[]string           `json:"filterDimensions,omitempty"`
-	Images           *[]string           `json:"images,omitempty"`
-	Name             *string             `json:"name,omitempty"`
-	Status           *ProductStatus      `json:"status,omitempty"`
-	Tags             *[]string           `json:"tags,omitempty"`
+	CategoryId    *openapi_types.UUID `json:"categoryId,omitempty"`
+	CoverImageUrl *string             `json:"coverImageUrl"`
+	Description   *string             `json:"description"`
+
+	// FilterDimensions Ordered specification level names; empty for legacy flat specifications.
+	FilterDimensions *[]string `json:"filterDimensions,omitempty"`
+	Images           *[]string `json:"images,omitempty"`
+	Name             *string   `json:"name,omitempty"`
+
+	// Skus Complete retained SKU collection, saved atomically with the product. Omitted existing SKUs are disabled, not deleted. Omit this field for product-only updates.
+	Skus   *[]CatalogSkuWrite `json:"skus,omitempty"`
+	Status *ProductStatus     `json:"status,omitempty"`
+	Tags   *[]string          `json:"tags,omitempty"`
 }
 
 // UpdateCategoryRequest defines model for UpdateCategoryRequest.
@@ -700,7 +727,7 @@ type UpdateSkuRequest struct {
 	PriceTiers *[]PriceTier       `json:"priceTiers,omitempty"`
 	SkuCode    *string            `json:"skuCode,omitempty"`
 
-	// Spec Primary spec label used for matching (e.g., size/grade); store here and avoid duplicating in attributes
+	// Spec Derived full specification path, ordered by product filterDimensions and joined with " / "; one-level value unchanged. Legacy products without dimensions use the flat label.
 	Spec *string `json:"spec,omitempty"`
 	Unit *string `json:"unit,omitempty"`
 }

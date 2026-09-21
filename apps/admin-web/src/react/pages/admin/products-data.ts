@@ -1,3 +1,4 @@
+import { normalizeSpecDimensions, getSkuSpecValues } from '@tmo/shared';
 import {
   canonicalCategories,
   canonicalDisplayCategories,
@@ -12,6 +13,12 @@ export type ProductModel = {
   code: string;
   id?: string;
   name: string;
+  spec: string;
+  specValues: string[];
+  attributes: Record<string, string>;
+  unit?: string | null;
+  isActive: boolean;
+  priceTiers?: Array<{ minQty: number; maxQty?: number | null; unitPriceFen: number }>;
 };
 
 export type ProductTier = {
@@ -27,6 +34,8 @@ export type ProductRecord = {
   images: string[];
   inventory: number;
   models: ProductModel[];
+  filterDimensions: string[];
+  tags: string[];
   name: string;
   status: ProductStatus;
   tierPricing: ProductTier[];
@@ -161,13 +170,6 @@ const toStatus = (value: unknown): ProductStatus => {
   return 'DRAFT';
 };
 
-const normalizeModelCode = (value: unknown, fallback = DEFAULT_MODEL_CODE) => {
-  const code = toText(value, fallback)
-    .toUpperCase()
-    .replace(/\s+/g, '-');
-  return code || fallback;
-};
-
 const normalizeTierPricing = (value: unknown): ProductTier[] => {
   if (!Array.isArray(value)) {
     return [];
@@ -182,23 +184,19 @@ const normalizeTierPricing = (value: unknown): ProductTier[] => {
   return tiers.filter((item, index) => index === 0 || tiers[index - 1]?.minQty !== item.minQty);
 };
 
-const normalizeModels = (value: unknown, fallbackName: string): ProductModel[] => {
+const normalizeModels = (value: unknown): ProductModel[] => {
   const item = asRecord(value);
   const candidates = Array.isArray(item.models) ? item.models : Array.isArray(item.skus) ? item.skus : [];
-  if (candidates.length === 0) {
-    const fallbackPrice = toNumber(item.basePrice, 0);
-    return [
-      {
-        name: DEFAULT_MODEL_NAME,
-        code: normalizeModelCode(item.sku || item.code || fallbackName, DEFAULT_MODEL_CODE),
-        basePrice: fallbackPrice
-      }
-    ];
-  }
   return candidates.map((model, index) => ({
     id: toText(model?.id, '') || undefined,
     name: toText(model?.name, `${DEFAULT_MODEL_NAME} ${index + 1}`),
-    code: normalizeModelCode(model?.code ?? model?.skuCode, `${DEFAULT_MODEL_CODE}-${index + 1}`),
+    code: toText(model?.code ?? model?.skuCode),
+    spec: toText(model?.spec, model?.name),
+    specValues: Array.isArray(model?.specValues) ? [...model.specValues] : getSkuSpecValues(item.filterDimensions, model),
+    attributes: { ...(model?.attributes || {}), ...(!item.filterDimensions?.length ? { 规格: toText(model?.spec, model?.name) } : {}) },
+    unit: model?.unit,
+    isActive: model?.isActive !== false,
+    priceTiers: Array.isArray(model?.priceTiers) ? model.priceTiers.map((tier: any) => ({ ...tier })) : model?.id ? [] : undefined,
     basePrice: Math.max(0, toNumber(
       model?.basePrice,
       toNumber(model?.priceTiers?.[0]?.unitPriceFen, toNumber(item.basePrice, 0) * 100) / 100
@@ -361,7 +359,7 @@ export const normalizeProduct = (item: unknown, index = 0): ProductRecord => {
   const record = asRecord(item);
   const id = toText(record.id, `MOCK-${String(index + 1).padStart(4, '0')}`);
   const categoryId = toText(record.categoryId, '');
-  const models = normalizeModels(record, id);
+  const models = normalizeModels(record);
   const coverImageUrl = toText(record.coverImageUrl, '');
   const imageCandidates = [
     coverImageUrl,
@@ -378,6 +376,8 @@ export const normalizeProduct = (item: unknown, index = 0): ProductRecord => {
     inventory: Math.max(0, Math.round(toNumber(record.inventory ?? record.inventoryQty ?? record.stock, 0))),
     status: toStatus(record.status),
     models,
+    filterDimensions: normalizeSpecDimensions(record.filterDimensions),
+    tags: Array.isArray(record.tags) ? [...record.tags] : [],
     tierPricing: normalizeTierPricing(record.tierPricing)
   };
 };
@@ -411,10 +411,10 @@ export const mergeImportedMockProducts = (baseItems: ProductRecord[]) => {
   }
   const imported = stored.map((item, index) => normalizeProduct(item, index));
   const importedCodes = new Set(
-    imported.flatMap((item) => item.models.map((model, modelIndex) => normalizeModelCode(model.code, `${item.id}-${modelIndex + 1}`)))
+    imported.flatMap((item) => item.models.map((model) => model.code).filter(Boolean))
   );
   const filteredBase = baseItems.filter((item) => (
-    !item.models.some((model, index) => importedCodes.has(normalizeModelCode(model.code, `${item.id}-${index + 1}`)))
+    !imported.some((product) => product.id === item.id) && !item.models.some((model) => model.code && importedCodes.has(model.code))
   ));
   return [...imported, ...filteredBase];
 };

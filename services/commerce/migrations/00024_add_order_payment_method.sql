@@ -9,7 +9,11 @@ SET payment_method = CASE
     WHEN latest_payment_id IS NOT NULL
       OR upper(coalesce(payment_channel, '')) IN ('WECHAT', 'ALIPAY') THEN 'ONLINE'
     ELSE 'OFFLINE'
-END;
+END
+WHERE payment_method IS NULL;
+
+ALTER TABLE orders
+    DROP CONSTRAINT IF EXISTS orders_payment_method_check;
 
 ALTER TABLE orders
     ALTER COLUMN payment_method SET NOT NULL,

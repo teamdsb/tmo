@@ -401,6 +401,36 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/ImportJob"
+  "/admin/products/export-jobs":
+    post:
+      tags:
+      - Admin
+      summary: Export catalog products and all SKUs to a re-importable Excel workbook
+      description: Requires product management permission. Exports all matching pages, inactive SKUs, and products without SKUs using raw image URLs. Query results use the existing import/export job endpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                q:
+                  type: string
+                categoryId:
+                  type: string
+                  description: Category UUID, or __NO_CATEGORY__ for uncategorized products.
+                status:
+                  type: string
+                  enum: [ALL, ACTIVE, INACTIVE, DRAFT]
+                  default: ALL
+              additionalProperties: false
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/ImportJob"
   "/admin/product-requests/export-jobs":
     post:
       tags:
@@ -1635,26 +1665,8 @@ components:
       - id
       - name
     ProductSummary:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        coverImageUrl:
-          type: string
-        categoryId:
-          type: string
-          format: uuid
-        tags:
-          type: array
-          items:
-            type: string
-      required:
-      - id
-      - name
-      - categoryId
+      $ref: "./commerce.yaml#/components/schemas/ProductSummary"
+
     PagedProductList:
       type: object
       properties:
@@ -1674,89 +1686,14 @@ components:
       - pageSize
       - total
     PriceTier:
-      type: object
-      properties:
-        minQty:
-          type: integer
-          minimum: 1
-        maxQty:
-          type: integer
-          nullable: true
-          description: null means no upper bound
-        unitPrice:
-          type: number
-      required:
-      - minQty
-      - unitPrice
+      $ref: "./commerce.yaml#/components/schemas/PriceTier"
+
     SKU:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        spuId:
-          type: string
-          format: uuid
-        skuCode:
-          type: string
-        name:
-          type: string
-        attributes:
-          type: object
-          additionalProperties:
-            type: string
-        priceTiers:
-          type: array
-          items:
-            "$ref": "#/components/schemas/PriceTier"
-        unit:
-          type: string
-          example: pcs
-        isActive:
-          type: boolean
-          default: true
-      required:
-      - id
-      - spuId
-      - name
-      - isActive
+      $ref: "./commerce.yaml#/components/schemas/SKU"
+
     ProductDetail:
-      type: object
-      properties:
-        product:
-          type: object
-          properties:
-            id:
-              type: string
-              format: uuid
-            name:
-              type: string
-            description:
-              type: string
-            images:
-              type: array
-              items:
-                type: string
-            categoryId:
-              type: string
-              format: uuid
-            filterDimensions:
-              type: array
-              description: For multi-level filtering, e.g., material -> length ->
-                size
-              items:
-                type: string
-          required:
-          - id
-          - name
-          - categoryId
-        skus:
-          type: array
-          items:
-            "$ref": "#/components/schemas/SKU"
-      required:
-      - product
-      - skus
+      $ref: "./commerce.yaml#/components/schemas/ProductDetail"
+
     WishlistItem:
       type: object
       properties:
@@ -2479,6 +2416,7 @@ components:
           enum:
           - PRODUCT_IMPORT
           - PRODUCT_REQUEST_EXPORT
+          - PRODUCT_EXPORT
           - SHIPMENT_IMPORT
           - CART_IMPORT
         status:

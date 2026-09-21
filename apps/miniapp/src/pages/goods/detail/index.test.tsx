@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import Taro from '@tarojs/taro'
 import ProductDetail from './index'
 import { commerceServices } from '../../../services/commerce'
+import { identityServices } from '../../../services/identity'
 import { clearBootstrap, saveBootstrap } from '../../../services/bootstrap'
 import { ROUTES } from '../../../routes'
 
@@ -340,6 +341,21 @@ describe('ProductDetail', () => {
     expect(Taro.navigateTo).not.toHaveBeenCalledWith({ url: ROUTES.support })
   })
 
+  it('does not request the authenticated wishlist when viewing details as a guest', async () => {
+    await clearBootstrap()
+    jest.spyOn(identityServices.tokens, 'getToken').mockResolvedValue(null)
+    const wishlistSpy = jest.spyOn(commerceServices.wishlist, 'list')
+    wishlistSpy.mockClear()
+
+    render(<ProductDetail />)
+
+    await screen.findByText('¥185.00 起')
+    await waitFor(() => {
+      expect(identityServices.tokens.getToken).toHaveBeenCalled()
+    })
+    expect(wishlistSpy).not.toHaveBeenCalled()
+  })
+
   it('still opens support chat when inquiry intent storage fails', async () => {
     jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValueOnce({
       product: {
@@ -449,4 +465,51 @@ describe('ProductDetail', () => {
     const heroImage = document.querySelector('.detail-hero-frame img')
     expect(heroImage).not.toBeNull()
   })
+  it('selects three levels before adding the exact SKU and resets downstream selections', async () => {
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValueOnce({
+      product: { id: 'spu-1', name: '三级规格商品', categoryId: 'industrial', filterDimensions: ['材质', '长度', '直径'] },
+      skus: [
+        { id: 'steel', spuId: 'spu-1', name: '钢型号', isActive: true, attributes: { 材质: '钢', 长度: '10mm', 直径: 'M8' }, priceTiers: [{ minQty: 1, maxQty: null, unitPriceFen: 1200 }] },
+        { id: 'copper', spuId: 'spu-1', name: '铜型号', isActive: true, attributes: { 材质: '铜', 长度: '20mm', 直径: 'M10' }, priceTiers: [{ minQty: 1, maxQty: null, unitPriceFen: 2400 }] },
+        { id: 'inactive', spuId: 'spu-1', name: '停用', isActive: false, attributes: { 材质: '铝', 长度: '30mm', 直径: 'M12' }, priceTiers: [] }
+      ]
+    } as any)
+    const add = jest.spyOn(commerceServices.cart, 'addItem').mockResolvedValue({ items: [] } as any)
+    add.mockClear()
+    render(<ProductDetail />)
+    fireEvent.click(await screen.findByText('钢'))
+    fireEvent.click(screen.getByText('加入购物车'))
+    expect(add).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('10mm'))
+    fireEvent.click(screen.getByText('M8'))
+    expect(screen.getByText('钢 / 10mm / M8')).toBeInTheDocument()
+    expect(screen.getByText('¥12.00')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('加入购物车'))
+    await waitFor(() => expect(add).toHaveBeenCalledWith('steel', 1))
+    fireEvent.click(screen.getByText('铜'))
+    expect(screen.queryByText('M8')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('20mm'))
+    fireEvent.click(screen.getByText('M10'))
+    expect(screen.getByText('¥24.00')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('加入购物车'))
+    await waitFor(() => expect(add).toHaveBeenLastCalledWith('copper', 1))
+    expect(screen.queryByText('铝')).not.toBeInTheDocument()
+  })
+
+  it('auto-selects the only active SKU even when disabled historical SKUs exist', async () => {
+    jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValueOnce({
+      product: { id: 'spu-1', name: '单一可购规格', categoryId: 'industrial', filterDimensions: ['材质', '长度'] },
+      skus: [
+        { id: 'active', spuId: 'spu-1', name: '钢型号', isActive: true, attributes: { 材质: '钢', 长度: '10mm' }, priceTiers: [] },
+        { id: 'inactive', spuId: 'spu-1', name: '历史型号', isActive: false, attributes: {}, priceTiers: [] }
+      ]
+    } as any)
+    const add = jest.spyOn(commerceServices.cart, 'addItem').mockResolvedValue({ items: [] } as any)
+    add.mockClear()
+    render(<ProductDetail />)
+    expect(await screen.findByText('钢 / 10mm')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('加入购物车'))
+    await waitFor(() => expect(add).toHaveBeenCalledWith('active', 1))
+  })
+
 })

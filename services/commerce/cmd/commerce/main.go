@@ -18,6 +18,7 @@ import (
 	"github.com/teamdsb/tmo/services/commerce/internal/http/handler"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/middleware"
 	ordermodule "github.com/teamdsb/tmo/services/commerce/internal/modules/order"
+	"github.com/teamdsb/tmo/services/commerce/internal/modules/productexport"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/productimport"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/productrequestexport"
 
@@ -81,6 +82,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		cfg.JWTIssuer,
 		authn.NewIdentityCredentialValidator(cfg.IdentityBaseURL, nil),
 	)
+	productExportService := productexport.NewService(pool, cfg.MediaLocalOutputDir, cfg.MediaPublicBaseURL)
 	productImportService := productimport.NewService(pool, cfg.MediaLocalOutputDir, cfg.MediaPublicBaseURL, logger)
 	productRequestExportService := productrequestexport.NewService(pool, cfg.MediaLocalOutputDir, cfg.MediaPublicBaseURL)
 	supportHub := handler.NewSupportHub()
@@ -96,6 +98,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		InquiryStore:         store,
 		SupportStore:         store,
 		ProductImport:        productImportService,
+		ProductExport:        productExportService,
 		ProductRequestExport: productRequestExportService,
 		SupportHub:           supportHub,
 		MediaLocalOutputDir:  cfg.MediaLocalOutputDir,
@@ -106,6 +109,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		SalesValidator:       handler.NewIdentityClient(cfg.IdentityBaseURL, nil),
 		Logger:               logger,
 	}
+	(&productexport.Worker{Runner: productExportService, Logger: logger}).Start(ctx)
 	(&productimport.Worker{
 		Runner: productImportService,
 		Logger: logger,

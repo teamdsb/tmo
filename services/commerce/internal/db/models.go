@@ -267,6 +267,16 @@ type PriceInquiry struct {
 	UpdatedAt           pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 }
 
+type ProductExportJob struct {
+	JobID         uuid.UUID          `db:"job_id" json:"job_id"`
+	Query         *string            `db:"query" json:"query"`
+	CategoryID    pgtype.UUID        `db:"category_id" json:"category_id"`
+	ProductStatus *string            `db:"product_status" json:"product_status"`
+	ExportedRows  int32              `db:"exported_rows" json:"exported_rows"`
+	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
 type ProductImportJob struct {
 	JobID         uuid.UUID          `db:"job_id" json:"job_id"`
 	ExcelFilePath string             `db:"excel_file_path" json:"excel_file_path"`

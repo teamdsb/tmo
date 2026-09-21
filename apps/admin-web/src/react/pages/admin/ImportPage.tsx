@@ -13,6 +13,7 @@ import { ensureProtectedPage } from '../../../lib/guard';
 import { hasPermission, normalizePermissionMap } from '../../../lib/permissions';
 import {
   advanceMockProductImportJob,
+  downloadProductImportTemplate,
   getMockProductImportJob,
   parseMockProductImport,
   saveMockProductImportJob,
@@ -46,6 +47,14 @@ type FeatureFlagsState = {
   alipayPayEnabled: boolean;
 };
 
+type ProductImportTemplateField = {
+  header: string;
+  label: string;
+  level: '必填' | '建议' | '可选';
+  description: string;
+  example: string;
+};
+
 const defaultFlags: FeatureFlagsState = {
   paymentEnabled: false,
   wechatPayEnabled: false,
@@ -58,6 +67,130 @@ const statusToneClass: Record<string, string> = {
   RUNNING: 'bg-blue-50 text-blue-700 border border-blue-200',
   SUCCEEDED: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
   FAILED: 'bg-rose-50 text-rose-700 border border-rose-200'
+};
+
+const productImportTemplateFields: ProductImportTemplateField[] = [
+  {
+    header: 'Group Key',
+    label: '商品分组键',
+    level: '必填',
+    description: '同一商品下的所有 SKU 填写相同值，用于把多行聚合成一个商品。',
+    example: 'P-FASTENER-001'
+  },
+  {
+    header: 'Product Name',
+    label: '商品名称',
+    level: '必填',
+    description: '商品在目录和详情页展示的名称；同一 Group Key 必须保持一致。',
+    example: '内六角圆柱头螺钉'
+  },
+  {
+    header: 'Category ID',
+    label: '分类 ID',
+    level: '可选',
+    description: '填写已有分类 UUID；留空表示未分类。',
+    example: '11111111-1111-1111-1111-111111111111'
+  },
+  {
+    header: 'SKU Code',
+    label: 'SKU 编码',
+    level: '建议',
+    description: '每个 SKU 的稳定唯一编码；再次导入相同编码时会更新原 SKU。',
+    example: 'SKU-M6-20'
+  },
+  {
+    header: 'SKU Name',
+    label: 'SKU 名称',
+    level: '建议',
+    description: '规格选项的展示名称；留空时使用商品名称。',
+    example: 'M6×20mm 镀锌'
+  },
+  {
+    header: 'Spec',
+    label: '旧版规格文本',
+    level: '建议',
+    description: '兼容旧版；新版按层级值自动生成完整路径。与新版列同时填写时必须一致。',
+    example: 'M6×20mm'
+  },
+  {
+    header: 'Unit',
+    label: '计量单位',
+    level: '建议',
+    description: 'SKU 的采购或销售计量单位。',
+    example: '个'
+  },
+  {
+    header: 'Is Active',
+    label: 'SKU 是否启用',
+    level: '建议',
+    description: '支持 true/false、1/0、yes/no；留空默认启用。',
+    example: 'true'
+  },
+  {
+    header: 'Description',
+    label: '商品说明',
+    level: '可选',
+    description: '商品级说明；同一 Group Key 的每行必须填写一致。',
+    example: '钢制 8.8 级，全牙'
+  },
+  {
+    header: 'Cover Image',
+    label: '商品主图',
+    level: '可选',
+    description: '图片 URL，或图片 ZIP 内的文件路径。',
+    example: 'images/main.png'
+  },
+  {
+    header: 'Images',
+    label: '商品图片',
+    level: '可选',
+    description: '推荐 JSON 字符串数组，兼容竖线 | 分隔，最多 9 张。',
+    example: 'images/main.png|images/detail.png'
+  },
+  {
+    header: 'Tags',
+    label: '商品标签',
+    level: '可选',
+    description: '推荐 JSON 字符串数组，兼容竖线 | 分隔。',
+    example: '紧固件|镀锌'
+  },
+  {
+    header: 'Filter Dimensions',
+    label: '筛选维度',
+    level: '可选',
+    description: '兼容旧版的有序层级名称，最多三级；与新版名称列同时填写时必须一致。',
+    example: '材质|直径|长度'
+  },
+  {
+    header: 'Attributes',
+    label: '扩展属性',
+    level: '可选',
+    description: '推荐填写 JSON 对象以保留特殊字符；也兼容“属性名:属性值”，多个属性用竖线 | 分隔。',
+    example: '材质:304不锈钢|长度:20mm'
+  },
+  {
+    header: 'Price Tiers (Fen)',
+    label: '阶梯价格（分）',
+    level: '可选',
+    description: '格式为“数量范围:单价分”，多档用竖线 | 分隔；留空表示暂无价格，更新已有 SKU 时会清除原阶梯价。',
+    example: '1-9:1200|10-:1000'
+  }
+];
+
+productImportTemplateFields.splice(1, 0,
+  { header: 'Product ID', label: '商品 ID', level: '可选', description: '导出后保留原 ID，回导优先定位原商品；新建时留空。', example: '' },
+  { header: 'SKU ID', label: 'SKU ID', level: '可选', description: '导出后保留原 ID；新建规格时留空。', example: '' },
+  { header: 'Product Status', label: '商品状态', level: '可选', description: 'DRAFT、ACTIVE 或 INACTIVE；留空时新商品为草稿，已有商品保留状态。', example: 'DRAFT' },
+  ...[1, 2, 3].flatMap((level): ProductImportTemplateField[] => [
+    { header: `Spec ${level} Name`, label: `第 ${level} 级名称`, level: '建议', description: '同一商品所有行保持名称和顺序一致；二、三级可留空，不允许跳级。', example: ['材质', '长度', '直径'][level - 1] },
+    { header: `Spec ${level} Value`, label: `第 ${level} 级值`, level: '建议', description: '填写当前 SKU 在该层级的值；启用的完整规格组合不得重复。', example: ['不锈钢', '20mm', 'M6'][level - 1] }
+  ])
+);
+
+const templateFieldLevelClass: Record<ProductImportTemplateField['level'], string> = {
+  必填: 'border-rose-200 bg-rose-50 text-rose-700',
+  建议: 'border-blue-200 bg-blue-50 text-blue-700',
+  可选: 'border-slate-200 bg-slate-100 text-slate-600'
 };
 
 const formatDateTime = (value?: string) => {
@@ -404,7 +537,7 @@ export const ImportPage = () => {
   };
 
   const jobToneClass = statusToneClass[String(latestJob?.status || '').toUpperCase()] || 'bg-slate-100 text-slate-700 border border-slate-200';
-  const resultFileLabel = latestJob?.type === 'PRODUCT_REQUEST_EXPORT' ? '下载导出文件' : '下载结果摘要';
+  const resultFileLabel = ['PRODUCT_REQUEST_EXPORT', 'PRODUCT_EXPORT'].includes(latestJob?.type || '') ? '下载导出文件' : '下载结果摘要';
 
   return (
     <>
@@ -455,7 +588,7 @@ export const ImportPage = () => {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-semibold text-slate-900">商品导入</h2>
-                  <p className="mt-1 text-sm text-slate-500">模板按“一行一个 SKU”组织；同一 `groupKey` 聚合为一个商品，`skuCode` 命中时执行更新。</p>
+                  <p className="mt-1 text-sm text-slate-500">上传符合下方模板要求的 Excel，系统按“一行一个 SKU”导入商品和规格。</p>
                 </div>
                 <span className={`rounded-full px-3 py-1 text-xs font-semibold ${canProductImport ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                   {canProductImport ? '可执行' : '无权限'}
@@ -464,9 +597,9 @@ export const ImportPage = () => {
 
               <div className="mt-5 grid gap-4 md:grid-cols-2">
                 <label className="block">
-                  <span className="mb-2 block text-sm font-medium text-slate-700">商品 Excel</span>
+                  <span className="mb-2 block text-sm font-medium text-slate-700">商品 Excel（仅 .xlsx）</span>
                   <input
-                    accept=".xls,.xlsx"
+                    accept=".xlsx"
                     className="block w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-700"
                     data-testid="product-import-excel"
                     onChange={(event) => setProductExcelFile(event.target.files?.[0] || null)}
@@ -496,12 +629,87 @@ export const ImportPage = () => {
                 />
               </label>
 
-              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-                <p className="font-medium text-slate-800">模板字段</p>
-                <p className="mt-2 leading-6">
-                  `groupKey`、`skuCode`、`productName`、`skuName`、`categoryId`、`description`、`coverImage`、`images`、
-                  `tags`、`filterDimensions`、`spec`、`attributes`、`unit`、`isActive`、`priceTiers`。
-                </p>
+              <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200" data-testid="product-import-template-guide">
+                <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-semibold text-slate-900">Excel 模板要求</h3>
+                      <p className="mt-1 text-sm text-slate-600">系统只读取第一张工作表。第一行必须使用下表中的英文表头，第二行开始填写商品数据。</p>
+                    </div>
+                    <button type="button" data-testid="download-product-template" onClick={downloadProductImportTemplate} className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white">下载新版 Excel 模板</button>
+                  </div>
+                </div>
+
+                <div className="space-y-5 px-5 py-5">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                      <div className="text-xs font-semibold text-slate-400">01</div>
+                      <div className="mt-1 text-sm font-semibold text-slate-900">同一商品使用相同分组键</div>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">同一商品的全部 SKU 使用相同 <code className="font-mono text-slate-800">Group Key</code>。</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                      <div className="text-xs font-semibold text-slate-400">02</div>
+                      <div className="mt-1 text-sm font-semibold text-slate-900">商品级字段保持一致</div>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">同组的名称、状态、分类、说明、图片、标签和规格层级必须完全一致。</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+                      <div className="text-xs font-semibold text-slate-400">03</div>
+                      <div className="mt-1 text-sm font-semibold text-slate-900">图片需要可访问</div>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">本地图片随 ZIP 上传；线上图片可填写完整 URL 或配合 Image Base URL。</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                    <span className="font-semibold">必填表头：</span>
+                    <code className="ml-1 font-mono">Group Key</code>、<code className="font-mono">Product Name</code>、<code className="font-mono">Category ID</code>。
+                    分类值可留空；商品 ID 可替代分组键。某行无效时整个商品组回滚。导出文件保留 ID 后可直接修改回导，文件未包含的 SKU 保留。无 SKU 商品保留空 SKU 行。
+                  </div>
+
+                  <div>
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <h4 className="text-sm font-semibold text-slate-900">字段说明</h4>
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        {(['必填', '建议', '可选'] as const).map((level) => (
+                          <span className={`rounded-full border px-2.5 py-1 font-semibold ${templateFieldLevelClass[level]}`} key={level}>{level}</span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-xl border border-slate-200">
+                      <table className="min-w-[860px] w-full border-collapse text-left text-sm">
+                        <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-500">
+                          <tr>
+                            <th className="px-4 py-3 font-semibold">Excel 表头</th>
+                            <th className="px-4 py-3 font-semibold">中文含义</th>
+                            <th className="px-4 py-3 font-semibold">填写说明</th>
+                            <th className="px-4 py-3 font-semibold">示例</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 bg-white">
+                          {productImportTemplateFields.map((field) => (
+                            <tr className="align-top" key={field.header}>
+                              <td className="whitespace-nowrap px-4 py-3">
+                                <code className="font-mono font-semibold text-slate-900">{field.header}</code>
+                              </td>
+                              <td className="whitespace-nowrap px-4 py-3">
+                                <div className="font-medium text-slate-800">{field.label}</div>
+                                <span className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${templateFieldLevelClass[field.level]}`}>{field.level}</span>
+                              </td>
+                              <td className="max-w-[360px] px-4 py-3 leading-5 text-slate-600">{field.description}</td>
+                              <td className="whitespace-nowrap px-4 py-3">
+                                <code className="rounded bg-slate-100 px-2 py-1 font-mono text-xs text-slate-700">{field.example}</code>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
+                    <span className="font-semibold">格式提醒：</span>多个标签、图片、筛选维度、属性或价格档位统一使用竖线 <code className="font-mono">|</code> 分隔；价格单位是“分”，例如 <code className="font-mono">1200</code> 表示 ¥12.00。
+                  </div>
+                </div>
               </div>
 
               <div className="mt-5 flex flex-wrap gap-3">

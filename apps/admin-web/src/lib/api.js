@@ -321,6 +321,8 @@ export const createAdminProductRequestExportJob = async (payload = {}) => {
   });
 };
 
+export const createAdminProductExportJob = async (payload = {}) => requestRaw('/admin/products/export-jobs', { method: 'POST', body: payload });
+
 export const getAdminImportJob = async (jobId) => {
   return requestRaw(`/admin/import-jobs/${jobId}`);
 };

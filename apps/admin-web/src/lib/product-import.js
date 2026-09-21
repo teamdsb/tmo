@@ -1,12 +1,15 @@
 import JSZip from 'jszip';
 import * as XLSX from 'xlsx';
+import { normalizeSpecDimensions, getSkuSpecValues, formatSpecPath, validateProductSpecs } from '@tmo/shared';
+import { buildMockProducts, normalizeProduct } from '../react/pages/admin/products-data';
 
 const MOCK_IMPORTED_PRODUCTS_STORAGE_KEY = 'admin-web-mock-imported-products';
 const MOCK_IMPORT_JOBS_STORAGE_KEY = 'admin-web-mock-import-jobs';
 const PRODUCT_REQUEST_EXPORT_FILE_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 const PRODUCT_IMPORT_COLUMNS = [
-  'groupkey',
+  'groupkey', 'productid', 'skuid', 'productstatus',
+  'spec1name', 'spec1value', 'spec2name', 'spec2value', 'spec3name', 'spec3value',
   'skucode',
   'productname',
   'skuname',
@@ -71,7 +74,7 @@ const normalizeHeaderKey = (value) => {
   return String(value || '')
     .trim()
     .toLowerCase()
-    .replace(/[\s_-]+/g, '');
+    .replace(/[\s_-]+/g, '').replace(/\(fen\)$/, '');
 };
 
 const normalizeText = (value) => String(value || '').trim();
@@ -80,6 +83,11 @@ const splitMultiValue = (value) => {
   const raw = normalizeText(value);
   if (!raw) {
     return [];
+  }
+  if (raw.startsWith('[')) {
+    const values = JSON.parse(raw);
+    if (!Array.isArray(values) || values.some((value) => typeof value !== 'string')) throw new Error('list fields must be JSON arrays of strings');
+    return values.map((value) => value.trim()).filter(Boolean);
   }
   const separator = raw.includes('|') ? '|' : raw.includes(',') ? ',' : '|';
   return raw
@@ -121,9 +129,16 @@ const parseBoolDefaultTrue = (value) => {
 };
 
 const parseAttributes = (value) => {
-  const result = {};
+  if (normalizeText(value).startsWith('{')) {
+    const attributes = JSON.parse(value);
+    if (!attributes || Array.isArray(attributes) || Object.values(attributes).some((item) => typeof item !== 'string')) throw new Error('attributes must contain string values');
+    return Object.assign(Object.create(null), attributes);
+  }
+  const result = Object.create(null);
   for (const item of splitMultiValue(value)) {
-    const [key, rawValue] = item.split(':');
+    const separator = item.indexOf(':');
+    const key = item.slice(0, separator);
+    const rawValue = item.slice(separator + 1);
     const normalizedKey = normalizeText(key);
     const normalizedValue = normalizeText(rawValue);
     if (!normalizedKey || !normalizedValue) {
@@ -245,7 +260,7 @@ const resolveImageRef = async (ref, imageBaseUrl, zipIndex) => {
   if (!normalized) {
     return null;
   }
-  if (looksLikeUrl(normalized)) {
+  if (looksLikeUrl(normalized) || /^data:image\//i.test(normalized)) {
     return normalized;
   }
   if (normalizeText(imageBaseUrl)) {
@@ -310,7 +325,12 @@ const parseWorkbook = async (excelFile, imagesZipFile, imageBaseUrl) => {
 
     const state = {
       rowNumber: rowIndex + 1,
-      groupKey: cellValue('groupkey'),
+      groupKey: cellValue('productid') || cellValue('groupkey'),
+      rawGroupKey: cellValue('groupkey'),
+      productId: cellValue('productid'),
+      skuId: cellValue('skuid'),
+      productStatus: cellValue('productstatus').toUpperCase(),
+      noSku: Boolean(cellValue('productid')) && !['skuid','skucode','skuname','spec','attributes','unit','isactive','pricetiers','spec1value','spec2value','spec3value'].some((key) => cellValue(key)),
       skuCode: cellValue('skucode'),
       productName: cellValue('productname'),
       skuName: cellValue('skuname') || cellValue('productname'),
@@ -336,14 +356,40 @@ const parseWorkbook = async (excelFile, imagesZipFile, imageBaseUrl) => {
       if (!state.skuName) {
         throw new Error('skuName is required');
       }
-      if (!state.categoryId) {
-        throw new Error('categoryId is required');
-      }
 
+      state.isActive = parseBoolDefaultTrue(cellValue('isactive'));
       const attributes = parseAttributes(cellValue('attributes'));
-      if (!state.spec && attributes.spec) {
+      if (!state.spec && attributes.spec && !state.filterDimensions.includes('spec') && ![1, 2, 3].some((level) => cellValue(`spec${level}name`) === 'spec')) {
         state.spec = attributes.spec;
         delete attributes.spec;
+      }
+      if (state.productStatus && !['DRAFT', 'ACTIVE', 'INACTIVE'].includes(state.productStatus)) throw new Error('productStatus must be DRAFT/ACTIVE/INACTIVE');
+      for (const key of headerIndex.keys()) {
+        const level = /^spec(\d+)(name|value)$/.exec(key);
+        if (level && Number(level[1]) > 3 && cellValue(key)) throw new Error('product specifications support at most three levels');
+      }
+      const explicitNames = [];
+      let gap = false;
+      for (let level = 1; level <= 3; level += 1) {
+        const name = cellValue(`spec${level}name`);
+        const value = cellValue(`spec${level}value`);
+        if (!name && !value) { gap = true; continue; }
+        if (gap || !name || (!value && !state.noSku && state.isActive)) throw new Error('spec levels must be contiguous with names and values');
+        explicitNames.push(name);
+        if (Object.prototype.hasOwnProperty.call(attributes, name) && attributes[name] !== value && !state.noSku && value) throw new Error('explicit spec values conflict with attributes');
+        if (!state.noSku && value) attributes[name] = value;
+      }
+      if (explicitNames.length) {
+        if (state.filterDimensions.length && JSON.stringify(state.filterDimensions) !== JSON.stringify(explicitNames)) throw new Error('explicit spec names conflict with filterDimensions');
+        state.filterDimensions = explicitNames;
+        const path = formatSpecPath(explicitNames.map((name) => attributes[name] || ''));
+        const complete = explicitNames.every((name) => Boolean(attributes[name]));
+        if (complete && state.spec && state.spec !== path) throw new Error('explicit spec values conflict with spec');
+        if (complete || state.noSku) state.spec = state.noSku ? null : path;
+      } else if (!state.noSku) {
+        state.filterDimensions = normalizeSpecDimensions(state.filterDimensions);
+        if (state.filterDimensions.length === 1 && !attributes[state.filterDimensions[0]]) attributes[state.filterDimensions[0]] = state.spec || state.skuName;
+        state.spec = formatSpecPath(state.filterDimensions.map((name) => attributes[name] || ''));
       }
       state.attributes = attributes;
       state.isActive = parseBoolDefaultTrue(cellValue('isactive'));
@@ -359,22 +405,29 @@ const parseWorkbook = async (excelFile, imagesZipFile, imageBaseUrl) => {
     throw new Error('no data rows found');
   }
 
+  const aliasProductIds = new Map();
+  for (const state of states) {
+    if (!state.rawGroupKey || !state.productId) continue;
+    if (!aliasProductIds.has(state.rawGroupKey)) aliasProductIds.set(state.rawGroupKey, new Set());
+    aliasProductIds.get(state.rawGroupKey).add(state.productId);
+  }
   const groups = new Map();
   for (const state of states) {
-    if (state.error) {
-      continue;
-    }
-    if (!groups.has(state.groupKey)) {
-      groups.set(state.groupKey, []);
-    }
-    groups.get(state.groupKey).push(state);
+    const aliasIds = aliasProductIds.get(state.rawGroupKey);
+    const key = aliasIds?.size > 1 ? `group:${state.rawGroupKey}`
+      : state.productId || aliasIds?.size === 1 ? `product:${state.productId || [...aliasIds][0]}` : `group:${state.rawGroupKey}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(state);
   }
 
+  const importedProducts = loadImportedMockProducts();
+  const importedIds = new Set(importedProducts.map((product) => product.id));
+  const existingProducts = [...(readJson('admin-web-mock-products') || buildMockProducts()).filter((product) => !importedIds.has(product.id)), ...importedProducts].map(normalizeProduct);
   const products = [];
   for (const groupRows of groups.values()) {
     const firstRow = groupRows[0];
     const seenSkuCodes = new Set();
-    let groupMessage = '';
+    let groupMessage = groupRows.find((row) => row.error)?.error || '';
     for (const row of groupRows) {
       if (row.skuCode && seenSkuCodes.has(row.skuCode)) {
         groupMessage = `duplicate skuCode "${row.skuCode}" in the same group`;
@@ -384,6 +437,8 @@ const parseWorkbook = async (excelFile, imagesZipFile, imageBaseUrl) => {
         seenSkuCodes.add(row.skuCode);
       }
       if (
+        row.productId !== firstRow.productId ||
+        row.productStatus !== firstRow.productStatus ||
         row.productName !== firstRow.productName ||
         row.categoryId !== firstRow.categoryId ||
         row.description !== firstRow.description ||
@@ -424,26 +479,50 @@ const parseWorkbook = async (excelFile, imagesZipFile, imageBaseUrl) => {
         resolvedImages.unshift(coverImageUrl);
       }
 
-      const models = groupRows.map((row, index) => ({
-        name: row.skuName,
-        code: normalizeModelCode(row.skuCode, `${normalizeModelCode(row.groupKey, 'MOCK')}-${index + 1}`),
-        basePrice: Number(((row.priceTiers[0]?.unitPriceFen || 0) / 100).toFixed(2))
-      }));
-
+      let existing = firstRow.productId ? existingProducts.find((product) => product.id === firstRow.productId) : undefined;
+      if (firstRow.productId && !existing) throw new Error('product ID was not found');
+      const seenIds = new Set();
+      const resolvedIds = new Set();
+      for (const row of groupRows) {
+        if (row.skuId && seenIds.has(row.skuId)) throw new Error('duplicate SKU ID');
+        if (row.skuId) seenIds.add(row.skuId);
+        const byId = row.skuId ? existingProducts.find((product) => product.models?.some((model) => model.id === row.skuId)) : undefined;
+        const byCode = row.skuCode ? existingProducts.find((product) => product.models?.some((model) => model.code === row.skuCode)) : undefined;
+        if (row.skuId && !byId) throw new Error('SKU ID was not found');
+        for (const match of [byId, byCode].filter(Boolean)) {
+          if (existing && existing.id !== match.id) throw new Error('SKU ID/code belongs to another product');
+          existing = match;
+        }
+        if (byId && byCode && byId.models.find((model) => model.id === row.skuId)?.code !== row.skuCode) throw new Error('SKU ID/code conflict');
+        row.resolvedSkuId = byId?.models.find((model) => model.id === row.skuId)?.id || byCode?.models.find((model) => model.code === row.skuCode)?.id;
+        if (row.resolvedSkuId && resolvedIds.has(row.resolvedSkuId)) throw new Error('multiple rows resolve to the same SKU');
+        if (row.resolvedSkuId) resolvedIds.add(row.resolvedSkuId);
+      }
+      if (groupRows.some((row) => row.noSku) && groupRows.length > 1) throw new Error('no-SKU product must use one row');
+      const models = (existing?.models || []).map((model) => ({ ...model }));
+      for (const [index, row] of groupRows.entries()) {
+        if (row.noSku) continue;
+        const modelIndex = models.findIndex((model) => (row.resolvedSkuId || row.skuId) ? model.id === (row.resolvedSkuId || row.skuId) : row.skuCode && model.code === row.skuCode);
+        const original = models[modelIndex];
+        const model = {
+          id: original?.id || row.skuId || crypto.randomUUID(),
+          name: row.skuName, code: row.skuCode, spec: row.spec, attributes: row.attributes,
+          specValues: getSkuSpecValues(firstRow.filterDimensions, row), unit: row.unit, isActive: row.isActive,
+          priceTiers: row.priceTiers, basePrice: Number(((row.priceTiers[0]?.unitPriceFen || 0) / 100).toFixed(2))
+        };
+        if (modelIndex >= 0) models[modelIndex] = model; else models.push(model);
+      }
+      const dimensions = firstRow.filterDimensions.length ? firstRow.filterDimensions : existing?.filterDimensions || ['规格'];
+      const issues = validateProductSpecs(dimensions, models);
+      if (issues.length) throw new Error(issues[0].message);
       products.push({
-        id: `mock-import-${normalizeModelCode(firstRow.groupKey, 'GROUP')}`,
-        name: firstRow.productName,
-        categoryId: firstRow.categoryId,
-        description: firstRow.description || '',
-        coverImageUrl: coverImageUrl || '',
-        images: resolvedImages,
-        tags: firstRow.tags,
-        filterDimensions: firstRow.filterDimensions,
-        status: groupRows.every((row) => row.isActive === false) ? 'INACTIVE' : 'ACTIVE',
-        inventory: 0,
-        models,
-        tierPricing: tierPricingFromPriceTiers(firstRow.priceTiers),
-        importedAt: new Date().toISOString()
+        id: existing?.id || `mock-import-${normalizeModelCode(firstRow.groupKey, 'GROUP')}`,
+        name: firstRow.productName, categoryId: firstRow.categoryId, description: firstRow.description || '',
+        coverImageUrl: coverImageUrl || '', images: resolvedImages, tags: firstRow.tags,
+        filterDimensions: dimensions,
+        status: firstRow.productStatus || existing?.status || 'DRAFT',
+        inventory: existing?.inventory || 0, models,
+        tierPricing: tierPricingFromPriceTiers(firstRow.priceTiers), importedAt: new Date().toISOString()
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -477,16 +556,7 @@ export const upsertImportedMockProducts = (incomingProducts) => {
   const next = [...current];
 
   for (const incoming of Array.isArray(incomingProducts) ? incomingProducts : []) {
-    const incomingCodes = new Set(
-      (Array.isArray(incoming?.models) ? incoming.models : [])
-        .map((model, index) => normalizeModelCode(model?.code, `${incoming?.id || 'IMPORT'}-${index + 1}`))
-    );
-
-    const existingIndex = next.findIndex((item) => {
-      return (Array.isArray(item?.models) ? item.models : []).some((model, index) => (
-        incomingCodes.has(normalizeModelCode(model?.code, `${item?.id || 'IMPORT'}-${index + 1}`))
-      ));
-    });
+    const existingIndex = next.findIndex((item) => item.id === incoming.id);
 
     if (existingIndex >= 0) {
       const existing = next[existingIndex];
@@ -603,4 +673,59 @@ export const advanceMockProductImportJob = (jobId) => {
       };
   saveMockProductImportJob(nextJob);
   return nextJob;
+};
+
+export const PRODUCT_TEMPLATE_HEADERS = [
+  'Group Key', 'Product ID', 'SKU ID', 'Product Status', 'Product Name', 'Category ID',
+  'SKU Code', 'SKU Name', 'Spec', 'Spec 1 Name', 'Spec 1 Value', 'Spec 2 Name', 'Spec 2 Value', 'Spec 3 Name', 'Spec 3 Value',
+  'Description', 'Cover Image', 'Images', 'Tags', 'Attributes', 'Unit', 'Is Active', 'Price Tiers (Fen)'
+];
+
+const workbookUrl = (rows) => {
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.aoa_to_sheet([PRODUCT_TEMPLATE_HEADERS, ...rows]);
+  worksheet['!cols'] = PRODUCT_TEMPLATE_HEADERS.map(() => ({ wch: 23 }));
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Products');
+  return `data:${PRODUCT_REQUEST_EXPORT_FILE_MIME};base64,${XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' })}`;
+};
+
+export const downloadWorkbookUrl = (url, filename) => {
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};
+
+export const downloadProductImportTemplate = () => downloadWorkbookUrl(workbookUrl([]), '商品导入模板.xlsx');
+
+export const buildProductExportFileUrl = (products) => workbookUrl(products.flatMap((product) => {
+  const dimensions = normalizeSpecDimensions(product.filterDimensions);
+  if (dimensions.length > 3) throw new Error(`商品“${product.name}”超过三级规格，请先修正。`);
+  return (product.models?.length ? product.models : [null]).map((model) => {
+    const values = model ? getSkuSpecValues(product.filterDimensions, model) : [];
+    const levels = Array.from({ length: 3 }, (_, index) => [dimensions[index] || '', values[index] || '']).flat();
+    const discounts = product.tierPricing || [];
+    const basePriceFen = Math.round((model?.basePrice || 0) * 100);
+    const priceTiers = model?.priceTiers || (model ? [
+      { minQty: 1, maxQty: discounts[0] ? discounts[0].minQty - 1 : null, unitPriceFen: basePriceFen },
+      ...discounts.map((tier, index) => ({ minQty: tier.minQty, maxQty: discounts[index + 1] ? discounts[index + 1].minQty - 1 : null, unitPriceFen: Math.round(basePriceFen * (1 - tier.discountRate / 100)) }))
+    ] : []);
+    return [product.id, product.id, model?.id || '', product.status, product.name, product.categoryId || '',
+      model?.code || '', model?.name || '', model ? values.every(Boolean) ? formatSpecPath(values) : model.spec || '' : '', ...levels,
+      product.description || '', product.coverImageUrl || '', JSON.stringify(product.images || []), JSON.stringify(product.tags || []),
+      model ? JSON.stringify(model.attributes || {}) : '', model?.unit || '', model ? String(model.isActive !== false) : '',
+      priceTiers.map((tier) => `${tier.minQty}-${tier.maxQty ?? ''}:${tier.unitPriceFen}`).join('|')];
+  });
+}));
+
+export const createMockProductExportJob = (products) => {
+  const job = {
+    id: `mock-product-export-${Date.now()}`, type: 'PRODUCT_EXPORT', status: 'SUCCEEDED', progress: 100,
+    createdAt: new Date().toISOString(), resultFileUrl: buildProductExportFileUrl(products),
+    details: { exportedProducts: products.length, exportedRows: products.reduce((count, product) => count + Math.max(1, product.models.length), 0) }
+  };
+  saveMockProductImportJob(job);
+  return job;
 };

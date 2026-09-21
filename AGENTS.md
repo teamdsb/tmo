@@ -45,3 +45,9 @@ Use plain language over jargon, and reference technical details only to the degr
 Do not write tests for reversible, low-impact changes that mirror the implementation. If you do choose to verify your work with tests, make sure that the tests are meaningful and necessary to verify implementation.
 
 Run tests appropriate to the change and complete required checks. Once those pass, broaden or repeat testing only when new changes, failures, or unresolved concerns justify it; otherwise, continue toward completing the task.
+
+## 商品规格与契约维护
+
+商品规格遵循 `docs/context/commerce-conventions.md`：每个商品独立设置最多三级名称，`spec` 是完整路径摘要；修改层级与 SKU 集合须原子保存。Excel 模板、稳定 ID 回导与导出规则见 `docs/runbooks/product-specifications-excel.md`。功能变化同步修改服务 OpenAPI 与聚合规范，生成文件只能通过源规范/SQL 重新生成。通用规则优先复用 `packages/`。
+
+商品规格回归使用小程序 Jest 与 admin Playwright（`pnpm -C apps/admin-web test:e2e:mock` / `test:e2e:hybrid`）。Commerce 数据库测试的 `COMMERCE_DB_DSN` 必须指向独立测试库。复杂改动维护符合 `docs/execplans/plans.md` 的 ExecPlan；当前计划在 `.agent/PLANS.md`。

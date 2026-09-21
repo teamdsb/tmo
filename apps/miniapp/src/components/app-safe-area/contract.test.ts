@@ -33,6 +33,12 @@ describe('native tab bar safe-area architecture', () => {
     expect(fs.existsSync(path.resolve(sourceRoot, 'components/app-tabbar/index.tsx'))).toBe(false)
   })
 
+  it('keeps component lazy loading disabled so native page navigation can finish', () => {
+    const appConfig = fs.readFileSync(path.resolve(sourceRoot, 'app.config.ts'), 'utf8')
+
+    expect(appConfig).not.toContain("lazyCodeLoading: 'requiredComponents'")
+  })
+
   it('routes fixed bars and standalone bottom content through shared primitives', () => {
     const fixedPages = [
       'pages/cart/components.tsx',
