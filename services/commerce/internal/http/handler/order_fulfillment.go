@@ -91,7 +91,7 @@ func (h *Handler) PatchAdminOrdersOrderIdFulfillment(c *gin.Context, orderID typ
 		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
 		return
 	}
-	ownerID := uuid.UUID(request.OwnerSalesUserId)
+	ownerID := request.OwnerSalesUserId
 	note := strings.TrimSpace(request.Note)
 	key := strings.TrimSpace(params.IdempotencyKey)
 	if err := validateOrderFulfillmentInput(ownerID, note, key); err != nil {
@@ -103,8 +103,8 @@ func (h *Handler) PatchAdminOrdersOrderIdFulfillment(c *gin.Context, orderID typ
 		return
 	}
 	lookup := db.New(h.DB)
-	if _, err := lookup.GetOrderAdminEventByIdempotencyKey(c.Request.Context(), db.GetOrderAdminEventByIdempotencyKeyParams{OrderID: uuid.UUID(orderID), IdempotencyKey: key}); err == nil {
-		order, getErr := lookup.GetOrder(c.Request.Context(), uuid.UUID(orderID))
+	if _, err := lookup.GetOrderAdminEventByIdempotencyKey(c.Request.Context(), db.GetOrderAdminEventByIdempotencyKeyParams{OrderID: orderID, IdempotencyKey: key}); err == nil {
+		order, getErr := lookup.GetOrder(c.Request.Context(), orderID)
 		if getErr != nil {
 			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to fetch updated order")
 			return
@@ -137,11 +137,11 @@ func (h *Handler) PatchAdminOrdersOrderIdFulfillment(c *gin.Context, orderID typ
 	var updated db.Order
 	err := shareddb.WithTx(ctx, h.DB, func(tx pgx.Tx) error {
 		q := db.New(tx)
-		current, err := q.GetOrderForUpdate(ctx, uuid.UUID(orderID))
+		current, err := q.GetOrderForUpdate(ctx, orderID)
 		if err != nil {
 			return err
 		}
-		if _, err := q.GetOrderAdminEventByIdempotencyKey(ctx, db.GetOrderAdminEventByIdempotencyKeyParams{OrderID: uuid.UUID(orderID), IdempotencyKey: key}); err == nil {
+		if _, err := q.GetOrderAdminEventByIdempotencyKey(ctx, db.GetOrderAdminEventByIdempotencyKeyParams{OrderID: orderID, IdempotencyKey: key}); err == nil {
 			updated = current
 			return nil
 		} else if !errors.Is(err, pgx.ErrNoRows) {
@@ -197,7 +197,7 @@ func (h *Handler) GetAdminOrdersOrderIdEvents(c *gin.Context, orderID types.UUID
 		return
 	}
 	q := db.New(h.DB)
-	if _, err := q.GetOrder(c.Request.Context(), uuid.UUID(orderID)); err != nil {
+	if _, err := q.GetOrder(c.Request.Context(), orderID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			h.writeError(c, http.StatusNotFound, "not_found", "order not found")
 		} else {
@@ -205,7 +205,7 @@ func (h *Handler) GetAdminOrdersOrderIdEvents(c *gin.Context, orderID types.UUID
 		}
 		return
 	}
-	events, err := q.ListOrderAdminEvents(c.Request.Context(), uuid.UUID(orderID))
+	events, err := q.ListOrderAdminEvents(c.Request.Context(), orderID)
 	if err != nil {
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to list order events")
 		return

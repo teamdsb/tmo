@@ -16,7 +16,7 @@ import (
 
 func parsePathUUID(c *gin.Context, key string) types.UUID {
 	parsed := uuid.MustParse(c.Param(key))
-	return types.UUID(parsed)
+	return parsed
 }
 
 func TestAdminImportEndpointsAllowBossRole(t *testing.T) {

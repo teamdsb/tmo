@@ -76,7 +76,7 @@ func (h *Handler) PostWishlist(c *gin.Context) {
 		return
 	}
 
-	skuID := uuid.UUID(request.SkuId)
+	skuID := request.SkuId
 	skus, err := h.CatalogStore.ListSkusByIDs(c.Request.Context(), []uuid.UUID{skuID})
 	if err != nil {
 		h.logError("list skus failed", err)
@@ -112,7 +112,7 @@ func (h *Handler) DeleteWishlistSkuId(c *gin.Context, skuId types.UUID) {
 
 	if err := h.WishlistStore.DeleteWishlistItem(c.Request.Context(), db.DeleteWishlistItemParams{
 		OwnerUserID: claims.UserID,
-		SkuID:       uuid.UUID(skuId),
+		SkuID:       skuId,
 	}); err != nil {
 		h.logError("delete wishlist item failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to remove wishlist item")

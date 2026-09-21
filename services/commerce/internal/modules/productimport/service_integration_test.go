@@ -90,6 +90,25 @@ func TestServiceRunNextCreatesMultiSkuProductWithZipImages(t *testing.T) {
 		t.Fatalf("enqueue product import: %v", err)
 	}
 
+	// A separate Nginx user must traverse report ancestors, but not raw uploads.
+	jobRoot := service.jobRootDir(job.ID)
+	for _, directory := range []string{filepath.Dir(jobRoot), jobRoot} {
+		info, statErr := os.Stat(directory)
+		if statErr != nil {
+			t.Fatal(statErr)
+		}
+		if info.Mode().Perm()&0o005 != 0o005 {
+			t.Fatalf("public report ancestor is not traversable: %s (%v)", directory, info.Mode())
+		}
+	}
+	inputInfo, statErr := os.Stat(filepath.Join(jobRoot, "input"))
+	if statErr != nil {
+		t.Fatal(statErr)
+	}
+	if inputInfo.Mode().Perm()&0o007 != 0 {
+		t.Fatal("raw upload directory is publicly accessible")
+	}
+
 	processed, err := service.RunNext(ctx)
 	if err != nil {
 		t.Fatalf("run next job: %v", err)
@@ -470,6 +489,7 @@ func TestServiceRunNextSupportsPartialSuccessAndWritesErrorReport(t *testing.T) 
 	}
 
 	reportPath := strings.TrimPrefix(*importJob.ErrorReportUrl, strings.TrimRight(testMediaBaseURL, "/")+"/")
+	// #nosec G304 -- report generated inside the integration test temporary media directory.
 	reportBytes, err := os.ReadFile(filepath.Join(mediaDir, filepath.FromSlash(reportPath)))
 	if err != nil {
 		t.Fatalf("read error report: %v", err)

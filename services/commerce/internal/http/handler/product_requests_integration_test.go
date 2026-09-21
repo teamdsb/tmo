@@ -71,7 +71,7 @@ func TestProductRequestsCreateAndListWithNewFields(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &created); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if created.CategoryId == nil || uuid.UUID(*created.CategoryId) != category.ID {
+	if created.CategoryId == nil || *created.CategoryId != category.ID {
 		t.Fatalf("expected categoryId %s, got %#v", category.ID, created.CategoryId)
 	}
 	if created.ReferenceImageUrls == nil || len(*created.ReferenceImageUrls) != 2 {

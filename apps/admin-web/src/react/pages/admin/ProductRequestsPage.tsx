@@ -127,12 +127,14 @@ export const ProductRequestsPage = () => {
   }, []);
 
   useEffect(() => {
+    const nextQuery = queryInput.trim();
+    if (nextQuery === query) return;
     const timer = window.setTimeout(() => {
-      setQuery(queryInput.trim());
+      setQuery(nextQuery);
       setPage(1);
     }, 300);
     return () => window.clearTimeout(timer);
-  }, [queryInput]);
+  }, [queryInput, query]);
 
   useEffect(() => {
     if (!context) return;

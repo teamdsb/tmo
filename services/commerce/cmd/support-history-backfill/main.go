@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// #nosec G101 -- localhost development fallback; production uses COMMERCE_DB_DSN.
 const defaultDSN = "postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable"
 
 const (

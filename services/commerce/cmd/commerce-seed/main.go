@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// #nosec G101 -- localhost development fallback, overridden by COMMERCE_DB_DSN.
 const defaultDSN = "postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable"
 
 const (
@@ -755,6 +756,7 @@ func ensureCatalogMediaAssets(products []productSeed) error {
 		outputDir = defaultMediaLocalOutputDir
 	}
 	catalogDir := filepath.Join(outputDir, "catalog", "v3")
+	// #nosec G301 G703 -- operator-configured media directory; public assets are served by Nginx.
 	if err := os.MkdirAll(catalogDir, 0o755); err != nil {
 		return fmt.Errorf("create catalog media dir: %w", err)
 	}
@@ -764,6 +766,7 @@ func ensureCatalogMediaAssets(products []productSeed) error {
 		if strings.TrimSpace(fileName) == "" {
 			fileName = product.ID.String() + ".svg"
 		}
+		// #nosec G306 G703 -- fixed seed filenames in operator-configured media directory; images are public.
 		if err := os.WriteFile(filepath.Join(catalogDir, fileName), []byte(renderProductImageSVG(product)), 0o644); err != nil {
 			return fmt.Errorf("write catalog media %s: %w", fileName, err)
 		}

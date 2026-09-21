@@ -266,6 +266,7 @@ func (h *Handler) uploadMediaAsset(c *gin.Context, mediaSubDir string, logContex
 	}
 
 	subDir := filepath.Join(localDir, mediaSubDir)
+	// #nosec G301 -- public media is read by a separate Nginx user.
 	if err := os.MkdirAll(subDir, 0o755); err != nil {
 		h.logError("create media directory failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to save file")
@@ -307,6 +308,7 @@ func (h *Handler) uploadMediaAsset(c *gin.Context, mediaSubDir string, logContex
 
 	fileName := uuid.NewString() + ext
 	localPath := filepath.Join(subDir, fileName)
+	// #nosec G304 -- server-generated UUID filename below the configured media directory.
 	dst, err := os.Create(localPath)
 	if err != nil {
 		h.logError("create media file failed", err)

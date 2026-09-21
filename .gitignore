@@ -27,3 +27,9 @@ tmp/
 # Local dev uploaded media artifacts
 infra/dev/media/product-requests/*
 !infra/dev/media/.gitkeep
+
+# Dependency and browser-test caches are local artifacts.
+.pnpm-store/
+apps/admin-web/test-results/
+apps/admin-web/playwright-report/
+.eslintcache

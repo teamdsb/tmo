@@ -77,6 +77,7 @@ func TestWriteAtomicallyLeavesNoTemporaryFiles(t *testing.T) {
 	if err := WriteAtomically(target, []byte("new")); err != nil {
 		t.Fatal(err)
 	}
+	// #nosec G304 -- target is the test fixture within t.TempDir.
 	data, err := os.ReadFile(target)
 	if err != nil || string(data) != "new" {
 		t.Fatalf("unexpected target: data=%q err=%v", data, err)

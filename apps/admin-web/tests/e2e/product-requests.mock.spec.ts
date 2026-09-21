@@ -38,3 +38,17 @@ test('product requests page shows an empty state for unmatched dates', async ({ 
   await page.getByTestId('request-created-after').fill('2027-01-01');
   await expect(page.getByText('当前筛选条件下暂无需求订单。')).toBeVisible();
 });
+
+
+test('initial search debounce does not reset a page selected immediately after loading', async ({ page }) => {
+  await loginMockBoss(page);
+  await page.clock.install();
+  await page.clock.pauseAt(new Date());
+  await page.goto('/product-requests.html');
+  await expect(page.locator('[data-request-id]')).toHaveCount(10);
+  await page.getByTestId('request-next-page').click();
+  await expect(page.getByText('2/3')).toBeVisible();
+  await page.clock.runFor(350);
+  await expect(page.getByText('2/3')).toBeVisible();
+  await expect(page.getByTestId('request-prev-page')).toBeEnabled();
+});

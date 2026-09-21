@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -131,8 +132,12 @@ func (s *Service) processJob(ctx context.Context, job db.ProductRequestExportJob
 		return s.failJob(ctx, job.JobID, fmt.Sprintf("list product requests for export: %v", err))
 	}
 
+	if len(rows) > math.MaxInt32 {
+		return s.failJob(ctx, job.JobID, "too many export rows")
+	}
 	if _, err := db.New(s.DB).UpdateProductRequestExportJobRows(ctx, db.UpdateProductRequestExportJobRowsParams{
-		JobID:        job.JobID,
+		JobID: job.JobID,
+		// #nosec G115 -- len is nonnegative and bounded by MaxInt32 above.
 		ExportedRows: int32(len(rows)),
 	}); err != nil {
 		return fmt.Errorf("update exported rows: %w", err)
@@ -210,6 +215,7 @@ func (s *Service) writeWorkbook(jobID uuid.UUID, requests []db.ProductRequest) (
 
 	relativePath := filepath.Join("import-jobs", jobID.String(), "exports", exportFileName)
 	localPath := filepath.Join(s.MediaLocalOutputDir, filepath.FromSlash(relativePath))
+	// #nosec G301 -- export files are served by a separate Nginx user.
 	if err := os.MkdirAll(filepath.Dir(localPath), 0o755); err != nil {
 		return "", err
 	}

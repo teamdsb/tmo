@@ -23,6 +23,7 @@ import (
 )
 
 const (
+	// #nosec G101 -- localhost development fallback, overridden by COMMERCE_DB_DSN.
 	defaultDSN                  = "postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable"
 	defaultTimeout              = 30 * time.Second
 	defaultHTTPTimeout          = 20 * time.Second
@@ -392,7 +393,7 @@ func (m *migrator) migrateURL(ctx context.Context, rawURL string) migrateResult 
 		result.Error = fmt.Sprintf("download failed: %s", err.Error())
 		return result
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		result.Status = "failed"
@@ -419,11 +420,13 @@ func (m *migrator) migrateURL(ctx context.Context, rawURL string) migrateResult 
 	absPath := filepath.Join(m.outputDir, filepath.FromSlash(relPath))
 
 	if !m.dryRun {
+		// #nosec G301 -- public migrated catalog assets are served by Nginx.
 		if err := os.MkdirAll(filepath.Dir(absPath), 0o755); err != nil {
 			result.Status = "failed"
 			result.Error = fmt.Sprintf("mkdir media dir failed: %s", err.Error())
 			return result
 		}
+		// #nosec G306 -- public product images must be readable by the separate Nginx user.
 		if err := os.WriteFile(absPath, payload, 0o644); err != nil {
 			result.Status = "failed"
 			result.Error = fmt.Sprintf("write media file failed: %s", err.Error())

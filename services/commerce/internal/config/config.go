@@ -15,8 +15,9 @@ const (
 	defaultMediaLocalOutputDir = "./infra/dev/media"
 	defaultMediaPublicBaseURL  = "http://localhost:8080/assets/media"
 	// #nosec G101 -- local dev JWT defaults are safe for test environments.
-	defaultJWTSecret         = "dev-secret"
-	defaultJWTIssuer         = ""
+	defaultJWTSecret = "dev-secret"
+	defaultJWTIssuer = ""
+	// #nosec G101 -- development default, overridden with COMMERCE_INTERNAL_SYNC_TOKEN in production.
 	defaultInternalSyncToken = "dev-payment-sync-token"
 	defaultIdentityBaseURL   = "http://localhost:8081"
 	defaultAutoDeliveryAfter = 7 * 24 * time.Hour

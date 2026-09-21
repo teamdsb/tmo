@@ -17,6 +17,7 @@ func TestIncrementalAddColumnMigrationsAreReplaySafe(t *testing.T) {
 	addColumn := regexp.MustCompile(`(?i)\bADD\s+COLUMN\b`)
 	replaySafeAddColumn := regexp.MustCompile(`(?i)\bADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\b`)
 	for _, path := range matches {
+		// #nosec G304 -- fixed repository migration path used by the regression test.
 		content, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("read %s: %v", path, err)
@@ -32,6 +33,7 @@ func TestIncrementalAddColumnMigrationsAreReplaySafe(t *testing.T) {
 
 func TestSupportQueueTimestampBackfillOnlyFillsMissingValues(t *testing.T) {
 	path := filepath.Join("..", "..", "migrations", "00023_add_support_queue_timestamps.sql")
+	// #nosec G304 -- fixed repository migration path used by the regression test.
 	content, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read support queue migration: %v", err)
@@ -47,6 +49,7 @@ func TestSupportQueueTimestampBackfillOnlyFillsMissingValues(t *testing.T) {
 
 func TestReleaseSupportConversationUsesAssigneeCompareAndSwap(t *testing.T) {
 	path := filepath.Join("..", "..", "queries", "support.sql")
+	// #nosec G304 -- fixed repository migration path used by the regression test.
 	content, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read support queries: %v", err)

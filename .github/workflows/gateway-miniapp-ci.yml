@@ -116,7 +116,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version: "1.25.x"
+          go-version: "1.26.x"
           check-latest: false
           cache-dependency-path: |
             packages/go-shared/go.sum
@@ -299,7 +299,7 @@ jobs:
         if: steps.changes.outputs.fullstack_required == 'true'
         uses: actions/setup-go@v7
         with:
-          go-version: "1.25.x"
+          go-version: "1.26.x"
           check-latest: false
           cache-dependency-path: |
             packages/go-shared/go.sum

@@ -40,6 +40,7 @@ func OptimizeProductDirectory(productDir, backupDir string, apply bool) (Directo
 		}
 		report.Scanned++
 		path := filepath.Join(productDir, entry.Name())
+		// #nosec G304 -- path comes from enumerating the operator-selected local product directory.
 		original, err := os.ReadFile(path)
 		if err != nil {
 			return report, fmt.Errorf("read %s: %w", path, err)
@@ -69,7 +70,7 @@ func OptimizeProductDirectory(productDir, backupDir string, apply bool) (Directo
 		if strings.TrimSpace(backupDir) == "" {
 			return report, fmt.Errorf("backup directory is required when apply is enabled")
 		}
-		if err := os.MkdirAll(backupDir, 0o755); err != nil {
+		if err := os.MkdirAll(backupDir, 0o750); err != nil {
 			return report, err
 		}
 		if err := WriteAtomically(filepath.Join(backupDir, entry.Name()), original); err != nil {

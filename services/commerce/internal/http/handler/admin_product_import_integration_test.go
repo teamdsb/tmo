@@ -103,7 +103,7 @@ func TestAdminProductImportJobCreateAndQuery(t *testing.T) {
 		t.Fatalf("decode created job: %v", err)
 	}
 
-	productJob, err := queries.GetProductImportJob(ctx, uuid.UUID(created.Id))
+	productJob, err := queries.GetProductImportJob(ctx, created.Id)
 	if err != nil {
 		t.Fatalf("get product import job: %v", err)
 	}
