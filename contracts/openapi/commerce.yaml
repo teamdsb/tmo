@@ -1747,8 +1747,12 @@ components:
             type: string
         filterDimensions:
           type: array
+          maxItems: 3
+          uniqueItems: true
+          description: Ordered specification level names; empty for legacy flat specifications.
           items:
             type: string
+            minLength: 1
         status:
           "$ref": "#/components/schemas/ProductStatus"
       required:
@@ -1757,6 +1761,11 @@ components:
     UpdateCatalogProductRequest:
       type: object
       properties:
+        skus:
+          type: array
+          description: Complete retained SKU collection, saved atomically with the product. Omitted existing SKUs are disabled, not deleted. Omit this field for product-only updates.
+          items:
+            "$ref": "#/components/schemas/CatalogSkuWrite"
         name:
           type: string
         categoryId:
@@ -1779,10 +1788,47 @@ components:
             type: string
         filterDimensions:
           type: array
+          maxItems: 3
+          uniqueItems: true
+          description: Ordered specification level names; empty for legacy flat specifications.
           items:
             type: string
+            minLength: 1
         status:
           "$ref": "#/components/schemas/ProductStatus"
+    CatalogSkuWrite:
+      type: object
+      description: Existing SKU fields omitted from a write are preserved. An empty priceTiers array clears prices.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Existing SKU belonging to this product; omit to create a SKU.
+        name:
+          type: string
+          minLength: 1
+        skuCode:
+          type: string
+          nullable: true
+        spec:
+          type: string
+          nullable: true
+          description: Legacy label; derived from attributes for named specifications.
+        attributes:
+          type: object
+          additionalProperties:
+            type: string
+        unit:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        priceTiers:
+          type: array
+          items:
+            "$ref": "#/components/schemas/PriceTier"
+      required:
+      - name
     CreateSkuRequest:
       type: object
       properties:
@@ -1792,7 +1838,7 @@ components:
           type: string
         spec:
           type: string
-          description: Primary spec label used for matching (e.g., size/grade); store here and avoid duplicating in attributes
+          description: Derived full specification path, ordered by product filterDimensions and joined with " / "; one-level value unchanged. Legacy products without dimensions use the flat label.
         attributes:
           type: object
           additionalProperties:
@@ -1817,7 +1863,7 @@ components:
           type: string
         spec:
           type: string
-          description: Primary spec label used for matching (e.g., size/grade); store here and avoid duplicating in attributes
+          description: Derived full specification path, ordered by product filterDimensions and joined with " / "; one-level value unchanged. Legacy products without dimensions use the flat label.
         attributes:
           type: object
           additionalProperties:
@@ -1883,7 +1929,7 @@ components:
           type: string
         spec:
           type: string
-          description: Canonical spec label for matching; do not duplicate in attributes
+          description: Derived full specification path for display and matching. Named values in attributes are the source of truth when filterDimensions is configured.
         attributes:
           type: object
           additionalProperties:
@@ -1916,6 +1962,12 @@ components:
               type: string
             description:
               type: string
+            coverImageUrl:
+              type: string
+            tags:
+              type: array
+              items:
+                type: string
             images:
               type: array
               maxItems: 9
@@ -1928,8 +1980,9 @@ components:
               "$ref": "#/components/schemas/ProductStatus"
             filterDimensions:
               type: array
-              description: For multi-level filtering, e.g., material -> length ->
-                size
+              maxItems: 3
+              uniqueItems: true
+              description: Ordered specification level names for cascading SKU selection.
               items:
                 type: string
           required:
@@ -3264,6 +3317,7 @@ components:
           enum:
           - PRODUCT_IMPORT
           - PRODUCT_REQUEST_EXPORT
+          - PRODUCT_EXPORT
           - SHIPMENT_IMPORT
           - CART_IMPORT
         status:

@@ -106,9 +106,10 @@ const productTemplates = [
     inventory: 8600,
     status: 'ACTIVE',
     tierLabel: '工程常备',
+    filterDimensions: ['材质', '长度', '直径'],
     models: [
-      { name: 'M8 x 30', code: 'M8', spec: 'M8 x 30 / A2-70', basePrice: 1.8 },
-      { name: 'M10 x 40', code: 'M10', spec: 'M10 x 40 / A2-70', basePrice: 2.6 }
+      { name: 'M8 x 30', code: 'M8', spec: 'A2-70 / 30mm / M8', attributes: { 材质: 'A2-70', 长度: '30mm', 直径: 'M8' }, basePrice: 1.8 },
+      { name: 'M10 x 40', code: 'M10', spec: 'A2-70 / 40mm / M10', attributes: { 材质: 'A2-70', 长度: '40mm', 直径: 'M10' }, basePrice: 2.6 }
     ],
     tierPricing: [
       { minQty: 50, discountRate: 6 },
@@ -458,6 +459,7 @@ const toSku = (template, model) => {
     name: model.name,
     skuCode: `${template.id.toUpperCase().replace(/[^A-Z0-9]/g, '-')}-${String(model.code || 'STD').toUpperCase()}`,
     spec: model.spec || model.name,
+    attributes: model.attributes ? { ...model.attributes } : undefined,
     priceTiers: buildPriceTiers(basePriceYuan, template.tierPricing),
     isActive: true
   };
@@ -474,11 +476,13 @@ export const canonicalProducts = productTemplates.map((template) => {
     description: template.description,
     inventory: template.inventory,
     status: template.status,
+    filterDimensions: template.filterDimensions ? [...template.filterDimensions] : [],
     models: template.models.map((model) => ({
       name: model.name,
       code: model.code,
       basePrice: Number(model.basePrice || 0),
-      spec: model.spec || model.name
+      spec: model.spec || model.name,
+      attributes: model.attributes ? { ...model.attributes } : undefined
     })),
     tierPricing: normalizeTierPricing(template.tierPricing)
   };
@@ -496,6 +500,7 @@ export const canonicalProductDetailsById = Object.fromEntries(
           name: template.name,
           categoryId: template.categoryId,
           description: template.description,
+          filterDimensions: template.filterDimensions ? [...template.filterDimensions] : [],
           images: template.coverImageUrl ? [template.coverImageUrl] : []
         },
         skus

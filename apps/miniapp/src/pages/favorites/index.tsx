@@ -1,3 +1,4 @@
+import { formatSkuSpec } from '@tmo/shared'
 import { useCallback, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
@@ -68,6 +69,7 @@ export default function FavoritesPage() {
   }
 
   const handleAddToCart = async (skuId: string) => {
+    if (items.find((item) => item.sku.id === skuId)?.sku.isActive === false) return
     const allowed = await ensureLoggedIn({ redirect: true })
     if (!allowed) return
     let qty = 1
@@ -122,7 +124,7 @@ export default function FavoritesPage() {
               const productName = detail?.product.name || item.sku.name
               const productImage = detail?.product.images?.find((image) => typeof image === 'string' && image.trim())
               const modelLabel = item.sku.name || item.sku.skuCode || '标准型号'
-              const specLabel = item.sku.spec || item.sku.skuCode || item.sku.unit || '标准规格'
+              const specLabel = formatSkuSpec(productDetails[item.sku.spuId]?.product.filterDimensions, item.sku) || item.sku.skuCode || item.sku.unit || '标准规格'
               return (
                 <View
                   key={item.sku.id}
@@ -172,6 +174,7 @@ export default function FavoritesPage() {
                       className='favorite-card-action favorite-card-action--cart'
                       size='small'
                       color='primary'
+                      disabled={item.sku.isActive === false}
                       onClick={() => void handleAddToCart(item.sku.id)}
                     >
                       加入购物车

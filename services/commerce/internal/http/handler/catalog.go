@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/oapi-codegen/runtime/types"
 
+	"github.com/teamdsb/tmo/packages/go-shared/catalogspec"
 	apierrors "github.com/teamdsb/tmo/packages/go-shared/errors"
 	sharedmoney "github.com/teamdsb/tmo/packages/go-shared/money"
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
@@ -51,6 +52,7 @@ func (o *optionalNullableString) UnmarshalJSON(data []byte) error {
 }
 
 type patchProductRequest struct {
+	Skus             *[]catalogSkuWrite     `json:"skus"`
 	Name             *string                `json:"name"`
 	CategoryID       *types.UUID            `json:"categoryId"`
 	Description      optionalNullableString `json:"description"`
@@ -328,7 +330,11 @@ func (h *Handler) PostCatalogProducts(c *gin.Context) {
 		return
 	}
 	tags := derefStringSlice(request.Tags)
-	filters := derefStringSlice(request.FilterDimensions)
+	filters, err := catalogspec.NormalizeDimensions(derefStringSlice(request.FilterDimensions))
+	if err != nil {
+		h.writeError(c, 400, "invalid_request", err.Error())
+		return
+	}
 	status := productStatusDraft
 	if request.Status != nil {
 		var ok bool
@@ -431,133 +437,12 @@ func (h *Handler) PatchCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 		request.Images == nil &&
 		request.Tags == nil &&
 		request.FilterDimensions == nil &&
-		request.Status == nil {
+		request.Status == nil && request.Skus == nil {
 		h.writeError(c, http.StatusBadRequest, "invalid_request", "at least one field must be provided")
 		return
 	}
 
-	existing, err := h.CatalogStore.GetProduct(c.Request.Context(), uuid.UUID(spuId))
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			h.writeError(c, http.StatusNotFound, "not_found", "product not found")
-			return
-		}
-		h.logError("get product failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update product")
-		return
-	}
-
-	name := existing.Name
-	if request.Name != nil {
-		trimmed := strings.TrimSpace(*request.Name)
-		if trimmed == "" {
-			h.writeError(c, http.StatusBadRequest, "invalid_request", "name is required")
-			return
-		}
-		name = trimmed
-	}
-
-	categoryID := existing.CategoryID
-	if request.CategoryID != nil {
-		if *request.CategoryID == (types.UUID{}) {
-			h.writeError(c, http.StatusBadRequest, "invalid_request", "categoryId is required")
-			return
-		}
-		categoryID = uuid.UUID(*request.CategoryID)
-	}
-
-	description := existing.Description
-	if request.Description.Set {
-		description = request.Description.Value
-	}
-
-	coverImageURL := existing.CoverImageUrl
-	if request.CoverImageURL.Set {
-		coverImageURL = request.CoverImageURL.Value
-	}
-
-	images := existing.Images
-	if request.Images != nil {
-		images = make([]string, len(*request.Images))
-		copy(images, *request.Images)
-	}
-	if len(images) > maxCatalogProductImages {
-		h.writeError(c, http.StatusBadRequest, "invalid_request", "images supports at most 9 items")
-		return
-	}
-
-	tags := existing.Tags
-	if request.Tags != nil {
-		tags = make([]string, len(*request.Tags))
-		copy(tags, *request.Tags)
-	}
-
-	filterDimensions := existing.FilterDimensions
-	if request.FilterDimensions != nil {
-		filterDimensions = make([]string, len(*request.FilterDimensions))
-		copy(filterDimensions, *request.FilterDimensions)
-	}
-
-	status := existing.Status
-	if request.Status != nil {
-		var ok bool
-		status, ok = normalizeProductStatus(*request.Status)
-		if !ok {
-			h.writeError(c, http.StatusBadRequest, "invalid_request", "status must be ACTIVE, INACTIVE, or DRAFT")
-			return
-		}
-	}
-
-	product, err := h.CatalogStore.UpdateProduct(c.Request.Context(), db.UpdateProductParams{
-		ID:               uuid.UUID(spuId),
-		Name:             name,
-		Description:      description,
-		CategoryID:       categoryID,
-		CoverImageUrl:    coverImageURL,
-		Images:           images,
-		Tags:             tags,
-		FilterDimensions: filterDimensions,
-		Status:           status,
-	})
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			h.writeError(c, http.StatusNotFound, "not_found", "product not found")
-			return
-		}
-		h.logError("update product failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update product")
-		return
-	}
-
-	skus, err := h.CatalogStore.ListSkusByProduct(c.Request.Context(), product.ID)
-	if err != nil {
-		h.logError("list skus failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update product")
-		return
-	}
-
-	var priceTiers []db.CatalogPriceTier
-	if len(skus) > 0 {
-		skuIDs := make([]uuid.UUID, 0, len(skus))
-		for _, sku := range skus {
-			skuIDs = append(skuIDs, sku.ID)
-		}
-		priceTiers, err = h.CatalogStore.ListPriceTiersBySkus(c.Request.Context(), skuIDs)
-		if err != nil {
-			h.logError("list price tiers failed", err)
-			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update product")
-			return
-		}
-	}
-
-	detail, err := productDetailFromModel(product, skus, priceTiers)
-	if err != nil {
-		h.logError("map product detail failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update product")
-		return
-	}
-
-	c.JSON(http.StatusOK, detail)
+	h.patchCatalogProduct(c, spuId, request)
 }
 
 func (h *Handler) DeleteCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
@@ -583,195 +468,14 @@ func (h *Handler) PatchCatalogProductsSpuIdSkusSkuId(c *gin.Context, spuId types
 	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
 		return
 	}
-
-	var request oapi.UpdateSkuRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
-		return
-	}
-	name := strings.TrimSpace(request.Name)
-	if name == "" {
-		h.writeError(c, http.StatusBadRequest, "invalid_request", "name is required")
-		return
-	}
-
-	existingSkus, err := h.CatalogStore.ListSkusByIDs(c.Request.Context(), []uuid.UUID{uuid.UUID(skuId)})
-	if err != nil {
-		h.logError("get sku failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update sku")
-		return
-	}
-	if len(existingSkus) == 0 || existingSkus[0].ProductID != uuid.UUID(spuId) {
-		h.writeError(c, http.StatusNotFound, "not_found", "sku not found")
-		return
-	}
-
-	attributes := map[string]string{}
-	if request.Attributes != nil {
-		attributes = *request.Attributes
-	}
-	spec := ""
-	if request.Spec != nil {
-		spec = strings.TrimSpace(*request.Spec)
-	}
-	if spec == "" {
-		if value, ok := attributes["spec"]; ok {
-			spec = strings.TrimSpace(value)
-		}
-	}
-	delete(attributes, "spec")
-	var specPtr *string
-	if spec != "" {
-		specPtr = &spec
-	}
-	attributesJSON, err := json.Marshal(attributes)
-	if err != nil {
-		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid attributes")
-		return
-	}
-
-	isActive := true
-	if request.IsActive != nil {
-		isActive = *request.IsActive
-	}
-
-	sku, err := h.CatalogStore.UpdateSku(c.Request.Context(), db.UpdateSkuParams{
-		ID:         uuid.UUID(skuId),
-		SkuCode:    request.SkuCode,
-		Name:       name,
-		Spec:       specPtr,
-		Attributes: attributesJSON,
-		Unit:       request.Unit,
-		IsActive:   isActive,
-	})
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			h.writeError(c, http.StatusNotFound, "not_found", "sku not found")
-			return
-		}
-		h.logError("update sku failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update sku")
-		return
-	}
-
-	if _, err := h.CatalogStore.DeletePriceTiersBySku(c.Request.Context(), sku.ID); err != nil {
-		h.logError("delete price tiers failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update sku")
-		return
-	}
-	tiers, ok := h.createPriceTiers(c, sku.ID, derefPriceTiers(request.PriceTiers))
-	if !ok {
-		return
-	}
-
-	response, err := skuFromModel(sku, tiers)
-	if err != nil {
-		h.logError("map sku failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to update sku")
-		return
-	}
-
-	c.JSON(http.StatusOK, response)
+	h.writeCatalogSku(c, spuId, &skuId)
 }
 
 func (h *Handler) PostCatalogProductsSpuIdSkus(c *gin.Context, spuId types.UUID) {
 	if _, ok := h.requireRole(c, "BOSS", "ADMIN"); !ok {
 		return
 	}
-
-	var request oapi.CreateSkuRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
-		return
-	}
-	if strings.TrimSpace(request.Name) == "" {
-		h.writeError(c, http.StatusBadRequest, "invalid_request", "name is required")
-		return
-	}
-
-	attributes := map[string]string{}
-	if request.Attributes != nil {
-		attributes = *request.Attributes
-	}
-	spec := ""
-	if request.Spec != nil {
-		spec = strings.TrimSpace(*request.Spec)
-	}
-	if spec == "" {
-		if value, ok := attributes["spec"]; ok {
-			spec = strings.TrimSpace(value)
-		}
-	}
-	delete(attributes, "spec")
-	var specPtr *string
-	if spec != "" {
-		specPtr = &spec
-	}
-	attributesJSON, err := json.Marshal(attributes)
-	if err != nil {
-		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid attributes")
-		return
-	}
-
-	isActive := true
-	if request.IsActive != nil {
-		isActive = *request.IsActive
-	}
-
-	sku, err := h.CatalogStore.CreateSku(c.Request.Context(), db.CreateSkuParams{
-		ProductID:  uuid.UUID(spuId),
-		SkuCode:    request.SkuCode,
-		Name:       request.Name,
-		Spec:       specPtr,
-		Attributes: attributesJSON,
-		Unit:       request.Unit,
-		IsActive:   isActive,
-	})
-	if err != nil {
-		h.logError("create sku failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to create sku")
-		return
-	}
-
-	tiers, ok := h.createPriceTiers(c, sku.ID, derefPriceTiers(request.PriceTiers))
-	if !ok {
-		return
-	}
-
-	response, err := skuFromModel(sku, tiers)
-	if err != nil {
-		h.logError("map sku failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to create sku")
-		return
-	}
-
-	c.JSON(http.StatusCreated, response)
-}
-
-func (h *Handler) createPriceTiers(c *gin.Context, skuID uuid.UUID, priceTiers []oapi.PriceTier) ([]db.CatalogPriceTier, bool) {
-	tiers := make([]db.CatalogPriceTier, 0, len(priceTiers))
-	for _, tier := range priceTiers {
-		minQty := clampInt32(tier.MinQty)
-		var maxQty *int32
-		if tier.MaxQty != nil {
-			value := clampInt32(*tier.MaxQty)
-			maxQty = &value
-		}
-		unitPrice := sharedmoney.FromInt64(tier.UnitPriceFen)
-		createdTier, err := h.CatalogStore.CreatePriceTier(c.Request.Context(), db.CreatePriceTierParams{
-			SkuID:        skuID,
-			MinQty:       minQty,
-			MaxQty:       maxQty,
-			UnitPriceFen: unitPrice.Int64(),
-		})
-		if err != nil {
-			h.logError("create price tier failed", err)
-			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to create sku")
-			return nil, false
-		}
-		tiers = append(tiers, createdTier)
-	}
-	return tiers, true
+	h.writeCatalogSku(c, spuId, nil)
 }
 
 func (h *Handler) logError(message string, err error) {
@@ -843,6 +547,11 @@ func productDetailFromModel(product db.CatalogProduct, skus []db.CatalogSku, tie
 	detail.Product.Name = product.Name
 	detail.Product.CategoryId = product.CategoryID
 	detail.Product.Description = product.Description
+	detail.Product.CoverImageUrl = product.CoverImageUrl
+	if len(product.Tags) > 0 {
+		tags := append([]string{}, product.Tags...)
+		detail.Product.Tags = &tags
+	}
 	detail.Product.Status = oapi.ProductStatus(product.Status)
 
 	tiersBySku := map[uuid.UUID][]db.CatalogPriceTier{}
@@ -935,15 +644,6 @@ func derefStringSlice(value *[]string) []string {
 		return []string{}
 	}
 	out := make([]string, len(*value))
-	copy(out, *value)
-	return out
-}
-
-func derefPriceTiers(value *[]oapi.PriceTier) []oapi.PriceTier {
-	if value == nil {
-		return nil
-	}
-	out := make([]oapi.PriceTier, len(*value))
 	copy(out, *value)
 	return out
 }

@@ -26,6 +26,9 @@ func TestNewRouterRegistersRoutes(test *testing.T) {
 	}
 
 	routes := router.Routes()
+	if !hasRoute(routes, http.MethodPost, "/admin/products/export-jobs") {
+		test.Fatal("expected product export route to be registered")
+	}
 	if !hasRoute(routes, http.MethodGet, "/health") {
 		test.Fatalf("expected /health route to be registered")
 	}

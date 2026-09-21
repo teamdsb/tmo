@@ -1,7 +1,7 @@
 # 仓库指南
 
 ## 项目结构与模块组织
-- `apps/` 是前端工作区；当前包含 `apps/miniapp/`（单小程序工程，业务逻辑统一，Taro + React + TypeScript + Sass，可构建 WeChat/Alipay 等平台）与 `apps/admin-web/`（后台管理控制台，占位）。
+- `apps/` 是前端工作区；当前包含 `apps/miniapp/`（单小程序工程，业务逻辑统一，Taro + React + TypeScript + Sass，可构建 WeChat/Alipay 等平台）与 `apps/admin-web/`（Vite + React + TypeScript 后台管理控制台）。
 - `services/commerce/` 是唯一可运行的 Go 服务：入口 `cmd/commerce/main.go`，配置在 `internal/config`，HTTP 在 `internal/http`，DB 在 `internal/db`，SQL 在 `queries/`，迁移在 `migrations/`，生成代码在 `internal/db/*.go`（sqlc）与 `internal/http/oapi/api.gen.go`（oapi-codegen）。
 - `services/identity/`、`services/payment/`、`services/gateway-bff/` 目前仅有 README 占位。
 - `packages/go-shared/` 提供 Go 共享基础设施（config/db/errors/httpx/observability），被 commerce 引用。
@@ -33,8 +33,8 @@
 - 保持 Go 服务目录约定（`cmd/`、`internal/`、`migrations/`、`queries/`）与 TS 包约定（`src/` + `index.ts` 汇总导出）。
 
 ## 测试指南
-- 目前仅有 Go 自动化测试；如需集成覆盖，请为 `services/commerce/internal/db/integration_test.go` 提供 Postgres。
-- 前端尚未配置测试框架；若新增测试，请就近放置并补充运行说明。
+- Go 测试通过 `pnpm run test:backend` 执行；commerce 数据库集成测试需提供指向独立测试库的 `COMMERCE_DB_DSN`。
+- 小程序使用 Jest（`pnpm -C apps/miniapp test`）；admin 使用 Playwright（`pnpm -C apps/admin-web test:e2e:mock` / `test:e2e:hybrid`），新增测试就近放置。
 
 ## 提交与 PR 规范
 - 提交信息遵循 Conventional Commits（已配置 commitlint）。
@@ -49,6 +49,7 @@
 - 功能变更需同步更新 `contracts/openapi/openapi.yaml` 与对应服务规范。
 - 更新文档前先查看 `docs/README.md` 的分类规则，并优先维护对应职责下的 canonical 文档。
 - 产品变更更新 `docs/context/product-requirements.md`；角色/权限变更更新 `docs/context/rbac.md`。
+- 商品规格遵循 `docs/context/commerce-conventions.md`：最多三级、每商品独立命名，`spec` 是完整路径摘要；修改层级与 SKU 集合须原子保存。商品 Excel 模板和导出回导规则见 `docs/runbooks/product-specifications-excel.md`。
 - 运行、排障、联调步骤更新 `docs/runbooks/`；仓库级规则或长期约定变化更新 `docs/decisions/README.md`；影响后续 agent 判断的重要近期变化追加到 `docs/CHANGELOG.md`。
 - OpenAPI 约定（见 `contracts/openapi/openapi.yaml`）：JSON 使用 camelCase、时间为 RFC3339、ID 为 UUID、鉴权为 Bearer JWT、下单与创建支付需 `Idempotency-Key`。
 

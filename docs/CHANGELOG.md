@@ -2,6 +2,12 @@
 
 这个文件只记录会影响后续 agent 判断的近期仓库变化，不承担发布说明、项目周报或任务流水账职责。
 
+## 2026-09-20
+
+- 商品支持独立命名的 1～3 级规格，admin 逐行维护实际组合，小程序详情与购物车逐级选择。完整商品 PATCH 可原子保存 SKU 集合，移除 SKU 仅停用；多级 `spec` 改为属性路径摘要。
+  影响面：catalog 契约、共享规格规则、admin 与 miniapp、商品 Excel 导入和新增 PRODUCT_EXPORT 异步导出。导出携带稳定 ID 和商品状态，可重复回导；旧紧凑模板继续读取。
+  建议阅读：`docs/context/commerce-conventions.md`、`docs/runbooks/product-specifications-excel.md`。
+
 ## 2026-09-14
 
 - 订单新增提交后锁定的 `ONLINE` / `OFFLINE` 付款方式；线下订单等待 admin 确认到账，线上未支付订单不得改记为线下收款。

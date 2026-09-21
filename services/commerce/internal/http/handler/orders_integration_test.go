@@ -76,6 +76,11 @@ func TestAdminOrderFulfillmentOfflinePaymentIsAtomicAndIdempotent(t *testing.T) 
 	sku, _ := seedCatalog(t, queries)
 	customerID, salesID, actorID := uuid.New(), uuid.New(), uuid.New()
 	order := seedOrderWithItem(t, queries, customerID, nil, sku.ID)
+	// This scenario explicitly exercises an offline order; the common fixture is online.
+	if _, err := pool.Exec(context.Background(), "UPDATE orders SET payment_method = 'OFFLINE' WHERE id = $1", order.ID); err != nil {
+		t.Fatal(err)
+	}
+
 	router := newAuthIntegrationRouter(pool, queries)
 	body := fmt.Sprintf(`{"ownerSalesUserId":"%s","note":"cash received at branch","confirmOfflinePayment":true}`, salesID)
 	request := func(key string) *httptest.ResponseRecorder {

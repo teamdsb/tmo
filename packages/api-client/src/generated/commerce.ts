@@ -106,11 +106,17 @@ export interface CreateCatalogProductRequest {
   /** @maxItems 9 */
   images?: string[];
   tags?: string[];
+  /**
+   * Ordered specification level names; empty for legacy flat specifications.
+   * @maxItems 3
+   */
   filterDimensions?: string[];
   status?: ProductStatus;
 }
 
 export interface UpdateCatalogProductRequest {
+  /** Complete retained SKU collection, saved atomically with the product. Omitted existing SKUs are disabled, not deleted. Omit this field for product-only updates. */
+  skus?: CatalogSkuWrite[];
   name?: string;
   categoryId?: string;
   /** @nullable */
@@ -120,8 +126,36 @@ export interface UpdateCatalogProductRequest {
   /** @maxItems 9 */
   images?: string[];
   tags?: string[];
+  /**
+   * Ordered specification level names; empty for legacy flat specifications.
+   * @maxItems 3
+   */
   filterDimensions?: string[];
   status?: ProductStatus;
+}
+
+export type CatalogSkuWriteAttributes = {[key: string]: string};
+
+/**
+ * Existing SKU fields omitted from a write are preserved. An empty priceTiers array clears prices.
+ */
+export interface CatalogSkuWrite {
+  /** Existing SKU belonging to this product; omit to create a SKU. */
+  id?: string;
+  /** @minLength 1 */
+  name: string;
+  /** @nullable */
+  skuCode?: string | null;
+  /**
+   * Legacy label; derived from attributes for named specifications.
+   * @nullable
+   */
+  spec?: string | null;
+  attributes?: CatalogSkuWriteAttributes;
+  /** @nullable */
+  unit?: string | null;
+  isActive?: boolean;
+  priceTiers?: PriceTier[];
 }
 
 export type CreateSkuRequestAttributes = {[key: string]: string};
@@ -129,7 +163,7 @@ export type CreateSkuRequestAttributes = {[key: string]: string};
 export interface CreateSkuRequest {
   skuCode?: string;
   name: string;
-  /** Primary spec label used for matching (e.g., size/grade); store here and avoid duplicating in attributes */
+  /** Derived full specification path, ordered by product filterDimensions and joined with " / "; one-level value unchanged. Legacy products without dimensions use the flat label. */
   spec?: string;
   attributes?: CreateSkuRequestAttributes;
   priceTiers?: PriceTier[];
@@ -142,7 +176,7 @@ export type UpdateSkuRequestAttributes = {[key: string]: string};
 export interface UpdateSkuRequest {
   skuCode?: string;
   name: string;
-  /** Primary spec label used for matching (e.g., size/grade); store here and avoid duplicating in attributes */
+  /** Derived full specification path, ordered by product filterDimensions and joined with " / "; one-level value unchanged. Legacy products without dimensions use the flat label. */
   spec?: string;
   attributes?: UpdateSkuRequestAttributes;
   priceTiers?: PriceTier[];
@@ -176,7 +210,7 @@ export interface Sku {
   spuId: string;
   skuCode?: string;
   name: string;
-  /** Canonical spec label for matching; do not duplicate in attributes */
+  /** Derived full specification path for display and matching. Named values in attributes are the source of truth when filterDimensions is configured. */
   spec?: string;
   attributes?: SkuAttributes;
   priceTiers?: PriceTier[];
@@ -188,11 +222,16 @@ export type ProductDetailProduct = {
   id: string;
   name: string;
   description?: string;
+  coverImageUrl?: string;
+  tags?: string[];
   /** @maxItems 9 */
   images?: string[];
   categoryId: string;
   status: ProductStatus;
-  /** For multi-level filtering, e.g., material -> length -> size */
+  /**
+   * Ordered specification level names for cascading SKU selection.
+   * @maxItems 3
+   */
   filterDimensions?: string[];
 };
 
@@ -925,6 +964,7 @@ export type ImportJobType = typeof ImportJobType[keyof typeof ImportJobType];
 export const ImportJobType = {
   PRODUCT_IMPORT: 'PRODUCT_IMPORT',
   PRODUCT_REQUEST_EXPORT: 'PRODUCT_REQUEST_EXPORT',
+  PRODUCT_EXPORT: 'PRODUCT_EXPORT',
   SHIPMENT_IMPORT: 'SHIPMENT_IMPORT',
   CART_IMPORT: 'CART_IMPORT',
 } as const;

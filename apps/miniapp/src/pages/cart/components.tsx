@@ -1,3 +1,4 @@
+import { formatSkuSpec } from '@tmo/shared'
 import { useEffect, useState } from 'react'
 import { Button, Image, Input, Text, View } from '@tarojs/components'
 import { ArrowLeft } from '@taroify/icons'
@@ -176,6 +177,7 @@ type CartListViewProps = {
   recommendedProductImageSize: number
   productImageBySpuId: ProductImageMap
   productNameBySpuId: ProductNameMap
+  productDimensionsBySpuId: Record<string, string[]>
   onChangeCartItemQty: (item: CartItem, nextQty: number) => Promise<void>
   onChangeCartItemSku: (item: CartItem) => Promise<void>
   onRemoveCartItem: (item: CartItem) => Promise<void>
@@ -210,6 +212,7 @@ export function CartListView({
   recommendedProductImageSize,
   productImageBySpuId,
   productNameBySpuId,
+  productDimensionsBySpuId,
   onChangeCartItemQty,
   onChangeCartItemSku,
   onRemoveCartItem
@@ -296,7 +299,7 @@ export function CartListView({
                 const meta = formatCartItemMeta(item)
                 const isBusy = busyItemId === item.id
                 const title = getCartItemTitle(item, productNameBySpuId)
-                const specLabel = item.sku.spec?.trim() || item.sku.name
+                const specLabel = formatSkuSpec(productDimensionsBySpuId[item.sku.spuId], item.sku)
                 const priceLabel = formatCartItemPrice(item)
                 const productImage = item.sku.spuId ? productImageBySpuId[item.sku.spuId] : undefined
                 const stopPropagation = (event: { stopPropagation?: () => void }) => {

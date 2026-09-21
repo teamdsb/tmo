@@ -22,6 +22,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/teamdsb/tmo/packages/go-shared/catalogspec"
 
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
 	"github.com/teamdsb/tmo/services/commerce/internal/excel"
@@ -335,18 +336,27 @@ func (s *Service) persistParsedRows(ctx context.Context, jobID uuid.UUID, parsed
 func (s *Service) buildGroups(states []*rowExecutionState) []*groupExecution {
 	grouped := map[string]*groupExecution{}
 	ordered := make([]*groupExecution, 0)
+	// Resolve the group alias before grouping so even a row that failed before
+	// UUID parsing rejects its complete product group.
+	productKeyByGroup := map[string]string{}
 	for _, state := range states {
-		if state.Error != "" {
-			continue
+		if state.Parsed.ProductID != uuid.Nil && productKeyByGroup[state.Parsed.GroupKey] == "" {
+			productKeyByGroup[state.Parsed.GroupKey] = state.Parsed.ProductID.String()
 		}
-		group, ok := grouped[state.Parsed.GroupKey]
+	}
+	for _, state := range states {
+		key := state.Parsed.GroupKey
+		if productKeyByGroup[key] != "" {
+			key = productKeyByGroup[key]
+		}
+		group, ok := grouped[key]
 		if !ok {
 			group = &groupExecution{
 				Key:      state.Parsed.GroupKey,
 				Rows:     []*rowExecutionState{},
 				RowStart: state.Parsed.RowNumber,
 			}
-			grouped[state.Parsed.GroupKey] = group
+			grouped[key] = group
 			ordered = append(ordered, group)
 		}
 		group.Rows = append(group.Rows, state)
@@ -375,8 +385,21 @@ func validateGroupRows(rows []*rowExecutionState) string {
 	}
 	first := rows[0].Parsed
 	seenSkuCodes := map[string]struct{}{}
+	seenIDs := map[uuid.UUID]bool{}
 	for _, row := range rows {
-		if row.Parsed.ProductName != first.ProductName ||
+		if row.Error != "" {
+			return fmt.Sprintf("row %d: %s", row.Parsed.RowNumber, row.Error)
+		}
+		if row.Parsed.NoSKU && len(rows) > 1 {
+			return "a product-only row cannot be combined with SKU rows"
+		}
+		if row.Parsed.SkuID != uuid.Nil {
+			if seenIDs[row.Parsed.SkuID] {
+				return "duplicate SKU ID in the same group"
+			}
+			seenIDs[row.Parsed.SkuID] = true
+		}
+		if row.Parsed.ProductID != first.ProductID || row.Parsed.ProductStatus != first.ProductStatus || row.Parsed.ProductName != first.ProductName ||
 			row.Parsed.CategoryID != first.CategoryID ||
 			!equalNullableString(row.Parsed.Description, first.Description) ||
 			row.Parsed.CoverImageRef != first.CoverImageRef ||
@@ -448,28 +471,47 @@ func (s *Service) processGroupTransaction(
 	}()
 
 	queries := db.New(tx)
-	existingSkus := map[string]db.CatalogSku{}
+	existingSkus := map[int]db.CatalogSku{}
+	resolvedSkuRows := map[uuid.UUID]int{}
 	matchedProductIDs := map[uuid.UUID]struct{}{}
 	for _, row := range group.Rows {
-		if row.Parsed.SkuCode == "" {
-			continue
+		if row.Parsed.ProductID != uuid.Nil {
+			matchedProductIDs[row.Parsed.ProductID] = struct{}{}
 		}
-		skuCode := row.Parsed.SkuCode
-		matches, err := queries.ListSkusBySkuCode(ctx, &skuCode)
-		if err != nil {
-			return newGroupExecutionError("lookup skuCode %q: %v", skuCode, err)
+		var matched *db.CatalogSku
+		if row.Parsed.SkuID != uuid.Nil {
+			skus, err := queries.ListSkusByIDs(ctx, []uuid.UUID{row.Parsed.SkuID})
+			if err != nil || len(skus) != 1 {
+				return newGroupExecutionError("SKU ID %s was not found", row.Parsed.SkuID)
+			}
+			matched = &skus[0]
 		}
-		if len(matches) > 1 {
-			return newGroupExecutionError("skuCode %q matched multiple records", skuCode)
+		if row.Parsed.SkuCode != "" {
+			matches, err := queries.ListSkusBySkuCode(ctx, &row.Parsed.SkuCode)
+			if err != nil {
+				return newGroupExecutionError("lookup skuCode: %v", err)
+			}
+			if len(matches) > 1 {
+				return newGroupExecutionError("skuCode %q matched multiple records", row.Parsed.SkuCode)
+			}
+			if len(matches) == 1 {
+				if matched != nil && matched.ID != matches[0].ID {
+					return newGroupExecutionError("SKU ID and skuCode identify different records")
+				}
+				matched = &matches[0]
+			}
 		}
-		if len(matches) == 1 {
-			existingSkus[skuCode] = matches[0]
-			matchedProductIDs[matches[0].ProductID] = struct{}{}
+		if matched != nil {
+			if previousRow, exists := resolvedSkuRows[matched.ID]; exists {
+				return newGroupExecutionError("rows %d and %d resolve to the same SKU ID %s", previousRow, row.Parsed.RowNumber, matched.ID)
+			}
+			resolvedSkuRows[matched.ID] = row.Parsed.RowNumber
+			existingSkus[row.Parsed.RowNumber] = *matched
+			matchedProductIDs[matched.ProductID] = struct{}{}
 		}
 	}
-
 	if len(matchedProductIDs) > 1 {
-		return newGroupExecutionError("matched skuCodes belong to different products")
+		return newGroupExecutionError("product IDs and matched SKUs belong to different products")
 	}
 
 	groupHead := group.Rows[0].Parsed
@@ -479,7 +521,7 @@ func (s *Service) processGroupTransaction(
 	var product db.CatalogProduct
 	if len(matchedProductIDs) == 1 {
 		for productID := range matchedProductIDs {
-			existingProduct, getErr := queries.GetProduct(ctx, productID)
+			existingProduct, getErr := queries.GetProductForUpdate(ctx, productID)
 			if getErr != nil {
 				return newGroupExecutionError("get product: %v", getErr)
 			}
@@ -492,7 +534,7 @@ func (s *Service) processGroupTransaction(
 				Images:           normalizedImages,
 				Tags:             normalizedTags,
 				FilterDimensions: normalizedFilterDimensions,
-				Status:           existingProduct.Status,
+				Status:           importProductStatus(groupHead.ProductStatus, existingProduct.Status),
 			})
 		}
 		if err != nil {
@@ -507,7 +549,7 @@ func (s *Service) processGroupTransaction(
 			Images:           normalizedImages,
 			Tags:             normalizedTags,
 			FilterDimensions: normalizedFilterDimensions,
-			Status:           "DRAFT",
+			Status:           importProductStatus(groupHead.ProductStatus, "DRAFT"),
 		})
 		if err != nil {
 			return newGroupExecutionError("create product: %v", err)
@@ -515,6 +557,15 @@ func (s *Service) processGroupTransaction(
 	}
 
 	for _, state := range group.Rows {
+		if state.Parsed.NoSKU {
+			record, err := queries.UpdateProductImportRowResult(ctx, db.UpdateProductImportRowResultParams{ID: state.Record.ID, Status: rowStatusSucceeded, ProductID: pgtype.UUID{Bytes: product.ID, Valid: true}})
+			if err != nil {
+				return err
+			}
+			state.Record = record
+			state.PersistedState = rowStatusSucceeded
+			continue
+		}
 		attributesJSON, err := json.Marshal(state.Parsed.Attributes)
 		if err != nil {
 			return newGroupExecutionError("marshal attributes: %v", err)
@@ -522,7 +573,7 @@ func (s *Service) processGroupTransaction(
 
 		skuCode := normalizeNullableString(state.Parsed.SkuCode)
 		var sku db.CatalogSku
-		existing, hasExisting := existingSkus[state.Parsed.SkuCode]
+		existing, hasExisting := existingSkus[state.Parsed.RowNumber]
 		if hasExisting {
 			sku, err = queries.UpdateSku(ctx, db.UpdateSkuParams{
 				ID:         existing.ID,
@@ -582,6 +633,21 @@ func (s *Service) processGroupTransaction(
 		state.Error = ""
 	}
 
+	allSkus, err := queries.ListSkusByProduct(ctx, product.ID)
+	if err != nil {
+		return err
+	}
+	variants := make([]catalogspec.Variant, 0, len(allSkus))
+	for _, sku := range allSkus {
+		attrs := map[string]string{}
+		if err := json.Unmarshal(sku.Attributes, &attrs); err != nil {
+			return err
+		}
+		variants = append(variants, catalogspec.Variant{ID: sku.ID.String(), Name: sku.Name, Spec: derefString(sku.Spec), Attributes: attrs, Active: sku.IsActive})
+	}
+	if err := catalogspec.ValidateCombinations(product.FilterDimensions, variants); err != nil {
+		return newGroupExecutionError("invalid final SKU combinations: %v", err)
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return newGroupExecutionError("commit tx: %v", err)
 	}
@@ -973,4 +1039,11 @@ func normalizeArchiveKey(raw string) string {
 	value = path.Clean("/" + strings.TrimLeft(value, "/"))
 	value = strings.TrimPrefix(value, "/")
 	return strings.ToLower(value)
+}
+
+func importProductStatus(provided, fallback string) string {
+	if provided != "" {
+		return provided
+	}
+	return fallback
 }

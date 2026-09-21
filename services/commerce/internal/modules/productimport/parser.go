@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/teamdsb/tmo/packages/go-shared/catalogspec"
 
 	"github.com/teamdsb/tmo/services/commerce/internal/excel"
 )
@@ -20,6 +21,10 @@ type priceTierInput struct {
 }
 
 type parsedRow struct {
+	ProductID        uuid.UUID
+	SkuID            uuid.UUID
+	ProductStatus    string
+	NoSKU            bool
 	RowNumber        int
 	GroupKey         string
 	SkuCode          string
@@ -71,7 +76,7 @@ func parseWorkbookRows(rows [][]string) ([]parsedRowState, error) {
 		state.Row.SkuCode = excel.CellValue(row, headerIndex, "skucode")
 		state.Row.ProductName = excel.CellValue(row, headerIndex, "productname")
 		state.Row.SkuName = excel.CellValue(row, headerIndex, "skuname")
-		if state.Row.SkuName == "" {
+		if state.Row.SkuName == "" && excel.CellValue(row, headerIndex, "productid") == "" {
 			state.Row.SkuName = state.Row.ProductName
 		}
 		state.Row.CoverImageRef = excel.CellValue(row, headerIndex, "coverimage")
@@ -94,7 +99,7 @@ func parseWorkbookRows(rows [][]string) ([]parsedRowState, error) {
 			results = append(results, state)
 			continue
 		}
-		if state.Row.SkuName == "" {
+		if state.Row.SkuName == "" && excel.CellValue(row, headerIndex, "productid") == "" {
 			state.Error = "skuName is required"
 			results = append(results, state)
 			continue
@@ -116,7 +121,7 @@ func parseWorkbookRows(rows [][]string) ([]parsedRowState, error) {
 			continue
 		}
 		if specValue == nil {
-			if rawSpec, ok := attributes["spec"]; ok {
+			if rawSpec, ok := attributes["spec"]; ok && !containsDimension(state.Row.FilterDimensions, "spec") && excel.CellValue(row, headerIndex, "spec1name") != "spec" && excel.CellValue(row, headerIndex, "spec2name") != "spec" && excel.CellValue(row, headerIndex, "spec3name") != "spec" {
 				specValue = normalizeNullableString(rawSpec)
 				delete(attributes, "spec")
 			}
@@ -139,6 +144,9 @@ func parseWorkbookRows(rows [][]string) ([]parsedRowState, error) {
 			continue
 		}
 		state.Row.PriceTiers = priceTiers
+		if err := parseIdentityAndLevels(&state.Row, row, headerIndex); err != nil {
+			state.Error = err.Error()
+		}
 
 		results = append(results, state)
 	}
@@ -195,6 +203,12 @@ func splitMultiValue(raw string) []string {
 		return nil
 	}
 
+	if strings.HasPrefix(trimmed, "[") {
+		var values []string
+		if json.Unmarshal([]byte(trimmed), &values) == nil {
+			return values
+		}
+	}
 	separator := "|"
 	if !strings.Contains(trimmed, separator) && strings.Contains(trimmed, ",") {
 		separator = ","
@@ -225,6 +239,12 @@ func parseAttributes(raw string) (map[string]string, error) {
 		return result, nil
 	}
 
+	if strings.HasPrefix(strings.TrimSpace(raw), "{") {
+		if err := json.Unmarshal([]byte(raw), &result); err != nil {
+			return nil, fmt.Errorf("attributes must be a JSON string map: %w", err)
+		}
+		return result, nil
+	}
 	for _, part := range splitMultiValue(raw) {
 		key, value, ok := strings.Cut(part, ":")
 		if !ok {
@@ -331,6 +351,7 @@ func parseQtyRange(raw string) (int, *int, error) {
 
 func marshalPayload(row parsedRow) json.RawMessage {
 	payload := map[string]interface{}{
+		"productId": row.ProductID, "skuId": row.SkuID, "productStatus": row.ProductStatus, "noSKU": row.NoSKU,
 		"rowNumber":         row.RowNumber,
 		"groupKey":          row.GroupKey,
 		"skuCode":           row.SkuCode,
@@ -376,6 +397,115 @@ func looksLikeURL(raw string) bool {
 func anyLooksLikeURL(values []string) bool {
 	for _, value := range values {
 		if looksLikeURL(value) {
+			return true
+		}
+	}
+	return false
+}
+
+// Explicit columns take precedence only when legacy fields agree; IDs are never silently ignored.
+func parseIdentityAndLevels(result *parsedRow, row []string, headers map[string]int) error {
+	for key := range headers {
+		if !strings.HasPrefix(key, "spec") {
+			continue
+		}
+		level := strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(key, "spec"), "name"), "value")
+		if n, err := strconv.Atoi(level); err == nil && n > 3 && excel.CellValue(row, headers, key) != "" {
+			return fmt.Errorf("specifications support at most 3 levels")
+		}
+	}
+	for key, target := range map[string]*uuid.UUID{"productid": &result.ProductID, "skuid": &result.SkuID} {
+		if value := excel.CellValue(row, headers, key); value != "" {
+			id, err := uuid.Parse(value)
+			if err != nil || id == uuid.Nil {
+				return fmt.Errorf("%s must be a valid non-zero UUID", key)
+			}
+			*target = id
+		}
+	}
+	result.ProductStatus = strings.ToUpper(excel.CellValue(row, headers, "productstatus"))
+	switch result.ProductStatus {
+	case "", "DRAFT", "ACTIVE", "INACTIVE":
+	default:
+		return fmt.Errorf("productStatus must be DRAFT, ACTIVE or INACTIVE")
+	}
+	result.NoSKU = result.ProductID != uuid.Nil && result.SkuID == uuid.Nil && result.SkuCode == "" && result.SkuName == "" && result.Spec == nil && result.Unit == nil && len(result.Attributes) == 0 && len(result.PriceTiers) == 0 && excel.CellValue(row, headers, "isactive") == ""
+	dimensions := []string{}
+	values := []string{}
+	gap := false
+	for i := 1; i <= 3; i++ {
+		name := excel.CellValue(row, headers, fmt.Sprintf("spec%dname", i))
+		value := excel.CellValue(row, headers, fmt.Sprintf("spec%dvalue", i))
+		if name == "" && value == "" {
+			gap = true
+			continue
+		}
+		if gap || name == "" || (value == "" && !result.NoSKU && result.IsActive) {
+			return fmt.Errorf("specification levels must be consecutive with both name and value")
+		}
+		dimensions = append(dimensions, name)
+		values = append(values, value)
+	}
+	explicit := len(dimensions) > 0
+	if explicit {
+		if len(result.FilterDimensions) > 0 && !equalStrings(result.FilterDimensions, dimensions) {
+			return fmt.Errorf("specification names conflict with Filter Dimensions")
+		}
+		result.FilterDimensions = dimensions
+		if !result.NoSKU {
+			for i, name := range dimensions {
+				if value, ok := result.Attributes[name]; ok && strings.TrimSpace(value) != values[i] {
+					return fmt.Errorf("specification value conflicts with Attributes for %q", name)
+				}
+				if values[i] != "" || result.IsActive {
+					result.Attributes[name] = values[i]
+				}
+			}
+		}
+	}
+	normalized, err := catalogspec.NormalizeDimensions(result.FilterDimensions)
+	if err != nil {
+		return err
+	}
+	result.FilterDimensions = normalized
+	if result.NoSKU {
+		return nil
+	}
+	if result.SkuName == "" {
+		result.SkuName = result.ProductName
+	}
+	if len(normalized) > 0 {
+		attrs, path, err := catalogspec.NormalizeValues(normalized, result.Attributes)
+		if err != nil {
+			if !result.IsActive {
+				return nil
+			}
+			return err
+		}
+		if explicit && result.Spec != nil && *result.Spec != path {
+			return fmt.Errorf("specification values conflict with Spec")
+		}
+		result.Attributes = attrs
+		result.Spec = &path
+	}
+	return nil
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func containsDimension(names []string, name string) bool {
+	for _, value := range names {
+		if value == name {
 			return true
 		}
 	}

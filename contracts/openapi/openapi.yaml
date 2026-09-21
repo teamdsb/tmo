@@ -205,6 +205,8 @@ paths:
     $ref: "./commerce.yaml#/paths/~1admin~1catalog~1products~1assets"
   /admin/shipments/import-jobs:
     $ref: "./admin.yaml#/paths/~1admin~1shipments~1import-jobs"
+  /admin/products/export-jobs:
+    $ref: "./admin.yaml#/paths/~1admin~1products~1export-jobs"
   /admin/product-requests/export-jobs:
     $ref: "./admin.yaml#/paths/~1admin~1product-requests~1export-jobs"
   /admin/import-jobs/{jobId}:
@@ -324,16 +326,7 @@ components:
       required: [id, name]
 
     ProductSummary:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        name: { type: string }
-        coverImageUrl: { type: string }
-        categoryId: { type: string, format: uuid }
-        tags:
-          type: array
-          items: { type: string }
-      required: [id, name, categoryId]
+      $ref: "./commerce.yaml#/components/schemas/ProductSummary"
 
     PagedProductList:
       type: object
@@ -347,52 +340,13 @@ components:
       required: [items, page, pageSize, total]
 
     PriceTier:
-      type: object
-      properties:
-        minQty: { type: integer, minimum: 1 }
-        maxQty: { type: integer, nullable: true, description: "null means no upper bound" }
-        unitPrice: { type: number }
-      required: [minQty, unitPrice]
+      $ref: "./commerce.yaml#/components/schemas/PriceTier"
 
     SKU:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        spuId: { type: string, format: uuid }
-        skuCode: { type: string }
-        name: { type: string }
-        attributes:
-          type: object
-          additionalProperties: { type: string }
-        priceTiers:
-          type: array
-          items: { $ref: "#/components/schemas/PriceTier" }
-        unit: { type: string, example: "pcs" }
-        isActive: { type: boolean, default: true }
-      required: [id, spuId, name, isActive]
+      $ref: "./commerce.yaml#/components/schemas/SKU"
 
     ProductDetail:
-      type: object
-      properties:
-        product:
-          type: object
-          properties:
-            id: { type: string, format: uuid }
-            name: { type: string }
-            description: { type: string }
-            images:
-              type: array
-              items: { type: string }
-            categoryId: { type: string, format: uuid }
-            filterDimensions:
-              type: array
-              description: "For multi-level filtering, e.g., material -> length -> size"
-              items: { type: string }
-          required: [id, name, categoryId]
-        skus:
-          type: array
-          items: { $ref: "#/components/schemas/SKU" }
-      required: [product, skus]
+      $ref: "./commerce.yaml#/components/schemas/ProductDetail"
 
     WishlistItem:
       type: object
@@ -799,7 +753,7 @@ components:
         id: { type: string, format: uuid }
         type:
           type: string
-          enum: [PRODUCT_IMPORT, PRODUCT_REQUEST_EXPORT, SHIPMENT_IMPORT, CART_IMPORT]
+          enum: [PRODUCT_IMPORT, PRODUCT_REQUEST_EXPORT, PRODUCT_EXPORT, SHIPMENT_IMPORT, CART_IMPORT]
         status: { $ref: "#/components/schemas/JobStatus" }
         progress: { type: integer, minimum: 0, maximum: 100 }
         resultFileUrl: { type: string, nullable: true }

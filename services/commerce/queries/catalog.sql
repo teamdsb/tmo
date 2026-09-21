@@ -25,6 +25,12 @@ SELECT id, name, description, category_id, cover_image_url, images, tags, filter
 FROM catalog_products
 WHERE id = sqlc.arg('id');
 
+-- name: GetProductForUpdate :one
+SELECT id, name, description, category_id, cover_image_url, images, tags, filter_dimensions, created_at, updated_at, status
+FROM catalog_products
+WHERE id = sqlc.arg('id')
+FOR UPDATE;
+
 -- name: UpdateProduct :one
 UPDATE catalog_products
 SET name = $2,

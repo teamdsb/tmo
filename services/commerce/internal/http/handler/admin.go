@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
+	"github.com/teamdsb/tmo/services/commerce/internal/modules/productexport"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/productimport"
 	"github.com/teamdsb/tmo/services/commerce/internal/modules/productrequestexport"
 )
@@ -162,4 +163,54 @@ func (h *Handler) GetAdminImportJobsJobId(c *gin.Context) {
 		ErrorReportUrl: job.ErrorReportUrl,
 		CreatedAt:      createdAt,
 	})
+}
+
+func (h *Handler) PostAdminProductsExportJobs(c *gin.Context) {
+	claims, ok := h.requireRole(c, "BOSS", "ADMIN")
+	if !ok {
+		return
+	}
+	if h.ProductExport == nil {
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "product export is not configured")
+		return
+	}
+	var request struct {
+		Q          *string `json:"q"`
+		CategoryID *string `json:"categoryId"`
+		Status     *string `json:"status"`
+	}
+	if err := c.ShouldBindJSON(&request); err != nil {
+		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
+		return
+	}
+	input := productexport.EnqueueInput{CreatedByUserID: pgtype.UUID{Bytes: claims.UserID, Valid: true}, Query: request.Q}
+	if request.CategoryID != nil && strings.TrimSpace(*request.CategoryID) != "" {
+		value := strings.TrimSpace(*request.CategoryID)
+		id := uuid.Nil
+		var err error
+		if value != "__NO_CATEGORY__" {
+			id, err = uuid.Parse(value)
+		}
+		if err != nil {
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid categoryId")
+			return
+		}
+		input.CategoryID = pgtype.UUID{Bytes: id, Valid: true}
+	}
+	if request.Status != nil && *request.Status != "ALL" {
+		switch *request.Status {
+		case "DRAFT", "ACTIVE", "INACTIVE":
+			input.Status = request.Status
+		default:
+			h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid product status")
+			return
+		}
+	}
+	job, err := h.ProductExport.Enqueue(c.Request.Context(), input)
+	if err != nil {
+		h.logError("create product export job failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to create export job")
+		return
+	}
+	c.JSON(http.StatusAccepted, oapi.ImportJob{Id: job.ID, Type: oapi.ImportJobType(job.Type), Status: oapi.JobStatus(job.Status), Progress: int(job.Progress), CreatedAt: job.CreatedAt.Time, ResultFileUrl: job.ResultFileUrl, ErrorReportUrl: job.ErrorReportUrl})
 }
