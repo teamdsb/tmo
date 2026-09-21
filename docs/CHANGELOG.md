@@ -4,6 +4,9 @@
 
 ## 2026-09-21
 
+- 完成分支与 worktree 瘦身，四个依赖 PR 经全部适用 CI 检查后通过 PR 180 合入 main；工作区最低 Go 版本为 1.26，缓存不再入库，已开启合并后自动删除分支。历史分支和未提交工作有本机备份，生产 B2B 分支保留。
+  建议阅读：`docs/runbooks/repository-cleanup-2026-09-21.md`。
+
 - 商品三级规格与商品 Excel 导入导出已合并 main 并部署 ECS，运行代码版本 `f5e3a2b`。发布改用独立目录和本机构建，保留线上未提交运维修改；旧 Podman Compose 的依赖重建错误必须通过实际镜像 revision 和新增接口校验识别。
   建议阅读：`docs/runbooks/deploy-product-specifications-2026-09-21.md`。
 
