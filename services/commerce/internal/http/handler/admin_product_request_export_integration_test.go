@@ -96,7 +96,7 @@ func TestAdminProductRequestExportCreateAndQuery(t *testing.T) {
 		t.Fatalf("decode created job: %v", err)
 	}
 
-	exportJob, err := queries.GetProductRequestExportJob(ctx, uuid.UUID(created.Id))
+	exportJob, err := queries.GetProductRequestExportJob(ctx, created.Id)
 	if err != nil {
 		t.Fatalf("get export detail job: %v", err)
 	}

@@ -818,12 +818,14 @@ func (h *Handler) uploadSupportMessageAsset(c *gin.Context, uploadedByUserID uui
 	}
 
 	subDir := filepath.Join(localDir, "support")
+	// #nosec G301 -- public media is read by a separate Nginx user.
 	if err := os.MkdirAll(subDir, 0o755); err != nil {
 		return db.SupportMessageAsset{}, err
 	}
 
 	fileName := uuid.NewString() + ext
 	localPath := filepath.Join(subDir, fileName)
+	// #nosec G304 -- server-generated UUID filename below the configured media directory.
 	dst, err := os.Create(localPath)
 	if err != nil {
 		return db.SupportMessageAsset{}, err

@@ -1,9 +1,7 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"strings"
 	"sync"
@@ -205,8 +203,4 @@ func publishSupportEvent(hub *SupportHub, eventType string, conversation db.Supp
 		return
 	}
 	hub.PublishConversation(eventType, conversation, data)
-}
-
-func isBrokenPipe(err error) bool {
-	return errors.Is(err, context.Canceled)
 }

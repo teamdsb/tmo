@@ -54,7 +54,7 @@ func (c *IdentityClient) ValidateActiveSales(ctx context.Context, authorization 
 	if err != nil {
 		return fmt.Errorf("%w: %v", errIdentityUnavailable, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode == http.StatusNotFound {
 		return fmt.Errorf("%w: user not found", errSalesAssigneeInvalid)
 	}

@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
@@ -144,7 +143,7 @@ func (h *Handler) PatchAddressesAddressId(c *gin.Context, addressId openapi_type
 	var updated db.UserAddress
 	err := h.withTx(c, func(q *db.Queries) error {
 		current, err := q.GetUserAddress(c.Request.Context(), db.GetUserAddressParams{
-			ID:     uuid.UUID(addressId),
+			ID:     addressId,
 			UserID: claims.UserID,
 		})
 		if err != nil {
@@ -164,7 +163,7 @@ func (h *Handler) PatchAddressesAddressId(c *gin.Context, addressId openapi_type
 		}
 
 		updated, err = q.UpdateUserAddress(c.Request.Context(), db.UpdateUserAddressParams{
-			ID:            uuid.UUID(addressId),
+			ID:            addressId,
 			UserID:        claims.UserID,
 			ReceiverName:  receiverName,
 			ReceiverPhone: receiverPhone,
@@ -194,7 +193,7 @@ func (h *Handler) DeleteAddressesAddressId(c *gin.Context, addressId openapi_typ
 
 	err := h.withTx(c, func(q *db.Queries) error {
 		deleted, err := q.DeleteUserAddress(c.Request.Context(), db.DeleteUserAddressParams{
-			ID:     uuid.UUID(addressId),
+			ID:     addressId,
 			UserID: claims.UserID,
 		})
 		if err != nil {

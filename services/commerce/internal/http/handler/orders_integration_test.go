@@ -419,7 +419,7 @@ func TestPostOrdersRemovesOrderedCartItemsAfterOrderSucceeds(t *testing.T) {
 	if created.PaymentMethod != oapi.OFFLINE {
 		t.Fatalf("expected OFFLINE payment method, got %s", created.PaymentMethod)
 	}
-	persisted, err := queries.GetOrder(ctx, uuid.UUID(created.Id))
+	persisted, err := queries.GetOrder(ctx, created.Id)
 	if err != nil || persisted.PaymentMethod != "OFFLINE" {
 		t.Fatalf("expected persisted OFFLINE payment method, order=%#v err=%v", persisted, err)
 	}
@@ -529,7 +529,7 @@ func TestPostOrdersStoresOwnerSalesUserID(t *testing.T) {
 		t.Fatalf("decode order response: %v", err)
 	}
 
-	fetched, err := queries.GetOrder(context.Background(), uuid.UUID(created.Id))
+	fetched, err := queries.GetOrder(context.Background(), created.Id)
 	if err != nil {
 		t.Fatalf("get order: %v", err)
 	}

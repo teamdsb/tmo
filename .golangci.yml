@@ -1,7 +1,7 @@
+version: "2"
 run:
   timeout: 5m
   tests: true
-
 linters:
   enable:
     - govet
@@ -9,13 +9,23 @@ linters:
     - staticcheck
     - ineffassign
     - unused
-    - misspell
-    - unconvert
-    - gocritic
-    - prealloc
     - bodyclose
-    - nilerr
+    - gocritic
     - gosec
-
-issues:
-  exclude-use-default: false
+    - misspell
+    - nilerr
+    - prealloc
+    - unconvert
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

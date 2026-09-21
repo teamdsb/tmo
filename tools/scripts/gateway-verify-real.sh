@@ -38,7 +38,7 @@ if [[ "$http_code" != "200" ]]; then
 fi
 
 echo "Verifying real-mode login requires phone proof..."
-request "POST" "$base_url/auth/mini/login" '{"platform":"weapp","code":"probe_without_phone"}'
+request "POST" "$base_url/auth/mini/login" '{"platform":"weapp","code":"mock_gateway_without_phone"}'
 if [[ "$http_code" != "400" ]]; then
   echo "expected 400 for missing phone proof, got: $http_code"
   echo "$http_body"
@@ -50,16 +50,24 @@ if ! echo "$http_body" | grep -q '"code":"phone_required"'; then
   exit 1
 fi
 
-echo "Verifying invalid phone proof is rejected..."
-request "POST" "$base_url/auth/mini/login" '{"platform":"weapp","code":"probe_invalid_phone","phoneProof":{"code":"invalid-phone-proof"}}'
+# A synthetic platform code must be rejected before phone-proof verification.
+# Testing invalid_phone_proof here would require a genuine short-lived platform
+# login code; provider/handler tests cover that branch with a valid session.
+echo "Verifying real-mode synthetic login credentials are rejected..."
+request "POST" "$base_url/auth/mini/login" '{"platform":"weapp","code":"mock_gateway_invalid_login","phoneProof":{"code":"invalid-phone-proof"}}'
 if [[ "$http_code" != "400" ]]; then
-  echo "expected 400 for invalid phone proof, got: $http_code"
+  echo "expected 400 for synthetic real-mode credentials, got: $http_code"
   echo "$http_body"
   exit 1
 fi
-if ! echo "$http_body" | grep -q '"code":"invalid_phone_proof"'; then
-  echo "expected error code invalid_phone_proof, got:"
+if ! echo "$http_body" | grep -q '"code":"invalid_request"'; then
+  echo "expected error code invalid_request for a synthetic login code, got:"
   echo "$http_body"
+  exit 1
+fi
+
+if echo "$http_body" | grep -q '"accessToken"'; then
+  echo "rejected credentials must not return an access token" >&2
   exit 1
 fi
 

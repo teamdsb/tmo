@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/oapi-codegen/runtime/types"
@@ -59,7 +58,7 @@ func (h *Handler) PostAdminOrdersOrderIdShip(c *gin.Context, orderID types.UUID)
 	var updated db.Order
 	err := shareddb.WithTx(ctx, h.DB, func(tx pgx.Tx) error {
 		q := db.New(tx)
-		current, err := q.GetOrderForUpdate(ctx, uuid.UUID(orderID))
+		current, err := q.GetOrderForUpdate(ctx, orderID)
 		if err != nil {
 			return err
 		}
@@ -116,7 +115,7 @@ func (h *Handler) PostOrdersOrderIdConfirmReceipt(c *gin.Context, orderID types.
 	var updated db.Order
 	err := shareddb.WithTx(ctx, h.DB, func(tx pgx.Tx) error {
 		q := db.New(tx)
-		current, err := q.GetOrderForUpdate(ctx, uuid.UUID(orderID))
+		current, err := q.GetOrderForUpdate(ctx, orderID)
 		if err != nil {
 			return err
 		}
@@ -167,7 +166,7 @@ func (h *Handler) PostAdminOrdersOrderIdConfirmDelivery(c *gin.Context, orderID 
 	var updated db.Order
 	err := shareddb.WithTx(ctx, h.DB, func(tx pgx.Tx) error {
 		q := db.New(tx)
-		current, err := q.GetOrderForUpdate(ctx, uuid.UUID(orderID))
+		current, err := q.GetOrderForUpdate(ctx, orderID)
 		if err != nil {
 			return err
 		}

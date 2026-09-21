@@ -101,7 +101,7 @@ func splitSQLStatements(sql string) []string {
 
 		if inDollar {
 			if ch == '$' && hasDollarTag(runes, i, dollarTag) {
-				for _, tagRune := range []rune(dollarTag) {
+				for _, tagRune := range dollarTag {
 					builder.WriteRune(tagRune)
 				}
 				i += len([]rune(dollarTag)) - 1
@@ -202,7 +202,7 @@ func parseDollarTag(runes []rune, start int) (string, bool) {
 			tag := string(runes[start : j+1])
 			return tag, isDollarTag(tag)
 		}
-		if !(runes[j] == '_' || runes[j] >= '0' && runes[j] <= '9' || runes[j] >= 'A' && runes[j] <= 'Z' || runes[j] >= 'a' && runes[j] <= 'z') {
+		if runes[j] != '_' && (runes[j] < '0' || runes[j] > '9') && (runes[j] < 'A' || runes[j] > 'Z') && (runes[j] < 'a' || runes[j] > 'z') {
 			return "", false
 		}
 	}
@@ -234,7 +234,7 @@ func isDollarTag(tag string) bool {
 	}
 	for i := 1; i < len(tag)-1; i++ {
 		ch := tag[i]
-		if !(ch == '_' || ch >= '0' && ch <= '9' || ch >= 'A' && ch <= 'Z' || ch >= 'a' && ch <= 'z') {
+		if ch != '_' && (ch < '0' || ch > '9') && (ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z') {
 			return false
 		}
 	}

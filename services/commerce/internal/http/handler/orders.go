@@ -81,13 +81,13 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 			h.writeError(c, http.StatusBadRequest, "invalid_request", "qty must be >= 1")
 			return
 		}
-		cartItemID := uuid.UUID(item.CartItemId)
+		cartItemID := item.CartItemId
 		if _, exists := seenCartItemIDs[cartItemID]; exists {
 			h.writeError(c, http.StatusBadRequest, "invalid_request", "duplicate cartItemId")
 			return
 		}
 		seenCartItemIDs[cartItemID] = struct{}{}
-		skuID := uuid.UUID(item.SkuId)
+		skuID := item.SkuId
 		qty := clampInt32(item.Qty)
 		requestedItems = append(requestedItems, requestedOrderItem{
 			cartItemID: cartItemID,
@@ -328,14 +328,14 @@ func (h *Handler) GetOrders(c *gin.Context, params oapi.GetOrdersParams) {
 	case "SALES":
 		ownerFilter = pgtype.UUID{Bytes: claims.UserID, Valid: true}
 		if params.CustomerId != nil {
-			customerFilter = pgtype.UUID{Bytes: uuid.UUID(*params.CustomerId), Valid: true}
+			customerFilter = pgtype.UUID{Bytes: *params.CustomerId, Valid: true}
 		}
 	case "PROCUREMENT", "CS", "MANAGER", "BOSS", "ADMIN":
 		if params.CustomerId != nil {
-			customerFilter = pgtype.UUID{Bytes: uuid.UUID(*params.CustomerId), Valid: true}
+			customerFilter = pgtype.UUID{Bytes: *params.CustomerId, Valid: true}
 		}
 		if params.OwnerSalesUserId != nil {
-			ownerFilter = pgtype.UUID{Bytes: uuid.UUID(*params.OwnerSalesUserId), Valid: true}
+			ownerFilter = pgtype.UUID{Bytes: *params.OwnerSalesUserId, Valid: true}
 		}
 	}
 
@@ -462,7 +462,7 @@ func (h *Handler) GetOrdersOrderId(c *gin.Context, orderId types.UUID) {
 		return
 	}
 
-	order, err := h.OrderStore.GetOrder(c.Request.Context(), uuid.UUID(orderId))
+	order, err := h.OrderStore.GetOrder(c.Request.Context(), orderId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			h.writeError(c, http.StatusNotFound, "not_found", "order not found")

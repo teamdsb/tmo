@@ -308,7 +308,7 @@ func TestPostInternalOrdersOrderIdPaymentStatusMapsStatuses(t *testing.T) {
 			if string(response.PaymentStatus) != tc.inputStatus {
 				t.Fatalf("expected response payment status %s, got %s", tc.inputStatus, response.PaymentStatus)
 			}
-			if response.LatestPaymentId == nil || uuid.UUID(*response.LatestPaymentId) != paymentID {
+			if response.LatestPaymentId == nil || *response.LatestPaymentId != paymentID {
 				t.Fatalf("expected latest payment id %s, got %#v", paymentID, response.LatestPaymentId)
 			}
 		})

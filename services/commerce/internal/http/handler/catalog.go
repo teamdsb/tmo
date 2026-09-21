@@ -88,7 +88,7 @@ func (h *Handler) GetCatalogCategories(c *gin.Context) {
 }
 
 func (h *Handler) GetCatalogCategoriesCategoryId(c *gin.Context, categoryId types.UUID) {
-	category, err := h.CatalogStore.GetCategory(c.Request.Context(), uuid.UUID(categoryId))
+	category, err := h.CatalogStore.GetCategory(c.Request.Context(), categoryId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			h.writeError(c, http.StatusNotFound, "not_found", "category not found")
@@ -119,7 +119,7 @@ func (h *Handler) PostCatalogCategories(c *gin.Context) {
 
 	parentID := pgtype.UUID{}
 	if request.ParentId != nil {
-		value := uuid.UUID(*request.ParentId)
+		value := *request.ParentId
 		parentID = pgtype.UUID{Bytes: value, Valid: true}
 	}
 
@@ -178,7 +178,7 @@ func (h *Handler) PatchCatalogCategoriesCategoryId(c *gin.Context, categoryId ty
 				h.writeError(c, http.StatusBadRequest, "invalid_request", "parentId must be a valid uuid or null")
 				return
 			}
-			parentID = pgtype.UUID{Bytes: uuid.UUID(parsed), Valid: true}
+			parentID = pgtype.UUID{Bytes: parsed, Valid: true}
 		}
 	}
 
@@ -189,7 +189,7 @@ func (h *Handler) PatchCatalogCategoriesCategoryId(c *gin.Context, categoryId ty
 	}
 
 	category, err := h.CatalogStore.UpdateCategory(c.Request.Context(), db.UpdateCategoryParams{
-		ID:          uuid.UUID(categoryId),
+		ID:          categoryId,
 		Name:        name,
 		ParentIDSet: parentIDSet,
 		ParentID:    parentID,
@@ -213,7 +213,7 @@ func (h *Handler) DeleteCatalogCategoriesCategoryId(c *gin.Context, categoryId t
 		return
 	}
 
-	affected, err := h.CatalogStore.DeleteCategory(c.Request.Context(), uuid.UUID(categoryId))
+	affected, err := h.CatalogStore.DeleteCategory(c.Request.Context(), categoryId)
 	if err != nil {
 		h.logError("delete category failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to delete category")
@@ -450,7 +450,7 @@ func (h *Handler) DeleteCatalogProductsSpuId(c *gin.Context, spuId types.UUID) {
 		return
 	}
 
-	affected, err := h.CatalogStore.DeleteProduct(c.Request.Context(), uuid.UUID(spuId))
+	affected, err := h.CatalogStore.DeleteProduct(c.Request.Context(), spuId)
 	if err != nil {
 		h.logError("delete product failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to delete product")

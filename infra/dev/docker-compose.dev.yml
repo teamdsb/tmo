@@ -23,6 +23,9 @@ services:
       - tmo-go-build-cache:/root/.cache/go-build
 
   commerce:
+    # Air uses the Go image's root-owned module/build caches, as before.
+    # Override the compiled backend's host-UID media writer in this mode only.
+    user: "0:0"
     build:
       context: ../..
       dockerfile: services/commerce/Dockerfile.dev

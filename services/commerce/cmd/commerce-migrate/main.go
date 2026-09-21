@@ -13,6 +13,7 @@ import (
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
 )
 
+// #nosec G101 -- localhost development fallback, overridden by COMMERCE_DB_DSN.
 const defaultDSN = "postgres://commerce:commerce@localhost:5432/commerce?sslmode=disable"
 
 func main() {

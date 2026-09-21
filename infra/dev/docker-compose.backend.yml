@@ -34,6 +34,7 @@ services:
         condition: service_healthy
 
   commerce:
+    user: "${DEV_STACK_UID:-65534}:${DEV_STACK_GID:-65534}"
     build:
       context: ../..
       dockerfile: services/commerce/Dockerfile

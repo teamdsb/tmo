@@ -1,14 +1,6 @@
 package order
 
-import (
-	"testing"
+import "github.com/teamdsb/tmo/services/commerce/internal/db"
 
-	"github.com/teamdsb/tmo/services/commerce/internal/db"
-)
-
-func TestQueriesImplementsStore(test *testing.T) {
-	var store Store = (*db.Queries)(nil)
-	if store == nil {
-		test.Fatal("expected store interface to be non-nil")
-	}
-}
+// Assert the generated queries implement the store contract at compile time.
+var _ Store = (*db.Queries)(nil)

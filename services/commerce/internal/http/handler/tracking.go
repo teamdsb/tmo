@@ -22,7 +22,7 @@ func (h *Handler) GetOrdersOrderIdTracking(c *gin.Context, orderId types.UUID) {
 	}
 
 	if strings.EqualFold(claims.Role, "CUSTOMER") || strings.EqualFold(claims.Role, "SALES") {
-		order, err := h.OrderStore.GetOrder(c.Request.Context(), uuid.UUID(orderId))
+		order, err := h.OrderStore.GetOrder(c.Request.Context(), orderId)
 		canRead := err == nil
 		if strings.EqualFold(claims.Role, "CUSTOMER") {
 			canRead = canRead && order.CustomerID == claims.UserID
@@ -35,7 +35,7 @@ func (h *Handler) GetOrdersOrderIdTracking(c *gin.Context, orderId types.UUID) {
 		}
 	}
 
-	shipments, err := h.TrackingStore.ListTrackingShipments(c.Request.Context(), uuid.UUID(orderId))
+	shipments, err := h.TrackingStore.ListTrackingShipments(c.Request.Context(), orderId)
 	if err != nil {
 		h.logError("list tracking shipments failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to fetch tracking")
@@ -89,7 +89,7 @@ func (h *Handler) PostOrdersOrderIdTracking(c *gin.Context, orderId types.UUID) 
 		}
 
 		shipment, err := h.TrackingStore.UpsertTrackingShipment(c.Request.Context(), db.UpsertTrackingShipmentParams{
-			OrderID:   uuid.UUID(orderId),
+			OrderID:   orderId,
 			WaybillNo: payload.WaybillNo,
 			Carrier:   payload.Carrier,
 			ShippedAt: shippedAt,

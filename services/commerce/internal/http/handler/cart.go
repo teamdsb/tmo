@@ -68,7 +68,7 @@ func (h *Handler) PostCartItems(c *gin.Context) {
 
 	_, err := h.CartStore.UpsertCartItem(c.Request.Context(), db.UpsertCartItemParams{
 		OwnerUserID: claims.UserID,
-		SkuID:       uuid.UUID(request.SkuId),
+		SkuID:       request.SkuId,
 		Qty:         clampInt32(request.Qty),
 	})
 	if err != nil {
@@ -106,14 +106,14 @@ func (h *Handler) PatchCartItemsItemId(c *gin.Context, itemId types.UUID) {
 	var err error
 	if payload.SkuId != nil {
 		_, err = h.CartStore.ReplaceCartItemSku(c.Request.Context(), db.ReplaceCartItemSkuParams{
-			ID:          uuid.UUID(itemId),
+			ID:          itemId,
 			OwnerUserID: claims.UserID,
-			SkuID:       uuid.UUID(*payload.SkuId),
+			SkuID:       *payload.SkuId,
 			Qty:         clampInt32(payload.Qty),
 		})
 	} else {
 		_, err = h.CartStore.UpdateCartItemQty(c.Request.Context(), db.UpdateCartItemQtyParams{
-			ID:          uuid.UUID(itemId),
+			ID:          itemId,
 			Qty:         clampInt32(payload.Qty),
 			OwnerUserID: claims.UserID,
 		})
@@ -145,7 +145,7 @@ func (h *Handler) DeleteCartItemsItemId(c *gin.Context, itemId types.UUID) {
 	}
 
 	if err := h.CartStore.DeleteCartItem(c.Request.Context(), db.DeleteCartItemParams{
-		ID:          uuid.UUID(itemId),
+		ID:          itemId,
 		OwnerUserID: claims.UserID,
 	}); err != nil {
 		h.logError("delete cart item failed", err)
@@ -356,7 +356,7 @@ func (h *Handler) GetCartImportJobsJobId(c *gin.Context, jobId types.UUID) {
 		return
 	}
 
-	job, err := h.CartStore.GetCartImportJob(c.Request.Context(), uuid.UUID(jobId))
+	job, err := h.CartStore.GetCartImportJob(c.Request.Context(), jobId)
 	if err != nil {
 		h.logError("get cart import job failed", err)
 		h.writeError(c, http.StatusNotFound, "not_found", "import job not found")
@@ -402,7 +402,7 @@ func (h *Handler) PostCartImportJobsJobIdConfirm(c *gin.Context, jobId types.UUI
 		return
 	}
 
-	job, err := h.CartStore.GetCartImportJob(c.Request.Context(), uuid.UUID(jobId))
+	job, err := h.CartStore.GetCartImportJob(c.Request.Context(), jobId)
 	if err != nil {
 		h.logError("get cart import job failed", err)
 		h.writeError(c, http.StatusNotFound, "not_found", "import job not found")
@@ -452,7 +452,7 @@ func (h *Handler) PostCartImportJobsJobIdConfirm(c *gin.Context, jobId types.UUI
 
 		if err := h.CartStore.UpdateCartImportRowSelection(c.Request.Context(), db.UpdateCartImportRowSelectionParams{
 			JobID:         job.ID,
-			SelectedSkuID: pgtype.UUID{Bytes: uuid.UUID(selection.SkuId), Valid: true},
+			SelectedSkuID: pgtype.UUID{Bytes: selection.SkuId, Valid: true},
 			SelectedQty:   &qty,
 			RowNo:         clampInt32(selection.RowNo),
 		}); err != nil {
@@ -463,7 +463,7 @@ func (h *Handler) PostCartImportJobsJobIdConfirm(c *gin.Context, jobId types.UUI
 
 		_, err = h.CartStore.UpsertCartItem(c.Request.Context(), db.UpsertCartItemParams{
 			OwnerUserID: claims.UserID,
-			SkuID:       uuid.UUID(selection.SkuId),
+			SkuID:       selection.SkuId,
 			Qty:         qty,
 		})
 		if err != nil {

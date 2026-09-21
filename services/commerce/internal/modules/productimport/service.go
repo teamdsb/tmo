@@ -124,8 +124,12 @@ func (s *Service) Enqueue(ctx context.Context, input EnqueueInput) (db.ImportJob
 	}
 
 	jobRoot := s.jobRootDir(job.ID)
+	// #nosec G301 -- public report/image ancestors must be traversable by Nginx.
+	if err := os.MkdirAll(jobRoot, 0o755); err != nil {
+		return db.ImportJob{}, fmt.Errorf("create job media dir: %w", err)
+	}
 	inputDir := filepath.Join(jobRoot, "input")
-	if err := os.MkdirAll(inputDir, 0o755); err != nil {
+	if err := os.MkdirAll(inputDir, 0o750); err != nil {
 		return db.ImportJob{}, fmt.Errorf("create job input dir: %w", err)
 	}
 
@@ -221,7 +225,7 @@ func (s *Service) processJob(ctx context.Context, job db.ProductImportJob) error
 	}
 	if _, err := db.New(s.DB).UpdateProductImportJobCounts(ctx, db.UpdateProductImportJobCountsParams{
 		JobID:       job.JobID,
-		TotalRows:   int32(len(states)),
+		TotalRows:   intToInt32(len(states)),
 		SuccessRows: 0,
 		FailedRows:  0,
 	}); err != nil {
@@ -243,7 +247,7 @@ func (s *Service) processJob(ctx context.Context, job db.ProductImportJob) error
 		if err := s.processGroup(ctx, group, resolver); err != nil {
 			s.logError("process product import group failed", err)
 		}
-		progress := 10 + int32(((index+1)*80)/maxInt(1, len(groups)))
+		progress := 10 + intToInt32(((index+1)*80)/maxInt(1, len(groups)))
 		if _, err := db.New(s.DB).UpdateImportJobStatus(ctx, db.UpdateImportJobStatusParams{
 			ID:       job.JobID,
 			Status:   string(oapi.RUNNING),
@@ -256,9 +260,9 @@ func (s *Service) processJob(ctx context.Context, job db.ProductImportJob) error
 	totalRows, successRows, failedRows := summarizeStates(states)
 	if _, err := db.New(s.DB).UpdateProductImportJobCounts(ctx, db.UpdateProductImportJobCountsParams{
 		JobID:       job.JobID,
-		TotalRows:   int32(totalRows),
-		SuccessRows: int32(successRows),
-		FailedRows:  int32(failedRows),
+		TotalRows:   intToInt32(totalRows),
+		SuccessRows: intToInt32(successRows),
+		FailedRows:  intToInt32(failedRows),
 	}); err != nil {
 		s.logError("update product import counts failed", err)
 	}
@@ -310,7 +314,7 @@ func (s *Service) persistParsedRows(ctx context.Context, jobID uuid.UUID, parsed
 		productName := item.Row.ProductName
 		record, err := queries.CreateProductImportRow(ctx, db.CreateProductImportRowParams{
 			JobID:        jobID,
-			LineNo:       int32(item.Row.RowNumber),
+			LineNo:       intToInt32(item.Row.RowNumber),
 			GroupKey:     normalizeNullableString(item.Row.GroupKey),
 			SkuCode:      skuCode,
 			ProductName:  normalizeNullableString(productName),
@@ -693,6 +697,7 @@ func (s *Service) failJob(ctx context.Context, jobID uuid.UUID, reason string) e
 }
 
 func (s *Service) readWorkbook(excelPath string) ([][]string, error) {
+	// #nosec G304 -- stored path of the server-managed upload, not a user-supplied path.
 	file, err := os.Open(excelPath)
 	if err != nil {
 		return nil, err
@@ -720,6 +725,7 @@ func summarizeStates(states []*rowExecutionState) (int, int, int) {
 func (s *Service) writeSummary(jobID uuid.UUID, summary importSummary) (*string, error) {
 	relativePath := filepath.ToSlash(filepath.Join("import-jobs", jobID.String(), "reports", "summary.json"))
 	localPath := filepath.Join(s.MediaLocalOutputDir, filepath.FromSlash(relativePath))
+	// #nosec G301 -- published import reports/images must be traversable by Nginx.
 	if err := os.MkdirAll(filepath.Dir(localPath), 0o755); err != nil {
 		return nil, err
 	}
@@ -727,6 +733,7 @@ func (s *Service) writeSummary(jobID uuid.UUID, summary importSummary) (*string,
 	if err != nil {
 		return nil, err
 	}
+	// #nosec G306 -- the import result report is published through the media endpoint.
 	if err := os.WriteFile(localPath, encoded, 0o644); err != nil {
 		return nil, err
 	}
@@ -737,10 +744,12 @@ func (s *Service) writeSummary(jobID uuid.UUID, summary importSummary) (*string,
 func (s *Service) writeErrorReport(jobID uuid.UUID, states []*rowExecutionState) (*string, error) {
 	relativePath := filepath.ToSlash(filepath.Join("import-jobs", jobID.String(), "reports", "errors.csv"))
 	localPath := filepath.Join(s.MediaLocalOutputDir, filepath.FromSlash(relativePath))
+	// #nosec G301 -- published import reports/images must be traversable by Nginx.
 	if err := os.MkdirAll(filepath.Dir(localPath), 0o755); err != nil {
 		return nil, err
 	}
 
+	// #nosec G304 -- server-generated report path inside the job media directory.
 	file, err := os.Create(localPath)
 	if err != nil {
 		return nil, err
@@ -937,6 +946,7 @@ func (r *imageResolver) resolve(ref string) (string, error) {
 	fileName := uuid.NewString() + filepath.Ext(file.Name)
 	relativePath := filepath.ToSlash(filepath.Join("import-jobs", r.jobID.String(), "images", fileName))
 	localPath := filepath.Join(r.localBaseDir, filepath.FromSlash(relativePath))
+	// #nosec G301 -- published import reports/images must be traversable by Nginx.
 	if err := os.MkdirAll(filepath.Dir(localPath), 0o755); err != nil {
 		return "", err
 	}
@@ -1006,6 +1016,7 @@ func maxInt(left, right int) int {
 }
 
 func copyReaderToFile(path string, reader io.Reader) error {
+	// #nosec G304 -- caller constructs this upload path beneath the server-managed job directory.
 	file, err := os.Create(path)
 	if err != nil {
 		return err

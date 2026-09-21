@@ -23,6 +23,10 @@ export DEV_STACK_GOPROXY="$dev_stack_goproxy"
 export DEV_STACK_GOSUMDB="$dev_stack_gosumdb"
 export DEV_STACK_GONOSUMDB="$dev_stack_gonosumdb"
 export TMO_ACTIVE_WORKTREE="$active_worktree"
+# The development media bind mount belongs to the host developer/CI runner.
+# Run its writer with that identity instead of making upload directories world-writable.
+export DEV_STACK_UID="${DEV_STACK_UID:-$(id -u)}"
+export DEV_STACK_GID="${DEV_STACK_GID:-$(id -g)}"
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "docker is required." >&2

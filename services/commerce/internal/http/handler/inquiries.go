@@ -111,7 +111,7 @@ func (h *Handler) PostInquiriesPrice(c *gin.Context) {
 	assignedSales := pgtype.UUID{}
 	ownerSales := pgtype.UUID{}
 	if request.OrderId != nil {
-		value := uuid.UUID(*request.OrderId)
+		value := *request.OrderId
 		order, err := h.OrderStore.GetOrder(c.Request.Context(), value)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
@@ -135,7 +135,7 @@ func (h *Handler) PostInquiriesPrice(c *gin.Context) {
 
 	skuID := pgtype.UUID{}
 	if request.SkuId != nil {
-		value := uuid.UUID(*request.SkuId)
+		value := *request.SkuId
 		skus, err := h.CatalogStore.ListSkusByIDs(c.Request.Context(), []uuid.UUID{value})
 		if err != nil {
 			h.logError("list skus failed", err)
@@ -185,7 +185,7 @@ func (h *Handler) GetInquiriesPriceInquiryId(c *gin.Context, inquiryId types.UUI
 		return
 	}
 
-	inquiry, err := h.InquiryStore.GetPriceInquiry(c.Request.Context(), uuid.UUID(inquiryId))
+	inquiry, err := h.InquiryStore.GetPriceInquiry(c.Request.Context(), inquiryId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			h.writeError(c, http.StatusNotFound, "not_found", "inquiry not found")
@@ -225,7 +225,7 @@ func (h *Handler) PatchInquiriesPriceInquiryId(c *gin.Context, inquiryId types.U
 		return
 	}
 
-	inquiry, err := h.InquiryStore.GetPriceInquiry(c.Request.Context(), uuid.UUID(inquiryId))
+	inquiry, err := h.InquiryStore.GetPriceInquiry(c.Request.Context(), inquiryId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			h.writeError(c, http.StatusNotFound, "not_found", "inquiry not found")
@@ -249,11 +249,11 @@ func (h *Handler) PatchInquiriesPriceInquiryId(c *gin.Context, inquiryId types.U
 
 	assigned := pgtype.UUID{}
 	if payload.AssignedSalesUserId != nil {
-		assigned = pgtype.UUID{Bytes: uuid.UUID(*payload.AssignedSalesUserId), Valid: true}
+		assigned = pgtype.UUID{Bytes: *payload.AssignedSalesUserId, Valid: true}
 	}
 
 	updated, err := h.InquiryStore.UpdatePriceInquiry(c.Request.Context(), db.UpdatePriceInquiryParams{
-		ID:                     uuid.UUID(inquiryId),
+		ID:                     inquiryId,
 		Status:                 status,
 		AssignedSalesUserID:    assigned,
 		AssignedSalesUserIDSet: assignedSet,
@@ -279,7 +279,7 @@ func (h *Handler) GetInquiriesPriceInquiryIdMessages(
 		return
 	}
 
-	inquiry, err := h.InquiryStore.GetPriceInquiry(c.Request.Context(), uuid.UUID(inquiryId))
+	inquiry, err := h.InquiryStore.GetPriceInquiry(c.Request.Context(), inquiryId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			h.writeError(c, http.StatusNotFound, "not_found", "inquiry not found")
@@ -309,7 +309,7 @@ func (h *Handler) GetInquiriesPriceInquiryIdMessages(
 	offset := (page - 1) * pageSize
 
 	messages, err := h.InquiryStore.ListInquiryMessages(c.Request.Context(), db.ListInquiryMessagesParams{
-		InquiryID: uuid.UUID(inquiryId),
+		InquiryID: inquiryId,
 		Offset:    clampInt32(offset),
 		Limit:     clampInt32(pageSize),
 	})
@@ -319,7 +319,7 @@ func (h *Handler) GetInquiriesPriceInquiryIdMessages(
 		return
 	}
 
-	total, err := h.InquiryStore.CountInquiryMessages(c.Request.Context(), uuid.UUID(inquiryId))
+	total, err := h.InquiryStore.CountInquiryMessages(c.Request.Context(), inquiryId)
 	if err != nil {
 		h.logError("count inquiry messages failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to fetch messages")
@@ -355,7 +355,7 @@ func (h *Handler) PostInquiriesPriceInquiryIdMessages(c *gin.Context, inquiryId 
 		return
 	}
 
-	inquiry, err := h.InquiryStore.GetPriceInquiry(c.Request.Context(), uuid.UUID(inquiryId))
+	inquiry, err := h.InquiryStore.GetPriceInquiry(c.Request.Context(), inquiryId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			h.writeError(c, http.StatusNotFound, "not_found", "inquiry not found")
@@ -377,7 +377,7 @@ func (h *Handler) PostInquiriesPriceInquiryIdMessages(c *gin.Context, inquiryId 
 	}
 
 	message, err := h.InquiryStore.CreateInquiryMessage(c.Request.Context(), db.CreateInquiryMessageParams{
-		InquiryID:    uuid.UUID(inquiryId),
+		InquiryID:    inquiryId,
 		SenderType:   string(senderType),
 		SenderUserID: pgtype.UUID{Bytes: claims.UserID, Valid: true},
 		Content:      request.Content,

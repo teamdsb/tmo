@@ -52,7 +52,7 @@ func (h *Handler) GetAfterSalesTickets(c *gin.Context, params oapi.GetAfterSales
 
 	orderFilter := pgtype.UUID{}
 	if params.OrderId != nil {
-		orderFilter = pgtype.UUID{Bytes: uuid.UUID(*params.OrderId), Valid: true}
+		orderFilter = pgtype.UUID{Bytes: *params.OrderId, Valid: true}
 	}
 
 	tickets, err := h.AfterSalesStore.ListAfterSalesTickets(c.Request.Context(), db.ListAfterSalesTicketsParams{
@@ -117,7 +117,7 @@ func (h *Handler) PostAfterSalesTickets(c *gin.Context) {
 	orderID := pgtype.UUID{}
 	ownerSales := pgtype.UUID{}
 	if request.OrderId != nil {
-		value := uuid.UUID(*request.OrderId)
+		value := *request.OrderId
 		order, err := h.OrderStore.GetOrder(c.Request.Context(), value)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
@@ -167,7 +167,7 @@ func (h *Handler) GetAfterSalesTicketsTicketId(c *gin.Context, ticketId types.UU
 		return
 	}
 
-	ticket, err := h.AfterSalesStore.GetAfterSalesTicket(c.Request.Context(), uuid.UUID(ticketId))
+	ticket, err := h.AfterSalesStore.GetAfterSalesTicket(c.Request.Context(), ticketId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			h.writeError(c, http.StatusNotFound, "not_found", "after-sales ticket not found")
@@ -206,7 +206,7 @@ func (h *Handler) PatchAfterSalesTicketsTicketId(c *gin.Context, ticketId types.
 		return
 	}
 
-	ticket, err := h.AfterSalesStore.GetAfterSalesTicket(c.Request.Context(), uuid.UUID(ticketId))
+	ticket, err := h.AfterSalesStore.GetAfterSalesTicket(c.Request.Context(), ticketId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			h.writeError(c, http.StatusNotFound, "not_found", "after-sales ticket not found")
@@ -230,11 +230,11 @@ func (h *Handler) PatchAfterSalesTicketsTicketId(c *gin.Context, ticketId types.
 
 	assigned := pgtype.UUID{}
 	if payload.AssignedStaffUserId != nil {
-		assigned = pgtype.UUID{Bytes: uuid.UUID(*payload.AssignedStaffUserId), Valid: true}
+		assigned = pgtype.UUID{Bytes: *payload.AssignedStaffUserId, Valid: true}
 	}
 
 	updated, err := h.AfterSalesStore.UpdateAfterSalesTicket(c.Request.Context(), db.UpdateAfterSalesTicketParams{
-		ID:                     uuid.UUID(ticketId),
+		ID:                     ticketId,
 		Status:                 status,
 		AssignedStaffUserID:    assigned,
 		AssignedStaffUserIDSet: assignedSet,
@@ -258,7 +258,7 @@ func (h *Handler) GetAfterSalesTicketsTicketIdMessages(
 		return
 	}
 
-	ticket, err := h.AfterSalesStore.GetAfterSalesTicket(c.Request.Context(), uuid.UUID(ticketId))
+	ticket, err := h.AfterSalesStore.GetAfterSalesTicket(c.Request.Context(), ticketId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			h.writeError(c, http.StatusNotFound, "not_found", "after-sales ticket not found")
@@ -288,7 +288,7 @@ func (h *Handler) GetAfterSalesTicketsTicketIdMessages(
 	offset := (page - 1) * pageSize
 
 	messages, err := h.AfterSalesStore.ListAfterSalesMessages(c.Request.Context(), db.ListAfterSalesMessagesParams{
-		TicketID: uuid.UUID(ticketId),
+		TicketID: ticketId,
 		Offset:   clampInt32(offset),
 		Limit:    clampInt32(pageSize),
 	})
@@ -298,7 +298,7 @@ func (h *Handler) GetAfterSalesTicketsTicketIdMessages(
 		return
 	}
 
-	total, err := h.AfterSalesStore.CountAfterSalesMessages(c.Request.Context(), uuid.UUID(ticketId))
+	total, err := h.AfterSalesStore.CountAfterSalesMessages(c.Request.Context(), ticketId)
 	if err != nil {
 		h.logError("count after sales messages failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to fetch messages")
@@ -334,7 +334,7 @@ func (h *Handler) PostAfterSalesTicketsTicketIdMessages(c *gin.Context, ticketId
 		return
 	}
 
-	ticket, err := h.AfterSalesStore.GetAfterSalesTicket(c.Request.Context(), uuid.UUID(ticketId))
+	ticket, err := h.AfterSalesStore.GetAfterSalesTicket(c.Request.Context(), ticketId)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			h.writeError(c, http.StatusNotFound, "not_found", "after-sales ticket not found")
@@ -356,7 +356,7 @@ func (h *Handler) PostAfterSalesTicketsTicketIdMessages(c *gin.Context, ticketId
 	}
 
 	message, err := h.AfterSalesStore.CreateAfterSalesMessage(c.Request.Context(), db.CreateAfterSalesMessageParams{
-		TicketID:     uuid.UUID(ticketId),
+		TicketID:     ticketId,
 		SenderType:   string(senderType),
 		SenderUserID: pgtype.UUID{Bytes: claims.UserID, Valid: true},
 		Content:      request.Content,

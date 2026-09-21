@@ -13,10 +13,11 @@ import (
 func TestOptimizeProductDirectoryDryRunAndApply(t *testing.T) {
 	productDir := filepath.Join(t.TempDir(), "catalog", "products")
 	backupDir := filepath.Join(t.TempDir(), "backup")
-	if err := os.MkdirAll(productDir, 0o755); err != nil {
+	if err := os.MkdirAll(productDir, 0o750); err != nil {
 		t.Fatal(err)
 	}
 	imagePath := filepath.Join(productDir, "large.jpg")
+	// #nosec G304 -- fixture path is constructed inside t.TempDir.
 	file, err := os.Create(imagePath)
 	if err != nil {
 		t.Fatal(err)
@@ -33,6 +34,7 @@ func TestOptimizeProductDirectoryDryRunAndApply(t *testing.T) {
 	if err := file.Close(); err != nil {
 		t.Fatal(err)
 	}
+	// #nosec G304 -- read the fixture just created in t.TempDir.
 	original, _ := os.ReadFile(imagePath)
 
 	dryRun, err := OptimizeProductDirectory(productDir, backupDir, false)
@@ -42,6 +44,7 @@ func TestOptimizeProductDirectoryDryRunAndApply(t *testing.T) {
 	if dryRun.Candidates != 1 || dryRun.Updated != 0 {
 		t.Fatalf("unexpected dry-run report: %+v", dryRun)
 	}
+	// #nosec G304 -- fixture created inside t.TempDir.
 	unchanged, _ := os.ReadFile(imagePath)
 	if string(unchanged) != string(original) {
 		t.Fatal("dry-run modified source file")
@@ -57,6 +60,7 @@ func TestOptimizeProductDirectoryDryRunAndApply(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(backupDir, "large.jpg")); err != nil {
 		t.Fatalf("backup missing: %v", err)
 	}
+	// #nosec G304 -- fixture created inside t.TempDir.
 	optimized, _ := os.ReadFile(imagePath)
 	config, err := jpeg.DecodeConfig(bytes.NewReader(optimized))
 	if err != nil {

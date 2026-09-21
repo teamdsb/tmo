@@ -55,6 +55,7 @@ func TestLoadOverrides(test *testing.T) {
 	if loaded.HTTPAddr != ":9090" {
 		test.Fatalf("expected HTTP addr override, got %q", loaded.HTTPAddr)
 	}
+	// #nosec G101 -- synthetic URL used only to test environment parsing.
 	if loaded.DBDSN != "postgres://user:pass@localhost:5432/custom" {
 		test.Fatalf("expected DB DSN override, got %q", loaded.DBDSN)
 	}
