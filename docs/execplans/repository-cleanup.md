@@ -52,3 +52,5 @@ Git bundle verify 成功；删除前工作区必须干净，未合并独立代�
 2026-09-21 CI 实跑发现开发容器 nobody 无法写入 runner 拥有的媒体挂载，上传健康检查返回 500。开发脚本现传递宿主 UID/GID，仅开发 commerce 容器按该身份写媒体；不放宽目录权限，不修改生产配置。
 
 2026-09-21 全栈后续探针错误地用无效登录码断言 invalid_phone_proof，但服务按安全顺序先返回 invalid_request。改用明确的 mock_ 登录码，严格断言 real 模式拒绝它且不返回 token；手机号凭证分支仍由有效会话的 provider/handler 测试覆盖。
+
+最终独立审查发现开发 UID 覆盖也会继承到 Air 模式，导致其 /root Go 缓存不可写。Air overlay 显式保持原有 root 身份，编译镜像模式使用宿主 UID/GID；两种 Compose 解析配置已分别验证，生产配置不变。
