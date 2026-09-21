@@ -36,4 +36,4 @@ Bootstrap and local dev scripts.
 - `catalog-image-audit.sh`: audit `catalog_products` image refs and print domain distribution.
 - `catalog-image-migrate.sh`: migrate external catalog images into local media output and rewrite DB URLs.
 - `gateway-verify.sh`: smoke-check gateway health/ready and auth flows.
-- `gateway-verify-real.sh`: verify real-mode auth rejects missing/invalid phone proof.
+- `gateway-verify-real.sh`: verify real-mode auth requires phone proof and rejects synthetic platform login codes even when a proof is supplied.

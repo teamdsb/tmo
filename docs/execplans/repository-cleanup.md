@@ -50,3 +50,5 @@ Git bundle verify 成功；删除前工作区必须干净，未合并独立代�
 2026-09-21：独立审查发现 private input 目录的 MkdirAll 会使公开报告祖先目录也变为 0750；已明确先创建可供 Nginx 遍历的 jobRoot 0755，再创建 private input 0750，并添加先失败后通过的集成回归。Go 1.26 是 PR 177 的模块最低要求；工作区和 CI 同步升级。缓存从 Git 索引移除，不删除其他工作区的文件。
 
 2026-09-21 CI 实跑发现开发容器 nobody 无法写入 runner 拥有的媒体挂载，上传健康检查返回 500。开发脚本现传递宿主 UID/GID，仅开发 commerce 容器按该身份写媒体；不放宽目录权限，不修改生产配置。
+
+2026-09-21 全栈后续探针错误地用无效登录码断言 invalid_phone_proof，但服务按安全顺序先返回 invalid_request。改用明确的 mock_ 登录码，严格断言 real 模式拒绝它且不返回 token；手机号凭证分支仍由有效会话的 provider/handler 测试覆盖。
