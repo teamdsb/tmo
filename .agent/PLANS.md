@@ -68,3 +68,7 @@ PATCH /catalog/products/{spuId} 可选 skus 数组元素含 id、name、skuCode�
 2026-09-20 实施补充：导出使用专用 SQL 的字面子串搜索，使商品名称、ID、分类、SKU 名称/编码与 admin 当前筛选一致。聚合与 admin 契约中的旧 SKU/PriceTier/ProductDetail 重复定义改为指向 Commerce canonical schema，避免旧 unitPrice 定义继续误导调用方。原 .agent/PLANS.md 已归档为 docs/execplans/audit-remediation-previous.md。
 
 2026-09-20 完成记录：独立 worktree 的实现已复制并核验到原工作区，未创建提交。原有 ImportPage、import.mock.spec 和生成 CSS 修改均保留；旧执行记录单独归档。本次独立 Vite 5188/5189 已停止，原开发服务 5174 保持运行；专用测试 PostgreSQL 容器在验证后停止。
+
+## ECS Release — 2026-09-21
+
+用户授权合并 main 并部署。功能提交 7840e72，经解决 main 更新引起的六处冲突后合并为 14ba54e，工作区校验和补齐后发布版本为 f5e3a2b。合并后的真实数据库测试、小程序 315 测试与 admin 生产构建通过。部署检查发现 Nginx 需独立读取导出目录，已补权限回归；Podman Compose 吞掉依赖删除错误，已按依赖顺序修复并核对实际镜像。线上服务、鉴权、空结果导出与文件下载均通过。完整记录见 docs/runbooks/deploy-product-specifications-2026-09-21.md。
