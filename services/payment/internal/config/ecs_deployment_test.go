@@ -56,6 +56,8 @@ func TestECSUpBuildsImagesAndRejectsUnsafePaymentRuntime(t *testing.T) {
 		`PAYMENT_AUTH_ENABLED`,
 		`PAYMENT_PROVIDER_MODE`,
 		`PAYMENT_WECHAT_MERCHANT_PRIVATE_KEY_HOST_PATH`,
+		`PAYMENT_WECHAT_B2B_APP_SECRET`,
+		`PAYMENT_PROVIDER_MODE=b2b`,
 		`stat -c "%u:%g"`,
 		`stat -c "%a"`,
 		`run_compose build identity commerce payment gateway-bff`,

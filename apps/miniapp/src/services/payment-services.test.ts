@@ -3,11 +3,14 @@ import { ApiError, PaymentCancelledError, createPaymentServices } from '@tmo/pay
 
 const mockSetPaymentApiClientConfig = jest.fn()
 const mockPostPaymentsWechatCreate = jest.fn()
+const mockPostPaymentsWechatB2bCreate = jest.fn()
 const mockPostPaymentsAlipayCreate = jest.fn()
 const mockGetPaymentsPaymentId = jest.fn()
 const mockPostPaymentsPaymentIdRecheck = jest.fn()
 const mockGetPlatform = jest.fn()
 const mockPay = jest.fn()
+const mockCommonPay = jest.fn()
+const mockLogin = jest.fn()
 const mockGetStorage = jest.fn(async () => ({ data: null }))
 const mockSetStorage = jest.fn(async () => {})
 const mockRemoveStorage = jest.fn(async () => {})
@@ -16,6 +19,7 @@ const mockRequest = jest.fn()
 jest.mock('@tmo/payment-api-client', () => ({
   setPaymentApiClientConfig: (config: unknown) => mockSetPaymentApiClientConfig(config),
   postPaymentsWechatCreate: (payload: unknown, options?: unknown) => mockPostPaymentsWechatCreate(payload, options),
+  postPaymentsWechatB2bCreate: (payload: unknown, options?: unknown) => mockPostPaymentsWechatB2bCreate(payload, options),
   postPaymentsAlipayCreate: (payload: unknown, options?: unknown) => mockPostPaymentsAlipayCreate(payload, options),
   getPaymentsPaymentId: (paymentId: string) => mockGetPaymentsPaymentId(paymentId),
   postPaymentsPaymentIdRecheck: (paymentId: string, body?: unknown) => mockPostPaymentsPaymentIdRecheck(paymentId, body)
@@ -24,6 +28,8 @@ jest.mock('@tmo/payment-api-client', () => ({
 jest.mock('@tmo/platform-adapter', () => ({
   getPlatform: () => mockGetPlatform(),
   pay: (payload: unknown) => mockPay(payload),
+  commonPay: (payload: unknown) => mockCommonPay(payload),
+  login: () => mockLogin(),
   getStorage: () => mockGetStorage(),
   setStorage: () => mockSetStorage(),
   removeStorage: () => mockRemoveStorage(),
@@ -35,6 +41,8 @@ describe('payment-services', () => {
     jest.clearAllMocks()
     mockGetPlatform.mockReturnValue(Platform.Weapp)
     mockPay.mockResolvedValue({ resultCode: '9000' })
+    mockCommonPay.mockResolvedValue({})
+    mockLogin.mockResolvedValue({ code: 'fresh-login-code' })
   })
 
   it('uses wechat create API and normalizes response', async () => {
@@ -60,7 +68,7 @@ describe('payment-services', () => {
       requester: jest.fn()
     })
 
-    const session = await services.sessions.createForOrder('order-1')
+    const session = await services.sessions.createForOrder('order-1', { channel: 'wechat' })
 
     expect(mockPostPaymentsWechatCreate).toHaveBeenCalledWith(
       { orderId: 'order-1' },
@@ -77,6 +85,57 @@ describe('payment-services', () => {
       status: 'PAY_PENDING',
       prepayId: 'prepay-1'
     }))
+  })
+
+  it('defaults WeChat to B2B create and wx.requestCommonPayment without calling ordinary payment', async () => {
+    mockPostPaymentsWechatB2bCreate.mockResolvedValue({
+      status: 200,
+      data: {
+        paymentId: 'pay-b2b', orderId: 'order-b2b', channel: 'WECHAT_B2B', status: 'PAY_PENDING',
+        expiresAt: '2026-09-19T13:00:00Z',
+        commonPayParams: { signData: 'opaque', mode: 'retail_pay_goods', paySig: 'pay-signature', signature: 'session-signature' }
+      }
+    })
+    mockPostPaymentsPaymentIdRecheck.mockResolvedValue({
+      status: 200,
+      data: {
+        id: 'pay-b2b', orderId: 'order-b2b', channel: 'WECHAT_B2B', status: 'PAY_PENDING',
+        amountFen: 1, currency: 'CNY', createdAt: '2026-09-19T12:45:00Z', updatedAt: '2026-09-19T12:45:00Z'
+      }
+    })
+
+    const services = createPaymentServices({ baseUrl: 'https://payment.example.com', requester: jest.fn() })
+    await expect(services.sessions.payForOrder('order-b2b', {
+      idempotencyKey: 'order-payment-order-b2b'
+    })).resolves.toEqual(expect.objectContaining({ id: 'pay-b2b', channel: 'wechat_b2b', status: 'PAY_PENDING' }))
+
+    expect(mockLogin).toHaveBeenCalledTimes(1)
+    expect(mockPostPaymentsWechatB2bCreate).toHaveBeenCalledWith(
+      { orderId: 'order-b2b', wechatLoginCode: 'fresh-login-code' },
+      expect.objectContaining({ headers: { 'Idempotency-Key': 'order-payment-order-b2b' } })
+    )
+    expect(mockCommonPay).toHaveBeenCalledWith({
+      payload: expect.objectContaining({ mode: 'retail_pay_goods', paySig: 'pay-signature' })
+    })
+    expect(mockPay).not.toHaveBeenCalled()
+    expect(mockPostPaymentsPaymentIdRecheck).toHaveBeenCalledWith('pay-b2b', expect.objectContaining({ clientResult: 'SUCCESS' }))
+  })
+
+  it('does not reopen a payment panel when an idempotent replay is already paid', async () => {
+    mockPostPaymentsWechatB2bCreate.mockResolvedValue({
+      status: 200,
+      data: {
+        paymentId: 'pay-paid', orderId: 'order-paid', channel: 'WECHAT_B2B', status: 'PAID',
+        expiresAt: '2026-09-19T13:00:00Z', commonPayParams: {}
+      }
+    })
+    const services = createPaymentServices({ baseUrl: 'https://payment.example.com', requester: jest.fn() })
+    await expect(services.sessions.payForOrder('order-paid', { channel: 'wechat_b2b' })).resolves.toEqual(
+      expect.objectContaining({ id: 'pay-paid', status: 'PAID' })
+    )
+    expect(mockCommonPay).not.toHaveBeenCalled()
+    expect(mockPay).not.toHaveBeenCalled()
+    expect(mockPostPaymentsPaymentIdRecheck).not.toHaveBeenCalled()
   })
 
   it('surfaces the explicit not-implemented response on Alipay', async () => {
@@ -117,7 +176,7 @@ describe('payment-services', () => {
       requester: jest.fn()
     })
 
-    await expect(services.sessions.createForOrder('order-3')).rejects.toEqual(expect.objectContaining({
+    await expect(services.sessions.createForOrder('order-3', { channel: 'wechat' })).rejects.toEqual(expect.objectContaining({
       name: 'ApiError',
       statusCode: 403,
       code: 'feature_disabled'
@@ -156,7 +215,7 @@ describe('payment-services', () => {
       requester: jest.fn()
     })
 
-    await expect(services.sessions.payForOrder('order-4')).rejects.toBeInstanceOf(PaymentCancelledError)
+    await expect(services.sessions.payForOrder('order-4', { channel: 'wechat' })).rejects.toBeInstanceOf(PaymentCancelledError)
     expect(mockPostPaymentsPaymentIdRecheck).toHaveBeenCalledWith('pay-4', expect.objectContaining({
       clientResult: 'CANCELLED'
     }))
@@ -180,7 +239,7 @@ describe('payment-services', () => {
     })
 
     const services = createPaymentServices({ baseUrl: 'https://payment.example.com', requester: jest.fn() })
-    await expect(services.sessions.payForOrder('order-success')).resolves.toEqual(expect.objectContaining({ status: 'PAID' }))
+    await expect(services.sessions.payForOrder('order-success', { channel: 'wechat' })).resolves.toEqual(expect.objectContaining({ status: 'PAID' }))
     expect(mockPostPaymentsPaymentIdRecheck).toHaveBeenCalledWith('pay-success', expect.objectContaining({
       clientResult: 'SUCCESS'
     }))
@@ -199,7 +258,7 @@ describe('payment-services', () => {
     mockPostPaymentsPaymentIdRecheck.mockResolvedValue({ status: 200, data: {} })
 
     const services = createPaymentServices({ baseUrl: 'https://payment.example.com', requester: jest.fn() })
-    await expect(services.sessions.payForOrder('order-failed')).rejects.toThrow('system error')
+    await expect(services.sessions.payForOrder('order-failed', { channel: 'wechat' })).rejects.toThrow('system error')
     expect(mockPostPaymentsPaymentIdRecheck).toHaveBeenCalledWith('pay-failed', expect.objectContaining({
       clientResult: 'FAILED',
       reason: 'requestPayment:fail system error'

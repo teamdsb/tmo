@@ -1,58 +1,100 @@
-# 分支瘦身与依赖 PR 清理
+# 合并生产微信 B2B 支付并恢复体验版
 
-遵循 docs/execplans/plans.md。用户授权按盘点顺序清理。
+本 ExecPlan 是持续维护的文档，遵循 `docs/execplans/PLANS.md`。实施中必须同步维护 `Progress`、`Surprises & Discoveries`、`Decision Log` 和 `Outcomes & Retrospective`。
 
 ## Purpose / Big Picture
 
-减少已完成分支和重复工作区，保留仍在使用的支付代码及未提交工作；修复阻碍四个依赖 PR 的真实 CI 问题，验证通过后合并并删除来源分支。
+当前 GitHub `main` 只保留普通 JSAPI `wx.requestPayment` 路径，但生产商户号 `1747937433` 是已开通的 B2B 门店助手商户，普通 JSAPI 会被微信以 `403 NO_AUTH` 拒绝。完成后，已在 ECS 部署并经真实 `ORDER_PAY_SUCC` 交易验证的 B2B 实现将进入最新 `main`，小程序生产构建使用 `wx.requestCommonPayment`，远端临时分支在合并后删除。微信开发者工具将用合并后产物再次验证调起路径。
 
 ## Progress
 
-- [x] 备份全部 Git 引用及 7 个脏工作区，另保存 2 个待删除干净工作区的源文件和本地配置。
-- [x] 删除 9 个已合并且无工作区占用的本地分支，以及 2 个补丁等价且工作区干净的历史分支/worktree。
-- [x] 删除已合并远端分支，开启合并后自动删除分支。
-- [x] 修复分页初始计时器、生成物漂移和 lint 配置/问题；本地数据库测试、315 项 Jest 与完整 lint 通过。
-- [x] PR 180 的五项适用 CI 检查全部通过；合并为 51c8e36，PR 175–178 同时被 GitHub 标记为 MERGED，来源分支自动删除。
-- [x] 最终：本地分支 34→10，远端 7→2，worktree 12→10，开放 PR 4→0。24 个移除/归档分支均在独立仓库恢复并通过 fsck。
-
-## Context and Orientation
-
-GitHub 仓库 teamdsb/tmo 初始有 7 个远端分支、34 个本地分支、12 个 worktree。开放 PR 175–178 是 commerce/payment/identity/go-shared 依赖升级。初始 .worktrees 占约 6.9 GB。codex/restore-b2b-payment 是线上支付代码来源且有 4 个 main 未包含的提交，必须保留。
-
-## Plan of Work
-
-先用 git bundle --all 和每工作区 patch/tar 保存状态，逐项用 ancestry 或 git cherry 检查后删除。CI 旧分支迁移错误在 main 已修复；修复需求列表初次 debounce 导致分页回跳，迁移 golangci-lint 配置且修复发现的问题，重新生成过期客户端与样式，并停止跟踪 pnpm/Playwright 缓存。随后在一条保留全部原始提交的整合分支中验证四个升级，只有实际 CI 全部通过后才合并。
-
-## Concrete Steps
-
-备份目录 /Users/asimov3059/tmo-cleanup-backups/20260921-170927，包含 repository.bundle、refs.txt、manifest.json、removed-branches.json 及工作区补丁/文件归档。工作在 .worktrees/main-ecs-deploy 的临时 codex/repository-cleanup-ci 分支。执行 pnpm -C apps/admin-web typecheck、相关 Playwright、全套生成命令、miniapp lint/test 和对应 Go tests/lint；通过后推送并检查 GitHub Actions。
-
-## Validation and Acceptance
-
-Git bundle verify 成功；删除前工作区必须干净，未合并独立代码不丢失。分页回归必须在初始 300ms 计时器后仍保持用户选中的页码。生成两次不产生额外差异，全部启用 linter 保留。四个依赖 PR 实际检查通过，main 接收更新，远端来源分支清理完成。
-
-## Idempotence and Recovery
-
-不触碰 ECS。需要恢复分支时从 bundle 中原 refs/heads 路径 fetch；未提交内容可从对应 patch 和 files.tar.gz 恢复。对脏工作区不执行 reset、clean 或 worktree remove。合并 PR 不使用绕过检查的管理员参数。
+- [x] (2026-09-22 14:47+08:00) 审计本地/远端分支、worktree 和 PR；远端只剩 `main` 和 `codex/restore-b2b-payment`，开放 PR 为 0。
+- [x] (2026-09-22 14:50+08:00) 确认 B2B 分支比 `origin/main` 落后 29 个提交、领先 4 个提交，tip 为 `4a6d8e817d0b0cc7632ad014e80d30a89710a897`。
+- [x] (2026-09-22 14:50+08:00) 用微信开发者工具在当前普通 JSAPI 构建中创建 0.01 元支付会话并打开二维码调试弹窗；未扫码或扣款。
+- [x] (2026-09-22 14:55+08:00) 核对历史计划与部署证据：普通 JSAPI 对当前商户返回 `403 NO_AUTH`；B2B 分支已部署 ECS，服务端查单发现真实 `ORDER_PAY_SUCC`。
+- [x] (2026-09-22 15:00+08:00) 从 `origin/main` 创建隔离 worktree `.worktrees/integrate-b2b-payment` 和分支 `codex/integrate-b2b-payment`；Payment 全包 Go 基线与小程序支付 3 suites / 14 tests 通过。
+- [x] (2026-09-22 15:01+08:00) 用 `--no-ff` 合并 `codex/restore-b2b-payment`；代码、OpenAPI 与生成物自动合并，仅 `.agent/PLANS.md` 和 `docs/CHANGELOG.md` 需人工合并。
+- [x] (2026-09-22 15:12+08:00) 完成两个文档冲突解决；为 Orval 7.20 新增可复用的生成物尾随空白归一化脚本，Payment TypeScript 客户端连续生成两次 SHA-256 一致且 `git diff --check` 通过。
+- [x] (2026-09-22 15:15+08:00) Payment Go 全包、miniapp 45 suites / 317 tests、miniapp 与全部 packages 类型检查、OpenAPI 同步和生产微信构建全部退出 0；产物含 `bb-plugin`、B2B API 和 `requestCommonPayment`。
+- [x] (2026-09-22 15:20+08:00) 只读核对 ECS：payment 容器为 `PAYMENT_PROVIDER_MODE=b2b`，四项 B2B 核心配置均已设置，payment/gateway health/ready 均为 200；真机体验版请求旧普通接口返回 503，开发者工具的 B2B 接口返回 200。
+- [x] (2026-09-22 15:25+08:00) 独立审查发现两个 Important：B2B 熔断开关未强制检查，且 WeChat 未显式指定渠道时仍默认普通 JSAPI。已先观察 2 个前端失败与 1 个后端失败，再修正为前后端同时强制 `wechatB2bEnabled`、WeApp 默认 `wechat_b2b`；复审确认无剩余 Critical/Important。
+- [x] (2026-09-22 15:27+08:00) 修正后重新验证：Payment Go 全包、miniapp 45 suites / 318 tests、miniapp 与全部 packages 类型检查、OpenAPI 同步和生产微信构建均退出 0。
+- [ ] 推送整合分支，通过 GitHub PR 合入 `main`，确认远端 `main` 包含 B2B 提交后删除 `origin/codex/restore-b2b-payment`。
+- [ ] 用合并后生产构建刷新微信开发者工具，确认包含 `bb-plugin`、B2B API 路径与 `requestCommonPayment`，并给出上传体验版方案。
 
 ## Surprises & Discoveries
 
-旧依赖 PR 的后端因 00024 重放约束失败；main 已修复。main 的最新 CI 只因 Tailwind 和两个客户端生成物陈旧失败。需求页初次挂载仍会安排一个清空查询的 debounce，可能将刚选择的第二页重置为第一页。golangci-lint v2 正在读取 v1 格式配置。
+- Observation: 开发者工具能打开普通支付二维码，但这不证明体验版可完成交易。
+  Evidence: 仓库历史预检已证明微信普通 JSAPI 下单对当前商户返回 `403 NO_AUTH`，而小程序平台有 B2B 已结算订单。
+- Observation: 问题确实与分支整理有关。
+  Evidence: B2B 后端在 ECS 已部署且健康，但生产小程序所需的插件、API 路径和 `requestCommonPayment` 只存在远端未合并分支；该分支的原计划明确记录“尚未上传新小程序版本”。
+- Observation: 线上请求日志直接证明体验版与 payment 容器协议不一致。
+  Evidence: 2026-09-22 14:43+08:00 真实 iPhone/MicroMessenger 连续请求 `POST /payments/wechat/create` 并获得 503；14:50+08:00 微信开发者工具请求 `POST /payments/wechat/b2b/create` 获得 200，后续 `POST /payments/:paymentId/recheck` 也获得 200。容器镜像为 `localhost/tmo/payment:preserved-f5e3a2b`，provider mode 为 `b2b`。
+- Observation: 最新 `main` 与 B2B 分支的代码冲突很小。
+  Evidence: Git 仅在两个纯文档文件产生冲突，Payment 源码、测试、OpenAPI 与生成客户端均自动合并。
+- Observation: 最新依赖中的 Orval 7.20 会在新生成的 endpoint 模板行留下尾随空格，使新 B2B 生成段在 `git diff --check` 失败。
+  Evidence: 未归一化时四处新行被报告 trailing whitespace；`tools/scripts/normalize-generated-whitespace.mjs` 接入 Payment generate 后，连续两次生成得到 `36a70bd77b0b511239992810ac758fdced47b35e9ca6c13e96b88415b6011658` 且差异检查通过。
 
 ## Decision Log
 
-保留完整 lint/生成检查，修复具体问题；不通过关闭规则或跳过测试使 PR 变绿。保留生产 B2B 分支与所有脏工作区。四个依赖升级共享 Go workspace，在一条整合分支验证最终组合；保留原 PR 的提交祖先关系，使用 merge commit 合入 main，不以 squash 丢失来源。
+- Decision: 合并 B2B 分支，不删除或改成普通 JSAPI。
+  Rationale: 当前商户的可用产品是 B2B 门店助手；普通 JSAPI 是账户权限错误，无法通过前端或签名代码规避。
+  Date/Author: 2026-09-22 / Codex
+- Decision: 在独立整合分支保留 B2B 的四个原始提交和一个 merge commit，不 squash。
+  Rationale: 这保留实现、ECS 部署和真实查单修复的审计链，同时使 `main` 明确包含远端分支 tip，可安全删除来源分支。
+  Date/Author: 2026-09-22 / Codex
+- Decision: 不在主工作区上合并。
+  Rationale: 主工作区有 72 项未提交商品规格改动；隔离 worktree 避免任何覆盖或错误提交。
+  Date/Author: 2026-09-22 / Codex
 
 ## Outcomes & Retrospective
 
-完成。11 个已合并/补丁等价分支已删除，13 个无工作区的历史分支已归档后移除，2 个干净 worktree 已移除。其余 10 个本地分支与 10 个 worktree 保留，其中 7 个工作区有原有未提交改动。远端只剩 main 与 codex/restore-b2b-payment，开放 PR 为 0。worktree 目录约 6.9→5.9 GB，Git 对象库约 74→11 MB，外部完整备份约 14 MB。分支自动删除设置已开启。ECS 未部署本轮仓库维护改动。
+工作进行中。已确定根因为“生产需要的 B2B 小程序代码未合入 `main`，当前体验版仍使用未开通权限的普通 JSAPI”。后端 B2B provider 已在生产运行，所以修复重点是合并、构建和上传正确的小程序代码，不需要再修改商户密钥或回退 ECS。
 
-2026-09-21：独立审查发现 private input 目录的 MkdirAll 会使公开报告祖先目录也变为 0750；已明确先创建可供 Nginx 遍历的 jobRoot 0755，再创建 private input 0750，并添加先失败后通过的集成回归。Go 1.26 是 PR 177 的模块最低要求；工作区和 CI 同步升级。缓存从 Git 索引移除，不删除其他工作区的文件。
+## Context and Orientation
 
-2026-09-21 CI 实跑发现开发容器 nobody 无法写入 runner 拥有的媒体挂载，上传健康检查返回 500。开发脚本现传递宿主 UID/GID，仅开发 commerce 容器按该身份写媒体；不放宽目录权限，不修改生产配置。
+`packages/payment-services/src/index.ts` 决定小程序使用普通 `wechat` 还是 `wechat_b2b`。B2B 创建时先通过平台适配层获取一次性 `wx.login` code，调用 `POST /payments/wechat/b2b/create`，再把后端生成的 `commonPayParams` 交给 `wx.requestCommonPayment`。`services/payment/internal/http/handler/wechat_b2b_provider.go` 调用 code2session、生成 B2B 签名并通过微信 `getorder` 查单。客户端 success 不是资金凭据，只有完整核对商户号、订单号、attach、环境、币种和金额后的 `ORDER_PAY_SUCC` 才将 payment 与 Commerce 订单收敛为 `PAID`。
 
-2026-09-21 全栈后续探针错误地用无效登录码断言 invalid_phone_proof，但服务按安全顺序先返回 invalid_request。改用明确的 mock_ 登录码，严格断言 real 模式拒绝它且不返回 token；手机号凭证分支仍由有效会话的 provider/handler 测试覆盖。
+GitHub 默认分支是 `main`，审计时 tip 为 `9b65fd2`。来源分支 `codex/restore-b2b-payment` 基于 `a0b6140`，包含 `5f93747`、`78a4f43`、`0c931ed` 和 `4a6d8e8`。主工作区不参与合并；所有写操作在 `.worktrees/integrate-b2b-payment` 进行。
 
-最终独立审查发现开发 UID 覆盖也会继承到 Air 模式，导致其 /root Go 缓存不可写。Air overlay 显式保持原有 root 身份，编译镜像模式使用宿主 UID/GID；两种 Compose 解析配置已分别验证，生产配置不变。
+## Plan of Work
 
-最终验证：完整 PostgreSQL 后端测试、315 项 miniapp Jest、38 个 admin mock 场景及全部启用的 Commerce lint 通过；GitHub backend、frontend-contracts、lint-test、fullstack-smoke、preflight-fault-injection 均 SUCCESS，weapp-smoke 按原有条件 SKIPPED。本轮创建的本地测试服务和专用数据库容器已停止。
+先解决文档冲突，将最新分支清理、商品规格与 B2B 支付变更全部保留在 `docs/CHANGELOG.md`，并把本文档更新为当前整合任务。随后运行 Payment 全包测试、B2B 小程序定向测试、全量 miniapp Jest、miniapp 类型检查、packages 类型检查、OpenAPI 同步检查和生产微信构建。构建产物必须含 `bb-plugin`、`/payments/wechat/b2b/create` 和 `requestCommonPayment`，且不包含开发假支付开关。
+
+验证通过后提交 merge commit，推送 `codex/integrate-b2b-payment` 并创建 PR。在 GitHub CI 通过后合入 `main`，确认新 `origin/main` 包含 `4a6d8e8` 后删除远端 `codex/restore-b2b-payment`。最后用合并后的生产构建刷新微信开发者工具，上传操作只在用户明确授权的范围内执行。
+
+## Concrete Steps
+
+在 `.worktrees/integrate-b2b-payment` 运行：
+
+    git status --short
+    go test ./services/payment/...
+    pnpm -C apps/miniapp test -- --runInBand --runTestsByPath src/services/payment-services.test.ts src/services/payment-availability.test.ts
+    pnpm -C apps/miniapp test -- --runInBand
+    pnpm -C apps/miniapp run lint:types
+    pnpm run typecheck:packages
+    pnpm run check:openapi
+    pnpm -C apps/miniapp run build:weapp:prod
+    git diff --check
+
+构建后在 `apps/miniapp/dist/weapp` 搜索 B2B 插件 provider ID、B2B API 路径和 `requestCommonPayment`。提交后推送分支并通过 GitHub PR 合并；不绕过必需检查。
+
+## Validation and Acceptance
+
+代码验收要求上述命令全部退出 0，生成命令重复执行不产生漂移，`git diff --check` 无输出。Payment 测试必须覆盖缺少 B2B 凭据拒绝启动、非 CUSTOMER 禁止创建、线下/非本人订单拒绝、紧凑订单号、幂等重放、每次 login code 重签，以及只有微信权威查单才能写入 `PAID`。小程序测试必须证明调用顺序为 `wx.login` → B2B create → `wx.requestCommonPayment` → recheck，且不调用 ordinary `wx.requestPayment`。
+
+分支验收要求 `origin/main` 包含来源 tip `4a6d8e8`，远端不再存在 `codex/restore-b2b-payment`，GitHub 没有未处理的开放 PR。主工作区原有未提交改动必须原样保留。
+
+## Idempotence and Recovery
+
+测试、生成和构建可重复执行。合并失败可在隔离 worktree 执行 `git merge --abort`，不影响主工作区。删除远端分支前保留 tip `4a6d8e817d0b0cc7632ad014e80d30a89710a897`；如需恢复，可从该 SHA 重建分支。ECS 已有 env 与镜像备份，本轮不修改或输出 B2B AppSecret/AppKey。
+
+## Artifacts and Notes
+
+历史实现计划位于 `docs/superpowers/plans/2026-09-19-restore-wechat-b2b-payment.md`，支付配置 canonical 文档为 `docs/context/payment-setup.md`。ECS payment 已运行 B2B 镜像，后端健康检查、Gateway 就绪检查和服务端 `getorder` 查单均已验证。当前线上 feature flags 为 `paymentEnabled=true`、`wechatPayEnabled=true`、`wechatB2bEnabled=false`；合并后必须按 B2B 发布设计核对该开关，不能仅上传小程序代码却继续关闭 B2B 通道。
+
+## Interfaces and Dependencies
+
+Payment 契约新增 `POST /payments/wechat/b2b/create`，请求包含 `orderId` 和一次性 `wechatLoginCode`，响应包含 `paymentId`、`orderId`、`channel`、`status`、`expiresAt` 和不透明 `commonPayParams`。`packages/platform-adapter` 导出 `commonPay(options: CommonPayOptions): Promise<PayResult>`，WeChat 实现调用 `wx.requestCommonPayment`。`packages/payment-services` 的 `PaymentChannel` 增加 `wechat_b2b`，WeChat 平台默认选择 B2B。生产 payment 容器使用 `PAYMENT_PROVIDER_MODE=b2b` 与受控 `PAYMENT_WECHAT_B2B_*` 变量，普通 JSAPI 代码保留但不同时处理同一订单。
+
+变更记录：2026-09-22，建立 B2B 分支整合计划，记录 GitHub 审计、微信开发者工具复现、历史商户权限证据与初次合并结果。

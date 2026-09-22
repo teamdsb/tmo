@@ -2,6 +2,12 @@
 
 这个文件只记录会影响后续 agent 判断的近期仓库变化，不承担发布说明、项目周报或任务流水账职责。
 
+## 2026-09-22
+
+- 生产微信支付统一为 B2B 门店助手协议：ECS payment 已运行 `PAYMENT_PROVIDER_MODE=b2b`，miniapp 使用 `bb-plugin` 和 `wx.requestCommonPayment`。旧体验版请求普通 `/payments/wechat/create` 会被 B2B provider 以 503 拒绝；需重新构建、上传并发布合并后的小程序产物。前后端均强制检查独立 `wechatB2bEnabled` 熔断开关，平台默认支付渠道与生产 B2B provider 保持一致。
+  影响面：Payment OpenAPI/provider、payment-services、platform-adapter、miniapp 插件与微信发布流程。
+  建议阅读：`docs/context/payment-setup.md`、`.agent/PLANS.md`。
+
 ## 2026-09-21
 
 - 完成分支与 worktree 瘦身，四个依赖 PR 经全部适用 CI 检查后通过 PR 180 合入 main；工作区最低 Go 版本为 1.26，缓存不再入库，已开启合并后自动删除分支。历史分支和未提交工作有本机备份，生产 B2B 分支保留。
@@ -15,6 +21,16 @@
 - 商品支持独立命名的 1～3 级规格，admin 逐行维护实际组合，小程序详情与购物车逐级选择。完整商品 PATCH 可原子保存 SKU 集合，移除 SKU 仅停用；多级 `spec` 改为属性路径摘要。
   影响面：catalog 契约、共享规格规则、admin 与 miniapp、商品 Excel 导入和新增 PRODUCT_EXPORT 异步导出。导出携带稳定 ID 和商品状态，可重复回导；旧紧凑模板继续读取。
   建议阅读：`docs/context/commerce-conventions.md`、`docs/runbooks/product-specifications-excel.md`。
+
+- B2B 支付重查改为调用微信 `getorder` 服务端查单；仅在微信返回 `ORDER_PAY_SUCC` 且商户、订单关联、金额、币种和环境逐项一致时，才会同步本地支付和 Commerce 订单为 `PAID`。小程序客户端回调仍不是可信资金凭据。
+  影响面：Payment B2B provider 与 `/payments/{paymentId}/recheck`。
+  建议阅读：`docs/context/payment-setup.md`、`.agent/PLANS.md`
+
+## 2026-09-19
+
+- 恢复微信 B2B 门店助手支付作为当前生产通道：小程序通过 `wx.requestCommonPayment`，payment 服务使用服务器端 AppSecret/AppKey 生成签名参数，显式 provider mode 为 `b2b`。普通 APIv3/JSAPI provider 继续保留但不与 B2B 同时启用；客户端 success 不直接写入 `PAID`。
+  影响面：Payment OpenAPI、后端 provider/config、platform adapter、payment-services、小程序插件声明、ECS 预检与支付部署文档。
+  建议阅读：`docs/context/payment-setup.md`、`.agent/PLANS.md`
 
 ## 2026-09-14
 

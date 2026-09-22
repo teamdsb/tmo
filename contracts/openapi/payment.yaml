@@ -53,6 +53,48 @@ paths:
           "$ref": "#/components/responses/Conflict"
         '503':
           "$ref": "#/components/responses/ServiceUnavailable"
+  "/payments/wechat/b2b/create":
+    post:
+      tags:
+      - Payments
+      summary: Create a WeChat B2B Store Assistant payment for an order
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        required: false
+        schema:
+          type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                orderId:
+                  type: string
+                  format: uuid
+                wechatLoginCode:
+                  type: string
+                  minLength: 1
+              required:
+              - orderId
+              - wechatLoginCode
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/WechatB2BPayCreateResponse"
+        '400':
+          "$ref": "#/components/responses/BadRequest"
+        '403':
+          "$ref": "#/components/responses/Forbidden"
+        '409':
+          "$ref": "#/components/responses/Conflict"
+        '503':
+          "$ref": "#/components/responses/ServiceUnavailable"
   "/payments/alipay/create":
     post:
       tags:
@@ -1204,9 +1246,37 @@ components:
       - timeStamp
       - signType
       - paySign
+    WechatB2BPayCreateResponse:
+      type: object
+      properties:
+        paymentId:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        channel:
+          "$ref": "#/components/schemas/PaymentChannel"
+        status:
+          "$ref": "#/components/schemas/PaymentStatus"
+        expiresAt:
+          type: string
+          format: date-time
+        commonPayParams:
+          type: object
+          description: Opaque parameters passed unchanged to wx.requestCommonPayment.
+          additionalProperties: true
+      required:
+      - paymentId
+      - orderId
+      - channel
+      - status
+      - expiresAt
+      - commonPayParams
     PaymentChannel:
       type: string
       enum:
+      - WECHAT_B2B
       - WECHAT
       - ALIPAY
     PaymentStatus:

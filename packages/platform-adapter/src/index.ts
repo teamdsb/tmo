@@ -8,6 +8,7 @@ import type {
   ChooseImageResult,
   LoginResult,
   PhoneProofResult,
+  CommonPayOptions,
   PayOptions,
   PayResult,
   RequestMethod,
@@ -81,6 +82,17 @@ export const pay = async (options: PayOptions): Promise<PayResult> => {
       return alipay.pay(options)
     default:
       return Promise.reject(new Error('pay is not supported on this platform'))
+  }
+}
+
+export const commonPay = async (options: CommonPayOptions): Promise<PayResult> => {
+  switch (getPlatform()) {
+    case Platform.Weapp:
+      return weapp.commonPay(options)
+    case Platform.Alipay:
+      return alipay.commonPay(options)
+    default:
+      return Promise.reject(new Error('common payment is not supported on this platform'))
   }
 }
 

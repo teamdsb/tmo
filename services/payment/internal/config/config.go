@@ -24,6 +24,7 @@ const (
 	defaultAlipayPayEnabled    = false
 	defaultCommerceSyncToken   = "dev-payment-sync-token"
 	defaultProviderMode        = "disabled"
+	defaultWechatB2BSessionURL = "https://api.weixin.qq.com/sns/jscode2session"
 )
 
 type Config struct {
@@ -48,6 +49,12 @@ type Config struct {
 	WechatMerchantPrivateKeyPath string
 	WechatMerchantSerialNumber   string
 	WechatNotifyURL              string
+	WechatB2BAppID               string
+	WechatB2BAppSecret           string
+	WechatB2BMchID               string
+	WechatB2BAppKey              string
+	WechatB2BEnvironment         int
+	WechatB2BSessionURL          string
 }
 
 func Load() Config {
@@ -73,12 +80,38 @@ func Load() Config {
 		WechatMerchantPrivateKeyPath: sharedconfig.String("PAYMENT_WECHAT_MERCHANT_PRIVATE_KEY_PATH", ""),
 		WechatMerchantSerialNumber:   sharedconfig.String("PAYMENT_WECHAT_MERCHANT_SERIAL_NUMBER", ""),
 		WechatNotifyURL:              sharedconfig.String("PAYMENT_WECHAT_NOTIFY_URL", ""),
+		WechatB2BAppID:               sharedconfig.String("PAYMENT_WECHAT_B2B_APP_ID", ""),
+		WechatB2BAppSecret:           sharedconfig.String("PAYMENT_WECHAT_B2B_APP_SECRET", ""),
+		WechatB2BMchID:               sharedconfig.String("PAYMENT_WECHAT_B2B_MCH_ID", ""),
+		WechatB2BAppKey:              sharedconfig.String("PAYMENT_WECHAT_B2B_APP_KEY", ""),
+		WechatB2BEnvironment:         sharedconfig.Int("PAYMENT_WECHAT_B2B_ENV", 0),
+		WechatB2BSessionURL:          sharedconfig.String("PAYMENT_WECHAT_B2B_SESSION_URL", defaultWechatB2BSessionURL),
 	}
 }
 
 func (c Config) Validate() error {
 	if c.AuthEnabled && strings.TrimSpace(c.JWTSecret) == "" {
 		return errors.New("PAYMENT_JWT_SECRET is required when PAYMENT_AUTH_ENABLED is true")
+	}
+	if strings.EqualFold(strings.TrimSpace(c.ProviderMode), "b2b") {
+		if !c.AuthEnabled {
+			return errors.New("PAYMENT_AUTH_ENABLED must be true for the b2b provider")
+		}
+		values := map[string]string{
+			"PAYMENT_WECHAT_B2B_APP_ID":      c.WechatB2BAppID,
+			"PAYMENT_WECHAT_B2B_APP_SECRET":  c.WechatB2BAppSecret,
+			"PAYMENT_WECHAT_B2B_MCH_ID":      c.WechatB2BMchID,
+			"PAYMENT_WECHAT_B2B_APP_KEY":     c.WechatB2BAppKey,
+			"PAYMENT_WECHAT_B2B_SESSION_URL": c.WechatB2BSessionURL,
+		}
+		for name, value := range values {
+			if strings.TrimSpace(value) == "" {
+				return errors.New(name + " is required for the b2b provider")
+			}
+		}
+		if c.WechatB2BEnvironment != 0 && c.WechatB2BEnvironment != 1 {
+			return errors.New("PAYMENT_WECHAT_B2B_ENV must be 0 or 1")
+		}
 	}
 	return nil
 }

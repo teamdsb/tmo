@@ -23,9 +23,12 @@ export const resolvePaymentAvailability = async (): Promise<PaymentAvailability>
     return unavailable('在线支付暂未开通，请等待销售确认。')
   }
   if (isWeapp()) {
-    return flags.wechatPayEnabled === true
-      ? available('wechat')
-      : unavailable('微信支付暂未开通，请等待销售确认。')
+    if (flags.wechatPayEnabled !== true) {
+      return unavailable('微信支付暂未开通，请等待销售确认。')
+    }
+    return flags.wechatB2bEnabled === true
+      ? available('wechat_b2b')
+      : unavailable('微信 B2B 支付暂未开通，请等待销售确认。')
   }
   if (isAlipay()) {
     return runtimeEnv.isIsolatedMock && flags.alipayPayEnabled === true

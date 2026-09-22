@@ -161,6 +161,8 @@ paths:
     $ref: "./commerce.yaml#/paths/~1support~1conversations~1{conversationId}~1read"
   /payments/wechat/create:
     $ref: "./payment.yaml#/paths/~1payments~1wechat~1create"
+  /payments/wechat/b2b/create:
+    $ref: "./payment.yaml#/paths/~1payments~1wechat~1b2b~1create"
   /payments/alipay/create:
     $ref: "./payment.yaml#/paths/~1payments~1alipay~1create"
   /payments/{paymentId}:
@@ -779,6 +781,20 @@ components:
         timeStamp: { type: string }
         paySign: { type: string }
       required: [orderId, prepayId, nonceStr, timeStamp, paySign]
+
+    WechatB2BPayCreateResponse:
+      type: object
+      properties:
+        paymentId: { type: string, format: uuid }
+        orderId: { type: string, format: uuid }
+        channel: { type: string, enum: [WECHAT_B2B] }
+        status: { type: string, enum: [PAY_PENDING, PAID, PAY_FAILED, CANCELLED] }
+        expiresAt: { type: string, format: date-time }
+        commonPayParams:
+          type: object
+          description: Opaque parameters passed unchanged to wx.requestCommonPayment.
+          additionalProperties: true
+      required: [paymentId, orderId, channel, status, expiresAt, commonPayParams]
 
     AlipayPayCreateResponse:
       type: object
