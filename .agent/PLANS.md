@@ -19,8 +19,9 @@
 - [x] (2026-09-22 15:20+08:00) 只读核对 ECS：payment 容器为 `PAYMENT_PROVIDER_MODE=b2b`，四项 B2B 核心配置均已设置，payment/gateway health/ready 均为 200；真机体验版请求旧普通接口返回 503，开发者工具的 B2B 接口返回 200。
 - [x] (2026-09-22 15:25+08:00) 独立审查发现两个 Important：B2B 熔断开关未强制检查，且 WeChat 未显式指定渠道时仍默认普通 JSAPI。已先观察 2 个前端失败与 1 个后端失败，再修正为前后端同时强制 `wechatB2bEnabled`、WeApp 默认 `wechat_b2b`；复审确认无剩余 Critical/Important。
 - [x] (2026-09-22 15:27+08:00) 修正后重新验证：Payment Go 全包、miniapp 45 suites / 318 tests、miniapp 与全部 packages 类型检查、OpenAPI 同步和生产微信构建均退出 0。
-- [ ] 推送整合分支，通过 GitHub PR 合入 `main`，确认远端 `main` 包含 B2B 提交后删除 `origin/codex/restore-b2b-payment`。
-- [ ] 用合并后生产构建刷新微信开发者工具，确认包含 `bb-plugin`、B2B API 路径与 `requestCommonPayment`，并给出上传体验版方案。
+- [x] (2026-09-22 15:32+08:00) 推送整合分支并创建 PR 181；GitHub backend、frontend-contracts、fullstack-smoke 和 preflight-fault-injection 全部 SUCCESS，weapp-smoke 按既有条件 SKIPPED。PR 合并为 `4b8fd11`，已验证 `origin/main` 包含 B2B tip 与整合提交。
+- [x] (2026-09-22 15:33+08:00) 删除远端 `codex/restore-b2b-payment` 和临时整合分支；远端只剩 `main`，开放 PR 为 0。
+- [x] (2026-09-22 15:27+08:00) 合并后生产构建已生成并同步到 `~/.tmo/weapp-devtools`，产物已确认含 `bb-plugin`、B2B API 路径与 `requestCommonPayment`。本轮未上传/发布体验版，也未执行真实扣款。
 
 ## Surprises & Discoveries
 
@@ -49,7 +50,9 @@
 
 ## Outcomes & Retrospective
 
-工作进行中。已确定根因为“生产需要的 B2B 小程序代码未合入 `main`，当前体验版仍使用未开通权限的普通 JSAPI”。后端 B2B provider 已在生产运行，所以修复重点是合并、构建和上传正确的小程序代码，不需要再修改商户密钥或回退 ECS。
+根因、代码整合和 GitHub 分支清理已完成。直接证据是真机体验版对普通 `/payments/wechat/create` 的请求全部 503，而同一生产 payment 容器对 B2B `/payments/wechat/b2b/create` 返回 200。原因是已部署的 B2B 小程序代码一直停留在未合并分支，体验版仍使用与线上 `PAYMENT_PROVIDER_MODE=b2b` 不兼容的普通 JSAPI。
+
+B2B 实现现已在 `origin/main` 提交 `4b8fd11`中，独立熔断开关与默认渠道的审查问题也已经回归测试修复。远端只剩 `main`，所有必需 GitHub 检查均通过。下一个运营步骤是在 Identity 中把 `paymentEnabled`、`wechatPayEnabled`、`wechatB2bEnabled` 同时开启，再用微信开发者工具上传并发布已生成的 B2B 产物。这些外部发布动作本轮没有执行，因此不声称体验版已恢复真实扣款。
 
 ## Context and Orientation
 
@@ -97,4 +100,4 @@ GitHub 默认分支是 `main`，审计时 tip 为 `9b65fd2`。来源分支 `code
 
 Payment 契约新增 `POST /payments/wechat/b2b/create`，请求包含 `orderId` 和一次性 `wechatLoginCode`，响应包含 `paymentId`、`orderId`、`channel`、`status`、`expiresAt` 和不透明 `commonPayParams`。`packages/platform-adapter` 导出 `commonPay(options: CommonPayOptions): Promise<PayResult>`，WeChat 实现调用 `wx.requestCommonPayment`。`packages/payment-services` 的 `PaymentChannel` 增加 `wechat_b2b`，WeChat 平台默认选择 B2B。生产 payment 容器使用 `PAYMENT_PROVIDER_MODE=b2b` 与受控 `PAYMENT_WECHAT_B2B_*` 变量，普通 JSAPI 代码保留但不同时处理同一订单。
 
-变更记录：2026-09-22，建立 B2B 分支整合计划，记录 GitHub 审计、微信开发者工具复现、历史商户权限证据与初次合并结果。
+变更记录：2026-09-22，建立 B2B 分支整合计划，记录 GitHub 审计、微信开发者工具复现、历史商户权限证据与初次合并结果。2026-09-22 收尾：记录审查修正、最终测试、PR 181 合并、远端分支删除与尚未执行的微信上传/发布步骤。
