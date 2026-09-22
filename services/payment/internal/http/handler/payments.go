@@ -32,8 +32,9 @@ const (
 	paymentStatusFailed    = "PAY_FAILED"
 	paymentStatusCancelled = "CANCELLED"
 
-	paymentChannelWechat = "WECHAT"
-	paymentChannelAlipay = "ALIPAY"
+	paymentChannelWechat    = "WECHAT"
+	paymentChannelWechatB2B = "WECHAT_B2B"
+	paymentChannelAlipay    = "ALIPAY"
 )
 
 type normalizedNotifyPayload struct {
@@ -64,6 +65,24 @@ func (h *Handler) PostPaymentsWechatCreate(c *gin.Context, params oapi.PostPayme
 		return
 	}
 
+	c.JSON(http.StatusOK, response)
+}
+
+func (h *Handler) PostPaymentsWechatB2bCreate(c *gin.Context, params oapi.PostPaymentsWechatB2bCreateParams) {
+	claims, ok := h.requireCustomer(c)
+	if !ok {
+		return
+	}
+	var request oapi.PostPaymentsWechatB2bCreateJSONBody
+	if err := c.ShouldBindJSON(&request); err != nil {
+		apierrors.Write(c, http.StatusBadRequest, apierrors.APIError{Code: "invalid_request", Message: "invalid request body"})
+		return
+	}
+	response, err := h.createWechatB2BPaymentSession(c, claims, uuid.UUID(request.OrderId), request.WechatLoginCode, params.IdempotencyKey)
+	if err != nil {
+		h.writePaymentError(c, err)
+		return
+	}
 	c.JSON(http.StatusOK, response)
 }
 
@@ -410,6 +429,146 @@ func (h *Handler) createPaymentSession(c *gin.Context, claims middleware.Claims,
 	return hydrateCreateResponseIDs(payment.ID, responsePayload), nil
 }
 
+func (h *Handler) createWechatB2BPaymentSession(c *gin.Context, claims middleware.Claims, orderID uuid.UUID, loginCode string, idempotencyKey *string) (interface{}, error) {
+	if h.Store == nil || h.Commerce == nil {
+		return nil, errInternal("payment dependencies are not configured")
+	}
+	flags := h.getFeatureFlags(c)
+	if !flags.PaymentEnabled || !flags.WechatPayEnabled || !flags.WechatB2bEnabled {
+		return nil, errForbidden("wechat b2b pay is disabled")
+	}
+	if !strings.EqualFold(strings.TrimSpace(h.ProviderMode), "b2b") || h.WechatB2B == nil {
+		return nil, errServiceUnavailable("wechat b2b provider is not configured")
+	}
+	order, err := h.Commerce.GetOrder(c.Request.Context(), c.GetHeader("Authorization"), orderID.String())
+	if err != nil {
+		return nil, errInternal(fmt.Sprintf("fetch order failed: %v", err))
+	}
+	if strings.EqualFold(order.PaymentMethod, "OFFLINE") {
+		return nil, errConflict("order payment method is not online")
+	}
+	amount := calculateOrderAmount(order)
+	normalizedIdempotencyKey := normalizeOptionalString(idempotencyKey)
+	if normalizedIdempotencyKey != nil {
+		existing, lookupErr := h.Store.GetPaymentByIdempotencyKey(c.Request.Context(), db.GetPaymentByIdempotencyKeyParams{
+			OrderID: orderID, Channel: paymentChannelWechatB2B, IdempotencyKey: normalizedIdempotencyKey,
+		})
+		if lookupErr == nil {
+			if existing.Status == paymentStatusPaid {
+				return h.replayExistingPayment(c.Request.Context(), existing)
+			}
+			if existing.AmountFen != amount {
+				return nil, errConflict("payment amount does not match current order")
+			}
+			if !isOrderPayable(order.Status, order.PaymentStatus) {
+				return nil, errConflict("order is not payable")
+			}
+			return h.refreshWechatB2BPaymentSession(c, existing, loginCode)
+		}
+		if !errors.Is(lookupErr, pgx.ErrNoRows) {
+			return nil, errInternal("check payment idempotency failed")
+		}
+	}
+	if !isOrderPayable(order.Status, order.PaymentStatus) {
+		return nil, errConflict("order is not payable")
+	}
+	expiresAt := time.Now().UTC().Add(15 * time.Minute)
+	commonPayParams, err := h.WechatB2B.CreateCommonPayParams(c.Request.Context(), WechatB2BPaymentRequest{
+		OrderID: orderID, AmountFen: amount, ExpiresAt: expiresAt, LoginCode: loginCode,
+	})
+	if err != nil {
+		return nil, errConflict(fmt.Sprintf("create wechat b2b parameters: %v", err))
+	}
+	if len(commonPayParams) == 0 {
+		return nil, errInternal("wechat b2b provider returned empty payment parameters")
+	}
+	response := oapi.WechatB2BPayCreateResponse{
+		OrderId: orderID, Channel: oapi.PaymentChannel(paymentChannelWechatB2B), Status: oapi.PaymentStatus(paymentStatusPending),
+		ExpiresAt: expiresAt, CommonPayParams: commonPayParams,
+	}
+	rawPayload, err := json.Marshal(response)
+	if err != nil {
+		return nil, errInternal("encode wechat b2b payment payload failed")
+	}
+	payment, err := h.Store.CreatePayment(c.Request.Context(), db.CreatePaymentParams{
+		OrderID: orderID, PayerUserID: toNullableUUID(claims.UserID), Channel: paymentChannelWechatB2B,
+		Status: paymentStatusPending, AmountFen: amount, Currency: "CNY", IdempotencyKey: normalizedIdempotencyKey,
+		ProviderPayload: rawPayload, PaidAt: pgtype.Timestamptz{}, ClosedAt: pgtype.Timestamptz{},
+	})
+	if err != nil {
+		if normalizedIdempotencyKey != nil && shareddb.IsUniqueViolation(err) {
+			existing, lookupErr := h.Store.GetPaymentByIdempotencyKey(c.Request.Context(), db.GetPaymentByIdempotencyKeyParams{
+				OrderID: orderID, Channel: paymentChannelWechatB2B, IdempotencyKey: normalizedIdempotencyKey,
+			})
+			if lookupErr != nil {
+				return nil, errInternal("reload payment after idempotency race failed")
+			}
+			if existing.Status == paymentStatusPaid {
+				return h.replayExistingPayment(c.Request.Context(), existing)
+			}
+			if existing.AmountFen != amount {
+				return nil, errConflict("concurrent payment amount does not match current order")
+			}
+			return h.persistRefreshedWechatB2BPaymentSession(c, existing, expiresAt, commonPayParams)
+		}
+		return nil, errInternal("create payment failed")
+	}
+	if err := h.recordAudit(c.Request.Context(), payment.ID, "created", "user", "wechat b2b payment session created"); err != nil {
+		h.logError("create payment audit log failed", err)
+	}
+	if err := h.syncPaymentToCommerce(c.Request.Context(), payment); err != nil {
+		return nil, errInternal(fmt.Sprintf("sync order payment failed: %v", err))
+	}
+	response.PaymentId = payment.ID
+	return response, nil
+}
+
+func (h *Handler) refreshWechatB2BPaymentSession(c *gin.Context, payment db.Payment, loginCode string) (interface{}, error) {
+	expiresAt := time.Now().UTC().Add(15 * time.Minute)
+	commonPayParams, err := h.WechatB2B.CreateCommonPayParams(c.Request.Context(), WechatB2BPaymentRequest{
+		OrderID: payment.OrderID, AmountFen: payment.AmountFen, ExpiresAt: expiresAt, LoginCode: loginCode,
+	})
+	if err != nil {
+		return nil, errConflict(fmt.Sprintf("refresh wechat b2b parameters: %v", err))
+	}
+	if len(commonPayParams) == 0 {
+		return nil, errInternal("wechat b2b provider returned empty payment parameters")
+	}
+	return h.persistRefreshedWechatB2BPaymentSession(c, payment, expiresAt, commonPayParams)
+}
+
+func (h *Handler) persistRefreshedWechatB2BPaymentSession(c *gin.Context, payment db.Payment, expiresAt time.Time, commonPayParams map[string]interface{}) (interface{}, error) {
+	response := oapi.WechatB2BPayCreateResponse{
+		PaymentId: payment.ID, OrderId: payment.OrderID, Channel: oapi.PaymentChannel(paymentChannelWechatB2B),
+		Status: oapi.PaymentStatus(paymentStatusPending), ExpiresAt: expiresAt, CommonPayParams: commonPayParams,
+	}
+	rawPayload, err := json.Marshal(response)
+	if err != nil {
+		return nil, errInternal("encode refreshed wechat b2b payment payload failed")
+	}
+	updated, err := h.Store.UpdatePaymentState(c.Request.Context(), db.UpdatePaymentStateParams{
+		ID: payment.ID, Status: paymentStatusPending, ProviderTradeNo: payment.ProviderTradeNo,
+		ProviderPrepayID: payment.ProviderPrepayID, ProviderPayload: rawPayload,
+		PaidAt: pgtype.Timestamptz{}, ClosedAt: pgtype.Timestamptz{},
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			current, lookupErr := h.Store.GetPayment(c.Request.Context(), payment.ID)
+			if lookupErr == nil && current.Status == paymentStatusPaid {
+				return h.replayExistingPayment(c.Request.Context(), current)
+			}
+		}
+		return nil, errInternal("refresh wechat b2b payment failed")
+	}
+	if err := h.syncPaymentToCommerce(c.Request.Context(), updated); err != nil {
+		return nil, errInternal(fmt.Sprintf("sync refreshed payment failed: %v", err))
+	}
+	if err := h.recordAudit(c.Request.Context(), payment.ID, "session_refreshed", "user", "wechat b2b payment session refreshed"); err != nil {
+		h.logError("create payment audit log failed", err)
+	}
+	return response, nil
+}
+
 func (h *Handler) replayExistingPayment(ctx context.Context, payment db.Payment) (interface{}, error) {
 	if err := h.syncPaymentToCommerce(ctx, payment); err != nil {
 		return nil, errInternal(fmt.Sprintf("sync existing payment failed: %v", err))
@@ -459,6 +618,18 @@ func (h *Handler) resolvePaymentFromClientResult(c *gin.Context, payment db.Paym
 			return payment, nil
 		}
 		return h.applyPaymentResolution(c, payment, resolution.Status, normalizeOptionalString(&resolution.ProviderTradeNo), normalizeOptionalString(&resolution.Reason))
+	case "B2B":
+		if payment.Channel != paymentChannelWechatB2B || h.WechatB2B == nil {
+			return payment, nil
+		}
+		resolution, err := h.WechatB2B.QueryPayment(c.Request.Context(), WechatB2BQueryRequest{OrderID: payment.OrderID, AmountFen: payment.AmountFen})
+		if err != nil {
+			return payment, errInternal(fmt.Sprintf("query wechat b2b payment failed: %v", err))
+		}
+		if resolution.Status == paymentStatusPending {
+			return payment, nil
+		}
+		return h.applyPaymentResolution(c, payment, resolution.Status, normalizeOptionalString(&resolution.ProviderTradeNo), nil)
 	default:
 		return payment, nil
 	}
@@ -604,6 +775,16 @@ func paymentDetailFromModel(payment db.Payment) oapi.PaymentDetail {
 
 func createResponseFromPayment(payment db.Payment) (interface{}, error) {
 	switch payment.Channel {
+	case paymentChannelWechatB2B:
+		var response oapi.WechatB2BPayCreateResponse
+		if err := json.Unmarshal(payment.ProviderPayload, &response); err != nil {
+			return nil, errInternal("decode wechat b2b payment payload failed")
+		}
+		response.PaymentId = payment.ID
+		response.OrderId = payment.OrderID
+		response.Channel = oapi.PaymentChannel(payment.Channel)
+		response.Status = oapi.PaymentStatus(payment.Status)
+		return response, nil
 	case paymentChannelWechat:
 		var response oapi.WechatPayCreateResponse
 		if err := json.Unmarshal(payment.ProviderPayload, &response); err != nil {
@@ -617,6 +798,9 @@ func createResponseFromPayment(payment db.Payment) (interface{}, error) {
 
 func hydrateCreateResponseIDs(paymentID uuid.UUID, payload interface{}) interface{} {
 	switch response := payload.(type) {
+	case oapi.WechatB2BPayCreateResponse:
+		response.PaymentId = paymentID
+		return response
 	case oapi.WechatPayCreateResponse:
 		response.PaymentId = paymentID
 		return response

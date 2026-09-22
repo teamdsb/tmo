@@ -6,6 +6,7 @@ import type {
   ChooseImageResult,
   LoginResult,
   PhoneProofResult,
+  CommonPayOptions,
   PayOptions,
   PayResult,
   RequestOptions,
@@ -20,6 +21,10 @@ import type {
 import { runAbortableTask } from '../abortable'
 
 declare const my: any
+
+export const commonPay = (_options: CommonPayOptions): Promise<PayResult> => {
+  return Promise.reject(new Error('common payment is not supported on Alipay'))
+}
 
 type AlipayPhoneAPIResult = {
   response?: string

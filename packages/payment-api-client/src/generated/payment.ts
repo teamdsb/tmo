@@ -700,11 +700,27 @@ export interface WechatPayCreateResponse {
   paySign: string;
 }
 
+/**
+ * Opaque parameters passed unchanged to wx.requestCommonPayment.
+ */
+export type WechatB2BPayCreateResponseCommonPayParams = { [key: string]: unknown };
+
+export interface WechatB2BPayCreateResponse {
+  paymentId: string;
+  orderId: string;
+  channel: PaymentChannel;
+  status: PaymentStatus;
+  expiresAt: string;
+  /** Opaque parameters passed unchanged to wx.requestCommonPayment. */
+  commonPayParams: WechatB2BPayCreateResponseCommonPayParams;
+}
+
 export type PaymentChannel = typeof PaymentChannel[keyof typeof PaymentChannel];
 
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const PaymentChannel = {
+  WECHAT_B2B: 'WECHAT_B2B',
   WECHAT: 'WECHAT',
   ALIPAY: 'ALIPAY',
 } as const;
@@ -797,6 +813,12 @@ export type PostPaymentsWechatCreateBody = {
   orderId: string;
 };
 
+export type PostPaymentsWechatB2bCreateBody = {
+  orderId: string;
+  /** @minLength 1 */
+  wechatLoginCode: string;
+};
+
 export type PostPaymentsAlipayCreateBody = {
   orderId: string;
 };
@@ -827,7 +849,7 @@ export type postPaymentsWechatCreateResponse503 = {
   data: ServiceUnavailableResponse
   status: 503
 }
-    
+
 export type postPaymentsWechatCreateResponseSuccess = (postPaymentsWechatCreateResponse200) & {
   headers: Headers;
 };
@@ -840,20 +862,79 @@ export type postPaymentsWechatCreateResponse = (postPaymentsWechatCreateResponse
 export const getPostPaymentsWechatCreateUrl = () => {
 
 
-  
+
 
   return `/payments/wechat/create`
 }
 
 export const postPaymentsWechatCreate = async (postPaymentsWechatCreateBody: PostPaymentsWechatCreateBody, options?: RequestInit): Promise<postPaymentsWechatCreateResponse> => {
-  
+
   return apiMutator<postPaymentsWechatCreateResponse>(getPostPaymentsWechatCreateUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
     body: JSON.stringify(
       postPaymentsWechatCreateBody,)
+  }
+);}
+
+
+
+/**
+ * @summary Create a WeChat B2B Store Assistant payment for an order
+ */
+export type postPaymentsWechatB2bCreateResponse200 = {
+  data: WechatB2BPayCreateResponse
+  status: 200
+}
+
+export type postPaymentsWechatB2bCreateResponse400 = {
+  data: BadRequestResponse
+  status: 400
+}
+
+export type postPaymentsWechatB2bCreateResponse403 = {
+  data: ForbiddenResponse
+  status: 403
+}
+
+export type postPaymentsWechatB2bCreateResponse409 = {
+  data: ConflictResponse
+  status: 409
+}
+
+export type postPaymentsWechatB2bCreateResponse503 = {
+  data: ServiceUnavailableResponse
+  status: 503
+}
+
+export type postPaymentsWechatB2bCreateResponseSuccess = (postPaymentsWechatB2bCreateResponse200) & {
+  headers: Headers;
+};
+export type postPaymentsWechatB2bCreateResponseError = (postPaymentsWechatB2bCreateResponse400 | postPaymentsWechatB2bCreateResponse403 | postPaymentsWechatB2bCreateResponse409 | postPaymentsWechatB2bCreateResponse503) & {
+  headers: Headers;
+};
+
+export type postPaymentsWechatB2bCreateResponse = (postPaymentsWechatB2bCreateResponseSuccess | postPaymentsWechatB2bCreateResponseError)
+
+export const getPostPaymentsWechatB2bCreateUrl = () => {
+
+
+
+
+  return `/payments/wechat/b2b/create`
+}
+
+export const postPaymentsWechatB2bCreate = async (postPaymentsWechatB2bCreateBody: PostPaymentsWechatB2bCreateBody, options?: RequestInit): Promise<postPaymentsWechatB2bCreateResponse> => {
+
+  return apiMutator<postPaymentsWechatB2bCreateResponse>(getPostPaymentsWechatB2bCreateUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      postPaymentsWechatB2bCreateBody,)
   }
 );}
 
@@ -866,7 +947,7 @@ export type postPaymentsAlipayCreateResponse501 = {
   data: NotImplementedResponse
   status: 501
 }
-    
+
 ;
 export type postPaymentsAlipayCreateResponseError = (postPaymentsAlipayCreateResponse501) & {
   headers: Headers;
@@ -877,15 +958,15 @@ export type postPaymentsAlipayCreateResponse = (postPaymentsAlipayCreateResponse
 export const getPostPaymentsAlipayCreateUrl = () => {
 
 
-  
+
 
   return `/payments/alipay/create`
 }
 
 export const postPaymentsAlipayCreate = async (postPaymentsAlipayCreateBody: PostPaymentsAlipayCreateBody, options?: RequestInit): Promise<postPaymentsAlipayCreateResponse> => {
-  
+
   return apiMutator<postPaymentsAlipayCreateResponse>(getPostPaymentsAlipayCreateUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -908,7 +989,7 @@ export type getPaymentsPaymentIdResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type getPaymentsPaymentIdResponseSuccess = (getPaymentsPaymentIdResponse200) & {
   headers: Headers;
 };
@@ -921,19 +1002,19 @@ export type getPaymentsPaymentIdResponse = (getPaymentsPaymentIdResponseSuccess 
 export const getGetPaymentsPaymentIdUrl = (paymentId: string,) => {
 
 
-  
+
 
   return `/payments/${paymentId}`
 }
 
 export const getPaymentsPaymentId = async (paymentId: string, options?: RequestInit): Promise<getPaymentsPaymentIdResponse> => {
-  
+
   return apiMutator<getPaymentsPaymentIdResponse>(getGetPaymentsPaymentIdUrl(paymentId),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -951,7 +1032,7 @@ export type postPaymentsPaymentIdRecheckResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type postPaymentsPaymentIdRecheckResponseSuccess = (postPaymentsPaymentIdRecheckResponse200) & {
   headers: Headers;
 };
@@ -964,16 +1045,16 @@ export type postPaymentsPaymentIdRecheckResponse = (postPaymentsPaymentIdRecheck
 export const getPostPaymentsPaymentIdRecheckUrl = (paymentId: string,) => {
 
 
-  
+
 
   return `/payments/${paymentId}/recheck`
 }
 
 export const postPaymentsPaymentIdRecheck = async (paymentId: string,
     paymentRecheckRequest?: PaymentRecheckRequest, options?: RequestInit): Promise<postPaymentsPaymentIdRecheckResponse> => {
-  
+
   return apiMutator<postPaymentsPaymentIdRecheckResponse>(getPostPaymentsPaymentIdRecheckUrl(paymentId),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1001,7 +1082,7 @@ export type postPaymentsWechatNotifyResponse503 = {
   data: ServiceUnavailableResponse
   status: 503
 }
-    
+
 export type postPaymentsWechatNotifyResponseSuccess = (postPaymentsWechatNotifyResponse200) & {
   headers: Headers;
 };
@@ -1014,15 +1095,15 @@ export type postPaymentsWechatNotifyResponse = (postPaymentsWechatNotifyResponse
 export const getPostPaymentsWechatNotifyUrl = () => {
 
 
-  
+
 
   return `/payments/wechat/notify`
 }
 
 export const postPaymentsWechatNotify = async (postPaymentsWechatNotifyBody: PostPaymentsWechatNotifyBody, options?: RequestInit): Promise<postPaymentsWechatNotifyResponse> => {
-  
+
   return apiMutator<postPaymentsWechatNotifyResponse>(getPostPaymentsWechatNotifyUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1040,7 +1121,7 @@ export type postPaymentsAlipayNotifyResponse501 = {
   data: NotImplementedResponse
   status: 501
 }
-    
+
 ;
 export type postPaymentsAlipayNotifyResponseError = (postPaymentsAlipayNotifyResponse501) & {
   headers: Headers;
@@ -1051,15 +1132,15 @@ export type postPaymentsAlipayNotifyResponse = (postPaymentsAlipayNotifyResponse
 export const getPostPaymentsAlipayNotifyUrl = () => {
 
 
-  
+
 
   return `/payments/alipay/notify`
 }
 
 export const postPaymentsAlipayNotify = async (postPaymentsAlipayNotifyBody: PostPaymentsAlipayNotifyBody, options?: RequestInit): Promise<postPaymentsAlipayNotifyResponse> => {
-  
+
   return apiMutator<postPaymentsAlipayNotifyResponse>(getPostPaymentsAlipayNotifyUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },

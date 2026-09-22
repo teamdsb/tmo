@@ -61,6 +61,10 @@ cp infra/prod/env.ecs.example infra/prod/env.ecs.local
 - `ADMIN_WEB_PUBLIC_BASE_URL`
 - `ADMIN_WEB_API_BASE_URL`
 
+若生产使用微信 B2B 门店助手支付，还必须设置 `PAYMENT_PROVIDER_MODE=b2b` 以及全部 `PAYMENT_WECHAT_B2B_*` 变量。`prod-ecs-up.sh` 会在构建前检查四项核心凭据非空，但不会打印它们。普通 JSAPI 模式使用 `PAYMENT_PROVIDER_MODE=wechat`，两套配置不得混用。
+
+发布 B2B 小程序前还要在 admin 功能开关中同时开启 `paymentEnabled`、`wechatPayEnabled` 和 `wechatB2bEnabled`。前端和 payment 服务都会检查这三项；任一项为 `false` 都不会创建 B2B 会话。需要紧急停用 B2B 时优先关闭 `wechatB2bEnabled`。
+
 5. 启动服务：
 
 ```bash
@@ -156,6 +160,8 @@ bash tools/scripts/prod-ecs-migrate.sh
 ```bash
 docker compose --env-file infra/prod/env.ecs.local -f infra/prod/docker-compose.ecs.yml up -d --build
 ```
+
+支付服务单独更新前，应先备份 env 和当前 payment 镜像，并使用已提交 Git SHA 的干净 release 构建镜像。不要在含未提交修改的 `/opt/tmo` 上直接 pull、checkout 或覆盖文件。B2B 部署完成后，至少确认 payment 容器内 provider mode 为 `b2b`、凭据只报告 set/长度、`/health` 和 `/ready` 均为 200。
 
 ## 上线后检查
 

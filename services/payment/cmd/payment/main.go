@@ -97,6 +97,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	}, logger)
 
 	var wechatProvider provider.Wechat
+	var wechatB2BProvider handler.WechatB2BProvider
 	if strings.EqualFold(strings.TrimSpace(cfg.ProviderMode), "wechat") || strings.EqualFold(strings.TrimSpace(cfg.ProviderMode), "real") {
 		if !cfg.AuthEnabled {
 			return fmt.Errorf("PAYMENT_AUTH_ENABLED must be true for the wechat provider")
@@ -110,6 +111,15 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 			return fmt.Errorf("initialize wechat provider: %w", err)
 		}
 	}
+	if strings.EqualFold(strings.TrimSpace(cfg.ProviderMode), "b2b") {
+		wechatB2BProvider, err = handler.NewWechatB2BDirectProvider(handler.WechatB2BConfig{
+			AppID: cfg.WechatB2BAppID, AppSecret: cfg.WechatB2BAppSecret, MchID: cfg.WechatB2BMchID,
+			AppKey: cfg.WechatB2BAppKey, Environment: cfg.WechatB2BEnvironment, SessionURL: cfg.WechatB2BSessionURL,
+		})
+		if err != nil {
+			return fmt.Errorf("initialize wechat b2b provider: %w", err)
+		}
+	}
 
 	apiHandler := &handler.Handler{
 		Logger:       logger,
@@ -119,6 +129,7 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		Commerce:     handler.NewCommerceClient(cfg.CommerceBaseURL, cfg.CommerceSyncToken),
 		ProviderMode: cfg.ProviderMode,
 		Wechat:       wechatProvider,
+		WechatB2B:    wechatB2BProvider,
 	}
 	router := httpserver.NewRouter(apiHandler, logger, func(checkCtx context.Context) error {
 		return db.Ready(checkCtx, pool)

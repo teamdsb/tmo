@@ -14,13 +14,13 @@ describe('payment availability', () => {
     ;(isAlipay as jest.Mock).mockReturnValue(false)
     ;(loadBootstrap as jest.Mock).mockResolvedValue({
       me: { currentRole: 'CUSTOMER', roles: ['CUSTOMER'], userType: 'customer' },
-      featureFlags: { paymentEnabled: true, wechatPayEnabled: true, alipayPayEnabled: false }
+      featureFlags: { paymentEnabled: true, wechatPayEnabled: true, wechatB2bEnabled: true, alipayPayEnabled: false }
     })
   })
 
   it('enables WeChat only when platform and feature flags allow it', async () => {
     await expect(resolvePaymentAvailability()).resolves.toEqual({
-      available: true, channel: 'wechat', unavailableMessage: ''
+      available: true, channel: 'wechat_b2b', unavailableMessage: ''
     })
   })
 
@@ -32,6 +32,17 @@ describe('payment availability', () => {
     await expect(resolvePaymentAvailability()).resolves.toEqual(expect.objectContaining({
       available: false,
       unavailableMessage: expect.stringContaining('微信支付暂未开通')
+    }))
+  })
+
+  it('blocks B2B payment when its dedicated kill switch is disabled', async () => {
+    ;(loadBootstrap as jest.Mock).mockResolvedValue({
+      me: { currentRole: 'CUSTOMER', roles: ['CUSTOMER'], userType: 'customer' },
+      featureFlags: { paymentEnabled: true, wechatPayEnabled: true, wechatB2bEnabled: false }
+    })
+    await expect(resolvePaymentAvailability()).resolves.toEqual(expect.objectContaining({
+      available: false,
+      unavailableMessage: expect.stringContaining('微信 B2B 支付暂未开通')
     }))
   })
 

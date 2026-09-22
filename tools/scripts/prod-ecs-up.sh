@@ -51,6 +51,14 @@ case "$payment_provider_mode" in
       exit 1
     fi
     ;;
+  b2b)
+    for required_name in PAYMENT_WECHAT_B2B_APP_ID PAYMENT_WECHAT_B2B_APP_SECRET PAYMENT_WECHAT_B2B_MCH_ID PAYMENT_WECHAT_B2B_APP_KEY; do
+      if [[ -z "${!required_name:-}" ]]; then
+        echo "$required_name is required for PAYMENT_PROVIDER_MODE=b2b" >&2
+        exit 1
+      fi
+    done
+    ;;
   *)
     echo "unsupported PAYMENT_PROVIDER_MODE for ECS production: $payment_provider_mode" >&2
     exit 1

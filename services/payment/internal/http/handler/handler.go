@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -23,6 +24,33 @@ type Handler struct {
 	Commerce     *CommerceClient
 	ProviderMode string
 	Wechat       provider.Wechat
+	WechatB2B    WechatB2BProvider
+}
+
+type WechatB2BProvider interface {
+	CreateCommonPayParams(ctx context.Context, request WechatB2BPaymentRequest) (map[string]interface{}, error)
+	QueryPayment(ctx context.Context, request WechatB2BQueryRequest) (WechatB2BPaymentResolution, error)
+}
+
+type WechatB2BPaymentRequest struct {
+	OrderID   uuid.UUID
+	AmountFen int64
+	ExpiresAt time.Time
+	LoginCode string
+}
+
+// WechatB2BQueryRequest identifies the merchant order whose authoritative
+// B2B payment state is to be retrieved from WeChat.
+type WechatB2BQueryRequest struct {
+	OrderID   uuid.UUID
+	AmountFen int64
+}
+
+// WechatB2BPaymentResolution is derived from WeChat's B2B getorder response,
+// never from the client-side requestCommonPayment callback.
+type WechatB2BPaymentResolution struct {
+	Status          string
+	ProviderTradeNo string
 }
 
 type PaymentStore interface {
