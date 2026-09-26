@@ -45,6 +45,7 @@ SELECT
     pej.query,
     pej.category_id,
     pej.product_status,
+    pej.needs_review,
     pej.exported_rows,
     pej.created_at AS export_created_at,
     pej.updated_at AS export_updated_at
@@ -66,6 +67,7 @@ type ClaimNextPendingProductExportJobRow struct {
 	Query           *string            `db:"query" json:"query"`
 	CategoryID      pgtype.UUID        `db:"category_id" json:"category_id"`
 	ProductStatus   *string            `db:"product_status" json:"product_status"`
+	NeedsReview     bool               `db:"needs_review" json:"needs_review"`
 	ExportedRows    int32              `db:"exported_rows" json:"exported_rows"`
 	ExportCreatedAt pgtype.Timestamptz `db:"export_created_at" json:"export_created_at"`
 	ExportUpdatedAt pgtype.Timestamptz `db:"export_updated_at" json:"export_updated_at"`
@@ -88,6 +90,7 @@ func (q *Queries) ClaimNextPendingProductExportJob(ctx context.Context) (ClaimNe
 		&i.Query,
 		&i.CategoryID,
 		&i.ProductStatus,
+		&i.NeedsReview,
 		&i.ExportedRows,
 		&i.ExportCreatedAt,
 		&i.ExportUpdatedAt,
@@ -100,14 +103,16 @@ INSERT INTO product_export_jobs (
     job_id,
     query,
     category_id,
-    product_status
+    product_status,
+    needs_review
 ) VALUES (
     $1,
     $2,
     $3,
-    $4
+    $4,
+    $5
 )
-RETURNING job_id, query, category_id, product_status, exported_rows, created_at, updated_at
+RETURNING job_id, query, category_id, product_status, needs_review, exported_rows, created_at, updated_at
 `
 
 type CreateProductExportJobParams struct {
@@ -115,21 +120,35 @@ type CreateProductExportJobParams struct {
 	Query         *string     `db:"query" json:"query"`
 	CategoryID    pgtype.UUID `db:"category_id" json:"category_id"`
 	ProductStatus *string     `db:"product_status" json:"product_status"`
+	NeedsReview   bool        `db:"needs_review" json:"needs_review"`
 }
 
-func (q *Queries) CreateProductExportJob(ctx context.Context, arg CreateProductExportJobParams) (ProductExportJob, error) {
+type CreateProductExportJobRow struct {
+	JobID         uuid.UUID          `db:"job_id" json:"job_id"`
+	Query         *string            `db:"query" json:"query"`
+	CategoryID    pgtype.UUID        `db:"category_id" json:"category_id"`
+	ProductStatus *string            `db:"product_status" json:"product_status"`
+	NeedsReview   bool               `db:"needs_review" json:"needs_review"`
+	ExportedRows  int32              `db:"exported_rows" json:"exported_rows"`
+	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+func (q *Queries) CreateProductExportJob(ctx context.Context, arg CreateProductExportJobParams) (CreateProductExportJobRow, error) {
 	row := q.db.QueryRow(ctx, createProductExportJob,
 		arg.JobID,
 		arg.Query,
 		arg.CategoryID,
 		arg.ProductStatus,
+		arg.NeedsReview,
 	)
-	var i ProductExportJob
+	var i CreateProductExportJobRow
 	err := row.Scan(
 		&i.JobID,
 		&i.Query,
 		&i.CategoryID,
 		&i.ProductStatus,
+		&i.NeedsReview,
 		&i.ExportedRows,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -138,19 +157,31 @@ func (q *Queries) CreateProductExportJob(ctx context.Context, arg CreateProductE
 }
 
 const getProductExportJob = `-- name: GetProductExportJob :one
-SELECT job_id, query, category_id, product_status, exported_rows, created_at, updated_at
+SELECT job_id, query, category_id, product_status, needs_review, exported_rows, created_at, updated_at
 FROM product_export_jobs
 WHERE job_id = $1
 `
 
-func (q *Queries) GetProductExportJob(ctx context.Context, jobID uuid.UUID) (ProductExportJob, error) {
+type GetProductExportJobRow struct {
+	JobID         uuid.UUID          `db:"job_id" json:"job_id"`
+	Query         *string            `db:"query" json:"query"`
+	CategoryID    pgtype.UUID        `db:"category_id" json:"category_id"`
+	ProductStatus *string            `db:"product_status" json:"product_status"`
+	NeedsReview   bool               `db:"needs_review" json:"needs_review"`
+	ExportedRows  int32              `db:"exported_rows" json:"exported_rows"`
+	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+func (q *Queries) GetProductExportJob(ctx context.Context, jobID uuid.UUID) (GetProductExportJobRow, error) {
 	row := q.db.QueryRow(ctx, getProductExportJob, jobID)
-	var i ProductExportJob
+	var i GetProductExportJobRow
 	err := row.Scan(
 		&i.JobID,
 		&i.Query,
 		&i.CategoryID,
 		&i.ProductStatus,
+		&i.NeedsReview,
 		&i.ExportedRows,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -174,17 +205,21 @@ WHERE (
 )
   AND ($2::uuid IS NULL OR p.category_id = $2)
   AND ($3::text IS NULL OR p.status = $3)
+  AND (NOT $4::boolean OR EXISTS (
+      SELECT 1 FROM product_import_reviews r WHERE r.product_id = p.id AND r.status = 'PENDING'
+  ))
 ORDER BY CASE p.status WHEN 'ACTIVE' THEN 0 WHEN 'DRAFT' THEN 1 WHEN 'INACTIVE' THEN 2 ELSE 3 END,
          p.created_at DESC, p.id ASC
-LIMIT $5 OFFSET $4
+LIMIT $6 OFFSET $5
 `
 
 type ListProductExportProductsParams struct {
-	Q          *string     `db:"q" json:"q"`
-	CategoryID pgtype.UUID `db:"category_id" json:"category_id"`
-	Status     *string     `db:"status" json:"status"`
-	Offset     int32       `db:"offset" json:"offset"`
-	Limit      int32       `db:"limit" json:"limit"`
+	Q           *string     `db:"q" json:"q"`
+	CategoryID  pgtype.UUID `db:"category_id" json:"category_id"`
+	Status      *string     `db:"status" json:"status"`
+	NeedsReview bool        `db:"needs_review" json:"needs_review"`
+	Offset      int32       `db:"offset" json:"offset"`
+	Limit       int32       `db:"limit" json:"limit"`
 }
 
 func (q *Queries) ListProductExportProducts(ctx context.Context, arg ListProductExportProductsParams) ([]CatalogProduct, error) {
@@ -192,6 +227,7 @@ func (q *Queries) ListProductExportProducts(ctx context.Context, arg ListProduct
 		arg.Q,
 		arg.CategoryID,
 		arg.Status,
+		arg.NeedsReview,
 		arg.Offset,
 		arg.Limit,
 	)
@@ -247,7 +283,7 @@ UPDATE product_export_jobs
 SET exported_rows = $2,
     updated_at = now()
 WHERE job_id = $1
-RETURNING job_id, query, category_id, product_status, exported_rows, created_at, updated_at
+RETURNING job_id, query, category_id, product_status, needs_review, exported_rows, created_at, updated_at
 `
 
 type UpdateProductExportJobRowsParams struct {
@@ -255,14 +291,26 @@ type UpdateProductExportJobRowsParams struct {
 	ExportedRows int32     `db:"exported_rows" json:"exported_rows"`
 }
 
-func (q *Queries) UpdateProductExportJobRows(ctx context.Context, arg UpdateProductExportJobRowsParams) (ProductExportJob, error) {
+type UpdateProductExportJobRowsRow struct {
+	JobID         uuid.UUID          `db:"job_id" json:"job_id"`
+	Query         *string            `db:"query" json:"query"`
+	CategoryID    pgtype.UUID        `db:"category_id" json:"category_id"`
+	ProductStatus *string            `db:"product_status" json:"product_status"`
+	NeedsReview   bool               `db:"needs_review" json:"needs_review"`
+	ExportedRows  int32              `db:"exported_rows" json:"exported_rows"`
+	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+func (q *Queries) UpdateProductExportJobRows(ctx context.Context, arg UpdateProductExportJobRowsParams) (UpdateProductExportJobRowsRow, error) {
 	row := q.db.QueryRow(ctx, updateProductExportJobRows, arg.JobID, arg.ExportedRows)
-	var i ProductExportJob
+	var i UpdateProductExportJobRowsRow
 	err := row.Scan(
 		&i.JobID,
 		&i.Query,
 		&i.CategoryID,
 		&i.ProductStatus,
+		&i.NeedsReview,
 		&i.ExportedRows,
 		&i.CreatedAt,
 		&i.UpdatedAt,

@@ -71,6 +71,7 @@ func (h *Handler) PostAdminProductsImportJobs(c *gin.Context) {
 		ImagesZipFile:     imagesZip,
 		ImagesZipFileName: imagesZipName,
 		ImageBaseURL:      c.PostForm("imageBaseUrl"),
+		SourceNamespace:   c.PostForm("sourceNamespace"),
 	})
 	if err != nil {
 		h.logError("create product import job failed", err)
@@ -142,6 +143,16 @@ func (h *Handler) GetAdminImportJobsJobId(c *gin.Context) {
 		return
 	}
 
+	if h.ProductImport != nil && h.ProductImport.DB != nil {
+		job, err := h.ProductImport.GetJob(c.Request.Context(), jobID)
+		if err != nil {
+			h.importWorkbenchError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, job)
+		return
+	}
+
 	job, err := h.TrackingStore.GetImportJob(c.Request.Context(), jobID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -175,15 +186,16 @@ func (h *Handler) PostAdminProductsExportJobs(c *gin.Context) {
 		return
 	}
 	var request struct {
-		Q          *string `json:"q"`
-		CategoryID *string `json:"categoryId"`
-		Status     *string `json:"status"`
+		Q           *string `json:"q"`
+		CategoryID  *string `json:"categoryId"`
+		Status      *string `json:"status"`
+		NeedsReview bool    `json:"needsReview"`
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
 		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
 		return
 	}
-	input := productexport.EnqueueInput{CreatedByUserID: pgtype.UUID{Bytes: claims.UserID, Valid: true}, Query: request.Q}
+	input := productexport.EnqueueInput{CreatedByUserID: pgtype.UUID{Bytes: claims.UserID, Valid: true}, Query: request.Q, NeedsReview: request.NeedsReview}
 	if request.CategoryID != nil && strings.TrimSpace(*request.CategoryID) != "" {
 		value := strings.TrimSpace(*request.CategoryID)
 		id := uuid.Nil

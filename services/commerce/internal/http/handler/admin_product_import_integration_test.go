@@ -134,10 +134,35 @@ func TestAdminProductImportJobCreateAndQuery(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &fetched); err != nil {
 		t.Fatalf("decode fetched job: %v", err)
 	}
-	if fetched.Status != oapi.SUCCEEDED {
-		t.Fatalf("expected SUCCEEDED, got %s", fetched.Status)
+	if string(fetched.Status) != "AWAITING_CONFIRMATION" {
+		t.Fatalf("expected AWAITING_CONFIRMATION, got %s", fetched.Status)
 	}
-	if fetched.ResultFileUrl == nil || *fetched.ResultFileUrl == "" {
+	var count int
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM catalog_products").Scan(&count); err != nil || count != 0 {
+		t.Fatalf("preview wrote catalog data: count=%d err=%v", count, err)
+	}
+	preview, err := service.GetPreview(ctx, created.Id, 1, 20, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := json.Marshal(map[string]int{"expectedRevision": preview.Revision})
+	req = httptest.NewRequest(http.MethodPost, "/admin/products/import-jobs/"+created.Id.String()+"/confirm", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+makeAuthToken(t, uuid.New(), "ADMIN", nil))
+	req.Header.Set("Idempotency-Key", uuid.NewString())
+	recorder = httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusAccepted {
+		t.Fatalf("confirm: %d %s", recorder.Code, recorder.Body.String())
+	}
+	if _, err := service.RunNext(ctx); err != nil {
+		t.Fatal(err)
+	}
+	result, err := service.GetJob(ctx, created.Id)
+	if err != nil || result.Status != "SUCCEEDED" {
+		t.Fatalf("commit: %+v %v", result, err)
+	}
+	if result.ResultFileURL == nil || *result.ResultFileURL == "" {
 		t.Fatalf("expected resultFileUrl to be set")
 	}
 }
@@ -196,6 +221,14 @@ func newAuthRouterWithProductImport(pool *pgxpool.Pool, store *db.Queries, media
 	oapi.RegisterHandlers(router, handler)
 	router.POST("/admin/products/import-jobs", handler.PostAdminProductsImportJobs)
 	router.GET("/admin/import-jobs/:jobId", handler.GetAdminImportJobsJobId)
+	router.GET("/admin/products", handler.GetAdminCatalogProducts)
+	router.GET("/admin/import-jobs", handler.GetAdminImportJobs)
+	router.GET("/admin/products/import-jobs/:jobId/preview", handler.GetAdminProductImportPreview)
+	router.PUT("/admin/products/import-jobs/:jobId/preview-resolution", handler.PutAdminProductImportResolution)
+	router.POST("/admin/products/import-jobs/:jobId/confirm", handler.PostAdminProductImportConfirm)
+	router.POST("/admin/products/import-jobs/:jobId/cancel", handler.PostAdminProductImportCancel)
+	router.GET("/admin/products/import-reviews", handler.GetAdminProductImportReviews)
+	router.PATCH("/admin/products/import-reviews/:reviewId", handler.PatchAdminProductImportReview)
 	return router, productImportService
 }
 

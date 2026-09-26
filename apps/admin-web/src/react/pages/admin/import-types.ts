@@ -1,0 +1,83 @@
+export type ImportIssue = {
+    code: string;
+    message: string;
+    severity: 'WARNING' | 'ERROR';
+};
+export type ImportSummary = {
+    totalRows: number;
+    successRows: number;
+    failedRows: number;
+    skippedRows: number;
+    splitProducts: number;
+    reviewCount: number;
+    productCreates: number;
+    productUpdates: number;
+    skuCreates: number;
+    skuUpdates: number;
+};
+export type ImportRow = {
+    clearFields?: string[];
+    rowId: string;
+    sourceSheet: string;
+    sourceRow: number;
+    skuCode: string;
+    skuName: string;
+    spec: string;
+    attributes: Record<string, string>;
+    unit: string;
+    action: string;
+    issues: ImportIssue[];
+    rawValues: Record<string, string>;
+};
+export type ImportGroup = {
+    key: string;
+    productName: string;
+    productId: string;
+    categoryId: string;
+    dimensions: string[];
+    action: string;
+    rows: ImportRow[];
+    issues: ImportIssue[];
+};
+export type ImportPreview = {
+    jobId: string;
+    revision: number;
+    sourceFormat: string;
+    summary: ImportSummary;
+    items: ImportGroup[];
+    total: number;
+    page: number;
+    pageSize: number;
+};
+export type ImportJob = {
+    id: string;
+    type: string;
+    status: string;
+    phase?: string;
+    progress: number;
+    createdAt?: string;
+    fileName?: string;
+    sourceFormat?: string;
+    revision?: number;
+    summary?: ImportSummary;
+    resultFileUrl?: string | null;
+    errorReportUrl?: string | null;
+};
+export type ImportReview = {
+    id: string;
+    jobId: string;
+    productId: string;
+    skuId?: string;
+    productName: string;
+    sourceSheet: string;
+    sourceRow: number;
+    code: string;
+    message: string;
+    status: string;
+    rawValues?: Record<string, string>;
+    createdAt: string;
+    resolvedAt?: string | null;
+};
+export const importStatusLabels: Record<string, string> = { PENDING: '等待处理', RUNNING: '处理中', AWAITING_CONFIRMATION: '待确认', SUCCEEDED: '已完成', PARTIALLY_SUCCEEDED: '部分成功', FAILED: '失败', CANCELLED: '已取消' };
+export const importTypeLabels: Record<string, string> = { PRODUCT_IMPORT: '商品导入', PRODUCT_EXPORT: '商品导出', SHIPMENT_IMPORT: '物流导入', PRODUCT_REQUEST_EXPORT: '需求导出' };
+export const importSourceLabels: Record<string, string> = { STANDARD: '标准模板', TRIAL_MASTER: '试运行母表', LEGACY_FIVE_COLUMN: '旧版商品表' };

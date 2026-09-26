@@ -23,14 +23,14 @@ const PRODUCT_IMPORT_HEADERS = [
 ];
 
 export const loginAsBoss = async (page: Page) => {
-  await page.goto('/');
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
   await page.fill('#username', 'boss');
   await page.fill('#password', 'boss123');
   await Promise.all([
-    page.waitForURL('**/dashboard.html'),
+    page.waitForURL('**/dashboard.html', { waitUntil: 'domcontentloaded' }),
     page.locator('#login-form button[type="submit"]').click()
   ]);
-  await page.waitForURL(/dashboard\.html/);
+  await page.waitForURL(/dashboard\.html/, { waitUntil: 'domcontentloaded' });
 };
 
 export const loginMockBoss = async (page: Page) => {

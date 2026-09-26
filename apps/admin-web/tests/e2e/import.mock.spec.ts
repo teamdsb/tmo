@@ -22,16 +22,19 @@ test('mock import page persists imported products and queryable jobs', async ({ 
   await page.getByTestId('product-import-excel').setInputFiles(fixture.excelPath);
   await page.getByTestId('product-import-zip').setInputFiles(fixture.zipPath!);
   await page.getByTestId('product-import-submit').click();
+  await expect(page.getByTestId('latest-import-job-status')).toContainText('待确认');
+  await page.getByTestId('product-import-confirm').click();
 
-  await expect(page.getByTestId('import-status-message')).toContainText('Mock 导入完成');
-  await expect(page.getByTestId('latest-import-job-status')).toContainText('SUCCEEDED');
+  await expect(page.getByTestId('import-status-message')).toContainText('已确认导入');
+  await expect(page.getByTestId('latest-import-job-status')).toContainText('已完成');
 
   const jobId = ((await page.getByTestId('latest-import-job-id').textContent()) || '').trim();
   expect(jobId).toContain('mock-product-');
 
+  await page.getByText('其他批量任务与设置', { exact: true }).click();
   await page.getByTestId('import-job-query').fill(jobId);
   await page.getByTestId('import-job-query-submit').click();
-  await expect(page.getByTestId('import-status-message')).toContainText('已加载本地 mock 任务');
+  await expect(page.getByTestId('latest-import-job-status')).toContainText('已完成');
   const persisted = await page.evaluate(() => {
     const products = JSON.parse(localStorage.getItem('admin-web-mock-imported-products') || '[]');
     const jobs = JSON.parse(localStorage.getItem('admin-web-mock-import-jobs') || '[]');
@@ -49,18 +52,19 @@ test('mock import page advances product-request export jobs to downloadable succ
   await page.goto('/import.html');
 
   await expect(page.getByTestId('import-page')).toBeVisible();
+  await page.getByText('其他批量任务与设置', { exact: true }).click();
   await page.getByTestId('request-export-submit').click();
 
-  await expect(page.getByTestId('latest-import-job-status')).toContainText('PENDING');
-  await expect(page.getByTestId('latest-import-job-status')).toContainText('RUNNING');
-  await expect(page.getByTestId('import-status-message')).toContainText('Mock 需求导出任务已创建');
-  await expect(page.getByTestId('latest-import-job-status')).toContainText('SUCCEEDED');
+  await expect(page.getByTestId('latest-import-job-status')).toContainText('等待处理');
+  await expect(page.getByTestId('latest-import-job-status')).toContainText('处理中');
+  await expect(page.getByTestId('import-status-message')).toContainText('需求导出任务已创建');
+  await expect(page.getByTestId('latest-import-job-status')).toContainText('已完成');
   await expect(page.getByRole('link', { name: '下载导出文件' })).toBeVisible();
 
   const jobId = ((await page.getByTestId('latest-import-job-id').textContent()) || '').trim();
   await page.getByTestId('import-job-query').fill(jobId);
   await page.getByTestId('import-job-query-submit').click();
-  await expect(page.getByTestId('latest-import-job-status')).toContainText('SUCCEEDED');
+  await expect(page.getByTestId('latest-import-job-status')).toContainText('已完成');
 
   const persisted = await page.evaluate(() => {
     return JSON.parse(localStorage.getItem('admin-web-mock-import-jobs') || '[]');

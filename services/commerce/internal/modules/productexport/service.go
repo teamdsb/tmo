@@ -30,6 +30,7 @@ type EnqueueInput struct {
 	Query           *string
 	CategoryID      pgtype.UUID
 	Status          *string
+	NeedsReview     bool
 }
 
 type Service struct {
@@ -74,7 +75,7 @@ func (s *Service) Enqueue(ctx context.Context, input EnqueueInput) (db.ImportJob
 
 	if _, err := queries.CreateProductExportJob(ctx, db.CreateProductExportJobParams{
 		JobID: job.ID,
-		Query: input.Query, CategoryID: input.CategoryID, ProductStatus: input.Status,
+		Query: input.Query, CategoryID: input.CategoryID, ProductStatus: input.Status, NeedsReview: input.NeedsReview,
 	}); err != nil {
 		return db.ImportJob{}, fmt.Errorf("create export detail job: %w", err)
 	}
@@ -126,7 +127,7 @@ func (s *Service) processJob(ctx context.Context, job db.ProductExportJob) error
 		return fmt.Errorf("mark export job running: %w", err)
 	}
 
-	rows, err := s.exportRows(ctx, job)
+	rows, evidence, err := s.exportRowsAndEvidence(ctx, job)
 	if err != nil {
 		return s.failJob(ctx, job.JobID, fmt.Sprintf("list products: %v", err))
 	}
@@ -146,7 +147,7 @@ func (s *Service) processJob(ctx context.Context, job db.ProductExportJob) error
 		return fmt.Errorf("update export job progress: %w", err)
 	}
 
-	resultURL, err := s.writeWorkbook(job.JobID, rows)
+	resultURL, err := s.writeWorkbookWithEvidence(job.JobID, rows, evidence)
 	if err != nil {
 		return s.failJob(ctx, job.JobID, fmt.Sprintf("write export workbook: %v", err))
 	}
@@ -184,6 +185,10 @@ func (s *Service) failJob(ctx context.Context, jobID uuid.UUID, reason string) e
 }
 
 func (s *Service) writeWorkbook(jobID uuid.UUID, requests [][]string) (string, error) {
+	return s.writeWorkbookWithEvidence(jobID, requests, nil)
+}
+
+func (s *Service) writeWorkbookWithEvidence(jobID uuid.UUID, requests [][]string, evidence []db.ListProductImportSourceEvidenceRow) (string, error) {
 	spec := excel.ProductImportTemplate()
 	file := excelize.NewFile()
 	defer func() { _ = file.Close() }()
@@ -216,13 +221,58 @@ func (s *Service) writeWorkbook(jobID uuid.UUID, requests [][]string) (string, e
 		}
 	}
 
+	if err := excel.FormatProductWorkbook(file, sheet, len(spec.Columns)); err != nil {
+		return "", err
+	}
+	if len(evidence) > 0 {
+		const sourceSheet = "来源资料"
+		if _, err := file.NewSheet(sourceSheet); err != nil {
+			return "", err
+		}
+		headers := []interface{}{"Product ID", "SKU ID", "Source Namespace", "Source Product Key", "Source SKU Key", "Source Data", "Part"}
+		if err := file.SetSheetRow(sourceSheet, "A1", &headers); err != nil {
+			return "", err
+		}
+		line := 2
+		for _, item := range evidence {
+			skuID := ""
+			if item.SkuID.Valid {
+				skuID = uuid.UUID(item.SkuID.Bytes).String()
+			}
+			// Split long evidence without truncating Excel's per-cell character limit.
+			payload := []rune(string(item.SourceData))
+			for part := 1; len(payload) > 0; part++ {
+				size := min(16000, len(payload))
+				row := []interface{}{item.ProductID.String(), skuID, item.SourceNamespace, item.SourceProductKey, item.SourceSkuKey, string(payload[:size]), part}
+				cell, _ := excelize.CoordinatesToCellName(1, line)
+				if err := file.SetSheetRow(sourceSheet, cell, &row); err != nil {
+					return "", err
+				}
+				payload = payload[size:]
+				line++
+			}
+		}
+		if err := excel.FormatProductWorkbook(file, sourceSheet, len(headers)); err != nil {
+			return "", err
+		}
+	}
+
 	relativePath := filepath.Join("import-jobs", jobID.String(), "exports", exportFileName)
 	localPath := filepath.Join(s.MediaLocalOutputDir, filepath.FromSlash(relativePath))
 	// #nosec G301 -- downloadable workbooks are served by a separate Nginx user.
 	if err := os.MkdirAll(filepath.Dir(localPath), 0o755); err != nil {
 		return "", err
 	}
-	if err := file.SaveAs(localPath); err != nil {
+	// #nosec G302 G304 -- this server-generated path is inside the job media directory; published workbooks must be readable by the separate Nginx user.
+	output, err := os.OpenFile(localPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		return "", err
+	}
+	if err := file.Write(output); err != nil {
+		_ = output.Close()
+		return "", err
+	}
+	if err := output.Close(); err != nil {
 		return "", err
 	}
 	return strings.TrimRight(s.MediaPublicBaseURL, "/") + "/" + strings.TrimLeft(filepath.ToSlash(relativePath), "/"), nil
@@ -236,30 +286,40 @@ func nullableString(value *string) string {
 }
 
 func claimToProductExportJob(row db.ClaimNextPendingProductExportJobRow) db.ProductExportJob {
-	return db.ProductExportJob{JobID: row.JobID, Query: row.Query, CategoryID: row.CategoryID, ProductStatus: row.ProductStatus, ExportedRows: row.ExportedRows, CreatedAt: row.ExportCreatedAt, UpdatedAt: row.ExportUpdatedAt}
+	return db.ProductExportJob{JobID: row.JobID, Query: row.Query, CategoryID: row.CategoryID, ProductStatus: row.ProductStatus, NeedsReview: row.NeedsReview, ExportedRows: row.ExportedRows, CreatedAt: row.ExportCreatedAt, UpdatedAt: row.ExportUpdatedAt}
 }
 
 // A repeatable-read snapshot keeps every exported product, SKU and price tier consistent.
-func (s *Service) exportRows(ctx context.Context, job db.ProductExportJob) ([][]string, error) {
+func (s *Service) exportRowsAndEvidence(ctx context.Context, job db.ProductExportJob) ([][]string, []db.ListProductImportSourceEvidenceRow, error) {
 	tx, err := s.DB.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	q := db.New(tx)
 	result := [][]string{}
+	evidence := []db.ListProductImportSourceEvidenceRow{}
 	for offset := int32(0); ; offset += 500 {
-		products, err := q.ListProductExportProducts(ctx, db.ListProductExportProductsParams{Q: job.Query, CategoryID: job.CategoryID, Status: job.ProductStatus, Limit: 500, Offset: offset})
+		products, err := q.ListProductExportProducts(ctx, db.ListProductExportProductsParams{Q: job.Query, CategoryID: job.CategoryID, Status: job.ProductStatus, NeedsReview: job.NeedsReview, Limit: 500, Offset: offset})
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
+		ids := make([]uuid.UUID, 0, len(products))
+		for _, product := range products {
+			ids = append(ids, product.ID)
+		}
+		sources, err := q.ListProductImportSourceEvidence(ctx, ids)
+		if err != nil {
+			return nil, nil, err
+		}
+		evidence = append(evidence, sources...)
 		for _, product := range products {
 			if _, err := catalogspec.NormalizeDimensions(product.FilterDimensions); err != nil {
-				return nil, fmt.Errorf("product %s: %w", product.ID, err)
+				return nil, nil, fmt.Errorf("product %s: %w", product.ID, err)
 			}
 			skus, err := q.ListSkusByProduct(ctx, product.ID)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			if len(skus) == 0 {
 				result = append(result, exportRowValues(product, nil, nil))
@@ -268,7 +328,7 @@ func (s *Service) exportRows(ctx context.Context, job db.ProductExportJob) ([][]
 			for _, sku := range skus {
 				tiers, err := q.ListPriceTiersBySku(ctx, sku.ID)
 				if err != nil {
-					return nil, err
+					return nil, nil, err
 				}
 				result = append(result, exportRowValues(product, &sku, tiers))
 			}
@@ -278,9 +338,9 @@ func (s *Service) exportRows(ctx context.Context, job db.ProductExportJob) ([][]
 		}
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return result, nil
+	return result, evidence, nil
 }
 
 func exportRowValues(product db.CatalogProduct, sku *db.CatalogSku, tiers []db.CatalogPriceTier) []string {

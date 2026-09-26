@@ -12,7 +12,7 @@ test('hybrid import page creates product import job and polls status', async ({ 
   const fixture = await createImportFixture(testInfo, {
     productName,
     skuPrefix: `REAL-${Date.now()}`,
-    categoryId: '11111111-1111-1111-1111-111111111111',
+    categoryId: '00000000-0000-0000-0000-000000000000',
     withZip: true
   });
 
@@ -37,9 +37,9 @@ test('hybrid import page creates product import job and polls status', async ({ 
 
   expect(createResponse.status()).toBe(202);
   expect(createRequest.method()).toBe('POST');
-  await expect(page.getByTestId('import-status-message')).toContainText('商品导入任务已创建');
+  await expect(page.getByTestId('import-status-message')).toContainText('识别完成后请确认导入');
   await expect(page.getByTestId('latest-import-job-id')).toContainText(/[0-9a-f-]{36}/i);
-  await expect(page.getByTestId('latest-import-job-status')).toContainText(/PENDING|RUNNING|SUCCEEDED|FAILED/);
+  await expect(page.getByTestId('latest-import-job-status')).toContainText(/待确认|等待处理|处理中|已完成|失败/);
 
   const createdJobId = ((await page.getByTestId('latest-import-job-id').textContent()) || '').trim();
   const queryResponsePromise = page.waitForResponse((response) => {
@@ -49,12 +49,20 @@ test('hybrid import page creates product import job and polls status', async ({ 
     const url = new URL(response.url());
     return url.pathname === `/api/admin/import-jobs/${createdJobId}`;
   });
+  await page.getByText('其他批量任务与设置', { exact: true }).click();
   await page.getByTestId('import-job-query').fill(createdJobId);
   await page.getByTestId('import-job-query-submit').click();
   const queryResponse = await queryResponsePromise;
 
   expect(queryResponse.status()).toBe(200);
-  await expect(page.getByTestId('import-status-message')).toContainText('已刷新导入任务状态');
+  await expect(page.getByTestId('latest-import-job-id')).toHaveText(createdJobId);
+  await expect(page.getByTestId('latest-import-job-status')).toContainText('待确认');
+  const confirmRequest = page.waitForRequest(request => request.method() === 'POST' && new URL(request.url()).pathname === `/api/admin/products/import-jobs/${createdJobId}/confirm`);
+  await page.getByTestId('product-import-confirm').click();
+  const confirmation = await confirmRequest;
+  expect(confirmation.headers()['idempotency-key']).toBeTruthy();
+  expect(confirmation.postDataJSON().expectedRevision).toBeGreaterThan(0);
+  await expect(page.getByTestId('latest-import-job-status')).toContainText('已完成');
 });
 
 test('real mode import page creates product-request export job and polls status', async ({ page }) => {
@@ -69,6 +77,7 @@ test('real mode import page creates product-request export job and polls status'
   await page.goto('/import.html');
 
   await expect(page.getByTestId('import-page')).toBeVisible();
+  await page.getByText('其他批量任务与设置', { exact: true }).click();
   await page.getByTestId('request-export-submit').click();
 
   const createRequest = await createRequestPromise;
@@ -78,7 +87,7 @@ test('real mode import page creates product-request export job and polls status'
   expect(createResponse.status()).toBe(202);
   await expect(page.getByTestId('import-status-message')).toContainText('需求导出任务已创建');
   await expect(page.getByTestId('latest-import-job-id')).toContainText(/[0-9a-f-]{36}/i);
-  await expect(page.getByTestId('latest-import-job-status')).toContainText(/PENDING|RUNNING|SUCCEEDED|FAILED/);
+  await expect(page.getByTestId('latest-import-job-status')).toContainText(/待确认|等待处理|处理中|已完成|失败/);
 
   const createdJobId = ((await page.getByTestId('latest-import-job-id').textContent()) || '').trim();
   const queryResponsePromise = page.waitForResponse((response) => {
@@ -93,6 +102,6 @@ test('real mode import page creates product-request export job and polls status'
   const queryResponse = await queryResponsePromise;
 
   expect(queryResponse.status()).toBe(200);
-  await expect(page.getByTestId('import-status-message')).toContainText('已刷新导入任务状态');
+  await expect(page.getByTestId('latest-import-job-id')).toHaveText(createdJobId);
   expect(createRequestBody).toBe('{}');
 });

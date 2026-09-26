@@ -55,10 +55,13 @@ const (
 
 // Defines values for JobStatus.
 const (
-	FAILED    JobStatus = "FAILED"
-	PENDING   JobStatus = "PENDING"
-	RUNNING   JobStatus = "RUNNING"
-	SUCCEEDED JobStatus = "SUCCEEDED"
+	AWAITINGCONFIRMATION JobStatus = "AWAITING_CONFIRMATION"
+	FAILED               JobStatus = "FAILED"
+	JOBCANCELLED         JobStatus = "CANCELLED"
+	PARTIALLYSUCCEEDED   JobStatus = "PARTIALLY_SUCCEEDED"
+	PENDING              JobStatus = "PENDING"
+	RUNNING              JobStatus = "RUNNING"
+	SUCCEEDED            JobStatus = "SUCCEEDED"
 )
 
 // Defines values for MessageSenderType.
@@ -134,9 +137,9 @@ const (
 
 // Defines values for GetInquiriesPriceParamsStatus.
 const (
-	GetInquiriesPriceParamsStatusCLOSED    GetInquiriesPriceParamsStatus = "CLOSED"
-	GetInquiriesPriceParamsStatusOPEN      GetInquiriesPriceParamsStatus = "OPEN"
-	GetInquiriesPriceParamsStatusRESPONDED GetInquiriesPriceParamsStatus = "RESPONDED"
+	CLOSED    GetInquiriesPriceParamsStatus = "CLOSED"
+	OPEN      GetInquiriesPriceParamsStatus = "OPEN"
+	RESPONDED GetInquiriesPriceParamsStatus = "RESPONDED"
 )
 
 // AddCartItemRequest defines model for AddCartItemRequest.
@@ -199,11 +202,16 @@ type CartImportCandidate struct {
 type CartImportJob struct {
 	CreatedAt      time.Time          `json:"createdAt"`
 	ErrorReportUrl *string            `json:"errorReportUrl"`
+	FileName       *string            `json:"fileName,omitempty"`
 	Id             openapi_types.UUID `json:"id"`
+	Phase          *string            `json:"phase,omitempty"`
 	Progress       int                `json:"progress"`
 	Result         *CartImportResult  `json:"result,omitempty"`
 	ResultFileUrl  *string            `json:"resultFileUrl"`
+	Revision       *int               `json:"revision,omitempty"`
+	SourceFormat   *string            `json:"sourceFormat,omitempty"`
 	Status         JobStatus          `json:"status"`
+	Summary        *map[string]int    `json:"summary,omitempty"`
 	Type           CartImportJobType  `json:"type"`
 }
 
@@ -394,10 +402,15 @@ type ErrorResponse = externalRef0.ErrorResponse
 type ImportJob struct {
 	CreatedAt      time.Time          `json:"createdAt"`
 	ErrorReportUrl *string            `json:"errorReportUrl"`
+	FileName       *string            `json:"fileName,omitempty"`
 	Id             openapi_types.UUID `json:"id"`
+	Phase          *string            `json:"phase,omitempty"`
 	Progress       int                `json:"progress"`
 	ResultFileUrl  *string            `json:"resultFileUrl"`
+	Revision       *int               `json:"revision,omitempty"`
+	SourceFormat   *string            `json:"sourceFormat,omitempty"`
 	Status         JobStatus          `json:"status"`
+	Summary        *map[string]int    `json:"summary,omitempty"`
 	Type           ImportJobType      `json:"type"`
 }
 

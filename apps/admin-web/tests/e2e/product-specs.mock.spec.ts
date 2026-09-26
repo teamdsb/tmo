@@ -81,7 +81,8 @@ test('template and filtered export roundtrip preserve status, no-code SKU, exact
   for (let repeat = 0; repeat < 2; repeat += 1) {
     await page.getByTestId('product-import-excel').setInputFiles(path);
     await page.getByTestId('product-import-submit').click();
-    await expect(page.getByTestId('import-status-message')).toContainText('成功 4 行，失败 0 行');
+    await page.getByTestId('product-import-confirm').click();
+    await expect(page.getByTestId('latest-import-job-status')).toContainText('已完成');
   }
   const imported = await page.evaluate(() => JSON.parse(localStorage.getItem('admin-web-mock-imported-products') || '[]'));
   expect(imported).toHaveLength(3);

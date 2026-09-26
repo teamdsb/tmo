@@ -445,10 +445,10 @@ export type OrderPaymentStatus = typeof OrderPaymentStatus[keyof typeof OrderPay
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const OrderPaymentStatus = {
-  UNPAID: 'UNPAID',
-  PAY_PENDING: 'PAY_PENDING',
-  PAID: 'PAID',
-  PAY_FAILED: 'PAY_FAILED',
+  OrderPaymentStatusUNPAID: 'UNPAID',
+  OrderPaymentStatusPAYPENDING: 'PAY_PENDING',
+  OrderPaymentStatusPAID: 'PAID',
+  OrderPaymentStatusPAYFAILED: 'PAY_FAILED',
 } as const;
 
 export interface PagedOrderList {
@@ -955,7 +955,12 @@ export const JobStatus = {
   RUNNING: 'RUNNING',
   SUCCEEDED: 'SUCCEEDED',
   FAILED: 'FAILED',
+  AWAITINGCONFIRMATION: 'AWAITING_CONFIRMATION',
+  PARTIALLYSUCCEEDED: 'PARTIALLY_SUCCEEDED',
+  JOBCANCELLED: 'CANCELLED',
 } as const;
+
+export type ImportJobSummary = {[key: string]: number};
 
 export type ImportJobType = typeof ImportJobType[keyof typeof ImportJobType];
 
@@ -970,6 +975,11 @@ export const ImportJobType = {
 } as const;
 
 export interface ImportJob {
+  fileName?: string;
+  sourceFormat?: string;
+  phase?: string;
+  revision?: number;
+  summary?: ImportJobSummary;
   id: string;
   type: ImportJobType;
   status: JobStatus;

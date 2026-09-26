@@ -156,9 +156,9 @@ const routeProductPageApis = async (page, options = {}) => {
       path: options.uploadPath
     });
   });
-  await page.route('**/api/catalog/products**', async (route) => {
+  await page.route('**/api/{catalog,admin}/products**', async (route) => {
     const url = new URL(route.request().url());
-    if (route.request().method() !== 'GET' || url.pathname !== '/api/catalog/products') {
+    if (route.request().method() !== 'GET' || url.pathname !== '/api/admin/products') {
       await route.continue();
       return;
     }
@@ -256,9 +256,9 @@ const routeProductPageApis = async (page, options = {}) => {
 test('product list groups statuses and leaves empty covers empty', async ({ page }) => {
   await installDevSession(page);
   await routeProductPageApis(page);
-  await page.route('**/api/catalog/products**', async (route) => {
+  await page.route('**/api/{catalog,admin}/products**', async (route) => {
     const url = new URL(route.request().url());
-    if (route.request().method() !== 'GET' || url.pathname !== '/api/catalog/products') {
+    if (route.request().method() !== 'GET' || url.pathname !== '/api/admin/products') {
       await route.continue();
       return;
     }
@@ -302,9 +302,9 @@ test('bulk status actions update selected products and filters clear selection',
   ];
   const patchPayloads = [];
 
-  await page.route('**/api/catalog/products**', async (route) => {
+  await page.route('**/api/{catalog,admin}/products**', async (route) => {
     const url = new URL(route.request().url());
-    if (route.request().method() === 'GET' && url.pathname === '/api/catalog/products') {
+    if (route.request().method() === 'GET' && url.pathname === '/api/admin/products') {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -359,9 +359,9 @@ test('bulk selection persists across pages and search clears it', async ({ page 
     coverImageUrl: ''
   }));
 
-  await page.route('**/api/catalog/products**', async (route) => {
+  await page.route('**/api/{catalog,admin}/products**', async (route) => {
     const url = new URL(route.request().url());
-    if (route.request().method() === 'GET' && url.pathname === '/api/catalog/products') {
+    if (route.request().method() === 'GET' && url.pathname === '/api/admin/products') {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -393,9 +393,9 @@ test('bulk delete confirms once and keeps only failed products selected', async 
   ];
   let confirmCount = 0;
 
-  await page.route('**/api/catalog/products**', async (route) => {
+  await page.route('**/api/{catalog,admin}/products**', async (route) => {
     const url = new URL(route.request().url());
-    if (route.request().method() === 'GET' && url.pathname === '/api/catalog/products') {
+    if (route.request().method() === 'GET' && url.pathname === '/api/admin/products') {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -536,8 +536,8 @@ test('product edit persists changes through catalog PATCH', async ({ page }) => 
   await page.waitForResponse((response) => {
     const url = new URL(response.url());
     return response.status() === 200
-      && url.pathname === '/api/catalog/products'
-      && url.searchParams.get('pageSize') === '200';
+      && url.pathname === '/api/admin/products'
+      && url.searchParams.get('pageSize') === '10';
   });
   await expect(page.locator('#product-edit-drawer')).toHaveCount(0);
   await expect(page.getByText('新商品名')).toBeVisible();

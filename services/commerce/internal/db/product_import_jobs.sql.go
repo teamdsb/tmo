@@ -124,7 +124,7 @@ INSERT INTO product_import_jobs (
     $5,
     $6
 )
-RETURNING job_id, excel_file_path, excel_file_name, images_zip_path, images_zip_name, image_base_url, total_rows, success_rows, failed_rows, created_at, updated_at
+RETURNING job_id, excel_file_path, excel_file_name, images_zip_path, images_zip_name, image_base_url, total_rows, success_rows, failed_rows, created_at, updated_at, source_format, source_namespace, phase, preview_revision, summary, lease_token, lease_expires_at, confirmed_revision, confirmed_by_user_id, confirm_idempotency_key
 `
 
 type CreateProductImportJobParams struct {
@@ -158,6 +158,16 @@ func (q *Queries) CreateProductImportJob(ctx context.Context, arg CreateProductI
 		&i.FailedRows,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SourceFormat,
+		&i.SourceNamespace,
+		&i.Phase,
+		&i.PreviewRevision,
+		&i.Summary,
+		&i.LeaseToken,
+		&i.LeaseExpiresAt,
+		&i.ConfirmedRevision,
+		&i.ConfirmedByUserID,
+		&i.ConfirmIdempotencyKey,
 	)
 	return i, err
 }
@@ -235,7 +245,7 @@ func (q *Queries) CreateProductImportRow(ctx context.Context, arg CreateProductI
 }
 
 const getProductImportJob = `-- name: GetProductImportJob :one
-SELECT job_id, excel_file_path, excel_file_name, images_zip_path, images_zip_name, image_base_url, total_rows, success_rows, failed_rows, created_at, updated_at
+SELECT job_id, excel_file_path, excel_file_name, images_zip_path, images_zip_name, image_base_url, total_rows, success_rows, failed_rows, created_at, updated_at, source_format, source_namespace, phase, preview_revision, summary, lease_token, lease_expires_at, confirmed_revision, confirmed_by_user_id, confirm_idempotency_key
 FROM product_import_jobs
 WHERE job_id = $1
 `
@@ -255,6 +265,16 @@ func (q *Queries) GetProductImportJob(ctx context.Context, jobID uuid.UUID) (Pro
 		&i.FailedRows,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SourceFormat,
+		&i.SourceNamespace,
+		&i.Phase,
+		&i.PreviewRevision,
+		&i.Summary,
+		&i.LeaseToken,
+		&i.LeaseExpiresAt,
+		&i.ConfirmedRevision,
+		&i.ConfirmedByUserID,
+		&i.ConfirmIdempotencyKey,
 	)
 	return i, err
 }
@@ -324,7 +344,7 @@ SET total_rows = $2,
     failed_rows = $4,
     updated_at = now()
 WHERE job_id = $1
-RETURNING job_id, excel_file_path, excel_file_name, images_zip_path, images_zip_name, image_base_url, total_rows, success_rows, failed_rows, created_at, updated_at
+RETURNING job_id, excel_file_path, excel_file_name, images_zip_path, images_zip_name, image_base_url, total_rows, success_rows, failed_rows, created_at, updated_at, source_format, source_namespace, phase, preview_revision, summary, lease_token, lease_expires_at, confirmed_revision, confirmed_by_user_id, confirm_idempotency_key
 `
 
 type UpdateProductImportJobCountsParams struct {
@@ -354,6 +374,16 @@ func (q *Queries) UpdateProductImportJobCounts(ctx context.Context, arg UpdatePr
 		&i.FailedRows,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SourceFormat,
+		&i.SourceNamespace,
+		&i.Phase,
+		&i.PreviewRevision,
+		&i.Summary,
+		&i.LeaseToken,
+		&i.LeaseExpiresAt,
+		&i.ConfirmedRevision,
+		&i.ConfirmedByUserID,
+		&i.ConfirmIdempotencyKey,
 	)
 	return i, err
 }
