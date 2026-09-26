@@ -31,7 +31,7 @@ func TestExportImportRoundtripPreservesIDsStatusAndAllSKUData(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if ok, err := importer.RunNext(ctx); err != nil || !ok {
+		if ok, err := runPreparedImport(t, importer, ctx, job.ID); err != nil || !ok {
 			t.Fatalf("run import %v %v", ok, err)
 		}
 		result, err := q.GetProductImportJob(ctx, job.ID)
@@ -244,7 +244,7 @@ func TestImportRejectsIdentityConflictsAndInvalidFinalCombinationsAtomically(t *
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := importer.RunNext(ctx); err != nil {
+		if _, err := runPreparedImport(t, importer, ctx, job.ID); err != nil {
 			t.Fatal(err)
 		}
 		result, err := q.GetProductImportJob(ctx, job.ID)

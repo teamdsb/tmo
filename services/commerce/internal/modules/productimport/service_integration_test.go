@@ -109,7 +109,7 @@ func TestServiceRunNextCreatesMultiSkuProductWithZipImages(t *testing.T) {
 		t.Fatal("raw upload directory is publicly accessible")
 	}
 
-	processed, err := service.RunNext(ctx)
+	processed, err := runPreparedImport(t, service, ctx, job.ID)
 	if err != nil {
 		t.Fatalf("run next job: %v", err)
 	}
@@ -203,15 +203,16 @@ func TestServiceRunNextStoresEmptyArraysAsEmptySlices(t *testing.T) {
 	})
 
 	service := NewService(pool, t.TempDir(), testMediaBaseURL, nil)
-	if _, err := service.Enqueue(ctx, EnqueueInput{
+	job, err := service.Enqueue(ctx, EnqueueInput{
 		CreatedByUserID: pgtype.UUID{Bytes: uuid.New(), Valid: true},
 		ExcelFile:       bytes.NewReader(workbook),
 		ExcelFileName:   "empty-arrays.xlsx",
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("enqueue import: %v", err)
 	}
 
-	if _, err := service.RunNext(ctx); err != nil {
+	if _, err := runPreparedImport(t, service, ctx, job.ID); err != nil {
 		t.Fatalf("run next job: %v", err)
 	}
 
@@ -312,7 +313,7 @@ func TestServiceRunNextUpdatesExistingSkuBySkuCode(t *testing.T) {
 		t.Fatalf("enqueue update import: %v", err)
 	}
 
-	if _, err := service.RunNext(ctx); err != nil {
+	if _, err := runPreparedImport(t, service, ctx, job.ID); err != nil {
 		t.Fatalf("run next update job: %v", err)
 	}
 
@@ -394,7 +395,7 @@ func TestServiceRunNextMarksMalformedWorkbookAsFailed(t *testing.T) {
 	}
 }
 
-func TestServiceRunNextSupportsPartialSuccessAndWritesErrorReport(t *testing.T) {
+func TestServicePreviewBlocksInvalidRowsUntilExplicitlyIgnored(t *testing.T) {
 	pool := openProductImportTestPool(t)
 	resetProductImportTables(t, pool)
 	queries := db.New(pool)
@@ -457,45 +458,33 @@ func TestServiceRunNextSupportsPartialSuccessAndWritesErrorReport(t *testing.T) 
 	if err != nil {
 		t.Fatalf("get import job: %v", err)
 	}
-	if importJob.Status != string(oapi.SUCCEEDED) {
-		t.Fatalf("expected SUCCEEDED status, got %s", importJob.Status)
+	if importJob.Status != "AWAITING_CONFIRMATION" {
+		t.Fatalf("expected preview, got %s", importJob.Status)
 	}
-	if importJob.ErrorReportUrl == nil || *importJob.ErrorReportUrl == "" {
-		t.Fatalf("expected errorReportUrl to be set")
-	}
-
-	productJob, err := queries.GetProductImportJob(ctx, job.ID)
+	preview, err := service.GetPreview(ctx, job.ID, 1, 50, false)
 	if err != nil {
-		t.Fatalf("get product import job: %v", err)
+		t.Fatal(err)
 	}
-	if productJob.TotalRows != 2 || productJob.SuccessRows != 1 || productJob.FailedRows != 1 {
-		t.Fatalf("unexpected partial row counts: %+v", productJob)
+	if _, err := service.Confirm(ctx, job.ID, preview.Revision, uuid.New(), "invalid"); err == nil {
+		t.Fatal("blocking price error was confirmed")
 	}
-
-	rows, err := queries.ListProductImportRowsByJob(ctx, job.ID)
-	if err != nil {
-		t.Fatalf("list product import rows: %v", err)
+	ignored := true
+	for _, group := range preview.Items {
+		if group.Action == "ERROR" {
+			preview, err = service.ResolvePreview(ctx, job.ID, ResolutionInput{ExpectedRevision: preview.Revision, Groups: []GroupResolution{{Key: group.Key, Rows: []RowResolution{{RowID: group.Rows[0].RowID, Ignored: &ignored}}}}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			break
+		}
 	}
-	if len(rows) != 2 {
-		t.Fatalf("expected 2 import rows, got %d", len(rows))
+	result := confirmPreview(t, service, preview)
+	if result.Status != "SUCCEEDED" || result.Summary.SuccessRows != 1 || result.Summary.SkippedRows != 1 {
+		t.Fatalf("unexpected ignored result: %+v", result)
 	}
-
-	products, err := queries.ListProducts(ctx, db.ListProductsParams{Offset: 0, Limit: 20})
-	if err != nil {
-		t.Fatalf("list products: %v", err)
-	}
-	if len(products) != 1 {
-		t.Fatalf("expected only the valid row to create a product, got %d", len(products))
-	}
-
-	reportPath := strings.TrimPrefix(*importJob.ErrorReportUrl, strings.TrimRight(testMediaBaseURL, "/")+"/")
-	// #nosec G304 -- report generated inside the integration test temporary media directory.
-	reportBytes, err := os.ReadFile(filepath.Join(mediaDir, filepath.FromSlash(reportPath)))
-	if err != nil {
-		t.Fatalf("read error report: %v", err)
-	}
-	if !strings.Contains(string(reportBytes), "priceTiers must use range:price format") {
-		t.Fatalf("expected detailed error report, got %s", string(reportBytes))
+	products, err := queries.ListProducts(ctx, db.ListProductsParams{Limit: 20})
+	if err != nil || len(products) != 1 {
+		t.Fatal(products, err)
 	}
 }
 
@@ -571,7 +560,7 @@ DROP FUNCTION IF EXISTS fail_second_product_import_row_for_test();`)
 
 	runCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	processed, err := service.RunNext(runCtx)
+	processed, err := runPreparedImport(t, service, runCtx, job.ID)
 	if err != nil {
 		t.Fatalf("run next returned instead of completing failed group: %v", err)
 	}
@@ -599,8 +588,8 @@ DROP FUNCTION IF EXISTS fail_second_product_import_row_for_test();`)
 	if err != nil {
 		t.Fatalf("get import job: %v", err)
 	}
-	if importJob.Status != string(oapi.SUCCEEDED) {
-		t.Fatalf("expected existing partial-success job status SUCCEEDED, got %s", importJob.Status)
+	if importJob.Status != "FAILED" {
+		t.Fatalf("expected failed transaction status FAILED, got %s", importJob.Status)
 	}
 }
 

@@ -11,7 +11,9 @@ import {
   fetchCatalogCategories,
   fetchMiniappDisplayCategories,
   fetchProductDetail,
-  fetchProducts,
+  fetchAdminProducts,
+  listAdminProductImportReviews,
+  resolveAdminProductImportReview,
   replaceMiniappDisplayCategories,
   updateCatalogCategory,
   updateCatalogProduct,
@@ -19,6 +21,8 @@ import {
 } from '../../../lib/api';
 import { ensureProtectedPage } from '../../../lib/guard';
 import { createMockProductExportJob } from '../../../lib/product-import';
+import { listMockImportReviews, resolveMockImportReview } from '../../../lib/product-import-workbench';
+import { type ImportReview } from './import-types';
 import { AdminTopbar } from '../../layout/AdminTopbar';
 import {
   buildDefaultCategories,
@@ -782,9 +786,11 @@ type ProductEditDrawerProps = {
   open: boolean;
   product: ProductRecord | null;
   uploadImage?: (file: File) => Promise<string>;
+  reviews: ImportReview[];
+  onResolveReview: (id: string) => Promise<void>;
 };
 
-const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadImage }: ProductEditDrawerProps) => {
+const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadImage, reviews, onResolveReview }: ProductEditDrawerProps) => {
   const [draft, setDraft] = useState<EditableProductRecord | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -875,6 +881,10 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
               return;
             }
             const name = draft.name.trim();
+            if (draft.status === 'ACTIVE' && reviews.length > 0) {
+              setErrorMessage('请先处理商品导入复核项目，再启用商品。');
+              return;
+            }
             const dimensions = draft.filterDimensions.map((value) => value.trim());
             if (dimensions.length < 1 || dimensions.length > 3 || dimensions.some((value) => !value) || new Set(dimensions).size !== dimensions.length) {
               setErrorMessage('请配置 1～3 个非空且不重复的规格层级名称。');
@@ -989,6 +999,7 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
             value={draft.images}
           />
 
+          {reviews.length > 0 ? <section className="space-y-3 border-y border-amber-200 bg-amber-50 px-3 py-4" aria-label="导入待复核"><h4 className="text-sm font-semibold text-amber-900">导入待复核 · {reviews.length}</h4>{reviews.map(review => <div key={review.id} className="text-sm"><p className="text-amber-900">{review.message}</p><div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs"><a className="text-primary" href={`/import.html?jobId=${encodeURIComponent(review.jobId)}`}>{review.sourceSheet} · 第 {review.sourceRow} 行</a><button type="button" className="text-amber-900 underline" onClick={() => void onResolveReview(review.id).catch(error => setErrorMessage(error.message))}>标记已解决</button></div></div>)}</section> : null}
           <label className="block space-y-1 text-sm text-slate-700">
             <span>商品名称 *</span>
             <input
@@ -1083,6 +1094,7 @@ const ProductEditDrawer = ({ categories, onClose, onSave, open, product, uploadI
                       </label>
                     ))}
                     <label className="text-xs text-slate-600"><input type="checkbox" data-field="model-active" checked={model.isActive} onChange={(event) => updateModel(index, { isActive: event.target.checked })} /> 启用 SKU</label>
+                    <label className="text-xs text-slate-600">计量单位<input aria-label={`第 ${index + 1} 行计量单位`} className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm" value={model.unit || ''} onChange={event => updateModel(index, { unit: event.target.value })} /></label>
                   </div>
                   <label className="space-y-1 text-xs text-slate-600">
                     <span>型号名称</span>
@@ -1928,6 +1940,10 @@ export const ProductsPage = () => {
   const [displayCategories, setDisplayCategories] = useState<DisplayCategoryItem[]>([]);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [needsReview, setNeedsReview] = useState(false);
+  const [backendTotal, setBackendTotal] = useState(0);
+  const [productReviews, setProductReviews] = useState<ImportReview[]>([]);
+  const [reviewVersion, setReviewVersion] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const deferredSearchTerm = useDeferredValue(searchTerm);
   const [currentPage, setCurrentPage] = useState(1);
@@ -1939,14 +1955,19 @@ export const ProductsPage = () => {
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
   const [displayCategoryManagerOpen, setDisplayCategoryManagerOpen] = useState(false);
   const requestedProductIdRef = useRef(readProductIdFromUrl());
+  const productQueryRef = useRef({ page: currentPage, pageSize: PRODUCTS_PAGE_SIZE, q: deferredSearchTerm.trim(), categoryId: categoryFilter, status: statusFilter || 'ALL', needsReview });
+  productQueryRef.current = { page: currentPage, pageSize: PRODUCTS_PAGE_SIZE, q: deferredSearchTerm.trim(), categoryId: categoryFilter === NO_CATEGORY_FILTER ? '00000000-0000-0000-0000-000000000000' : categoryFilter, status: statusFilter || 'ALL', needsReview };
+  const productRequestRef = useRef(0);
 
   const loadBackendProducts = useCallback(async () => {
-    const response = await fetchProducts({ page: 1, pageSize: 200, status: 'ALL' });
+    const query = { ...productQueryRef.current };
+    const response = await fetchAdminProducts(query);
     if (response.status !== 200 || !Array.isArray(response.data?.items)) {
       const serverMessage = extractResponseMessage(response);
       throw new Error(serverMessage || '商品列表加载失败，请稍后重试。');
     }
-    return response.data.items.map((item, index) => normalizeProduct(item, index));
+    if (JSON.stringify(query) === JSON.stringify(productQueryRef.current)) setBackendTotal(response.data.total || 0);
+    return response.data.items.map((item, index) => ({ ...normalizeProduct(item, index), reviewCount: item.reviewCount || 0 }));
   }, []);
 
   const loadBackendCategories = useCallback(async () => {
@@ -2058,9 +2079,13 @@ export const ProductsPage = () => {
     if (context?.mode !== 'dev') {
       return;
     }
+    const request = ++productRequestRef.current;
     const loadedProducts = await loadBackendProducts();
-    setProducts(loadedProducts);
+    if (request === productRequestRef.current) setProducts(loadedProducts);
   }, [context?.mode, loadBackendProducts]);
+
+  useEffect(() => { if (context?.mode === 'dev') void refreshBackendProducts().catch(error => setErrorMessage(error.message)); }, [context?.mode, currentPage, deferredSearchTerm, categoryFilter, statusFilter, needsReview, refreshBackendProducts]);
+  useEffect(() => { if (!editingProductId) { setProductReviews([]); return; } let active = true; const load = async () => { const result = context?.mode === 'mock' ? listMockImportReviews({ productId: editingProductId, status: 'PENDING', pageSize: 100 }) : await listAdminProductImportReviews({ productId: editingProductId, status: 'PENDING', pageSize: 100 }); if (!active) return; if (context?.mode === 'mock') setProductReviews(result.items || []); else if (result.status === 200) setProductReviews(result.data?.items || []); else setToast({ message: '商品复核记录加载失败，请刷新后再启用商品。', tone: 'error' }); }; void load().catch(error => setToast({ message: error.message, tone: 'error' })); return () => { active = false; }; }, [editingProductId, context?.mode, reviewVersion]);
 
   const uploadBackendCatalogProductImage = useCallback(async (file: File) => {
     const response = await uploadCatalogProductImage(file);
@@ -2105,8 +2130,11 @@ export const ProductsPage = () => {
   }, [toast]);
 
   const filteredProducts = useMemo(() => {
+    if (context?.mode === 'dev') return products;
+    const reviewIds = new Set(listMockImportReviews({ status: 'PENDING', pageSize: 100000 }).items.map(item => item.productId));
     const keyword = deferredSearchTerm.trim().toLowerCase();
     return sortProductsByStatus(products.filter((product) => {
+      if (needsReview && !reviewIds.has(product.id)) return false;
       if (categoryFilter === NO_CATEGORY_FILTER && product.categoryId) {
         return false;
       }
@@ -2127,7 +2155,7 @@ export const ProductsPage = () => {
       ];
       return haystacks.some((value) => value.toLowerCase().includes(keyword));
     }));
-  }, [categories, categoryFilter, deferredSearchTerm, products, statusFilter]);
+  }, [categories, categoryFilter, deferredSearchTerm, products, statusFilter, needsReview, context?.mode, reviewVersion]);
 
   useEffect(() => {
     if (!exportJob || !['PENDING', 'RUNNING'].includes(exportJob.status) || context?.mode !== 'dev') return;
@@ -2152,7 +2180,7 @@ export const ProductsPage = () => {
       if (context?.mode === 'mock') {
         setExportJob(createMockProductExportJob(filteredProducts));
       } else {
-        const response = await createAdminProductExportJob({ q: searchTerm.trim() || undefined, categoryId: categoryFilter || undefined, status: statusFilter || 'ALL' });
+        const response = await createAdminProductExportJob({ q: searchTerm.trim() || undefined, categoryId: categoryFilter === NO_CATEGORY_FILTER ? '00000000-0000-0000-0000-000000000000' : categoryFilter || undefined, status: statusFilter || 'ALL', needsReview: needsReview || undefined });
         if (response.status !== 202 || !response.data) throw new Error(extractResponseMessage(response) || '创建商品导出任务失败。');
         setExportJob(response.data);
       }
@@ -2161,12 +2189,14 @@ export const ProductsPage = () => {
     } finally { setExportPending(false); }
   };
 
-  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / PRODUCTS_PAGE_SIZE));
+  const totalProducts = context?.mode === 'dev' ? backendTotal : filteredProducts.length;
+  const totalPages = Math.max(1, Math.ceil(totalProducts / PRODUCTS_PAGE_SIZE));
   const currentPageSafe = Math.min(currentPage, totalPages);
   const pagedProducts = useMemo(() => {
+    if (context?.mode === 'dev') return filteredProducts;
     const offset = (currentPageSafe - 1) * PRODUCTS_PAGE_SIZE;
     return filteredProducts.slice(offset, offset + PRODUCTS_PAGE_SIZE);
-  }, [currentPageSafe, filteredProducts]);
+  }, [currentPageSafe, filteredProducts, context?.mode]);
 
   useEffect(() => {
     if (currentPage !== currentPageSafe) {
@@ -2176,7 +2206,7 @@ export const ProductsPage = () => {
 
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [categoryFilter, searchTerm, statusFilter]);
+  }, [categoryFilter, searchTerm, statusFilter, needsReview]);
 
   const pageIds = pagedProducts.map((product) => product.id);
   const allSelectedOnPage = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
@@ -2225,13 +2255,22 @@ export const ProductsPage = () => {
     }
     const targetProduct = products.find((item) => item.id === requestedProductId);
     if (!targetProduct) {
+      if (context?.mode === 'dev') {
+        setEditingProductId(requestedProductId);
+        void fetchProductDetail(requestedProductId).then(response => {
+          if (response.status !== 200 || !response.data?.product) throw new Error('目标商品不存在或无法访问。');
+          const product = toProductRecordFromDetail(response.data, normalizeProduct(response.data.product));
+          setEditingProductId(product.id); setEditingProductDetail(product);
+        }).catch(error => { requestedProductIdRef.current = ''; setEditingProductId(''); syncProductIdToUrl(''); showToast(error.message, 'error'); });
+        return;
+      }
       requestedProductIdRef.current = '';
       syncProductIdToUrl('');
       showToast('目标商品不存在或无法访问。', 'error');
       return;
     }
     openProductEditor(targetProduct);
-  }, [editingProductId, loadState, openProductEditor, products]);
+  }, [editingProductId, loadState, openProductEditor, products, context?.mode]);
 
   const deleteProduct = async (product: ProductRecord) => {
     if (!window.confirm(`确定删除商品“${product.name}”吗？`)) {
@@ -2280,6 +2319,7 @@ export const ProductsPage = () => {
     if (productIds.length === 0 || bulkActionPending) {
       return;
     }
+    if (status === 'ACTIVE' && context?.mode === 'mock' && listMockImportReviews({ status: 'PENDING', pageSize: 100000 }).items.some(review => selectedIds.has(review.productId))) { showToast('所选商品仍有导入待复核项目，请先处理。', 'error'); return; }
 
     setBulkActionPending(true);
     try {
@@ -2525,6 +2565,7 @@ export const ProductsPage = () => {
                 value={searchTerm}
               />
             </div>
+            <label className="flex items-center gap-2 text-sm text-amber-800"><input type="checkbox" checked={needsReview} onChange={event => { setNeedsReview(event.target.checked); setCurrentPage(1); }} />仅待复核商品</label>
           </div>
         </div>
 
@@ -2676,6 +2717,7 @@ export const ProductsPage = () => {
                                 ></div>
                                 <div>
                                   <div className="font-bold text-slate-900 dark:text-white">{product.name}</div>
+                                  {(context?.mode === 'dev' ? product.reviewCount : listMockImportReviews({ productId: product.id }).total) ? <span className="mt-1 inline-block rounded bg-amber-50 px-2 py-0.5 text-xs text-amber-800">导入待复核</span> : null}
                                   <div className="mt-0.5 text-xs font-mono text-slate-500">SPU {product.id}</div>
                                 </div>
                               </div>
@@ -2733,7 +2775,7 @@ export const ProductsPage = () => {
 
               <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
                 <div className="text-sm text-slate-500 dark:text-slate-400" data-role="products-summary">
-                  {buildSummaryText(filteredProducts.length, currentPageSafe, PRODUCTS_PAGE_SIZE, pagedProducts.length)}
+                  {buildSummaryText(totalProducts, currentPageSafe, PRODUCTS_PAGE_SIZE, pagedProducts.length)}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -2834,6 +2876,12 @@ export const ProductsPage = () => {
 
       <ProductEditDrawer
         categories={categories}
+        reviews={productReviews}
+        onResolveReview={async id => {
+          if (context?.mode === 'mock') resolveMockImportReview(id);
+          else { const response = await resolveAdminProductImportReview(id); if (response.status !== 200) throw new Error(extractResponseMessage(response) || '复核状态保存失败。'); }
+          setProductReviews(current => current.filter(item => item.id !== id)); setReviewVersion(value => value + 1); await refreshBackendProducts();
+        }}
         onClose={closeProductEditor}
         onSave={async (updatedProduct) => {
           if (context?.mode === 'dev') {

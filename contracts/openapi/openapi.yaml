@@ -39,6 +39,24 @@ security:
   - bearerAuth: []
 
 paths:
+  "/admin/products":
+    $ref: "./admin.yaml#/paths/~1admin~1products"
+  "/admin/products/import-template":
+    $ref: "./admin.yaml#/paths/~1admin~1products~1import-template"
+  "/admin/products/import-jobs/{jobId}/preview":
+    $ref: "./admin.yaml#/paths/~1admin~1products~1import-jobs~1{jobId}~1preview"
+  "/admin/products/import-jobs/{jobId}/preview-resolution":
+    $ref: "./admin.yaml#/paths/~1admin~1products~1import-jobs~1{jobId}~1preview-resolution"
+  "/admin/products/import-jobs/{jobId}/confirm":
+    $ref: "./admin.yaml#/paths/~1admin~1products~1import-jobs~1{jobId}~1confirm"
+  "/admin/products/import-jobs/{jobId}/cancel":
+    $ref: "./admin.yaml#/paths/~1admin~1products~1import-jobs~1{jobId}~1cancel"
+  "/admin/import-jobs":
+    $ref: "./admin.yaml#/paths/~1admin~1import-jobs"
+  "/admin/products/import-reviews":
+    $ref: "./admin.yaml#/paths/~1admin~1products~1import-reviews"
+  "/admin/products/import-reviews/{reviewId}":
+    $ref: "./admin.yaml#/paths/~1admin~1products~1import-reviews~1{reviewId}"
   /auth/mini/login:
     $ref: "./identity.yaml#/paths/~1auth~1mini~1login"
   /auth/mini/capabilities:

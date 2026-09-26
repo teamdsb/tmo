@@ -17,6 +17,24 @@ tags:
 security:
 - bearerAuth: []
 paths:
+  "/admin/products":
+    $ref: "./catalog-import.yaml#/paths/~1admin~1products"
+  "/admin/products/import-template":
+    $ref: "./catalog-import.yaml#/paths/~1admin~1products~1import-template"
+  "/admin/products/import-jobs/{jobId}/preview":
+    $ref: "./catalog-import.yaml#/paths/~1admin~1products~1import-jobs~1{jobId}~1preview"
+  "/admin/products/import-jobs/{jobId}/preview-resolution":
+    $ref: "./catalog-import.yaml#/paths/~1admin~1products~1import-jobs~1{jobId}~1preview-resolution"
+  "/admin/products/import-jobs/{jobId}/confirm":
+    $ref: "./catalog-import.yaml#/paths/~1admin~1products~1import-jobs~1{jobId}~1confirm"
+  "/admin/products/import-jobs/{jobId}/cancel":
+    $ref: "./catalog-import.yaml#/paths/~1admin~1products~1import-jobs~1{jobId}~1cancel"
+  "/admin/import-jobs":
+    $ref: "./catalog-import.yaml#/paths/~1admin~1import-jobs"
+  "/admin/products/import-reviews":
+    $ref: "./catalog-import.yaml#/paths/~1admin~1products~1import-reviews"
+  "/admin/products/import-reviews/{reviewId}":
+    $ref: "./catalog-import.yaml#/paths/~1admin~1products~1import-reviews~1{reviewId}"
   "/admin/sales-users":
     get:
       tags:
@@ -346,9 +364,8 @@ paths:
     post:
       tags:
       - Admin
-      summary: Upload Excel for product import/update (image URLs or imagesZip)
-      description: Job service orchestrates async execution; business data remains
-        owned by domain services.
+      summary: Upload Excel for recognition and preview without writing catalog data
+      description: BOSS/ADMIN only. Supports standard, trial master and legacy five-column XLSX. Confirm the persisted preview before any product is written.
       requestBody:
         required: true
         content:
@@ -366,6 +383,9 @@ paths:
                 imageBaseUrl:
                   type: string
                   description: Optional base URL when Excel lists relative image paths
+                sourceNamespace:
+                  type: string
+                  description: Stable source namespace, defaulting to the detected format rather than the filename.
               required:
               - excelFile
       responses:
@@ -423,6 +443,9 @@ paths:
                   type: string
                   enum: [ALL, ACTIVE, INACTIVE, DRAFT]
                   default: ALL
+                needsReview:
+                  type: boolean
+                  default: false
               additionalProperties: false
       responses:
         '202':
@@ -2400,14 +2423,30 @@ components:
       - generatedAt
     JobStatus:
       type: string
+      x-enum-varnames: [PENDING, RUNNING, SUCCEEDED, FAILED, AWAITINGCONFIRMATION, PARTIALLYSUCCEEDED, JOBCANCELLED]
       enum:
       - PENDING
       - RUNNING
       - SUCCEEDED
       - FAILED
+      - AWAITING_CONFIRMATION
+      - PARTIALLY_SUCCEEDED
+      - CANCELLED
     ImportJob:
       type: object
       properties:
+        fileName:
+          type: string
+        sourceFormat:
+          type: string
+        phase:
+          type: string
+        revision:
+          type: integer
+        summary:
+          type: object
+          additionalProperties:
+            type: integer
         id:
           type: string
           format: uuid

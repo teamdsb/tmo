@@ -309,10 +309,7 @@ poll_job() {
 
 assert_product_visible() {
   local product_name="$1"
-  local resp
-  resp="$(curl -sS -G -w "\n%{http_code}" --data-urlencode "page=1" --data-urlencode "pageSize=20" --data-urlencode "q=${product_name}" "$base_url/catalog/products")"
-  http_body="$(echo "$resp" | sed '$d')"
-  http_code="$(echo "$resp" | tail -n1)"
+  request "GET" "$base_url/admin/products" "" -G --data-urlencode "page=1" --data-urlencode "pageSize=20" --data-urlencode "q=${product_name}"
   if [[ "$http_code" != "200" ]]; then
     echo "query products failed: $http_code" >&2
     echo "$http_body" >&2
@@ -371,6 +368,18 @@ if [[ -z "$success_job_id" ]]; then
 fi
 
 success_job_json="$(poll_job "$success_job_id")"
+if [[ "$(echo "$success_job_json" | json_get 'status')" != "AWAITING_CONFIRMATION" ]]; then
+  echo "expected success upload to stop at preview" >&2
+  echo "$success_job_json" >&2
+  exit 1
+fi
+preview_revision="$(echo "$success_job_json" | json_get 'revision')"
+request "POST" "$base_url/admin/products/import-jobs/${success_job_id}/confirm" "{\"expectedRevision\":${preview_revision}}" -H "Idempotency-Key: smoke-${success_job_id}"
+if [[ "$http_code" != "202" ]]; then
+  echo "confirm import failed: $http_code $http_body" >&2
+  exit 1
+fi
+success_job_json="$(poll_job "$success_job_id")"
 success_status="$(echo "$success_job_json" | json_get 'status')"
 success_result_url="$(echo "$success_job_json" | json_get 'resultFileUrl')"
 success_error_url="$(echo "$success_job_json" | json_get 'errorReportUrl')"
@@ -396,7 +405,7 @@ partial_xlsx="$tmp_dir/partial.xlsx"
 partial_zip="$tmp_dir/partial.zip"
 generate_fixture "partial" "$partial_xlsx" "$partial_zip" "$partial_name" "$category_id" "$partial_sku"
 
-echo "[commerce-product-import-smoke] creating partial-success import job..."
+echo "[commerce-product-import-smoke] verifying invalid rows block confirmation..."
 upload_product_import "$partial_xlsx" "$partial_zip"
 if [[ "$http_code" != "202" ]]; then
   echo "create partial import job failed: $http_code" >&2
@@ -414,21 +423,26 @@ partial_job_json="$(poll_job "$partial_job_id")"
 partial_status="$(echo "$partial_job_json" | json_get 'status')"
 partial_result_url="$(echo "$partial_job_json" | json_get 'resultFileUrl')"
 partial_error_url="$(echo "$partial_job_json" | json_get 'errorReportUrl')"
-if [[ "$partial_status" != "SUCCEEDED" ]]; then
-  echo "expected partial job SUCCEEDED, got ${partial_status}" >&2
+if [[ "$partial_status" != "AWAITING_CONFIRMATION" ]]; then
+  echo "expected invalid job AWAITING_CONFIRMATION, got ${partial_status}" >&2
   echo "$partial_job_json" >&2
   exit 1
 fi
-if [[ -z "$partial_result_url" ]]; then
-  echo "expected partial job resultFileUrl" >&2
+if [[ "$(echo "$partial_job_json" | json_get 'summary.failedRows')" == "0" ]]; then
+  echo "expected blocking row errors in preview" >&2
   echo "$partial_job_json" >&2
   exit 1
 fi
-if [[ -z "$partial_error_url" ]]; then
-  echo "expected partial job errorReportUrl" >&2
-  echo "$partial_job_json" >&2
+partial_revision="$(echo "$partial_job_json" | json_get 'revision')"
+request "POST" "$base_url/admin/products/import-jobs/${partial_job_id}/confirm" "{\"expectedRevision\":${partial_revision}}" -H "Idempotency-Key: smoke-${partial_job_id}"
+if [[ "$http_code" != "400" ]]; then
+  echo "expected invalid preview confirmation rejected: $http_code $http_body" >&2
   exit 1
 fi
-assert_product_visible "$partial_name"
+request "GET" "$base_url/admin/products" "" -G --data-urlencode "q=${partial_name}"
+if [[ "$http_code" != "200" || "$(echo "$http_body" | json_get 'total')" != "0" ]]; then
+  echo "invalid preview wrote catalog data: $http_code $http_body" >&2
+  exit 1
+fi
 
 echo "[commerce-product-import-smoke] all checks passed."

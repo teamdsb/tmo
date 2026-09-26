@@ -1,0 +1,117 @@
+openapi: 3.0.3
+info:
+  title: Catalog Import Workbench
+  version: 1.0.0
+security:
+  - bearerAuth: []
+paths:
+  "/admin/products":
+    get:
+      tags: [Admin]
+      summary: "List catalog products and review counts"
+      parameters: [{"in":"query","name":"page","schema":{"type":"integer"}},{"in":"query","name":"pageSize","schema":{"type":"integer"}},{"in":"query","name":"q","schema":{"type":"string"}},{"in":"query","name":"categoryId","schema":{"type":"string"}},{"in":"query","name":"status","schema":{"type":"string"}},{"in":"query","name":"needsReview","schema":{"type":"boolean"}}]
+      responses: {"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/AdminProductList"}}}},"400":{"description":"Invalid input"},"403":{"description":"BOSS or ADMIN required"},"409":{"description":"Revision, identity, or state conflict"}}
+  "/admin/products/import-template":
+    get:
+      tags: [Admin]
+      summary: "Download Chinese product maintenance workbook"
+      responses: {"200":{"description":"XLSX workbook","content":{"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":{"schema":{"type":"string","format":"binary"}}}},"403":{"description":"BOSS or ADMIN required"}}
+  "/admin/products/import-jobs/{jobId}/preview":
+    get:
+      tags: [Admin]
+      summary: "Read persisted paginated recognition preview"
+      parameters: [{"in":"path","name":"jobId","required":true,"schema":{"type":"string","format":"uuid"}},{"in":"query","name":"page","schema":{"type":"integer"}},{"in":"query","name":"pageSize","schema":{"type":"integer"}},{"in":"query","name":"needsReview","schema":{"type":"boolean"}}]
+      responses: {"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Preview"}}}},"400":{"description":"Invalid input"},"403":{"description":"BOSS or ADMIN required"},"409":{"description":"Revision, identity, or state conflict"}}
+  "/admin/products/import-jobs/{jobId}/preview-resolution":
+    put:
+      tags: [Admin]
+      summary: "Apply corrections and explicit clears, then validate again"
+      parameters: [{"in":"path","name":"jobId","required":true,"schema":{"type":"string","format":"uuid"}}]
+      requestBody: {"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/Resolution"}}}}
+      responses: {"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Preview"}}}},"400":{"description":"Invalid input"},"403":{"description":"BOSS or ADMIN required"},"409":{"description":"Revision, identity, or state conflict"}}
+  "/admin/products/import-jobs/{jobId}/confirm":
+    post:
+      tags: [Admin]
+      summary: "Confirm current preview for asynchronous product commits"
+      parameters: [{"in":"path","name":"jobId","required":true,"schema":{"type":"string","format":"uuid"}},{"in":"header","name":"Idempotency-Key","required":true,"schema":{"type":"string","minLength":1,"maxLength":200}}]
+      requestBody: {"required":true,"content":{"application/json":{"schema":{"type":"object","properties":{"expectedRevision":{"type":"integer","minimum":1}},"required":["expectedRevision"]}}}}
+      responses: {"202":{"description":"Confirmed or matching idempotent confirmation","content":{"application/json":{"schema":{"$ref":"./admin.yaml#/components/schemas/ImportJob"}}}},"400":{"description":"Invalid confirmation or unresolved errors"},"403":{"description":"BOSS or ADMIN required"},"409":{"description":"Stale preview or confirmation conflict"}}
+  "/admin/products/import-jobs/{jobId}/cancel":
+    post:
+      tags: [Admin]
+      summary: "Cancel an uncommitted preview"
+      parameters: [{"in":"path","name":"jobId","required":true,"schema":{"type":"string","format":"uuid"}}]
+      responses: {"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"./admin.yaml#/components/schemas/ImportJob"}}}},"400":{"description":"Invalid input"},"403":{"description":"BOSS or ADMIN required"},"409":{"description":"Revision, identity, or state conflict"}}
+  "/admin/import-jobs":
+    get:
+      tags: [Admin]
+      summary: "List durable import and export history"
+      parameters: [{"in":"query","name":"page","schema":{"type":"integer"}},{"in":"query","name":"pageSize","schema":{"type":"integer"}},{"in":"query","name":"type","schema":{"type":"string"}},{"in":"query","name":"status","schema":{"type":"string"}}]
+      responses: {"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/JobList"}}}},"400":{"description":"Invalid input"},"403":{"description":"BOSS or ADMIN required"},"409":{"description":"Revision, identity, or state conflict"}}
+  "/admin/products/import-reviews":
+    get:
+      tags: [Admin]
+      summary: "List catalog import review issues"
+      parameters: [{"in":"query","name":"page","schema":{"type":"integer"}},{"in":"query","name":"pageSize","schema":{"type":"integer"}},{"in":"query","name":"status","schema":{"type":"string"}},{"in":"query","name":"productId","schema":{"type":"string","format":"uuid"}}]
+      responses: {"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/ReviewList"}}}},"400":{"description":"Invalid input"},"403":{"description":"BOSS or ADMIN required"},"409":{"description":"Revision, identity, or state conflict"}}
+  "/admin/products/import-reviews/{reviewId}":
+    patch:
+      tags: [Admin]
+      summary: "Explicitly resolve a review after validating the product"
+      parameters: [{"in":"path","name":"reviewId","required":true,"schema":{"type":"string","format":"uuid"}}]
+      requestBody: {"required":true,"content":{"application/json":{"schema":{"type":"object","properties":{"status":{"type":"string","enum":["RESOLVED"]}},"required":["status"]}}}}
+      responses: {"200":{"description":"OK","content":{"application/json":{"schema":{"$ref":"#/components/schemas/Review"}}}},"400":{"description":"Invalid input"},"403":{"description":"BOSS or ADMIN required"},"409":{"description":"Revision, identity, or state conflict"}}
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Issue:
+      type: "object"
+      properties: {"code":{"type":"string"},"message":{"type":"string"},"severity":{"type":"string","enum":["WARNING","ERROR"]}}
+      required: ["code","message","severity"]
+    Summary:
+      type: "object"
+      properties: {"totalRows":{"type":"integer","minimum":0},"successRows":{"type":"integer","minimum":0},"failedRows":{"type":"integer","minimum":0},"skippedRows":{"type":"integer","minimum":0},"splitProducts":{"type":"integer","minimum":0},"reviewCount":{"type":"integer","minimum":0},"productCreates":{"type":"integer","minimum":0},"productUpdates":{"type":"integer","minimum":0},"skuCreates":{"type":"integer","minimum":0},"skuUpdates":{"type":"integer","minimum":0}}
+    Row:
+      type: "object"
+      properties: {"rowId":{"type":"string","format":"uuid"},"sourceSheet":{"type":"string"},"sourceRow":{"type":"integer"},"skuCode":{"type":"string"},"skuName":{"type":"string"},"spec":{"type":"string"},"attributes":{"type":"object","additionalProperties":{"type":"string"}},"unit":{"type":"string"},"action":{"type":"string"},"issues":{"type":"array","items":{"$ref":"#/components/schemas/Issue"}},"rawValues":{"type":"object","additionalProperties":{"type":"string"}},"clearFields":{"type":"array","items":{"type":"string"}}}
+      required: ["rowId","sourceSheet","sourceRow","skuCode","skuName","spec","attributes","unit","action","issues","rawValues"]
+    Group:
+      type: "object"
+      properties: {"key":{"type":"string"},"productName":{"type":"string"},"productId":{"type":"string","format":"uuid","nullable":true},"categoryId":{"type":"string","format":"uuid"},"dimensions":{"type":"array","items":{"type":"string"},"maxItems":3},"action":{"type":"string"},"rows":{"type":"array","items":{"$ref":"#/components/schemas/Row"}},"issues":{"type":"array","items":{"$ref":"#/components/schemas/Issue"}},"clearFields":{"type":"array","items":{"type":"string"}}}
+      required: ["key","productName","categoryId","dimensions","action","rows","issues"]
+    Preview:
+      type: "object"
+      properties: {"jobId":{"type":"string","format":"uuid"},"revision":{"type":"integer"},"sourceFormat":{"type":"string"},"summary":{"$ref":"#/components/schemas/Summary"},"items":{"type":"array","items":{"$ref":"#/components/schemas/Group"}},"total":{"type":"integer"},"page":{"type":"integer"},"pageSize":{"type":"integer"}}
+      required: ["jobId","revision","sourceFormat","summary","items","total","page","pageSize"]
+    RowResolution:
+      type: "object"
+      properties: {"rowId":{"type":"string","format":"uuid"},"unit":{"type":"string"},"attributes":{"type":"object","additionalProperties":{"type":"string"}},"groupKey":{"type":"string"},"ignored":{"type":"boolean"},"clearFields":{"type":"array","items":{"type":"string"}}}
+      required: ["rowId"]
+    GroupResolution:
+      type: "object"
+      properties: {"key":{"type":"string"},"productName":{"type":"string"},"categoryId":{"type":"string","format":"uuid"},"dimensions":{"type":"array","items":{"type":"string"},"maxItems":3},"rows":{"type":"array","items":{"$ref":"#/components/schemas/RowResolution"}}}
+      required: ["key"]
+    Resolution:
+      type: "object"
+      properties: {"expectedRevision":{"type":"integer","minimum":1},"groups":{"type":"array","items":{"$ref":"#/components/schemas/GroupResolution"}}}
+      required: ["expectedRevision","groups"]
+    Review:
+      type: "object"
+      properties: {"id":{"type":"string","format":"uuid"},"jobId":{"type":"string","format":"uuid"},"productId":{"type":"string","format":"uuid"},"skuId":{"type":"string","format":"uuid","nullable":true},"productName":{"type":"string"},"sourceSheet":{"type":"string"},"sourceRow":{"type":"integer"},"code":{"type":"string"},"message":{"type":"string"},"status":{"type":"string","enum":["PENDING","RESOLVED"]},"rawValues":{"type":"object","additionalProperties":{"type":"string"}},"createdAt":{"type":"string","format":"date-time"},"resolvedAt":{"type":"string","format":"date-time","nullable":true}}
+      required: ["id","jobId","productId","productName","sourceSheet","sourceRow","code","message","status","rawValues","createdAt"]
+    JobList:
+      type: "object"
+      properties: {"items":{"type":"array","items":{"$ref":"./admin.yaml#/components/schemas/ImportJob"}},"total":{"type":"integer"},"page":{"type":"integer"},"pageSize":{"type":"integer"}}
+      required: ["items","total","page","pageSize"]
+    ReviewList:
+      type: "object"
+      properties: {"items":{"type":"array","items":{"$ref":"#/components/schemas/Review"}},"total":{"type":"integer"},"page":{"type":"integer"},"pageSize":{"type":"integer"}}
+      required: ["items","total","page","pageSize"]
+    AdminProductList:
+      type: "object"
+      properties: {"items":{"type":"array","items":{"allOf":[{"$ref":"./commerce.yaml#/components/schemas/ProductSummary"},{"type":"object","properties":{"reviewCount":{"type":"integer"}}}]}},"total":{"type":"integer"},"page":{"type":"integer"},"pageSize":{"type":"integer"}}
+      required: ["items","total","page","pageSize"]

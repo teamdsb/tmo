@@ -2,6 +2,12 @@
 
 这个文件只记录会影响后续 agent 判断的近期仓库变化，不承担发布说明、项目周报或任务流水账职责。
 
+## 2026-09-26
+
+- 商品文件上传改为先识别预览、确认后按商品组提交；支持试运行多表母表及旧五列表，最多三级规格，不确定行创建独立草稿并持久复核。可选字段空白改为保留已有值，清空在预览明确提交；source refs 避免重复导入和无关追加 SKU 覆盖人工修改。
+- Admin 导入、导出和任务历史统一工作台，商品可按待复核筛选；编辑及回导均禁止待复核商品上架。新增 commerce 00026/00027 迁移；旧 v2 工作区未整体合并。生产未部署。
+  建议阅读：docs/runbooks/product-specifications-excel.md、docs/execplans/product-import-recognition.md。
+
 ## 2026-09-22
 
 - 生产微信支付统一为 B2B 门店助手协议：ECS payment 已运行 `PAYMENT_PROVIDER_MODE=b2b`，miniapp 使用 `bb-plugin` 和 `wx.requestCommonPayment`。旧体验版请求普通 `/payments/wechat/create` 会被 B2B provider 以 503 拒绝；需重新构建、上传并发布合并后的小程序产物。前后端均强制检查独立 `wechatB2bEnabled` 熔断开关，平台默认支付渠道与生产 B2B provider 保持一致。

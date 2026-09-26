@@ -65,6 +65,13 @@ func (h *Handler) catalogWrite(c *gin.Context, productID uuid.UUID, status int, 
 				result, err = write(q, product)
 			}
 			if err == nil {
+				var pending bool
+				pending, err = q.ProductActiveWithPendingReview(ctx, productID)
+				if err == nil && pending {
+					err = invalidCatalog("商品存在待复核导入问题，请完成复核后上架")
+				}
+			}
+			if err == nil {
 				err = tx.Commit(ctx)
 			}
 		}

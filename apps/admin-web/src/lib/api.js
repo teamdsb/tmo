@@ -327,6 +327,23 @@ export const getAdminImportJob = async (jobId) => {
   return requestRaw(`/admin/import-jobs/${jobId}`);
 };
 
+const importQuery = (params = {}) => new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== '' && value !== null).map(([key, value]) => [key, String(value)])).toString();
+export const listAdminImportJobs = (params = {}) => requestRaw(`/admin/import-jobs?${importQuery(params)}`);
+export const fetchAdminProducts = (params = {}) => requestRaw(`/admin/products?${importQuery(params)}`);
+export const downloadAdminProductImportTemplate = async () => {
+  const response = await fetch(joinPath('/admin/products/import-template', apiBaseUrl), { headers: { Authorization: `Bearer ${getAccessToken()}` } });
+  if (!response.ok) throw new Error(`模板下载失败（HTTP ${response.status}）。`);
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement('a'); link.href = url; link.download = '商品维护模板.xlsx'; link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+export const getAdminProductImportPreview = (jobId, params = {}) => requestRaw(`/admin/products/import-jobs/${encodeURIComponent(jobId)}/preview?${importQuery(params)}`);
+export const resolveAdminProductImportPreview = (jobId, payload) => requestRaw(`/admin/products/import-jobs/${encodeURIComponent(jobId)}/preview-resolution`, { method: 'PUT', body: payload });
+export const confirmAdminProductImport = (jobId, expectedRevision, idempotencyKey) => requestRaw(`/admin/products/import-jobs/${encodeURIComponent(jobId)}/confirm`, { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, body: { expectedRevision } });
+export const cancelAdminProductImport = (jobId) => requestRaw(`/admin/products/import-jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' });
+export const listAdminProductImportReviews = (params = {}) => requestRaw(`/admin/products/import-reviews?${importQuery(params)}`);
+export const resolveAdminProductImportReview = (reviewId) => requestRaw(`/admin/products/import-reviews/${encodeURIComponent(reviewId)}`, { method: 'PATCH', body: { status: 'RESOLVED' } });
+
 export const getFeatureFlags = async () => {
   return requestRaw('/admin/config/feature-flags');
 };

@@ -75,7 +75,8 @@ Admin / Ops:
 - customer:transfer
 - customer:tag
 - customer:read
-- product:manage（含商品规格原子维护、商品目录 Excel 导出；沿用 BOSS/ADMIN 的商品管理权限）
+- product:manage（含商品规格原子维护、商品目录 Excel 导出及导入问题复核；沿用 BOSS/ADMIN 的商品管理权限）
+- 商品导入预览、确认、任务历史、来源资料和复核接口由服务端校验 BOSS/ADMIN；允许访问物流导入页的 CS 不因此取得商品任务权限。
 - import:product
 - import:shipment
 - shipment:manage

@@ -39,6 +39,7 @@ export type ProductRecord = {
   name: string;
   status: ProductStatus;
   tierPricing: ProductTier[];
+  reviewCount?: number;
 };
 
 export type CategoryItem = {

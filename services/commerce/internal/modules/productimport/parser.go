@@ -21,27 +21,39 @@ type priceTierInput struct {
 }
 
 type parsedRow struct {
-	ProductID        uuid.UUID
-	SkuID            uuid.UUID
-	ProductStatus    string
-	NoSKU            bool
-	RowNumber        int
-	GroupKey         string
-	SkuCode          string
-	ProductName      string
-	SkuName          string
-	CategoryID       uuid.UUID
-	Description      *string
-	CoverImageRef    string
-	ImageRefs        []string
-	Tags             []string
-	FilterDimensions []string
-	Spec             *string
-	Attributes       map[string]string
-	Unit             *string
-	IsActive         bool
-	PriceTiers       []priceTierInput
-	RawValues        map[string]string
+	ProductID          uuid.UUID
+	SkuID              uuid.UUID
+	ProductStatus      string
+	NoSKU              bool
+	RowNumber          int
+	GroupKey           string
+	SkuCode            string
+	ProductName        string
+	SkuName            string
+	CategoryID         uuid.UUID
+	Description        *string
+	CoverImageRef      string
+	ImageRefs          []string
+	Tags               []string
+	FilterDimensions   []string
+	Spec               *string
+	Attributes         map[string]string
+	Unit               *string
+	IsActive           bool
+	PriceTiers         []priceTierInput
+	RawValues          map[string]string
+	SourceNamespace    string
+	SourceProductKey   string
+	SourceSKUKey       string
+	SourceFingerprint  string
+	SourceSheet        string
+	SourceRow          int
+	SourceCategoryPath []string
+	ProvidedFields     map[string]bool
+	ClearFields        []string
+	Issues             []Issue
+	Split              bool
+	Ignored            bool
 }
 
 type parsedRowState struct {
@@ -68,8 +80,9 @@ func parseWorkbookRows(rows [][]string) ([]parsedRowState, error) {
 		}
 		state := parsedRowState{
 			Row: parsedRow{
-				RowNumber: rowIndex + 2,
-				RawValues: buildRawValues(row, headerIndex, spec),
+				RowNumber:      rowIndex + 2,
+				RawValues:      buildRawValues(row, headerIndex, spec),
+				ProvidedFields: standardProvidedFields(row, headerIndex),
 			},
 		}
 		state.Row.GroupKey = excel.CellValue(row, headerIndex, "groupkey")
@@ -349,36 +362,6 @@ func parseQtyRange(raw string) (int, *int, error) {
 	return minQty, &maxQty, nil
 }
 
-func marshalPayload(row parsedRow) json.RawMessage {
-	payload := map[string]interface{}{
-		"productId": row.ProductID, "skuId": row.SkuID, "productStatus": row.ProductStatus, "noSKU": row.NoSKU,
-		"rowNumber":         row.RowNumber,
-		"groupKey":          row.GroupKey,
-		"skuCode":           row.SkuCode,
-		"productName":       row.ProductName,
-		"skuName":           row.SkuName,
-		"categoryId":        row.CategoryID.String(),
-		"description":       derefString(row.Description),
-		"coverImage":        row.CoverImageRef,
-		"images":            row.ImageRefs,
-		"tags":              row.Tags,
-		"filterDimensions":  row.FilterDimensions,
-		"spec":              derefString(row.Spec),
-		"attributes":        row.Attributes,
-		"unit":              derefString(row.Unit),
-		"isActive":          row.IsActive,
-		"priceTiers":        row.PriceTiers,
-		"rawValues":         row.RawValues,
-		"coverImageIsURL":   looksLikeURL(row.CoverImageRef),
-		"imageRefsHaveURLs": anyLooksLikeURL(row.ImageRefs),
-	}
-	encoded, err := json.Marshal(payload)
-	if err != nil {
-		return json.RawMessage(`{}`)
-	}
-	return encoded
-}
-
 func derefString(value *string) string {
 	if value == nil {
 		return ""
@@ -392,15 +375,6 @@ func looksLikeURL(raw string) bool {
 	}
 	parsed, err := url.Parse(strings.TrimSpace(raw))
 	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https")
-}
-
-func anyLooksLikeURL(values []string) bool {
-	for _, value := range values {
-		if looksLikeURL(value) {
-			return true
-		}
-	}
-	return false
 }
 
 // Explicit columns take precedence only when legacy fields agree; IDs are never silently ignored.

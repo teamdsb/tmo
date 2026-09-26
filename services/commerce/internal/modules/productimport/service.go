@@ -25,7 +25,6 @@ import (
 	"github.com/teamdsb/tmo/packages/go-shared/catalogspec"
 
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
-	"github.com/teamdsb/tmo/services/commerce/internal/excel"
 	"github.com/teamdsb/tmo/services/commerce/internal/http/oapi"
 )
 
@@ -42,6 +41,7 @@ type EnqueueInput struct {
 	ImagesZipFile     io.Reader
 	ImagesZipFileName string
 	ImageBaseURL      string
+	SourceNamespace   string
 }
 
 type Service struct {
@@ -52,16 +52,22 @@ type Service struct {
 }
 
 type rowExecutionState struct {
-	Parsed         parsedRow
-	Record         db.ProductImportRow
-	Error          string
-	PersistedState string
+	Parsed          parsedRow
+	Record          db.ProductImportRow
+	Error           string
+	ParseError      string
+	PersistedState  string
+	Action          string
+	TargetSnapshot  string
+	PreserveProduct bool
+	PreserveSKU     bool
 }
 
 type groupExecution struct {
-	Key      string
-	Rows     []*rowExecutionState
-	RowStart int
+	Key         string
+	Rows        []*rowExecutionState
+	SkippedRows []*rowExecutionState
+	RowStart    int
 }
 
 type groupExecutionError struct {
@@ -74,15 +80,6 @@ func (e *groupExecutionError) Error() string {
 
 func newGroupExecutionError(format string, args ...interface{}) error {
 	return &groupExecutionError{message: fmt.Sprintf(format, args...)}
-}
-
-type importSummary struct {
-	JobID       string    `json:"jobId"`
-	Status      string    `json:"status"`
-	TotalRows   int       `json:"totalRows"`
-	SuccessRows int       `json:"successRows"`
-	FailedRows  int       `json:"failedRows"`
-	ProcessedAt time.Time `json:"processedAt"`
 }
 
 func NewService(pool *pgxpool.Pool, mediaLocalOutputDir, mediaPublicBaseURL string, logger *slog.Logger) *Service {
@@ -173,6 +170,9 @@ func (s *Service) Enqueue(ctx context.Context, input EnqueueInput) (db.ImportJob
 	}); err != nil {
 		return db.ImportJob{}, fmt.Errorf("create product import job: %w", err)
 	}
+	if _, err := tx.Exec(ctx, "UPDATE product_import_jobs SET source_namespace=$2 WHERE job_id=$1", job.ID, strings.TrimSpace(input.SourceNamespace)); err != nil {
+		return db.ImportJob{}, err
+	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return db.ImportJob{}, fmt.Errorf("commit tx: %w", err)
@@ -182,11 +182,8 @@ func (s *Service) Enqueue(ctx context.Context, input EnqueueInput) (db.ImportJob
 }
 
 func (s *Service) ResetStaleRunning(ctx context.Context) error {
-	if s == nil || s.DB == nil {
-		return nil
-	}
-	_, err := db.New(s.DB).ResetRunningProductImportJobs(ctx)
-	return err
+	// Expired leases are reclaimed atomically by RunNext. Live workers are untouched.
+	return nil
 }
 
 func (s *Service) RunNext(ctx context.Context) (bool, error) {
@@ -194,7 +191,7 @@ func (s *Service) RunNext(ctx context.Context) (bool, error) {
 		return false, nil
 	}
 
-	job, err := db.New(s.DB).ClaimNextPendingProductImportJob(ctx)
+	claimed, err := db.New(s.DB).ClaimProductImportLifecycle(ctx)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return false, nil
@@ -202,139 +199,38 @@ func (s *Service) RunNext(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("claim pending product import job: %w", err)
 	}
 
-	if err := s.processJob(ctx, claimToProductImportJob(job)); err != nil {
-		return true, err
-	}
-	return true, nil
-}
-
-func (s *Service) processJob(ctx context.Context, job db.ProductImportJob) error {
-	rows, err := s.readWorkbook(job.ExcelFilePath)
-	if err != nil {
-		return s.failJob(ctx, job.JobID, fmt.Sprintf("failed to read excel: %v", err))
-	}
-
-	parsedRows, err := parseWorkbookRows(rows)
-	if err != nil {
-		return s.failJob(ctx, job.JobID, err.Error())
-	}
-
-	states, err := s.persistParsedRows(ctx, job.JobID, parsedRows)
-	if err != nil {
-		return s.failJob(ctx, job.JobID, fmt.Sprintf("failed to persist parsed rows: %v", err))
-	}
-	if _, err := db.New(s.DB).UpdateProductImportJobCounts(ctx, db.UpdateProductImportJobCountsParams{
-		JobID:       job.JobID,
-		TotalRows:   intToInt32(len(states)),
-		SuccessRows: 0,
-		FailedRows:  0,
-	}); err != nil {
-		s.logError("update product import total rows failed", err)
-	}
-
-	groups := s.buildGroups(states)
-	if err := s.flushFailedRows(ctx, states); err != nil {
-		return s.failJob(ctx, job.JobID, fmt.Sprintf("failed to persist validation errors: %v", err))
-	}
-
-	resolver, err := newImageResolver(job, s.MediaLocalOutputDir, s.MediaPublicBaseURL)
-	if err != nil {
-		return s.failJob(ctx, job.JobID, fmt.Sprintf("failed to prepare image resolver: %v", err))
-	}
-	defer resolver.Close()
-
-	for index, group := range groups {
-		if err := s.processGroup(ctx, group, resolver); err != nil {
-			s.logError("process product import group failed", err)
+	job := db.ProductImportJob(claimed)
+	runCtx, cancel := context.WithCancel(ctx)
+	runCtx = context.WithValue(runCtx, leaseContextKey{}, leaseIdentity{JobID: job.JobID, Token: job.LeaseToken})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-runCtx.Done():
+				return
+			case <-ticker.C:
+				n, heartbeatErr := db.New(s.DB).HeartbeatProductImportLifecycle(runCtx, db.HeartbeatProductImportLifecycleParams{JobID: job.JobID, LeaseToken: job.LeaseToken})
+				if heartbeatErr != nil || n != 1 {
+					cancel()
+					return
+				}
+			}
 		}
-		progress := 10 + intToInt32(((index+1)*80)/maxInt(1, len(groups)))
-		if _, err := db.New(s.DB).UpdateImportJobStatus(ctx, db.UpdateImportJobStatusParams{
-			ID:       job.JobID,
-			Status:   string(oapi.RUNNING),
-			Progress: progress,
-		}); err != nil {
-			s.logError("update product import progress failed", err)
-		}
+	}()
+	if job.Phase == "COMMITTING" {
+		err = s.commitPreview(runCtx, job)
+	} else {
+		err = s.preparePreview(runCtx, job)
 	}
-
-	totalRows, successRows, failedRows := summarizeStates(states)
-	if _, err := db.New(s.DB).UpdateProductImportJobCounts(ctx, db.UpdateProductImportJobCountsParams{
-		JobID:       job.JobID,
-		TotalRows:   intToInt32(totalRows),
-		SuccessRows: intToInt32(successRows),
-		FailedRows:  intToInt32(failedRows),
-	}); err != nil {
-		s.logError("update product import counts failed", err)
+	if err != nil && runCtx.Err() == nil && !errors.Is(err, ErrLeaseLost) {
+		err = s.failLifecycle(runCtx, job, err.Error())
 	}
-
-	resultURL, err := s.writeSummary(job.JobID, importSummary{
-		JobID:       job.JobID.String(),
-		Status:      string(oapi.SUCCEEDED),
-		TotalRows:   totalRows,
-		SuccessRows: successRows,
-		FailedRows:  failedRows,
-		ProcessedAt: time.Now().UTC(),
-	})
-	if err != nil {
-		s.logError("write product import summary failed", err)
-	}
-
-	var errorReportURL *string
-	if failedRows > 0 {
-		reportURL, reportErr := s.writeErrorReport(job.JobID, states)
-		if reportErr != nil {
-			s.logError("write product import error report failed", reportErr)
-		} else {
-			errorReportURL = reportURL
-		}
-	}
-
-	_, finalizeErr := db.New(s.DB).FinalizeImportJob(ctx, db.FinalizeImportJobParams{
-		ID:             job.JobID,
-		Status:         string(oapi.SUCCEEDED),
-		Progress:       100,
-		ResultFileUrl:  resultURL,
-		ErrorReportUrl: errorReportURL,
-	})
-	return finalizeErr
-}
-
-func (s *Service) persistParsedRows(ctx context.Context, jobID uuid.UUID, parsedRows []parsedRowState) ([]*rowExecutionState, error) {
-	queries := db.New(s.DB)
-	states := make([]*rowExecutionState, 0, len(parsedRows))
-	for _, item := range parsedRows {
-		rowStatus := rowStatusPending
-		var errMessage *string
-		if item.Error != "" {
-			rowStatus = rowStatusFailed
-			errValue := item.Error
-			errMessage = &errValue
-		}
-		skuCode := normalizeNullableString(item.Row.SkuCode)
-		productName := item.Row.ProductName
-		record, err := queries.CreateProductImportRow(ctx, db.CreateProductImportRowParams{
-			JobID:        jobID,
-			LineNo:       intToInt32(item.Row.RowNumber),
-			GroupKey:     normalizeNullableString(item.Row.GroupKey),
-			SkuCode:      skuCode,
-			ProductName:  normalizeNullableString(productName),
-			Status:       rowStatus,
-			ErrorMessage: errMessage,
-			RowData:      marshalPayload(item.Row),
-			ProductID:    pgtype.UUID{},
-			SkuID:        pgtype.UUID{},
-		})
-		if err != nil {
-			return nil, err
-		}
-		states = append(states, &rowExecutionState{
-			Parsed:         item.Row,
-			Record:         record,
-			Error:          item.Error,
-			PersistedState: rowStatus,
-		})
-	}
-	return states, nil
+	cancel()
+	<-done
+	return true, err
 }
 
 func (s *Service) buildGroups(states []*rowExecutionState) []*groupExecution {
@@ -424,42 +320,6 @@ func validateGroupRows(rows []*rowExecutionState) string {
 	return ""
 }
 
-func (s *Service) flushFailedRows(ctx context.Context, states []*rowExecutionState) error {
-	queries := db.New(s.DB)
-	for _, state := range states {
-		if state.Error == "" || state.PersistedState == rowStatusFailed {
-			continue
-		}
-		record, err := queries.UpdateProductImportRowResult(ctx, db.UpdateProductImportRowResultParams{
-			ID:           state.Record.ID,
-			Status:       rowStatusFailed,
-			ErrorMessage: &state.Error,
-			ProductID:    pgtype.UUID{},
-			SkuID:        pgtype.UUID{},
-		})
-		if err != nil {
-			return err
-		}
-		state.Record = record
-		state.PersistedState = rowStatusFailed
-	}
-	return nil
-}
-
-func (s *Service) processGroup(ctx context.Context, group *groupExecution, resolver *imageResolver) error {
-	coverURL, imageURLs, err := resolver.ResolveGroup(group.Rows[0].Parsed.CoverImageRef, group.Rows[0].Parsed.ImageRefs)
-	if err != nil {
-		return s.markGroupFailed(ctx, group.Rows, err.Error())
-	}
-	if err := s.processGroupTransaction(ctx, group, coverURL, imageURLs); err != nil {
-		// processGroupTransaction owns the transaction and returns only after its
-		// deferred rollback has released every row lock. The pool can now safely
-		// persist FAILED for the whole group without waiting on this job's own tx.
-		return s.markGroupFailed(ctx, group.Rows, err.Error())
-	}
-	return nil
-}
-
 func (s *Service) processGroupTransaction(
 	ctx context.Context,
 	group *groupExecution,
@@ -475,6 +335,24 @@ func (s *Service) processGroupTransaction(
 	}()
 
 	queries := db.New(tx)
+	if err := lockLease(ctx, tx); err != nil {
+		return err
+	}
+	if err := lockSourceGroups(ctx, tx, group.Rows); err != nil {
+		return err
+	}
+	if err := verifyGroupTargets(ctx, queries, group.Rows); err != nil {
+		return err
+	}
+	if len(group.Rows) == 0 {
+		if err := persistSkippedRows(ctx, queries, group.SkippedRows); err != nil {
+			return err
+		}
+		if err := verifyLease(ctx, tx); err != nil {
+			return err
+		}
+		return tx.Commit(ctx)
+	}
 	existingSkus := map[int]db.CatalogSku{}
 	resolvedSkuRows := map[uuid.UUID]int{}
 	matchedProductIDs := map[uuid.UUID]struct{}{}
@@ -506,6 +384,9 @@ func (s *Service) processGroupTransaction(
 			}
 		}
 		if matched != nil {
+			if row.Action != "" && row.Parsed.SkuID == uuid.Nil {
+				return fmt.Errorf("%w: SKU code was created after preview", ErrConflict)
+			}
 			if previousRow, exists := resolvedSkuRows[matched.ID]; exists {
 				return newGroupExecutionError("rows %d and %d resolve to the same SKU ID %s", previousRow, row.Parsed.RowNumber, matched.ID)
 			}
@@ -519,6 +400,8 @@ func (s *Service) processGroupTransaction(
 	}
 
 	groupHead := group.Rows[0].Parsed
+	groupHead.ClearFields = append(append([]string{}, groupHead.ClearFields...), productClearFields(group.Rows)...)
+	preserveProduct := group.Rows[0].PreserveProduct
 	normalizedImages := nonNilStrings(imageURLs)
 	normalizedTags := nonNilStrings(groupHead.Tags)
 	normalizedFilterDimensions := nonNilStrings(groupHead.FilterDimensions)
@@ -528,6 +411,61 @@ func (s *Service) processGroupTransaction(
 			existingProduct, getErr := queries.GetProductForUpdate(ctx, productID)
 			if getErr != nil {
 				return newGroupExecutionError("get product: %v", getErr)
+			}
+			for _, state := range group.Rows {
+				if state.TargetSnapshot != "" {
+					snapshot, snapshotErr := productSnapshot(ctx, queries, productID)
+					if snapshotErr != nil {
+						return snapshotErr
+					}
+					if snapshot != state.TargetSnapshot {
+						return fmt.Errorf("%w: target product changed after preview", ErrConflict)
+					}
+				}
+			}
+			if preserveProduct {
+				if !groupHead.ProvidedFields["resolvedProductName"] {
+					groupHead.ProductName = existingProduct.Name
+				}
+				if !groupHead.ProvidedFields["resolvedCategoryId"] {
+					groupHead.CategoryID = existingProduct.CategoryID
+				}
+				groupHead.Description = existingProduct.Description
+				normalizedTags = existingProduct.Tags
+				if !groupHead.ProvidedFields["resolvedDimensions"] {
+					normalizedFilterDimensions = existingProduct.FilterDimensions
+				}
+				if !groupHead.ProvidedFields["sourceImageFill"] {
+					normalizedImages = existingProduct.Images
+					coverURL = existingProduct.CoverImageUrl
+				}
+			}
+			if !provided(groupHead, "description") {
+				groupHead.Description = existingProduct.Description
+			}
+			if !provided(groupHead, "images") {
+				normalizedImages = existingProduct.Images
+			}
+			if !provided(groupHead, "coverImage") {
+				coverURL = existingProduct.CoverImageUrl
+			}
+			if !provided(groupHead, "tags") {
+				normalizedTags = existingProduct.Tags
+			}
+			if !provided(groupHead, "filterDimensions") {
+				normalizedFilterDimensions = existingProduct.FilterDimensions
+			}
+			if slices.Contains(groupHead.ClearFields, "description") {
+				groupHead.Description = nil
+			}
+			if slices.Contains(groupHead.ClearFields, "images") {
+				normalizedImages = []string{}
+			}
+			if slices.Contains(groupHead.ClearFields, "coverImage") {
+				coverURL = nil
+			}
+			if slices.Contains(groupHead.ClearFields, "tags") {
+				normalizedTags = []string{}
 			}
 			product, err = queries.UpdateProduct(ctx, db.UpdateProductParams{
 				ID:               productID,
@@ -568,6 +506,9 @@ func (s *Service) processGroupTransaction(
 			}
 			state.Record = record
 			state.PersistedState = rowStatusSucceeded
+			if err := persistSourceAndReviews(ctx, queries, state, product.ID, uuid.Nil); err != nil {
+				return err
+			}
 			continue
 		}
 		attributesJSON, err := json.Marshal(state.Parsed.Attributes)
@@ -578,7 +519,53 @@ func (s *Service) processGroupTransaction(
 		skuCode := normalizeNullableString(state.Parsed.SkuCode)
 		var sku db.CatalogSku
 		existing, hasExisting := existingSkus[state.Parsed.RowNumber]
-		if hasExisting {
+		switch {
+		case hasExisting && state.PreserveSKU:
+			sku, err = updatePreservedSKU(ctx, queries, product, state.Parsed, existing)
+		case hasExisting:
+			if !provided(state.Parsed, "skuCode") {
+				skuCode = existing.SkuCode
+			}
+			if !provided(state.Parsed, "skuName") {
+				state.Parsed.SkuName = existing.Name
+			}
+			if !provided(state.Parsed, "spec") {
+				state.Parsed.Spec = existing.Spec
+			}
+			if !provided(state.Parsed, "unit") {
+				state.Parsed.Unit = existing.Unit
+			}
+			if !provided(state.Parsed, "isActive") {
+				state.Parsed.IsActive = existing.IsActive
+			}
+			attrs := map[string]string{}
+			if err := json.Unmarshal(existing.Attributes, &attrs); err != nil {
+				return err
+			}
+			for key, value := range state.Parsed.Attributes {
+				attrs[key] = value
+			}
+			if slices.Contains(state.Parsed.ClearFields, "attributes") {
+				attrs = map[string]string{}
+			}
+			attributesJSON, err = json.Marshal(attrs)
+			if err != nil {
+				return err
+			}
+			if slices.Contains(state.Parsed.ClearFields, "skuCode") {
+				skuCode = nil
+			}
+			if slices.Contains(state.Parsed.ClearFields, "unit") {
+				state.Parsed.Unit = nil
+			}
+			if len(product.FilterDimensions) > 0 && state.Parsed.IsActive {
+				normalized, path, normalizeErr := catalogspec.NormalizeValues(product.FilterDimensions, attrs)
+				if normalizeErr != nil {
+					return normalizeErr
+				}
+				attributesJSON, _ = json.Marshal(normalized)
+				state.Parsed.Spec = &path
+			}
 			sku, err = queries.UpdateSku(ctx, db.UpdateSkuParams{
 				ID:         existing.ID,
 				SkuCode:    skuCode,
@@ -588,7 +575,7 @@ func (s *Service) processGroupTransaction(
 				Unit:       state.Parsed.Unit,
 				IsActive:   state.Parsed.IsActive,
 			})
-		} else {
+		default:
 			sku, err = queries.CreateSku(ctx, db.CreateSkuParams{
 				ProductID:  product.ID,
 				SkuCode:    skuCode,
@@ -603,22 +590,27 @@ func (s *Service) processGroupTransaction(
 			return newGroupExecutionError("upsert sku: %v", err)
 		}
 
-		if _, err := queries.DeletePriceTiersBySku(ctx, sku.ID); err != nil {
-			return newGroupExecutionError("delete old price tiers: %v", err)
-		}
-		for _, tier := range state.Parsed.PriceTiers {
-			var maxQty *int32
-			if tier.MaxQty != nil {
-				value := intToInt32(*tier.MaxQty)
-				maxQty = &value
+		if (!state.PreserveSKU && (!hasExisting || provided(state.Parsed, "priceTiers"))) || slices.Contains(state.Parsed.ClearFields, "priceTiers") {
+			if _, err := queries.DeletePriceTiersBySku(ctx, sku.ID); err != nil {
+				return newGroupExecutionError("delete old price tiers: %v", err)
 			}
-			if _, err := queries.CreatePriceTier(ctx, db.CreatePriceTierParams{
-				SkuID:        sku.ID,
-				MinQty:       intToInt32(tier.MinQty),
-				MaxQty:       maxQty,
-				UnitPriceFen: tier.UnitPriceFen,
-			}); err != nil {
-				return newGroupExecutionError("create price tier: %v", err)
+			for _, tier := range state.Parsed.PriceTiers {
+				if slices.Contains(state.Parsed.ClearFields, "priceTiers") {
+					break
+				}
+				var maxQty *int32
+				if tier.MaxQty != nil {
+					value := intToInt32(*tier.MaxQty)
+					maxQty = &value
+				}
+				if _, err := queries.CreatePriceTier(ctx, db.CreatePriceTierParams{
+					SkuID:        sku.ID,
+					MinQty:       intToInt32(tier.MinQty),
+					MaxQty:       maxQty,
+					UnitPriceFen: tier.UnitPriceFen,
+				}); err != nil {
+					return newGroupExecutionError("create price tier: %v", err)
+				}
 			}
 		}
 
@@ -635,6 +627,9 @@ func (s *Service) processGroupTransaction(
 		state.Record = record
 		state.PersistedState = rowStatusSucceeded
 		state.Error = ""
+		if err := persistSourceAndReviews(ctx, queries, state, product.ID, sku.ID); err != nil {
+			return err
+		}
 	}
 
 	allSkus, err := queries.ListSkusByProduct(ctx, product.ID)
@@ -652,97 +647,30 @@ func (s *Service) processGroupTransaction(
 	if err := catalogspec.ValidateCombinations(product.FilterDimensions, variants); err != nil {
 		return newGroupExecutionError("invalid final SKU combinations: %v", err)
 	}
+	if product.Status == "ACTIVE" {
+		pending, err := queries.CountPendingProductImportReviews(ctx, product.ID)
+		if err != nil {
+			return err
+		}
+		if pending > 0 {
+			return fmt.Errorf("%w: product has unresolved import reviews and cannot be activated", ErrConflict)
+		}
+	}
+	if err := persistSkippedRows(ctx, queries, group.SkippedRows); err != nil {
+		return err
+	}
+	if err := verifyLease(ctx, tx); err != nil {
+		return err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return newGroupExecutionError("commit tx: %v", err)
 	}
 	return nil
 }
 
-func (s *Service) markGroupFailed(ctx context.Context, rows []*rowExecutionState, message string) error {
-	queries := db.New(s.DB)
-	for _, state := range rows {
-		state.Error = message
-		record, err := queries.UpdateProductImportRowResult(ctx, db.UpdateProductImportRowResultParams{
-			ID:           state.Record.ID,
-			Status:       rowStatusFailed,
-			ErrorMessage: &message,
-			ProductID:    pgtype.UUID{},
-			SkuID:        pgtype.UUID{},
-		})
-		if err != nil {
-			return err
-		}
-		state.Record = record
-		state.PersistedState = rowStatusFailed
-	}
-	return fmt.Errorf("%s", message)
-}
-
-func (s *Service) failJob(ctx context.Context, jobID uuid.UUID, reason string) error {
-	reportURL, err := s.writeFatalErrorReport(jobID, reason)
-	if err != nil {
-		s.logError("write fatal product import error report failed", err)
-	}
-	_, finalizeErr := db.New(s.DB).FinalizeImportJob(ctx, db.FinalizeImportJobParams{
-		ID:             jobID,
-		Status:         string(oapi.FAILED),
-		Progress:       100,
-		ResultFileUrl:  nil,
-		ErrorReportUrl: reportURL,
-	})
-	if finalizeErr != nil {
-		return finalizeErr
-	}
-	return nil
-}
-
-func (s *Service) readWorkbook(excelPath string) ([][]string, error) {
-	// #nosec G304 -- stored path of the server-managed upload, not a user-supplied path.
-	file, err := os.Open(excelPath)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		_ = file.Close()
-	}()
-	return excel.ReadRows(file)
-}
-
-func summarizeStates(states []*rowExecutionState) (int, int, int) {
-	totalRows := len(states)
-	successRows := 0
-	failedRows := 0
-	for _, state := range states {
-		if state.PersistedState == rowStatusSucceeded {
-			successRows++
-			continue
-		}
-		failedRows++
-	}
-	return totalRows, successRows, failedRows
-}
-
-func (s *Service) writeSummary(jobID uuid.UUID, summary importSummary) (*string, error) {
-	relativePath := filepath.ToSlash(filepath.Join("import-jobs", jobID.String(), "reports", "summary.json"))
-	localPath := filepath.Join(s.MediaLocalOutputDir, filepath.FromSlash(relativePath))
-	// #nosec G301 -- published import reports/images must be traversable by Nginx.
-	if err := os.MkdirAll(filepath.Dir(localPath), 0o755); err != nil {
-		return nil, err
-	}
-	encoded, err := json.MarshalIndent(summary, "", "  ")
-	if err != nil {
-		return nil, err
-	}
-	// #nosec G306 -- the import result report is published through the media endpoint.
-	if err := os.WriteFile(localPath, encoded, 0o644); err != nil {
-		return nil, err
-	}
-	urlValue := s.publicURL(relativePath)
-	return &urlValue, nil
-}
-
 func (s *Service) writeErrorReport(jobID uuid.UUID, states []*rowExecutionState) (*string, error) {
-	relativePath := filepath.ToSlash(filepath.Join("import-jobs", jobID.String(), "reports", "errors.csv"))
+	// A separate report identifier prevents retries from replacing an already published file.
+	relativePath := filepath.ToSlash(filepath.Join("import-jobs", jobID.String(), "reports", "errors-"+uuid.NewString()+".csv"))
 	localPath := filepath.Join(s.MediaLocalOutputDir, filepath.FromSlash(relativePath))
 	// #nosec G301 -- published import reports/images must be traversable by Nginx.
 	if err := os.MkdirAll(filepath.Dir(localPath), 0o755); err != nil {
@@ -798,13 +726,6 @@ func (s *Service) publicURL(relativePath string) string {
 
 func (s *Service) jobRootDir(jobID uuid.UUID) string {
 	return filepath.Join(s.MediaLocalOutputDir, "import-jobs", jobID.String())
-}
-
-func (s *Service) logError(message string, err error) {
-	if s == nil || s.Logger == nil {
-		return
-	}
-	s.Logger.Error(message, "error", err)
 }
 
 type imageResolver struct {
@@ -990,29 +911,6 @@ func nonNilStrings(values []string) []string {
 		return []string{}
 	}
 	return values
-}
-
-func claimToProductImportJob(row db.ClaimNextPendingProductImportJobRow) db.ProductImportJob {
-	return db.ProductImportJob{
-		JobID:         row.JobID,
-		ExcelFilePath: row.ExcelFilePath,
-		ExcelFileName: row.ExcelFileName,
-		ImagesZipPath: row.ImagesZipPath,
-		ImagesZipName: row.ImagesZipName,
-		ImageBaseUrl:  row.ImageBaseUrl,
-		TotalRows:     row.TotalRows,
-		SuccessRows:   row.SuccessRows,
-		FailedRows:    row.FailedRows,
-		CreatedAt:     row.ProductImportCreatedAt,
-		UpdatedAt:     row.ProductImportUpdatedAt,
-	}
-}
-
-func maxInt(left, right int) int {
-	if left > right {
-		return left
-	}
-	return right
 }
 
 func copyReaderToFile(path string, reader io.Reader) error {

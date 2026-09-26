@@ -14,7 +14,7 @@ INSERT INTO product_import_jobs (
     $5,
     $6
 )
-RETURNING job_id, excel_file_path, excel_file_name, images_zip_path, images_zip_name, image_base_url, total_rows, success_rows, failed_rows, created_at, updated_at;
+RETURNING *;
 
 -- name: ClaimNextPendingProductImportJob :one
 WITH picked AS (
@@ -74,10 +74,10 @@ SET total_rows = $2,
     failed_rows = $4,
     updated_at = now()
 WHERE job_id = $1
-RETURNING job_id, excel_file_path, excel_file_name, images_zip_path, images_zip_name, image_base_url, total_rows, success_rows, failed_rows, created_at, updated_at;
+RETURNING *;
 
 -- name: GetProductImportJob :one
-SELECT job_id, excel_file_path, excel_file_name, images_zip_path, images_zip_name, image_base_url, total_rows, success_rows, failed_rows, created_at, updated_at
+SELECT *
 FROM product_import_jobs
 WHERE job_id = $1;
 

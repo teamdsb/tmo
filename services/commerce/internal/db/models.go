@@ -275,20 +275,51 @@ type ProductExportJob struct {
 	ExportedRows  int32              `db:"exported_rows" json:"exported_rows"`
 	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	NeedsReview   bool               `db:"needs_review" json:"needs_review"`
 }
 
 type ProductImportJob struct {
-	JobID         uuid.UUID          `db:"job_id" json:"job_id"`
-	ExcelFilePath string             `db:"excel_file_path" json:"excel_file_path"`
-	ExcelFileName string             `db:"excel_file_name" json:"excel_file_name"`
-	ImagesZipPath *string            `db:"images_zip_path" json:"images_zip_path"`
-	ImagesZipName *string            `db:"images_zip_name" json:"images_zip_name"`
-	ImageBaseUrl  *string            `db:"image_base_url" json:"image_base_url"`
-	TotalRows     int32              `db:"total_rows" json:"total_rows"`
-	SuccessRows   int32              `db:"success_rows" json:"success_rows"`
-	FailedRows    int32              `db:"failed_rows" json:"failed_rows"`
-	CreatedAt     pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt     pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	JobID                 uuid.UUID          `db:"job_id" json:"job_id"`
+	ExcelFilePath         string             `db:"excel_file_path" json:"excel_file_path"`
+	ExcelFileName         string             `db:"excel_file_name" json:"excel_file_name"`
+	ImagesZipPath         *string            `db:"images_zip_path" json:"images_zip_path"`
+	ImagesZipName         *string            `db:"images_zip_name" json:"images_zip_name"`
+	ImageBaseUrl          *string            `db:"image_base_url" json:"image_base_url"`
+	TotalRows             int32              `db:"total_rows" json:"total_rows"`
+	SuccessRows           int32              `db:"success_rows" json:"success_rows"`
+	FailedRows            int32              `db:"failed_rows" json:"failed_rows"`
+	CreatedAt             pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt             pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	SourceFormat          string             `db:"source_format" json:"source_format"`
+	SourceNamespace       string             `db:"source_namespace" json:"source_namespace"`
+	Phase                 string             `db:"phase" json:"phase"`
+	PreviewRevision       int32              `db:"preview_revision" json:"preview_revision"`
+	Summary               json.RawMessage    `db:"summary" json:"summary"`
+	LeaseToken            pgtype.UUID        `db:"lease_token" json:"lease_token"`
+	LeaseExpiresAt        pgtype.Timestamptz `db:"lease_expires_at" json:"lease_expires_at"`
+	ConfirmedRevision     *int32             `db:"confirmed_revision" json:"confirmed_revision"`
+	ConfirmedByUserID     pgtype.UUID        `db:"confirmed_by_user_id" json:"confirmed_by_user_id"`
+	ConfirmIdempotencyKey *string            `db:"confirm_idempotency_key" json:"confirm_idempotency_key"`
+}
+
+type ProductImportReview struct {
+	ID                uuid.UUID          `db:"id" json:"id"`
+	JobID             uuid.UUID          `db:"job_id" json:"job_id"`
+	ProductID         uuid.UUID          `db:"product_id" json:"product_id"`
+	SkuID             pgtype.UUID        `db:"sku_id" json:"sku_id"`
+	SourceNamespace   string             `db:"source_namespace" json:"source_namespace"`
+	SourceProductKey  string             `db:"source_product_key" json:"source_product_key"`
+	SourceSkuKey      string             `db:"source_sku_key" json:"source_sku_key"`
+	SourceFingerprint string             `db:"source_fingerprint" json:"source_fingerprint"`
+	SourceSheet       string             `db:"source_sheet" json:"source_sheet"`
+	SourceRow         int32              `db:"source_row" json:"source_row"`
+	Code              string             `db:"code" json:"code"`
+	Message           string             `db:"message" json:"message"`
+	Status            string             `db:"status" json:"status"`
+	RawValues         json.RawMessage    `db:"raw_values" json:"raw_values"`
+	CreatedAt         pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	ResolvedAt        pgtype.Timestamptz `db:"resolved_at" json:"resolved_at"`
+	ResolvedByUserID  pgtype.UUID        `db:"resolved_by_user_id" json:"resolved_by_user_id"`
 }
 
 type ProductImportRow struct {
@@ -305,6 +336,21 @@ type ProductImportRow struct {
 	SkuID        pgtype.UUID        `db:"sku_id" json:"sku_id"`
 	CreatedAt    pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+}
+
+type ProductImportSourceRef struct {
+	SourceNamespace          string             `db:"source_namespace" json:"source_namespace"`
+	SourceProductKey         string             `db:"source_product_key" json:"source_product_key"`
+	SourceSkuKey             string             `db:"source_sku_key" json:"source_sku_key"`
+	SourceFingerprint        string             `db:"source_fingerprint" json:"source_fingerprint"`
+	ProductID                uuid.UUID          `db:"product_id" json:"product_id"`
+	SkuID                    pgtype.UUID        `db:"sku_id" json:"sku_id"`
+	FirstJobID               uuid.UUID          `db:"first_job_id" json:"first_job_id"`
+	LastJobID                uuid.UUID          `db:"last_job_id" json:"last_job_id"`
+	CreatedAt                pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt                pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	SourceProductFingerprint string             `db:"source_product_fingerprint" json:"source_product_fingerprint"`
+	OriginalSourceProductKey string             `db:"original_source_product_key" json:"original_source_product_key"`
 }
 
 type ProductRequest struct {

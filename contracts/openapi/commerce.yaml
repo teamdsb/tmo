@@ -2370,6 +2370,7 @@ components:
       - items
     OrderPaymentStatus:
       type: string
+      x-enum-varnames: [OrderPaymentStatusUNPAID, OrderPaymentStatusPAYPENDING, OrderPaymentStatusPAID, OrderPaymentStatusPAYFAILED]
       enum:
       - UNPAID
       - PAY_PENDING
@@ -3301,14 +3302,30 @@ components:
       - generatedAt
     JobStatus:
       type: string
+      x-enum-varnames: [PENDING, RUNNING, SUCCEEDED, FAILED, AWAITINGCONFIRMATION, PARTIALLYSUCCEEDED, JOBCANCELLED]
       enum:
       - PENDING
       - RUNNING
       - SUCCEEDED
       - FAILED
+      - AWAITING_CONFIRMATION
+      - PARTIALLY_SUCCEEDED
+      - CANCELLED
     ImportJob:
       type: object
       properties:
+        fileName:
+          type: string
+        sourceFormat:
+          type: string
+        phase:
+          type: string
+        revision:
+          type: integer
+        summary:
+          type: object
+          additionalProperties:
+            type: integer
         id:
           type: string
           format: uuid
