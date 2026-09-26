@@ -15,6 +15,8 @@ Admin operators can upload the trial master workbook, legacy five-column workboo
 - [x] 2026-09-26: Implemented HTTP authorization, template, server pagination, filtered export/reference sheets, reports and publication guards; generated SQLC/OpenAPI clients.
 - [x] 2026-09-26: Implemented Admin workbench, mock lifecycle, category batch resolution, per-group SKU pagination and product review controls.
 - [x] 2026-09-26: Passed original master plus original images DB/race tests, HTTP DB tests, backend suite, mock/hybrid browser checks, 44 miniapp regressions, builds and independent review.
+- [x] 2026-09-26: Passed PR 183 checks, squash-merged e927ac9 to main and confirmed remote feature branch deletion.
+- [x] 2026-09-26: Released e927ac9; service health, authorization, static assets and empty-export download passed without changes to existing catalog data.
 
 ## Surprises & Discoveries
 
@@ -96,3 +98,5 @@ The GitHub repository is teamdsb/tmo. Publish codex/product-import-review, creat
 Deploy only the final main source with matching binary/archive hashes. Apply only migration 00026 and 00027 Up sections in one database transaction after draining the old import worker. Preserve existing environment, ports, networks and mounts. Build light runtime images for commerce/gateway from the currently running images; keep identity/payment container IDs unchanged. Verify container revision and health/ready before publishing hashed static assets and atomically replacing HTML/current. Roll back application images and static files if verification fails; never restore the entire database over subsequent transactions.
 
 Pre-merge review added legacy task state migration, a configurable template download API base, and real proxy forwarding coverage. Legacy interrupted tasks retain committed rows and source audit rather than being silently re-imported. The release deployment receipt will record actual revision, checks and backup paths after execution.
+
+Release completed on 2026-09-26. The deployed feature revision is e927ac91ae501da50ed67004b0ee3ed9b618ed0a. Public verification is recorded in docs/runbooks/deploy-product-import-2026-09-26.md; detailed operational receipts remain private. All source changes were committed and PR 183 was merged; original worktrees were preserved. Verification did not change catalog data.

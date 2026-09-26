@@ -5,8 +5,8 @@
 ## 2026-09-26
 
 - 商品文件上传改为先识别预览、确认后按商品组提交；支持试运行多表母表及旧五列表，最多三级规格，不确定行创建独立草稿并持久复核。可选字段空白改为保留已有值，清空在预览明确提交；source refs 避免重复导入和无关追加 SKU 覆盖人工修改。
-- Admin 导入、导出和任务历史统一工作台，商品可按待复核筛选；编辑及回导均禁止待复核商品上架。新增 commerce 00026/00027 迁移；旧 v2 工作区未整体合并。生产未部署。
-  建议阅读：docs/runbooks/product-specifications-excel.md、docs/execplans/product-import-recognition.md。
+- Admin 导入、导出和任务历史统一工作台，商品可按待复核筛选；编辑及回导均禁止待复核商品上架。新增 commerce 00026/00027 迁移；旧 v2 工作区未整体合并。PR 183 已 squash 合入 main，功能版本 e927ac9 已部署 ECS，未导入示例商品。
+  建议阅读：docs/runbooks/product-specifications-excel.md、docs/runbooks/deploy-product-import-2026-09-26.md、docs/execplans/product-import-recognition.md。
 
 ## 2026-09-22
 
