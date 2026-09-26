@@ -105,6 +105,15 @@ test('import polling does not overlap a slow status request', async ({ page }) =
     body: JSON.stringify({ me: user, permissions })
   }));
   await routeEmptySupport(page);
+  await page.route(/\/api\/catalog\/categories$/, route => route.fulfill({
+    json: { items: [] }
+  }));
+  await page.route(/\/api\/admin\/import-jobs(?:\?|$)/, route => route.fulfill({
+    json: emptyPage
+  }));
+  await page.route(/\/api\/admin\/products\/import-reviews(?:\?|$)/, route => route.fulfill({
+    json: emptyPage
+  }));
 
   let jobRequestCount = 0;
   await page.route(/\/api\/admin\/import-jobs\/job-pending$/, (route) => {
@@ -128,10 +137,11 @@ test('import polling does not overlap a slow status request', async ({ page }) =
 
   await page.goto('/import.html');
   await expect(page.getByTestId('import-page')).toBeVisible();
+  await page.getByText('其他批量任务与设置', { exact: true }).click();
   await page.getByTestId('import-job-query').fill('job-pending');
   await page.getByTestId('import-job-query-submit').click();
   await expect.poll(() => jobRequestCount).toBe(1);
-  await expect(page.getByTestId('latest-import-job-status')).toContainText('PENDING');
+  await expect(page.getByTestId('latest-import-job-status')).toContainText('等待处理');
   await expect.poll(() => jobRequestCount, { timeout: 4_000 }).toBe(2);
 
   await page.waitForTimeout(3_500);
