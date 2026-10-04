@@ -10,6 +10,17 @@ info:
     - IDs: UUID strings
     - Auth: Bearer JWT access token
     - Idempotency: send `Idempotency-Key` for order submit and payment create
+
+    Payment reconciliation is durable: pending B2B payments are queried server-side,
+    and saved payment states retry Commerce synchronization after client exit or service restart.
+    Internal POST /internal/orders/{orderId}/payment-status uses X-Internal-Token and
+    pairs positive stateVersion with the source paymentCreatedAt. Commerce persists
+    ordering under the order lock: versions within one payment, then (createdAt, paymentId)
+    across attempts. Stale non-PAID messages are acknowledged without mutation; PAID wins
+    over non-PAID and an already-paid order never regresses. Versionless legacy non-PAID
+    messages are ignored after a watermark exists; legacy PAID remains admissible.
+    Deploy Commerce ordering support before the upgraded Payment worker. Versionless
+    history has no recoverable original ordering before the first watermark.
 servers:
   - url: https://api.example.com
 
@@ -95,6 +106,7 @@ paths:
     $ref: "./identity.yaml#/paths/~1staff~1{staffId}~1bindings"
   /audit-logs:
     $ref: "./identity.yaml#/paths/~1audit-logs"
+  # Customer pages use creation time and unique ID as a stable ordering.
   /customers:
     $ref: "./identity.yaml#/paths/~1customers"
   /customers/{customerId}:
@@ -127,8 +139,10 @@ paths:
     $ref: "./commerce.yaml#/paths/~1cart~1import-jobs"
   /cart/import-jobs/{jobId}:
     $ref: "./commerce.yaml#/paths/~1cart~1import-jobs~1{jobId}"
+  # Confirmation is atomic and idempotent per import row; conflicts are defined in commerce.yaml.
   /cart/import-jobs/{jobId}/confirm:
     $ref: "./commerce.yaml#/paths/~1cart~1import-jobs~1{jobId}~1confirm"
+  # GET supports mutually exclusive status/statuses filters, applied before pagination.
   /orders:
     $ref: "./commerce.yaml#/paths/~1orders"
   /orders/{orderId}:
@@ -477,6 +491,7 @@ components:
 
     CreateOrderRequest:
       type: object
+      description: Checkout validates active products and SKUs with complete specification paths, and reads current prices atomically before consuming the selected cart quantities.
       properties:
         address: { $ref: "#/components/schemas/Address" }
         paymentMethod: { $ref: "#/components/schemas/OrderPaymentMethod" }
@@ -501,6 +516,7 @@ components:
 
     OrderItem:
       type: object
+      description: The sku is an immutable purchase-time snapshot, including its name, specification, unit and price tiers. Catalog edits do not change existing orders. Legacy rows retain catalog information available when snapshots were introduced; earlier overwritten history cannot be recovered.
       properties:
         sku: { $ref: "#/components/schemas/SKU" }
         qty: { type: integer, minimum: 1 }

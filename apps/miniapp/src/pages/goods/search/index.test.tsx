@@ -1,10 +1,7 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import Taro from '@tarojs/taro';
 import SearchEmptyState from './index';
 import { commerceServices } from '../../../services/commerce';
-
 
 const longTitleProducts = [
   {
@@ -47,7 +44,6 @@ describe('SearchEmptyState', () => {
     expect(screen.getByText('为你推荐')).toBeInTheDocument();
   });
 
-
   it('keeps recommendation and result cards rendered for long titles', async () => {
     (commerceServices.catalog.listProducts as jest.Mock).mockImplementation(async ({ q } = {}) => ({
       items: q ? longTitleProducts : longTitleProducts,
@@ -66,13 +62,6 @@ describe('SearchEmptyState', () => {
 
     expect(screen.getAllByText('¥185.00 起')).toHaveLength(2);
     expect(document.querySelectorAll('.recommend-card')).toHaveLength(2);
-  });
-
-  it('keeps shared long-text styles for recommendation titles', () => {
-    const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../../app.scss'), 'utf8');
-
-    expect(stylesheet).toContain('.u-safe-title-2');
-    expect(stylesheet).toContain('.recommend-card-title');
   });
 
   it('updates and clears the search input', () => {

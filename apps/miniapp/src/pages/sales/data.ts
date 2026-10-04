@@ -1,3 +1,4 @@
+import type { OrderStatus as ApiOrderStatus } from '@tmo/api-client'
 import {
   AppsOutlined,
   BalanceOutlined,
@@ -28,3 +29,14 @@ export const getStatusTone = (status: OrderStatus) => {
   }
   return { bg: 'sales-status-blue', text: 'sales-status-blue-text' }
 }
+
+const statusGroups: Record<Exclude<CustomerSubFilter, '全部'>, ApiOrderStatus[]> = {
+  待处理: ['SUBMITTED', 'PAY_PENDING', 'PAY_FAILED'],
+  已确认: ['CONFIRMED', 'PAID'],
+  已发货: ['SHIPPED'],
+  已送达: ['DELIVERED']
+}
+
+export const getOrderStatuses = (filter: CustomerSubFilter): ApiOrderStatus[] | undefined => (
+  filter === '全部' ? undefined : statusGroups[filter]
+)

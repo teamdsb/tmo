@@ -459,13 +459,15 @@ SET customer_id = EXCLUDED.customer_id,
 		return fmt.Errorf("seed order %s: %w", seed.ID, err)
 	}
 	if _, err := tx.Exec(ctx, `
-INSERT INTO order_items (id, order_id, sku_id, qty, unit_price_fen)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO order_items (id, order_id, sku_id, qty, unit_price_fen, sku_snapshot)
+VALUES ($1, $2, $3, $4, $5, order_sku_snapshot($3))
 ON CONFLICT (id) DO UPDATE
 SET order_id = EXCLUDED.order_id,
     sku_id = EXCLUDED.sku_id,
     qty = EXCLUDED.qty,
     unit_price_fen = EXCLUDED.unit_price_fen,
+    sku_snapshot = CASE WHEN order_items.sku_id = EXCLUDED.sku_id
+        THEN order_items.sku_snapshot ELSE EXCLUDED.sku_snapshot END,
     updated_at = now()
 `, seed.ItemID, seed.ID, seed.SkuID, seed.Qty, seed.UnitPriceFen); err != nil {
 		return fmt.Errorf("seed order item %s: %w", seed.ItemID, err)

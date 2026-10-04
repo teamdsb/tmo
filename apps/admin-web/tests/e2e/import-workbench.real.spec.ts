@@ -1,31 +1,23 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readFile } from 'node:fs/promises';
 import * as XLSX from 'xlsx';
 
-// Identity/bootstrap are fixtures; every catalog, job, preview, confirmation and export request is real.
+import { loginAsBoss } from './import-fixtures';
+import { requestAsSignedInUser } from './real-fixtures';
+
 async function enterWorkbench(page: Page) {
   page.setDefaultTimeout(15000);
   page.setDefaultNavigationTimeout(20000);
-  // Catalog integration is independent of third-party font and CSS availability.
-  await page.route('https://cdn.tailwindcss.com**', route => route.fulfill({ contentType: 'application/javascript', body: 'window.tailwind = {config:{}};' }));
-  await page.route('https://fonts.googleapis.com/**', route => route.abort());
-  await page.route('https://fonts.gstatic.com/**', route => route.abort());
-  const session = {
-    mode: 'dev', accessToken: 'local-browser-test', currentRole: 'BOSS',
-    user: { id: '11111111-2222-3333-4444-555555555555', displayName: '导入验收', roles: ['BOSS'], currentRole: 'BOSS' },
-    permissions: { items: ['import:product', 'product:manage', 'import:shipment', 'product_request:export'].map(code => ({ code, scope: 'ALL' })) }
-  };
-  await page.addInitScript(value => localStorage.setItem('tmo:admin:web:auth', JSON.stringify(value)), session);
-  await page.route('**/api/bff/bootstrap', route => route.fulfill({ json: { me: session.user, permissions: session.permissions, featureFlags: {} } }));
+  await loginAsBoss(page);
   await page.goto('/import.html', { waitUntil: 'domcontentloaded' });
   await expect(page.getByTestId('import-page')).toBeVisible();
 }
 
 test('real catalog preview, confirmation, history and export round trip', async ({ page }) => {
-  test.skip(!process.env.TMO_IMPORT_WORKBENCH_REAL, 'Requires an isolated commerce test server');
   await enterWorkbench(page);
   const suffix = Date.now().toString();
   const name = '三级实测-' + suffix;
-  const categoryResponse = await page.request.post('/api/catalog/categories', { data: { name: '浏览器测试-' + suffix } });
+  const categoryResponse = await requestAsSignedInUser(page, '/api/catalog/categories', { method: 'POST', data: { name: '浏览器测试-' + suffix } });
   expect(categoryResponse.status()).toBe(201);
   const category = await categoryResponse.json();
   const workbook = XLSX.utils.book_new();
@@ -41,14 +33,14 @@ test('real catalog preview, confirmation, history and export round trip', async 
   await page.getByTestId('product-import-submit').click();
   await expect(page.getByTestId('latest-import-job-status')).toContainText('待确认', { timeout: 30000 });
   const previewJob = (await page.getByTestId('latest-import-job-id').textContent())!.trim();
-  let products = await (await page.request.get('/api/admin/products', { params: { q: name } })).json();
+  let products = await (await requestAsSignedInUser(page, '/api/admin/products', { params: { q: name } })).json();
   expect(products.total).toBe(0);
   await page.getByTestId('product-import-confirm').click();
   await expect(page.getByTestId('latest-import-job-status')).toContainText('已完成', { timeout: 30000 });
-  products = await (await page.request.get('/api/admin/products', { params: { q: name } })).json();
+  products = await (await requestAsSignedInUser(page, '/api/admin/products', { params: { q: name } })).json();
   expect(products.total).toBe(1);
   const productId = products.items[0].id;
-  const detail = await (await page.request.get('/api/catalog/products/' + productId)).json();
+  const detail = await (await requestAsSignedInUser(page, '/api/catalog/products/' + productId)).json();
   expect(detail.product.filterDimensions).toEqual(['材质', '长度', '直径']);
   expect(detail.skus).toHaveLength(2);
   expect(detail.skus.map((item: any) => item.spec).sort()).toEqual(['钢 / 20mm / M6', '钢 / 30mm / M8']);
@@ -61,11 +53,15 @@ test('real catalog preview, confirmation, history and export round trip', async 
   await page.getByLabel('导出搜索').fill(name);
   await page.getByRole('button', { name: '创建导出任务', exact: true }).click();
   await expect(page.getByTestId('latest-import-job-status')).toContainText('已完成', { timeout: 30000 });
-  const href = await page.getByRole('link', { name: '下载导出文件' }).getAttribute('href');
-  expect(href).toBeTruthy();
-  const exported = await page.request.get(href!);
-  expect(exported.status()).toBe(200);
-  const exportBody = await exported.body();
+  const downloadEvent = page.waitForEvent('download');
+  await page.getByRole('link', { name: '下载导出文件' }).click();
+  const download = await downloadEvent;
+  expect(await download.failure()).toBeNull();
+  expect(download.suggestedFilename()).toMatch(/\.xlsx$/i);
+  const downloadPath = await download.path();
+  expect(downloadPath).toBeTruthy();
+  const exportBody = await readFile(downloadPath!);
+  expect(exportBody.subarray(0, 2).toString()).toBe('PK');
   const parsed = XLSX.read(exportBody, { type: 'buffer' });
   expect(XLSX.utils.sheet_to_json(parsed.Sheets[parsed.SheetNames[0]])).toHaveLength(2);
   await page.getByRole('button', { name: '商品导入', exact: true }).click();
@@ -74,13 +70,12 @@ test('real catalog preview, confirmation, history and export round trip', async 
   await expect(page.getByTestId('latest-import-job-status')).toContainText('待确认', { timeout: 30000 });
   await page.getByTestId('product-import-confirm').click();
   await expect(page.getByTestId('latest-import-job-status')).toContainText('已完成', { timeout: 30000 });
-  const after = await (await page.request.get('/api/catalog/products/' + productId)).json();
+  const after = await (await requestAsSignedInUser(page, '/api/catalog/products/' + productId)).json();
   expect(after.skus.map((item: any) => item.id).sort()).toEqual(detail.skus.map((item: any) => item.id).sort());
   expect(after.skus.map((item: any) => item.priceTiers)).toEqual(detail.skus.map((item: any) => item.priceTiers));
 });
 
 test('real legacy recognition creates independent drafts and persistent review', async ({ page }) => {
-  test.skip(!process.env.TMO_IMPORT_WORKBENCH_REAL, 'Requires an isolated commerce test server');
   await enterWorkbench(page);
   const suffix = Date.now().toString();
   const workbook = XLSX.utils.book_new();
@@ -94,16 +89,16 @@ test('real legacy recognition creates independent drafts and persistent review',
   await page.getByTestId('product-import-submit').click();
   await expect(page.getByTestId('latest-import-job-status')).toContainText('待确认', { timeout: 30000 });
   const jobId = (await page.getByTestId('latest-import-job-id').textContent())!.trim();
-  const preview = await (await page.request.get('/api/admin/products/import-jobs/' + jobId + '/preview')).json();
+  const preview = await (await requestAsSignedInUser(page, '/api/admin/products/import-jobs/' + jobId + '/preview')).json();
   expect(preview.summary.splitProducts).toBe(2);
   expect(preview.summary.failedRows).toBe(0);
   await page.getByTestId('product-import-confirm').click();
   await expect(page.getByTestId('latest-import-job-status')).toContainText('待复核', { timeout: 30000 });
-  const reviews = await (await page.request.get('/api/admin/products/import-reviews?pageSize=100')).json();
+  const reviews = await (await requestAsSignedInUser(page, '/api/admin/products/import-reviews?pageSize=100')).json();
   const own = reviews.items.filter((item: any) => item.jobId === jobId);
   expect(new Set(own.map((item: any) => item.productId)).size).toBe(2);
   for (const id of new Set<string>(own.map((item: any) => item.productId))) {
-    const detail = await (await page.request.get('/api/catalog/products/' + id)).json();
+    const detail = await (await requestAsSignedInUser(page, '/api/catalog/products/' + id)).json();
     expect(detail.product.status).toBe('DRAFT');
     expect(detail.skus).toHaveLength(1);
   }

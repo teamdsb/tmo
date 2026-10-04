@@ -333,18 +333,7 @@ func (h *Handler) PostAdminPaymentsWebhooksIdReplay(c *gin.Context) {
 	if webhook.PaymentID.Valid {
 		payment, err := h.Store.GetPayment(c.Request.Context(), webhook.PaymentID.Bytes)
 		if err == nil && h.Commerce != nil {
-			var paidAt *time.Time
-			if payment.PaidAt.Valid {
-				value := payment.PaidAt.Time
-				paidAt = &value
-			}
-			if err := h.Commerce.SyncOrderPayment(c.Request.Context(), payment.OrderID.String(), CommercePaymentSyncRequest{
-				PaymentID:       payment.ID.String(),
-				Channel:         payment.Channel,
-				Status:          payment.Status,
-				ProviderTradeNo: payment.ProviderTradeNo,
-				PaidAt:          paidAt,
-			}); err != nil {
+			if err := h.syncPaymentToCommerce(c.Request.Context(), payment); err != nil {
 				h.logError("replay webhook sync order failed", err)
 			}
 		}

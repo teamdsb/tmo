@@ -119,7 +119,7 @@ INSERT INTO payments (
     $13,
     $14
 )
-RETURNING id, order_id, payer_user_id, channel, status, amount_fen, currency, idempotency_key, provider_trade_no, provider_prepay_id, provider_payload, failure_code, failure_message, paid_at, closed_at, created_at, updated_at
+RETURNING id, order_id, payer_user_id, channel, status, amount_fen, currency, idempotency_key, provider_trade_no, provider_prepay_id, provider_payload, failure_code, failure_message, paid_at, closed_at, created_at, updated_at, state_version, commerce_synced_version, reconcile_after, reconcile_attempts, reconcile_lease_token, reconcile_lease_until, reconcile_last_error
 `
 
 type CreatePaymentParams struct {
@@ -175,6 +175,13 @@ func (q *Queries) CreatePayment(ctx context.Context, arg CreatePaymentParams) (P
 		&i.ClosedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StateVersion,
+		&i.CommerceSyncedVersion,
+		&i.ReconcileAfter,
+		&i.ReconcileAttempts,
+		&i.ReconcileLeaseToken,
+		&i.ReconcileLeaseUntil,
+		&i.ReconcileLastError,
 	)
 	return i, err
 }
@@ -273,8 +280,47 @@ func (q *Queries) CreatePaymentWebhook(ctx context.Context, arg CreatePaymentWeb
 	return i, err
 }
 
+const getLatestPaymentByOrder = `-- name: GetLatestPaymentByOrder :one
+SELECT id, order_id, payer_user_id, channel, status, amount_fen, currency, idempotency_key, provider_trade_no, provider_prepay_id, provider_payload, failure_code, failure_message, paid_at, closed_at, created_at, updated_at, state_version, commerce_synced_version, reconcile_after, reconcile_attempts, reconcile_lease_token, reconcile_lease_until, reconcile_last_error FROM payments
+WHERE order_id = $1
+ORDER BY created_at DESC, id DESC
+LIMIT 1
+`
+
+func (q *Queries) GetLatestPaymentByOrder(ctx context.Context, orderID uuid.UUID) (Payment, error) {
+	row := q.db.QueryRow(ctx, getLatestPaymentByOrder, orderID)
+	var i Payment
+	err := row.Scan(
+		&i.ID,
+		&i.OrderID,
+		&i.PayerUserID,
+		&i.Channel,
+		&i.Status,
+		&i.AmountFen,
+		&i.Currency,
+		&i.IdempotencyKey,
+		&i.ProviderTradeNo,
+		&i.ProviderPrepayID,
+		&i.ProviderPayload,
+		&i.FailureCode,
+		&i.FailureMessage,
+		&i.PaidAt,
+		&i.ClosedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.StateVersion,
+		&i.CommerceSyncedVersion,
+		&i.ReconcileAfter,
+		&i.ReconcileAttempts,
+		&i.ReconcileLeaseToken,
+		&i.ReconcileLeaseUntil,
+		&i.ReconcileLastError,
+	)
+	return i, err
+}
+
 const getLatestPaymentByOrderChannel = `-- name: GetLatestPaymentByOrderChannel :one
-SELECT id, order_id, payer_user_id, channel, status, amount_fen, currency, idempotency_key, provider_trade_no, provider_prepay_id, provider_payload, failure_code, failure_message, paid_at, closed_at, created_at, updated_at
+SELECT id, order_id, payer_user_id, channel, status, amount_fen, currency, idempotency_key, provider_trade_no, provider_prepay_id, provider_payload, failure_code, failure_message, paid_at, closed_at, created_at, updated_at, state_version, commerce_synced_version, reconcile_after, reconcile_attempts, reconcile_lease_token, reconcile_lease_until, reconcile_last_error
 FROM payments
 WHERE order_id = $1 AND channel = $2
 ORDER BY created_at DESC
@@ -307,12 +353,19 @@ func (q *Queries) GetLatestPaymentByOrderChannel(ctx context.Context, arg GetLat
 		&i.ClosedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StateVersion,
+		&i.CommerceSyncedVersion,
+		&i.ReconcileAfter,
+		&i.ReconcileAttempts,
+		&i.ReconcileLeaseToken,
+		&i.ReconcileLeaseUntil,
+		&i.ReconcileLastError,
 	)
 	return i, err
 }
 
 const getPayment = `-- name: GetPayment :one
-SELECT id, order_id, payer_user_id, channel, status, amount_fen, currency, idempotency_key, provider_trade_no, provider_prepay_id, provider_payload, failure_code, failure_message, paid_at, closed_at, created_at, updated_at
+SELECT id, order_id, payer_user_id, channel, status, amount_fen, currency, idempotency_key, provider_trade_no, provider_prepay_id, provider_payload, failure_code, failure_message, paid_at, closed_at, created_at, updated_at, state_version, commerce_synced_version, reconcile_after, reconcile_attempts, reconcile_lease_token, reconcile_lease_until, reconcile_last_error
 FROM payments
 WHERE id = $1
 `
@@ -338,12 +391,19 @@ func (q *Queries) GetPayment(ctx context.Context, id uuid.UUID) (Payment, error)
 		&i.ClosedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StateVersion,
+		&i.CommerceSyncedVersion,
+		&i.ReconcileAfter,
+		&i.ReconcileAttempts,
+		&i.ReconcileLeaseToken,
+		&i.ReconcileLeaseUntil,
+		&i.ReconcileLastError,
 	)
 	return i, err
 }
 
 const getPaymentByIdempotencyKey = `-- name: GetPaymentByIdempotencyKey :one
-SELECT id, order_id, payer_user_id, channel, status, amount_fen, currency, idempotency_key, provider_trade_no, provider_prepay_id, provider_payload, failure_code, failure_message, paid_at, closed_at, created_at, updated_at
+SELECT id, order_id, payer_user_id, channel, status, amount_fen, currency, idempotency_key, provider_trade_no, provider_prepay_id, provider_payload, failure_code, failure_message, paid_at, closed_at, created_at, updated_at, state_version, commerce_synced_version, reconcile_after, reconcile_attempts, reconcile_lease_token, reconcile_lease_until, reconcile_last_error
 FROM payments
 WHERE order_id = $1
   AND channel = $2
@@ -377,6 +437,13 @@ func (q *Queries) GetPaymentByIdempotencyKey(ctx context.Context, arg GetPayment
 		&i.ClosedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StateVersion,
+		&i.CommerceSyncedVersion,
+		&i.ReconcileAfter,
+		&i.ReconcileAttempts,
+		&i.ReconcileLeaseToken,
+		&i.ReconcileLeaseUntil,
+		&i.ReconcileLastError,
 	)
 	return i, err
 }
@@ -515,7 +582,7 @@ func (q *Queries) ListPaymentWebhooks(ctx context.Context, arg ListPaymentWebhoo
 }
 
 const listPayments = `-- name: ListPayments :many
-SELECT id, order_id, payer_user_id, channel, status, amount_fen, currency, idempotency_key, provider_trade_no, provider_prepay_id, provider_payload, failure_code, failure_message, paid_at, closed_at, created_at, updated_at
+SELECT id, order_id, payer_user_id, channel, status, amount_fen, currency, idempotency_key, provider_trade_no, provider_prepay_id, provider_payload, failure_code, failure_message, paid_at, closed_at, created_at, updated_at, state_version, commerce_synced_version, reconcile_after, reconcile_attempts, reconcile_lease_token, reconcile_lease_until, reconcile_last_error
 FROM payments
 WHERE (
     $1::text IS NULL
@@ -571,6 +638,13 @@ func (q *Queries) ListPayments(ctx context.Context, arg ListPaymentsParams) ([]P
 			&i.ClosedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.StateVersion,
+			&i.CommerceSyncedVersion,
+			&i.ReconcileAfter,
+			&i.ReconcileAttempts,
+			&i.ReconcileLeaseToken,
+			&i.ReconcileLeaseUntil,
+			&i.ReconcileLastError,
 		); err != nil {
 			return nil, err
 		}
@@ -626,10 +700,12 @@ SET status = $2,
     failure_message = $7,
     paid_at = $8,
     closed_at = $9,
+    state_version = state_version + 1,
+    reconcile_after = now(),
     updated_at = now()
 WHERE id = $1
-  AND (status <> 'PAID' OR $2 = 'PAID')
-RETURNING id, order_id, payer_user_id, channel, status, amount_fen, currency, idempotency_key, provider_trade_no, provider_prepay_id, provider_payload, failure_code, failure_message, paid_at, closed_at, created_at, updated_at
+  AND status <> 'PAID'
+RETURNING id, order_id, payer_user_id, channel, status, amount_fen, currency, idempotency_key, provider_trade_no, provider_prepay_id, provider_payload, failure_code, failure_message, paid_at, closed_at, created_at, updated_at, state_version, commerce_synced_version, reconcile_after, reconcile_attempts, reconcile_lease_token, reconcile_lease_until, reconcile_last_error
 `
 
 type UpdatePaymentStateParams struct {
@@ -675,6 +751,13 @@ func (q *Queries) UpdatePaymentState(ctx context.Context, arg UpdatePaymentState
 		&i.ClosedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StateVersion,
+		&i.CommerceSyncedVersion,
+		&i.ReconcileAfter,
+		&i.ReconcileAttempts,
+		&i.ReconcileLeaseToken,
+		&i.ReconcileLeaseUntil,
+		&i.ReconcileLastError,
 	)
 	return i, err
 }

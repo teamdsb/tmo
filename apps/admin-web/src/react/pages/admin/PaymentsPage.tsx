@@ -186,8 +186,9 @@ const normalizeWebhooks = (data: unknown): { items: WebhookItem[]; total: number
 
 export const PaymentsPage = () => {
   const [activeTab, setActiveTab] = useState<PaymentsTab>('transactions');
-  const [queryInput, setQueryInput] = useState('');
-  const [appliedQuery, setAppliedQuery] = useState('');
+  const [initialQuery] = useState(() => new URLSearchParams(window.location.search).get('q')?.trim() || '');
+  const [queryInput, setQueryInput] = useState(initialQuery);
+  const [appliedQuery, setAppliedQuery] = useState(initialQuery);
 
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [audits, setAudits] = useState<AuditItem[]>([]);
@@ -245,16 +246,21 @@ export const PaymentsPage = () => {
           }
         ];
 
+        const keyword = appliedQuery.toLowerCase();
+        const matchesQuery = (item: object) => !keyword || Object.values(item).some(value => String(value).toLowerCase().includes(keyword));
         if (activeTab === 'transactions') {
-          setTransactions(mockTransactions);
-          setTotal(mockTransactions.length);
-          setSelectedTransaction(mockTransactions[0] || null);
+          const filtered = mockTransactions.filter(matchesQuery);
+          setTransactions(filtered);
+          setTotal(filtered.length);
+          setSelectedTransaction(filtered[0] || null);
         } else if (activeTab === 'audit') {
-          setAudits(mockAudits);
-          setTotal(mockAudits.length);
+          const filtered = mockAudits.filter(matchesQuery);
+          setAudits(filtered);
+          setTotal(filtered.length);
         } else {
-          setWebhooks(mockWebhooks);
-          setTotal(mockWebhooks.length);
+          const filtered = mockWebhooks.filter(matchesQuery);
+          setWebhooks(filtered);
+          setTotal(filtered.length);
         }
         return;
       }

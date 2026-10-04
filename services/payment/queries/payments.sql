@@ -51,6 +51,12 @@ WHERE order_id = $1 AND channel = $2
 ORDER BY created_at DESC
 LIMIT 1;
 
+-- name: GetLatestPaymentByOrder :one
+SELECT * FROM payments
+WHERE order_id = $1
+ORDER BY created_at DESC, id DESC
+LIMIT 1;
+
 -- name: UpdatePaymentState :one
 UPDATE payments
 SET status = $2,
@@ -61,9 +67,11 @@ SET status = $2,
     failure_message = $7,
     paid_at = $8,
     closed_at = $9,
+    state_version = state_version + 1,
+    reconcile_after = now(),
     updated_at = now()
 WHERE id = $1
-  AND (status <> 'PAID' OR $2 = 'PAID')
+  AND status <> 'PAID'
 RETURNING *;
 
 -- name: ListPayments :many

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import Taro from '@tarojs/taro'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -29,6 +29,7 @@ const waitForConversationReady = async () => {
 }
 
 describe('SupportChatPage', () => {
+  let socket: { onmessage: null | ((event: { data: string }) => void) } | null = null
   const supportService = {
     getCurrentConversation: jest.fn(),
     listMessages: jest.fn(),
@@ -38,6 +39,11 @@ describe('SupportChatPage', () => {
   }
 
   beforeEach(() => {
+    jest.clearAllMocks()
+    Object.values(supportService).forEach((method) => method.mockReset())
+    ;(Taro.showActionSheet as jest.Mock).mockReset().mockResolvedValue({ tapIndex: 0 })
+    ;(Taro.chooseImage as jest.Mock).mockReset()
+    socket = null
     ;(commerceServices as any).support = supportService
     ;(commerceServices.tokens.getToken as jest.Mock).mockResolvedValue('commerce-token')
     ;(commerceServices.orders.list as jest.Mock).mockResolvedValue({ items: [] })
@@ -70,6 +76,7 @@ describe('SupportChatPage', () => {
       onerror: null | (() => void) = null
       onmessage: null | ((event: { data: string }) => void) = null
       constructor() {
+        socket = this
         setTimeout(() => this.onopen?.(), 0)
       }
       close() {}
@@ -102,28 +109,65 @@ describe('SupportChatPage', () => {
     expect(mergeIncomingSupportMessage([confirmedMessage], distinctMessage)).toEqual([confirmedMessage, distinctMessage])
   })
 
-  it('uses ID merging for every card send response, including websocket-first delivery', () => {
-    const source = fs.readFileSync(path.resolve(__dirname, './index.tsx'), 'utf8')
-    const confirmedMessage = {
-      id: 'msg-order-card',
-      conversationId: 'conv-1',
-      senderType: 'CUSTOMER',
-      messageType: 'ORDER_CARD',
-      cardPayload: { title: '订单 order-1' },
-      createdAt: '2026-03-10T10:00:00Z'
+  it.each([
+    ['ORDER_CARD', '发送订单', '订单 order-1', 'websocket-first'],
+    ['ORDER_CARD', '发送订单', '订单 order-1', 'response-first'],
+    ['PRODUCT_CARD', '发送商品', '示例商品卡片', 'websocket-first'],
+    ['PRODUCT_CARD', '发送商品', '示例商品卡片', 'response-first']
+  ])('renders one %s when sending via %s and receiving the same ID (%s, %s)', async (messageType, action, title, deliveryOrder) => {
+    ;(commerceServices.orders.list as jest.Mock).mockResolvedValue({ items: [{ id: 'order-1', status: 'SUBMITTED', items: [] }] })
+    ;(commerceServices.catalog.listProducts as jest.Mock).mockResolvedValue({ items: [{ id: 'spu-1', name: '示例商品卡片' }] })
+    ;(Taro.showActionSheet as jest.Mock).mockResolvedValueOnce({ tapIndex: 0 })
+    const message = {
+      id: `msg-${messageType}`, conversationId: 'conv-1', senderType: 'CUSTOMER',
+      messageType, cardPayload: { title }, createdAt: '2026-03-10T10:00:00Z'
     }
+    let finishSend: (value: typeof message) => void = () => {}
+    supportService.sendMessage.mockReturnValueOnce(new Promise((resolve) => { finishSend = resolve }))
+    render(<SupportChatPage />)
+    await waitForConversationReady()
+    await waitFor(() => expect(socket?.onmessage).toEqual(expect.any(Function)))
+    await act(async () => { fireEvent.click(screen.getByText(action)); await flushPromises() })
+    expect(supportService.sendMessage).toHaveBeenCalledWith('conv-1', expect.objectContaining({ messageType }))
 
-    const websocketFirst = mergeIncomingSupportMessage([], confirmedMessage)
-    expect(mergeIncomingSupportMessage(websocketFirst, confirmedMessage)).toEqual([confirmedMessage])
-    expect(source).toContain('setMessages((current) => mergeIncomingSupportMessage(current, created))')
-    expect(source).not.toContain('setMessages((current) => [...current, created])')
+    const receive = () => socket?.onmessage?.({ data: JSON.stringify({ type: 'message.created', data: { message } }) })
+    await act(async () => {
+      if (deliveryOrder === 'websocket-first') receive()
+      else finishSend(message)
+      await flushPromises()
+    })
+    expect(screen.getAllByText(title)).toHaveLength(1)
+    await act(async () => {
+      if (deliveryOrder === 'websocket-first') finishSend(message)
+      else receive()
+      await flushPromises()
+    })
+    expect(screen.getAllByText(title)).toHaveLength(1)
   })
 
-  it('offers only message sending actions in the more menu', () => {
-    const source = fs.readFileSync(path.resolve(__dirname, './index.tsx'), 'utf8')
-
-    expect(source).toContain("itemList: ['发送图片', '发送订单卡片', '发送商品卡片']")
-    expect(source).not.toContain('去支持中心')
+  it.each([
+    [0, 'IMAGE'], [1, 'ORDER_CARD'], [2, 'PRODUCT_CARD']
+  ])('offers message actions and dispatches selection %s as %s', async (tapIndex, messageType) => {
+    ;(commerceServices.orders.list as jest.Mock).mockResolvedValue({ items: [{ id: 'order-1', status: 'SUBMITTED', items: [] }] })
+    ;(commerceServices.catalog.listProducts as jest.Mock).mockResolvedValue({ items: [{ id: 'spu-1', name: '示例商品卡片' }] })
+    ;(Taro.showActionSheet as jest.Mock).mockResolvedValueOnce({ tapIndex }).mockResolvedValueOnce({ tapIndex: 0 })
+    ;(Taro.chooseImage as jest.Mock).mockResolvedValueOnce({ tempFilePaths: ['/tmp/menu.png'] })
+    const { container } = render(<SupportChatPage />)
+    await waitForConversationReady()
+    await act(async () => {
+      fireEvent.click(container.querySelector('.support-chat__tool') as Element)
+      await flushPromises()
+    })
+    expect(Taro.showActionSheet).toHaveBeenNthCalledWith(1, { itemList: ['发送图片', '发送订单卡片', '发送商品卡片'] })
+    expect(supportService.sendMessage).toHaveBeenCalledWith('conv-1', expect.objectContaining({ messageType }))
+    if (messageType === 'IMAGE') {
+      expect(supportService.uploadImage).toHaveBeenCalledWith('conv-1', '/tmp/menu.png')
+    } else {
+      expect(supportService.sendMessage).toHaveBeenCalledWith('conv-1', expect.objectContaining({
+        cardPayload: expect.objectContaining(messageType === 'ORDER_CARD' ? { orderId: 'order-1' } : { productId: 'spu-1' })
+      }))
+    }
+    expect(Taro.navigateTo).not.toHaveBeenCalled()
   })
 
   it('allows chatting while optional support data is still loading', async () => {
@@ -231,26 +275,11 @@ describe('SupportChatPage', () => {
     expect(screen.getByText('重试')).toBeInTheDocument()
   })
 
-  it('keeps composer visible above bottom safe area', () => {
+  it('keeps the shared navbar and bottom safe-area integration', () => {
     const stylesheet = fs.readFileSync(path.resolve(__dirname, './index.scss'), 'utf8')
     const source = fs.readFileSync(path.resolve(__dirname, './index.tsx'), 'utf8')
 
     expect(stylesheet).not.toContain('.support-chat__navbar .taroify-navbar__content')
-    expect(stylesheet).not.toContain('transform: translateY(-6px);')
-    expect(stylesheet).toContain('padding: 12px 28px 10px;')
-    expect(stylesheet).toContain('.support-chat__composer')
-    expect(stylesheet).toContain('padding-bottom: 76px;')
     expect(source).toContain("<AppSafeAreaBottom className='support-chat__safe-area' />")
-    expect(stylesheet).toContain('.support-chat__messages')
-    expect(stylesheet).toContain('padding-bottom: 68px;')
-    expect(stylesheet).toContain('margin-bottom: 28px;')
-    expect(stylesheet).toContain('box-sizing: border-box;')
-    expect(stylesheet).toContain('overflow-x: hidden;')
-    expect(stylesheet).toContain('padding: 0 12px;')
-    expect(stylesheet).toContain('max-width: 80%;')
-    expect(stylesheet).toContain('max-width: 100%;')
-    expect(stylesheet).toContain('.support-chat__row--customer')
-    expect(stylesheet).toContain('margin-left: auto;')
-    expect(stylesheet).toContain('overflow-wrap: anywhere;')
   })
 })

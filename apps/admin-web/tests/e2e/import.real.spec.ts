@@ -7,7 +7,7 @@ const isGet = (urlString: string, path: string) => {
   return url.pathname === path;
 };
 
-test('hybrid import page creates product import job and polls status', async ({ page }, testInfo) => {
+test('real import page creates product import job and polls status', async ({ page }, testInfo) => {
   const productName = `Real Import Product ${Date.now()}`;
   const fixture = await createImportFixture(testInfo, {
     productName,

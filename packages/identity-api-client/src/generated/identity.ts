@@ -2262,6 +2262,7 @@ export const getAuditLogs = async (params?: GetAuditLogsParams, options?: Reques
 
 
 /**
+ * Ordered by creation time descending, then unique ID descending for stable pagination.
  * @summary List customers (scope by role)
  */
 export type getCustomersResponse200 = {

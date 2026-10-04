@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './offline-fixtures';
 
 const user = {
   id: '33333333-3333-3333-3333-333333333333',
@@ -58,6 +58,7 @@ test('a transient bootstrap failure keeps the cached admin session', async ({ pa
 
 test('an unauthorized bootstrap still clears the cached session', async ({ page }) => {
   await seedSession(page);
+  await routeEmptySupport(page);
   await page.route(/\/api\/bff\/bootstrap$/, (route) => route.fulfill({
     status: 401,
     contentType: 'application/json',

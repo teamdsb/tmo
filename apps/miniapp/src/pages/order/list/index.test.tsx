@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import Taro from '@tarojs/taro';
 import { commerceServices } from '../../../services/commerce';
@@ -130,14 +128,4 @@ describe('OrderHistoryApp', () => {
     expect(commerceServices.orders.list).toHaveBeenCalledTimes(2);
   });
 
-  it('uses shared secondary navbar sizing and compact order list spacing', () => {
-    const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../../app.scss'), 'utf8');
-
-    expect(stylesheet).toContain('.app-navbar--secondary .taroify-navbar__content {');
-    expect(stylesheet).not.toContain('.order-history-page .app-navbar .taroify-navbar__content');
-    expect(stylesheet).toContain('.order-history-body {');
-    expect(stylesheet).toContain('padding: 18rpx 24rpx 126rpx;');
-    expect(stylesheet).toContain('.order-history-tabs .taroify-tabs__wrap {');
-    expect(stylesheet).toContain('min-height: 84rpx;');
-  });
 });

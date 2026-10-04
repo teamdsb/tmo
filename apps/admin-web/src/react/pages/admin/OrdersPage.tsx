@@ -10,6 +10,7 @@ import {
   updateOrderFulfillment
 } from '../../../lib/api';
 import { ensureProtectedPage } from '../../../lib/guard';
+import { buildAppHref } from '../../../lib/env';
 import { hasPermission, normalizePermissionMap } from '../../../lib/permissions';
 import { AdminTopbar } from '../../layout/AdminTopbar';
 import {
@@ -946,7 +947,7 @@ export const OrdersPage = () => {
                                       {paymentMeta.transactionId ? (
                                         <a
                                           className="text-xs font-medium text-primary hover:text-primary-dark"
-                                          href={`/payments.html?q=${encodeURIComponent(paymentMeta.transactionId)}`}
+                                          href={`${buildAppHref('/payments.html')}?q=${encodeURIComponent(paymentMeta.transactionId)}`}
                                           onClick={(event) => event.stopPropagation()}
                                         >
                                           {paymentMeta.transactionId}

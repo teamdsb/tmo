@@ -200,20 +200,22 @@ type MiniappDisplayCategory struct {
 }
 
 type Order struct {
-	ID               uuid.UUID          `db:"id" json:"id"`
-	Status           string             `db:"status" json:"status"`
-	CustomerID       uuid.UUID          `db:"customer_id" json:"customer_id"`
-	OwnerSalesUserID pgtype.UUID        `db:"owner_sales_user_id" json:"owner_sales_user_id"`
-	Address          json.RawMessage    `db:"address" json:"address"`
-	Remark           *string            `db:"remark" json:"remark"`
-	IdempotencyKey   *string            `db:"idempotency_key" json:"idempotency_key"`
-	CreatedAt        pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt        pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
-	PaymentStatus    string             `db:"payment_status" json:"payment_status"`
-	LatestPaymentID  pgtype.UUID        `db:"latest_payment_id" json:"latest_payment_id"`
-	PaymentChannel   *string            `db:"payment_channel" json:"payment_channel"`
-	PaidAt           pgtype.Timestamptz `db:"paid_at" json:"paid_at"`
-	PaymentMethod    string             `db:"payment_method" json:"payment_method"`
+	ID                      uuid.UUID          `db:"id" json:"id"`
+	Status                  string             `db:"status" json:"status"`
+	CustomerID              uuid.UUID          `db:"customer_id" json:"customer_id"`
+	OwnerSalesUserID        pgtype.UUID        `db:"owner_sales_user_id" json:"owner_sales_user_id"`
+	Address                 json.RawMessage    `db:"address" json:"address"`
+	Remark                  *string            `db:"remark" json:"remark"`
+	IdempotencyKey          *string            `db:"idempotency_key" json:"idempotency_key"`
+	CreatedAt               pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt               pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	PaymentStatus           string             `db:"payment_status" json:"payment_status"`
+	LatestPaymentID         pgtype.UUID        `db:"latest_payment_id" json:"latest_payment_id"`
+	PaymentChannel          *string            `db:"payment_channel" json:"payment_channel"`
+	PaidAt                  pgtype.Timestamptz `db:"paid_at" json:"paid_at"`
+	PaymentMethod           string             `db:"payment_method" json:"payment_method"`
+	PaymentSyncCreatedAt    pgtype.Timestamptz `db:"payment_sync_created_at" json:"payment_sync_created_at"`
+	PaymentSyncStateVersion int64              `db:"payment_sync_state_version" json:"payment_sync_state_version"`
 }
 
 type OrderAdminEvent struct {
@@ -241,6 +243,7 @@ type OrderItem struct {
 	CreatedAt        pgtype.Timestamptz `db:"created_at" json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
 	SourceCartItemID pgtype.UUID        `db:"source_cart_item_id" json:"source_cart_item_id"`
+	SkuSnapshot      json.RawMessage    `db:"sku_snapshot" json:"sku_snapshot"`
 }
 
 type OrderTrackingShipment struct {

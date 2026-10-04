@@ -30,11 +30,13 @@ type CommerceOrderItem struct {
 }
 
 type CommercePaymentSyncRequest struct {
-	PaymentID       string     `json:"paymentId"`
-	Channel         string     `json:"channel"`
-	Status          string     `json:"status"`
-	ProviderTradeNo *string    `json:"providerTradeNo,omitempty"`
-	PaidAt          *time.Time `json:"paidAt,omitempty"`
+	PaymentID        string     `json:"paymentId"`
+	Channel          string     `json:"channel"`
+	Status           string     `json:"status"`
+	ProviderTradeNo  *string    `json:"providerTradeNo,omitempty"`
+	PaidAt           *time.Time `json:"paidAt,omitempty"`
+	PaymentCreatedAt *time.Time `json:"paymentCreatedAt,omitempty"`
+	StateVersion     int64      `json:"stateVersion,omitempty"`
 }
 
 func NewCommerceClient(baseURL, syncToken string) *CommerceClient {

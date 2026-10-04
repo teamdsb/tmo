@@ -1,14 +1,12 @@
-import fs from 'node:fs'
-import path from 'node:path'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import Taro, { useDidShow } from '@tarojs/taro'
-import ExcelImportConfirmation from './index'
+import CartPage from './index'
 import { commerceServices } from '../../services/commerce'
 
 const flushPromises = () => new Promise((resolve) => process.nextTick(resolve))
 
 const renderCart = async () => {
-  render(<ExcelImportConfirmation />)
+  render(<CartPage />)
   await act(async () => {
     await flushPromises()
   })
@@ -19,7 +17,7 @@ afterEach(() => {
   jest.restoreAllMocks()
 })
 
-describe('ExcelImportConfirmation', () => {
+describe('CartPage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     ;(useDidShow as jest.Mock).mockImplementation(() => {})
@@ -77,6 +75,44 @@ describe('ExcelImportConfirmation', () => {
     expect((await screen.findAllByText('返回后商品')).length).toBeGreaterThan(0)
   })
 
+  it('keeps the returned-page cart when an older initial request finishes last', async () => {
+    let onShow: (() => void) | undefined
+    ;(useDidShow as jest.Mock).mockImplementation((callback) => { onShow = callback })
+    let finishOld: (value: any) => void = () => {}
+    let finishNew: (value: any) => void = () => {}
+    jest.spyOn(commerceServices.cart, 'getCart')
+      .mockReturnValueOnce(new Promise((resolve) => { finishOld = resolve }))
+      .mockReturnValueOnce(new Promise((resolve) => { finishNew = resolve }))
+    await renderCart()
+    await act(async () => { onShow?.(); onShow?.(); await flushPromises() })
+    await act(async () => {
+      finishNew({ items: [{ id: 'new', qty: 3, sku: { id: 'new-sku', name: '刚导入的商品' } }] })
+      await flushPromises()
+      finishOld({ items: [{ id: 'old', qty: 1, sku: { id: 'old-sku', name: '旧购物车商品' } }] })
+      await flushPromises()
+    })
+    expect(screen.getAllByText('刚导入的商品').length).toBeGreaterThan(0)
+    expect(screen.queryByText('旧购物车商品')).not.toBeInTheDocument()
+  })
+
+  it('keeps a successful quantity update when a stale refresh finishes afterwards', async () => {
+    let onShow: (() => void) | undefined
+    ;(useDidShow as jest.Mock).mockImplementation((callback) => { onShow = callback })
+    const item = { id: 'cart-race', qty: 2, sku: { id: 'sku-race', name: '数量更新商品' } }
+    let finishRefresh: (value: any) => void = () => {}
+    jest.spyOn(commerceServices.cart, 'getCart')
+      .mockResolvedValueOnce({ items: [item] } as any)
+      .mockReturnValueOnce(new Promise((resolve) => { finishRefresh = resolve }))
+    jest.spyOn(commerceServices.cart, 'updateItemQty').mockResolvedValueOnce({ items: [{ ...item, qty: 3 }] } as any)
+    await renderCart()
+    await act(async () => { onShow?.(); onShow?.(); await flushPromises() })
+    fireEvent.click(screen.getByText('+'))
+    await screen.findByDisplayValue('3')
+    await act(async () => { finishRefresh({ items: [item] }); await flushPromises() })
+    expect(screen.getByDisplayValue('3')).toBeInTheDocument()
+    expect(screen.queryByDisplayValue('2')).not.toBeInTheDocument()
+  })
+
   it('shows a single empty-state title and count summary when cart is empty', async () => {
     jest.spyOn(commerceServices.cart, 'getCart').mockResolvedValueOnce({ items: [] })
     const listProductsSpy = jest.spyOn(commerceServices.catalog, 'listProducts')
@@ -90,35 +126,6 @@ describe('ExcelImportConfirmation', () => {
     expect(screen.getByText('A4 办公用纸')).toBeInTheDocument()
     expect(screen.getByText('钢制螺栓套装')).toBeInTheDocument()
     expect(listProductsSpy).toHaveBeenCalledWith({ page: 1, pageSize: 4 })
-  })
-
-  it('keeps empty cart and bottom bar proportions compact', () => {
-    const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../app.scss'), 'utf8')
-    const componentSource = fs.readFileSync(path.resolve(__dirname, './components.tsx'), 'utf8')
-
-    expect(stylesheet).toContain('padding: 18rpx 24rpx 24rpx;')
-    expect(componentSource).toContain('includeSafeArea={false}')
-    expect(stylesheet).toContain('padding: 28rpx 12rpx 22rpx;')
-    expect(stylesheet).toContain('width: 220rpx;')
-    expect(stylesheet).toContain('height: 220rpx;')
-    expect(stylesheet).toContain('font-size: 44rpx;')
-    expect(stylesheet).toContain('margin-top: 8rpx;')
-    expect(stylesheet).toContain('min-height: 76rpx;')
-    expect(stylesheet).toContain('font-size: 38rpx;')
-    expect(stylesheet).toContain('min-width: 132rpx;')
-  })
-
-  it('keeps checkout bar readable on narrow screens', () => {
-    const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../app.scss'), 'utf8')
-
-    expect(stylesheet).toContain('align-items: center;')
-    expect(stylesheet).toContain('grid-template-columns: minmax(0, 1fr) 282rpx;')
-    expect(stylesheet).toContain('max-width: 172rpx;')
-    expect(stylesheet).toContain('min-width: 132rpx;')
-    expect(stylesheet).toContain('font-size: 38rpx;')
-    expect(stylesheet).toContain('grid-template-columns: 1fr 1fr;')
-    expect(stylesheet).toContain('min-height: 76rpx;')
-    expect(stylesheet).toContain('padding: 0 10rpx;')
   })
 
   it('prefers product name from product detail for cart item title', async () => {

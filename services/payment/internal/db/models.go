@@ -12,23 +12,30 @@ import (
 )
 
 type Payment struct {
-	ID               uuid.UUID          `db:"id" json:"id"`
-	OrderID          uuid.UUID          `db:"order_id" json:"order_id"`
-	PayerUserID      pgtype.UUID        `db:"payer_user_id" json:"payer_user_id"`
-	Channel          string             `db:"channel" json:"channel"`
-	Status           string             `db:"status" json:"status"`
-	AmountFen        int64              `db:"amount_fen" json:"amount_fen"`
-	Currency         string             `db:"currency" json:"currency"`
-	IdempotencyKey   *string            `db:"idempotency_key" json:"idempotency_key"`
-	ProviderTradeNo  *string            `db:"provider_trade_no" json:"provider_trade_no"`
-	ProviderPrepayID *string            `db:"provider_prepay_id" json:"provider_prepay_id"`
-	ProviderPayload  json.RawMessage    `db:"provider_payload" json:"provider_payload"`
-	FailureCode      *string            `db:"failure_code" json:"failure_code"`
-	FailureMessage   *string            `db:"failure_message" json:"failure_message"`
-	PaidAt           pgtype.Timestamptz `db:"paid_at" json:"paid_at"`
-	ClosedAt         pgtype.Timestamptz `db:"closed_at" json:"closed_at"`
-	CreatedAt        pgtype.Timestamptz `db:"created_at" json:"created_at"`
-	UpdatedAt        pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	ID                    uuid.UUID          `db:"id" json:"id"`
+	OrderID               uuid.UUID          `db:"order_id" json:"order_id"`
+	PayerUserID           pgtype.UUID        `db:"payer_user_id" json:"payer_user_id"`
+	Channel               string             `db:"channel" json:"channel"`
+	Status                string             `db:"status" json:"status"`
+	AmountFen             int64              `db:"amount_fen" json:"amount_fen"`
+	Currency              string             `db:"currency" json:"currency"`
+	IdempotencyKey        *string            `db:"idempotency_key" json:"idempotency_key"`
+	ProviderTradeNo       *string            `db:"provider_trade_no" json:"provider_trade_no"`
+	ProviderPrepayID      *string            `db:"provider_prepay_id" json:"provider_prepay_id"`
+	ProviderPayload       json.RawMessage    `db:"provider_payload" json:"provider_payload"`
+	FailureCode           *string            `db:"failure_code" json:"failure_code"`
+	FailureMessage        *string            `db:"failure_message" json:"failure_message"`
+	PaidAt                pgtype.Timestamptz `db:"paid_at" json:"paid_at"`
+	ClosedAt              pgtype.Timestamptz `db:"closed_at" json:"closed_at"`
+	CreatedAt             pgtype.Timestamptz `db:"created_at" json:"created_at"`
+	UpdatedAt             pgtype.Timestamptz `db:"updated_at" json:"updated_at"`
+	StateVersion          int64              `db:"state_version" json:"state_version"`
+	CommerceSyncedVersion int64              `db:"commerce_synced_version" json:"commerce_synced_version"`
+	ReconcileAfter        pgtype.Timestamptz `db:"reconcile_after" json:"reconcile_after"`
+	ReconcileAttempts     int32              `db:"reconcile_attempts" json:"reconcile_attempts"`
+	ReconcileLeaseToken   pgtype.UUID        `db:"reconcile_lease_token" json:"reconcile_lease_token"`
+	ReconcileLeaseUntil   pgtype.Timestamptz `db:"reconcile_lease_until" json:"reconcile_lease_until"`
+	ReconcileLastError    *string            `db:"reconcile_last_error" json:"reconcile_last_error"`
 }
 
 type PaymentAuditLog struct {

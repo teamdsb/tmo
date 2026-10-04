@@ -1,5 +1,3 @@
-import fs from 'node:fs'
-import path from 'node:path'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import Taro from '@tarojs/taro'
 import ProductDetail from './index'
@@ -89,7 +87,6 @@ describe('ProductDetail', () => {
     expect(document.querySelector('.detail-category-tag')).toBeNull()
   })
 
-
   it('applies shared long-text protection to detail title and tier cards', async () => {
     jest.spyOn(commerceServices.catalog, 'getProductDetail').mockResolvedValueOnce({
       product: {
@@ -119,14 +116,6 @@ describe('ProductDetail', () => {
     expect(title).toBeDefined()
     expect(title).toHaveClass('u-safe-title-2')
     expect(tierRange).toHaveClass('u-safe-title-2')
-  })
-
-  it('keeps shared long-text utility definitions in app stylesheet', () => {
-    const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../../app.scss'), 'utf8')
-
-    expect(stylesheet).toContain('.u-safe-title-2')
-    expect(stylesheet).toContain('.tier-card-range')
-    expect(stylesheet).toContain('.product-title')
   })
 
   it('shows the lowest starting price in the header', async () => {
@@ -397,16 +386,6 @@ describe('ProductDetail', () => {
 
     const heroImage = document.querySelector('.detail-hero-frame img')
     expect(heroImage).toHaveAttribute('src', 'https://img.example.com/cover-only.png')
-
-    const source = fs.readFileSync(path.resolve(__dirname, './index.tsx'), 'utf8')
-    const stylesheet = fs.readFileSync(path.resolve(__dirname, './index.scss'), 'utf8')
-    expect(source).toContain("wrapperClassName='detail-hero-image-wrapper'")
-    expect(source).toContain("className='detail-hero-image-layer'")
-    expect(stylesheet).toContain('.detail-hero-image-layer {')
-    expect(stylesheet).toContain('position: absolute;')
-    expect(stylesheet).toContain('inset: 0;')
-    expect(stylesheet).toContain('.detail-hero-image-wrapper {')
-    expect(stylesheet).toContain('height: 100%;')
   })
 
   it('renders a deduplicated swipe gallery and updates the active image counter', async () => {

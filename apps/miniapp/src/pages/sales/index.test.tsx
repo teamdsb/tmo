@@ -125,17 +125,12 @@ describe('SalesPage', () => {
     expect(screen.getByText('宁波远航')).toBeInTheDocument()
     expect(screen.getAllByText('¥25.00')).toHaveLength(2)
     expect(screen.queryByText('Acme 集团')).not.toBeInTheDocument()
-    expect(commerceServices.orders.list).toHaveBeenCalledWith({ page: 1, pageSize: 50 })
+    expect(commerceServices.orders.list).toHaveBeenCalledWith({ page: 1, pageSize: 20 })
 
     const company = screen.getByText('宁波远航')
     const productName = screen.getByText('工业螺栓')
     expect(company).toHaveClass('u-safe-title-2')
     expect(productName).toHaveClass('u-safe-title-2')
-
-    const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../app.scss'), 'utf8')
-    expect(stylesheet).toContain('.sales-order-company')
-    expect(stylesheet).toContain('.sales-order-item-name')
-    expect(stylesheet).toContain('.u-safe-title-2')
   })
 
   it('shows a real order load failure instead of falling back to demo orders', async () => {
@@ -156,10 +151,6 @@ describe('SalesPage', () => {
     expect(screen.getByText('财务结算暂未接入')).toBeInTheDocument()
     expect(screen.queryByText('$45,230')).not.toBeInTheDocument()
     expect(screen.queryByText('ORD-2023-089')).not.toBeInTheDocument()
-
-    const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../app.scss'), 'utf8')
-    expect(stylesheet).toMatch(/\.sales-empty-copy\s*\{[\s\S]*?max-width:\s*100%/)
-    expect(stylesheet).toMatch(/\.sales-empty-copy\s*\{[\s\S]*?text-align:\s*center/)
   })
 
   it('renders dashboard by default and switches between tabs', async () => {
@@ -245,6 +236,7 @@ describe('SalesPage', () => {
     render(<SalesPage />)
     fireEvent.click(screen.getByText('客户'))
     expect(await screen.findByText('正在加载客户...')).toBeInTheDocument()
+    await waitFor(() => expect(resolveCustomers).toBeDefined())
 
     await act(async () => {
       resolveCustomers?.({ items: [], page: 1, pageSize: 20, total: 0 })

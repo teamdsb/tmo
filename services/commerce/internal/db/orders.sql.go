@@ -24,7 +24,7 @@ WHERE o.status = $1
     WHERE s.order_id = o.id
       AND s.shipped_at <= $3
   )
-RETURNING o.id, o.status, o.customer_id, o.owner_sales_user_id, o.address, o.remark, o.idempotency_key, o.created_at, o.updated_at, o.payment_status, o.latest_payment_id, o.payment_channel, o.paid_at, o.payment_method
+RETURNING o.id, o.status, o.customer_id, o.owner_sales_user_id, o.address, o.remark, o.idempotency_key, o.created_at, o.updated_at, o.payment_status, o.latest_payment_id, o.payment_channel, o.paid_at, o.payment_method, o.payment_sync_created_at, o.payment_sync_state_version
 `
 
 type AutoDeliverShippedOrdersParams struct {
@@ -57,6 +57,8 @@ func (q *Queries) AutoDeliverShippedOrders(ctx context.Context, arg AutoDeliverS
 			&i.PaymentChannel,
 			&i.PaidAt,
 			&i.PaymentMethod,
+			&i.PaymentSyncCreatedAt,
+			&i.PaymentSyncStateVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -74,16 +76,23 @@ FROM orders
 WHERE ($1::uuid IS NULL OR customer_id = $1)
   AND ($2::uuid IS NULL OR owner_sales_user_id = $2)
   AND ($3::text IS NULL OR status = $3)
+  AND ($4::text[] IS NULL OR status = ANY($4::text[]))
 `
 
 type CountOrdersParams struct {
 	CustomerID       pgtype.UUID `db:"customer_id" json:"customer_id"`
 	OwnerSalesUserID pgtype.UUID `db:"owner_sales_user_id" json:"owner_sales_user_id"`
 	Status           *string     `db:"status" json:"status"`
+	Statuses         []string    `db:"statuses" json:"statuses"`
 }
 
 func (q *Queries) CountOrders(ctx context.Context, arg CountOrdersParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countOrders, arg.CustomerID, arg.OwnerSalesUserID, arg.Status)
+	row := q.db.QueryRow(ctx, countOrders,
+		arg.CustomerID,
+		arg.OwnerSalesUserID,
+		arg.Status,
+		arg.Statuses,
+	)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -109,7 +118,7 @@ INSERT INTO orders (
     $7,
     $8
 )
-RETURNING id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at, payment_method
+RETURNING id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at, payment_method, payment_sync_created_at, payment_sync_state_version
 `
 
 type CreateOrderParams struct {
@@ -150,6 +159,8 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Order
 		&i.PaymentChannel,
 		&i.PaidAt,
 		&i.PaymentMethod,
+		&i.PaymentSyncCreatedAt,
+		&i.PaymentSyncStateVersion,
 	)
 	return i, err
 }
@@ -216,15 +227,17 @@ INSERT INTO order_items (
     sku_id,
     source_cart_item_id,
     qty,
-    unit_price_fen
+    unit_price_fen,
+    sku_snapshot
 ) VALUES (
     $1,
     $2,
     $3,
     $4,
-    $5
+    $5,
+    order_sku_snapshot($2)
 )
-RETURNING id, order_id, sku_id, qty, unit_price_fen, created_at, updated_at, source_cart_item_id
+RETURNING id, order_id, sku_id, qty, unit_price_fen, created_at, updated_at, source_cart_item_id, sku_snapshot
 `
 
 type CreateOrderItemParams struct {
@@ -253,12 +266,13 @@ func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SourceCartItemID,
+		&i.SkuSnapshot,
 	)
 	return i, err
 }
 
 const getOrder = `-- name: GetOrder :one
-SELECT id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at, payment_method
+SELECT id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at, payment_method, payment_sync_created_at, payment_sync_state_version
 FROM orders
 WHERE id = $1
 `
@@ -281,6 +295,8 @@ func (q *Queries) GetOrder(ctx context.Context, id uuid.UUID) (Order, error) {
 		&i.PaymentChannel,
 		&i.PaidAt,
 		&i.PaymentMethod,
+		&i.PaymentSyncCreatedAt,
+		&i.PaymentSyncStateVersion,
 	)
 	return i, err
 }
@@ -317,7 +333,7 @@ func (q *Queries) GetOrderAdminEventByIdempotencyKey(ctx context.Context, arg Ge
 }
 
 const getOrderByIdempotencyKey = `-- name: GetOrderByIdempotencyKey :one
-SELECT id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at, payment_method
+SELECT id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at, payment_method, payment_sync_created_at, payment_sync_state_version
 FROM orders
 WHERE customer_id = $1 AND idempotency_key = $2
 `
@@ -345,12 +361,14 @@ func (q *Queries) GetOrderByIdempotencyKey(ctx context.Context, arg GetOrderById
 		&i.PaymentChannel,
 		&i.PaidAt,
 		&i.PaymentMethod,
+		&i.PaymentSyncCreatedAt,
+		&i.PaymentSyncStateVersion,
 	)
 	return i, err
 }
 
 const getOrderForUpdate = `-- name: GetOrderForUpdate :one
-SELECT id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at, payment_method
+SELECT id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at, payment_method, payment_sync_created_at, payment_sync_state_version
 FROM orders
 WHERE id = $1
 FOR UPDATE
@@ -374,6 +392,8 @@ func (q *Queries) GetOrderForUpdate(ctx context.Context, id uuid.UUID) (Order, e
 		&i.PaymentChannel,
 		&i.PaidAt,
 		&i.PaymentMethod,
+		&i.PaymentSyncCreatedAt,
+		&i.PaymentSyncStateVersion,
 	)
 	return i, err
 }
@@ -419,7 +439,7 @@ func (q *Queries) ListOrderAdminEvents(ctx context.Context, orderID uuid.UUID) (
 }
 
 const listOrderItems = `-- name: ListOrderItems :many
-SELECT id, order_id, sku_id, qty, unit_price_fen, created_at, updated_at, source_cart_item_id
+SELECT id, order_id, sku_id, qty, unit_price_fen, created_at, updated_at, source_cart_item_id, sku_snapshot
 FROM order_items
 WHERE order_id = $1
 ORDER BY created_at ASC
@@ -443,6 +463,7 @@ func (q *Queries) ListOrderItems(ctx context.Context, orderID uuid.UUID) ([]Orde
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.SourceCartItemID,
+			&i.SkuSnapshot,
 		); err != nil {
 			return nil, err
 		}
@@ -495,19 +516,21 @@ func (q *Queries) ListOrderStatusStats(ctx context.Context, arg ListOrderStatusS
 }
 
 const listOrders = `-- name: ListOrders :many
-SELECT id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at, payment_method
+SELECT id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at, payment_method, payment_sync_created_at, payment_sync_state_version
 FROM orders
 WHERE ($1::uuid IS NULL OR customer_id = $1)
   AND ($2::uuid IS NULL OR owner_sales_user_id = $2)
   AND ($3::text IS NULL OR status = $3)
-ORDER BY created_at DESC
-LIMIT $5 OFFSET $4
+  AND ($4::text[] IS NULL OR status = ANY($4::text[]))
+ORDER BY created_at DESC, id DESC
+LIMIT $6 OFFSET $5
 `
 
 type ListOrdersParams struct {
 	CustomerID       pgtype.UUID `db:"customer_id" json:"customer_id"`
 	OwnerSalesUserID pgtype.UUID `db:"owner_sales_user_id" json:"owner_sales_user_id"`
 	Status           *string     `db:"status" json:"status"`
+	Statuses         []string    `db:"statuses" json:"statuses"`
 	Offset           int32       `db:"offset" json:"offset"`
 	Limit            int32       `db:"limit" json:"limit"`
 }
@@ -517,6 +540,7 @@ func (q *Queries) ListOrders(ctx context.Context, arg ListOrdersParams) ([]Order
 		arg.CustomerID,
 		arg.OwnerSalesUserID,
 		arg.Status,
+		arg.Statuses,
 		arg.Offset,
 		arg.Limit,
 	)
@@ -542,6 +566,8 @@ func (q *Queries) ListOrders(ctx context.Context, arg ListOrdersParams) ([]Order
 			&i.PaymentChannel,
 			&i.PaidAt,
 			&i.PaymentMethod,
+			&i.PaymentSyncCreatedAt,
+			&i.PaymentSyncStateVersion,
 		); err != nil {
 			return nil, err
 		}
@@ -563,7 +589,7 @@ SET status = $2,
     owner_sales_user_id = $7,
     updated_at = now()
 WHERE id = $1
-RETURNING id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at, payment_method
+RETURNING id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at, payment_method, payment_sync_created_at, payment_sync_state_version
 `
 
 type UpdateOrderFulfillmentParams struct {
@@ -602,6 +628,8 @@ func (q *Queries) UpdateOrderFulfillment(ctx context.Context, arg UpdateOrderFul
 		&i.PaymentChannel,
 		&i.PaidAt,
 		&i.PaymentMethod,
+		&i.PaymentSyncCreatedAt,
+		&i.PaymentSyncStateVersion,
 	)
 	return i, err
 }
@@ -613,18 +641,22 @@ SET status = $2,
     latest_payment_id = $4,
     payment_channel = $5,
     paid_at = $6,
+    payment_sync_created_at = $7,
+    payment_sync_state_version = $8,
     updated_at = now()
 WHERE id = $1
-RETURNING id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at, payment_method
+RETURNING id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at, payment_method, payment_sync_created_at, payment_sync_state_version
 `
 
 type UpdateOrderPaymentSummaryParams struct {
-	ID              uuid.UUID          `db:"id" json:"id"`
-	Status          string             `db:"status" json:"status"`
-	PaymentStatus   string             `db:"payment_status" json:"payment_status"`
-	LatestPaymentID pgtype.UUID        `db:"latest_payment_id" json:"latest_payment_id"`
-	PaymentChannel  *string            `db:"payment_channel" json:"payment_channel"`
-	PaidAt          pgtype.Timestamptz `db:"paid_at" json:"paid_at"`
+	ID                      uuid.UUID          `db:"id" json:"id"`
+	Status                  string             `db:"status" json:"status"`
+	PaymentStatus           string             `db:"payment_status" json:"payment_status"`
+	LatestPaymentID         pgtype.UUID        `db:"latest_payment_id" json:"latest_payment_id"`
+	PaymentChannel          *string            `db:"payment_channel" json:"payment_channel"`
+	PaidAt                  pgtype.Timestamptz `db:"paid_at" json:"paid_at"`
+	PaymentSyncCreatedAt    pgtype.Timestamptz `db:"payment_sync_created_at" json:"payment_sync_created_at"`
+	PaymentSyncStateVersion int64              `db:"payment_sync_state_version" json:"payment_sync_state_version"`
 }
 
 func (q *Queries) UpdateOrderPaymentSummary(ctx context.Context, arg UpdateOrderPaymentSummaryParams) (Order, error) {
@@ -635,6 +667,8 @@ func (q *Queries) UpdateOrderPaymentSummary(ctx context.Context, arg UpdateOrder
 		arg.LatestPaymentID,
 		arg.PaymentChannel,
 		arg.PaidAt,
+		arg.PaymentSyncCreatedAt,
+		arg.PaymentSyncStateVersion,
 	)
 	var i Order
 	err := row.Scan(
@@ -652,6 +686,8 @@ func (q *Queries) UpdateOrderPaymentSummary(ctx context.Context, arg UpdateOrder
 		&i.PaymentChannel,
 		&i.PaidAt,
 		&i.PaymentMethod,
+		&i.PaymentSyncCreatedAt,
+		&i.PaymentSyncStateVersion,
 	)
 	return i, err
 }
@@ -661,7 +697,7 @@ UPDATE orders
 SET status = $2,
     updated_at = now()
 WHERE id = $1
-RETURNING id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at, payment_method
+RETURNING id, status, customer_id, owner_sales_user_id, address, remark, idempotency_key, created_at, updated_at, payment_status, latest_payment_id, payment_channel, paid_at, payment_method, payment_sync_created_at, payment_sync_state_version
 `
 
 type UpdateOrderStatusParams struct {
@@ -687,6 +723,8 @@ func (q *Queries) UpdateOrderStatus(ctx context.Context, arg UpdateOrderStatusPa
 		&i.PaymentChannel,
 		&i.PaidAt,
 		&i.PaymentMethod,
+		&i.PaymentSyncCreatedAt,
+		&i.PaymentSyncStateVersion,
 	)
 	return i, err
 }

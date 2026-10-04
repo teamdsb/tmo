@@ -28,6 +28,12 @@ SELECT id, owner_user_id, status, progress, auto_added_count, pending_count, cre
 FROM cart_import_jobs
 WHERE id = $1;
 
+-- name: GetCartImportJobForUpdate :one
+SELECT id, owner_user_id, status, progress, auto_added_count, pending_count, created_at, updated_at
+FROM cart_import_jobs
+WHERE id = $1
+FOR UPDATE;
+
 -- name: CreateCartImportRow :one
 INSERT INTO cart_import_rows (
     job_id,

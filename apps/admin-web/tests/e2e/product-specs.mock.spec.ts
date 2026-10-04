@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './offline-fixtures';
 import * as XLSX from 'xlsx';
 import { readFile } from 'node:fs/promises';
 import { loginMockBoss } from './import-fixtures';

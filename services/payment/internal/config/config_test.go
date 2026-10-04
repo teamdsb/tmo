@@ -1,6 +1,28 @@
 package config
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
+
+func TestLoadEnablesDurableReconciliationByDefault(t *testing.T) {
+	t.Setenv("PAYMENT_RECONCILIATION_ENABLED", "")
+	cfg := Load()
+	if !cfg.ReconciliationEnabled || cfg.ReconciliationPollInterval != 2*time.Second || cfg.ReconciliationJobTimeout != 30*time.Second || cfg.ReconciliationLease != 90*time.Second {
+		t.Fatalf("unexpected reconciliation defaults: enabled=%v poll=%s timeout=%s lease=%s", cfg.ReconciliationEnabled, cfg.ReconciliationPollInterval, cfg.ReconciliationJobTimeout, cfg.ReconciliationLease)
+	}
+	t.Setenv("PAYMENT_RECONCILIATION_ENABLED", "false")
+	if Load().ReconciliationEnabled {
+		t.Fatal("explicit worker shutdown flag was ignored")
+	}
+}
+
+func TestValidateRejectsReconciliationLeaseShorterThanProcessing(t *testing.T) {
+	cfg := Config{ReconciliationEnabled: true, ReconciliationPollInterval: time.Second, ReconciliationJobTimeout: 30 * time.Second, ReconciliationLease: 20 * time.Second, CommerceBaseURL: "http://localhost", CommerceSyncToken: "test"}
+	if cfg.Validate() == nil {
+		t.Fatal("short lease can let two workers process the same payment concurrently")
+	}
+}
 
 func TestLoadEnablesAuthenticationByDefault(t *testing.T) {
 	t.Setenv("PAYMENT_AUTH_ENABLED", "")

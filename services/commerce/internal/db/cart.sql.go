@@ -82,6 +82,7 @@ SELECT id, owner_user_id, sku_id, qty, created_at, updated_at
 FROM cart_items
 WHERE owner_user_id = $1
   AND id = ANY($2::uuid[])
+ORDER BY sku_id, id
 FOR UPDATE
 `
 

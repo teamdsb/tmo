@@ -934,14 +934,12 @@ func (h *Handler) buildSupportConversationContext(ctx context.Context, conversat
 			TotalItems: len(items),
 		}
 		if len(items) > 0 {
-			skuMap, skuErr := h.loadSkusWithTiers(ctx, []uuid.UUID{items[0].SkuID})
-			if skuErr != nil {
-				return supportConversationContext{}, skuErr
+			mappedItems, snapshotErr := mapOrderItems(items[:1])
+			if snapshotErr != nil {
+				return supportConversationContext{}, snapshotErr
 			}
-			if sku, ok := skuMap[items[0].SkuID]; ok {
-				name := sku.Name
-				summary.FirstItem = &name
-			}
+			name := mappedItems[0].Sku.Name
+			summary.FirstItem = &name
 		}
 		orderSummaries = append(orderSummaries, summary)
 	}

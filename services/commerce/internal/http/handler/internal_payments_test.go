@@ -187,6 +187,10 @@ func TestPostInternalOrdersOrderIdPaymentStatusMapsStatuses(t *testing.T) {
 	paymentID := uuid.MustParse("22222222-2222-2222-2222-222222222222")
 	skuID := uuid.MustParse("33333333-3333-3333-3333-333333333333")
 	productID := uuid.MustParse("44444444-4444-4444-4444-444444444444")
+	snapshot, err := json.Marshal(oapi.SKU{Id: skuID, SpuId: productID, Name: "Test SKU", IsActive: true})
+	if err != nil {
+		t.Fatal(err)
+	}
 	now := time.Date(2026, 3, 6, 8, 0, 0, 0, time.UTC)
 
 	cases := []struct {
@@ -223,6 +227,7 @@ func TestPostInternalOrdersOrderIdPaymentStatusMapsStatuses(t *testing.T) {
 							ID:           uuid.MustParse("66666666-6666-6666-6666-666666666666"),
 							OrderID:      orderID,
 							SkuID:        skuID,
+							SkuSnapshot:  snapshot,
 							Qty:          2,
 							UnitPriceFen: 1888,
 							CreatedAt:    pgtype.Timestamptz{Time: now, Valid: true},

@@ -247,3 +247,14 @@ func (s *adminPaymentStoreStub) ListPaymentAuditLogs(context.Context, db.ListPay
 func (s *adminPaymentStoreStub) CountPaymentAuditLogs(context.Context, db.CountPaymentAuditLogsParams) (int64, error) {
 	return 0, nil
 }
+
+func (s *adminPaymentStoreStub) MarkPaymentCommerceSynced(context.Context, db.MarkPaymentCommerceSyncedParams) error {
+	return nil
+}
+
+func (s *adminPaymentStoreStub) GetLatestPaymentByOrder(_ context.Context, orderID uuid.UUID) (db.Payment, error) {
+	if s.payment.OrderID == orderID {
+		return s.payment, nil
+	}
+	return db.Payment{}, errors.New("payment not found")
+}

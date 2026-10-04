@@ -26,13 +26,15 @@ INSERT INTO order_items (
     sku_id,
     source_cart_item_id,
     qty,
-    unit_price_fen
+    unit_price_fen,
+    sku_snapshot
 ) VALUES (
     $1,
     $2,
     $3,
     $4,
-    $5
+    $5,
+    order_sku_snapshot($2)
 )
 RETURNING *;
 
@@ -42,7 +44,8 @@ FROM orders
 WHERE (sqlc.narg('customer_id')::uuid IS NULL OR customer_id = sqlc.narg('customer_id'))
   AND (sqlc.narg('owner_sales_user_id')::uuid IS NULL OR owner_sales_user_id = sqlc.narg('owner_sales_user_id'))
   AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status'))
-ORDER BY created_at DESC
+  AND (sqlc.narg('statuses')::text[] IS NULL OR status = ANY(sqlc.narg('statuses')::text[]))
+ORDER BY created_at DESC, id DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
 -- name: CountOrders :one
@@ -50,7 +53,8 @@ SELECT count(*)
 FROM orders
 WHERE (sqlc.narg('customer_id')::uuid IS NULL OR customer_id = sqlc.narg('customer_id'))
   AND (sqlc.narg('owner_sales_user_id')::uuid IS NULL OR owner_sales_user_id = sqlc.narg('owner_sales_user_id'))
-  AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status'));
+  AND (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status'))
+  AND (sqlc.narg('statuses')::text[] IS NULL OR status = ANY(sqlc.narg('statuses')::text[]));
 
 -- name: ListOrderStatusStats :many
 SELECT status, payment_status, count(*)::bigint AS order_count
@@ -89,6 +93,8 @@ SET status = $2,
     latest_payment_id = $4,
     payment_channel = $5,
     paid_at = $6,
+    payment_sync_created_at = $7,
+    payment_sync_state_version = $8,
     updated_at = now()
 WHERE id = $1
 RETURNING *;

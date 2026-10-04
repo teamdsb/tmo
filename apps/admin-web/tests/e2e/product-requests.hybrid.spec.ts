@@ -1,10 +1,11 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './offline-fixtures';
 
 const permissions = { items: [{ code: 'product_request:read', scope: 'ALL' }] };
 const user = { id: 'boss-user', displayName: 'Boss', roles: ['BOSS'], currentRole: 'BOSS', userType: 'admin' };
 const requestId = '11111111-2222-4333-8444-555555555555';
 
 test('real product requests page sends server filters and renders the response', async ({ page }) => {
+  await page.route('**/api/admin/support/conversations**', route => route.fulfill({ json: { items: [], page: 1, pageSize: 50, total: 0 } }));
   const requestUrls: URL[] = [];
   await page.addInitScript(({ permissions: nextPermissions, user: nextUser }) => {
     window.localStorage.setItem('tmo:admin:web:auth', JSON.stringify({

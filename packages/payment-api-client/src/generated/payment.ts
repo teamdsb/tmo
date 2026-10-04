@@ -10,6 +10,17 @@ Conventions:
 - Auth: Bearer JWT access token
 - Idempotency: send `Idempotency-Key` for order submit and payment create
 
+Payment reconciliation is durable: pending B2B payments are queried server-side,
+and saved payment states retry Commerce synchronization after client exit or service restart.
+Internal POST /internal/orders/{orderId}/payment-status uses X-Internal-Token and
+pairs positive stateVersion with the source paymentCreatedAt. Commerce persists
+ordering under the order lock: versions within one payment, then (createdAt, paymentId)
+across attempts. Stale non-PAID messages are acknowledged without mutation; PAID wins
+over non-PAID and an already-paid order never regresses. Versionless legacy non-PAID
+messages are ignored after a watermark exists; legacy PAID remains admissible.
+Deploy Commerce ordering support before the upgraded Payment worker. Versionless
+history has no recoverable original ordering before the first watermark.
+
  * OpenAPI spec version: 0.1.0
  */
 import { apiMutator } from '../runtime';

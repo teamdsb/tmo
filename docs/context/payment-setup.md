@@ -216,6 +216,10 @@ B2B 生产配置为 `PAYMENT_PROVIDER_MODE=b2b`，必需变量为 `PAYMENT_WECHA
 | `PAYMENT_COMMERCE_SYNC_TOKEN` | payment 回写 commerce 内部接口时使用的 token |
 | `PAYMENT_PROVIDER_MODE` | provider 模式；代码与生产默认 `disabled`，本地联调才显式设为 `mock` |
 | `PAYMENT_MIGRATIONS_DIR` | payment migrations 路径 |
+| `PAYMENT_RECONCILIATION_ENABLED` | 服务端查单与同步补偿开关，默认 `true`；关闭后保留数据库中的待处理任务 |
+| `PAYMENT_RECONCILIATION_POLL_INTERVAL` | 空闲/异常轮询间隔，默认 `2s` |
+| `PAYMENT_RECONCILIATION_JOB_TIMEOUT` | 单次任务处理超时，默认 `30s` |
+| `PAYMENT_RECONCILIATION_LEASE_DURATION` | 多实例任务占用时间，默认 `90s`，必须大于单次处理超时 |
 | `PAYMENT_FEATURE_FLAGS_TIMEOUT` | feature flag 超时 |
 | `PAYMENT_ENABLED` | 支付总开关 |
 | `PAYMENT_WECHAT_PAY_ENABLED` | 微信支付开关 |
@@ -228,6 +232,14 @@ B2B 生产配置为 `PAYMENT_PROVIDER_MODE=b2b`，必需变量为 `PAYMENT_WECHA
 | `PAYMENT_ALIPAY_PAY_ENABLED` | 支付宝支付开关 |
 
 ### `services/commerce` 相关变量
+
+B2B 支付创建后由服务端持久化查单任务；客户关闭小程序不会取消查单。微信查询失败和 Commerce 同步失败按 10、20、40、80、160、300 秒退避重试，不因重启或重试次数丢弃。普通待支付查单在一小时后放慢至每 5 分钟，一天后每小时；客户端 `expiresAt` 不作为付款失败依据。已 PAID 记录只补同步；关闭新支付 feature flags 或切换为 `disabled` provider 不阻止已确认付款的同步，未确认 B2B 仍需保留相应 provider 凭据。
+
+Payment 内部通过带 `X-Internal-Token` 的 `POST /internal/orders/{orderId}/payment-status` 同步。新消息成对携带正整数 `stateVersion` 与源 Payment 的 `paymentCreatedAt`。Commerce 在同一订单事务中保存高水位：同一 paymentId 比较版本，不同尝试先比较创建时间，再用 paymentId 排序打破同时间平局。过时非 PAID 消息返回成功但不改订单；迟到 PAID 始终可以提升未支付订单，已 PAID 的付款时间和流水归属保持不变。Payment 发送非 PAID 状态前还会跨渠道查询最新支付尝试，旧尝试仅确认其已被替代，避免历史补偿覆盖当前尝试。
+
+发布顺序为先升级 Commerce（含 `00029` 迁移），再升级 Payment（含持久化任务迁移及 worker）。没有建立高水位的历史订单仍兼容旧版无版本消息；建立后忽略无版本非 PAID，但仍接受已验证 PAID。旧版 Payment 的新建记录/状态写入也会被默认值和触发器标为待处理，由新 worker 重发排序信息。没有版本的旧消息无法还原原始完整先后，在首次建立高水位前可能短暂沿用到达顺序；不能把这种兼容性描述为已恢复历史顺序。
+
+调查滞留订单时检查 payment 的 `state_version`、`commerce_synced_version`、`reconcile_after`、`reconcile_attempts`、`reconcile_last_error`，并结合日志中的 payment ID。多个实例用数据库时间和租约 token 领取任务，过期任务可被接手；旧 worker 不能清除新租约。不要手工把网络超时写成 PAID 或 PAY_FAILED。
 
 | 变量 | 说明 |
 | --- | --- |

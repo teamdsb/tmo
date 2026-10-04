@@ -188,7 +188,8 @@ jest.mock('@tarojs/taro', () => {
         callback();
       }
     }),
-    useDidShow: jest.fn(() => {})
+    useDidShow: jest.fn(() => {}),
+    useDidHide: jest.fn(() => {})
   };
 });
 

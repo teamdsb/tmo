@@ -609,6 +609,7 @@ paths:
       tags:
       - Customers
       summary: List customers (scope by role)
+      description: Ordered by creation time descending, then unique ID descending for stable pagination.
       parameters:
       - in: query
         name: q

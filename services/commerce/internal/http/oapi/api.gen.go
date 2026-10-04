@@ -316,7 +316,7 @@ type CreateInquiryMessage struct {
 	Content string `json:"content"`
 }
 
-// CreateOrderRequest defines model for CreateOrderRequest.
+// CreateOrderRequest Checkout validates active products and SKUs with complete specification paths, and reads current prices atomically before consuming the selected cart quantities.
 type CreateOrderRequest struct {
 	Address Address `json:"address"`
 	Items   []struct {
@@ -476,7 +476,7 @@ type OrderAdminEventList struct {
 	Items []OrderAdminEvent `json:"items"`
 }
 
-// OrderItem defines model for OrderItem.
+// OrderItem The sku is an immutable purchase-time snapshot, including its name, specification, unit and price tiers. Catalog edits do not change existing orders. Legacy rows retain catalog information available when snapshots were introduced; earlier overwritten history cannot be recovered.
 type OrderItem struct {
 	Qty int `json:"qty"`
 	Sku SKU `json:"sku"`
@@ -859,8 +859,11 @@ type GetOrdersParams struct {
 	CustomerId       *openapi_types.UUID `form:"customerId,omitempty" json:"customerId,omitempty"`
 	OwnerSalesUserId *openapi_types.UUID `form:"ownerSalesUserId,omitempty" json:"ownerSalesUserId,omitempty"`
 	Status           *OrderStatus        `form:"status,omitempty" json:"status,omitempty"`
-	Page             *int                `form:"page,omitempty" json:"page,omitempty"`
-	PageSize         *int                `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+
+	// Statuses Repeat statuses for each order state; comma-separated lists are also accepted. Mutually exclusive with status. Filtering precedes pagination and counting.
+	Statuses *[]OrderStatus `form:"statuses,omitempty" json:"statuses,omitempty"`
+	Page     *int           `form:"page,omitempty" json:"page,omitempty"`
+	PageSize *int           `form:"pageSize,omitempty" json:"pageSize,omitempty"`
 }
 
 // PostOrdersParams defines parameters for PostOrders.
@@ -2259,6 +2262,14 @@ func (siw *ServerInterfaceWrapper) GetOrders(c *gin.Context) {
 	err = runtime.BindQueryParameter("form", true, false, "status", c.Request.URL.Query(), &params.Status)
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter status: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "statuses" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "statuses", c.Request.URL.Query(), &params.Statuses)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter statuses: %w", err), http.StatusBadRequest)
 		return
 	}
 

@@ -21,6 +21,7 @@ import (
 	"github.com/teamdsb/tmo/services/payment/internal/http/handler"
 	"github.com/teamdsb/tmo/services/payment/internal/http/middleware"
 	"github.com/teamdsb/tmo/services/payment/internal/provider"
+	"github.com/teamdsb/tmo/services/payment/internal/reconciliation"
 )
 
 func main() {
@@ -135,6 +136,25 @@ func run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		return db.Ready(checkCtx, pool)
 	})
 	server := httpserver.NewServer(cfg.HTTPAddr, router)
+	if cfg.ReconciliationEnabled {
+		workerCtx, stopWorker := context.WithCancel(ctx)
+		workerDone := make(chan struct{})
+		worker := &reconciliation.Worker{
+			Store: db.New(pool), Processor: apiHandler, QueryB2B: wechatB2BProvider != nil,
+			PollInterval: cfg.ReconciliationPollInterval, JobTimeout: cfg.ReconciliationJobTimeout,
+			Lease: cfg.ReconciliationLease, Logger: logger,
+		}
+		go func() {
+			defer close(workerDone)
+			if err := worker.Run(workerCtx); err != nil {
+				logger.Error("payment reconciliation worker stopped", "error", err)
+			}
+		}()
+		defer func() {
+			stopWorker()
+			<-workerDone
+		}()
+	}
 
 	logger.Info("payment service listening", "addr", cfg.HTTPAddr)
 

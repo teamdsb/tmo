@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -248,5 +249,126 @@ func TestWechatB2BDirectProviderCachesAccessToken(t *testing.T) {
 	}
 	if tokenCalls != 1 {
 		t.Fatalf("expected a cached B2B access token, got %d token requests", tokenCalls)
+	}
+}
+
+func TestWechatB2BDirectProviderTokenRefreshCancellation(t *testing.T) {
+	for _, construction := range []string{"constructor", "struct literal"} {
+		t.Run(construction, func(t *testing.T) {
+			var tokenCalls atomic.Int64
+			firstTokenStarted := make(chan struct{})
+			unblockToken := make(chan struct{})
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/token" {
+					// Consume the request so cancellation can reach the server while it waits.
+					_, _ = io.Copy(io.Discard, r.Body)
+					if tokenCalls.Add(1) == 1 {
+						close(firstTokenStarted)
+						select {
+						case <-r.Context().Done():
+						case <-unblockToken:
+						}
+						return
+					}
+					_, _ = w.Write([]byte(`{"access_token":"access-token","expires_in":7200}`))
+					return
+				}
+				if r.URL.Path != "/order" || r.URL.Query().Get("access_token") != "access-token" {
+					t.Errorf("unexpected order request: %s", r.URL.String())
+				}
+				_, _ = w.Write([]byte(`{"errcode":0,"pay_status":"ORDER_NOT_PAY"}`))
+			}))
+			defer server.Close()
+			defer close(unblockToken)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			config := WechatB2BConfig{AppID: "app", AppSecret: "secret", MchID: "mch", AppKey: "key", SessionURL: server.URL, TokenURL: server.URL + "/token", OrderURL: server.URL + "/order"}
+			var provider *WechatB2BDirectProvider
+			if construction == "constructor" {
+				var err error
+				provider, err = NewWechatB2BDirectProvider(config)
+				if err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				provider = &WechatB2BDirectProvider{config: config, client: server.Client()}
+			}
+			query := WechatB2BQueryRequest{OrderID: uuid.New(), AmountFen: 1}
+			firstCtx, cancelFirst := context.WithCancel(ctx)
+			defer cancelFirst()
+			firstDone := make(chan error, 1)
+			go func() {
+				_, err := provider.QueryPayment(firstCtx, query)
+				firstDone <- err
+			}()
+			select {
+			case <-firstTokenStarted:
+			case <-ctx.Done():
+				t.Fatal("first token request did not start")
+			}
+
+			waitingCtx, cancelWaiting := context.WithTimeout(ctx, 50*time.Millisecond)
+			defer cancelWaiting()
+			waitingDone := make(chan error, 1)
+			go func() {
+				_, err := provider.QueryPayment(waitingCtx, query)
+				waitingDone <- err
+			}()
+			select {
+			case err := <-waitingDone:
+				if !errors.Is(err, context.DeadlineExceeded) {
+					t.Fatalf("expected cancellation while waiting for token refresh, got %v", err)
+				}
+			case <-time.After(time.Second):
+				t.Fatal("cancelled query remained blocked behind an in-flight token refresh")
+			}
+			select {
+			case err := <-firstDone:
+				t.Fatalf("first token request unexpectedly finished: %v", err)
+			default:
+			}
+			if calls := tokenCalls.Load(); calls != 1 {
+				t.Fatalf("waiting query started another token request: %d", calls)
+			}
+
+			cancelFirst()
+			select {
+			case err := <-firstDone:
+				if err == nil {
+					t.Fatal("expected cancelled token refresh to fail")
+				}
+			case <-time.After(time.Second):
+				t.Fatal("token refresh did not return after cancellation")
+			}
+
+			// Concurrent callers must share one new token after the cancelled refresh.
+			const callers = 8
+			start := make(chan struct{})
+			done := make(chan error, callers)
+			for range callers {
+				go func() {
+					<-start
+					resolution, err := provider.QueryPayment(ctx, query)
+					if err == nil && resolution.Status != paymentStatusPending {
+						t.Errorf("unexpected recovered query result: %#v", resolution)
+					}
+					done <- err
+				}()
+			}
+			close(start)
+			for range callers {
+				select {
+				case err := <-done:
+					if err != nil {
+						t.Fatalf("query failed after cancelled refresh: %v", err)
+					}
+				case <-ctx.Done():
+					t.Fatal("queries did not recover after cancelled refresh")
+				}
+			}
+			if calls := tokenCalls.Load(); calls != 2 {
+				t.Fatalf("expected one cancelled and one shared successful token request, got %d", calls)
+			}
+		})
 	}
 }

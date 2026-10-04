@@ -20,10 +20,12 @@ import {
   uploadCatalogProductImage
 } from '../../../lib/api';
 import { ensureProtectedPage } from '../../../lib/guard';
+import { canManageAdminCatalog } from '../../../lib/admin-role-policy';
 import { createMockProductExportJob } from '../../../lib/product-import';
 import { listMockImportReviews, resolveMockImportReview } from '../../../lib/product-import-workbench';
 import { type ImportReview } from './import-types';
 import { AdminTopbar } from '../../layout/AdminTopbar';
+import { ReadonlyProductsPage } from './ReadonlyProductsPage';
 import {
   buildDefaultCategories,
   buildDefaultDisplayCategories,
@@ -1927,9 +1929,25 @@ const DisplayCategoryManagerModal = ({ items, onClose, onSaveAll, open }: Displa
   );
 };
 
-// 商品页（React 接管商品列表、编辑抽屉、类目管理和展示类目管理）。
+// Resolve the active role before mounting any catalog management hooks.
 export const ProductsPage = () => {
   const [context, setContext] = useState<PageContext>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let active = true;
+    void ensureProtectedPage().then(nextContext => {
+      if (active && nextContext) setContext({ mode: nextContext.mode === 'dev' ? 'dev' : 'mock', session: nextContext.session });
+    }).catch(failure => { if (active) setError(failure instanceof Error ? failure.message : '页面加载失败。'); });
+    return () => { active = false; };
+  }, []);
+  if (!context) return <main className="p-6 text-sm text-slate-500">{error || '加载中...'}</main>;
+  return canManageAdminCatalog(context.session)
+    ? <CatalogManagementPage context={context} />
+    : <ReadonlyProductsPage mode={context.mode} normalizeDetail={toProductRecordFromDetail} />;
+};
+
+// Management hooks only run for the server-supported BOSS / ADMIN role.
+const CatalogManagementPage = ({ context }: { context: NonNullable<PageContext> }) => {
   const [loadState, setLoadState] = useState<LoadState>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [toast, setToast] = useState<ToastState>(null);
@@ -1990,14 +2008,7 @@ export const ProductsPage = () => {
 
     const bootstrap = async () => {
       setLoadState('loading');
-      const nextContext = await ensureProtectedPage();
-      if (!active || !nextContext) {
-        return;
-      }
-      setContext({
-        mode: nextContext.mode === 'dev' ? 'dev' : 'mock',
-        session: nextContext.session
-      });
+      const nextContext = context;
 
       try {
         const [loadedCategories, loadedDisplayCategories] = await Promise.all([
@@ -2073,7 +2084,7 @@ export const ProductsPage = () => {
     return () => {
       active = false;
     };
-  }, [loadBackendCategories, loadBackendProducts]);
+  }, [context, loadBackendCategories, loadBackendProducts]);
 
   const refreshBackendProducts = useCallback(async () => {
     if (context?.mode !== 'dev') {

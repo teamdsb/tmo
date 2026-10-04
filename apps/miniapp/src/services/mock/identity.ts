@@ -192,10 +192,12 @@ export const createMockIdentityServices = (): IdentityServices => {
             || String(customer.phone || '').toLowerCase().includes(query)
           ))
           : allCustomers
+        const page = params.page || 1
+        const pageSize = params.pageSize || 20
         return {
-          items,
-          page: params.page || 1,
-          pageSize: params.pageSize || 20,
+          items: items.slice((page - 1) * pageSize, page * pageSize),
+          page,
+          pageSize,
           total: items.length
         }
       }

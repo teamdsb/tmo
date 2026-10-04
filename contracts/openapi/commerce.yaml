@@ -10,6 +10,17 @@ info:
     - IDs: UUID strings
     - Auth: Bearer JWT access token
     - Idempotency: send `Idempotency-Key` for order submit and payment create
+
+    Payment reconciliation is durable: pending B2B payments are queried server-side,
+    and saved payment states retry Commerce synchronization after client exit or service restart.
+    Internal POST /internal/orders/{orderId}/payment-status uses X-Internal-Token and
+    pairs positive stateVersion with the source paymentCreatedAt. Commerce persists
+    ordering under the order lock: versions within one payment, then (createdAt, paymentId)
+    across attempts. Stale non-PAID messages are acknowledged without mutation; PAID wins
+    over non-PAID and an already-paid order never regresses. Versionless legacy non-PAID
+    messages are ignored after a watermark exists; legacy PAID remains admissible.
+    Deploy Commerce ordering support before the upgraded Payment worker. Versionless
+    history has no recoverable original ordering before the first watermark.
 servers:
 - url: https://api.example.com
 tags:
@@ -505,6 +516,10 @@ paths:
       tags:
       - Cart
       summary: Confirm SKU selections for ambiguous rows
+      description: >-
+        Atomically applies each recognized row once. Identical retries return the cart without adding
+        quantity again; changing an already confirmed selection returns 409. Unknown, duplicate or
+        non-candidate selections return 400. The job must belong to the current user and be complete.
       parameters:
       - in: path
         name: jobId
@@ -525,6 +540,12 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/Cart"
+        '400':
+          description: Invalid row, SKU candidate or quantity
+        '404':
+          description: Import job not found for the current user
+        '409':
+          "$ref": "#/components/responses/Conflict"
   "/orders":
     post:
       tags:
@@ -571,6 +592,17 @@ paths:
         schema:
           "$ref": "#/components/schemas/OrderStatus"
       - in: query
+        name: statuses
+        description: Repeat statuses for each order state; comma-separated lists are also accepted. Mutually exclusive with status. Filtering precedes pagination and counting.
+        style: form
+        explode: true
+        schema:
+          type: array
+          minItems: 1
+          maxItems: 9
+          items:
+            "$ref": "#/components/schemas/OrderStatus"
+      - in: query
         name: page
         schema:
           type: integer
@@ -590,6 +622,8 @@ paths:
             application/json:
               schema:
                 "$ref": "#/components/schemas/PagedOrderList"
+        '400':
+          description: Invalid or mutually conflicting status filters
   "/orders/stats":
     get:
       tags:
@@ -2173,6 +2207,7 @@ components:
       - detail
     CreateOrderRequest:
       type: object
+      description: Checkout validates active products and SKUs with complete specification paths, and reads current prices atomically before consuming the selected cart quantities.
       properties:
         address:
           "$ref": "#/components/schemas/Address"
@@ -2221,6 +2256,7 @@ components:
       - CLOSED
     OrderItem:
       type: object
+      description: The sku is an immutable purchase-time snapshot, including its name, specification, unit and price tiers. Catalog edits do not change existing orders. Legacy rows retain catalog information available when snapshots were introduced; earlier overwritten history cannot be recovered.
       properties:
         sku:
           "$ref": "#/components/schemas/SKU"

@@ -891,8 +891,8 @@ func seedCatalog(t *testing.T, queries *db.Queries) (db.CatalogSku, db.CatalogSk
 		ProductID:  product.ID,
 		SkuCode:    stringPtr("SP-001"),
 		Name:       "Steel Pipe 1m",
-		Spec:       stringPtr("1m"),
-		Attributes: json.RawMessage(`{"length":"1m"}`),
+		Spec:       stringPtr("steel / 1m"),
+		Attributes: json.RawMessage(`{"material":"steel","length":"1m"}`),
 		Unit:       stringPtr("pcs"),
 		IsActive:   true,
 	})
@@ -903,8 +903,8 @@ func seedCatalog(t *testing.T, queries *db.Queries) (db.CatalogSku, db.CatalogSk
 		ProductID:  product.ID,
 		SkuCode:    stringPtr("SP-002"),
 		Name:       "Steel Pipe 2m",
-		Spec:       stringPtr("2m"),
-		Attributes: json.RawMessage(`{"length":"2m"}`),
+		Spec:       stringPtr("steel / 2m"),
+		Attributes: json.RawMessage(`{"material":"steel","length":"2m"}`),
 		Unit:       stringPtr("pcs"),
 		IsActive:   true,
 	})

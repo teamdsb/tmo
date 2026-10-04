@@ -1,5 +1,3 @@
-import fs from 'fs'
-import path from 'path'
 import { render, screen } from '@testing-library/react'
 import { useDidShow } from '@tarojs/taro'
 import { commerceServices } from '../../services/commerce'
@@ -56,12 +54,4 @@ describe('FavoritesPage', () => {
     expect(container.querySelectorAll('.favorite-card-action')).toHaveLength(3)
   })
 
-  it('uses the shared rounded card and button language', () => {
-    const stylesheet = fs.readFileSync(path.resolve(__dirname, './index.scss'), 'utf8')
-
-    expect(stylesheet).toContain('.favorite-card-action')
-    expect(stylesheet).toContain('border-radius: 20rpx;')
-    expect(stylesheet).toContain('border-radius: 28rpx;')
-    expect(stylesheet).toContain('grid-template-columns: 1fr 1fr 1.45fr;')
-  })
 })

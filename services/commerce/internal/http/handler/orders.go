@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/oapi-codegen/runtime/types"
 
+	"github.com/teamdsb/tmo/packages/go-shared/catalogspec"
 	shareddb "github.com/teamdsb/tmo/packages/go-shared/db"
 	sharedmoney "github.com/teamdsb/tmo/packages/go-shared/money"
 	"github.com/teamdsb/tmo/services/commerce/internal/db"
@@ -99,65 +100,6 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 	}
 
 	uniqueSkuIDs := uniqueUUIDs(skuIDs)
-	skus, err := h.CatalogStore.ListSkusByIDs(c.Request.Context(), uniqueSkuIDs)
-	if err != nil {
-		h.logError("list skus failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to submit order")
-		return
-	}
-	if len(skus) != len(uniqueSkuIDs) {
-		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid skuId")
-		return
-	}
-
-	tiers, err := h.CatalogStore.ListPriceTiersBySkus(c.Request.Context(), uniqueSkuIDs)
-	if err != nil {
-		h.logError("list price tiers failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to submit order")
-		return
-	}
-
-	tiersBySku := map[uuid.UUID][]db.CatalogPriceTier{}
-	for _, tier := range tiers {
-		tiersBySku[tier.SkuID] = append(tiersBySku[tier.SkuID], tier)
-	}
-
-	skuByID := make(map[uuid.UUID]db.CatalogSku, len(skus))
-	for _, sku := range skus {
-		skuByID[sku.ID] = sku
-	}
-
-	orderItems := make([]struct {
-		sourceCartItemID uuid.UUID
-		sku              db.CatalogSku
-		qty              int32
-		unitPriceFen     sharedmoney.Fen
-	}, 0, len(requestedItems))
-	for _, item := range requestedItems {
-		sku := skuByID[item.skuID]
-		qty := qtyBySku[sku.ID]
-		if !sku.IsActive {
-			h.writeError(c, http.StatusBadRequest, "invalid_request", "sku is inactive")
-			return
-		}
-		priceFen, ok := selectUnitPrice(tiersBySku[sku.ID], qty)
-		if !ok {
-			h.writeError(c, http.StatusBadRequest, "invalid_request", "price tier not found")
-			return
-		}
-		orderItems = append(orderItems, struct {
-			sourceCartItemID uuid.UUID
-			sku              db.CatalogSku
-			qty              int32
-			unitPriceFen     sharedmoney.Fen
-		}{
-			sourceCartItemID: item.cartItemID,
-			sku:              sku,
-			qty:              item.qty,
-			unitPriceFen:     priceFen,
-		})
-	}
-
 	addressJSON, err := json.Marshal(request.Address)
 	if err != nil {
 		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid address")
@@ -171,12 +113,87 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 
 	ctx := c.Request.Context()
 	var order db.Order
+	var savedItems []db.OrderItem
 	ownerSalesUserID := pgtype.UUID{}
 	if strings.ToUpper(claims.Role) == "CUSTOMER" && claims.OwnerSalesUserID != uuid.Nil {
 		ownerSalesUserID = pgtype.UUID{Bytes: claims.OwnerSalesUserID, Valid: true}
 	}
 	err = shareddb.WithTx(ctx, h.DB, func(tx pgx.Tx) error {
 		q := db.New(tx)
+		// Catalog writers lock the parent product first. Lock all parents in
+		// ID order before reading SKU state or prices so checkout cannot use
+		// data from before a concurrent catalog edit commits.
+		products, err := q.ListProductsBySkuIDsForUpdate(ctx, uniqueSkuIDs)
+		if err != nil {
+			return err
+		}
+		productByID := make(map[uuid.UUID]db.CatalogProduct, len(products))
+		for _, product := range products {
+			if product.Status != productStatusActive {
+				return orderRequestValidationError{message: "product is not active"}
+			}
+			productByID[product.ID] = product
+		}
+		// NO KEY UPDATE also blocks SKU edits but allows the foreign-key
+		// checks of concurrent cart changes, avoiding a SKU/cart lock cycle.
+		skus, err := q.ListSkusByIDsForNoKeyUpdate(ctx, uniqueSkuIDs)
+		if err != nil {
+			return err
+		}
+		if len(skus) != len(uniqueSkuIDs) {
+			return orderRequestValidationError{message: "invalid skuId"}
+		}
+		skuByID := make(map[uuid.UUID]db.CatalogSku, len(skus))
+		variantsByProduct := make(map[uuid.UUID][]catalogspec.Variant, len(products))
+		for _, sku := range skus {
+			if !sku.IsActive {
+				return orderRequestValidationError{message: "sku is inactive"}
+			}
+			if strings.TrimSpace(sku.Name) == "" {
+				return orderRequestValidationError{message: "SKU name is required"}
+			}
+			if _, ok := productByID[sku.ProductID]; !ok {
+				return orderRequestValidationError{message: "SKU product changed; please retry"}
+			}
+			variants, err := variantsFromModels([]db.CatalogSku{sku})
+			if err != nil {
+				return orderRequestValidationError{message: "invalid SKU specifications"}
+			}
+			variantsByProduct[sku.ProductID] = append(variantsByProduct[sku.ProductID], variants...)
+			skuByID[sku.ID] = sku
+		}
+		for productID, variants := range variantsByProduct {
+			if err := catalogspec.ValidateCombinations(productByID[productID].FilterDimensions, variants); err != nil {
+				return orderRequestValidationError{message: "invalid SKU specifications: " + err.Error()}
+			}
+		}
+		tiers, err := q.ListPriceTiersBySkus(ctx, uniqueSkuIDs)
+		if err != nil {
+			return err
+		}
+		tiersBySku := make(map[uuid.UUID][]db.CatalogPriceTier, len(skus))
+		for _, tier := range tiers {
+			tiersBySku[tier.SkuID] = append(tiersBySku[tier.SkuID], tier)
+		}
+		orderItems := make([]struct {
+			sourceCartItemID uuid.UUID
+			sku              db.CatalogSku
+			qty              int32
+			unitPriceFen     sharedmoney.Fen
+		}, 0, len(requestedItems))
+		for _, item := range requestedItems {
+			sku := skuByID[item.skuID]
+			price, ok := selectUnitPrice(tiersBySku[sku.ID], qtyBySku[sku.ID])
+			if !ok {
+				return orderRequestValidationError{message: "price tier not found"}
+			}
+			orderItems = append(orderItems, struct {
+				sourceCartItemID uuid.UUID
+				sku              db.CatalogSku
+				qty              int32
+				unitPriceFen     sharedmoney.Fen
+			}{item.cartItemID, sku, item.qty, price})
+		}
 		cartItemIDs := make([]uuid.UUID, 0, len(orderItems))
 		for _, item := range orderItems {
 			cartItemIDs = append(cartItemIDs, item.sourceCartItemID)
@@ -219,15 +236,17 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 			return err
 		}
 		for _, item := range orderItems {
-			if _, err := q.CreateOrderItem(ctx, db.CreateOrderItemParams{
+			storedItem, err := q.CreateOrderItem(ctx, db.CreateOrderItemParams{
 				OrderID:          order.ID,
 				SkuID:            item.sku.ID,
 				SourceCartItemID: pgtype.UUID{Bytes: item.sourceCartItemID, Valid: true},
 				Qty:              item.qty,
 				UnitPriceFen:     item.unitPriceFen.Int64(),
-			}); err != nil {
+			})
+			if err != nil {
 				return err
 			}
+			savedItems = append(savedItems, storedItem)
 
 			cartItem := cartByID[item.sourceCartItemID]
 			remainingQty := cartItem.Qty - item.qty
@@ -275,19 +294,11 @@ func (h *Handler) PostOrders(c *gin.Context, params oapi.PostOrdersParams) {
 		return
 	}
 
-	items := make([]oapi.OrderItem, 0, len(orderItems))
-	for _, item := range orderItems {
-		mapped, err := skuFromModel(item.sku, tiersBySku[item.sku.ID])
-		if err != nil {
-			h.logError("map sku failed", err)
-			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to submit order")
-			return
-		}
-		items = append(items, oapi.OrderItem{
-			Sku:          mapped,
-			Qty:          int(item.qty),
-			UnitPriceFen: item.unitPriceFen.Int64(),
-		})
+	items, err := mapOrderItems(savedItems)
+	if err != nil {
+		h.logError("map order snapshots failed", err)
+		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to submit order")
+		return
 	}
 
 	response, err := orderFromModel(order, items)
@@ -339,16 +350,21 @@ func (h *Handler) GetOrders(c *gin.Context, params oapi.GetOrdersParams) {
 		}
 	}
 
-	var status *string
-	if params.Status != nil {
-		value := string(*params.Status)
-		status = &value
+	status, statuses, err := orderStatusFilters(params)
+	if err != nil || (c.Request.URL.Query().Has("statuses") && params.Statuses == nil) {
+		message := "statuses must contain at least one order state"
+		if err != nil {
+			message = err.Error()
+		}
+		h.writeError(c, http.StatusBadRequest, "invalid_request", message)
+		return
 	}
 
 	orders, err := h.OrderStore.ListOrders(c.Request.Context(), db.ListOrdersParams{
 		CustomerID:       customerFilter,
 		OwnerSalesUserID: ownerFilter,
 		Status:           status,
+		Statuses:         statuses,
 		Offset:           clampInt32(offset),
 		Limit:            clampInt32(pageSize),
 	})
@@ -362,6 +378,7 @@ func (h *Handler) GetOrders(c *gin.Context, params oapi.GetOrdersParams) {
 		CustomerID:       customerFilter,
 		OwnerSalesUserID: ownerFilter,
 		Status:           status,
+		Statuses:         statuses,
 	})
 	if err != nil {
 		h.logError("count orders failed", err)
@@ -370,7 +387,6 @@ func (h *Handler) GetOrders(c *gin.Context, params oapi.GetOrdersParams) {
 	}
 
 	orderItems := make(map[uuid.UUID][]db.OrderItem, len(orders))
-	allSkuIDs := make([]uuid.UUID, 0)
 	for _, order := range orders {
 		items, err := h.OrderStore.ListOrderItems(c.Request.Context(), order.ID)
 		if err != nil {
@@ -379,21 +395,11 @@ func (h *Handler) GetOrders(c *gin.Context, params oapi.GetOrdersParams) {
 			return
 		}
 		orderItems[order.ID] = items
-		for _, item := range items {
-			allSkuIDs = append(allSkuIDs, item.SkuID)
-		}
-	}
-
-	skuMap, err := h.loadSkusWithTiers(c.Request.Context(), allSkuIDs)
-	if err != nil {
-		h.logError("load skus failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to list orders")
-		return
 	}
 
 	items := make([]oapi.Order, 0, len(orders))
 	for _, order := range orders {
-		mappedItems, err := mapOrderItems(orderItems[order.ID], skuMap)
+		mappedItems, err := mapOrderItems(orderItems[order.ID])
 		if err != nil {
 			h.logError("map order items failed", err)
 			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to list orders")
@@ -492,19 +498,7 @@ func (h *Handler) GetOrdersOrderId(c *gin.Context, orderId types.UUID) {
 		return
 	}
 
-	skuIDs := make([]uuid.UUID, 0, len(orderItems))
-	for _, item := range orderItems {
-		skuIDs = append(skuIDs, item.SkuID)
-	}
-
-	skuMap, err := h.loadSkusWithTiers(c.Request.Context(), skuIDs)
-	if err != nil {
-		h.logError("load skus failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to fetch order")
-		return
-	}
-
-	mappedItems, err := mapOrderItems(orderItems, skuMap)
+	mappedItems, err := mapOrderItems(orderItems)
 	if err != nil {
 		h.logError("map order items failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to fetch order")
@@ -521,12 +515,15 @@ func (h *Handler) GetOrdersOrderId(c *gin.Context, orderId types.UUID) {
 	c.JSON(http.StatusOK, response)
 }
 
-func mapOrderItems(items []db.OrderItem, skuMap map[uuid.UUID]oapi.SKU) ([]oapi.OrderItem, error) {
+func mapOrderItems(items []db.OrderItem) ([]oapi.OrderItem, error) {
 	mapped := make([]oapi.OrderItem, 0, len(items))
 	for _, item := range items {
-		sku, ok := skuMap[item.SkuID]
-		if !ok {
-			return nil, errors.New("sku not found")
+		var sku oapi.SKU
+		if err := json.Unmarshal(item.SkuSnapshot, &sku); err != nil {
+			return nil, err
+		}
+		if sku.Id != item.SkuID || sku.SpuId == uuid.Nil {
+			return nil, errors.New("invalid order SKU snapshot")
 		}
 		unitPrice := sharedmoney.FromInt64(item.UnitPriceFen)
 		mapped = append(mapped, oapi.OrderItem{

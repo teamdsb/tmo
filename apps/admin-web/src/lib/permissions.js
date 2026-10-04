@@ -77,9 +77,6 @@ export const canAccessPath = (path, permissionMap) => {
       hasPermission(permissionMap, 'rbac:manage', 'ALL')
     );
   }
-  if (currentPath === '/support.html') {
-    return hasPermission(permissionMap, 'customer:read', 'SELF');
-  }
   if (currentPath === '/orders.html') return hasPermission(permissionMap, 'order:read', 'SELF');
   if (currentPath === '/products.html') {
     return hasPermission(permissionMap, 'catalog:read', 'SELF') || hasPermission(permissionMap, 'product:manage', 'SELF');
@@ -95,7 +92,7 @@ export const canAccessPath = (path, permissionMap) => {
   }
   if (currentPath === '/exports.html') return hasPermission(permissionMap, 'product_request:export', 'SELF');
   if (currentPath === '/product-requests.html') return hasPermission(permissionMap, 'product_request:read', 'SELF');
-  if (currentPath === '/inquiries.html' || currentPath === '/quote-workflow.html') {
+  if (currentPath === '/support.html' || currentPath === '/inquiries.html' || currentPath === '/quote-workflow.html') {
     return (
       hasPermission(permissionMap, 'inquiry:read', 'SELF') ||
       hasPermission(permissionMap, 'inquiry:manage', 'SELF')

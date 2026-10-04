@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Input, Text, View } from '@tarojs/components'
+import { useState } from 'react'
+import { Button, Input, Text, View } from '@tarojs/components'
 import { ArrowRight, Qr, Search, TodoList } from '@taroify/icons'
 import type { Order as ApiOrder } from '@tmo/api-client'
 import type { Customer } from '@tmo/identity-services'
@@ -85,7 +85,12 @@ type CustomersViewProps = {
   customers: Customer[]
   error: string
   loading: boolean
+  searchQuery: string
+  total: number
+  hasMore: boolean
   onSearch: (query: string) => void
+  onLoadMore: () => void
+  onRetry: () => void
 }
 
 const formatCreatedAt = (createdAt: string): string => {
@@ -100,8 +105,8 @@ const formatCreatedAt = (createdAt: string): string => {
   })
 }
 
-export function CustomersView({ customers, error, loading, onSearch }: CustomersViewProps) {
-  const [query, setQuery] = useState('')
+export function CustomersView({ customers, error, loading, searchQuery, total, hasMore, onSearch, onLoadMore, onRetry }: CustomersViewProps) {
+  const [query, setQuery] = useState(searchQuery)
 
   return (
     <View className='sales-screen sales-customers-screen'>
@@ -121,7 +126,10 @@ export function CustomersView({ customers, error, loading, onSearch }: Customers
           placeholder='搜索客户...'
           confirmType='search'
           value={query}
-          onInput={(event) => setQuery(event.detail.value)}
+          onInput={(event) => {
+            setQuery(event.detail.value)
+            if (!event.detail.value.trim()) onSearch('')
+          }}
           onConfirm={() => onSearch(query)}
         />
       </View>
@@ -130,9 +138,9 @@ export function CustomersView({ customers, error, loading, onSearch }: Customers
         {loading ? <Text className='sales-empty-copy'>正在加载客户...</Text> : null}
         {!loading && error ? <Text className='sales-empty-copy'>{error}</Text> : null}
         {!loading && !error && customers.length === 0 ? (
-          <Text className='sales-empty-copy'>{query.trim() ? '未找到匹配客户' : '暂无客户'}</Text>
+          <Text className='sales-empty-copy'>{searchQuery ? '未找到匹配客户' : '暂无客户'}</Text>
         ) : null}
-        {!loading && !error ? customers.map((customer) => (
+        {customers.map((customer) => (
           <View key={customer.id} className='sales-customer-card' id={`sales-customer-${customer.id}`}>
             <View className='sales-customer-leading'>
               <View className='sales-customer-avatar'>
@@ -148,7 +156,11 @@ export function CustomersView({ customers, error, loading, onSearch }: Customers
             </View>
             <ArrowRight className='sales-customer-chevron' />
           </View>
-        )) : null}
+        ))}
+        <Text className='sales-empty-copy'>{`已加载 ${customers.length} / ${total} 位客户`}</Text>
+        {error ? <Button disabled={loading} onClick={onRetry}>重试加载客户</Button> : hasMore ? (
+          <Button disabled={loading} onClick={onLoadMore}>加载更多客户</Button>
+        ) : null}
       </View>
     </View>
   )
@@ -158,9 +170,17 @@ type OrdersViewProps = {
   error: string
   loading: boolean
   orders: ApiOrder[]
+  total: number
+  hasMore: boolean
+  filter: CustomerSubFilter
+  onFilter: (filter: CustomerSubFilter) => void
+  onLoadMore: () => void
+  onRetry: () => void
 }
 
 const orderStatusLabel = (status: string): OrderStatus => {
+  if (status === 'CANCELLED') return '已取消'
+  if (status === 'CLOSED') return '已关闭'
   if (status === 'SHIPPED') return '已发货'
   if (status === 'DELIVERED') return '已送达'
   if (status === 'CONFIRMED' || status === 'PAID') return '已确认'
@@ -185,13 +205,7 @@ const orderTotalFen = (order: ApiOrder): number => (
   order.items.reduce((sum, item) => sum + item.qty * item.unitPriceFen, 0)
 )
 
-export function OrdersView({ error, loading, orders }: OrdersViewProps) {
-  const [filter, setFilter] = useState<CustomerSubFilter>('全部')
-
-  const filteredOrders = useMemo(
-    () => orders.filter((order) => (filter === '全部' ? true : orderStatusLabel(order.status) === filter)),
-    [filter, orders]
-  )
+export function OrdersView({ error, loading, orders, total, hasMore, filter, onFilter, onLoadMore, onRetry }: OrdersViewProps) {
 
   return (
     <View className='sales-screen sales-orders-screen'>
@@ -204,7 +218,7 @@ export function OrdersView({ error, loading, orders }: OrdersViewProps) {
         {customerSubFilters.map((item) => (
           <View
             key={item}
-            onClick={() => setFilter(item)}
+            onClick={() => onFilter(item)}
             className={`sales-orders-filter-tab ${filter === item ? 'sales-orders-filter-tab--active' : ''}`}
           >
             <Text className='sales-orders-filter-text'>{item}</Text>
@@ -215,8 +229,8 @@ export function OrdersView({ error, loading, orders }: OrdersViewProps) {
       <View className='sales-list-stack sales-list-stack--orders'>
         {loading ? <Text className='sales-empty-copy'>正在加载订单...</Text> : null}
         {!loading && error ? <Text className='sales-empty-copy'>{error}</Text> : null}
-        {!loading && !error && filteredOrders.length > 0 ? (
-          filteredOrders.map((order) => {
+        {orders.length > 0 ? (
+          orders.map((order) => {
             const statusLabel = orderStatusLabel(order.status)
             const tone = getStatusTone(statusLabel)
 
@@ -267,6 +281,10 @@ export function OrdersView({ error, loading, orders }: OrdersViewProps) {
             <TodoList className='sales-empty-icon' />
             <Text className='sales-empty-copy'>暂无该状态下的订单。</Text>
           </View>
+        ) : null}
+        <Text className='sales-empty-copy'>{`已加载 ${orders.length} / ${total} 个订单`}</Text>
+        {error ? <Button disabled={loading} onClick={onRetry}>重试加载订单</Button> : hasMore ? (
+          <Button disabled={loading} onClick={onLoadMore}>加载更多订单</Button>
         ) : null}
       </View>
     </View>

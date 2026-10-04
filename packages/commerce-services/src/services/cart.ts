@@ -36,6 +36,6 @@ export const createCartService = (uploadClient: UploadClient): CartService => {
       return uploadClient.upload<CartImportJob>('/cart/import-jobs', filePath, 'file')
     },
     getImportJob: async (jobId) => (await getCartImportJobsJobId(jobId)).data,
-    confirmImport: async (jobId, selections) => (await postCartImportJobsJobIdConfirm(jobId, { selections })).data
+    confirmImport: async (jobId, selections) => (await postCartImportJobsJobIdConfirm(jobId, { selections })).data as Cart
   }
 }

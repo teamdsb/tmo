@@ -1,22 +1,8 @@
-import type { CartImportPendingItem, Sku } from '@tmo/api-client'
+import type { Sku } from '@tmo/api-client'
 import { matchPriceTier } from '../../utils/price-tier'
-import type { CartItem, MatchTypeBadge, ProductNameMap } from './types'
-
-export const MATCH_TYPE_BADGES: Record<string, MatchTypeBadge> = {
-  AMBIGUOUS: { label: '匹配不确定', className: 'bg-amber-50 text-amber-600' },
-  NOT_FOUND: { label: '未找到', className: 'bg-red-50 text-red-600' }
-}
+import type { CartItem, ProductNameMap } from './types'
 
 export const QUICK_CART_QTY_OPTIONS = [1, 2, 5, 10]
-
-export const formatPendingMeta = (item: CartImportPendingItem) => {
-  const parts = [
-    item.rawSpec?.trim() || null,
-    item.rawQty ? `数量 ${item.rawQty}` : null,
-    `行 ${item.rowNo}`
-  ].filter(Boolean)
-  return parts.join(' • ')
-}
 
 export const formatCartItemMeta = (item: CartItem) => {
   const parts = [

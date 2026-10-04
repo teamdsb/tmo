@@ -41,6 +41,13 @@ SELECT id, product_id, sku_code, name, spec, attributes, unit, is_active, create
 FROM catalog_skus
 WHERE id = ANY($1::uuid[]);
 
+-- name: ListSkusByIDsForNoKeyUpdate :many
+SELECT id, product_id, sku_code, name, spec, attributes, unit, is_active, created_at, updated_at
+FROM catalog_skus
+WHERE id = ANY($1::uuid[])
+ORDER BY id
+FOR NO KEY UPDATE;
+
 -- name: ListSkusBySkuCode :many
 SELECT id, product_id, sku_code, name, spec, attributes, unit, is_active, created_at, updated_at
 FROM catalog_skus

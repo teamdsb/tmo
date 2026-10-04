@@ -23,6 +23,7 @@ SELECT id, owner_user_id, sku_id, qty, created_at, updated_at
 FROM cart_items
 WHERE owner_user_id = sqlc.arg('owner_user_id')
   AND id = ANY(sqlc.arg('ids')::uuid[])
+ORDER BY sku_id, id
 FOR UPDATE;
 
 -- name: UpdateCartItemQty :one

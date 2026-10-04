@@ -222,15 +222,7 @@ func (h *Handler) orderResponse(ctx context.Context, order db.Order) (oapi.Order
 	if err != nil {
 		return oapi.Order{}, err
 	}
-	skuIDs := make([]uuid.UUID, 0, len(items))
-	for _, item := range items {
-		skuIDs = append(skuIDs, item.SkuID)
-	}
-	skus, err := h.loadSkusWithTiers(ctx, skuIDs)
-	if err != nil {
-		return oapi.Order{}, err
-	}
-	mapped, err := mapOrderItems(items, skus)
+	mapped, err := mapOrderItems(items)
 	if err != nil {
 		return oapi.Order{}, err
 	}

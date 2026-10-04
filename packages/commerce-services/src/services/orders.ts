@@ -45,7 +45,7 @@ export const createOrdersService = (idempotency: OrderIdempotency): OrdersServic
       })
       return response.data as Order
     },
-    list: async (params) => (await getOrders(params)).data,
+    list: async (params) => (await getOrders(params)).data as PagedOrderList,
     stats: async () => (await getOrdersStats()).data,
     get: async (orderId) => (await getOrdersOrderId(orderId)).data,
     ship: async (orderId, request) => (await postAdminOrdersOrderIdShip(orderId, request)).data as Order,

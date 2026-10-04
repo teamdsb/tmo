@@ -30,7 +30,8 @@ const (
 type WechatB2BDirectProvider struct {
 	config             WechatB2BConfig
 	client             *http.Client
-	tokenMu            sync.Mutex
+	tokenGateOnce      sync.Once
+	tokenGate          chan struct{}
 	cachedAccessToken  string
 	accessTokenExpires time.Time
 }
@@ -154,8 +155,18 @@ func (p *WechatB2BDirectProvider) QueryPayment(ctx context.Context, request Wech
 }
 
 func (p *WechatB2BDirectProvider) accessToken(ctx context.Context) (string, error) {
-	p.tokenMu.Lock()
-	defer p.tokenMu.Unlock()
+	// Guard both the cache and refresh, but let waiting requests cancel independently.
+	// Lazy initialization also supports providers assembled without the constructor.
+	p.tokenGateOnce.Do(func() { p.tokenGate = make(chan struct{}, 1) })
+	select {
+	case p.tokenGate <- struct{}{}:
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+	defer func() { <-p.tokenGate }()
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	if p.cachedAccessToken != "" && time.Now().Add(time.Minute).Before(p.accessTokenExpires) {
 		return p.cachedAccessToken, nil
 	}

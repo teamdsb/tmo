@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './offline-fixtures';
 
 const orderId = '11111111-1111-1111-1111-111111111111';
 const salesId = '22222222-2222-2222-2222-222222222222';
@@ -27,7 +27,7 @@ test('hybrid fulfillment refreshes payment, owner and audit timeline', async ({ 
 });
 
 test('hybrid fulfillment keeps the form when the server rejects the transition', async ({ page }) => {
-  const order = { id: orderId, status: 'SUBMITTED', paymentStatus: 'UNPAID', address: { receiverName: '客户', receiverPhone: '1', detail: '地址' }, items: [], createdAt: '2026-07-06T10:00:00Z' };
+  const order = { id: orderId, status: 'SUBMITTED', paymentStatus: 'UNPAID', paymentMethod: 'OFFLINE', address: { receiverName: '客户', receiverPhone: '1', detail: '地址' }, items: [], createdAt: '2026-07-06T10:00:00Z' };
   await page.route(/\/(?:api\/)?orders(?:\?|$)/, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [order], page: 1, pageSize: 20, total: 1 }) }));
   await page.route(`**/api/admin/orders/${orderId}/events`, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ items: [] }) }));
   await page.route(`**/api/admin/orders/${orderId}/fulfillment`, (route) => route.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ code: 'invalid_order_state', message: '订单已经发货，不能改派' }) }));

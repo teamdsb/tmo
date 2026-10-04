@@ -1,0 +1,4 @@
+@config "../../../styles/themes/index.config.cjs";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

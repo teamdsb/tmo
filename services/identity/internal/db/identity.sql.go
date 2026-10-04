@@ -1420,7 +1420,7 @@ WHERE user_type = 'customer'
   )
   AND ($2::uuid IS NULL OR owner_sales_user_id = $2)
   AND ($3::uuid IS NULL OR id = $3)
-ORDER BY created_at DESC
+ORDER BY created_at DESC, id DESC
 LIMIT $5 OFFSET $4
 `
 

@@ -2,13 +2,14 @@ import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState }
 import { Text, View } from '@tarojs/components'
 import Navbar from '@taroify/core/navbar'
 import AppFixedBottom from '../../components/app-safe-area'
-import { navItems } from './data'
-import type { SalesTab } from './types'
+import { getOrderStatuses, navItems } from './data'
+import type { CustomerSubFilter, SalesTab } from './types'
+import { SALES_PAGE_SIZE, usePagedList } from './use-paged-list'
 import { AccountingView, CustomersView, DashboardView, OrdersView } from './views'
 import { ROUTES } from '../../routes'
 import { switchTabLike } from '../../utils/navigation'
 import { getNavbarStyle, getNavbarTotalHeight } from '../../utils/navbar'
-import { loadBootstrap, saveBootstrap } from '../../services/bootstrap'
+import { saveBootstrap } from '../../services/bootstrap'
 import { gatewayServices } from '../../services/gateway'
 import { commerceServices } from '../../services/commerce'
 import { identityServices } from '../../services/identity'
@@ -16,8 +17,13 @@ import { getCurrentRole, hasRole } from '../../utils/authz'
 import { useRefreshOnReturn } from '../../hooks/use-refresh-on-return'
 
 type SalesQrCode = Awaited<ReturnType<typeof identityServices.me.getSalesQrCode>>
-type SalesCustomer = Awaited<ReturnType<typeof identityServices.customers.list>>['items'][number]
-type SalesOrder = Awaited<ReturnType<typeof commerceServices.orders.list>>['items'][number]
+const fetchCustomersPage = (query: string, page: number) => identityServices.customers.list({
+  page, pageSize: SALES_PAGE_SIZE, ...(query ? { q: query } : {})
+})
+const fetchOrdersPage = (filter: CustomerSubFilter, page: number) => {
+  const statuses = getOrderStatuses(filter)
+  return commerceServices.orders.list({ page, pageSize: SALES_PAGE_SIZE, ...(statuses ? { statuses } : {}) })
+}
 
 export default function SalesPage() {
   const [activeTab, setActiveTab] = useState<SalesTab>('dashboard')
@@ -26,13 +32,14 @@ export default function SalesPage() {
   const [salesRole, setSalesRole] = useState('客户经理')
   const [qrLoading, setQrLoading] = useState(false)
   const [qrError, setQrError] = useState('')
-  const refreshInFlight = useRef(false)
-  const [customers, setCustomers] = useState<SalesCustomer[]>([])
-  const [customersLoading, setCustomersLoading] = useState(false)
-  const [customersError, setCustomersError] = useState('')
-  const [orders, setOrders] = useState<SalesOrder[]>([])
-  const [ordersLoading, setOrdersLoading] = useState(false)
-  const [ordersError, setOrdersError] = useState('')
+  const dashboardVersion = useRef(0)
+  const mounted = useRef(true)
+  const [salesReady, setSalesReady] = useState(false)
+  const [roleError, setRoleError] = useState('')
+  const [customerQuery, setCustomerQuery] = useState('')
+  const [orderFilter, setOrderFilter] = useState<CustomerSubFilter>('全部')
+  const customers = usePagedList(salesReady && activeTab === 'customers', customerQuery, fetchCustomersPage)
+  const orders = usePagedList(salesReady && activeTab === 'orders', orderFilter, fetchOrdersPage)
   const isH5 = process.env.TARO_ENV === 'h5'
   const navbarStyle = getNavbarStyle()
   const pageStyle = navbarStyle as CSSProperties
@@ -43,109 +50,70 @@ export default function SalesPage() {
   }, [salesQrCode?.platform])
 
   const refreshSalesDashboard = useCallback(async () => {
-    if (refreshInFlight.current) {
-      return
-    }
-    refreshInFlight.current = true
+    const version = ++dashboardVersion.current
+    const isCurrent = () => mounted.current && version === dashboardVersion.current
+    let roleVerified = false
+    setSalesReady(false)
+    setRoleError('')
     setQrLoading(true)
     setQrError('')
     try {
-      let bootstrap = await loadBootstrap()
-      try {
-        bootstrap = await gatewayServices.bootstrap.get()
-      } catch (error) {
-        console.warn('refresh sales bootstrap failed', error)
-      }
-
+      let bootstrap = await gatewayServices.bootstrap.get()
+      if (!isCurrent()) return
       if (!hasRole(bootstrap, 'SALES')) {
         setSalesName(bootstrap?.me?.displayName?.trim() || '业务员')
         setSalesRole(getCurrentRole(bootstrap) || '未识别')
         setSalesQrCode(null)
+        setRoleError('当前账号未分配业务员身份。')
         setQrError('当前账号未分配业务员身份，无法生成推广二维码。')
         return
       }
-
       if (getCurrentRole(bootstrap) !== 'SALES') {
         await identityServices.auth.switchRole({ role: 'SALES' })
+        if (!isCurrent()) return
         bootstrap = await gatewayServices.bootstrap.get()
-        await saveBootstrap(bootstrap)
+        if (!isCurrent()) return
       }
-
-      if (getCurrentRole(bootstrap) !== 'SALES') {
-        throw new Error('sales role switch did not take effect')
-      }
-
+      if (getCurrentRole(bootstrap) !== 'SALES') throw new Error('sales role switch did not take effect')
+      await saveBootstrap(bootstrap)
+      if (!isCurrent()) return
+      roleVerified = true
+      setSalesReady(true)
       setSalesName(bootstrap?.me?.displayName?.trim() || '业务员')
       setSalesRole('SALES')
       const nextQr = await identityServices.me.getSalesQrCode()
-      setSalesQrCode(nextQr)
+      if (isCurrent()) setSalesQrCode(nextQr)
     } catch (error) {
-      console.warn('load sales qr failed', error)
+      if (!isCurrent()) return
+      console.warn('load sales dashboard failed', error)
       setSalesQrCode(null)
-      setQrError('二维码生成失败，请确认当前账号为业务员并稍后重试。')
+      if (!roleVerified) setRoleError('销售身份确认失败，请重试。')
+      setQrError(roleVerified ? '二维码生成失败，请稍后重试。' : '销售身份确认失败，请重试。')
     } finally {
-      setQrLoading(false)
-      refreshInFlight.current = false
-    }
-  }, [])
-
-  const refreshSalesCustomers = useCallback(async (query = '') => {
-    setCustomersLoading(true)
-    setCustomersError('')
-    try {
-      const normalizedQuery = query.trim()
-      const result = await identityServices.customers.list({
-        page: 1,
-        pageSize: 20,
-        ...(normalizedQuery ? { q: normalizedQuery } : {})
-      })
-      setCustomers(result.items)
-    } catch (error) {
-      console.warn('load sales customers failed', error)
-      setCustomers([])
-      setCustomersError('客户加载失败，请稍后重试。')
-    } finally {
-      setCustomersLoading(false)
-    }
-  }, [])
-
-  const refreshSalesOrders = useCallback(async () => {
-    setOrdersLoading(true)
-    setOrdersError('')
-    try {
-      const result = await commerceServices.orders.list({ page: 1, pageSize: 50 })
-      setOrders(result.items ?? [])
-    } catch (error) {
-      console.warn('load sales orders failed', error)
-      setOrders([])
-      setOrdersError('订单加载失败，请稍后重试。')
-    } finally {
-      setOrdersLoading(false)
+      if (isCurrent()) setQrLoading(false)
     }
   }, [])
 
   useEffect(() => {
+    mounted.current = true
     void refreshSalesDashboard()
+    return () => {
+      mounted.current = false
+      dashboardVersion.current += 1
+    }
   }, [refreshSalesDashboard])
 
-  useEffect(() => {
-    if (activeTab === 'customers') {
-      void refreshSalesCustomers()
-    }
-    if (activeTab === 'orders') {
-      void refreshSalesOrders()
-    }
-  }, [activeTab, refreshSalesCustomers, refreshSalesOrders])
+  useRefreshOnReturn(() => { void refreshSalesDashboard() })
 
-  useRefreshOnReturn(() => {
-    void refreshSalesDashboard()
-    if (activeTab === 'customers') {
-      void refreshSalesCustomers()
-    }
-    if (activeTab === 'orders') {
-      void refreshSalesOrders()
-    }
-  })
+  const searchCustomers = (query: string) => {
+    const nextQuery = query.trim()
+    if (nextQuery === customerQuery) customers.reload()
+    else setCustomerQuery(nextQuery)
+  }
+  const filterOrders = (filter: CustomerSubFilter) => {
+    if (filter === orderFilter) orders.reload()
+    else setOrderFilter(filter)
+  }
 
   return (
     <View className='sales-page-shell sales-font w-full text-slate-900' style={pageStyle}>
@@ -179,17 +147,28 @@ export default function SalesPage() {
           ) : null}
           {activeTab === 'customers' ? (
             <CustomersView
-              customers={customers}
-              error={customersError}
-              loading={customersLoading}
-              onSearch={(query) => void refreshSalesCustomers(query)}
+              customers={customers.items}
+              error={roleError || (customers.failedPage ? '客户加载失败，请稍后重试。' : '')}
+              loading={customers.loading || (!salesReady && !roleError)}
+              searchQuery={customerQuery}
+              total={customers.total}
+              hasMore={customers.hasMore}
+              onSearch={searchCustomers}
+              onLoadMore={customers.loadMore}
+              onRetry={roleError ? () => void refreshSalesDashboard() : customers.retry}
             />
           ) : null}
           {activeTab === 'orders' ? (
             <OrdersView
-              error={ordersError}
-              loading={ordersLoading}
-              orders={orders}
+              error={roleError || (orders.failedPage ? '订单加载失败，请稍后重试。' : '')}
+              loading={orders.loading || (!salesReady && !roleError)}
+              orders={orders.items}
+              total={orders.total}
+              hasMore={orders.hasMore}
+              filter={orderFilter}
+              onFilter={filterOrders}
+              onLoadMore={orders.loadMore}
+              onRetry={roleError ? () => void refreshSalesDashboard() : orders.retry}
             />
           ) : null}
           {activeTab === 'accounting' ? <AccountingView /> : null}

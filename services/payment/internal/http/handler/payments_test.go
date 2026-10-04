@@ -1024,7 +1024,7 @@ func TestApplyPaymentResolutionReloadsPaidStateAfterMonotonicUpdateConflict(t *t
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Request = httptest.NewRequest(http.MethodPost, "/payments/"+paymentID.String()+"/recheck", nil)
 
-	updated, err := handler.applyPaymentResolution(c, stale, paymentStatusFailed, nil, strPtr("late failure"))
+	updated, err := handler.applyPaymentResolution(c.Request.Context(), stale, paymentStatusFailed, nil, strPtr("late failure"))
 	if err != nil {
 		t.Fatalf("expected monotonic conflict to reload current payment, got %v", err)
 	}
@@ -1050,14 +1050,14 @@ func TestApplyPaymentResolutionSameStateRetryRepairsCommerceSync(t *testing.T) {
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Request = httptest.NewRequest(http.MethodPost, "/payments/"+paymentID.String()+"/recheck", nil)
 
-	if _, err := handler.applyPaymentResolution(c, payment, paymentStatusPaid, nil, nil); err == nil {
+	if _, err := handler.applyPaymentResolution(c.Request.Context(), payment, paymentStatusPaid, nil, nil); err == nil {
 		t.Fatal("expected first commerce synchronization to fail")
 	}
 	current := store.payments[paymentID]
 	if current.Status != paymentStatusPaid {
 		t.Fatalf("expected local payment state to be PAID after first attempt, got %s", current.Status)
 	}
-	if _, err := handler.applyPaymentResolution(c, current, paymentStatusPaid, nil, nil); err != nil {
+	if _, err := handler.applyPaymentResolution(c.Request.Context(), current, paymentStatusPaid, nil, nil); err != nil {
 		t.Fatalf("expected same-state retry to repair synchronization, got %v", err)
 	}
 	if len(commerce.syncRequests) != 2 || commerce.syncRequests[1].Status != paymentStatusPaid {
@@ -1080,6 +1080,7 @@ func TestPostPaymentsWechatCreateReloadsUniqueKeyRaceWinner(t *testing.T) {
 	}
 	existing.ProviderPayload, _ = json.Marshal(response)
 	store := &uniqueRacePaymentStore{paymentStoreStub: newPaymentStoreStub(), existing: existing}
+	store.payments[paymentID] = existing
 	commerce := newCommerceServerStub(CommerceOrder{
 		ID: orderID.String(), Status: "SUBMITTED", PaymentStatus: "UNPAID",
 		Items: []CommerceOrderItem{{Qty: 1, UnitPriceFen: 500}},
@@ -1189,6 +1190,7 @@ func (s *paymentStoreStub) CreatePayment(_ context.Context, arg db.CreatePayment
 	now := time.Now().UTC()
 	payment := db.Payment{
 		ID:               id,
+		StateVersion:     1,
 		OrderID:          arg.OrderID,
 		PayerUserID:      arg.PayerUserID,
 		Channel:          arg.Channel,
@@ -1267,10 +1269,11 @@ func (s *paymentStoreStub) UpdatePaymentState(_ context.Context, arg db.UpdatePa
 	if !ok {
 		return db.Payment{}, pgx.ErrNoRows
 	}
-	if payment.Status == paymentStatusPaid && arg.Status != paymentStatusPaid {
+	if payment.Status == paymentStatusPaid {
 		return db.Payment{}, pgx.ErrNoRows
 	}
 	payment.Status = arg.Status
+	payment.StateVersion++
 	payment.ProviderTradeNo = arg.ProviderTradeNo
 	payment.ProviderPrepayID = arg.ProviderPrepayID
 	payment.ProviderPayload = arg.ProviderPayload
@@ -1414,6 +1417,7 @@ func paymentFixture(id uuid.UUID, channel, status string) db.Payment {
 	now := time.Now().UTC()
 	return db.Payment{
 		ID: id, OrderID: uuid.New(), Channel: channel, Status: status, AmountFen: 500, Currency: "CNY",
+		StateVersion:    1,
 		ProviderPayload: json.RawMessage(`{}`),
 		CreatedAt:       pgtype.Timestamptz{Time: now, Valid: true},
 		UpdatedAt:       pgtype.Timestamptz{Time: now, Valid: true},
@@ -1445,4 +1449,64 @@ func newTestRouter(handler *Handler) *gin.Engine {
 	router.GET("/admin/payments/webhooks", handler.GetAdminPaymentsWebhooks)
 	router.POST("/admin/payments/webhooks/:id/replay", handler.PostAdminPaymentsWebhooksIdReplay)
 	return router
+}
+
+func (s *paymentStoreStub) MarkPaymentCommerceSynced(_ context.Context, arg db.MarkPaymentCommerceSyncedParams) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	p, ok := s.payments[arg.ID]
+	if !ok {
+		return pgx.ErrNoRows
+	}
+	if arg.SentVersion > p.CommerceSyncedVersion && arg.SentVersion <= p.StateVersion {
+		p.CommerceSyncedVersion = arg.SentVersion
+	}
+	s.payments[arg.ID] = p
+	return nil
+}
+
+func (s *paymentStoreStub) GetLatestPaymentByOrder(_ context.Context, orderID uuid.UUID) (db.Payment, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var latest db.Payment
+	found := false
+	for _, payment := range s.payments {
+		if payment.OrderID != orderID {
+			continue
+		}
+		if !found || payment.CreatedAt.Time.After(latest.CreatedAt.Time) || (payment.CreatedAt.Time.Equal(latest.CreatedAt.Time) && payment.ID.String() > latest.ID.String()) {
+			latest = payment
+			found = true
+		}
+	}
+	if !found {
+		return db.Payment{}, pgx.ErrNoRows
+	}
+	return latest, nil
+}
+
+func TestSyncPaymentDoesNotAcknowledgeFailedLatestAttemptLookup(t *testing.T) {
+	base := newPaymentStoreStub()
+	payment := paymentFixture(uuid.New(), paymentChannelWechatB2B, paymentStatusPending)
+	base.payments[payment.ID] = payment
+	store := &failingLatestAttemptStore{paymentStoreStub: base}
+	commerce := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("lookup failure must not send an uncertain old attempt")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer commerce.Close()
+	h := &Handler{Store: store, Commerce: NewCommerceClient(commerce.URL, "sync-test")}
+	if err := h.syncPaymentToCommerce(context.Background(), payment); err == nil {
+		t.Fatal("latest-attempt lookup failure was ignored")
+	}
+	current, err := base.GetPayment(context.Background(), payment.ID)
+	if err != nil || current.CommerceSyncedVersion != 0 {
+		t.Fatalf("failed lookup acknowledged unsent payment: %#v %v", current, err)
+	}
+}
+
+type failingLatestAttemptStore struct{ *paymentStoreStub }
+
+func (*failingLatestAttemptStore) GetLatestPaymentByOrder(context.Context, uuid.UUID) (db.Payment, error) {
+	return db.Payment{}, errors.New("database unavailable")
 }

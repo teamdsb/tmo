@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './offline-fixtures';
 import * as XLSX from 'xlsx';
 import { loginMockBoss } from './import-fixtures';
 const workbook = (rows: unknown[][], name = '商品') => {
@@ -234,7 +234,7 @@ test('completed review counts and filters follow pending targets while retaining
 });
 
 for (const role of ['manager', 'cs']) {
-    test(`${role} retains shipment actions without exposing product jobs or review data`, async ({ page }) => {
+    test(role === 'manager' ? 'manager cannot enter the import workbench without import permissions' : 'cs retains shipment actions without exposing product jobs or review data', async ({ page }) => {
         await page.goto('/', { waitUntil: 'domcontentloaded' });
         await page.locator('#username').fill(role);
         await page.locator('#password').fill(`${role}123`);
@@ -244,6 +244,11 @@ for (const role of ['manager', 'cs']) {
             localStorage.setItem('admin-web-mock-import-reviews', JSON.stringify([{ id: 'private-review', jobId: 'private-product-job', productId: 'private-product', productName: '不可见商品', message: '不可见复核内容', status: 'PENDING' }]));
         });
         await page.goto('/import.html?jobId=private-product-job', { waitUntil: 'domcontentloaded' });
+        if (role === 'manager') {
+            await expect(page).toHaveURL(/dashboard\.html$/);
+            await expect(page.getByTestId('import-page')).toHaveCount(0);
+            return;
+        }
         await expect(page.getByTestId('import-page')).toBeVisible();
         await expect(page.getByTestId('product-import-submit')).toHaveCount(0);
         await expect(page.getByRole('button', { name: '任务历史', exact: true })).toHaveCount(0);
@@ -254,8 +259,7 @@ for (const role of ['manager', 'cs']) {
         await page.getByTestId('shipment-import-excel').setInputFiles(standard);
         await page.getByTestId('shipment-import-submit').click();
         await expect(page.getByTestId('latest-import-job-status')).toContainText('已完成');
-        if (role === 'manager') await expect(page.getByTestId('request-export-submit')).toBeEnabled();
-        else await expect(page.getByTestId('request-export-submit')).toBeDisabled();
+        await expect(page.getByTestId('request-export-submit')).toBeDisabled();
         await expect(page.getByTestId('import-error-message')).toHaveCount(0);
     });
 }

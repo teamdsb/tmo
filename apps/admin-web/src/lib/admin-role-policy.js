@@ -4,6 +4,11 @@ export const normalizeRole = (role) => {
   return String(role || '').trim().toUpperCase();
 };
 
+// Catalog writes are restricted by the server to the active BOSS / ADMIN role.
+export const canManageAdminCatalog = (session) => {
+  return ['BOSS', 'ADMIN'].includes(normalizeRole(session?.currentRole || session?.role));
+};
+
 export const isAllowedAdminWebRole = (role) => {
   const normalized = normalizeRole(role);
   return ALLOWED_ADMIN_WEB_ROLES.includes(normalized);

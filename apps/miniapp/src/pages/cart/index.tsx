@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, Button } from '@tarojs/components'
-import Taro, { useRouter } from '@tarojs/taro'
+import Taro from '@tarojs/taro'
 import Navbar from '@taroify/core/navbar'
-import type { Cart, CartImportJob, CartImportPendingItem, ProductSummary, ProductDetail } from '@tmo/api-client'
+import type { Cart, ProductSummary, ProductDetail } from '@tmo/api-client'
 import { findSkuBySpecSelection, getPurchasableSpecSkus, getSkuSpecValues } from '@tmo/shared'
 import SpecSelector from '../../components/spec-selector'
 import { AppSafeAreaBottom } from '../../components/app-safe-area'
@@ -14,10 +14,10 @@ import { ensureLoggedIn } from '../../utils/auth'
 import { navigateTo, switchTabLike } from '../../utils/navigation'
 import { getNavbarStyle } from '../../utils/navbar'
 import { getWindowSystemInfo } from '../../utils/system-info'
-import { CartBottomBar, CartListView, ImportResultView } from './components'
+import { CartBottomBar, CartListView } from './components'
 import { getCartItemUnitPriceFen, normalizeSpuId } from './helpers'
 import { useCartProductDetails } from './hooks'
-import type { CartItem, ImportTab, SelectionMap } from './types'
+import type { CartItem } from './types'
 
 const CART_RECOMMEND_GRID_GAP_PX = 12
 const CART_RECOMMEND_SECTION_PADDING_PX = 12
@@ -28,62 +28,62 @@ const getCartRecommendProductImageSize = () => {
   return Math.max(120, Math.floor((windowWidth - CART_RECOMMEND_SECTION_PADDING_PX * 2 - CART_RECOMMEND_GRID_GAP_PX) / 2))
 }
 
-export default function ExcelImportConfirmation() {
-  const router = useRouter()
-  const [activeTab, setActiveTab] = useState<ImportTab>('to-confirm')
-  const [importJob, setImportJob] = useState<CartImportJob | null>(null)
+export default function CartPage() {
   const [cart, setCart] = useState<Cart | null>(null)
   const [recommendedProducts, setRecommendedProducts] = useState<ProductSummary[]>([])
-  const [selectionMap, setSelectionMap] = useState<SelectionMap>({})
   const [loading, setLoading] = useState(false)
   const [busyItemId, setBusyItemId] = useState<string | null>(null)
   const [skuPicker, setSkuPicker] = useState<{ item: CartItem; detail: ProductDetail } | null>(null)
   const [specSelection, setSpecSelection] = useState<string[]>([])
+  const cartRequestVersion = useRef(0)
+  const mounted = useRef(true)
   const navbarStyle = getNavbarStyle()
   const isH5 = process.env.TARO_ENV === 'h5'
 
-  const jobIdParam = typeof router.params?.jobId === 'string' ? router.params.jobId : null
   const cartItems = cart?.items ?? []
   const {
     productImageBySpuId,
     productNameBySpuId,
     loadProductDetail,
     productDimensionsBySpuId
-  } = useCartProductDetails(cartItems, !importJob)
+  } = useCartProductDetails(cartItems, true)
   const recommendedPriceMap = useProductStartingPrices(recommendedProducts)
   const recommendedProductImageSize = useMemo(() => getCartRecommendProductImageSize(), [])
 
-  const loadCartOrImport = useCallback(async () => {
+  const loadCart = useCallback(async () => {
+    if (!mounted.current) return
+    const version = ++cartRequestVersion.current
     setLoading(true)
     try {
-      if (jobIdParam) {
-        const job = await commerceServices.cart.getImportJob(jobIdParam)
-        setImportJob(job)
-        setCart(null)
-        setSelectionMap({})
-        if (job.result?.pendingItems?.length) {
-          setActiveTab('to-confirm')
-        }
-        return
-      }
-
       const cartData = await commerceServices.cart.getCart()
-      setCart(cartData)
-      setImportJob(null)
+      if (mounted.current && version === cartRequestVersion.current) setCart(cartData)
     } catch (error) {
-      console.warn('load cart/import failed', error)
+      if (!mounted.current || version !== cartRequestVersion.current) return
+      console.warn('load cart failed', error)
       await Taro.showToast({ title: '加载购物车失败', icon: 'none' })
     } finally {
-      setLoading(false)
+      if (mounted.current && version === cartRequestVersion.current) setLoading(false)
     }
-  }, [jobIdParam])
+  }, [])
 
   useEffect(() => {
-    void loadCartOrImport()
-  }, [loadCartOrImport])
+    mounted.current = true
+    void loadCart()
+    return () => {
+      mounted.current = false
+      cartRequestVersion.current += 1
+    }
+  }, [loadCart])
+
+  const applyUpdatedCart = (updatedCart: Cart) => {
+    if (!mounted.current) return
+    cartRequestVersion.current += 1
+    setCart(updatedCart)
+    setLoading(false)
+  }
 
   useRefreshOnReturn(() => {
-    void loadCartOrImport()
+    void loadCart()
   })
 
   useEffect(() => {
@@ -107,76 +107,6 @@ export default function ExcelImportConfirmation() {
       cancelled = true
     }
   }, [])
-
-  const pendingItems = importJob?.result?.pendingItems ?? []
-  const autoAddedItems = importJob?.result?.autoAddedItems ?? []
-  const identifiedCount = importJob?.result?.autoAddedCount ?? 0
-  const pendingCount = importJob?.result?.pendingCount ?? pendingItems.length
-  const totalCount = identifiedCount + pendingCount
-  const progressPercent = totalCount > 0 ? Math.round((identifiedCount / totalCount) * 100) : 0
-  const selections = useMemo(() => Object.values(selectionMap), [selectionMap])
-
-  const handleBack = () => {
-    Taro.navigateBack().catch(() => switchTabLike(ROUTES.cart))
-  }
-
-  const handleSelectSpec = async (item: CartImportPendingItem) => {
-    const candidates = item.candidates ?? []
-    if (candidates.length === 0) {
-      await Taro.showToast({ title: '没有候选项', icon: 'none' })
-      return
-    }
-
-    try {
-      const result = await Taro.showActionSheet({
-        itemList: candidates.map((candidate) => candidate.sku.spec ?? candidate.sku.name)
-      })
-      const candidate = candidates[result.tapIndex]
-      if (!candidate) {
-        return
-      }
-
-      const qty = item.rawQty ? Number.parseInt(item.rawQty, 10) : undefined
-      setSelectionMap((prev) => ({
-        ...prev,
-        [item.rowNo]: {
-          rowNo: item.rowNo,
-          skuId: candidate.sku.id,
-          qty: Number.isNaN(qty) ? undefined : qty
-        }
-      }))
-    } catch (error) {
-      if ((error as { errMsg?: string })?.errMsg?.includes('cancel')) {
-        return
-      }
-      console.warn('select spec failed', error)
-      await Taro.showToast({ title: '选择失败', icon: 'none' })
-    }
-  }
-
-  const handleConfirmImport = async () => {
-    if (!importJob?.id) {
-      return
-    }
-    if (pendingItems.length > 0 && selections.length < pendingItems.length) {
-      await Taro.showToast({ title: '请完成全部选择', icon: 'none' })
-      return
-    }
-
-    setLoading(true)
-    try {
-      const updatedCart = await commerceServices.cart.confirmImport(importJob.id, selections)
-      setCart(updatedCart)
-      setImportJob(null)
-      await Taro.showToast({ title: '已加入购物车', icon: 'success' })
-      await switchTabLike(ROUTES.cart)
-    } catch (error) {
-      console.warn('confirm import failed', error)
-      await Taro.showToast({ title: '确认失败', icon: 'none' })
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleCheckout = async () => {
     if (!cartItems.length) {
@@ -208,7 +138,7 @@ export default function ExcelImportConfirmation() {
     setBusyItemId(item.id)
     try {
       const updatedCart = await commerceServices.cart.updateItemQty(item.id, nextQty)
-      setCart(updatedCart)
+      applyUpdatedCart(updatedCart)
     } catch (error) {
       console.warn('update cart qty failed', error)
       await Taro.showToast({ title: '更新数量失败', icon: 'none' })
@@ -218,8 +148,13 @@ export default function ExcelImportConfirmation() {
   }
 
   const refreshCart = useCallback(async (): Promise<void> => {
-    const latest = await commerceServices.cart.getCart()
-    setCart(latest)
+    const version = ++cartRequestVersion.current
+    try {
+      const latest = await commerceServices.cart.getCart()
+      if (mounted.current && version === cartRequestVersion.current) setCart(latest)
+    } finally {
+      if (mounted.current && version === cartRequestVersion.current) setLoading(false)
+    }
   }, [])
 
   const handleChangeCartItemSku = async (item: CartItem) => {
@@ -264,7 +199,7 @@ export default function ExcelImportConfirmation() {
     try {
       setBusyItemId(item.id)
       const updatedCart = await commerceServices.cart.replaceItemSku(item.id, nextSku.id, item.qty)
-      setCart(updatedCart)
+      applyUpdatedCart(updatedCart)
       setSkuPicker(null)
       await Taro.showToast({ title: '规格已更新', icon: 'success' })
     } catch (error) {
@@ -320,36 +255,21 @@ export default function ExcelImportConfirmation() {
         )
         : null}
 
-      {importJob ? (
-        <ImportResultView
-          activeTab={activeTab}
-          autoAddedItems={autoAddedItems}
-          handleBack={handleBack}
-          handleSelectSpec={handleSelectSpec}
-          identifiedCount={identifiedCount}
-          onTabChange={setActiveTab}
-          pendingItems={pendingItems}
-          progressPercent={progressPercent}
-          selectionMap={selectionMap}
-          totalCount={totalCount}
-        />
-      ) : (
-        <CartListView
-          busyItemId={busyItemId}
-          cartItems={cartItems}
-          onContinueBrowse={() => void switchTabLike(ROUTES.home)}
-          onOpenCartItemDetail={handleOpenCartItemDetail}
-          recommendedProducts={recommendedProducts}
-          recommendedPriceMap={recommendedPriceMap}
-          recommendedProductImageSize={recommendedProductImageSize}
-          productImageBySpuId={productImageBySpuId}
-          productNameBySpuId={productNameBySpuId}
-          productDimensionsBySpuId={productDimensionsBySpuId}
-          onChangeCartItemQty={handleChangeCartItemQty}
-          onChangeCartItemSku={handleChangeCartItemSku}
-          onRemoveCartItem={handleRemoveCartItem}
-        />
-      )}
+      <CartListView
+        busyItemId={busyItemId}
+        cartItems={cartItems}
+        onContinueBrowse={() => void switchTabLike(ROUTES.home)}
+        onOpenCartItemDetail={handleOpenCartItemDetail}
+        recommendedProducts={recommendedProducts}
+        recommendedPriceMap={recommendedPriceMap}
+        recommendedProductImageSize={recommendedProductImageSize}
+        productImageBySpuId={productImageBySpuId}
+        productNameBySpuId={productNameBySpuId}
+        productDimensionsBySpuId={productDimensionsBySpuId}
+        onChangeCartItemQty={handleChangeCartItemQty}
+        onChangeCartItemSku={handleChangeCartItemSku}
+        onRemoveCartItem={handleRemoveCartItem}
+      />
 
       {skuPicker ? (
         <View className='cart-spec-overlay'>
@@ -374,10 +294,8 @@ export default function ExcelImportConfirmation() {
         cartHasPendingPrice={pricingSummary.hasPendingPrice}
         cartTotalFen={pricingSummary.totalFen}
         cartTotalItems={cartTotalItems}
-        importJob={importJob}
         loading={loading}
         onCheckout={handleCheckout}
-        onConfirmImport={handleConfirmImport}
         onContinueBrowse={() => void switchTabLike(ROUTES.home)}
       />
     </View>

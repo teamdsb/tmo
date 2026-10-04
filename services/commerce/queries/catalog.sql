@@ -31,6 +31,13 @@ FROM catalog_products
 WHERE id = sqlc.arg('id')
 FOR UPDATE;
 
+-- name: ListProductsBySkuIDsForUpdate :many
+SELECT p.id, p.name, p.description, p.category_id, p.cover_image_url, p.images, p.tags, p.filter_dimensions, p.created_at, p.updated_at, p.status
+FROM catalog_products p
+WHERE p.id IN (SELECT product_id FROM catalog_skus WHERE id = ANY(sqlc.arg('sku_ids')::uuid[]))
+ORDER BY p.id
+FOR UPDATE OF p;
+
 -- name: UpdateProduct :one
 UPDATE catalog_products
 SET name = $2,
@@ -46,10 +53,12 @@ WHERE id = $1
 RETURNING id, name, description, category_id, cover_image_url, images, tags, filter_dimensions, created_at, updated_at, status;
 
 -- name: DeleteProduct :one
-WITH target_skus AS (
-    SELECT id
-    FROM catalog_skus
-    WHERE product_id = $1
+WITH locked_product AS (
+    SELECT p.id FROM catalog_products p WHERE p.id = $1 FOR UPDATE
+), target_skus AS (
+    SELECT s.id
+    FROM catalog_skus s
+    WHERE s.product_id IN (SELECT p.id FROM locked_product p)
 ),
 deleted_cart_items AS (
     DELETE FROM cart_items
@@ -61,7 +70,7 @@ deleted_wishlist_items AS (
 ),
 deleted_product AS (
     DELETE FROM catalog_products
-    WHERE id = $1
+    WHERE catalog_products.id IN (SELECT p.id FROM locked_product p)
     RETURNING 1
 )
 SELECT count(*)::bigint

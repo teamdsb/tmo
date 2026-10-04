@@ -56,8 +56,10 @@ type WechatB2BPaymentResolution struct {
 type PaymentStore interface {
 	CreatePayment(ctx context.Context, arg db.CreatePaymentParams) (db.Payment, error)
 	GetPayment(ctx context.Context, id uuid.UUID) (db.Payment, error)
+	GetLatestPaymentByOrder(ctx context.Context, orderID uuid.UUID) (db.Payment, error)
 	GetPaymentByIdempotencyKey(ctx context.Context, arg db.GetPaymentByIdempotencyKeyParams) (db.Payment, error)
 	UpdatePaymentState(ctx context.Context, arg db.UpdatePaymentStateParams) (db.Payment, error)
+	MarkPaymentCommerceSynced(ctx context.Context, arg db.MarkPaymentCommerceSyncedParams) error
 	ListPayments(ctx context.Context, arg db.ListPaymentsParams) ([]db.Payment, error)
 	CountPayments(ctx context.Context, arg db.CountPaymentsParams) (int64, error)
 	CreatePaymentWebhook(ctx context.Context, arg db.CreatePaymentWebhookParams) (db.PaymentWebhook, error)

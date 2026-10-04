@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './offline-fixtures';
 
 import { loginMockBoss } from './import-fixtures';
 
@@ -80,7 +80,7 @@ test('support reply composer stays pinned when conversation history is long', as
 test('support reply clears the composer after a successful send', async ({ page }) => {
   await page.route('**/support/conversations/*/messages', async (route) => {
     if (route.request().method() !== 'POST') {
-      await route.continue();
+      await route.fallback();
       return;
     }
     await route.fulfill({
@@ -136,7 +136,7 @@ test('support selects and sends a searched product exactly once', async ({ page 
   });
   await page.route('**/support/conversations/*/messages', async (route) => {
     if (route.request().method() !== 'POST') {
-      await route.continue();
+      await route.fallback();
       return;
     }
     const body = route.request().postDataJSON() as Record<string, unknown>;

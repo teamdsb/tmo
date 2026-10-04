@@ -18,6 +18,7 @@ export const ROUTES = {
   addressList: '/pages/account/address/index',
   profileEdit: '/pages/profile/edit/index',
   import: '/pages/import/index',
+  importConfirm: '/pages/import/confirm/index',
   trackingBatch: '/pages/tracking/batch/index',
   settings: '/pages/settings/index',
   policy: '/pages/policy/index',
@@ -45,6 +46,8 @@ export const withQuery = (path: string, params?: Record<string, string | number 
 export const goodsDetailRoute = (id: string | number) => {
   return withQuery(ROUTES.goodsDetail, { id })
 }
+
+export const importConfirmRoute = (jobId: string) => withQuery(ROUTES.importConfirm, { jobId })
 
 export const orderDetailRoute = (id: string | number) => {
   return withQuery(ROUTES.orderDetail, { id })

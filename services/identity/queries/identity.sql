@@ -120,7 +120,7 @@ WHERE user_type = 'customer'
   )
   AND (sqlc.narg('owner_sales_user_id')::uuid IS NULL OR owner_sales_user_id = sqlc.narg('owner_sales_user_id'))
   AND (sqlc.narg('customer_id')::uuid IS NULL OR id = sqlc.narg('customer_id'))
-ORDER BY created_at DESC
+ORDER BY created_at DESC, id DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
 -- name: CountCustomers :one

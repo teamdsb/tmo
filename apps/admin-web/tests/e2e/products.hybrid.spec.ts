@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { expect, test } from '@playwright/test';
+import { expect, test } from './offline-fixtures';
 import { PNG } from 'pngjs';
 
 const productId = '11111111-2222-3333-4444-555555555555';
@@ -98,7 +98,7 @@ const installDevSession = async (page) => {
 const routeProductPageApis = async (page, options = {}) => {
   const patchStatus = options.patchStatus ?? 200;
   const uploadedImageUrls = options.uploadedImageUrls ?? [
-    options.uploadedImageUrl ?? 'http://127.0.0.1:5174/assets/media/catalog/products/test-upload.png'
+    options.uploadedImageUrl ?? new URL('/assets/media/catalog/products/test-upload.png', String(test.info().project.use.baseURL)).href
   ];
   let uploadIndex = 0;
   let serverProduct = { ...productSummary };
@@ -136,9 +136,12 @@ const routeProductPageApis = async (page, options = {}) => {
       body: JSON.stringify({ items: [], page: 1, pageSize: 50, total: 0 })
     });
   });
+  await page.route('**/api/admin/products/import-reviews**', async (route) => {
+    await route.fulfill({ json: { items: [], page: 1, pageSize: 100, total: 0 } });
+  });
   await page.route('**/api/admin/catalog/products/assets', async (route) => {
     if (route.request().method() !== 'POST') {
-      await route.continue();
+      await route.fallback();
       return;
     }
     const uploadedImageUrl = uploadedImageUrls[Math.min(uploadIndex, uploadedImageUrls.length - 1)];
@@ -159,7 +162,7 @@ const routeProductPageApis = async (page, options = {}) => {
   await page.route('**/api/{catalog,admin}/products**', async (route) => {
     const url = new URL(route.request().url());
     if (route.request().method() !== 'GET' || url.pathname !== '/api/admin/products') {
-      await route.continue();
+      await route.fallback();
       return;
     }
     await route.fulfill({
@@ -188,7 +191,7 @@ const routeProductPageApis = async (page, options = {}) => {
       return;
     }
     if (route.request().method() !== 'PATCH') {
-      await route.continue();
+      await route.fallback();
       return;
     }
     if (patchStatus !== 200) {
@@ -230,7 +233,7 @@ const routeProductPageApis = async (page, options = {}) => {
   });
   await page.route(`**/api/catalog/products/${productId}/skus/${skuId}`, async (route) => {
     if (route.request().method() !== 'PATCH') {
-      await route.continue();
+      await route.fallback();
       return;
     }
     const payload = route.request().postDataJSON();
@@ -253,21 +256,22 @@ const routeProductPageApis = async (page, options = {}) => {
   });
 };
 
-test('product list groups statuses and leaves empty covers empty', async ({ page }) => {
+test('product list preserves server status ordering and leaves empty covers empty', async ({ page }) => {
   await installDevSession(page);
   await routeProductPageApis(page);
   await page.route('**/api/{catalog,admin}/products**', async (route) => {
     const url = new URL(route.request().url());
     if (route.request().method() !== 'GET' || url.pathname !== '/api/admin/products') {
-      await route.continue();
+      await route.fallback();
       return;
     }
+    // The admin endpoint applies status ordering before pagination.
     const items = [
-      { id: 'draft-first', name: '草稿商品一', status: 'DRAFT', coverImageUrl: '' },
       { id: 'active-empty-cover', name: '启用商品一', status: 'ACTIVE', coverImageUrl: '' },
-      { id: 'inactive-only', name: '停用商品', status: 'INACTIVE', coverImageUrl: '' },
       { id: 'active-second', name: '启用商品二', status: 'ACTIVE', coverImageUrl: '' },
-      { id: 'draft-second', name: '草稿商品二', status: 'DRAFT', coverImageUrl: '' }
+      { id: 'draft-first', name: '草稿商品一', status: 'DRAFT', coverImageUrl: '' },
+      { id: 'draft-second', name: '草稿商品二', status: 'DRAFT', coverImageUrl: '' },
+      { id: 'inactive-only', name: '停用商品', status: 'INACTIVE', coverImageUrl: '' }
     ];
     await route.fulfill({
       status: 200,
@@ -278,6 +282,7 @@ test('product list groups statuses and leaves empty covers empty', async ({ page
 
   await page.goto('/products.html');
 
+  await expect(page.locator('tbody tr[data-product-id]')).toHaveCount(5);
   const rowIds = await page.locator('tbody tr[data-product-id]').evaluateAll((rows) => (
     rows.map((row) => row.getAttribute('data-product-id'))
   ));
@@ -324,7 +329,7 @@ test('bulk status actions update selected products and filters clear selection',
       });
       return;
     }
-    await route.continue();
+    await route.fallback();
   });
 
   await page.goto('/products.html');
@@ -358,27 +363,41 @@ test('bulk selection persists across pages and search clears it', async ({ page 
     categoryId,
     coverImageUrl: ''
   }));
+  const listRequests: { page: number; pageSize: number; q: string }[] = [];
 
   await page.route('**/api/{catalog,admin}/products**', async (route) => {
     const url = new URL(route.request().url());
     if (route.request().method() === 'GET' && url.pathname === '/api/admin/products') {
+      const currentPage = Number(url.searchParams.get('page') || 1);
+      const pageSize = Number(url.searchParams.get('pageSize') || 10);
+      const q = url.searchParams.get('q') || '';
+      listRequests.push({ page: currentPage, pageSize, q });
+      const filteredItems = items.filter((item) => item.name.includes(q));
+      const start = (currentPage - 1) * pageSize;
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ items, page: 1, pageSize: 200, total: items.length })
+        body: JSON.stringify({ items: filteredItems.slice(start, start + pageSize), page: currentPage, pageSize, total: filteredItems.length })
       });
       return;
     }
-    await route.continue();
+    await route.fallback();
   });
 
   await page.goto('/products.html');
+  await expect(page.locator('tbody tr[data-product-id]')).toHaveCount(10);
   await page.locator('[data-role="select-product-row"]').first().check();
   await page.locator('[data-role="page-number"][data-page="2"]').click();
-  await page.locator('[data-role="select-product-row"]').first().check();
+  const secondPageProduct = page.locator(`[data-product-id="${items[10].id}"]`);
+  await expect(secondPageProduct).toBeVisible();
+  await expect(page.locator('tbody tr[data-product-id]')).toHaveCount(1);
+  await secondPageProduct.locator('[data-role="select-product-row"]').check();
   await expect(page.locator('[data-role="bulk-selection-count"]')).toHaveText('已选择 2 项');
+  expect(listRequests).toContainEqual({ page: 2, pageSize: 10, q: '' });
 
   await page.getByPlaceholder('按 SPU 名称或 SKU 编号搜索...').fill('不存在');
+  await expect.poll(() => listRequests).toContainEqual({ page: 1, pageSize: 10, q: '不存在' });
+  await expect(page.locator('tbody tr[data-product-id]')).toHaveCount(0);
   await expect(page.locator('[data-role="bulk-product-toolbar"]')).toHaveCount(0);
 });
 
@@ -413,7 +432,7 @@ test('bulk delete confirms once and keeps only failed products selected', async 
       await route.fulfill({ status: 204 });
       return;
     }
-    await route.continue();
+    await route.fallback();
   });
 
   page.on('dialog', async (dialog) => {
@@ -443,7 +462,7 @@ test('category sort can be cleared and inserts at an occupied position', async (
   await page.route('**/api/catalog/categories**', async (route) => {
     const url = new URL(route.request().url());
     if (url.pathname !== '/api/catalog/categories') {
-      await route.continue();
+      await route.fallback();
       return;
     }
     if (route.request().method() === 'GET') {
@@ -467,7 +486,7 @@ test('category sort can be cleared and inserts at an occupied position', async (
       });
       return;
     }
-    await route.continue();
+    await route.fallback();
   });
 
   await page.goto('/products.html');
@@ -491,8 +510,8 @@ test('category sort can be cleared and inserts at an occupied position', async (
 test('product edit persists changes through catalog PATCH', async ({ page }) => {
   const uploadPath = await createUploadFixture();
   await installDevSession(page);
-  const firstUploadUrl = 'http://127.0.0.1:5174/assets/media/catalog/products/test-upload-1.png';
-  const secondUploadUrl = 'http://127.0.0.1:5174/assets/media/catalog/products/test-upload-2.png';
+  const firstUploadUrl = new URL('/assets/media/catalog/products/test-upload-1.png', String(test.info().project.use.baseURL)).href;
+  const secondUploadUrl = new URL('/assets/media/catalog/products/test-upload-2.png', String(test.info().project.use.baseURL)).href;
   await routeProductPageApis(page, { uploadPath, uploadedImageUrls: [firstUploadUrl, secondUploadUrl] });
 
   await page.goto('/products.html');
@@ -508,7 +527,7 @@ test('product edit persists changes through catalog PATCH', async ({ page }) => 
   await imageItems.nth(1).hover();
   await imageItems.nth(1).locator('[data-role="move-image-left"]').click();
   const imageResponse = await page.evaluate(async () => {
-    const response = await fetch('http://127.0.0.1:5174/assets/media/catalog/products/test-upload.png');
+    const response = await fetch(new URL('/assets/media/catalog/products/test-upload.png', window.location.origin));
     return {
       contentType: response.headers.get('content-type') || '',
       status: response.status
@@ -734,7 +753,6 @@ test('filtered product export sends all filters and exposes a failed job report'
   await installDevSession(page);
   await routeProductPageApis(page);
   await page.route('**/api/admin/products/export-jobs', async (route) => {
-    expect(route.request().postDataJSON()).toEqual({ q: '旧商品', categoryId: '__NO_CATEGORY__', status: 'INACTIVE' });
     await route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ id: 'export-failed', type: 'PRODUCT_EXPORT', status: 'PENDING', progress: 0 }) });
   });
   await page.route('**/api/admin/import-jobs/export-failed', async (route) => {
@@ -744,7 +762,10 @@ test('filtered product export sends all filters and exposes a failed job report'
   await page.locator('#products-category-filter').selectOption('__NO_CATEGORY__');
   await page.locator('#products-status-filter').selectOption('INACTIVE');
   await page.getByPlaceholder('按 SPU 名称或 SKU 编号搜索...').fill('旧商品');
+  const exportRequestPromise = page.waitForRequest((request) => request.method() === 'POST' && new URL(request.url()).pathname === '/api/admin/products/export-jobs');
   await page.getByRole('button', { name: '导出当前筛选结果' }).click();
+  const exportRequest = await exportRequestPromise;
+  expect(exportRequest.postDataJSON()).toEqual({ q: '旧商品', categoryId: '00000000-0000-0000-0000-000000000000', status: 'INACTIVE' });
   await expect(page.getByTestId('product-export-status')).toContainText('失败');
   await expect(page.getByRole('link', { name: '下载错误报告' })).toHaveAttribute('href', '/api/errors/export.txt');
 });

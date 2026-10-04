@@ -10,6 +10,17 @@ Conventions:
 - Auth: Bearer JWT access token
 - Idempotency: send `Idempotency-Key` for order submit and payment create
 
+Payment reconciliation is durable: pending B2B payments are queried server-side,
+and saved payment states retry Commerce synchronization after client exit or service restart.
+Internal POST /internal/orders/{orderId}/payment-status uses X-Internal-Token and
+pairs positive stateVersion with the source paymentCreatedAt. Commerce persists
+ordering under the order lock: versions within one payment, then (createdAt, paymentId)
+across attempts. Stale non-PAID messages are acknowledged without mutation; PAID wins
+over non-PAID and an already-paid order never regresses. Versionless legacy non-PAID
+messages are ignored after a watermark exists; legacy PAID remains admissible.
+Deploy Commerce ordering support before the upgraded Payment worker. Versionless
+history has no recoverable original ordering before the first watermark.
+
  * OpenAPI spec version: 0.1.0
  */
 import { apiMutator } from '../runtime';
@@ -342,6 +353,9 @@ export type CreateOrderRequestItemsItem = {
   qty: number;
 };
 
+/**
+ * Checkout validates active products and SKUs with complete specification paths, and reads current prices atomically before consuming the selected cart quantities.
+ */
 export interface CreateOrderRequest {
   address: Address;
   paymentMethod: OrderPaymentMethod;
@@ -374,6 +388,9 @@ export const OrderStatus = {
   CLOSED: 'CLOSED',
 } as const;
 
+/**
+ * The sku is an immutable purchase-time snapshot, including its name, specification, unit and price tiers. Catalog edits do not change existing orders. Legacy rows retain catalog information available when snapshots were introduced; earlier overwritten history cannot be recovered.
+ */
 export interface OrderItem {
   sku: Sku;
   /** @minimum 1 */
@@ -1088,6 +1105,12 @@ customerId?: string;
 ownerSalesUserId?: string;
 status?: OrderStatus;
 /**
+ * Repeat statuses for each order state; comma-separated lists are also accepted. Mutually exclusive with status. Filtering precedes pagination and counting.
+ * @minItems 1
+ * @maxItems 9
+ */
+statuses?: OrderStatus[];
+/**
  * @minimum 1
  */
 page?: number;
@@ -1394,7 +1417,7 @@ export type getCatalogCategoriesResponse200 = {
   data: GetCatalogCategories200
   status: 200
 }
-    
+
 export type getCatalogCategoriesResponseSuccess = (getCatalogCategoriesResponse200) & {
   headers: Headers;
 };
@@ -1405,19 +1428,19 @@ export type getCatalogCategoriesResponse = (getCatalogCategoriesResponseSuccess)
 export const getGetCatalogCategoriesUrl = () => {
 
 
-  
+
 
   return `/catalog/categories`
 }
 
 export const getCatalogCategories = async ( options?: RequestInit): Promise<getCatalogCategoriesResponse> => {
-  
+
   return apiMutator<getCatalogCategoriesResponse>(getGetCatalogCategoriesUrl(),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1430,7 +1453,7 @@ export type postCatalogCategoriesResponse201 = {
   data: Category
   status: 201
 }
-    
+
 export type postCatalogCategoriesResponseSuccess = (postCatalogCategoriesResponse201) & {
   headers: Headers;
 };
@@ -1441,15 +1464,15 @@ export type postCatalogCategoriesResponse = (postCatalogCategoriesResponseSucces
 export const getPostCatalogCategoriesUrl = () => {
 
 
-  
+
 
   return `/catalog/categories`
 }
 
 export const postCatalogCategories = async (createCategoryRequest: CreateCategoryRequest, options?: RequestInit): Promise<postCatalogCategoriesResponse> => {
-  
+
   return apiMutator<postCatalogCategoriesResponse>(getPostCatalogCategoriesUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1472,7 +1495,7 @@ export type getCatalogCategoriesCategoryIdResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type getCatalogCategoriesCategoryIdResponseSuccess = (getCatalogCategoriesCategoryIdResponse200) & {
   headers: Headers;
 };
@@ -1485,19 +1508,19 @@ export type getCatalogCategoriesCategoryIdResponse = (getCatalogCategoriesCatego
 export const getGetCatalogCategoriesCategoryIdUrl = (categoryId: string,) => {
 
 
-  
+
 
   return `/catalog/categories/${categoryId}`
 }
 
 export const getCatalogCategoriesCategoryId = async (categoryId: string, options?: RequestInit): Promise<getCatalogCategoriesCategoryIdResponse> => {
-  
+
   return apiMutator<getCatalogCategoriesCategoryIdResponse>(getGetCatalogCategoriesCategoryIdUrl(categoryId),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1510,7 +1533,7 @@ export type patchCatalogCategoriesCategoryIdResponse200 = {
   data: Category
   status: 200
 }
-    
+
 export type patchCatalogCategoriesCategoryIdResponseSuccess = (patchCatalogCategoriesCategoryIdResponse200) & {
   headers: Headers;
 };
@@ -1521,16 +1544,16 @@ export type patchCatalogCategoriesCategoryIdResponse = (patchCatalogCategoriesCa
 export const getPatchCatalogCategoriesCategoryIdUrl = (categoryId: string,) => {
 
 
-  
+
 
   return `/catalog/categories/${categoryId}`
 }
 
 export const patchCatalogCategoriesCategoryId = async (categoryId: string,
     updateCategoryRequest: UpdateCategoryRequest, options?: RequestInit): Promise<patchCatalogCategoriesCategoryIdResponse> => {
-  
+
   return apiMutator<patchCatalogCategoriesCategoryIdResponse>(getPatchCatalogCategoriesCategoryIdUrl(categoryId),
-  {      
+  {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1548,7 +1571,7 @@ export type deleteCatalogCategoriesCategoryIdResponse204 = {
   data: void
   status: 204
 }
-    
+
 export type deleteCatalogCategoriesCategoryIdResponseSuccess = (deleteCatalogCategoriesCategoryIdResponse204) & {
   headers: Headers;
 };
@@ -1559,19 +1582,19 @@ export type deleteCatalogCategoriesCategoryIdResponse = (deleteCatalogCategories
 export const getDeleteCatalogCategoriesCategoryIdUrl = (categoryId: string,) => {
 
 
-  
+
 
   return `/catalog/categories/${categoryId}`
 }
 
 export const deleteCatalogCategoriesCategoryId = async (categoryId: string, options?: RequestInit): Promise<deleteCatalogCategoriesCategoryIdResponse> => {
-  
+
   return apiMutator<deleteCatalogCategoriesCategoryIdResponse>(getDeleteCatalogCategoriesCategoryIdUrl(categoryId),
-  {      
+  {
     ...options,
     method: 'DELETE'
-    
-    
+
+
   }
 );}
 
@@ -1584,7 +1607,7 @@ export type getCatalogDisplayCategoriesResponse200 = {
   data: DisplayCategoryListResponse
   status: 200
 }
-    
+
 export type getCatalogDisplayCategoriesResponseSuccess = (getCatalogDisplayCategoriesResponse200) & {
   headers: Headers;
 };
@@ -1595,19 +1618,19 @@ export type getCatalogDisplayCategoriesResponse = (getCatalogDisplayCategoriesRe
 export const getGetCatalogDisplayCategoriesUrl = () => {
 
 
-  
+
 
   return `/catalog/display-categories`
 }
 
 export const getCatalogDisplayCategories = async ( options?: RequestInit): Promise<getCatalogDisplayCategoriesResponse> => {
-  
+
   return apiMutator<getCatalogDisplayCategoriesResponse>(getGetCatalogDisplayCategoriesUrl(),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1620,7 +1643,7 @@ export type getCatalogProductsResponse200 = {
   data: PagedProductList
   status: 200
 }
-    
+
 export type getCatalogProductsResponseSuccess = (getCatalogProductsResponse200) & {
   headers: Headers;
 };
@@ -1632,7 +1655,7 @@ export const getGetCatalogProductsUrl = (params?: GetCatalogProductsParams,) => 
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -1644,13 +1667,13 @@ export const getGetCatalogProductsUrl = (params?: GetCatalogProductsParams,) => 
 }
 
 export const getCatalogProducts = async (params?: GetCatalogProductsParams, options?: RequestInit): Promise<getCatalogProductsResponse> => {
-  
+
   return apiMutator<getCatalogProductsResponse>(getGetCatalogProductsUrl(params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1663,7 +1686,7 @@ export type postCatalogProductsResponse201 = {
   data: ProductDetail
   status: 201
 }
-    
+
 export type postCatalogProductsResponseSuccess = (postCatalogProductsResponse201) & {
   headers: Headers;
 };
@@ -1674,15 +1697,15 @@ export type postCatalogProductsResponse = (postCatalogProductsResponseSuccess)
 export const getPostCatalogProductsUrl = () => {
 
 
-  
+
 
   return `/catalog/products`
 }
 
 export const postCatalogProducts = async (createCatalogProductRequest: CreateCatalogProductRequest, options?: RequestInit): Promise<postCatalogProductsResponse> => {
-  
+
   return apiMutator<postCatalogProductsResponse>(getPostCatalogProductsUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1705,7 +1728,7 @@ export type getCatalogProductsSpuIdResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type getCatalogProductsSpuIdResponseSuccess = (getCatalogProductsSpuIdResponse200) & {
   headers: Headers;
 };
@@ -1718,19 +1741,19 @@ export type getCatalogProductsSpuIdResponse = (getCatalogProductsSpuIdResponseSu
 export const getGetCatalogProductsSpuIdUrl = (spuId: string,) => {
 
 
-  
+
 
   return `/catalog/products/${spuId}`
 }
 
 export const getCatalogProductsSpuId = async (spuId: string, options?: RequestInit): Promise<getCatalogProductsSpuIdResponse> => {
-  
+
   return apiMutator<getCatalogProductsSpuIdResponse>(getGetCatalogProductsSpuIdUrl(spuId),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1748,7 +1771,7 @@ export type patchCatalogProductsSpuIdResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type patchCatalogProductsSpuIdResponseSuccess = (patchCatalogProductsSpuIdResponse200) & {
   headers: Headers;
 };
@@ -1761,16 +1784,16 @@ export type patchCatalogProductsSpuIdResponse = (patchCatalogProductsSpuIdRespon
 export const getPatchCatalogProductsSpuIdUrl = (spuId: string,) => {
 
 
-  
+
 
   return `/catalog/products/${spuId}`
 }
 
 export const patchCatalogProductsSpuId = async (spuId: string,
     updateCatalogProductRequest: UpdateCatalogProductRequest, options?: RequestInit): Promise<patchCatalogProductsSpuIdResponse> => {
-  
+
   return apiMutator<patchCatalogProductsSpuIdResponse>(getPatchCatalogProductsSpuIdUrl(spuId),
-  {      
+  {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1793,7 +1816,7 @@ export type deleteCatalogProductsSpuIdResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type deleteCatalogProductsSpuIdResponseSuccess = (deleteCatalogProductsSpuIdResponse204) & {
   headers: Headers;
 };
@@ -1806,19 +1829,19 @@ export type deleteCatalogProductsSpuIdResponse = (deleteCatalogProductsSpuIdResp
 export const getDeleteCatalogProductsSpuIdUrl = (spuId: string,) => {
 
 
-  
+
 
   return `/catalog/products/${spuId}`
 }
 
 export const deleteCatalogProductsSpuId = async (spuId: string, options?: RequestInit): Promise<deleteCatalogProductsSpuIdResponse> => {
-  
+
   return apiMutator<deleteCatalogProductsSpuIdResponse>(getDeleteCatalogProductsSpuIdUrl(spuId),
-  {      
+  {
     ...options,
     method: 'DELETE'
-    
-    
+
+
   }
 );}
 
@@ -1831,7 +1854,7 @@ export type postCatalogProductsSpuIdSkusResponse201 = {
   data: Sku
   status: 201
 }
-    
+
 export type postCatalogProductsSpuIdSkusResponseSuccess = (postCatalogProductsSpuIdSkusResponse201) & {
   headers: Headers;
 };
@@ -1842,16 +1865,16 @@ export type postCatalogProductsSpuIdSkusResponse = (postCatalogProductsSpuIdSkus
 export const getPostCatalogProductsSpuIdSkusUrl = (spuId: string,) => {
 
 
-  
+
 
   return `/catalog/products/${spuId}/skus`
 }
 
 export const postCatalogProductsSpuIdSkus = async (spuId: string,
     createSkuRequest: CreateSkuRequest, options?: RequestInit): Promise<postCatalogProductsSpuIdSkusResponse> => {
-  
+
   return apiMutator<postCatalogProductsSpuIdSkusResponse>(getPostCatalogProductsSpuIdSkusUrl(spuId),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1874,7 +1897,7 @@ export type patchCatalogProductsSpuIdSkusSkuIdResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type patchCatalogProductsSpuIdSkusSkuIdResponseSuccess = (patchCatalogProductsSpuIdSkusSkuIdResponse200) & {
   headers: Headers;
 };
@@ -1888,7 +1911,7 @@ export const getPatchCatalogProductsSpuIdSkusSkuIdUrl = (spuId: string,
     skuId: string,) => {
 
 
-  
+
 
   return `/catalog/products/${spuId}/skus/${skuId}`
 }
@@ -1896,9 +1919,9 @@ export const getPatchCatalogProductsSpuIdSkusSkuIdUrl = (spuId: string,
 export const patchCatalogProductsSpuIdSkusSkuId = async (spuId: string,
     skuId: string,
     updateSkuRequest: UpdateSkuRequest, options?: RequestInit): Promise<patchCatalogProductsSpuIdSkusSkuIdResponse> => {
-  
+
   return apiMutator<patchCatalogProductsSpuIdSkusSkuIdResponse>(getPatchCatalogProductsSpuIdSkusSkuIdUrl(spuId,skuId),
-  {      
+  {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1916,7 +1939,7 @@ export type getWishlistResponse200 = {
   data: GetWishlist200
   status: 200
 }
-    
+
 export type getWishlistResponseSuccess = (getWishlistResponse200) & {
   headers: Headers;
 };
@@ -1927,19 +1950,19 @@ export type getWishlistResponse = (getWishlistResponseSuccess)
 export const getGetWishlistUrl = () => {
 
 
-  
+
 
   return `/wishlist`
 }
 
 export const getWishlist = async ( options?: RequestInit): Promise<getWishlistResponse> => {
-  
+
   return apiMutator<getWishlistResponse>(getGetWishlistUrl(),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -1952,7 +1975,7 @@ export type postWishlistResponse204 = {
   data: void
   status: 204
 }
-    
+
 export type postWishlistResponseSuccess = (postWishlistResponse204) & {
   headers: Headers;
 };
@@ -1963,15 +1986,15 @@ export type postWishlistResponse = (postWishlistResponseSuccess)
 export const getPostWishlistUrl = () => {
 
 
-  
+
 
   return `/wishlist`
 }
 
 export const postWishlist = async (postWishlistBody: PostWishlistBody, options?: RequestInit): Promise<postWishlistResponse> => {
-  
+
   return apiMutator<postWishlistResponse>(getPostWishlistUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -1989,7 +2012,7 @@ export type deleteWishlistSkuIdResponse204 = {
   data: void
   status: 204
 }
-    
+
 export type deleteWishlistSkuIdResponseSuccess = (deleteWishlistSkuIdResponse204) & {
   headers: Headers;
 };
@@ -2000,19 +2023,19 @@ export type deleteWishlistSkuIdResponse = (deleteWishlistSkuIdResponseSuccess)
 export const getDeleteWishlistSkuIdUrl = (skuId: string,) => {
 
 
-  
+
 
   return `/wishlist/${skuId}`
 }
 
 export const deleteWishlistSkuId = async (skuId: string, options?: RequestInit): Promise<deleteWishlistSkuIdResponse> => {
-  
+
   return apiMutator<deleteWishlistSkuIdResponse>(getDeleteWishlistSkuIdUrl(skuId),
-  {      
+  {
     ...options,
     method: 'DELETE'
-    
-    
+
+
   }
 );}
 
@@ -2025,7 +2048,7 @@ export type getCartResponse200 = {
   data: Cart
   status: 200
 }
-    
+
 export type getCartResponseSuccess = (getCartResponse200) & {
   headers: Headers;
 };
@@ -2036,19 +2059,19 @@ export type getCartResponse = (getCartResponseSuccess)
 export const getGetCartUrl = () => {
 
 
-  
+
 
   return `/cart`
 }
 
 export const getCart = async ( options?: RequestInit): Promise<getCartResponse> => {
-  
+
   return apiMutator<getCartResponse>(getGetCartUrl(),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -2061,7 +2084,7 @@ export type postCartItemsResponse200 = {
   data: Cart
   status: 200
 }
-    
+
 export type postCartItemsResponseSuccess = (postCartItemsResponse200) & {
   headers: Headers;
 };
@@ -2072,15 +2095,15 @@ export type postCartItemsResponse = (postCartItemsResponseSuccess)
 export const getPostCartItemsUrl = () => {
 
 
-  
+
 
   return `/cart/items`
 }
 
 export const postCartItems = async (addCartItemRequest: AddCartItemRequest, options?: RequestInit): Promise<postCartItemsResponse> => {
-  
+
   return apiMutator<postCartItemsResponse>(getPostCartItemsUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -2103,7 +2126,7 @@ export type patchCartItemsItemIdResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type patchCartItemsItemIdResponseSuccess = (patchCartItemsItemIdResponse200) & {
   headers: Headers;
 };
@@ -2116,16 +2139,16 @@ export type patchCartItemsItemIdResponse = (patchCartItemsItemIdResponseSuccess 
 export const getPatchCartItemsItemIdUrl = (itemId: string,) => {
 
 
-  
+
 
   return `/cart/items/${itemId}`
 }
 
 export const patchCartItemsItemId = async (itemId: string,
     patchCartItemsItemIdBody: PatchCartItemsItemIdBody, options?: RequestInit): Promise<patchCartItemsItemIdResponse> => {
-  
+
   return apiMutator<patchCartItemsItemIdResponse>(getPatchCartItemsItemIdUrl(itemId),
-  {      
+  {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -2143,7 +2166,7 @@ export type deleteCartItemsItemIdResponse204 = {
   data: void
   status: 204
 }
-    
+
 export type deleteCartItemsItemIdResponseSuccess = (deleteCartItemsItemIdResponse204) & {
   headers: Headers;
 };
@@ -2154,19 +2177,19 @@ export type deleteCartItemsItemIdResponse = (deleteCartItemsItemIdResponseSucces
 export const getDeleteCartItemsItemIdUrl = (itemId: string,) => {
 
 
-  
+
 
   return `/cart/items/${itemId}`
 }
 
 export const deleteCartItemsItemId = async (itemId: string, options?: RequestInit): Promise<deleteCartItemsItemIdResponse> => {
-  
+
   return apiMutator<deleteCartItemsItemIdResponse>(getDeleteCartItemsItemIdUrl(itemId),
-  {      
+  {
     ...options,
     method: 'DELETE'
-    
-    
+
+
   }
 );}
 
@@ -2180,7 +2203,7 @@ export type postCartImportJobsResponse202 = {
   data: CartImportJob
   status: 202
 }
-    
+
 export type postCartImportJobsResponseSuccess = (postCartImportJobsResponse202) & {
   headers: Headers;
 };
@@ -2191,7 +2214,7 @@ export type postCartImportJobsResponse = (postCartImportJobsResponseSuccess)
 export const getPostCartImportJobsUrl = () => {
 
 
-  
+
 
   return `/cart/import-jobs`
 }
@@ -2201,11 +2224,11 @@ export const postCartImportJobs = async (postCartImportJobsBody: PostCartImportJ
 formData.append(`file`, postCartImportJobsBody.file)
 
   return apiMutator<postCartImportJobsResponse>(getPostCartImportJobsUrl(),
-  {      
+  {
     ...options,
     method: 'POST'
     ,
-    body: 
+    body:
       formData,
   }
 );}
@@ -2220,7 +2243,7 @@ export type getCartImportJobsJobIdResponse200 = {
   data: CartImportJob
   status: 200
 }
-    
+
 export type getCartImportJobsJobIdResponseSuccess = (getCartImportJobsJobIdResponse200) & {
   headers: Headers;
 };
@@ -2231,52 +2254,70 @@ export type getCartImportJobsJobIdResponse = (getCartImportJobsJobIdResponseSucc
 export const getGetCartImportJobsJobIdUrl = (jobId: string,) => {
 
 
-  
+
 
   return `/cart/import-jobs/${jobId}`
 }
 
 export const getCartImportJobsJobId = async (jobId: string, options?: RequestInit): Promise<getCartImportJobsJobIdResponse> => {
-  
+
   return apiMutator<getCartImportJobsJobIdResponse>(getGetCartImportJobsJobIdUrl(jobId),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
 
 
 /**
+ * Atomically applies each recognized row once. Identical retries return the cart without adding quantity again; changing an already confirmed selection returns 409. Unknown, duplicate or non-candidate selections return 400. The job must belong to the current user and be complete.
  * @summary Confirm SKU selections for ambiguous rows
  */
 export type postCartImportJobsJobIdConfirmResponse200 = {
   data: Cart
   status: 200
 }
-    
+
+export type postCartImportJobsJobIdConfirmResponse400 = {
+  data: void
+  status: 400
+}
+
+export type postCartImportJobsJobIdConfirmResponse404 = {
+  data: void
+  status: 404
+}
+
+export type postCartImportJobsJobIdConfirmResponse409 = {
+  data: ConflictResponse
+  status: 409
+}
+
 export type postCartImportJobsJobIdConfirmResponseSuccess = (postCartImportJobsJobIdConfirmResponse200) & {
   headers: Headers;
 };
-;
+export type postCartImportJobsJobIdConfirmResponseError = (postCartImportJobsJobIdConfirmResponse400 | postCartImportJobsJobIdConfirmResponse404 | postCartImportJobsJobIdConfirmResponse409) & {
+  headers: Headers;
+};
 
-export type postCartImportJobsJobIdConfirmResponse = (postCartImportJobsJobIdConfirmResponseSuccess)
+export type postCartImportJobsJobIdConfirmResponse = (postCartImportJobsJobIdConfirmResponseSuccess | postCartImportJobsJobIdConfirmResponseError)
 
 export const getPostCartImportJobsJobIdConfirmUrl = (jobId: string,) => {
 
 
-  
+
 
   return `/cart/import-jobs/${jobId}/confirm`
 }
 
 export const postCartImportJobsJobIdConfirm = async (jobId: string,
     confirmCartImportRequest: ConfirmCartImportRequest, options?: RequestInit): Promise<postCartImportJobsJobIdConfirmResponse> => {
-  
+
   return apiMutator<postCartImportJobsJobIdConfirmResponse>(getPostCartImportJobsJobIdConfirmUrl(jobId),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -2299,7 +2340,7 @@ export type postOrdersResponse409 = {
   data: ConflictResponse
   status: 409
 }
-    
+
 export type postOrdersResponseSuccess = (postOrdersResponse201) & {
   headers: Headers;
 };
@@ -2312,15 +2353,15 @@ export type postOrdersResponse = (postOrdersResponseSuccess | postOrdersResponse
 export const getPostOrdersUrl = () => {
 
 
-  
+
 
   return `/orders`
 }
 
 export const postOrders = async (createOrderRequest: CreateOrderRequest, options?: RequestInit): Promise<postOrdersResponse> => {
-  
+
   return apiMutator<postOrdersResponse>(getPostOrdersUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -2338,19 +2379,34 @@ export type getOrdersResponse200 = {
   data: PagedOrderList
   status: 200
 }
-    
+
+export type getOrdersResponse400 = {
+  data: void
+  status: 400
+}
+
 export type getOrdersResponseSuccess = (getOrdersResponse200) & {
   headers: Headers;
 };
-;
+export type getOrdersResponseError = (getOrdersResponse400) & {
+  headers: Headers;
+};
 
-export type getOrdersResponse = (getOrdersResponseSuccess)
+export type getOrdersResponse = (getOrdersResponseSuccess | getOrdersResponseError)
 
 export const getGetOrdersUrl = (params?: GetOrdersParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+    const explodeParameters = ["statuses"];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : v.toString());
+      });
+      return;
+    }
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -2362,13 +2418,13 @@ export const getGetOrdersUrl = (params?: GetOrdersParams,) => {
 }
 
 export const getOrders = async (params?: GetOrdersParams, options?: RequestInit): Promise<getOrdersResponse> => {
-  
+
   return apiMutator<getOrdersResponse>(getGetOrdersUrl(params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -2381,7 +2437,7 @@ export type getOrdersStatsResponse200 = {
   data: OrderStatsResponse
   status: 200
 }
-    
+
 export type getOrdersStatsResponseSuccess = (getOrdersStatsResponse200) & {
   headers: Headers;
 };
@@ -2392,19 +2448,19 @@ export type getOrdersStatsResponse = (getOrdersStatsResponseSuccess)
 export const getGetOrdersStatsUrl = () => {
 
 
-  
+
 
   return `/orders/stats`
 }
 
 export const getOrdersStats = async ( options?: RequestInit): Promise<getOrdersStatsResponse> => {
-  
+
   return apiMutator<getOrdersStatsResponse>(getGetOrdersStatsUrl(),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -2417,7 +2473,7 @@ export type getAddressesResponse200 = {
   data: ListAddressesResponse
   status: 200
 }
-    
+
 export type getAddressesResponseSuccess = (getAddressesResponse200) & {
   headers: Headers;
 };
@@ -2428,19 +2484,19 @@ export type getAddressesResponse = (getAddressesResponseSuccess)
 export const getGetAddressesUrl = () => {
 
 
-  
+
 
   return `/addresses`
 }
 
 export const getAddresses = async ( options?: RequestInit): Promise<getAddressesResponse> => {
-  
+
   return apiMutator<getAddressesResponse>(getGetAddressesUrl(),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -2453,7 +2509,7 @@ export type postAddressesResponse201 = {
   data: UserAddress
   status: 201
 }
-    
+
 export type postAddressesResponseSuccess = (postAddressesResponse201) & {
   headers: Headers;
 };
@@ -2464,15 +2520,15 @@ export type postAddressesResponse = (postAddressesResponseSuccess)
 export const getPostAddressesUrl = () => {
 
 
-  
+
 
   return `/addresses`
 }
 
 export const postAddresses = async (createUserAddressRequest: CreateUserAddressRequest, options?: RequestInit): Promise<postAddressesResponse> => {
-  
+
   return apiMutator<postAddressesResponse>(getPostAddressesUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -2495,7 +2551,7 @@ export type patchAddressesAddressIdResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type patchAddressesAddressIdResponseSuccess = (patchAddressesAddressIdResponse200) & {
   headers: Headers;
 };
@@ -2508,16 +2564,16 @@ export type patchAddressesAddressIdResponse = (patchAddressesAddressIdResponseSu
 export const getPatchAddressesAddressIdUrl = (addressId: string,) => {
 
 
-  
+
 
   return `/addresses/${addressId}`
 }
 
 export const patchAddressesAddressId = async (addressId: string,
     updateUserAddressRequest: UpdateUserAddressRequest, options?: RequestInit): Promise<patchAddressesAddressIdResponse> => {
-  
+
   return apiMutator<patchAddressesAddressIdResponse>(getPatchAddressesAddressIdUrl(addressId),
-  {      
+  {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -2540,7 +2596,7 @@ export type deleteAddressesAddressIdResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type deleteAddressesAddressIdResponseSuccess = (deleteAddressesAddressIdResponse204) & {
   headers: Headers;
 };
@@ -2553,19 +2609,19 @@ export type deleteAddressesAddressIdResponse = (deleteAddressesAddressIdResponse
 export const getDeleteAddressesAddressIdUrl = (addressId: string,) => {
 
 
-  
+
 
   return `/addresses/${addressId}`
 }
 
 export const deleteAddressesAddressId = async (addressId: string, options?: RequestInit): Promise<deleteAddressesAddressIdResponse> => {
-  
+
   return apiMutator<deleteAddressesAddressIdResponse>(getDeleteAddressesAddressIdUrl(addressId),
-  {      
+  {
     ...options,
     method: 'DELETE'
-    
-    
+
+
   }
 );}
 
@@ -2578,7 +2634,7 @@ export type getOrdersOrderIdResponse200 = {
   data: Order
   status: 200
 }
-    
+
 export type getOrdersOrderIdResponseSuccess = (getOrdersOrderIdResponse200) & {
   headers: Headers;
 };
@@ -2589,19 +2645,19 @@ export type getOrdersOrderIdResponse = (getOrdersOrderIdResponseSuccess)
 export const getGetOrdersOrderIdUrl = (orderId: string,) => {
 
 
-  
+
 
   return `/orders/${orderId}`
 }
 
 export const getOrdersOrderId = async (orderId: string, options?: RequestInit): Promise<getOrdersOrderIdResponse> => {
-  
+
   return apiMutator<getOrdersOrderIdResponse>(getGetOrdersOrderIdUrl(orderId),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -2629,7 +2685,7 @@ export type postOrdersOrderIdConfirmReceiptResponse409 = {
   data: ConflictResponse
   status: 409
 }
-    
+
 export type postOrdersOrderIdConfirmReceiptResponseSuccess = (postOrdersOrderIdConfirmReceiptResponse200) & {
   headers: Headers;
 };
@@ -2642,19 +2698,19 @@ export type postOrdersOrderIdConfirmReceiptResponse = (postOrdersOrderIdConfirmR
 export const getPostOrdersOrderIdConfirmReceiptUrl = (orderId: string,) => {
 
 
-  
+
 
   return `/orders/${orderId}/confirm-receipt`
 }
 
 export const postOrdersOrderIdConfirmReceipt = async (orderId: string, options?: RequestInit): Promise<postOrdersOrderIdConfirmReceiptResponse> => {
-  
+
   return apiMutator<postOrdersOrderIdConfirmReceiptResponse>(getPostOrdersOrderIdConfirmReceiptUrl(orderId),
-  {      
+  {
     ...options,
     method: 'POST'
-    
-    
+
+
   }
 );}
 
@@ -2687,7 +2743,7 @@ export type postAdminOrdersOrderIdShipResponse409 = {
   data: ConflictResponse
   status: 409
 }
-    
+
 export type postAdminOrdersOrderIdShipResponseSuccess = (postAdminOrdersOrderIdShipResponse200) & {
   headers: Headers;
 };
@@ -2700,16 +2756,16 @@ export type postAdminOrdersOrderIdShipResponse = (postAdminOrdersOrderIdShipResp
 export const getPostAdminOrdersOrderIdShipUrl = (orderId: string,) => {
 
 
-  
+
 
   return `/admin/orders/${orderId}/ship`
 }
 
 export const postAdminOrdersOrderIdShip = async (orderId: string,
     shipOrderRequest: ShipOrderRequest, options?: RequestInit): Promise<postAdminOrdersOrderIdShipResponse> => {
-  
+
   return apiMutator<postAdminOrdersOrderIdShipResponse>(getPostAdminOrdersOrderIdShipUrl(orderId),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -2742,7 +2798,7 @@ export type postAdminOrdersOrderIdConfirmDeliveryResponse409 = {
   data: ConflictResponse
   status: 409
 }
-    
+
 export type postAdminOrdersOrderIdConfirmDeliveryResponseSuccess = (postAdminOrdersOrderIdConfirmDeliveryResponse200) & {
   headers: Headers;
 };
@@ -2755,19 +2811,19 @@ export type postAdminOrdersOrderIdConfirmDeliveryResponse = (postAdminOrdersOrde
 export const getPostAdminOrdersOrderIdConfirmDeliveryUrl = (orderId: string,) => {
 
 
-  
+
 
   return `/admin/orders/${orderId}/confirm-delivery`
 }
 
 export const postAdminOrdersOrderIdConfirmDelivery = async (orderId: string, options?: RequestInit): Promise<postAdminOrdersOrderIdConfirmDeliveryResponse> => {
-  
+
   return apiMutator<postAdminOrdersOrderIdConfirmDeliveryResponse>(getPostAdminOrdersOrderIdConfirmDeliveryUrl(orderId),
-  {      
+  {
     ...options,
     method: 'POST'
-    
-    
+
+
   }
 );}
 
@@ -2800,7 +2856,7 @@ export type patchAdminOrdersOrderIdFulfillmentResponse409 = {
   data: ConflictResponse
   status: 409
 }
-    
+
 export type patchAdminOrdersOrderIdFulfillmentResponseSuccess = (patchAdminOrdersOrderIdFulfillmentResponse200) & {
   headers: Headers;
 };
@@ -2813,16 +2869,16 @@ export type patchAdminOrdersOrderIdFulfillmentResponse = (patchAdminOrdersOrderI
 export const getPatchAdminOrdersOrderIdFulfillmentUrl = (orderId: string,) => {
 
 
-  
+
 
   return `/admin/orders/${orderId}/fulfillment`
 }
 
 export const patchAdminOrdersOrderIdFulfillment = async (orderId: string,
     updateOrderFulfillmentRequest: UpdateOrderFulfillmentRequest, options?: RequestInit): Promise<patchAdminOrdersOrderIdFulfillmentResponse> => {
-  
+
   return apiMutator<patchAdminOrdersOrderIdFulfillmentResponse>(getPatchAdminOrdersOrderIdFulfillmentUrl(orderId),
-  {      
+  {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -2850,7 +2906,7 @@ export type getAdminOrdersOrderIdEventsResponse404 = {
   data: NotFoundResponse
   status: 404
 }
-    
+
 export type getAdminOrdersOrderIdEventsResponseSuccess = (getAdminOrdersOrderIdEventsResponse200) & {
   headers: Headers;
 };
@@ -2863,19 +2919,19 @@ export type getAdminOrdersOrderIdEventsResponse = (getAdminOrdersOrderIdEventsRe
 export const getGetAdminOrdersOrderIdEventsUrl = (orderId: string,) => {
 
 
-  
+
 
   return `/admin/orders/${orderId}/events`
 }
 
 export const getAdminOrdersOrderIdEvents = async (orderId: string, options?: RequestInit): Promise<getAdminOrdersOrderIdEventsResponse> => {
-  
+
   return apiMutator<getAdminOrdersOrderIdEventsResponse>(getGetAdminOrdersOrderIdEventsUrl(orderId),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -2888,7 +2944,7 @@ export type getOrdersOrderIdTrackingResponse200 = {
   data: TrackingInfo
   status: 200
 }
-    
+
 export type getOrdersOrderIdTrackingResponseSuccess = (getOrdersOrderIdTrackingResponse200) & {
   headers: Headers;
 };
@@ -2899,19 +2955,19 @@ export type getOrdersOrderIdTrackingResponse = (getOrdersOrderIdTrackingResponse
 export const getGetOrdersOrderIdTrackingUrl = (orderId: string,) => {
 
 
-  
+
 
   return `/orders/${orderId}/tracking`
 }
 
 export const getOrdersOrderIdTracking = async (orderId: string, options?: RequestInit): Promise<getOrdersOrderIdTrackingResponse> => {
-  
+
   return apiMutator<getOrdersOrderIdTrackingResponse>(getGetOrdersOrderIdTrackingUrl(orderId),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -2925,7 +2981,7 @@ export type postOrdersOrderIdTrackingResponse200 = {
   data: TrackingInfo
   status: 200
 }
-    
+
 export type postOrdersOrderIdTrackingResponseSuccess = (postOrdersOrderIdTrackingResponse200) & {
   headers: Headers;
 };
@@ -2936,16 +2992,16 @@ export type postOrdersOrderIdTrackingResponse = (postOrdersOrderIdTrackingRespon
 export const getPostOrdersOrderIdTrackingUrl = (orderId: string,) => {
 
 
-  
+
 
   return `/orders/${orderId}/tracking`
 }
 
 export const postOrdersOrderIdTracking = async (orderId: string,
     updateTrackingRequest: UpdateTrackingRequest, options?: RequestInit): Promise<postOrdersOrderIdTrackingResponse> => {
-  
+
   return apiMutator<postOrdersOrderIdTrackingResponse>(getPostOrdersOrderIdTrackingUrl(orderId),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -2963,7 +3019,7 @@ export type getProductRequestsResponse200 = {
   data: PagedProductRequestList
   status: 200
 }
-    
+
 export type getProductRequestsResponseSuccess = (getProductRequestsResponse200) & {
   headers: Headers;
 };
@@ -2975,7 +3031,7 @@ export const getGetProductRequestsUrl = (params?: GetProductRequestsParams,) => 
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -2987,13 +3043,13 @@ export const getGetProductRequestsUrl = (params?: GetProductRequestsParams,) => 
 }
 
 export const getProductRequests = async (params?: GetProductRequestsParams, options?: RequestInit): Promise<getProductRequestsResponse> => {
-  
+
   return apiMutator<getProductRequestsResponse>(getGetProductRequestsUrl(params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -3006,7 +3062,7 @@ export type postProductRequestsResponse201 = {
   data: ProductRequest
   status: 201
 }
-    
+
 export type postProductRequestsResponseSuccess = (postProductRequestsResponse201) & {
   headers: Headers;
 };
@@ -3017,15 +3073,15 @@ export type postProductRequestsResponse = (postProductRequestsResponseSuccess)
 export const getPostProductRequestsUrl = () => {
 
 
-  
+
 
   return `/product-requests`
 }
 
 export const postProductRequests = async (createProductRequest: CreateProductRequest, options?: RequestInit): Promise<postProductRequestsResponse> => {
-  
+
   return apiMutator<postProductRequestsResponse>(getPostProductRequestsUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -3043,7 +3099,7 @@ export type postProductRequestsAssetsResponse201 = {
   data: ProductRequestAsset
   status: 201
 }
-    
+
 export type postProductRequestsAssetsResponseSuccess = (postProductRequestsAssetsResponse201) & {
   headers: Headers;
 };
@@ -3054,7 +3110,7 @@ export type postProductRequestsAssetsResponse = (postProductRequestsAssetsRespon
 export const getPostProductRequestsAssetsUrl = () => {
 
 
-  
+
 
   return `/product-requests/assets`
 }
@@ -3064,11 +3120,11 @@ export const postProductRequestsAssets = async (postProductRequestsAssetsBody: P
 formData.append(`file`, postProductRequestsAssetsBody.file)
 
   return apiMutator<postProductRequestsAssetsResponse>(getPostProductRequestsAssetsUrl(),
-  {      
+  {
     ...options,
     method: 'POST'
     ,
-    body: 
+    body:
       formData,
   }
 );}
@@ -3082,7 +3138,7 @@ export type postAdminCatalogProductsAssetsResponse201 = {
   data: ProductRequestAsset
   status: 201
 }
-    
+
 export type postAdminCatalogProductsAssetsResponseSuccess = (postAdminCatalogProductsAssetsResponse201) & {
   headers: Headers;
 };
@@ -3093,7 +3149,7 @@ export type postAdminCatalogProductsAssetsResponse = (postAdminCatalogProductsAs
 export const getPostAdminCatalogProductsAssetsUrl = () => {
 
 
-  
+
 
   return `/admin/catalog/products/assets`
 }
@@ -3103,11 +3159,11 @@ export const postAdminCatalogProductsAssets = async (postAdminCatalogProductsAss
 formData.append(`file`, postAdminCatalogProductsAssetsBody.file)
 
   return apiMutator<postAdminCatalogProductsAssetsResponse>(getPostAdminCatalogProductsAssetsUrl(),
-  {      
+  {
     ...options,
     method: 'POST'
     ,
-    body: 
+    body:
       formData,
   }
 );}
@@ -3121,7 +3177,7 @@ export type getAfterSalesTicketsResponse200 = {
   data: PagedAfterSalesTicketList
   status: 200
 }
-    
+
 export type getAfterSalesTicketsResponseSuccess = (getAfterSalesTicketsResponse200) & {
   headers: Headers;
 };
@@ -3133,7 +3189,7 @@ export const getGetAfterSalesTicketsUrl = (params?: GetAfterSalesTicketsParams,)
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -3145,13 +3201,13 @@ export const getGetAfterSalesTicketsUrl = (params?: GetAfterSalesTicketsParams,)
 }
 
 export const getAfterSalesTickets = async (params?: GetAfterSalesTicketsParams, options?: RequestInit): Promise<getAfterSalesTicketsResponse> => {
-  
+
   return apiMutator<getAfterSalesTicketsResponse>(getGetAfterSalesTicketsUrl(params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -3164,7 +3220,7 @@ export type postAfterSalesTicketsResponse201 = {
   data: AfterSalesTicket
   status: 201
 }
-    
+
 export type postAfterSalesTicketsResponseSuccess = (postAfterSalesTicketsResponse201) & {
   headers: Headers;
 };
@@ -3175,15 +3231,15 @@ export type postAfterSalesTicketsResponse = (postAfterSalesTicketsResponseSucces
 export const getPostAfterSalesTicketsUrl = () => {
 
 
-  
+
 
   return `/after-sales/tickets`
 }
 
 export const postAfterSalesTickets = async (createAfterSalesTicket: CreateAfterSalesTicket, options?: RequestInit): Promise<postAfterSalesTicketsResponse> => {
-  
+
   return apiMutator<postAfterSalesTicketsResponse>(getPostAfterSalesTicketsUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -3201,7 +3257,7 @@ export type getAfterSalesTicketsTicketIdResponse200 = {
   data: AfterSalesTicket
   status: 200
 }
-    
+
 export type getAfterSalesTicketsTicketIdResponseSuccess = (getAfterSalesTicketsTicketIdResponse200) & {
   headers: Headers;
 };
@@ -3212,19 +3268,19 @@ export type getAfterSalesTicketsTicketIdResponse = (getAfterSalesTicketsTicketId
 export const getGetAfterSalesTicketsTicketIdUrl = (ticketId: string,) => {
 
 
-  
+
 
   return `/after-sales/tickets/${ticketId}`
 }
 
 export const getAfterSalesTicketsTicketId = async (ticketId: string, options?: RequestInit): Promise<getAfterSalesTicketsTicketIdResponse> => {
-  
+
   return apiMutator<getAfterSalesTicketsTicketIdResponse>(getGetAfterSalesTicketsTicketIdUrl(ticketId),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -3237,7 +3293,7 @@ export type patchAfterSalesTicketsTicketIdResponse200 = {
   data: AfterSalesTicket
   status: 200
 }
-    
+
 export type patchAfterSalesTicketsTicketIdResponseSuccess = (patchAfterSalesTicketsTicketIdResponse200) & {
   headers: Headers;
 };
@@ -3248,16 +3304,16 @@ export type patchAfterSalesTicketsTicketIdResponse = (patchAfterSalesTicketsTick
 export const getPatchAfterSalesTicketsTicketIdUrl = (ticketId: string,) => {
 
 
-  
+
 
   return `/after-sales/tickets/${ticketId}`
 }
 
 export const patchAfterSalesTicketsTicketId = async (ticketId: string,
     updateAfterSalesTicketRequest: UpdateAfterSalesTicketRequest, options?: RequestInit): Promise<patchAfterSalesTicketsTicketIdResponse> => {
-  
+
   return apiMutator<patchAfterSalesTicketsTicketIdResponse>(getPatchAfterSalesTicketsTicketIdUrl(ticketId),
-  {      
+  {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -3275,7 +3331,7 @@ export type getAfterSalesTicketsTicketIdMessagesResponse200 = {
   data: PagedAfterSalesMessageList
   status: 200
 }
-    
+
 export type getAfterSalesTicketsTicketIdMessagesResponseSuccess = (getAfterSalesTicketsTicketIdMessagesResponse200) & {
   headers: Headers;
 };
@@ -3288,7 +3344,7 @@ export const getGetAfterSalesTicketsTicketIdMessagesUrl = (ticketId: string,
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -3301,13 +3357,13 @@ export const getGetAfterSalesTicketsTicketIdMessagesUrl = (ticketId: string,
 
 export const getAfterSalesTicketsTicketIdMessages = async (ticketId: string,
     params?: GetAfterSalesTicketsTicketIdMessagesParams, options?: RequestInit): Promise<getAfterSalesTicketsTicketIdMessagesResponse> => {
-  
+
   return apiMutator<getAfterSalesTicketsTicketIdMessagesResponse>(getGetAfterSalesTicketsTicketIdMessagesUrl(ticketId,params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -3320,7 +3376,7 @@ export type postAfterSalesTicketsTicketIdMessagesResponse201 = {
   data: AfterSalesMessage
   status: 201
 }
-    
+
 export type postAfterSalesTicketsTicketIdMessagesResponseSuccess = (postAfterSalesTicketsTicketIdMessagesResponse201) & {
   headers: Headers;
 };
@@ -3331,16 +3387,16 @@ export type postAfterSalesTicketsTicketIdMessagesResponse = (postAfterSalesTicke
 export const getPostAfterSalesTicketsTicketIdMessagesUrl = (ticketId: string,) => {
 
 
-  
+
 
   return `/after-sales/tickets/${ticketId}/messages`
 }
 
 export const postAfterSalesTicketsTicketIdMessages = async (ticketId: string,
     createTicketMessage: CreateTicketMessage, options?: RequestInit): Promise<postAfterSalesTicketsTicketIdMessagesResponse> => {
-  
+
   return apiMutator<postAfterSalesTicketsTicketIdMessagesResponse>(getPostAfterSalesTicketsTicketIdMessagesUrl(ticketId),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -3358,7 +3414,7 @@ export type getInquiriesPriceResponse200 = {
   data: PagedPriceInquiryList
   status: 200
 }
-    
+
 export type getInquiriesPriceResponseSuccess = (getInquiriesPriceResponse200) & {
   headers: Headers;
 };
@@ -3370,7 +3426,7 @@ export const getGetInquiriesPriceUrl = (params?: GetInquiriesPriceParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -3382,13 +3438,13 @@ export const getGetInquiriesPriceUrl = (params?: GetInquiriesPriceParams,) => {
 }
 
 export const getInquiriesPrice = async (params?: GetInquiriesPriceParams, options?: RequestInit): Promise<getInquiriesPriceResponse> => {
-  
+
   return apiMutator<getInquiriesPriceResponse>(getGetInquiriesPriceUrl(params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -3401,7 +3457,7 @@ export type postInquiriesPriceResponse201 = {
   data: PriceInquiry
   status: 201
 }
-    
+
 export type postInquiriesPriceResponseSuccess = (postInquiriesPriceResponse201) & {
   headers: Headers;
 };
@@ -3412,15 +3468,15 @@ export type postInquiriesPriceResponse = (postInquiriesPriceResponseSuccess)
 export const getPostInquiriesPriceUrl = () => {
 
 
-  
+
 
   return `/inquiries/price`
 }
 
 export const postInquiriesPrice = async (createPriceInquiry: CreatePriceInquiry, options?: RequestInit): Promise<postInquiriesPriceResponse> => {
-  
+
   return apiMutator<postInquiriesPriceResponse>(getPostInquiriesPriceUrl(),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -3438,7 +3494,7 @@ export type getInquiriesPriceInquiryIdResponse200 = {
   data: PriceInquiry
   status: 200
 }
-    
+
 export type getInquiriesPriceInquiryIdResponseSuccess = (getInquiriesPriceInquiryIdResponse200) & {
   headers: Headers;
 };
@@ -3449,19 +3505,19 @@ export type getInquiriesPriceInquiryIdResponse = (getInquiriesPriceInquiryIdResp
 export const getGetInquiriesPriceInquiryIdUrl = (inquiryId: string,) => {
 
 
-  
+
 
   return `/inquiries/price/${inquiryId}`
 }
 
 export const getInquiriesPriceInquiryId = async (inquiryId: string, options?: RequestInit): Promise<getInquiriesPriceInquiryIdResponse> => {
-  
+
   return apiMutator<getInquiriesPriceInquiryIdResponse>(getGetInquiriesPriceInquiryIdUrl(inquiryId),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -3474,7 +3530,7 @@ export type patchInquiriesPriceInquiryIdResponse200 = {
   data: PriceInquiry
   status: 200
 }
-    
+
 export type patchInquiriesPriceInquiryIdResponseSuccess = (patchInquiriesPriceInquiryIdResponse200) & {
   headers: Headers;
 };
@@ -3485,16 +3541,16 @@ export type patchInquiriesPriceInquiryIdResponse = (patchInquiriesPriceInquiryId
 export const getPatchInquiriesPriceInquiryIdUrl = (inquiryId: string,) => {
 
 
-  
+
 
   return `/inquiries/price/${inquiryId}`
 }
 
 export const patchInquiriesPriceInquiryId = async (inquiryId: string,
     updatePriceInquiryRequest: UpdatePriceInquiryRequest, options?: RequestInit): Promise<patchInquiriesPriceInquiryIdResponse> => {
-  
+
   return apiMutator<patchInquiriesPriceInquiryIdResponse>(getPatchInquiriesPriceInquiryIdUrl(inquiryId),
-  {      
+  {
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -3512,7 +3568,7 @@ export type getInquiriesPriceInquiryIdMessagesResponse200 = {
   data: PagedInquiryMessageList
   status: 200
 }
-    
+
 export type getInquiriesPriceInquiryIdMessagesResponseSuccess = (getInquiriesPriceInquiryIdMessagesResponse200) & {
   headers: Headers;
 };
@@ -3525,7 +3581,7 @@ export const getGetInquiriesPriceInquiryIdMessagesUrl = (inquiryId: string,
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -3538,13 +3594,13 @@ export const getGetInquiriesPriceInquiryIdMessagesUrl = (inquiryId: string,
 
 export const getInquiriesPriceInquiryIdMessages = async (inquiryId: string,
     params?: GetInquiriesPriceInquiryIdMessagesParams, options?: RequestInit): Promise<getInquiriesPriceInquiryIdMessagesResponse> => {
-  
+
   return apiMutator<getInquiriesPriceInquiryIdMessagesResponse>(getGetInquiriesPriceInquiryIdMessagesUrl(inquiryId,params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -3557,7 +3613,7 @@ export type postInquiriesPriceInquiryIdMessagesResponse201 = {
   data: InquiryMessage
   status: 201
 }
-    
+
 export type postInquiriesPriceInquiryIdMessagesResponseSuccess = (postInquiriesPriceInquiryIdMessagesResponse201) & {
   headers: Headers;
 };
@@ -3568,16 +3624,16 @@ export type postInquiriesPriceInquiryIdMessagesResponse = (postInquiriesPriceInq
 export const getPostInquiriesPriceInquiryIdMessagesUrl = (inquiryId: string,) => {
 
 
-  
+
 
   return `/inquiries/price/${inquiryId}/messages`
 }
 
 export const postInquiriesPriceInquiryIdMessages = async (inquiryId: string,
     createInquiryMessage: CreateInquiryMessage, options?: RequestInit): Promise<postInquiriesPriceInquiryIdMessagesResponse> => {
-  
+
   return apiMutator<postInquiriesPriceInquiryIdMessagesResponse>(getPostInquiriesPriceInquiryIdMessagesUrl(inquiryId),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -3595,7 +3651,7 @@ export type getSupportConversationsCurrentResponse200 = {
   data: SupportConversation
   status: 200
 }
-    
+
 export type getSupportConversationsCurrentResponseSuccess = (getSupportConversationsCurrentResponse200) & {
   headers: Headers;
 };
@@ -3606,19 +3662,19 @@ export type getSupportConversationsCurrentResponse = (getSupportConversationsCur
 export const getGetSupportConversationsCurrentUrl = () => {
 
 
-  
+
 
   return `/support/conversations/current`
 }
 
 export const getSupportConversationsCurrent = async ( options?: RequestInit): Promise<getSupportConversationsCurrentResponse> => {
-  
+
   return apiMutator<getSupportConversationsCurrentResponse>(getGetSupportConversationsCurrentUrl(),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -3631,7 +3687,7 @@ export type getSupportConversationsConversationIdMessagesResponse200 = {
   data: PagedSupportMessageList
   status: 200
 }
-    
+
 export type getSupportConversationsConversationIdMessagesResponseSuccess = (getSupportConversationsConversationIdMessagesResponse200) & {
   headers: Headers;
 };
@@ -3644,7 +3700,7 @@ export const getGetSupportConversationsConversationIdMessagesUrl = (conversation
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -3657,13 +3713,13 @@ export const getGetSupportConversationsConversationIdMessagesUrl = (conversation
 
 export const getSupportConversationsConversationIdMessages = async (conversationId: string,
     params?: GetSupportConversationsConversationIdMessagesParams, options?: RequestInit): Promise<getSupportConversationsConversationIdMessagesResponse> => {
-  
+
   return apiMutator<getSupportConversationsConversationIdMessagesResponse>(getGetSupportConversationsConversationIdMessagesUrl(conversationId,params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -3676,7 +3732,7 @@ export type postSupportConversationsConversationIdMessagesResponse201 = {
   data: SupportMessage
   status: 201
 }
-    
+
 export type postSupportConversationsConversationIdMessagesResponseSuccess = (postSupportConversationsConversationIdMessagesResponse201) & {
   headers: Headers;
 };
@@ -3687,16 +3743,16 @@ export type postSupportConversationsConversationIdMessagesResponse = (postSuppor
 export const getPostSupportConversationsConversationIdMessagesUrl = (conversationId: string,) => {
 
 
-  
+
 
   return `/support/conversations/${conversationId}/messages`
 }
 
 export const postSupportConversationsConversationIdMessages = async (conversationId: string,
     createSupportMessageRequest: CreateSupportMessageRequest, options?: RequestInit): Promise<postSupportConversationsConversationIdMessagesResponse> => {
-  
+
   return apiMutator<postSupportConversationsConversationIdMessagesResponse>(getPostSupportConversationsConversationIdMessagesUrl(conversationId),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -3714,7 +3770,7 @@ export type postSupportConversationsConversationIdMessagesImageResponse201 = {
   data: SupportMessageAsset
   status: 201
 }
-    
+
 export type postSupportConversationsConversationIdMessagesImageResponseSuccess = (postSupportConversationsConversationIdMessagesImageResponse201) & {
   headers: Headers;
 };
@@ -3725,7 +3781,7 @@ export type postSupportConversationsConversationIdMessagesImageResponse = (postS
 export const getPostSupportConversationsConversationIdMessagesImageUrl = (conversationId: string,) => {
 
 
-  
+
 
   return `/support/conversations/${conversationId}/messages/image`
 }
@@ -3736,11 +3792,11 @@ export const postSupportConversationsConversationIdMessagesImage = async (conver
 formData.append(`file`, postSupportConversationsConversationIdMessagesImageBody.file)
 
   return apiMutator<postSupportConversationsConversationIdMessagesImageResponse>(getPostSupportConversationsConversationIdMessagesImageUrl(conversationId),
-  {      
+  {
     ...options,
     method: 'POST'
     ,
-    body: 
+    body:
       formData,
   }
 );}
@@ -3754,7 +3810,7 @@ export type postSupportConversationsConversationIdReadResponse200 = {
   data: SupportConversation
   status: 200
 }
-    
+
 export type postSupportConversationsConversationIdReadResponseSuccess = (postSupportConversationsConversationIdReadResponse200) & {
   headers: Headers;
 };
@@ -3765,19 +3821,19 @@ export type postSupportConversationsConversationIdReadResponse = (postSupportCon
 export const getPostSupportConversationsConversationIdReadUrl = (conversationId: string,) => {
 
 
-  
+
 
   return `/support/conversations/${conversationId}/read`
 }
 
 export const postSupportConversationsConversationIdRead = async (conversationId: string, options?: RequestInit): Promise<postSupportConversationsConversationIdReadResponse> => {
-  
+
   return apiMutator<postSupportConversationsConversationIdReadResponse>(getPostSupportConversationsConversationIdReadUrl(conversationId),
-  {      
+  {
     ...options,
     method: 'POST'
-    
-    
+
+
   }
 );}
 
@@ -3791,7 +3847,7 @@ export type getAdminSupportConversationsResponse200 = {
   data: PagedSupportConversationList
   status: 200
 }
-    
+
 export type getAdminSupportConversationsResponseSuccess = (getAdminSupportConversationsResponse200) & {
   headers: Headers;
 };
@@ -3803,7 +3859,7 @@ export const getGetAdminSupportConversationsUrl = (params?: GetAdminSupportConve
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
-    
+
     if (value !== undefined) {
       normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
@@ -3815,13 +3871,13 @@ export const getGetAdminSupportConversationsUrl = (params?: GetAdminSupportConve
 }
 
 export const getAdminSupportConversations = async (params?: GetAdminSupportConversationsParams, options?: RequestInit): Promise<getAdminSupportConversationsResponse> => {
-  
+
   return apiMutator<getAdminSupportConversationsResponse>(getGetAdminSupportConversationsUrl(params),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -3834,7 +3890,7 @@ export type getAdminSupportConversationsConversationIdResponse200 = {
   data: SupportConversationDetail
   status: 200
 }
-    
+
 export type getAdminSupportConversationsConversationIdResponseSuccess = (getAdminSupportConversationsConversationIdResponse200) & {
   headers: Headers;
 };
@@ -3845,19 +3901,19 @@ export type getAdminSupportConversationsConversationIdResponse = (getAdminSuppor
 export const getGetAdminSupportConversationsConversationIdUrl = (conversationId: string,) => {
 
 
-  
+
 
   return `/admin/support/conversations/${conversationId}`
 }
 
 export const getAdminSupportConversationsConversationId = async (conversationId: string, options?: RequestInit): Promise<getAdminSupportConversationsConversationIdResponse> => {
-  
+
   return apiMutator<getAdminSupportConversationsConversationIdResponse>(getGetAdminSupportConversationsConversationIdUrl(conversationId),
-  {      
+  {
     ...options,
     method: 'GET'
-    
-    
+
+
   }
 );}
 
@@ -3870,7 +3926,7 @@ export type postAdminSupportConversationsConversationIdClaimResponse200 = {
   data: SupportConversation
   status: 200
 }
-    
+
 export type postAdminSupportConversationsConversationIdClaimResponseSuccess = (postAdminSupportConversationsConversationIdClaimResponse200) & {
   headers: Headers;
 };
@@ -3881,19 +3937,19 @@ export type postAdminSupportConversationsConversationIdClaimResponse = (postAdmi
 export const getPostAdminSupportConversationsConversationIdClaimUrl = (conversationId: string,) => {
 
 
-  
+
 
   return `/admin/support/conversations/${conversationId}/claim`
 }
 
 export const postAdminSupportConversationsConversationIdClaim = async (conversationId: string, options?: RequestInit): Promise<postAdminSupportConversationsConversationIdClaimResponse> => {
-  
+
   return apiMutator<postAdminSupportConversationsConversationIdClaimResponse>(getPostAdminSupportConversationsConversationIdClaimUrl(conversationId),
-  {      
+  {
     ...options,
     method: 'POST'
-    
-    
+
+
   }
 );}
 
@@ -3906,7 +3962,7 @@ export type postAdminSupportConversationsConversationIdReleaseResponse200 = {
   data: SupportConversation
   status: 200
 }
-    
+
 export type postAdminSupportConversationsConversationIdReleaseResponseSuccess = (postAdminSupportConversationsConversationIdReleaseResponse200) & {
   headers: Headers;
 };
@@ -3917,19 +3973,19 @@ export type postAdminSupportConversationsConversationIdReleaseResponse = (postAd
 export const getPostAdminSupportConversationsConversationIdReleaseUrl = (conversationId: string,) => {
 
 
-  
+
 
   return `/admin/support/conversations/${conversationId}/release`
 }
 
 export const postAdminSupportConversationsConversationIdRelease = async (conversationId: string, options?: RequestInit): Promise<postAdminSupportConversationsConversationIdReleaseResponse> => {
-  
+
   return apiMutator<postAdminSupportConversationsConversationIdReleaseResponse>(getPostAdminSupportConversationsConversationIdReleaseUrl(conversationId),
-  {      
+  {
     ...options,
     method: 'POST'
-    
-    
+
+
   }
 );}
 
@@ -3942,7 +3998,7 @@ export type postAdminSupportConversationsConversationIdTransferResponse200 = {
   data: SupportConversation
   status: 200
 }
-    
+
 export type postAdminSupportConversationsConversationIdTransferResponseSuccess = (postAdminSupportConversationsConversationIdTransferResponse200) & {
   headers: Headers;
 };
@@ -3953,16 +4009,16 @@ export type postAdminSupportConversationsConversationIdTransferResponse = (postA
 export const getPostAdminSupportConversationsConversationIdTransferUrl = (conversationId: string,) => {
 
 
-  
+
 
   return `/admin/support/conversations/${conversationId}/transfer`
 }
 
 export const postAdminSupportConversationsConversationIdTransfer = async (conversationId: string,
     transferSupportConversationRequest: TransferSupportConversationRequest, options?: RequestInit): Promise<postAdminSupportConversationsConversationIdTransferResponse> => {
-  
+
   return apiMutator<postAdminSupportConversationsConversationIdTransferResponse>(getPostAdminSupportConversationsConversationIdTransferUrl(conversationId),
-  {      
+  {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -3981,7 +4037,7 @@ export type postShipmentsImportJobsResponse202 = {
   data: ImportJob
   status: 202
 }
-    
+
 export type postShipmentsImportJobsResponseSuccess = (postShipmentsImportJobsResponse202) & {
   headers: Headers;
 };
@@ -3992,7 +4048,7 @@ export type postShipmentsImportJobsResponse = (postShipmentsImportJobsResponseSu
 export const getPostShipmentsImportJobsUrl = () => {
 
 
-  
+
 
   return `/shipments/import-jobs`
 }
@@ -4002,11 +4058,11 @@ export const postShipmentsImportJobs = async (postShipmentsImportJobsBody: PostS
 formData.append(`excelFile`, postShipmentsImportJobsBody.excelFile)
 
   return apiMutator<postShipmentsImportJobsResponse>(getPostShipmentsImportJobsUrl(),
-  {      
+  {
     ...options,
     method: 'POST'
     ,
-    body: 
+    body:
       formData,
   }
 );}

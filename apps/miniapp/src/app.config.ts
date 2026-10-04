@@ -26,6 +26,7 @@ export default defineAppConfig({
     'pages/account/address/index',
     'pages/profile/edit/index',
     'pages/import/index',
+    'pages/import/confirm/index',
     'pages/tracking/batch/index',
     'pages/settings/index',
     'pages/policy/index',

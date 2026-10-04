@@ -1,0 +1,4 @@
+@config "../../../styles/themes/product-requests.config.cjs";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

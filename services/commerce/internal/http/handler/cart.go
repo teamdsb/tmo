@@ -401,111 +401,34 @@ func (h *Handler) PostCartImportJobsJobIdConfirm(c *gin.Context, jobId types.UUI
 	if !ok {
 		return
 	}
-
-	job, err := h.CartStore.GetCartImportJob(c.Request.Context(), jobId)
-	if err != nil {
-		h.logError("get cart import job failed", err)
-		h.writeError(c, http.StatusNotFound, "not_found", "import job not found")
-		return
-	}
-	if job.OwnerUserID != claims.UserID {
-		h.writeError(c, http.StatusNotFound, "not_found", "import job not found")
-		return
-	}
-
 	var request oapi.ConfirmCartImportRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		h.writeError(c, http.StatusBadRequest, "invalid_request", "invalid request body")
 		return
 	}
-
-	rows, err := h.CartStore.ListCartImportRows(c.Request.Context(), job.ID)
-	if err != nil {
-		h.logError("list import rows failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to confirm import job")
-		return
-	}
-	rowByNo := map[int]int{}
-	for i, row := range rows {
-		rowByNo[int(row.RowNo)] = i
-	}
-
-	for _, selection := range request.Selections {
-		index, ok := rowByNo[selection.RowNo]
-		if !ok {
-			continue
-		}
-		row := rows[index]
-
-		qty := int32(1)
-		if selection.Qty != nil {
-			qty = clampInt32(*selection.Qty)
-		} else if row.RawQty != nil {
-			if parsed, ok := parseQty(*row.RawQty); ok {
-				qty = parsed
+	if err := h.confirmCartImport(c.Request.Context(), claims.UserID, jobId, request); err != nil {
+		var validation cartImportConfirmationError
+		if errors.As(err, &validation) {
+			code := "invalid_request"
+			if validation.status == http.StatusNotFound {
+				code = "not_found"
 			}
-		}
-		if qty < 1 {
-			h.writeError(c, http.StatusBadRequest, "invalid_request", "qty must be >= 1")
-			return
-		}
-
-		if err := h.CartStore.UpdateCartImportRowSelection(c.Request.Context(), db.UpdateCartImportRowSelectionParams{
-			JobID:         job.ID,
-			SelectedSkuID: pgtype.UUID{Bytes: selection.SkuId, Valid: true},
-			SelectedQty:   &qty,
-			RowNo:         clampInt32(selection.RowNo),
-		}); err != nil {
-			h.logError("update import row failed", err)
+			if validation.status == http.StatusConflict {
+				code = "conflict"
+			}
+			h.writeError(c, validation.status, code, validation.message)
+		} else {
+			h.logError("confirm import transaction failed", err)
 			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to confirm import job")
-			return
 		}
-
-		_, err = h.CartStore.UpsertCartItem(c.Request.Context(), db.UpsertCartItemParams{
-			OwnerUserID: claims.UserID,
-			SkuID:       selection.SkuId,
-			Qty:         qty,
-		})
-		if err != nil {
-			h.logError("add cart item failed", err)
-			h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to confirm import job")
-			return
-		}
-	}
-
-	rows, err = h.CartStore.ListCartImportRows(c.Request.Context(), job.ID)
-	if err != nil {
-		h.logError("list import rows failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to confirm import job")
 		return
 	}
-
-	_, autoCount, pendingCount, err := h.buildCartImportResult(c.Request.Context(), rows)
-	if err != nil {
-		h.logError("build import result failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to confirm import job")
-		return
-	}
-
-	if err := h.CartStore.UpdateCartImportJobCounts(c.Request.Context(), db.UpdateCartImportJobCountsParams{
-		ID:             job.ID,
-		AutoAddedCount: autoCount,
-		PendingCount:   pendingCount,
-		Status:         string(oapi.SUCCEEDED),
-		Progress:       100,
-	}); err != nil {
-		h.logError("update import job failed", err)
-		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to confirm import job")
-		return
-	}
-
 	cart, err := h.buildCartResponse(c.Request.Context(), claims.UserID)
 	if err != nil {
 		h.logError("get cart failed", err)
 		h.writeError(c, http.StatusInternalServerError, "internal_error", "failed to fetch cart")
 		return
 	}
-
 	c.JSON(http.StatusOK, cart)
 }
 

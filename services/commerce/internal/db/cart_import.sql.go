@@ -158,6 +158,29 @@ func (q *Queries) GetCartImportJob(ctx context.Context, id uuid.UUID) (CartImpor
 	return i, err
 }
 
+const getCartImportJobForUpdate = `-- name: GetCartImportJobForUpdate :one
+SELECT id, owner_user_id, status, progress, auto_added_count, pending_count, created_at, updated_at
+FROM cart_import_jobs
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) GetCartImportJobForUpdate(ctx context.Context, id uuid.UUID) (CartImportJob, error) {
+	row := q.db.QueryRow(ctx, getCartImportJobForUpdate, id)
+	var i CartImportJob
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerUserID,
+		&i.Status,
+		&i.Progress,
+		&i.AutoAddedCount,
+		&i.PendingCount,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const listCartImportRows = `-- name: ListCartImportRows :many
 SELECT id, job_id, row_no, raw_name, raw_spec, raw_qty, match_type, sku_id, qty, candidate_sku_ids, selected_sku_id, selected_qty, created_at, updated_at
 FROM cart_import_rows

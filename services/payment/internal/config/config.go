@@ -7,6 +7,7 @@ import (
 	"time"
 
 	sharedconfig "github.com/teamdsb/tmo/packages/go-shared/config"
+	"github.com/teamdsb/tmo/services/payment/internal/reconciliation"
 )
 
 const (
@@ -55,6 +56,10 @@ type Config struct {
 	WechatB2BAppKey              string
 	WechatB2BEnvironment         int
 	WechatB2BSessionURL          string
+	ReconciliationEnabled        bool
+	ReconciliationPollInterval   time.Duration
+	ReconciliationJobTimeout     time.Duration
+	ReconciliationLease          time.Duration
 }
 
 func Load() Config {
@@ -86,12 +91,24 @@ func Load() Config {
 		WechatB2BAppKey:              sharedconfig.String("PAYMENT_WECHAT_B2B_APP_KEY", ""),
 		WechatB2BEnvironment:         sharedconfig.Int("PAYMENT_WECHAT_B2B_ENV", 0),
 		WechatB2BSessionURL:          sharedconfig.String("PAYMENT_WECHAT_B2B_SESSION_URL", defaultWechatB2BSessionURL),
+		ReconciliationEnabled:        sharedconfig.Bool("PAYMENT_RECONCILIATION_ENABLED", true),
+		ReconciliationPollInterval:   sharedconfig.Duration("PAYMENT_RECONCILIATION_POLL_INTERVAL", reconciliation.DefaultPollInterval),
+		ReconciliationJobTimeout:     sharedconfig.Duration("PAYMENT_RECONCILIATION_JOB_TIMEOUT", reconciliation.DefaultJobTimeout),
+		ReconciliationLease:          sharedconfig.Duration("PAYMENT_RECONCILIATION_LEASE_DURATION", reconciliation.DefaultLease),
 	}
 }
 
 func (c Config) Validate() error {
 	if c.AuthEnabled && strings.TrimSpace(c.JWTSecret) == "" {
 		return errors.New("PAYMENT_JWT_SECRET is required when PAYMENT_AUTH_ENABLED is true")
+	}
+	if c.ReconciliationEnabled {
+		if c.ReconciliationPollInterval < time.Millisecond || c.ReconciliationJobTimeout < time.Millisecond || c.ReconciliationLease <= c.ReconciliationJobTimeout {
+			return errors.New("payment reconciliation intervals must be at least 1ms and lease must exceed job timeout")
+		}
+		if strings.TrimSpace(c.CommerceBaseURL) == "" || strings.TrimSpace(c.CommerceSyncToken) == "" {
+			return errors.New("payment reconciliation requires PAYMENT_COMMERCE_BASE_URL and PAYMENT_COMMERCE_SYNC_TOKEN")
+		}
 	}
 	if strings.EqualFold(strings.TrimSpace(c.ProviderMode), "b2b") {
 		if !c.AuthEnabled {

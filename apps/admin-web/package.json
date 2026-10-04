@@ -14,12 +14,17 @@
     "test:e2e:mock": "playwright test -c playwright.e2e.mock.config.mjs",
     "test:e2e:hybrid": "playwright test -c playwright.e2e.hybrid.config.mjs",
     "test:e2e:resilience": "playwright test -c playwright.e2e.hybrid.config.mjs tests/e2e/resilience.hybrid.spec.ts",
-    "test:e2e:ci": "pnpm run test:e2e:mock && pnpm run test:e2e:resilience",
+    "test:e2e:prefix": "playwright test -c playwright.e2e.prefix.config.mjs",
+    "check:assets": "node scripts/check-built-assets.mjs",
+    "test:config": "node --test scripts/real-config.test.mjs",
+    "test:e2e:ci": "pnpm run test:config && pnpm run check:assets && pnpm run test:e2e:mock && pnpm run test:e2e:hybrid && pnpm run test:e2e:prefix",
     "test:visual": "playwright test -c playwright.visual.config.mjs",
     "test:e2e:real": "playwright test -c playwright.e2e.real.config.mjs",
     "test:e2e:real:support": "playwright test -c playwright.e2e.real.config.mjs tests/e2e/support-real.spec.ts"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "5.3.0",
+    "@fontsource-variable/material-symbols-outlined": "5.3.8",
     "@tmo/api-client": "workspace:*",
     "@tmo/gateway-api-client": "workspace:*",
     "@tmo/identity-api-client": "workspace:*",
@@ -32,12 +37,17 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@tailwindcss/container-queries": "0.1.1",
+    "@tailwindcss/forms": "0.5.11",
     "@playwright/test": "^1.54.2",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "10.4.23",
     "pixelmatch": "^7.1.0",
     "pngjs": "^7.0.0",
+    "postcss": "8.5.6",
+    "tailwindcss": "3.4.19",
     "typescript": "^5.9.2",
     "vite": "4.5.14"
   }

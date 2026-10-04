@@ -106,6 +106,45 @@ func (q *Queries) ListSkusByIDs(ctx context.Context, dollar_1 []uuid.UUID) ([]Ca
 	return items, nil
 }
 
+const listSkusByIDsForNoKeyUpdate = `-- name: ListSkusByIDsForNoKeyUpdate :many
+SELECT id, product_id, sku_code, name, spec, attributes, unit, is_active, created_at, updated_at
+FROM catalog_skus
+WHERE id = ANY($1::uuid[])
+ORDER BY id
+FOR NO KEY UPDATE
+`
+
+func (q *Queries) ListSkusByIDsForNoKeyUpdate(ctx context.Context, dollar_1 []uuid.UUID) ([]CatalogSku, error) {
+	rows, err := q.db.Query(ctx, listSkusByIDsForNoKeyUpdate, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CatalogSku
+	for rows.Next() {
+		var i CatalogSku
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProductID,
+			&i.SkuCode,
+			&i.Name,
+			&i.Spec,
+			&i.Attributes,
+			&i.Unit,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSkusByName = `-- name: ListSkusByName :many
 SELECT id, product_id, sku_code, name, spec, attributes, unit, is_active, created_at, updated_at
 FROM catalog_skus

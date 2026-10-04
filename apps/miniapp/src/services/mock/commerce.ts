@@ -218,8 +218,7 @@ const getFileNameFromPath = (filePath: string): string => {
 }
 
 const toSortableTimestamp = (order: Order) => {
-  const candidate = order.updatedAt ?? order.createdAt
-  const timestamp = Date.parse(candidate)
+  const timestamp = Date.parse(order.createdAt)
   return Number.isNaN(timestamp) ? 0 : timestamp
 }
 
@@ -526,12 +525,16 @@ export const createMockCommerceServices = (): CommerceServices => {
       return order
     },
     list: async (params) => {
+      if (params?.statuses && (params.status || params.statuses.length === 0)) {
+        throw Object.assign(new Error('provide either status or a non-empty statuses filter'), { statusCode: 400 })
+      }
       const state = await loadIsolatedMockState()
-      const filtered = params?.status
-        ? state.orders.filter((order) => order.status === params.status)
+      const statuses = params?.statuses ?? (params?.status ? [params.status] : undefined)
+      const filtered = statuses
+        ? state.orders.filter((order) => statuses.includes(order.status))
         : state.orders
-      const sorted = [...filtered].sort((left, right) => toSortableTimestamp(right) - toSortableTimestamp(left))
-      return paginate(sorted, params?.page, params?.pageSize)
+      const sorted = [...filtered].sort((left, right) => toSortableTimestamp(right) - toSortableTimestamp(left) || right.id.localeCompare(left.id))
+      return paginate(sorted, params?.page, params?.pageSize ?? 20)
     },
     stats: async () => {
       const state = await loadIsolatedMockState()

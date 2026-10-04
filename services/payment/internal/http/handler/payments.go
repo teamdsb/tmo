@@ -213,7 +213,7 @@ func (h *Handler) handleWechatNotify(c *gin.Context) {
 		h.logError("create payment webhook failed", err)
 	}
 	if resolution.Status != paymentStatusPending {
-		if _, err := h.applyPaymentResolution(c, payment, resolution.Status, tradeNo, normalizeOptionalString(&resolution.Reason)); err != nil {
+		if _, err := h.applyPaymentResolution(c.Request.Context(), payment, resolution.Status, tradeNo, normalizeOptionalString(&resolution.Reason)); err != nil {
 			h.writePaymentError(c, err)
 			return
 		}
@@ -281,7 +281,7 @@ func (h *Handler) handleNotify(c *gin.Context, channel string) {
 		h.logError("create payment webhook failed", err)
 	}
 
-	updated, err := h.applyPaymentResolution(c, payment, normalized.Status, normalized.ProviderTradeNo, nil)
+	updated, err := h.applyPaymentResolution(c.Request.Context(), payment, normalized.Status, normalized.ProviderTradeNo, nil)
 	if err != nil {
 		h.writePaymentError(c, err)
 		return
@@ -595,11 +595,11 @@ func (h *Handler) resolvePaymentFromClientResult(c *gin.Context, payment db.Paym
 	case "MOCK":
 		switch strings.ToUpper(strings.TrimSpace(clientResult)) {
 		case "SUCCESS":
-			return h.applyPaymentResolution(c, payment, paymentStatusPaid, payment.ProviderTradeNo, nil)
+			return h.applyPaymentResolution(c.Request.Context(), payment, paymentStatusPaid, payment.ProviderTradeNo, nil)
 		case "FAILED":
-			return h.applyPaymentResolution(c, payment, paymentStatusFailed, payment.ProviderTradeNo, reason)
+			return h.applyPaymentResolution(c.Request.Context(), payment, paymentStatusFailed, payment.ProviderTradeNo, reason)
 		case "CANCELLED":
-			return h.applyPaymentResolution(c, payment, paymentStatusCancelled, payment.ProviderTradeNo, reason)
+			return h.applyPaymentResolution(c.Request.Context(), payment, paymentStatusCancelled, payment.ProviderTradeNo, reason)
 		default:
 			return payment, nil
 		}
@@ -617,7 +617,7 @@ func (h *Handler) resolvePaymentFromClientResult(c *gin.Context, payment db.Paym
 		if resolution.Status == paymentStatusPending {
 			return payment, nil
 		}
-		return h.applyPaymentResolution(c, payment, resolution.Status, normalizeOptionalString(&resolution.ProviderTradeNo), normalizeOptionalString(&resolution.Reason))
+		return h.applyPaymentResolution(c.Request.Context(), payment, resolution.Status, normalizeOptionalString(&resolution.ProviderTradeNo), normalizeOptionalString(&resolution.Reason))
 	case "B2B":
 		if payment.Channel != paymentChannelWechatB2B || h.WechatB2B == nil {
 			return payment, nil
@@ -629,29 +629,31 @@ func (h *Handler) resolvePaymentFromClientResult(c *gin.Context, payment db.Paym
 		if resolution.Status == paymentStatusPending {
 			return payment, nil
 		}
-		return h.applyPaymentResolution(c, payment, resolution.Status, normalizeOptionalString(&resolution.ProviderTradeNo), nil)
+		return h.applyPaymentResolution(c.Request.Context(), payment, resolution.Status, normalizeOptionalString(&resolution.ProviderTradeNo), nil)
 	default:
 		return payment, nil
 	}
 }
 
-func (h *Handler) applyPaymentResolution(c *gin.Context, payment db.Payment, status string, providerTradeNo *string, reason *string) (db.Payment, error) {
+func (h *Handler) applyPaymentResolution(ctx context.Context, payment db.Payment, status string, providerTradeNo *string, reason *string) (db.Payment, error) {
+	updated, err := h.persistPaymentResolution(ctx, payment, status, providerTradeNo, reason)
+	if err != nil {
+		return updated, err
+	}
+	if err := h.syncPaymentToCommerce(ctx, updated); err != nil {
+		return updated, errInternal(fmt.Sprintf("sync order payment failed: %v", err))
+	}
+	return updated, nil
+}
+
+func (h *Handler) persistPaymentResolution(ctx context.Context, payment db.Payment, status string, providerTradeNo *string, reason *string) (db.Payment, error) {
 	normalizedStatus := strings.ToUpper(strings.TrimSpace(status))
 	switch normalizedStatus {
 	case paymentStatusPaid, paymentStatusFailed, paymentStatusCancelled:
 	default:
 		return payment, errBadRequest("invalid payment status")
 	}
-	if payment.Status == normalizedStatus {
-		if err := h.syncPaymentToCommerce(c.Request.Context(), payment); err != nil {
-			return db.Payment{}, errInternal(fmt.Sprintf("sync order payment failed: %v", err))
-		}
-		return payment, nil
-	}
-	if payment.Status == paymentStatusPaid {
-		if err := h.syncPaymentToCommerce(c.Request.Context(), payment); err != nil {
-			return db.Payment{}, errInternal(fmt.Sprintf("sync order payment failed: %v", err))
-		}
+	if payment.Status == normalizedStatus || payment.Status == paymentStatusPaid {
 		return payment, nil
 	}
 
@@ -674,7 +676,7 @@ func (h *Handler) applyPaymentResolution(c *gin.Context, payment db.Payment, sta
 		}
 	}
 
-	updated, err := h.Store.UpdatePaymentState(c.Request.Context(), db.UpdatePaymentStateParams{
+	updated, err := h.Store.UpdatePaymentState(ctx, db.UpdatePaymentStateParams{
 		ID:               payment.ID,
 		Status:           normalizedStatus,
 		ProviderTradeNo:  providerTradeNo,
@@ -689,18 +691,14 @@ func (h *Handler) applyPaymentResolution(c *gin.Context, payment db.Payment, sta
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return db.Payment{}, errInternal("update payment failed")
 		}
-		updated, err = h.Store.GetPayment(c.Request.Context(), payment.ID)
+		updated, err = h.Store.GetPayment(ctx, payment.ID)
 		if err != nil {
 			return db.Payment{}, errInternal("reload payment after concurrent update failed")
 		}
 	}
 
-	if err := h.syncPaymentToCommerce(c.Request.Context(), updated); err != nil {
-		return db.Payment{}, errInternal(fmt.Sprintf("sync order payment failed: %v", err))
-	}
-
 	actor := "system"
-	if err := h.recordAudit(c.Request.Context(), updated.ID, "status_updated", actor, "payment status -> "+updated.Status); err != nil {
+	if err := h.recordAudit(ctx, updated.ID, "status_updated", actor, "payment status -> "+updated.Status); err != nil {
 		h.logError("create payment audit log failed", err)
 	}
 
@@ -711,18 +709,39 @@ func (h *Handler) syncPaymentToCommerce(ctx context.Context, payment db.Payment)
 	if h.Commerce == nil {
 		return nil
 	}
+	if payment.Status != paymentStatusPaid {
+		latest, err := h.Store.GetLatestPaymentByOrder(ctx, payment.OrderID)
+		if err != nil {
+			return fmt.Errorf("load latest payment attempt: %w", err)
+		}
+		if latest.ID != payment.ID {
+			// Superseded non-paid attempts must not overwrite the current
+			// attempt, including legacy orders that have no receiver watermark.
+			return h.Store.MarkPaymentCommerceSynced(ctx, db.MarkPaymentCommerceSyncedParams{ID: payment.ID, SentVersion: payment.StateVersion})
+		}
+	}
 	var paidAt *time.Time
 	if payment.PaidAt.Valid {
 		value := payment.PaidAt.Time
 		paidAt = &value
 	}
-	return h.Commerce.SyncOrderPayment(ctx, payment.OrderID.String(), CommercePaymentSyncRequest{
-		PaymentID:       payment.ID.String(),
-		Channel:         payment.Channel,
-		Status:          payment.Status,
-		ProviderTradeNo: payment.ProviderTradeNo,
-		PaidAt:          paidAt,
-	})
+	var sourceCreatedAt *time.Time
+	if payment.StateVersion > 0 && payment.CreatedAt.Valid {
+		value := payment.CreatedAt.Time.UTC()
+		sourceCreatedAt = &value
+	}
+	if err := h.Commerce.SyncOrderPayment(ctx, payment.OrderID.String(), CommercePaymentSyncRequest{
+		PaymentID:        payment.ID.String(),
+		Channel:          payment.Channel,
+		Status:           payment.Status,
+		ProviderTradeNo:  payment.ProviderTradeNo,
+		PaidAt:           paidAt,
+		PaymentCreatedAt: sourceCreatedAt,
+		StateVersion:     payment.StateVersion,
+	}); err != nil {
+		return err
+	}
+	return h.Store.MarkPaymentCommerceSynced(ctx, db.MarkPaymentCommerceSyncedParams{ID: payment.ID, SentVersion: payment.StateVersion})
 }
 
 func (h *Handler) loadPayment(c *gin.Context, paymentID uuid.UUID) (db.Payment, error) {

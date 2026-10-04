@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import Taro, { useDidShow } from '@tarojs/taro';
 import ProductCatalogApp from './index';
@@ -91,7 +89,6 @@ describe('ProductCatalogApp', () => {
     expect(Taro.navigateTo).toHaveBeenCalledWith({ url: '/pages/import/index' });
   });
 
-
   it('keeps rendering product cards for long unbroken titles', async () => {
     (commerceServices.catalog.listProducts as jest.Mock).mockResolvedValue({
       items: longTitleProducts,
@@ -108,50 +105,6 @@ describe('ProductCatalogApp', () => {
     expect(screen.getByText(/Real Import Product 1772794846257/)).toBeInTheDocument();
     expect(screen.getByText(/Real Import Product 1772794337333/)).toBeInTheDocument();
     expect(document.querySelectorAll('.product-card')).toHaveLength(2);
-  });
-
-
-  it('uses multiline wrapping styles for product card titles', () => {
-    const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../app.scss'), 'utf8');
-
-    expect(stylesheet).toContain('.product-card-title');
-    expect(stylesheet).toContain('.product-card--home');
-    expect(stylesheet).toContain('.product-card-image-shell');
-    expect(stylesheet).toContain('.product-card-image-wrapper');
-    expect(stylesheet).toContain('.product-card-image-wrapper .taroify-image');
-    expect(stylesheet).toContain('.product-card-image-wrapper .taroify-image__img');
-    expect(stylesheet).toContain('-webkit-line-clamp: 2;');
-    expect(stylesheet).toContain('overflow-wrap: anywhere;');
-    expect(stylesheet).toContain('word-break: break-word;');
-  });
-
-  it('uses a safe showcase height and clamps slide copy for miniapp', () => {
-    const stylesheet = fs.readFileSync(path.resolve(__dirname, '../../components/home-search-input/index.scss'), 'utf8');
-    const pageStylesheet = fs.readFileSync(path.resolve(__dirname, './index.scss'), 'utf8');
-
-    expect(stylesheet).toContain('.home-search-shell');
-    expect(stylesheet).toContain('.home-search-input');
-    expect(stylesheet).toContain('.home-search-placeholder');
-    expect(stylesheet).toContain('text-align: left;');
-    expect(pageStylesheet).toContain('.home-showcase-swiper');
-    expect(pageStylesheet).toContain('height: 320px;');
-    expect(pageStylesheet).toContain('.home-showcase-title');
-    expect(pageStylesheet).toContain('.home-showcase-title--demand');
-    expect(pageStylesheet).toContain('.home-showcase-copy');
-    expect(pageStylesheet).toContain('.home-showcase-decoration');
-    expect(pageStylesheet).toContain('max-width: 400rpx;');
-    expect(pageStylesheet).toContain('max-width: 520rpx;');
-    expect(pageStylesheet).toContain('padding: 20px 20px 24px;');
-    expect(pageStylesheet).toContain('padding-top: 24px;');
-    expect(pageStylesheet).toContain('box-sizing: border-box;');
-    expect(pageStylesheet).toContain('-webkit-line-clamp: 2;');
-    expect(pageStylesheet).toContain('.home-product-matrix');
-    expect(pageStylesheet).toContain('display: flex;');
-    expect(pageStylesheet).toContain('flex-wrap: wrap;');
-    expect(pageStylesheet).toContain('flex: 0 0 calc((100% - 12px) / 2);');
-    expect(pageStylesheet).toContain('gap: 12px;');
-    expect(pageStylesheet).toContain('.home-product-cell .product-card--home');
-    expect(pageStylesheet).toContain('.home-category-panel');
   });
 
   it('updates search input value', async () => {

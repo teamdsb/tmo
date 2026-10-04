@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './offline-fixtures';
 
 import { loginAsCs, loginMockBoss } from './import-fixtures';
 

@@ -54,7 +54,7 @@ func TestApplyPaymentResolutionPostgresKeepsPaidStateMonotonic(t *testing.T) {
 	c.Request = httptest.NewRequest(http.MethodPost, "/payments/"+stored.ID.String()+"/recheck", nil).WithContext(ctx)
 	reason := "late provider failure"
 
-	updated, err := handler.applyPaymentResolution(c, stale, paymentStatusFailed, nil, &reason)
+	updated, err := handler.applyPaymentResolution(c.Request.Context(), stale, paymentStatusFailed, nil, &reason)
 	if err != nil {
 		t.Fatalf("resolve stale failure against PAID row: %v", err)
 	}

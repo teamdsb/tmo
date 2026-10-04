@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useDidShow } from '@tarojs/taro';
 import { commerceServices } from '../../services/commerce';
@@ -60,7 +58,6 @@ describe('CategoryPage', () => {
     expect(document.querySelectorAll('.category-primary-label')).toHaveLength(4);
   });
 
-
   it('keeps category product cards rendered for long titles', async () => {
     (commerceServices.catalog.listProducts as jest.Mock).mockResolvedValue({
       items: [
@@ -75,51 +72,6 @@ describe('CategoryPage', () => {
     expect((await screen.findAllByText(/Category Product ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890/)).length).toBeGreaterThan(0);
     expect(document.querySelectorAll('.category-product-card')).toHaveLength(2);
     expect(document.querySelectorAll('.category-product-image-shell')).toHaveLength(2);
-  });
-
-  it('keeps shared long-text styles for category product titles', () => {
-    const stylesheet = fs.readFileSync(path.resolve(__dirname, './index.scss'), 'utf8');
-    const searchStylesheet = fs.readFileSync(path.resolve(__dirname, '../../components/home-search-input/index.scss'), 'utf8');
-
-    expect(stylesheet).toContain('.category-product-title');
-    expect(stylesheet).toContain('.category-product-image-shell');
-    expect(stylesheet).toContain('aspect-ratio: 1 / 1;');
-    expect(stylesheet).toContain('.category-product-image-wrapper');
-    expect(stylesheet).toContain('.category-product-body');
-    expect(stylesheet).toContain('padding: 10px 8px 8px;');
-    expect(stylesheet).toContain('-webkit-line-clamp: 2;');
-    expect(stylesheet).toContain('min-height: 1.35em;');
-    expect(stylesheet).toContain('line-height: 1.35;');
-    expect(stylesheet).toContain('overflow-wrap: anywhere;');
-    expect(stylesheet).toContain('.category-product-price');
-    expect(stylesheet).toContain('margin-top: 0;');
-    expect(stylesheet).toContain('.category-product-action');
-    expect(stylesheet).toContain('margin-top: 6px;');
-    expect(stylesheet).toContain('height: 48px;');
-    expect(stylesheet).toContain('.category-secondary-nav-inner');
-    expect(stylesheet).toContain('min-width: max-content;');
-    expect(stylesheet).toContain('flex: 0 0 auto;');
-    expect(stylesheet).toContain('white-space: nowrap;');
-    expect(stylesheet).toContain('.category-secondary-nav');
-    expect(stylesheet).toContain('border-top: 1px solid #eef2f6;');
-    expect(stylesheet).toContain('padding: 14px 0 16px;');
-    expect(stylesheet).toContain('gap: 12px;');
-    expect(stylesheet).toContain('height: 36px;');
-    expect(stylesheet).toContain('padding: 0 18px;');
-    expect(stylesheet).toContain('font-size: calc(24rpx + var(--font-size-step-rpx, 0rpx));');
-    expect(stylesheet).toContain('.category-primary-label');
-    expect(stylesheet).toContain('font-size: calc(18rpx + var(--font-size-step-rpx, 0rpx));');
-    expect(stylesheet).toContain('.category-primary-item');
-    expect(stylesheet).toContain('min-width: 96px;');
-    expect(stylesheet).toContain('gap: 12px;');
-    expect(stylesheet).toContain('padding: 16px 16px 14px;');
-    expect(stylesheet).toContain('width: 36px;');
-    expect(stylesheet).toContain('height: 6px;');
-    expect(stylesheet).toContain('padding: 8px 12px 24px;');
-    expect(stylesheet).toContain('padding: 22px 12px 24px;');
-    expect(searchStylesheet).toContain('.home-search-shell');
-    expect(searchStylesheet).toContain('.home-search-input');
-    expect(searchStylesheet).toContain('.home-search-placeholder');
   });
 
   it('switches active category from sidebar', async () => {

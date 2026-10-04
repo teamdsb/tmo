@@ -1,5 +1,6 @@
 
 
+
 .visible {
   visibility: visible
 }
@@ -39,10 +40,6 @@
 .mx-auto {
   margin-left: auto;
   margin-right: auto
-}
-
-.-ml-2 {
-  margin-left: -16rpx
 }
 
 .mb-1 {
@@ -644,10 +641,6 @@
 
 .leading-tight {
   line-height: 1.25
-}
-
-.tracking-tight {
-  letter-spacing: -0.025em
 }
 
 .tracking-wide {

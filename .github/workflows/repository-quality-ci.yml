@@ -182,5 +182,14 @@ jobs:
       - name: Typecheck, build, and CI-E2E admin-web
         run: pnpm run test:admin-web
 
+      - name: Preserve admin browser evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: admin-browser-evidence
+          path: apps/admin-web/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Fail on stale generated artifacts
         run: git diff --exit-code

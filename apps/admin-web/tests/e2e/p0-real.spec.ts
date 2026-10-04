@@ -92,7 +92,7 @@ test('P0/P1 real mode flows work in admin-web', async ({ page }) => {
   await expect(webhooksReady.first()).toBeVisible();
   if ((await webhookRows.count()) > 0) {
     const replayRespPromise = page.waitForResponse((response) =>
-      matchesPath(response, 'POST', /^\/api\/admin\/payments\/webhooks\/[^/]+\/replay$/)
+      matchesPath(response, 'POST', /^\/payment-api\/admin\/payments\/webhooks\/[^/]+\/replay$/)
     );
     await page.getByRole('button', { name: '重放' }).first().click();
     const replayResp = await replayRespPromise;
